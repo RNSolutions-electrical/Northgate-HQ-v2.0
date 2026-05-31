@@ -604,3 +604,67 @@ The migration has NOT been run in Supabase.
 The migration still requires final Ryan/ChatGPT review before execution.
 
 ---
+
+## Entry 006
+
+**Date:** 2026-05-31
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory Migration Applied
+**Session type:** Supabase migration execution / post-run verification
+
+---
+
+### What Was Completed
+
+1. Confirmed the Supabase projects before running anything:
+   - v1 backup project: `northgate-hq` / `qpbuzinkjbjbvcdwvdfu`
+   - v2 target project: `northgate-hq-v2.0` / `keogysnoukbendfkfjcn`
+
+2. Confirmed v2 migration history was empty before applying the migration.
+
+3. Applied the reviewed Phase 1 Inventory migration to the v2 project only.
+
+4. Supabase recorded the migration as:
+   - version: `20260531173603`
+   - name: `phase_1_inventory`
+
+5. Ran post-migration balance behavior tests using temporary `codex-test-*`
+   records, then cleaned the test records up.
+
+---
+
+### Verification Completed
+
+The post-migration test block verified:
+
+1. Pending transaction item insert did not affect balance.
+2. Updating a transaction item to `status = 'approved'` with `occurred_at`
+   affected balance.
+3. Approved `physical_count_correction` reset the balance baseline.
+4. Approved movement after the physical count adjusted from the new baseline.
+5. Rejected rows did not affect `inventory_balances`.
+6. Cleanup verification showed zero remaining `codex-test-*` rows in the
+   checked tables.
+
+---
+
+### Important Notes
+
+The migration was run only against the new v2 Supabase project:
+`northgate-hq-v2.0` / `keogysnoukbendfkfjcn`.
+
+The v1 backup project was not selected and was not modified.
+
+---
+
+### Next Steps
+
+1. Begin wiring the app to the v2 Supabase project when Ryan is ready.
+2. Build cart checkout/finalization so physical movements explicitly set:
+   - `status = 'approved'`
+   - `occurred_at = NOW()`
+   - `unit_cost_at_time = current catalog unit_cost`
+3. Import/seed real inventory master data after the known Google Sheets cleanup
+   items are resolved.
+
+---
