@@ -374,6 +374,7 @@ RETURNS TRIGGER AS $$
 DECLARE
   target_bin_item_id UUID;
   target_bin_item_ids UUID[];
+  raw_target_bin_item_ids UUID[];
   new_balance NUMERIC;
   latest_correction_sequence BIGINT;
   latest_correction_occurred_at TIMESTAMPTZ;
@@ -387,17 +388,17 @@ BEGIN
     Locking them in deterministic order prevents opposite-direction updates
     from deadlocking.
   */
+  IF TG_OP = 'INSERT' THEN
+    raw_target_bin_item_ids := ARRAY[NEW.bin_item_id];
+  ELSIF TG_OP = 'DELETE' THEN
+    raw_target_bin_item_ids := ARRAY[OLD.bin_item_id];
+  ELSE
+    raw_target_bin_item_ids := ARRAY[OLD.bin_item_id, NEW.bin_item_id];
+  END IF;
+
   SELECT ARRAY_AGG(DISTINCT affected_bin_item_id ORDER BY affected_bin_item_id)
   INTO target_bin_item_ids
-  FROM (
-    SELECT OLD.bin_item_id AS affected_bin_item_id
-    WHERE TG_OP IN ('UPDATE', 'DELETE')
-
-    UNION
-
-    SELECT NEW.bin_item_id AS affected_bin_item_id
-    WHERE TG_OP IN ('INSERT', 'UPDATE')
-  ) affected
+  FROM UNNEST(raw_target_bin_item_ids) AS affected_bin_item_id
   WHERE affected_bin_item_id IS NOT NULL;
 
   IF target_bin_item_ids IS NULL THEN
@@ -628,6 +629,11 @@ BEGIN
     RAISE EXCEPTION
       'Approved estimate snapshots are immutable and cannot be modified.';
   END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

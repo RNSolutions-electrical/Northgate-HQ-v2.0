@@ -568,3 +568,39 @@ constraint issues.
 3. Only after final approval, apply the migration to the new Supabase project.
 
 ---
+
+## Entry 005
+
+**Date:** 2026-05-31
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory Migration Runtime Fixes
+**Session type:** Migration review fix / pre-run review
+
+---
+
+### What Was Completed
+
+1. Updated `update_inventory_balance()` in both the migration file and
+   `docs/INVENTORY_SCHEMA.md` so trigger code only references `OLD` and `NEW`
+   in valid trigger operations.
+
+2. Replaced the affected-bin SQL subquery with explicit `TG_OP` branches:
+   - INSERT uses `NEW.bin_item_id`
+   - DELETE uses `OLD.bin_item_id`
+   - UPDATE uses both `OLD.bin_item_id` and `NEW.bin_item_id`
+
+3. Kept the sorted/deduplicated advisory-lock order by unnesting the raw
+   affected-bin array before rebuilding balances.
+
+4. Updated `block_snapshot_mutation()` so DELETE triggers return `OLD` and
+   UPDATE triggers return `NEW`.
+
+---
+
+### Important Notes
+
+The migration has NOT been run in Supabase.
+
+The migration still requires final Ryan/ChatGPT review before execution.
+
+---
