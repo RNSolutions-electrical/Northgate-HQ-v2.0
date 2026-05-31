@@ -484,6 +484,8 @@ This should be reviewed before building the cart checkout workflow.
      `occurred_at` plus `ledger_sequence` tie-breaker
    - keep physical count corrections as baselines, not additive deltas
    - recalculate both old and new bin balances if `bin_item_id` changes
+   - sort and deduplicate affected bin IDs before taking advisory locks to
+     prevent opposite-direction update deadlocks
 
 5. Added/confirmed balance-supporting indexes for approved-row balance rebuilds.
 
