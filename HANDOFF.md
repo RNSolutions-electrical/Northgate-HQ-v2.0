@@ -513,3 +513,58 @@ Ryan/ChatGPT before being run in Supabase.
 Do not run the migration until final approval is given.
 
 ---
+
+## Entry 004
+
+**Date:** 2026-05-31
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory Migration File Generation
+**Session type:** Migration artifact creation / pre-run review
+
+---
+
+### What Was Completed
+
+1. Created the actual Phase 1 Inventory SQL migration file:
+   `supabase/migrations/202605310001_phase_1_inventory.sql`.
+
+2. Generated the migration from `docs/INVENTORY_SCHEMA.md` v2.3 plus the
+   approved Entry 003 balance-trigger revisions.
+
+3. Included the approved inventory balance trigger with:
+   - approved-row-only balance calculations
+   - `occurred_at` event-time ordering
+   - `ledger_sequence` deterministic tie-breaker
+   - per-bin advisory transaction locks
+   - sorted/deduplicated affected-bin lock order
+   - physical count corrections as baselines, not additive deltas
+
+4. Included the minimal canonical `vendors` table, `occurred_at`,
+   `ledger_sequence`, approved-row constraint, balance-supporting indexes,
+   cart tables, vehicle stock tables, utility functions, triggers, and Grand
+   Master Inventory view.
+
+---
+
+### Important Notes
+
+The Supabase CLI is not installed in the local workspace, so Codex could not
+run `supabase migration new`. The migration file was created directly using
+the timestamped Supabase migration filename convention.
+
+The migration has NOT been run in Supabase.
+
+The file still requires Ryan/ChatGPT final review before execution, because
+converting the schema plan into runnable SQL can introduce ordering or
+constraint issues.
+
+---
+
+### Next Steps
+
+1. Ryan/ChatGPT reviews
+   `supabase/migrations/202605310001_phase_1_inventory.sql`.
+2. Address any SQL ordering, constraint, or naming issues found in review.
+3. Only after final approval, apply the migration to the new Supabase project.
+
+---
