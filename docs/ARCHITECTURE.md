@@ -376,8 +376,11 @@ destination_type  TEXT CHECK (destination_type IN
 destination_id    TEXT  -- FK target depends on destination_type
 unit_cost_at_time NUMERIC NOT NULL DEFAULT 0
 ledger_sequence   BIGINT GENERATED ALWAYS AS IDENTITY
+occurred_at       TIMESTAMPTZ
 status            TEXT NOT NULL DEFAULT 'pending'
                   CHECK (status IN ('pending','approved','rejected'))
+CONSTRAINT transaction_items_approved_requires_occurred_at
+  CHECK (status <> 'approved' OR occurred_at IS NOT NULL)
 ```
 
 Default checkout: entire cart assigned to one destination.
@@ -623,7 +626,7 @@ Documents are stored in **Supabase Storage**. The `documents` table stores
 the file path / URL, not the file itself.
 
 Documents may attach to: jobs, estimates, vehicles, tools, employees,
-change orders, reports, snapshots.
+change orders, reports, snapshots, invoices.
 
 Document naming format:
 
@@ -639,7 +642,83 @@ Chatham Ridge 2026-05-28 1430 Approved Estimate Snapshot Original Budget.pdf
 
 ---
 
-## 21. Financials / Accounting
+## 21. Inventory Cost Valuation (locked)
+
+Every job-cost effect of an inventory movement is valued at the catalog
+`unit_cost` at the moment of the transaction, stored in `unit_cost_at_time`,
+signed by direction:
+
+- assign_to_job → charge the job at unit_cost at moment of issue
+- return_from_job → credit the job at unit_cost at moment of return
+
+Actual purchase price is NOT tracked per material (standard costing). The
+variance between purchase price and catalog value is absorbed in accounting
+reconciliation, never in the app.
+
+The app's job-cost figure is PARTIAL by design: it reflects internal-stock
+movements only (issues minus returns). Material bought directly for a job that
+never enters stock does not touch the app. The app is source of truth for
+internal-stock job cost, NOT total job cost. (See Section 23 for the future
+accounting-module path where AP enters the app.)
+
+One transaction type (`return_from_job`) covers both true returns of issued
+stock and excess-from-direct-purchase entered into stock at job end; the app
+credits catalog value in both cases.
+
+---
+
+## 22. Transaction Status Semantics (locked)
+
+`transaction_items.status = 'approved'` means ONLY that the physical inventory
+movement is official and affects on-hand balance. Cart checkout/finalization
+flips rows to `'approved'` to record physical movement — nothing about
+accounting.
+
+`status` must NOT be overloaded to carry financial/accounting approval.
+
+Three distinct concepts are kept separate:
+
+1. Physical inventory movement → `transaction_items.status` (drives on-hand)
+2. Internal-stock job-cost approval → separate, batchable layer grouped by job
+3. Vendor / AP invoice approval → separate, invoice-by-invoice, with purchases
+
+`occurred_at` (event time, stamped at finalization) is distinct from
+`created_at` (record/entry time). Ledger ordering and physical-count baselines
+use `occurred_at` as the semantic anchor, with `ledger_sequence` as
+deterministic tie-breaker. The same event-vs-entry distinction applies to
+invoices (purchase date vs entry date) in the accounting module.
+
+---
+
+## 23. Deferred — Accounting Module (NOT LOCKED — discussion item)
+
+Parked for the accounting module build. Not a locked decision.
+
+Proposed feature: accountant-facing invoice entry capturing vendor, invoice
+number, entry date/time, and purchase date/time, with optional AI-assisted
+extraction from uploaded invoice documents to populate the job-cost report.
+
+To resolve when this module is designed:
+
+- Source-of-truth boundary (rule 7): is the app authoritative for invoice →
+  job-cost allocation, or a reporting mirror of external accounting? This
+  extends the partial-job-cost decision (Section 21) — AP enters the app here,
+  making the report fuller. Do not silently overturn Section 21.
+- AI-extracted invoice data must pass accountant review before posting to job
+  cost, and the post must be audit-logged (rules 5, 6).
+- Invoice documents reuse the Section 20 documents system (add "invoices" to
+  attach targets) — no separate storage.
+
+Prerequisites that belong in EARLIER phases, not here:
+
+- Canonical vendors entity (stable IDs), shared by estimator, vendor returns,
+  and future invoices.
+- App-wide event-datetime (`occurred_at`) vs entry-datetime (`created_at`)
+  convention, established when transaction timestamps are finalized.
+
+---
+
+## 24. Financials / Accounting
 
 ### Module boundary (locked):
 
@@ -647,8 +726,10 @@ Chatham Ridge 2026-05-28 1430 Approved Estimate Snapshot Original Budget.pdf
 - **Financials** owns: pending cost approval, invoice review, accounting exports,
   cost reports
 
-Both modules read the same budget and cost tables. Financials writes the
-`approved_by` and `status` fields. PM writes the budget amounts and forecasts.
+Both modules read the same budget and cost tables. Financials writes financial
+approval fields such as `approved_by` and financial review status on future
+financial tables. It does not own `transaction_items.status`, which is reserved
+for physical inventory movement. PM writes the budget amounts and forecasts.
 
 Accounting exports support selectable output fields via checkboxes.
 
@@ -657,7 +738,7 @@ total cost, cost code, user, source location, destination location.
 
 ---
 
-## 22. Dev Console
+## 25. Dev Console
 
 Developer-only operational control center. All actions logged.
 
@@ -707,7 +788,7 @@ Responsibilities:
 
 ---
 
-## 23. Inventory Balance Cache
+## 26. Inventory Balance Cache
 
 > **Ryan's Decision:** An `inventory_balances` cache table must exist in the
 > schema. Balances are calculated from transaction history but cached for
@@ -732,11 +813,14 @@ history.
 Only approved `transaction_items` affect the balance cache. Pending and
 rejected rows remain in the transaction log for workflow/audit purposes but do
 not change quantity on hand. Physical count corrections also require
-`status = 'approved'` before they become the balance baseline.
+`status = 'approved'` before they become the balance baseline. The latest
+approved correction is selected by `occurred_at DESC, ledger_sequence DESC`;
+post-correction movements are included by `occurred_at` with `ledger_sequence`
+as the deterministic tie-breaker.
 
 ---
 
-## 24. Non-Negotiable Architectural Rules
+## 27. Non-Negotiable Architectural Rules
 
 These are the constitutional laws of Northgate HQ. They may not be overridden
 by implementation convenience, time pressure, or AI recommendation without a
@@ -791,7 +875,7 @@ formal lock document update reviewed by Ryan.
 
 ---
 
-## 25. Label and QR Printing
+## 28. Label and QR Printing
 
 Authorized users may:
 
@@ -806,7 +890,7 @@ Specific Avery template IDs to be added when confirmed.
 
 ---
 
-## 26. Mobile and Desktop Behavior
+## 29. Mobile and Desktop Behavior
 
 One system for desktop and mobile. No separate mobile app initially.
 
@@ -821,7 +905,7 @@ Preferred examples:
 
 ---
 
-## 27. UI Customization Philosophy
+## 30. UI Customization Philosophy
 
 Phased approach — do not delay core build.
 
@@ -835,7 +919,7 @@ No browser-based code editing in early versions.
 
 ---
 
-## 28. Scope Control Rule
+## 31. Scope Control Rule
 
 Build extension points before future systems.
 
@@ -847,7 +931,7 @@ Do not prematurely build future modules.
 
 ---
 
-## 29. First Build Order
+## 32. First Build Order
 
 > **Updated to reflect work already completed.**
 
@@ -885,7 +969,7 @@ Inventory must be built to later integrate with:
 
 ---
 
-## 30. AI Development Roles
+## 33. AI Development Roles
 
 One GitHub repository. One Supabase schema. One Architecture Lock Document.
 One implementation roadmap.
@@ -1049,7 +1133,7 @@ the same updated truth.
 
 ---
 
-## 32. Cumulative Handoff Document
+## 35. Cumulative Handoff Document
 
 ### Purpose
 
@@ -1164,7 +1248,7 @@ This keeps both documents synchronized and ensures neither drifts from the other
 
 ---
 
-## 33. Final Guiding Principle
+## 36. Final Guiding Principle
 
 Northgate HQ should prioritize:
 

@@ -118,8 +118,6 @@ Supabase is the live source of truth — Sheets is not.
   - `min_quantity` added to `bin_items`
   - Clerk user IDs locked as TEXT throughout
   - `target_quantity` added to `transaction_items` for physical count corrections
-  - `ledger_sequence` added to `transaction_items` for deterministic balance rebuild order
-  - `inventory_balances` must only reflect approved `transaction_items`
   - `change_logs` column names locked to Phase 1 names
   - `void_expired_carts()` function replaces pg_cron (not on free tier)
 - Repository named: `Northgate-HQ-v2.0`
@@ -149,9 +147,7 @@ Supabase is the live source of truth — Sheets is not.
 
 6. **The balance trigger is mandatory.** Do not skip or simplify it.
    It handles both delta transactions and absolute corrections for
-   physical_count_correction using `target_quantity`. Only
-   `status = 'approved'` transaction items affect quantity on hand; pending and
-   rejected rows are ignored by balance calculations.
+   physical_count_correction using `target_quantity`.
 
 7. **`bin_item_id` is NOT NULL** on both `transaction_items` and
    `inventory_cart_items`. Items must always come from a known bin.
@@ -435,5 +431,83 @@ This should be reviewed before building the cart checkout workflow.
 - Do not use UUID order for ledger sequencing.
 - Do not merge physical movement approval with accounting/job-cost approval without explicit architectural decision.
 - Do not run the migration until Claude completes final review of the revised balance behavior.
+
+---
+
+## Entry 003
+
+**Date:** 2026-05-31
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory Migration Revision
+**Session type:** Migration update / architecture alignment
+
+---
+
+### Decisions Applied This Session
+
+1. Inventory cost valuation invariant preserved: every job-cost effect of an
+   inventory movement is valued at catalog `unit_cost` at the moment of the
+   transaction, stored in `unit_cost_at_time`, signed by direction.
+
+2. App job-cost remains partial by design — internal-stock movements only.
+   Direct/AP purchases that never enter stock do not touch the app.
+
+3. `transaction_items.status` remains physical-only. `approved` means the
+   physical inventory movement is official and affects on-hand balance. It does
+   not mean job-cost approval, accounting approval, AP approval, invoice
+   approval, or reconciliation.
+
+4. `ledger_sequence` remains required as a deterministic tie-breaker but is not
+   treated as real-world event order.
+
+5. `occurred_at` was introduced as physical movement event time, distinct from
+   `created_at` record/entry time.
+
+---
+
+### Migration Changes Made
+
+1. Added/confirmed `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` on
+   `transaction_items`.
+
+2. Added `occurred_at TIMESTAMPTZ` to `transaction_items`.
+
+3. Added a constraint preventing approved transaction items from having a null
+   `occurred_at`.
+
+4. Updated `update_inventory_balance()` to:
+   - serialize recomputes per `bin_item_id` using `pg_advisory_xact_lock`
+   - calculate balances from approved rows only
+   - select latest physical count correction by `occurred_at DESC,
+     ledger_sequence DESC`
+   - sum only approved movements after the latest count correction using
+     `occurred_at` plus `ledger_sequence` tie-breaker
+   - keep physical count corrections as baselines, not additive deltas
+   - recalculate both old and new bin balances if `bin_item_id` changes
+
+5. Added/confirmed balance-supporting indexes for approved-row balance rebuilds.
+
+6. Added minimal canonical `vendors` table.
+
+---
+
+### Checkout / Finalization Requirements
+
+Cart checkout/finalization must:
+
+1. Mark physical movement rows `approved` when stock physically moves.
+2. Stamp `occurred_at = NOW()` at finalization.
+3. Snapshot `unit_cost_at_time` from catalog `unit_cost` at the moment of
+   issue/return.
+4. Avoid using `transaction_items.status` for any financial/accounting approval.
+
+---
+
+### Still Requires Final Review
+
+The revised migration SQL/code has been prepared but should be reviewed by
+Ryan/ChatGPT before being run in Supabase.
+
+Do not run the migration until final approval is given.
 
 ---

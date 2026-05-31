@@ -31,6 +31,11 @@
    ledger order. `inventory_balances` is calculated only from approved
    transaction items; pending and rejected rows do not affect quantity on hand.
 
+7. **Event time separated from entry time** — `transaction_items.occurred_at`
+   records when a physical movement becomes official. Approved transaction
+   items require `occurred_at`; physical count baselines use `occurred_at`
+   first and `ledger_sequence` only as a deterministic tie-breaker.
+
 ---
 
 ## Core Principle
@@ -153,6 +158,27 @@ ALTER TABLE cost_codes DISABLE ROW LEVEL SECURITY;
 
 ---
 
+### vendors
+
+Minimal canonical vendor entity for vendor returns, estimator references, and
+future invoice/accounting workflows.
+
+```sql
+CREATE TABLE IF NOT EXISTS vendors (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT NOT NULL,
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE vendors DISABLE ROW LEVEL SECURITY;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vendors_name_unique_lower
+ON vendors (LOWER(name));
+```
+
+---
+
 ### transaction_items
 
 The single most important inventory table.
@@ -183,7 +209,13 @@ CREATE TABLE IF NOT EXISTS transaction_items (
   status            TEXT    NOT NULL DEFAULT 'pending'
                     CHECK (status IN ('pending', 'approved', 'rejected')),
   note              TEXT,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  occurred_at       TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT transaction_items_approved_requires_occurred_at
+    CHECK (
+      status <> 'approved'
+      OR occurred_at IS NOT NULL
+    )
 );
 
 ALTER TABLE transaction_items DISABLE ROW LEVEL SECURITY;
@@ -195,6 +227,8 @@ CREATE INDEX IF NOT EXISTS idx_txn_items_destination  ON transaction_items(desti
 CREATE INDEX IF NOT EXISTS idx_txn_items_status       ON transaction_items(status);
 CREATE INDEX IF NOT EXISTS idx_txn_items_bin_status_ledger
   ON transaction_items(bin_item_id, status, ledger_sequence);
+CREATE INDEX IF NOT EXISTS idx_txn_items_bin_status_occurred_ledger
+  ON transaction_items(bin_item_id, status, occurred_at, ledger_sequence);
 ```
 
 ---
@@ -339,56 +373,80 @@ CREATE OR REPLACE FUNCTION update_inventory_balance()
 RETURNS TRIGGER AS $$
 DECLARE
   target_bin_item_id UUID;
+  target_bin_item_ids UUID[];
   new_balance NUMERIC;
   latest_correction_sequence BIGINT;
+  latest_correction_occurred_at TIMESTAMPTZ;
   latest_target_quantity NUMERIC;
 BEGIN
-  target_bin_item_id := COALESCE(NEW.bin_item_id, OLD.bin_item_id);
-
-  SELECT ti.ledger_sequence, ti.target_quantity
-  INTO latest_correction_sequence, latest_target_quantity
-  FROM transaction_items ti
-  WHERE ti.bin_item_id = target_bin_item_id
-    AND ti.status = 'approved'
-    AND ti.transaction_type = 'physical_count_correction'
-    AND ti.target_quantity IS NOT NULL
-  ORDER BY ti.ledger_sequence DESC
-  LIMIT 1;
-
-  IF latest_correction_sequence IS NOT NULL THEN
-    SELECT latest_target_quantity + COALESCE(SUM(
-      CASE
-        WHEN ti.transaction_type IN ('add_stock', 'return_from_job', 'return_from_vehicle') THEN ti.quantity
-        WHEN ti.transaction_type IN ('remove_stock', 'assign_to_job', 'assign_to_vehicle', 'scrap', 'vendor_return', 'mark_damaged') THEN -ti.quantity
-        ELSE 0
-      END
-    ), 0)
-    INTO new_balance
-    FROM transaction_items ti
-    WHERE ti.bin_item_id = target_bin_item_id
-      AND ti.status = 'approved'
-      AND ti.transaction_type <> 'physical_count_correction'
-      AND ti.ledger_sequence > latest_correction_sequence;
+  IF TG_OP = 'UPDATE' AND OLD.bin_item_id IS DISTINCT FROM NEW.bin_item_id THEN
+    target_bin_item_ids := ARRAY[OLD.bin_item_id, NEW.bin_item_id];
   ELSE
-    SELECT COALESCE(SUM(
-      CASE
-        WHEN ti.transaction_type IN ('add_stock', 'return_from_job', 'return_from_vehicle') THEN ti.quantity
-        WHEN ti.transaction_type IN ('remove_stock', 'assign_to_job', 'assign_to_vehicle', 'scrap', 'vendor_return', 'mark_damaged') THEN -ti.quantity
-        ELSE 0
-      END
-    ), 0)
-    INTO new_balance
-    FROM transaction_items ti
-    WHERE ti.bin_item_id = target_bin_item_id
-      AND ti.status = 'approved'
-      AND ti.transaction_type <> 'physical_count_correction';
+    target_bin_item_ids := ARRAY[COALESCE(NEW.bin_item_id, OLD.bin_item_id)];
   END IF;
 
-  INSERT INTO inventory_balances (bin_item_id, quantity, last_rebuilt)
-  VALUES (target_bin_item_id, new_balance, NOW())
-  ON CONFLICT (bin_item_id) DO UPDATE
-    SET quantity = EXCLUDED.quantity,
-        last_rebuilt = NOW();
+  FOREACH target_bin_item_id IN ARRAY target_bin_item_ids LOOP
+    IF target_bin_item_id IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(hashtext(target_bin_item_id::text));
+
+    latest_correction_sequence := NULL;
+    latest_correction_occurred_at := NULL;
+    latest_target_quantity := NULL;
+
+    SELECT ti.ledger_sequence, ti.occurred_at, ti.target_quantity
+    INTO latest_correction_sequence, latest_correction_occurred_at, latest_target_quantity
+    FROM transaction_items ti
+    WHERE ti.bin_item_id = target_bin_item_id
+      AND ti.status = 'approved'
+      AND ti.transaction_type = 'physical_count_correction'
+      AND ti.target_quantity IS NOT NULL
+    ORDER BY ti.occurred_at DESC, ti.ledger_sequence DESC
+    LIMIT 1;
+
+    IF latest_correction_sequence IS NOT NULL THEN
+      SELECT latest_target_quantity + COALESCE(SUM(
+        CASE
+          WHEN ti.transaction_type IN ('add_stock', 'return_from_job', 'return_from_vehicle') THEN ti.quantity
+          WHEN ti.transaction_type IN ('remove_stock', 'assign_to_job', 'assign_to_vehicle', 'scrap', 'vendor_return', 'mark_damaged') THEN -ti.quantity
+          ELSE 0
+        END
+      ), 0)
+      INTO new_balance
+      FROM transaction_items ti
+      WHERE ti.bin_item_id = target_bin_item_id
+        AND ti.status = 'approved'
+        AND ti.transaction_type <> 'physical_count_correction'
+        AND (
+          ti.occurred_at > latest_correction_occurred_at
+          OR (
+            ti.occurred_at = latest_correction_occurred_at
+            AND ti.ledger_sequence > latest_correction_sequence
+          )
+        );
+    ELSE
+      SELECT COALESCE(SUM(
+        CASE
+          WHEN ti.transaction_type IN ('add_stock', 'return_from_job', 'return_from_vehicle') THEN ti.quantity
+          WHEN ti.transaction_type IN ('remove_stock', 'assign_to_job', 'assign_to_vehicle', 'scrap', 'vendor_return', 'mark_damaged') THEN -ti.quantity
+          ELSE 0
+        END
+      ), 0)
+      INTO new_balance
+      FROM transaction_items ti
+      WHERE ti.bin_item_id = target_bin_item_id
+        AND ti.status = 'approved'
+        AND ti.transaction_type <> 'physical_count_correction';
+    END IF;
+
+    INSERT INTO inventory_balances (bin_item_id, quantity, last_rebuilt)
+    VALUES (target_bin_item_id, new_balance, NOW())
+    ON CONFLICT (bin_item_id) DO UPDATE
+      SET quantity = EXCLUDED.quantity,
+          last_rebuilt = NOW();
+  END LOOP;
 
   RETURN COALESCE(NEW, OLD);
 END;
@@ -592,30 +650,32 @@ BEGIN;
 
 -- Step 2: CREATE cost_codes
 
--- Step 3: CREATE transaction_items
+-- Step 3: CREATE vendors
 
--- Step 4: CREATE inventory_balances
+-- Step 4: CREATE transaction_items
 
--- Step 5: CREATE inventory_carts
+-- Step 5: CREATE inventory_balances
 
--- Step 6: CREATE inventory_cart_items
+-- Step 6: CREATE inventory_carts
 
--- Step 7: CREATE vehicle_bins
+-- Step 7: CREATE inventory_cart_items
 
--- Step 8: CREATE vehicle_bin_items
+-- Step 8: CREATE vehicle_bins
 
--- Step 9: CREATE notifications
+-- Step 9: CREATE vehicle_bin_items
 
--- Step 10: Create triggers
+-- Step 10: CREATE notifications
+
+-- Step 11: Create triggers
 --   a. update_inventory_balance
 --   b. audit_physical_count_correction
 --   c. block_snapshot_mutation (estimate snapshots)
 
--- Step 11: CREATE grand_master_inventory_view
+-- Step 12: CREATE grand_master_inventory_view
 
--- Step 12: Disable RLS on all new tables
+-- Step 13: Disable RLS on all new tables
 
--- Step 13: Create all indexes
+-- Step 14: Create all indexes
 
 COMMIT;
 ```
@@ -657,6 +717,29 @@ Codex must NOT include `CREATE EXTENSION pg_cron` in the migration SQL.
 
 ---
 
+## Checkout / Finalization Requirements (locked)
+
+When cart checkout/finalization physically moves stock:
+
+1. Create or update the relevant `transaction_items`.
+2. Set `status = 'approved'` when physical movement is finalized.
+3. Stamp `occurred_at = NOW()` at finalization.
+4. Snapshot `unit_cost_at_time` from catalog `unit_cost` at the moment of
+   issue/return.
+5. Do not use `transaction_items.status` for job-cost/accounting approval.
+6. Do not wait for future job-cost approval before marking the physical
+   movement approved.
+
+Required finalized-row values:
+
+```sql
+status = 'approved',
+occurred_at = NOW(),
+unit_cost_at_time = current_catalog_unit_cost
+```
+
+---
+
 ## Data Cleanup Required Before First Sheets Import
 
 1. **Material_Categories sheet:** Several `sub_category_2` rows have blank
@@ -691,8 +774,9 @@ When writing migration SQL:
 - All user_id fields: TEXT
 - All new tables: DISABLE ROW LEVEL SECURITY
 - Include the balance trigger — do not skip or simplify it
-- Include `ledger_sequence` on `transaction_items` and calculate balances from
-  approved rows only
+- Include `ledger_sequence` and `occurred_at` on `transaction_items`; calculate
+  balances from approved rows only
+- Include the minimal `vendors` table
 - Include the physical count audit trigger
 - Ask Ryan to confirm Supabase tier before implementing pg_cron
 
