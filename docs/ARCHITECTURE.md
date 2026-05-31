@@ -375,6 +375,9 @@ destination_type  TEXT CHECK (destination_type IN
                      'vendor_return','scrap','unknown'))
 destination_id    TEXT  -- FK target depends on destination_type
 unit_cost_at_time NUMERIC NOT NULL DEFAULT 0
+ledger_sequence   BIGINT GENERATED ALWAYS AS IDENTITY
+status            TEXT NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending','approved','rejected'))
 ```
 
 Default checkout: entire cart assigned to one destination.
@@ -725,6 +728,11 @@ inventory_balances (
 Balance cache is updated on every transaction. If the cache is suspected to be
 wrong, the Dev Console rebuild function recalculates from full transaction
 history.
+
+Only approved `transaction_items` affect the balance cache. Pending and
+rejected rows remain in the transaction log for workflow/audit purposes but do
+not change quantity on hand. Physical count corrections also require
+`status = 'approved'` before they become the balance baseline.
 
 ---
 

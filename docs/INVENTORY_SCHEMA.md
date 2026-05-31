@@ -1,7 +1,7 @@
 # Northgate HQ — Inventory Schema Plan v2.3
 ### Authority: Architecture Lock Document v2.1
 ### Previous: v2.2 (adapted to Phase 1)
-### This version: Four adjustments from Codex review, applied and corrected
+### This version: Five adjustments from Codex review, applied and corrected
 ### Status: READY FOR MIGRATION SQL GENERATION
 
 ---
@@ -25,6 +25,11 @@
 
 5. **Cart void mechanism locked** — Dev Console callable function `void_expired_carts()`.
    No pg_cron (not available on current Supabase tier). pg_cron is future upgrade path.
+
+6. **Inventory balance approval gate added** — `transaction_items` now has
+   `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` for deterministic
+   ledger order. `inventory_balances` is calculated only from approved
+   transaction items; pending and rejected rows do not affect quantity on hand.
 
 ---
 
@@ -155,6 +160,7 @@ The single most important inventory table.
 ```sql
 CREATE TABLE IF NOT EXISTS transaction_items (
   id                UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  ledger_sequence   BIGINT  GENERATED ALWAYS AS IDENTITY,
   transaction_id    UUID    NOT NULL REFERENCES inventory_transactions(id),
   bin_item_id       UUID    NOT NULL REFERENCES bin_items(id),
   item_id           UUID    NOT NULL REFERENCES items(id),
@@ -187,6 +193,8 @@ CREATE INDEX IF NOT EXISTS idx_txn_items_bin_item     ON transaction_items(bin_i
 CREATE INDEX IF NOT EXISTS idx_txn_items_item         ON transaction_items(item_id);
 CREATE INDEX IF NOT EXISTS idx_txn_items_destination  ON transaction_items(destination_type, destination_id);
 CREATE INDEX IF NOT EXISTS idx_txn_items_status       ON transaction_items(status);
+CREATE INDEX IF NOT EXISTS idx_txn_items_bin_status_ledger
+  ON transaction_items(bin_item_id, status, ledger_sequence);
 ```
 
 ---
@@ -331,47 +339,55 @@ CREATE OR REPLACE FUNCTION update_inventory_balance()
 RETURNS TRIGGER AS $$
 DECLARE
   target_bin_item_id UUID;
-  new_balance        NUMERIC;
+  new_balance NUMERIC;
+  latest_correction_sequence BIGINT;
+  latest_target_quantity NUMERIC;
 BEGIN
   target_bin_item_id := COALESCE(NEW.bin_item_id, OLD.bin_item_id);
 
-  -- Physical count correction: set balance absolutely to target_quantity
-  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE')
-     AND NEW.transaction_type = 'physical_count_correction'
-     AND NEW.target_quantity IS NOT NULL THEN
+  SELECT ti.ledger_sequence, ti.target_quantity
+  INTO latest_correction_sequence, latest_target_quantity
+  FROM transaction_items ti
+  WHERE ti.bin_item_id = target_bin_item_id
+    AND ti.status = 'approved'
+    AND ti.transaction_type = 'physical_count_correction'
+    AND ti.target_quantity IS NOT NULL
+  ORDER BY ti.ledger_sequence DESC
+  LIMIT 1;
 
-    INSERT INTO inventory_balances (bin_item_id, quantity, last_rebuilt)
-    VALUES (target_bin_item_id, NEW.target_quantity, NOW())
-    ON CONFLICT (bin_item_id) DO UPDATE
-      SET quantity     = EXCLUDED.quantity,
-          last_rebuilt = NOW();
-
-    RETURN NEW;
+  IF latest_correction_sequence IS NOT NULL THEN
+    SELECT latest_target_quantity + COALESCE(SUM(
+      CASE
+        WHEN ti.transaction_type IN ('add_stock', 'return_from_job', 'return_from_vehicle') THEN ti.quantity
+        WHEN ti.transaction_type IN ('remove_stock', 'assign_to_job', 'assign_to_vehicle', 'scrap', 'vendor_return', 'mark_damaged') THEN -ti.quantity
+        ELSE 0
+      END
+    ), 0)
+    INTO new_balance
+    FROM transaction_items ti
+    WHERE ti.bin_item_id = target_bin_item_id
+      AND ti.status = 'approved'
+      AND ti.transaction_type <> 'physical_count_correction'
+      AND ti.ledger_sequence > latest_correction_sequence;
+  ELSE
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN ti.transaction_type IN ('add_stock', 'return_from_job', 'return_from_vehicle') THEN ti.quantity
+        WHEN ti.transaction_type IN ('remove_stock', 'assign_to_job', 'assign_to_vehicle', 'scrap', 'vendor_return', 'mark_damaged') THEN -ti.quantity
+        ELSE 0
+      END
+    ), 0)
+    INTO new_balance
+    FROM transaction_items ti
+    WHERE ti.bin_item_id = target_bin_item_id
+      AND ti.status = 'approved'
+      AND ti.transaction_type <> 'physical_count_correction';
   END IF;
-
-  -- All other transaction types: recalculate from full history
-  SELECT COALESCE(SUM(
-    CASE
-      WHEN transaction_type = 'physical_count_correction'
-        THEN target_quantity  -- use absolute value when recalculating
-      WHEN transaction_type IN (
-        'add_stock', 'return_from_job', 'return_from_vehicle')
-        THEN quantity
-      WHEN transaction_type IN (
-        'remove_stock', 'assign_to_job', 'assign_to_vehicle',
-        'scrap', 'vendor_return', 'mark_damaged')
-        THEN -quantity
-      ELSE 0
-    END
-  ), 0)
-  INTO new_balance
-  FROM transaction_items
-  WHERE bin_item_id = target_bin_item_id;
 
   INSERT INTO inventory_balances (bin_item_id, quantity, last_rebuilt)
   VALUES (target_bin_item_id, new_balance, NOW())
   ON CONFLICT (bin_item_id) DO UPDATE
-    SET quantity     = EXCLUDED.quantity,
+    SET quantity = EXCLUDED.quantity,
         last_rebuilt = NOW();
 
   RETURN COALESCE(NEW, OLD);
@@ -675,6 +691,8 @@ When writing migration SQL:
 - All user_id fields: TEXT
 - All new tables: DISABLE ROW LEVEL SECURITY
 - Include the balance trigger — do not skip or simplify it
+- Include `ledger_sequence` on `transaction_items` and calculate balances from
+  approved rows only
 - Include the physical count audit trigger
 - Ask Ryan to confirm Supabase tier before implementing pg_cron
 

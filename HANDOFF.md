@@ -118,6 +118,8 @@ Supabase is the live source of truth — Sheets is not.
   - `min_quantity` added to `bin_items`
   - Clerk user IDs locked as TEXT throughout
   - `target_quantity` added to `transaction_items` for physical count corrections
+  - `ledger_sequence` added to `transaction_items` for deterministic balance rebuild order
+  - `inventory_balances` must only reflect approved `transaction_items`
   - `change_logs` column names locked to Phase 1 names
   - `void_expired_carts()` function replaces pg_cron (not on free tier)
 - Repository named: `Northgate-HQ-v2.0`
@@ -147,7 +149,9 @@ Supabase is the live source of truth — Sheets is not.
 
 6. **The balance trigger is mandatory.** Do not skip or simplify it.
    It handles both delta transactions and absolute corrections for
-   physical_count_correction using `target_quantity`.
+   physical_count_correction using `target_quantity`. Only
+   `status = 'approved'` transaction items affect quantity on hand; pending and
+   rejected rows are ignored by balance calculations.
 
 7. **`bin_item_id` is NOT NULL** on both `transaction_items` and
    `inventory_cart_items`. Items must always come from a known bin.
