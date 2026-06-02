@@ -195,3 +195,86 @@ Supabase is the live source of truth — Sheets is not.
 - None active at this time.
 
 ---
+
+---
+Date:        2026-05-29
+Updated by:  Codex
+Phase:       Phase 1 - Inventory
+Session type:Schema Migration
+
+## What Was Completed
+- Read HANDOFF.md first, then reviewed the architecture lock and Inventory Schema Plan v2.3.
+- Created the Phase 1 Inventory SQL migration at `supabase/migrations/20260529131500_phase1_inventory_v23.sql`.
+- Generated the migration with `BEGIN` / `COMMIT` transaction wrapping.
+- Included the inventory balance trigger, physical count correction audit trigger, snapshot immutability trigger function, `void_expired_carts()` callable function, and `grand_master_inventory_view`.
+- Confirmed `pg_cron` was not used; cart cleanup is exposed through the Dev Console callable function.
+
+## Decisions Made This Session
+- Used `docs/ARCHITECTURE.md` as the architecture lock source because `docs/ARCHITECTURE_LOCK.md` does not exist in this repository, and both HANDOFF.md and ARCHITECTURE.md identify `docs/ARCHITECTURE.md` as the authoritative Architecture Lock Document v2.1 - lock document.
+- Made the migration fresh-project-safe by creating missing Phase 1 inventory foundation tables with locked Phase 1 column names before applying v2.3 additions - lock document and handoff.
+- Attached the estimate snapshot trigger conditionally when `estimate_snapshots` exists, while always creating the trigger function, to avoid inventing an estimates schema inside the inventory migration - AI recommendation aligned to lock document.
+
+## Schema Changes
+- Created or preserved: `cost_codes`, `material_categories`, `items`, `storage_units`, `shelves`, `bays`, `bins`, `bin_items`, `vehicles`, `change_logs`, `inventory_transactions`, `transaction_items`, `inventory_balances`, `inventory_carts`, `inventory_cart_items`, `vehicle_bins`, `vehicle_bin_items`, and `notifications`.
+- Added Phase 1 v2.3 inventory columns: `items.default_cost_code_id`, `items.is_archived`, `bin_items.min_quantity`, `vehicles.classification`, `vehicles.description`, `inventory_transactions.transaction_type`, `inventory_transactions.performed_by_name`, and `inventory_transactions.source_vehicle_id`.
+- Enforced Clerk user IDs as `TEXT` on `change_logs.user_id`, `inventory_transactions.user_id`, `inventory_carts.user_id`, and `notifications.user_id`.
+- Extended `change_logs_action_check` to include `physical_count_correction`.
+- Disabled RLS on new Phase 1 inventory extension tables for this phase.
+
+## What Codex Needs to Know
+- The migration does not rename existing Phase 1 columns, does not remove existing tables, and does not use `pg_cron`.
+- `void_expired_carts()` is the locked cart cleanup path for the current Supabase tier.
+- `bin_item_id` is `NOT NULL` on both `transaction_items` and `inventory_cart_items`.
+
+## What Claude Needs to Know
+- One path mismatch was found: Ryan requested `docs/ARCHITECTURE_LOCK.md`, but the repo stores the architecture lock at `docs/ARCHITECTURE.md`.
+- The snapshot immutability trigger is included as a function and conditional trigger attachment because this inventory migration does not define the full estimates schema.
+
+## Next Steps (in order)
+1. Ryan creates the new Supabase project and verifies the backup state before running schema changes.
+2. Run `supabase/migrations/20260529131500_phase1_inventory_v23.sql` in the v2.0 Supabase project.
+3. Begin cart checkout workflow implementation after the migration is applied.
+
+## Open Questions / Concerns
+- Confirm whether `estimate_snapshots` already exists before this migration is run. If it does not, the snapshot protection function is present, but the trigger will need to attach when the estimates schema is created.
+
+## Architecture Drift Warnings
+- None active. The `ARCHITECTURE_LOCK.md` filename mismatch should be cleaned up later by either renaming the file or updating prompts/docs to consistently reference `docs/ARCHITECTURE.md`.
+---
+
+---
+Date:        2026-05-29
+Updated by:  Codex
+Phase:       Phase 1 - Inventory
+Session type:Schema Migration Update
+
+## What Was Completed
+- Updated `update_inventory_balance()` in `supabase/migrations/20260529131500_phase1_inventory_v23.sql`.
+- Rebuild logic now finds the latest `physical_count_correction` for a `bin_item_id`, starts from that `target_quantity`, and applies only later normal delta transactions.
+- If no physical count correction exists, rebuild logic sums all normal delta transactions.
+
+## Decisions Made This Session
+- Removed the prior shortcut that immediately set balance to a new physical count without considering later transactions during rebuild-style recalculation - Ryan request.
+
+## Schema Changes
+- No table or column changes.
+- Function logic changed for `update_inventory_balance()`.
+
+## What Codex Needs to Know
+- Physical count correction is now a reset point in balance rebuild logic, not a value summed alongside other corrections.
+- Later transactions are determined by `transaction_items.created_at > latest_correction.created_at`.
+
+## What Claude Needs to Know
+- Inventory balance rebuild semantics were tightened to support multiple physical count corrections over time.
+
+## Next Steps (in order)
+1. Run the updated migration in the v2.0 Supabase project after backup verification.
+2. Validate physical count correction scenarios during cart/transaction workflow implementation.
+3. Begin cart checkout workflow implementation after the migration is applied.
+
+## Open Questions / Concerns
+- None currently blocking.
+
+## Architecture Drift Warnings
+- None active.
+---
