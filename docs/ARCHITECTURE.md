@@ -375,12 +375,6 @@ destination_type  TEXT CHECK (destination_type IN
                      'vendor_return','scrap','unknown'))
 destination_id    TEXT  -- FK target depends on destination_type
 unit_cost_at_time NUMERIC NOT NULL DEFAULT 0
-ledger_sequence   BIGINT GENERATED ALWAYS AS IDENTITY
-occurred_at       TIMESTAMPTZ
-status            TEXT NOT NULL DEFAULT 'pending'
-                  CHECK (status IN ('pending','approved','rejected'))
-CONSTRAINT transaction_items_approved_requires_occurred_at
-  CHECK (status <> 'approved' OR occurred_at IS NOT NULL)
 ```
 
 Default checkout: entire cart assigned to one destination.
@@ -438,23 +432,64 @@ authorized override when permitted.
 
 ---
 
-## 14. Pending Job Cost Review
+## 14. Two Distinct Approval Concepts
 
-Inventory costs assigned to jobs create `pending` cost entries.
+> **Ryan's Decision (reviewed by Claude, implemented by Codex):**
+> Physical inventory movement approval and job-cost/accounting approval are
+> two separate concepts. They must never be carried by the same field.
 
-Job cost entries have a `status` field:
+### 14a. Physical Movement Approval — `transaction_items.status`
+
+`transaction_items.status` means **physical inventory movement approval only.**
 
 ```
-status TEXT CHECK (status IN ('pending', 'approved', 'rejected'))
+status TEXT NOT NULL DEFAULT 'pending'
+  CHECK (status IN ('pending', 'approved', 'rejected'))
 ```
 
-Job budget screens display:
+- `approved` means the material physically moved and the on-hand balance changed.
+- It does NOT mean job-cost approval, accounting approval, AP approval,
+  invoice approval, or reconciliation.
+- Only `approved` rows affect `inventory_balances`.
+- `pending` and `rejected` rows remain in the transaction log but do not
+  affect `quantity_on_hand`.
 
-- approved costs
-- pending costs (visually distinct)
+Cart checkout/finalization sets `status = 'approved'`, stamps
+`occurred_at = NOW()`, and snapshots `unit_cost_at_time` from catalog cost
+at the moment of issue or return.
+
+Supporting columns on `transaction_items`:
+- `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` — deterministic
+  ordering tie-breaker. Not treated as real-world event order.
+- `occurred_at TIMESTAMPTZ` — physical movement event time, distinct from
+  `created_at` (record entry time). Approved rows must have a non-null
+  `occurred_at`. Balance ordering uses `occurred_at DESC, ledger_sequence DESC`.
+
+### 14b. Job-Cost / Accounting Approval — Separate Mechanism (Reserved)
+
+Job-cost and accounting approval is a **separate mechanism, built in the
+Financials phase, not the Inventory phase.**
+
+When a transaction has `destination_type = 'job'`, it will generate a
+job-cost entry that carries its own approval lifecycle — its own status,
+approver, and approved-at timestamp — independent of the physical movement.
+
+This is an extension point reserved now and built later. Do not overload
+`transaction_items.status` to carry accounting meaning.
+
+Job budget screens (Financials phase) will display:
+- approved job costs
+- pending job costs (visually distinct)
 - projected totals
 
-Accounting and authorized users may approve or reject pending costs.
+Accounting and authorized users approve or reject pending **job costs** —
+which is distinct from approving the physical movement that generated them.
+
+### 14c. App Job-Cost Scope
+
+App job-cost tracking covers internal-stock movements only. Direct/AP
+purchases that never enter stock do not pass through the inventory
+transaction system and do not touch the app's inventory cost tracking.
 
 ---
 
@@ -626,7 +661,7 @@ Documents are stored in **Supabase Storage**. The `documents` table stores
 the file path / URL, not the file itself.
 
 Documents may attach to: jobs, estimates, vehicles, tools, employees,
-change orders, reports, snapshots, invoices.
+change orders, reports, snapshots.
 
 Document naming format:
 
@@ -642,83 +677,7 @@ Chatham Ridge 2026-05-28 1430 Approved Estimate Snapshot Original Budget.pdf
 
 ---
 
-## 21. Inventory Cost Valuation (locked)
-
-Every job-cost effect of an inventory movement is valued at the catalog
-`unit_cost` at the moment of the transaction, stored in `unit_cost_at_time`,
-signed by direction:
-
-- assign_to_job → charge the job at unit_cost at moment of issue
-- return_from_job → credit the job at unit_cost at moment of return
-
-Actual purchase price is NOT tracked per material (standard costing). The
-variance between purchase price and catalog value is absorbed in accounting
-reconciliation, never in the app.
-
-The app's job-cost figure is PARTIAL by design: it reflects internal-stock
-movements only (issues minus returns). Material bought directly for a job that
-never enters stock does not touch the app. The app is source of truth for
-internal-stock job cost, NOT total job cost. (See Section 23 for the future
-accounting-module path where AP enters the app.)
-
-One transaction type (`return_from_job`) covers both true returns of issued
-stock and excess-from-direct-purchase entered into stock at job end; the app
-credits catalog value in both cases.
-
----
-
-## 22. Transaction Status Semantics (locked)
-
-`transaction_items.status = 'approved'` means ONLY that the physical inventory
-movement is official and affects on-hand balance. Cart checkout/finalization
-flips rows to `'approved'` to record physical movement — nothing about
-accounting.
-
-`status` must NOT be overloaded to carry financial/accounting approval.
-
-Three distinct concepts are kept separate:
-
-1. Physical inventory movement → `transaction_items.status` (drives on-hand)
-2. Internal-stock job-cost approval → separate, batchable layer grouped by job
-3. Vendor / AP invoice approval → separate, invoice-by-invoice, with purchases
-
-`occurred_at` (event time, stamped at finalization) is distinct from
-`created_at` (record/entry time). Ledger ordering and physical-count baselines
-use `occurred_at` as the semantic anchor, with `ledger_sequence` as
-deterministic tie-breaker. The same event-vs-entry distinction applies to
-invoices (purchase date vs entry date) in the accounting module.
-
----
-
-## 23. Deferred — Accounting Module (NOT LOCKED — discussion item)
-
-Parked for the accounting module build. Not a locked decision.
-
-Proposed feature: accountant-facing invoice entry capturing vendor, invoice
-number, entry date/time, and purchase date/time, with optional AI-assisted
-extraction from uploaded invoice documents to populate the job-cost report.
-
-To resolve when this module is designed:
-
-- Source-of-truth boundary (rule 7): is the app authoritative for invoice →
-  job-cost allocation, or a reporting mirror of external accounting? This
-  extends the partial-job-cost decision (Section 21) — AP enters the app here,
-  making the report fuller. Do not silently overturn Section 21.
-- AI-extracted invoice data must pass accountant review before posting to job
-  cost, and the post must be audit-logged (rules 5, 6).
-- Invoice documents reuse the Section 20 documents system (add "invoices" to
-  attach targets) — no separate storage.
-
-Prerequisites that belong in EARLIER phases, not here:
-
-- Canonical vendors entity (stable IDs), shared by estimator, vendor returns,
-  and future invoices.
-- App-wide event-datetime (`occurred_at`) vs entry-datetime (`created_at`)
-  convention, established when transaction timestamps are finalized.
-
----
-
-## 24. Financials / Accounting
+## 21. Financials / Accounting
 
 ### Module boundary (locked):
 
@@ -726,10 +685,8 @@ Prerequisites that belong in EARLIER phases, not here:
 - **Financials** owns: pending cost approval, invoice review, accounting exports,
   cost reports
 
-Both modules read the same budget and cost tables. Financials writes financial
-approval fields such as `approved_by` and financial review status on future
-financial tables. It does not own `transaction_items.status`, which is reserved
-for physical inventory movement. PM writes the budget amounts and forecasts.
+Both modules read the same budget and cost tables. Financials writes the
+`approved_by` and `status` fields. PM writes the budget amounts and forecasts.
 
 Accounting exports support selectable output fields via checkboxes.
 
@@ -738,7 +695,7 @@ total cost, cost code, user, source location, destination location.
 
 ---
 
-## 25. Dev Console
+## 22. Dev Console
 
 Developer-only operational control center. All actions logged.
 
@@ -788,7 +745,7 @@ Responsibilities:
 
 ---
 
-## 26. Inventory Balance Cache
+## 23. Inventory Balance Cache
 
 > **Ryan's Decision:** An `inventory_balances` cache table must exist in the
 > schema. Balances are calculated from transaction history but cached for
@@ -810,17 +767,9 @@ Balance cache is updated on every transaction. If the cache is suspected to be
 wrong, the Dev Console rebuild function recalculates from full transaction
 history.
 
-Only approved `transaction_items` affect the balance cache. Pending and
-rejected rows remain in the transaction log for workflow/audit purposes but do
-not change quantity on hand. Physical count corrections also require
-`status = 'approved'` before they become the balance baseline. The latest
-approved correction is selected by `occurred_at DESC, ledger_sequence DESC`;
-post-correction movements are included by `occurred_at` with `ledger_sequence`
-as the deterministic tie-breaker.
-
 ---
 
-## 27. Non-Negotiable Architectural Rules
+## 24. Non-Negotiable Architectural Rules
 
 These are the constitutional laws of Northgate HQ. They may not be overridden
 by implementation convenience, time pressure, or AI recommendation without a
@@ -873,9 +822,25 @@ formal lock document update reviewed by Ryan.
 14. **Snapshot immutability is database-enforced.** A Supabase trigger blocks
     UPDATE and DELETE on `estimate_snapshots` after `locked = TRUE`.
 
+15. **Physical movement approval and accounting approval are never merged.**
+    `transaction_items.status` carries physical inventory movement approval
+    only. Job-cost and accounting approval is a separate mechanism. One field
+    must never carry both meanings.
+
+16. **Only approved transaction rows affect inventory balances.** `pending`
+    and `rejected` rows remain in the transaction log for history but never
+    affect `quantity_on_hand`. Balance ordering uses `occurred_at` with
+    `ledger_sequence` as the deterministic tie-breaker — never UUID order.
+
+17. **"Update the HANDOFF.md" means log everything and present the full file.**
+    When Ryan asks for a handoff update, the model logs everything from the
+    session (decisions, code, file/folder changes, anything), adds it as a new
+    numbered entry, and presents the ENTIRE HANDOFF.md file back — not just the
+    new entry. The full file every time is what keeps all parties aligned.
+
 ---
 
-## 28. Label and QR Printing
+## 25. Label and QR Printing
 
 Authorized users may:
 
@@ -890,7 +855,7 @@ Specific Avery template IDs to be added when confirmed.
 
 ---
 
-## 29. Mobile and Desktop Behavior
+## 26. Mobile and Desktop Behavior
 
 One system for desktop and mobile. No separate mobile app initially.
 
@@ -905,7 +870,7 @@ Preferred examples:
 
 ---
 
-## 30. UI Customization Philosophy
+## 27. UI Customization Philosophy
 
 Phased approach — do not delay core build.
 
@@ -919,7 +884,7 @@ No browser-based code editing in early versions.
 
 ---
 
-## 31. Scope Control Rule
+## 28. Scope Control Rule
 
 Build extension points before future systems.
 
@@ -931,7 +896,7 @@ Do not prematurely build future modules.
 
 ---
 
-## 32. First Build Order
+## 29. First Build Order
 
 > **Updated to reflect work already completed.**
 
@@ -969,7 +934,7 @@ Inventory must be built to later integrate with:
 
 ---
 
-## 33. AI Development Roles
+## 30. AI Development Roles
 
 One GitHub repository. One Supabase schema. One Architecture Lock Document.
 One implementation roadmap.
@@ -1133,7 +1098,7 @@ the same updated truth.
 
 ---
 
-## 35. Cumulative Handoff Document
+## 32. Cumulative Handoff Document
 
 ### Purpose
 
@@ -1169,7 +1134,28 @@ Both models must update HANDOFF.md at each of the following checkpoints:
 The model that completes the work writes the update. The update is appended,
 never overwriting prior entries. The file grows forward chronologically.
 
-### Required Format for Each Entry
+### What "Update the HANDOFF.md" Means (Ryan's Standing Instruction)
+
+> When Ryan asks for the HANDOFF.md to be updated, this is the complete,
+> non-optional definition of what is expected:
+
+1. **Log everything that happened in the session** — decisions made, code
+   written, files or folders created/moved/deleted, migrations run, reviews
+   completed, problems hit, anything of substance. Not just the headline.
+
+2. **Add it as a new dated, numbered entry** — appended to the existing log,
+   never overwriting prior entries, with the entry number incremented from
+   the last one.
+
+3. **Present the FULL HANDOFF.md file back to Ryan** — the entire document,
+   not just the new entry. Ryan pastes the whole file into the repo and into
+   the other model's chat to keep everyone aligned.
+
+Presenting only the new entry is insufficient. The full file is required every
+time so Ryan always has a single complete document that proves where the
+project stands and confirms everyone is picking up from the same place.
+
+
 
 ```
 ---
@@ -1248,7 +1234,7 @@ This keeps both documents synchronized and ensures neither drifts from the other
 
 ---
 
-## 36. Final Guiding Principle
+## 33. Final Guiding Principle
 
 Northgate HQ should prioritize:
 

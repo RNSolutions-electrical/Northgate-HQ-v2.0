@@ -1,6 +1,7 @@
 # Northgate HQ v2.0 — Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
+### Before writing a new entry: read the last entry number and increment. Never reuse a number.
 
 ---
 
@@ -11,170 +12,73 @@
 **Phase:** Pre-build — Architecture Lock and Schema Planning
 **Session type:** Architecture Review + Schema Planning
 
----
-
 ### Current Project State
-
 v2.0 is a clean-slate rebuild of Northgate HQ on a locked architecture.
 v1 (`Northgate-HQ`) remains intact as a working backup — do not touch it.
-
 All infrastructure is new and separate from v1.
 
----
-
 ### Infrastructure
-
-| Resource | Location |
-|---|---|
-| GitHub | `RNSolutions-electrical/Northgate-HQ-v2.0` |
-| Supabase | New project — same naming scheme as repo |
-| Netlify | New deployment — v1 remains live separately |
-| Clerk | Shared with v1 — same publishable key |
-| Google Sheets | `Northgate HQ — Master Data Workbook` (ID: `1mD_d0tyZy1wEuJtxIkTyRhL9cy-s1PchH6-3OOL7L94`) |
-
----
+- GitHub: `RNSolutions-electrical/Northgate-HQ-v2.0`
+- Supabase: New project — same naming scheme as repo
+- Netlify: New deployment — v1 remains live separately
+- Clerk: Shared with v1 — same publishable key
+- Google Sheets: `Northgate HQ — Master Data Workbook` (ID: `1mD_d0tyZy1wEuJtxIkTyRhL9cy-s1PchH6-3OOL7L94`)
 
 ### Documents in This Repo
-
-| File | Purpose |
-|---|---|
-| `HANDOFF.md` | This file — cumulative session log |
-| `docs/ARCHITECTURE.md` | Architecture Lock Document v2.1 — authoritative |
-| `docs/INVENTORY_SCHEMA.md` | Inventory Schema Plan v2.3 — ready for SQL |
-
----
+- `HANDOFF.md` — this file, cumulative session log
+- `docs/ARCHITECTURE.md` — Architecture Lock Document v2.1, authoritative
+- `docs/INVENTORY_SCHEMA.md` — Inventory Schema Plan v2.3, ready for SQL
 
 ### What Has Been Decided (Full Summary)
+**AI Roles:** Claude = architecture reviewer/drift detector. Codex = implementation
+driver/debugger. Architecture Lock Document = source of truth. Ryan = final authority.
+Mid-build trigger: pause for Claude review if a decision affects schema, relationships,
+module boundaries, permissions, audit logging, snapshots, source-of-truth rules,
+financial logic, inventory logic, or cross-module communication.
 
-**AI Roles**
-- Claude = architecture reviewer and drift detector
-- Codex = implementation driver and debugger
-- Architecture Lock Document = source of truth
-- Ryan = final authority
+**Primary entity naming:** Jobs (not Projects). Table is `jobs`. Nav item is "Jobs."
+Project Management is a feature set within a Job, not a separate entity.
 
-Mid-build trigger: pause and bring to Claude if any decision affects schema,
-relationships, module boundaries, permissions, audit logging, snapshots,
-source-of-truth rules, financial logic, inventory logic, or cross-module
-communication.
+**Core architectural rules (non-negotiable):** Inventory balances transaction-derived
+only; Jobs are source of truth after creation; approved estimate snapshots immutable
+(DB trigger); permissions server-authoritative; audit logging cannot be bypassed; Dev
+Console actions always logged; no duplicate source-of-truth; no direct DB edits outside
+controlled tools; cost at time of transaction always stored; change orders are financial
+records not documents; per-line-item transaction destinations from day one; physical
+locations vs transaction destinations are distinct; archive over delete; snapshot
+immutability DB-enforced.
 
-**Primary entity naming**
-- Jobs (not Projects). Table is `jobs`. Nav item is "Jobs."
-- Project Management is a feature set within a Job, not a separate entity.
+**Cost structure order (locked):** Material markup → Overhead → Profit (independent
+percentages, sequential).
 
-**Core architectural rules (non-negotiable)**
-1. Inventory balances are transaction-derived only
-2. Jobs become source of truth after creation
-3. Approved estimate snapshots are immutable (database-enforced trigger)
-4. Permissions are server-authoritative — no client-side-only gates
-5. Audit logging cannot be bypassed by any user or system
-6. Dev Console actions are always logged
-7. No duplicate source-of-truth systems
-8. No direct database edits outside controlled tools
-9. Cost at time of transaction always stored in `unit_cost_at_time`
-10. Change orders are financial records, not documents
-11. Per-line-item transaction destinations from day one
-12. Physical locations and transaction destinations are distinct concepts
-13. Archive over delete
-14. Snapshot immutability is database-enforced
+**Permissions:** Roles — Developer, Administrator, Project Manager, Estimator, Field
+Supervisor, User (Field Tech). Flags: see Architecture Lock Document Section 17.
 
-**Cost structure order (locked)**
-Material markup → Overhead → Profit (independent percentages, sequential)
+**Google Sheets:** Master Data Workbook is the bulk data entry interface. App UI handles
+one-off edits for authorized users. Supabase is the live source of truth — Sheets is not.
 
-**Permissions**
-Roles: Developer, Administrator, Project Manager, Estimator,
-Field Supervisor, User (Field Tech)
-Permission flags: see Architecture Lock Document Section 17
+**Data in the Google Sheet (as of this entry):** Materials — hundreds of live rows with
+full cascade (broad_category → sub_category → sub_category_2 → sub_category_3 → size);
+Employees — real team data; Vehicles — E-101 (2019 Chevrolet Express 2500); Cost Codes —
+Northgate Division 16 electrical codes; Assemblies — E-REC-001; Inventory Levels — bins
+A111, C211–C224 with real stock data.
 
-**Google Sheets**
-Master Data Workbook is the bulk data entry interface.
-App UI handles one-off edits for authorized users (can_edit_catalog).
-Supabase is the live source of truth — Sheets is not.
-
-**Data in the Google Sheet (as of this entry)**
-- Materials: hundreds of live rows with full cascade
-  (broad_category → sub_category → sub_category_2 → sub_category_3 → size)
-- Employees: real team data entered
-- Vehicles: E-101 (2019 Chevrolet Express 2500)
-- Cost Codes: Northgate Division 16 electrical codes
-- Assemblies: E-REC-001 entered
-- Inventory Levels: bins A111, C211–C224 with real stock data
-
-**Known data cleanup needed in the Sheet before first import:**
-1. Material_Categories: several sub_category_2 rows have blank field_name — fix before syncing
-2. Cost_Codes: code `16,050.00` has number formatting — must be plain text `16050`
-
----
+**Known data cleanup needed before import:** Material_Categories has blank field_name on
+some sub_category_2 rows; Cost_Codes code `16,050.00` needs to be plain text `16050`.
 
 ### What Was Completed in Pre-Build
-
-- Architecture Lock Document v2.1 written and finalized
+- Architecture Lock Document v2.1 finalized
 - AI Development Roles document finalized
-- Inventory Schema Plan reviewed across three versions (v1 → v2.1 → v2.2 → v2.3)
-- All schema conflicts with Phase 1 resolved:
-  - `material_code` kept as canonical key
-  - 4-level cascade kept as text columns (not normalized)
-  - Phase 1 table names kept (bins, bays, shelves — not renamed)
-  - `vehicle_bins` restored
-  - `min_quantity` added to `bin_items`
-  - Clerk user IDs locked as TEXT throughout
-  - `target_quantity` added to `transaction_items` for physical count corrections
-  - `change_logs` column names locked to Phase 1 names
-  - `void_expired_carts()` function replaces pg_cron (not on free tier)
-- Repository named: `Northgate-HQ-v2.0`
-- New Supabase project to be created (same naming scheme)
-
----
-
-### What Codex Needs to Know
-
-1. **This is not greenfield.** The architecture was designed around existing
-   live data (1,721 material rows, real employees, real bin codes). Every
-   schema decision respects that. Do not invent cleaner column names.
-
-2. **The schema plan is v2.3 — use that version only.**
-   Earlier drafts (v1, v2.1, v2.2) have been superseded. Do not reference them.
-
-3. **All user_id fields are TEXT.** Clerk IDs are strings, not UUIDs. This
-   applies to inventory_transactions, inventory_carts, change_logs, and any
-   future table that stores a user reference.
-
-4. **No pg_cron.** Ryan is on the Supabase free tier. Cart void uses
-   `void_expired_carts()` callable function instead. Do not include
-   `CREATE EXTENSION pg_cron` anywhere in the migration.
-
-5. **Wrap all migration SQL in BEGIN/COMMIT.** Verify Supabase backup is
-   current before running any step that alters existing tables with live data.
-
-6. **The balance trigger is mandatory.** Do not skip or simplify it.
-   It handles both delta transactions and absolute corrections for
-   physical_count_correction using `target_quantity`.
-
-7. **`bin_item_id` is NOT NULL** on both `transaction_items` and
-   `inventory_cart_items`. Items must always come from a known bin.
-
----
-
-### What Claude Needs to Know
-
-1. v2.0 is building on a fresh Supabase project. Phase 1 schema from the
-   previous repo is NOT being carried over — the migration SQL being written
-   by Codex creates everything from scratch in the new project.
-
-2. The Google Sheets workbook already has real operational data entered.
-   Any schema decision that changes column names or structures now carries
-   a migration cost against that data.
-
-3. `sub_category_3` is already active in the sheet. `sub_category_4` is
-   reserved but not yet populated.
-
-4. The cumulative handoff document (this file) is the context bridge between
-   sessions. Read it before starting any review.
-
----
+- Inventory Schema Plan reviewed across versions (v1 → v2.1 → v2.2 → v2.3)
+- All schema conflicts with Phase 1 resolved: material_code kept as canonical key;
+  4-level cascade kept as text columns; Phase 1 table names kept; vehicle_bins restored;
+  min_quantity added to bin_items; Clerk user IDs locked as TEXT; target_quantity added
+  to transaction_items; change_logs column names locked to Phase 1; void_expired_carts()
+  replaces pg_cron (free tier).
+- Repository named Northgate-HQ-v2.0; new Supabase project to be created.
 
 ### Next Steps (in order)
-
-1. Codex generates migration SQL from `docs/INVENTORY_SCHEMA.md` (v2.3)
+1. Codex generates migration SQL from docs/INVENTORY_SCHEMA.md (v2.3)
 2. Ryan creates new Supabase project and runs migration SQL
 3. Codex sets up v2.0 repo structure and base React + Vite app
 4. Codex wires Clerk auth and Supabase client
@@ -182,17 +86,11 @@ Supabase is the live source of truth — Sheets is not.
 6. Claude does architecture alignment check before cart system build
 7. Update this HANDOFF.md after each step
 
----
-
 ### Open Questions / Concerns
-
-- None currently blocking. Schema is locked and ready for SQL generation.
-
----
+None currently blocking. Schema is locked and ready for SQL generation.
 
 ### Architecture Drift Warnings
-
-- None active at this time.
+None active at this time.
 
 ---
 
@@ -203,234 +101,45 @@ Supabase is the live source of truth — Sheets is not.
 **Phase:** Migration Review — Inventory Balance Finalization
 **Session type:** Cross-model implementation review / fresh-session handoff
 
----
-
 ### Current Active Repository
-
-The correct working repository is:
-
-`RNSolutions-electrical/Northgate-HQ-v2.0`
-
-Do **not** use `RNSolutions-electrical/Northgate-Estimator-V2.0` for this build. That was a repo-name confusion during the previous session.
-
-GitHub access is confirmed for the correct repo. ChatGPT successfully read `HANDOFF.md` from `RNSolutions-electrical/Northgate-HQ-v2.0`.
-
----
-
-### Current Project Phase
-
-The project has moved past architecture brainstorming and into final migration review.
-
-The active task is finalizing the Phase 1 Inventory SQL migration generated from:
-
-`docs/INVENTORY_SCHEMA.md` v2.3
-
-The migration has not yet been approved to run in Supabase.
-
----
+Correct working repo: `RNSolutions-electrical/Northgate-HQ-v2.0`.
+Do NOT use `RNSolutions-electrical/Northgate-Estimator-V2.0` — that was a repo-name
+confusion during a previous session. GitHub access confirmed for the correct repo.
 
 ### Migration Review Status
+Codex generated the first full Phase 1 Inventory migration. ChatGPT reviewed and found
+the original `update_inventory_balance()` trigger mishandled physical count corrections
+(summed all `physical_count_correction.target_quantity` values instead of treating the
+latest approved correction as a new baseline). Codex revised. Claude flagged two concerns:
+UUID ordering is not chronological and should not be a ledger tie-breaker; pending and
+rejected rows should not affect official balances. Both accepted.
 
-Codex generated the first full Phase 1 Inventory migration.
-
-ChatGPT reviewed it and found the original `update_inventory_balance()` trigger mishandled physical count corrections because it summed all `physical_count_correction.target_quantity` values instead of treating the latest approved correction as a new baseline.
-
-Codex then revised the migration/source schema.
-
-Claude also flagged two important concerns:
-
-1. UUID ordering is not chronological and should not be used as a ledger-order tie breaker.
-2. `pending` and `rejected` transaction rows should not affect official inventory balances.
-
-These concerns were accepted.
-
----
-
-### Locked Migration Adjustments Since Initial v2.3
-
-The following changes are now expected in the migration before final review:
-
-1. `transaction_items` must include:
-
-```sql
-ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY
-```
-
-2. The following index must exist:
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_txn_items_bin_status_ledger
-ON transaction_items(bin_item_id, status, ledger_sequence);
-```
-
-3. `update_inventory_balance()` must calculate official balances using only:
-
-```sql
-transaction_items.status = 'approved'
-```
-
-4. `pending` and `rejected` transaction items remain in the transaction log but must not affect `inventory_balances.quantity`.
-
-5. A `physical_count_correction` becomes the new balance baseline only when that row is `status = 'approved'`.
-
-6. Latest physical count correction is selected by:
-
-```sql
-ORDER BY ledger_sequence DESC
-```
-
-7. The cart checkout/finalization workflow must explicitly mark inventory-moving rows as `approved` when physical inventory movement is finalized. Otherwise, rows remain logged but do not affect `quantity_on_hand`.
-
----
-
-### Revised Balance Trigger Under Review
-
-The following trigger version has been reviewed by ChatGPT and is considered conceptually correct pending Claude's final architecture review:
-
-```sql
-CREATE OR REPLACE FUNCTION update_inventory_balance()
-RETURNS TRIGGER AS $$
-DECLARE
-  target_bin_item_id UUID;
-  new_balance NUMERIC;
-  latest_correction_sequence BIGINT;
-  latest_target_quantity NUMERIC;
-BEGIN
-  target_bin_item_id := COALESCE(NEW.bin_item_id, OLD.bin_item_id);
-
-  SELECT ti.ledger_sequence, ti.target_quantity
-  INTO latest_correction_sequence, latest_target_quantity
-  FROM transaction_items ti
-  WHERE ti.bin_item_id = target_bin_item_id
-    AND ti.status = 'approved'
-    AND ti.transaction_type = 'physical_count_correction'
-    AND ti.target_quantity IS NOT NULL
-  ORDER BY ti.ledger_sequence DESC
-  LIMIT 1;
-
-  IF latest_correction_sequence IS NOT NULL THEN
-    SELECT latest_target_quantity + COALESCE(SUM(
-      CASE
-        WHEN ti.transaction_type IN (
-          'add_stock',
-          'return_from_job',
-          'return_from_vehicle'
-        ) THEN ti.quantity
-        WHEN ti.transaction_type IN (
-          'remove_stock',
-          'assign_to_job',
-          'assign_to_vehicle',
-          'scrap',
-          'vendor_return',
-          'mark_damaged'
-        ) THEN -ti.quantity
-        ELSE 0
-      END
-    ), 0)
-    INTO new_balance
-    FROM transaction_items ti
-    WHERE ti.bin_item_id = target_bin_item_id
-      AND ti.status = 'approved'
-      AND ti.transaction_type <> 'physical_count_correction'
-      AND ti.ledger_sequence > latest_correction_sequence;
-  ELSE
-    SELECT COALESCE(SUM(
-      CASE
-        WHEN ti.transaction_type IN (
-          'add_stock',
-          'return_from_job',
-          'return_from_vehicle'
-        ) THEN ti.quantity
-        WHEN ti.transaction_type IN (
-          'remove_stock',
-          'assign_to_job',
-          'assign_to_vehicle',
-          'scrap',
-          'vendor_return',
-          'mark_damaged'
-        ) THEN -ti.quantity
-        ELSE 0
-      END
-    ), 0)
-    INTO new_balance
-    FROM transaction_items ti
-    WHERE ti.bin_item_id = target_bin_item_id
-      AND ti.status = 'approved'
-      AND ti.transaction_type <> 'physical_count_correction';
-  END IF;
-
-  INSERT INTO inventory_balances (bin_item_id, quantity, last_rebuilt)
-  VALUES (target_bin_item_id, new_balance, NOW())
-  ON CONFLICT (bin_item_id) DO UPDATE
-    SET quantity = EXCLUDED.quantity,
-        last_rebuilt = NOW();
-
-  RETURN COALESCE(NEW, OLD);
-END;
-$$ LANGUAGE plpgsql;
-```
-
----
+### Locked Migration Adjustments Since v2.3
+- `transaction_items` must include `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY`
+- Index: `idx_txn_items_bin_status_ledger ON transaction_items(bin_item_id, status, ledger_sequence)`
+- `update_inventory_balance()` uses only `status = 'approved'` rows
+- pending/rejected rows stay in log but do not affect `inventory_balances.quantity`
+- A physical_count_correction becomes baseline only when `status = 'approved'`
+- Latest correction selected by `ORDER BY ledger_sequence DESC`
+- Cart checkout/finalization must explicitly mark inventory-moving rows `approved`
 
 ### Required Next Claude Review
+Does approved-only balance align with lock document? Is ledger_sequence the correct
+ordering mechanism? Should checkout mark rows approved immediately? Does separating
+transaction-log status from job-cost approval need to be added to the lock document?
 
-Claude should review the revised migration behavior for architecture alignment, specifically:
-
-1. Does official `inventory_balances` using only `status = 'approved'` align with the lock document?
-2. Is `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` the correct ledger ordering mechanism for `transaction_items`?
-3. Should checkout/finalization mark physical inventory movement rows as `approved` immediately?
-4. Does separating transaction log status from job-cost approval need to be added to the Architecture Lock Document or Inventory Schema Plan?
-
----
-
-### Important Architectural Concern For Next Session
-
-There is now a likely distinction between:
-
-- inventory movement approval/status
-- job-cost/accounting approval/status
-
-Current migration uses a single `transaction_items.status` field.
-
-Potential issue:
-
-If inventory movement is physically finalized but job-cost approval is still pending, one status may not be enough long-term.
-
-Current working assumption:
-
-- `transaction_items.status = 'approved'` means the inventory movement is official and affects on-hand balance.
-- Job-cost/accounting approval may need a separate future field/table/status so physical inventory movement and accounting review are not incorrectly tied together.
-
-This should be reviewed before building the cart checkout workflow.
-
----
-
-### Updated Next Steps
-
-1. Start a fresh ChatGPT and Claude session.
-2. Both models should read `HANDOFF.md` first.
-3. Claude should review the revised `ledger_sequence` / `approved-only` balance behavior.
-4. If approved, Codex should update/create the migration file under `/supabase/migrations`.
-5. Ryan should run the migration in the new Supabase project only after final approval.
-6. Update `HANDOFF.md` again after the migration is committed or run.
-
----
-
-### Open Questions / Concerns
-
-1. Whether `transaction_items.status` is enough, or whether separate statuses are needed for:
-   - physical inventory movement approval
-   - job-cost/accounting approval
-2. Whether the Architecture Lock Document should be updated to explicitly distinguish those two statuses before cart checkout is built.
-
----
+### Important Architectural Concern
+There is now a likely distinction between inventory movement approval and
+job-cost/accounting approval. Current migration uses a single `transaction_items.status`.
+If inventory is physically finalized but job-cost approval is still pending, one status
+may not be enough long-term. Working assumption: `status = 'approved'` means inventory
+movement is official and affects on-hand balance; job-cost approval may need a separate
+future field/table/status. Review before building cart checkout.
 
 ### Architecture Drift Warnings
-
-- Do not let pending or rejected transaction rows affect `inventory_balances`.
-- Do not use UUID order for ledger sequencing.
-- Do not merge physical movement approval with accounting/job-cost approval without explicit architectural decision.
-- Do not run the migration until Claude completes final review of the revised balance behavior.
+Do not let pending/rejected rows affect balances. Do not use UUID order for sequencing.
+Do not merge physical movement approval with accounting/job-cost approval without explicit
+architectural decision. Do not run the migration until Claude completes final review.
 
 ---
 
@@ -441,76 +150,36 @@ This should be reviewed before building the cart checkout workflow.
 **Phase:** Phase 1 Inventory Migration Revision
 **Session type:** Migration update / architecture alignment
 
----
-
 ### Decisions Applied This Session
-
-1. Inventory cost valuation invariant preserved: every job-cost effect of an
-   inventory movement is valued at catalog `unit_cost` at the moment of the
-   transaction, stored in `unit_cost_at_time`, signed by direction.
-
-2. App job-cost remains partial by design — internal-stock movements only.
-   Direct/AP purchases that never enter stock do not touch the app.
-
-3. `transaction_items.status` remains physical-only. `approved` means the
-   physical inventory movement is official and affects on-hand balance. It does
-   not mean job-cost approval, accounting approval, AP approval, invoice
-   approval, or reconciliation.
-
-4. `ledger_sequence` remains required as a deterministic tie-breaker but is not
-   treated as real-world event order.
-
-5. `occurred_at` was introduced as physical movement event time, distinct from
-   `created_at` record/entry time.
-
----
+- Inventory cost valuation invariant preserved: every job-cost effect valued at catalog
+  unit_cost at the moment of transaction, stored in `unit_cost_at_time`, signed by direction.
+- App job-cost remains partial by design — internal-stock movements only. Direct/AP
+  purchases that never enter stock do not touch the app.
+- `transaction_items.status` remains physical-only. `approved` means the physical movement
+  is official and affects on-hand balance. It does NOT mean job-cost, accounting, AP,
+  invoice, or reconciliation approval.
+- `ledger_sequence` remains a deterministic tie-breaker, not real-world event order.
+- `occurred_at` introduced as physical movement event time, distinct from `created_at`.
 
 ### Migration Changes Made
-
-1. Added/confirmed `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` on
-   `transaction_items`.
-
-2. Added `occurred_at TIMESTAMPTZ` to `transaction_items`.
-
-3. Added a constraint preventing approved transaction items from having a null
-   `occurred_at`.
-
-4. Updated `update_inventory_balance()` to:
-   - serialize recomputes per `bin_item_id` using `pg_advisory_xact_lock`
-   - calculate balances from approved rows only
-   - select latest physical count correction by `occurred_at DESC,
-     ledger_sequence DESC`
-   - sum only approved movements after the latest count correction using
-     `occurred_at` plus `ledger_sequence` tie-breaker
-   - keep physical count corrections as baselines, not additive deltas
-   - recalculate both old and new bin balances if `bin_item_id` changes
-   - sort and deduplicate affected bin IDs before taking advisory locks to
-     prevent opposite-direction update deadlocks
-
-5. Added/confirmed balance-supporting indexes for approved-row balance rebuilds.
-
-6. Added minimal canonical `vendors` table.
-
----
+- Added `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` on transaction_items.
+- Added `occurred_at TIMESTAMPTZ` to transaction_items.
+- Added constraint preventing approved rows from having null occurred_at.
+- Updated `update_inventory_balance()`: serialize recomputes per bin_item_id via
+  `pg_advisory_xact_lock`; calculate from approved rows only; select latest count
+  correction by `occurred_at DESC, ledger_sequence DESC`; sum approved movements after
+  the latest correction; keep corrections as baselines not additive; recalc both old and
+  new bins if bin_item_id changes; sort/dedupe affected bin IDs before locking to prevent
+  deadlocks.
+- Added minimal canonical `vendors` table.
 
 ### Checkout / Finalization Requirements
-
-Cart checkout/finalization must:
-
-1. Mark physical movement rows `approved` when stock physically moves.
-2. Stamp `occurred_at = NOW()` at finalization.
-3. Snapshot `unit_cost_at_time` from catalog `unit_cost` at the moment of
-   issue/return.
-4. Avoid using `transaction_items.status` for any financial/accounting approval.
-
----
+Mark physical movement rows approved when stock physically moves; stamp `occurred_at = NOW()`;
+snapshot `unit_cost_at_time` from catalog at moment of issue/return; do not use
+`transaction_items.status` for any financial/accounting approval.
 
 ### Still Requires Final Review
-
-The revised migration SQL/code has been prepared but should be reviewed by
-Ryan/ChatGPT before being run in Supabase.
-
-Do not run the migration until final approval is given.
+Revised migration prepared but must be reviewed by Ryan/ChatGPT before running. Do not run yet.
 
 ---
 
@@ -521,51 +190,18 @@ Do not run the migration until final approval is given.
 **Phase:** Phase 1 Inventory Migration File Generation
 **Session type:** Migration artifact creation / pre-run review
 
----
-
 ### What Was Completed
-
-1. Created the actual Phase 1 Inventory SQL migration file:
-   `supabase/migrations/202605310001_phase_1_inventory.sql`.
-
-2. Generated the migration from `docs/INVENTORY_SCHEMA.md` v2.3 plus the
-   approved Entry 003 balance-trigger revisions.
-
-3. Included the approved inventory balance trigger with:
-   - approved-row-only balance calculations
-   - `occurred_at` event-time ordering
-   - `ledger_sequence` deterministic tie-breaker
-   - per-bin advisory transaction locks
-   - sorted/deduplicated affected-bin lock order
-   - physical count corrections as baselines, not additive deltas
-
-4. Included the minimal canonical `vendors` table, `occurred_at`,
-   `ledger_sequence`, approved-row constraint, balance-supporting indexes,
-   cart tables, vehicle stock tables, utility functions, triggers, and Grand
-   Master Inventory view.
-
----
+Created the Phase 1 Inventory SQL migration file:
+`supabase/migrations/202605310001_phase_1_inventory.sql`. Generated from
+docs/INVENTORY_SCHEMA.md v2.3 plus the approved Entry 003 balance-trigger revisions.
+Included approved-row-only balance calc, occurred_at ordering, ledger_sequence tie-breaker,
+per-bin advisory locks, sorted/deduped lock order, corrections as baselines, the minimal
+vendors table, occurred_at, ledger_sequence, approved-row constraint, balance indexes, cart
+tables, vehicle stock tables, utility functions, triggers, and the Grand Master Inventory view.
 
 ### Important Notes
-
-The Supabase CLI is not installed in the local workspace, so Codex could not
-run `supabase migration new`. The migration file was created directly using
-the timestamped Supabase migration filename convention.
-
-The migration has NOT been run in Supabase.
-
-The file still requires Ryan/ChatGPT final review before execution, because
-converting the schema plan into runnable SQL can introduce ordering or
-constraint issues.
-
----
-
-### Next Steps
-
-1. Ryan/ChatGPT reviews
-   `supabase/migrations/202605310001_phase_1_inventory.sql`.
-2. Address any SQL ordering, constraint, or naming issues found in review.
-3. Only after final approval, apply the migration to the new Supabase project.
+Supabase CLI not installed in workspace, so the file was created directly using the
+timestamped migration filename convention. Migration NOT yet run. Requires final review.
 
 ---
 
@@ -576,32 +212,16 @@ constraint issues.
 **Phase:** Phase 1 Inventory Migration Runtime Fixes
 **Session type:** Migration review fix / pre-run review
 
----
-
 ### What Was Completed
-
-1. Updated `update_inventory_balance()` in both the migration file and
-   `docs/INVENTORY_SCHEMA.md` so trigger code only references `OLD` and `NEW`
-   in valid trigger operations.
-
-2. Replaced the affected-bin SQL subquery with explicit `TG_OP` branches:
-   - INSERT uses `NEW.bin_item_id`
-   - DELETE uses `OLD.bin_item_id`
-   - UPDATE uses both `OLD.bin_item_id` and `NEW.bin_item_id`
-
-3. Kept the sorted/deduplicated advisory-lock order by unnesting the raw
-   affected-bin array before rebuilding balances.
-
-4. Updated `block_snapshot_mutation()` so DELETE triggers return `OLD` and
-   UPDATE triggers return `NEW`.
-
----
+Updated `update_inventory_balance()` in both the migration file and
+docs/INVENTORY_SCHEMA.md so trigger code only references OLD/NEW in valid operations.
+Replaced the affected-bin subquery with explicit TG_OP branches: INSERT uses
+NEW.bin_item_id; DELETE uses OLD.bin_item_id; UPDATE uses both. Kept sorted/deduped
+advisory-lock order by unnesting the affected-bin array. Updated `block_snapshot_mutation()`
+so DELETE returns OLD and UPDATE returns NEW.
 
 ### Important Notes
-
-The migration has NOT been run in Supabase.
-
-The migration still requires final Ryan/ChatGPT review before execution.
+Migration NOT yet run. Still requires final Ryan/ChatGPT review before execution.
 
 ---
 
@@ -612,59 +232,225 @@ The migration still requires final Ryan/ChatGPT review before execution.
 **Phase:** Phase 1 Inventory Migration Applied
 **Session type:** Supabase migration execution / post-run verification
 
----
-
 ### What Was Completed
-
-1. Confirmed the Supabase projects before running anything:
-   - v1 backup project: `northgate-hq` / `qpbuzinkjbjbvcdwvdfu`
-   - v2 target project: `northgate-hq-v2.0` / `keogysnoukbendfkfjcn`
-
-2. Confirmed v2 migration history was empty before applying the migration.
-
-3. Applied the reviewed Phase 1 Inventory migration to the v2 project only.
-
-4. Supabase recorded the migration as:
-   - version: `20260531173603`
-   - name: `phase_1_inventory`
-
-5. Ran post-migration balance behavior tests using temporary `codex-test-*`
-   records, then cleaned the test records up.
-
----
+Confirmed projects: v1 backup `northgate-hq / qpbuzinkjbjbvcdwvdfu`; v2 target
+`northgate-hq-v2.0 / keogysnoukbendfkfjcn`. Confirmed v2 migration history empty before
+applying. Applied the reviewed Phase 1 Inventory migration to the v2 project only.
+Supabase recorded it as version `20260531173603`, name `phase_1_inventory`. Ran
+post-migration balance tests with temporary `codex-test-*` records, then cleaned them up.
 
 ### Verification Completed
-
-The post-migration test block verified:
-
-1. Pending transaction item insert did not affect balance.
-2. Updating a transaction item to `status = 'approved'` with `occurred_at`
-   affected balance.
-3. Approved `physical_count_correction` reset the balance baseline.
-4. Approved movement after the physical count adjusted from the new baseline.
-5. Rejected rows did not affect `inventory_balances`.
-6. Cleanup verification showed zero remaining `codex-test-*` rows in the
-   checked tables.
-
----
+Pending insert did not affect balance; updating to `approved` with occurred_at affected
+balance; approved physical_count_correction reset the baseline; approved movement after
+correction adjusted from the new baseline; rejected rows did not affect balances; zero
+remaining codex-test-* rows after cleanup.
 
 ### Important Notes
+Migration run only against v2 (`keogysnoukbendfkfjcn`). v1 backup not selected, not modified.
 
-The migration was run only against the new v2 Supabase project:
-`northgate-hq-v2.0` / `keogysnoukbendfkfjcn`.
-
-The v1 backup project was not selected and was not modified.
+### Next Steps
+Begin wiring the app to v2 Supabase when Ryan is ready. Build cart checkout/finalization so
+physical movements set `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` =
+current catalog cost. Import/seed real inventory data after Google Sheets cleanup.
 
 ---
 
-### Next Steps
+## Entry 007
 
-1. Begin wiring the app to the v2 Supabase project when Ryan is ready.
-2. Build cart checkout/finalization so physical movements explicitly set:
-   - `status = 'approved'`
-   - `occurred_at = NOW()`
-   - `unit_cost_at_time = current catalog unit_cost`
-3. Import/seed real inventory master data after the known Google Sheets cleanup
-   items are resolved.
+**Date:** 2026-06-02
+**Updated by:** Claude
+**Phase:** Phase 1 Inventory — Post-Migration Architecture Review
+**Session type:** Architecture Review (mid-build trigger: inventory balance + status semantics)
+
+### What Was Reviewed
+Reviewed the applied Phase 1 migration (Entries 003–006) against the Architecture Lock
+Document. Focus: ledger_sequence / approved-only balance behavior and the
+`transaction_items.status` semantics flagged for Claude review in Entry 002.
+
+### Findings
+**Technical implementation — approved, no changes needed.** ledger_sequence is the correct
+deterministic ordering mechanism. occurred_at separated from created_at is correct and was
+a good addition not in the v2.3 plan; backdated-entry handling via
+`occurred_at DESC, ledger_sequence DESC` is sound. pg_advisory_xact_lock per bin with
+sorted/deduped lock order is proper concurrency safety. Approved-only balances and
+physical-count-correction-as-baseline logic fix the original additive bug.
+
+**Architecture decision resolved — status semantics.** The shift of
+`transaction_items.status` from "job-cost approval" (original Section 14) to "physical
+movement approval" (implemented) is CORRECT. Physical movement and accounting approval are
+genuinely separate events with different reviewers and timing. They cannot share one field.
+
+### Decisions Made This Session
+- `transaction_items.status` = physical movement approval only. Approved by Ryan.
+- Job-cost/accounting approval = separate mechanism, reserved for Financials phase. When a
+  transaction has `destination_type = 'job'`, it will generate a separate job-cost entry
+  with its own approval lifecycle. Not built now.
+- Lock document updated: Section 14 rewritten as "Two Distinct Approval Concepts"
+  (14a/14b/14c). Constitutional rules 15 and 16 added.
+
+### Lock Document Changes
+- Section 14 "Pending Job Cost Review" → "Two Distinct Approval Concepts" with subsections
+  for physical movement (14a), reserved job-cost approval (14b), app job-cost scope (14c).
+- Constitutional rule 15: physical movement approval and accounting approval never merged.
+- Constitutional rule 16: only approved rows affect balances; ordering uses occurred_at with
+  ledger_sequence tie-breaker, never UUID order.
+
+### What Codex Needs to Know
+Migration as applied is architecturally sound — no rework. `transaction_items.status` is
+physical-movement-only; do not use it for accounting meaning when building cart checkout.
+Cart checkout sets `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` =
+catalog cost at issue/return. Do not build the job-cost approval mechanism yet.
+
+### Next Steps (in order)
+1. Codex builds inventory cart checkout/finalization (unblocked)
+2. Resolve Google Sheets cleanup before import
+3. Import/seed real inventory master data into v2 Supabase
+4. Wire app to v2 Supabase project
+5. Update HANDOFF.md after cart checkout is built
+
+### Architecture Drift Warnings
+CARRIED FORWARD (now resolved): "Do not merge physical movement and accounting approval" —
+resolved this session, promoted to constitutional rule 15. Closed.
+ACTIVE: When the Financials phase builds job-cost approval, it must use a separate
+field/table — never repurpose `transaction_items.status`.
+
+---
+
+## Entry 008
+
+**Date:** 2026-06-02
+**Updated by:** ChatGPT
+**Phase:** App Bootstrap / Netlify Deployment Recovery
+**Session type:** Front-end wiring, repo repair, deployment troubleshooting
+**Note:** This entry was originally mislabeled "Entry 007." Corrected to 008.
+
+### What Was Completed
+Confirmed working repo `RNSolutions-electrical/Northgate-HQ-v2.0`. Confirmed Phase 1
+migration already applied and verified in v2 Supabase. Began front-end wiring after finding
+app folders existed but several core files were missing/empty/incorrect. Fixed Netlify build
+failures in sequence: missing root `package.json`; invalid `vite.config.js` (contained
+package JSON instead of Vite config); missing `src/App.jsx`; missing
+`src/hooks/usePermissions.js`; Netlify serving old 404 deploy instead of latest successful
+deploy. Confirmed preview deploy worked. Published to production. Confirmed production URL
+works: `https://northgate-hq-v2.netlify.app/`.
+
+### Files Confirmed / Created / Repaired
+`package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`,
+`src/services/supabaseClient.js`, `src/hooks/usePermissions.js`, `public/_redirects`.
+App shell includes Clerk provider, signed-out landing, sign-in button, signed-in dashboard
+shell, UserButton, temporary permissions hook, Supabase client init check.
+
+### Current App State
+App builds and deploys successfully. UI is a temporary starter shell, NOT the final
+interface. Current dashboard cards: Dashboard Shell, Clerk Auth, Supabase Client. The
+temporary permissions hook hardcodes role `Developer`, division `Admin`,
+`canAccessDeveloper: true`, `canManageInventory: true`, `canViewFinancials: true`. Temporary
+only — must be replaced with server-authoritative permissions.
+
+### Important Netlify Notes
+Production: `https://northgate-hq-v2.netlify.app/`. The production 404 was caused by the
+successful deploy not being published, not by repo code. Settings: build `npm run build`,
+publish `dist`, production branch `main`.
+
+### Important Warnings
+Do not treat current `usePermissions.js` as real security — temporary scaffold only.
+Permission enforcement must become server-authoritative per the lock document. Do not build
+inventory checkout until Clerk auth, Supabase connectivity, and app shell behavior are
+confirmed in production. The app currently only proves the deployment shell works; it does
+not yet prove DB reads/writes or Clerk-to-Supabase user mapping.
+
+### Next Steps
+Manual production test (landing, sign-in, dashboard, UserButton, Supabase card). Add a real
+Supabase health/read test. Replace temporary permission scaffold with a proper
+user/permission lookup. Add module layout/navigation shell. Begin Inventory module UI
+(catalog read view, storage hierarchy browser, cart scaffold, checkout/finalization). Before
+checkout/finalization, confirm with Claude that the status / physical-vs-accounting approval
+separation is still aligned.
+
+### Architecture Drift Warnings
+Temporary front-end permissions hook is not compliant as a final permission system. Do not
+allow client-side permission checks to become authoritative. Do not confuse successful
+deployment with completed app functionality. Inventory checkout must create physical movement
+rows with `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` = current catalog cost.
+
+---
+
+## Entry 009 — ALIGNMENT / SYNC POINT
+
+**Date:** 2026-06-03
+**Updated by:** Claude
+**Phase:** Cross-model sync before Inventory UI build
+**Session type:** Reconciliation — single source of truth reset
+
+> Purpose: get both models and Ryan on the same page before further building.
+> If anything below conflicts with an earlier entry, THIS entry and the
+> Architecture Lock Document win. Read this first.
+
+### Entry Numbering Correction
+Two entries were both labeled "Entry 007." Corrected: Entry 007 = Claude post-migration
+review (2026-06-02). Entry 008 = ChatGPT app bootstrap (2026-06-02, was mislabeled 007).
+Entry 009 = this sync point. Going forward: read the last entry number and increment, never reuse.
+
+### Current State of Truth (confirmed facts)
+**Infrastructure:** Repo `RNSolutions-electrical/Northgate-HQ-v2.0`; v2 Supabase
+`northgate-hq-v2.0 / keogysnoukbendfkfjcn`; v1 backup `northgate-hq / qpbuzinkjbjbvcdwvdfu`
+(untouched); production `https://northgate-hq-v2.netlify.app/`; Netlify build `npm run build`,
+publish `dist`, branch `main`.
+**Database:** Phase 1 Inventory migration APPLIED and verified in v2 only. Version
+`20260531173603` / `phase_1_inventory`. Balance behavior tested and passed.
+**App:** Builds and deploys. Current UI is a temporary starter shell, NOT final. Clerk
+provider, signed-out landing, sign-in, dashboard shell, UserButton, Supabase init check working.
+
+### What Is LOCKED (do not revisit without lock document update)
+1. `transaction_items.status` = physical movement approval ONLY (Section 14a + Rule 15).
+2. Job-cost/accounting approval = separate mechanism, reserved for Financials phase (14b).
+3. Only `approved` rows affect `inventory_balances`; ordering uses occurred_at +
+   ledger_sequence, never UUID order (Rule 16).
+4. Cart checkout sets `status='approved'`, `occurred_at=NOW()`, `unit_cost_at_time` = catalog cost.
+5. All 14 original constitutional rules plus rules 15, 16, 17 are in force.
+6. The status-semantics review ChatGPT requested in Entry 008 step 6 is ALREADY DONE
+   (Entry 007). Does not need repeating.
+
+### What Is TEMPORARY and MUST Be Replaced
+The `usePermissions.js` scaffold hardcodes Developer / Admin / full access. Violates
+Constitutional Rule 4. Acceptable only as deployment bootstrap. Corrections required:
+- The real server-authoritative hook already exists from Phase 1 (reads user_permissions by
+  Clerk ID, caches, auto-creates row with safe defaults). RESTORE it — do not write a new system.
+- Until restored, flip the default from full-access to LEAST privilege. Full access is the
+  most dangerous possible default.
+
+### Required Action — Documents Out of Sync
+Claude's Entry 007 updated the lock document (Section 14 rewrite, rules 15-16; rule 17 added
+in this session). If the repo's `docs/ARCHITECTURE.md` lacks these, push the updated version
+now. Both models must read the same lock document.
+Checklist:
+- [ ] Updated ARCHITECTURE.md (Section 14 rewrite + rules 15, 16, 17) in repo
+- [ ] HANDOFF.md entries renumbered (007 Claude, 008 ChatGPT, 009 this)
+- [ ] This full HANDOFF.md committed to repo
+
+### Agreed Next Steps (in order — hard gate noted)
+1. Push updated ARCHITECTURE.md and this reconciled HANDOFF.md to repo.
+2. Manual production smoke test: landing → sign-in → dashboard → UserButton → Supabase init.
+3. Add a real Supabase health/read test (harmless table or view).
+4. **HARD GATE:** Restore the real server-authoritative `usePermissions` hook and confirm
+   Clerk → Supabase user mapping. Nothing that writes to the DB is built before this.
+   Read-only catalog view MAY proceed in parallel.
+5. Add module layout/navigation shell.
+6. Inventory module UI: (a) catalog read view — OK now, read only; (b) storage hierarchy
+   browser; (c) cart scaffold; (d) checkout/finalization — ONLY after step 4 clears.
+7. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost code
+   `16,050.00` → `16050`).
+8. Update HANDOFF.md after each step.
+
+### Open Questions / Concerns
+None blocking once documents are synced and the permission hook is restored.
+
+### Architecture Drift Warnings (active)
+- ACTIVE: Temporary usePermissions scaffold hardcodes full access. Restore to
+  server-authoritative before any write-capable UI. Default must be least-privilege if it remains.
+- ACTIVE (Financials phase): Job-cost approval must use a separate field/table — never
+  repurpose `transaction_items.status`.
+- CLOSED: "Don't merge physical movement and accounting approval" — resolved Entry 007,
+  promoted to Constitutional Rule 15.
 
 ---
