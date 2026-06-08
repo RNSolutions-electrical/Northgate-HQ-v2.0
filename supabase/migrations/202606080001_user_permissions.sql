@@ -38,6 +38,29 @@ BEFORE UPDATE ON user_permissions
 FOR EACH ROW
 EXECUTE FUNCTION touch_user_permissions_updated_at();
 
+CREATE OR REPLACE FUNCTION default_permissions_for_role(p_role TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+  CASE p_role
+    WHEN 'Developer' THEN
+      RETURN '{"can_access_developer":true,"can_manage_users":true,"can_view_reports":true,"can_edit_catalog":true,"can_manage_employees":true,"can_manage_vehicles":true,"can_manage_tools":true,"can_manage_inventory":true,"can_inventory_transactions":true,"can_estimate":true,"can_approve_estimates":true,"can_create_jobs":true,"can_manage_jobs":true,"can_approve_budget":true,"can_view_financials":true,"can_field_access":true,"can_archive_records":true,"can_manage_change_orders":true}'::jsonb;
+    WHEN 'Administrator' THEN
+      RETURN '{"can_access_developer":false,"can_manage_users":true,"can_view_reports":true,"can_edit_catalog":true,"can_manage_employees":true,"can_manage_vehicles":true,"can_manage_tools":true,"can_manage_inventory":true,"can_inventory_transactions":true,"can_estimate":true,"can_approve_estimates":true,"can_create_jobs":true,"can_manage_jobs":true,"can_approve_budget":true,"can_view_financials":true,"can_field_access":true,"can_archive_records":true,"can_manage_change_orders":true}'::jsonb;
+    WHEN 'Project Manager' THEN
+      RETURN '{"can_access_developer":false,"can_manage_users":false,"can_view_reports":true,"can_edit_catalog":false,"can_manage_employees":false,"can_manage_vehicles":false,"can_manage_tools":false,"can_manage_inventory":true,"can_inventory_transactions":true,"can_estimate":false,"can_approve_estimates":false,"can_create_jobs":true,"can_manage_jobs":true,"can_approve_budget":true,"can_view_financials":false,"can_field_access":true,"can_archive_records":false,"can_manage_change_orders":true}'::jsonb;
+    WHEN 'Estimator' THEN
+      RETURN '{"can_access_developer":false,"can_manage_users":false,"can_view_reports":true,"can_edit_catalog":false,"can_manage_employees":false,"can_manage_vehicles":false,"can_manage_tools":false,"can_manage_inventory":false,"can_inventory_transactions":false,"can_estimate":true,"can_approve_estimates":false,"can_create_jobs":false,"can_manage_jobs":false,"can_approve_budget":false,"can_view_financials":false,"can_field_access":true,"can_archive_records":false,"can_manage_change_orders":false}'::jsonb;
+    WHEN 'Field Supervisor' THEN
+      RETURN '{"can_access_developer":false,"can_manage_users":false,"can_view_reports":false,"can_edit_catalog":false,"can_manage_employees":false,"can_manage_vehicles":false,"can_manage_tools":false,"can_manage_inventory":false,"can_inventory_transactions":true,"can_estimate":false,"can_approve_estimates":false,"can_create_jobs":false,"can_manage_jobs":false,"can_approve_budget":false,"can_view_financials":false,"can_field_access":true,"can_archive_records":false,"can_manage_change_orders":false}'::jsonb;
+    ELSE
+      RETURN '{"can_access_developer":false,"can_manage_users":false,"can_view_reports":false,"can_edit_catalog":false,"can_manage_employees":false,"can_manage_vehicles":false,"can_manage_tools":false,"can_manage_inventory":false,"can_inventory_transactions":false,"can_estimate":false,"can_approve_estimates":false,"can_create_jobs":false,"can_manage_jobs":false,"can_approve_budget":false,"can_view_financials":false,"can_field_access":true,"can_archive_records":false,"can_manage_change_orders":false}'::jsonb;
+  END CASE;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION get_or_create_user_permissions(
   p_clerk_user_id TEXT,
   p_display_name TEXT DEFAULT NULL,
@@ -49,16 +72,28 @@ RETURNS TABLE (
   email TEXT,
   role TEXT,
   division TEXT,
-  permission_overrides JSONB,
+  effective_permissions JSONB,
   is_active BOOLEAN
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  jwt_subject TEXT;
 BEGIN
+  jwt_subject := auth.jwt() ->> 'sub';
+
+  IF jwt_subject IS NULL OR length(trim(jwt_subject)) = 0 THEN
+    RAISE EXCEPTION 'authenticated Clerk JWT is required';
+  END IF;
+
   IF p_clerk_user_id IS NULL OR length(trim(p_clerk_user_id)) = 0 THEN
     RAISE EXCEPTION 'clerk_user_id is required';
+  END IF;
+
+  IF p_clerk_user_id <> jwt_subject THEN
+    RAISE EXCEPTION 'permission lookup user mismatch';
   END IF;
 
   INSERT INTO user_permissions (clerk_user_id, display_name, email, role, division, permission_overrides, is_active)
@@ -74,7 +109,7 @@ BEGIN
          up.email,
          up.role,
          up.division,
-         up.permission_overrides,
+         default_permissions_for_role(up.role) || up.permission_overrides AS effective_permissions,
          up.is_active
   FROM user_permissions up
   WHERE up.clerk_user_id = p_clerk_user_id
