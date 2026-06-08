@@ -2,7 +2,7 @@ import { useAuth, useUser } from '@clerk/clerk-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
 
-const DEFAULT_PERMISSIONS = Object.freeze({
+const DENY_ALL = Object.freeze({
   can_access_developer: false,
   can_manage_users: false,
   can_view_reports: false,
@@ -23,71 +23,7 @@ const DEFAULT_PERMISSIONS = Object.freeze({
   can_manage_change_orders: false,
 });
 
-const ROLE_DEFAULTS = Object.freeze({
-  Developer: {
-    can_access_developer: true,
-    can_manage_users: true,
-    can_view_reports: true,
-    can_edit_catalog: true,
-    can_manage_employees: true,
-    can_manage_vehicles: true,
-    can_manage_tools: true,
-    can_manage_inventory: true,
-    can_inventory_transactions: true,
-    can_estimate: true,
-    can_approve_estimates: true,
-    can_create_jobs: true,
-    can_manage_jobs: true,
-    can_approve_budget: true,
-    can_view_financials: true,
-    can_field_access: true,
-    can_archive_records: true,
-    can_manage_change_orders: true,
-  },
-  Administrator: {
-    can_manage_users: true,
-    can_view_reports: true,
-    can_edit_catalog: true,
-    can_manage_employees: true,
-    can_manage_vehicles: true,
-    can_manage_tools: true,
-    can_manage_inventory: true,
-    can_inventory_transactions: true,
-    can_estimate: true,
-    can_approve_estimates: true,
-    can_create_jobs: true,
-    can_manage_jobs: true,
-    can_approve_budget: true,
-    can_view_financials: true,
-    can_field_access: true,
-    can_archive_records: true,
-    can_manage_change_orders: true,
-  },
-  'Project Manager': {
-    can_view_reports: true,
-    can_manage_inventory: true,
-    can_inventory_transactions: true,
-    can_create_jobs: true,
-    can_manage_jobs: true,
-    can_approve_budget: true,
-    can_field_access: true,
-    can_manage_change_orders: true,
-  },
-  Estimator: {
-    can_view_reports: true,
-    can_estimate: true,
-    can_field_access: true,
-  },
-  'Field Supervisor': {
-    can_inventory_transactions: true,
-    can_field_access: true,
-  },
-  'User': {
-    can_field_access: true,
-  },
-});
-
-function toCamelCasePermissions(flags) {
+function camel(flags) {
   return {
     canAccessDeveloper: flags.can_access_developer,
     canManageUsers: flags.can_manage_users,
@@ -110,29 +46,16 @@ function toCamelCasePermissions(flags) {
   };
 }
 
-function normalizePermissionRow(row) {
+function normalize(row) {
   if (!row) {
-    return {
-      role: 'User',
-      division: null,
-      permissions: DEFAULT_PERMISSIONS,
-      source: 'default-deny',
-    };
+    return { role: 'User', division: null, permissions: DENY_ALL, source: 'default-deny' };
   }
 
-  const role = row.role ?? 'User';
-  const roleDefaults = ROLE_DEFAULTS[role] ?? DEFAULT_PERMISSIONS;
-  const overrides = row.permission_overrides ?? {};
-
   return {
-    role,
+    role: row.role ?? 'User',
     division: row.division ?? null,
-    permissions: {
-      ...DEFAULT_PERMISSIONS,
-      ...roleDefaults,
-      ...overrides,
-    },
-    source: 'supabase',
+    permissions: { ...DENY_ALL, ...(row.effective_permissions ?? {}) },
+    source: 'server',
   };
 }
 
@@ -144,17 +67,15 @@ export function usePermissions() {
     error: null,
     role: 'User',
     division: null,
-    permissions: DEFAULT_PERMISSIONS,
+    permissions: DENY_ALL,
     source: 'loading',
   });
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadPermissions() {
-      if (!isUserLoaded) {
-        return;
-      }
+    async function load() {
+      if (!isUserLoaded) return;
 
       if (!isSignedIn || !user?.id) {
         if (isMounted) {
@@ -163,7 +84,7 @@ export function usePermissions() {
             error: null,
             role: 'User',
             division: null,
-            permissions: DEFAULT_PERMISSIONS,
+            permissions: DENY_ALL,
             source: 'signed-out',
           });
         }
@@ -171,55 +92,43 @@ export function usePermissions() {
       }
 
       try {
-        const accessToken = await getToken({ template: 'supabase' });
-        const supabase = createSupabaseClient(accessToken);
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
         const displayName = user.fullName || user.primaryEmailAddress?.emailAddress || user.id;
 
-        const { data, error } = await supabase.rpc('get_or_create_user_permissions', {
+        const { data, error } = await client.rpc('get_or_create_user_permissions', {
           p_clerk_user_id: user.id,
           p_display_name: displayName,
           p_email: user.primaryEmailAddress?.emailAddress ?? null,
         });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        const normalized = normalizePermissionRow(Array.isArray(data) ? data[0] : data);
-
-        if (isMounted) {
-          setState({
-            isLoading: false,
-            error: null,
-            ...normalized,
-          });
-        }
+        const next = normalize(Array.isArray(data) ? data[0] : data);
+        if (isMounted) setState({ isLoading: false, error: null, ...next });
       } catch (error) {
-        console.error('Failed to load server-backed permissions', error);
+        console.error('Permission lookup failed', error);
         if (isMounted) {
           setState({
             isLoading: false,
             error,
             role: 'User',
             division: null,
-            permissions: DEFAULT_PERMISSIONS,
+            permissions: DENY_ALL,
             source: 'error-default-deny',
           });
         }
       }
     }
 
-    loadPermissions();
+    load();
 
     return () => {
       isMounted = false;
     };
   }, [getToken, isSignedIn, isUserLoaded, user]);
 
-  const camelCasePermissions = useMemo(
-    () => toCamelCasePermissions(state.permissions),
-    [state.permissions],
-  );
+  const flags = useMemo(() => camel(state.permissions), [state.permissions]);
 
   return {
     isLoaded: isUserLoaded && !state.isLoading,
@@ -231,6 +140,6 @@ export function usePermissions() {
     permissions: state.permissions,
     permissionSource: state.source,
     error: state.error,
-    ...camelCasePermissions,
+    ...flags,
   };
 }
