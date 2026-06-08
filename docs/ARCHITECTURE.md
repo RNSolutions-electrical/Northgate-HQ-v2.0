@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.1 — Updated after Claude architectural review
+### Version 2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Ryan's Decision). Prior: v2.2 — Responsive build requirement + React Native companion app future phase.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.1
+    ARCHITECTURE.md          ← Architecture Lock Document v2.3
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -838,6 +838,17 @@ formal lock document update reviewed by Ryan.
     numbered entry, and presents the ENTIRE HANDOFF.md file back — not just the
     new entry. The full file every time is what keeps all parties aligned.
 
+18. **Responsive UI is a foundational build requirement.** The Northgate HQ web
+    application must be built mobile/tablet-responsive from the first screen.
+    Responsive design is not a Phase 4 add-on and is not deferred until after
+    desktop UI is stable. Every UI component, layout, and module must be designed
+    with phone and tablet viewports in mind from the moment it is first built.
+    A desktop-only implementation that plans to "add responsiveness later" is a
+    constitutional violation and triggers a mandatory Claude review before
+    proceeding. *Note: This rule governs basic responsive layout. It is distinct
+    from the user-customizable layout presets described in Section 27 (Phase 4),
+    which are an enhancement on top of this baseline.*
+
 ---
 
 ## 25. Label and QR Printing
@@ -857,7 +868,51 @@ Specific Avery template IDs to be added when confirmed.
 
 ## 26. Mobile and Desktop Behavior
 
-One system for desktop and mobile. No separate mobile app initially.
+One system for desktop and mobile. The Northgate HQ web application is the single
+primary product. There is no separate mobile app in the initial build.
+
+> **Ryan's Decision (v2.2, elevated to Constitutional Rule 18 in v2.3):** The
+> Northgate HQ web UI must be built **responsive from the start** — usable on
+> phone and tablet screens, not desktop-only. On smaller screens the layout
+> adapts (columns stack, navigation collapses, controls become touch-friendly)
+> while talking to the same Supabase source of truth. This is a foundational
+> build requirement, not a later add-on. Retrofitting responsiveness onto a
+> desktop-only UI is costly rework and is exactly what the "design before build"
+> principle exists to prevent. Because the HQ UI has not been built yet,
+> responsiveness is to be designed in from the first screen. **See Constitutional
+> Rule 18.**
+
+> **Note on scope:** The responsive baseline (the app simply works and is readable
+> on small screens) is foundational and is **separate from** the user-customizable
+> desktop/mobile layout presets in Section 27, Phase 4. Do not defer basic
+> responsiveness to Phase 4.
+
+### Future Phase — React Native Companion App (reserved, not now)
+
+> **Ryan's Decision (v2.2):** A native mobile **companion app** is a planned future
+> build, scheduled after core HQ functionality is stable. It is a separate
+> front-end (React Native, distributed via the Apple App Store and Google Play),
+> purpose-built for field-inventory workflows — QR scanning for tool/material
+> check-in/out, quick stock and vehicle-loadout lookups, on-site job-usage logging,
+> and push notifications (e.g. low-stock alerts).
+
+Key architectural points for the companion app:
+
+- It is **another front-end, not another back-end.** It reads from and writes to
+  the same Supabase project (the single source of truth). No duplicate data, no
+  separate database, no sync layer between two databases.
+- All permission and access rules remain **server-authoritative** (Constitutional
+  Rule 4). The companion app is subject to the same Supabase RLS / permission checks
+  as the web app. A second client must never become a path around permissions.
+- It is **not a wrapper of the full HQ.** It implements only the field-facing subset
+  of features that make sense on a phone in the field. The web HQ remains the
+  command center for desk work (dashboards, accounting, PO management, Dev Console).
+- Build effort is primarily front-end, because Supabase already provides the API the
+  companion app consumes.
+
+This is a reserved future phase under the Scope Control Rule (Section 28): the clean
+path is preserved now (single Supabase source of truth, server-authoritative
+permissions), but the companion app is not built until core HQ is stable.
 
 Buttons and actions must clearly explain what they do. Avoid vague +/- interactions.
 
