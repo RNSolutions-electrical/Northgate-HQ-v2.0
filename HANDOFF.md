@@ -621,3 +621,60 @@ None. The Entry 010 open question is resolved and closed.
   truth. (From Entry 010.)
 
 ---
+
+## Entry 012
+
+**Date:** 2026-06-08
+**Updated by:** ChatGPT
+**Phase:** Phase 1 (Inventory) — Permissions hard gate repair
+**Session type:** Implementation / security alignment
+
+### What Was Completed
+- Replaced the temporary `src/hooks/usePermissions.js` scaffold that hardcoded Developer/Admin/full-access permissions.
+- Added authenticated Supabase client support in `src/services/supabaseClient.js` so the app can send a Clerk-generated Supabase JWT to Supabase.
+- Added `supabase/migrations/202606080001_user_permissions.sql` to create the `user_permissions` table, default role-permission mapping function, and `get_or_create_user_permissions()` RPC.
+- Updated the dashboard permission card in `src/App.jsx` so it now displays server-backed permission source, role, and division instead of labeling the role as temporary.
+- Tightened the permission RPC so the requested Clerk user ID must match `auth.jwt() ->> 'sub'`; this prevents one authenticated user from requesting another user's permissions.
+- Removed front-end role-default expansion from `usePermissions`; the hook now uses only server-returned `effective_permissions` and fails closed to deny-all/default-deny if lookup fails.
+
+### Decisions Made This Session
+- Permission defaults are calculated in Supabase, not in the React hook, to preserve the server-authoritative permissions rule. — Approved by Architecture Lock Document Rule 4.
+- Missing, failed, signed-out, or unreadable permission state defaults to least privilege / deny-all. — Approved by Architecture Lock Document Rule 4 and Entry 009 hard gate.
+- The UI may display permission state for transparency, but those displayed values are not treated as security enforcement. — Approved by Architecture Lock Document Rule 4.
+
+### Schema Changes
+- Added `user_permissions` table with Clerk user ID, display name, email, role, division, JSONB permission overrides, active flag, and timestamps.
+- Added `default_permissions_for_role(role)` function to calculate canonical role defaults server-side.
+- Added `get_or_create_user_permissions(p_clerk_user_id, p_display_name, p_email)` RPC with `SECURITY DEFINER` and a JWT subject match check.
+- Enabled RLS on `user_permissions`.
+- Added self-select RLS policy for matching Clerk subject.
+- Added deny-all client insert/update/delete policies so direct client mutation is blocked.
+
+### What Codex Needs to Know
+- The temporary full-access permissions scaffold is removed.
+- The hard gate is partially cleared in code, but final clearance requires applying the migration to v2 Supabase and confirming Clerk's `supabase` JWT template returns a token whose `sub` matches the Clerk user ID.
+- Do not build write-capable UI until the migration has been applied and a production sign-in confirms the dashboard permission source is `server`, not `error-default-deny`.
+- Current first-time users are auto-created as role `User` with least-privilege effective permissions. Ryan's/admin user's row must be manually elevated in Supabase or through a future controlled Dev Console/admin workflow before protected modules unlock.
+
+### What Claude Needs to Know
+- Permission resolution has moved to a server-backed RPC and no longer relies on client-side hardcoded Developer/Admin access.
+- This implementation is intended to satisfy Constitutional Rule 4, but it depends on Supabase JWT/Clerk configuration being correct in the live environment.
+- Any future role/permission changes should be made server-side or through controlled admin/Dev Console workflows, not by adding role-default expansion back into the React hook.
+
+### Next Steps (in order)
+1. Apply `supabase/migrations/202606080001_user_permissions.sql` to the v2 Supabase project.
+2. Confirm Clerk has a `supabase` JWT template configured and that `auth.jwt() ->> 'sub'` matches the signed-in Clerk user ID.
+3. Sign into production and confirm the dashboard permission card shows `Source: server`.
+4. Elevate Ryan/admin account in `user_permissions` to the correct role/division using a controlled Supabase/admin step until Dev Console user management exists.
+5. Only after the above checks pass, proceed with write-capable inventory UI.
+
+### Open Questions / Concerns
+- The GitHub connector could not run the app build or apply the Supabase migration; those steps still need to be executed/verified in the project environment.
+- Clerk's `supabase` JWT template must exist. If it does not, the hook will fail closed and show `error-default-deny`.
+
+### Architecture Drift Warnings
+- UPDATED: Temporary `usePermissions` scaffold hardcoded full access — code-level scaffold removed, but carry forward until migration is applied and live Clerk → Supabase permission lookup is verified.
+- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`.
+- CARRIED FORWARD (advisory, future companion-app phase): When/if the React Native companion app is built, it must not become a path around server-authoritative permissions and must not introduce a second source of truth.
+
+---
