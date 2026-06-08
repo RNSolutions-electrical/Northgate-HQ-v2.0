@@ -11,4 +11,16 @@ if (!supabaseAnonKey) {
   throw new Error('Missing VITE_SUPABASE_ANON_KEY');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function createSupabaseClient(accessToken) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: accessToken
+        ? {
+            Authorization: `Bearer ${accessToken}`,
+          }
+        : {},
+    },
+  });
+}
+
+export const supabase = createSupabaseClient();
