@@ -454,3 +454,94 @@ None blocking once documents are synced and the permission hook is restored.
   promoted to Constitutional Rule 15.
 
 ---
+
+## Entry 010
+
+**Date:** 2026-06-08
+**Updated by:** Claude
+**Phase:** Phase 1 (Inventory) — concurrent UI/platform architecture decision
+**Session type:** Advisory / architecture decision — mobile & UI strategy
+
+### Context
+Ryan asked, in general terms, about (a) offline-capable apps, (b) shipping native
+apps to the app stores, and (c) the React Native vs Flutter vs Capacitor trade-offs.
+Northgate HQ itself was confirmed to remain ONLINE-based — Supabase is the live
+source of truth; HQ is not an offline-first design. Out of that discussion Ryan made
+two forward-looking UI/platform decisions for Northgate HQ.
+
+### Decisions Made This Session
+- **Responsive web UI is a foundational build requirement.** The Northgate HQ web app
+  must be built mobile/tablet-responsive from the first screen, not desktop-only.
+  Rationale: the HQ UI has not been built yet, so designing responsiveness in now
+  avoids costly retrofit later (consistent with the "design before build" principle).
+  — Approved: Ryan.
+- **React Native companion app added as a reserved future phase.** A native,
+  app-store-distributed companion app focused on field-inventory workflows (QR
+  scanning, stock/vehicle lookups, on-site job-usage logging, push notifications),
+  reading from and writing to the same Supabase source of truth as the web app. Built
+  only after core HQ is stable. — Approved: Ryan.
+
+### Why the Companion App Is Low Architectural Risk
+Supabase already exposes the API and enforces auth/RLS, so the companion app is almost
+purely a new front-end against the existing back-end. No second database, no sync
+layer, no separate server. Server-authoritative permissions (Constitutional Rule 4)
+continue to apply to the second client. This fits the Scope Control Rule (Section 28):
+preserve the clean path now, build later.
+
+### Lock Document Changes
+- Bumped to **v2.2**.
+- Section 26 "Mobile and Desktop Behavior" expanded: added Ryan's Decision on
+  responsive-from-the-start as a foundational requirement (explicitly distinct from
+  the user-customizable layout presets in Section 27, Phase 4), and added a "Future
+  Phase — React Native Companion App (reserved, not now)" subsection documenting the
+  companion app's architecture and constraints.
+- No constitutional rules added. The responsive baseline is documented as a Section 26
+  build requirement. Ryan may elevate it to a numbered Constitutional Rule (Rule 18) in
+  a future update if he wants it carried with that weight.
+
+### Schema Changes
+None this session.
+
+### What Codex Needs to Know
+- When the HQ UI is built, build it responsive from the start — phone/tablet layouts
+  are a foundational requirement, NOT a Phase 4 add-on. Basic responsiveness is not the
+  same as the customizable layout presets in Section 27, Phase 4.
+- Do not start the React Native companion app yet. It is a reserved future phase.
+- The companion app, when built, must use the same Supabase project and the same
+  server-authoritative permission checks — never a separate data store or a permission
+  bypass.
+
+### What Claude Needs to Know
+- Mobile/UI strategy is now documented in Section 26 (v2.2). Future reviews touching UI
+  build order should confirm responsiveness is being designed in from the start.
+- Verified this session: the live repo's `docs/ARCHITECTURE.md` already contains the
+  Section 14 rewrite (Two Distinct Approval Concepts, 14a/14b/14c) and Constitutional
+  Rules 15, 16, 17. The Entry 009 checklist item "Updated ARCHITECTURE.md in repo" is
+  therefore satisfied.
+
+### Next Steps (in order)
+1. Push this v2.2 ARCHITECTURE.md and this HANDOFF.md (Entry 010) to the repo.
+2. HARD GATE unchanged (from Entry 009): restore the server-authoritative
+   `usePermissions` hook and confirm Clerk → Supabase user mapping before any
+   write-capable UI. Read-only catalog view may proceed in parallel.
+3. Continue the Inventory module per the Section 29 build order.
+4. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost
+   code `16,050.00` → `16050`).
+5. Update HANDOFF.md after each step.
+
+### Open Questions / Concerns
+- Does Ryan want the responsive-from-the-start requirement elevated to a numbered
+  Constitutional Rule (Rule 18), or is its placement in Section 26 sufficient? Left in
+  Section 26 pending Ryan's call.
+
+### Architecture Drift Warnings
+- CARRIED FORWARD (active): Temporary `usePermissions` scaffold hardcodes full access.
+  Restore to server-authoritative before any write-capable UI; default must be
+  least-privilege if it remains. (From Entry 009.)
+- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate
+  field/table — never repurpose `transaction_items.status`. (From Entry 009.)
+- NEW (advisory, future companion-app phase): When/if the React Native companion app is
+  built, it must not become a path around server-authoritative permissions and must not
+  introduce a second source of truth. Carry forward until the companion app phase begins.
+
+---
