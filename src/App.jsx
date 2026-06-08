@@ -30,12 +30,15 @@ function Dashboard() {
 
         <article className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-lg">
           <ShieldCheck className="mb-4 h-8 w-8" />
-          <h2 className="text-lg font-semibold">Clerk Auth</h2>
+          <h2 className="text-lg font-semibold">Server Permissions</h2>
           <p className="mt-2 text-sm text-slate-400">
             Signed in as {user?.primaryEmailAddress?.emailAddress ?? user?.id}.
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            Temporary role: {permissions.role} / {permissions.division}
+            Role: {permissions.isLoaded ? permissions.role : 'Loading'} / Division: {permissions.isLoaded ? permissions.division ?? 'Unassigned' : 'Loading'}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Source: {permissions.permissionSource}
           </p>
         </article>
 
