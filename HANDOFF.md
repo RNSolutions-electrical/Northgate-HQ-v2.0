@@ -650,3 +650,105 @@ None blocking.
 - CARRIED FORWARD (advisory, future companion-app phase): React Native companion app must not bypass server-authoritative permissions or introduce a second source of truth.
 
 ---
+
+## Entry 015
+
+**Date:** 2026-06-09
+**Updated by:** ChatGPT
+**Phase:** Phase 1 (Inventory) — Cart-open security gate and first controlled cart write
+**Session type:** Implementation / security alignment / pre-Claude review checkpoint
+
+### What Was Completed
+- Stopped before add-to-cart implementation to inspect whether the existing cart schema could support the Section 11 vehicle snapshot requirement.
+- Confirmed the current cart tables are named `inventory_carts` and `inventory_cart_items`, not `carts` / `cart_items`.
+- Confirmed `inventory_carts.active_vehicle_id` exists and can hold the cart-open vehicle snapshot.
+- Confirmed no user-to-vehicle assignment table currently exists in the v2 schema, so the first cart-open implementation snapshots `NULL` for `active_vehicle_id` when no active assignment source is available.
+- Found a Rule 4 security issue before implementing cart writes: `inventory_carts` and `inventory_cart_items` did not have RLS enabled and had no policies.
+- Applied live Supabase migration `secure_inventory_cart_open_rpc` to:
+  - enable RLS on `inventory_carts`;
+  - enable RLS on `inventory_cart_items`;
+  - allow users to select only their own carts and cart items;
+  - deny direct client insert/update/delete on both cart tables;
+  - add controlled server RPC `open_inventory_cart(p_user_name, p_active_vehicle_id)`.
+- Added matching repo migration file:
+  - `supabase/migrations/202606090003_secure_inventory_cart_open_rpc.sql`
+- Added app hook:
+  - `src/hooks/useInventoryCart.js`
+- Updated `src/App.jsx` to wire the Cart Open tab to the controlled `open_inventory_cart` RPC.
+- Updated UI build marker to `Inventory cart open build: 2026-06-09.4`.
+- Preserved the boundary that add-to-cart, cart-item writes, checkout, and inventory movement remain disabled.
+
+### Decisions Made This Session
+- Do not allow direct client mutation of cart tables. Cart writes must go through controlled server functions/RPCs with Clerk JWT validation. — Required by Architecture Rule 4.
+- The first cart write may create or return an active cart only; it must not create cart item rows, reserve stock, move inventory, or write `transaction_items`. — Required by Entry 013 build sequence and inventory transaction rules.
+- Because no active user-to-vehicle assignment source exists yet, the first cart-open RPC passes and stores `NULL` for `active_vehicle_id`, and the UI explicitly displays “No active vehicle assignment found.” — Implementation decision pending Claude review for whether a proper assignment table should be created before add-to-cart.
+- Add-to-cart implementation is paused pending Claude review of this checkpoint. — Ryan requested document update for Claude before proceeding.
+
+### Schema Changes
+- RLS enabled on `inventory_carts`.
+- RLS enabled on `inventory_cart_items`.
+- Added self-select policies for authenticated users to read only their own cart/cart-item records.
+- Added deny-all direct client insert/update/delete policies for both cart tables.
+- Added `open_inventory_cart(p_user_name TEXT DEFAULT NULL, p_active_vehicle_id UUID DEFAULT NULL)` RPC as `SECURITY DEFINER`.
+- `open_inventory_cart` validates `auth.jwt() ->> 'sub'` and uses that subject as the authoritative `user_id`.
+- `open_inventory_cart` creates a cart with:
+  - `user_id` from JWT subject;
+  - `user_name` from provided display name or JWT subject fallback;
+  - `active_vehicle_id` from provided snapshot value, currently `NULL` from the app because no active assignment source exists;
+  - `status = 'active'`;
+  - `expires_at = NOW() + INTERVAL '24 hours'`.
+- `open_inventory_cart` returns an existing non-expired active cart for the same user instead of creating duplicates.
+
+### Code / File Changes
+- `supabase/migrations/202606090003_secure_inventory_cart_open_rpc.sql` — added RLS, policies, and controlled cart-open RPC.
+- `src/hooks/useInventoryCart.js` — added hook that calls `open_inventory_cart` with the Clerk/Supabase JWT.
+- `src/App.jsx` — wired Cart Open tab to the RPC and updated UI text to reflect the first controlled cart write.
+- `src/styles.css` — already contained the responsive cart scaffold styling from the prior step; no additional style change was required for the cart-open hook beyond existing classes.
+
+### What Codex Needs to Know
+- The first controlled cart write is now implemented as cart-open only.
+- Do not implement add-to-cart until Claude reviews whether `NULL` vehicle snapshot handling is acceptable without an active vehicle assignment table.
+- Direct table mutation for carts is now intentionally blocked by RLS. Future cart mutations should use controlled RPCs.
+- Add-to-cart should be implemented as a separate controlled RPC with server-side checks for:
+  - authenticated Clerk subject;
+  - active cart owned by the signed-in user;
+  - valid `bin_item_id` and `item_id` relationship;
+  - quantity > 0;
+  - permission to perform inventory transactions;
+  - no inventory balance movement until checkout/finalization.
+- Checkout/finalization remains untouched and must still follow all locked rules: `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` snapshot, per-line destination fields, and approved rows only affecting balances.
+
+### What Claude Needs to Know
+- A pre-write security issue was found: cart tables had no RLS. This was fixed before the first cart write.
+- The implemented RPC satisfies the server-authoritative direction by using the Clerk JWT subject and blocking direct client cart mutation.
+- The schema has `inventory_carts.active_vehicle_id`, so the cart-open snapshot field exists.
+- The schema does **not** yet have a user/employee active vehicle assignment table. The app currently passes `NULL` for `p_active_vehicle_id` and clearly displays that no active vehicle assignment was found.
+- Claude should review whether it is acceptable to proceed to add-to-cart with cart-open snapshots allowed to be `NULL`, or whether the employee/user active vehicle assignment model should be designed before add-to-cart.
+- No cart items, inventory movements, or checkout records were created in this step.
+
+### Next Steps (in order)
+1. Ryan sends updated `ARCHITECTURE.md` and `HANDOFF.md` to Claude.
+2. Claude reviews the cart-open security/RLS implementation and the `NULL` active-vehicle snapshot fallback.
+3. If Claude approves, verify in production:
+   - `Source: server`;
+   - Cart Open tab loads;
+   - Open Cart succeeds;
+   - cart status changes to active;
+   - vehicle snapshot displays “No active vehicle assignment found.”
+4. After review and verification, build controlled add-to-cart RPC.
+5. Keep checkout/finalization disabled until add-to-cart writes are verified.
+
+### Open Questions / Concerns
+- Should an active user-to-vehicle assignment table be created before add-to-cart, or is `NULL` cart-open snapshot acceptable until the Employee/Vehicles module matures?
+- Should `open_inventory_cart` also validate an inventory permission flag server-side through `user_permissions.effective_permissions`, or is the current JWT-user validation plus RLS sufficient for this early cart-open step? This should be reviewed before add-to-cart.
+- Need future audit/import tracking for bulk imports; carried forward from Entry 014.
+- Need destination tables/import path for Employees and Assemblies; carried forward from Entry 014.
+
+### Architecture Drift Warnings
+- CLOSED: Cart tables without RLS — fixed before first cart write by enabling RLS and blocking direct mutation.
+- CARRIED FORWARD (active, Claude review requested): First cart write snapshots `NULL` for active vehicle because no active user-to-vehicle assignment source exists yet.
+- CARRIED FORWARD (active, next implementation step): Add-to-cart must be a controlled server RPC; do not use direct client table mutation.
+- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`.
+- CARRIED FORWARD (advisory, future companion-app phase): React Native companion app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
