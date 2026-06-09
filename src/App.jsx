@@ -3,6 +3,7 @@ import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-rea
 import { useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
+import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { usePermissions } from './hooks/usePermissions.js';
 
 function CountCard({ label, value }) {
@@ -132,40 +133,54 @@ function StoragePreview({ storageUnits, bins }) {
 
 function CartScaffold({ permissions, catalogPreview }) {
   const candidateItems = catalogPreview.slice(0, 3);
-  const canProceedToWrites = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
+  const cartState = useInventoryCart();
+  const canOpenCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
+  const cart = cartState.cart;
 
   return (
-    <div className="cart-scaffold" aria-label="Display-only inventory cart scaffold">
+    <div className="cart-scaffold" aria-label="Inventory cart scaffold">
       <div className="cart-scaffold__summary">
         <section className="cart-panel">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Inventory Step 3</p>
-              <h3>Cart Scaffold</h3>
+              <p className="eyebrow">Inventory Step 4A</p>
+              <h3>Open Cart</h3>
             </div>
-            <span className="status-pill status-pill--warn">Display-only</span>
+            <span className={cart ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
+              {cart ? 'Active cart opened' : 'Cart not opened'}
+            </span>
           </div>
           <p>
-            This is the responsive cart layout only. It does not create a cart, create cart items, reserve inventory, move stock, or write inventory transactions.
+            This step only creates or returns an active cart through the controlled server RPC. It does not create cart items, reserve inventory, move stock, or create transaction rows.
           </p>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!canOpenCart || cartState.isOpening}
+            onClick={cartState.openCart}
+          >
+            {cartState.isOpening ? 'Opening Cart…' : cart ? 'Cart Opened' : 'Open Cart'}
+          </button>
+          {cartState.error ? (
+            <div className="alert">Cart open failed. Stop before add-to-cart writes and check the server RPC/logs.</div>
+          ) : null}
           <div className="cart-facts">
-            <span>Cart status: Not opened</span>
+            <span>Cart status: {cart?.status ?? 'Not opened'}</span>
             <span>Cart rows: 0</span>
-            <span>Writes enabled: No</span>
+            <span>Cart ID: {cart?.cart_id ? `${cart.cart_id.slice(0, 8)}…` : 'None'}</span>
             <span>Permission source: {permissions.permissionSource}</span>
           </div>
         </section>
 
         <section className="cart-panel cart-panel--locked">
-          <h3>Next Write Gate</h3>
+          <h3>Vehicle Snapshot</h3>
           <p>
-            The first cart write must snapshot the signed-in user's active vehicle assignment at cart creation. That snapshot must not be re-queried or changed at checkout.
+            The cart-open RPC stores `active_vehicle_id` at creation time. There is no active user-to-vehicle assignment table yet, so this first cart write snapshots `NULL` and clearly records that no active vehicle assignment was found.
           </p>
-          <ol className="workflow-steps">
-            <li>Confirm active vehicle assignment lookup.</li>
-            <li>Create cart with user and vehicle snapshot.</li>
-            <li>Only then allow add-to-cart writes.</li>
-          </ol>
+          <div className="cart-facts">
+            <span>Snapshot status: {cart ? 'Captured at cart open' : 'Pending cart open'}</span>
+            <span>Vehicle snapshot: {cart?.active_vehicle_id ?? 'No active vehicle assignment found'}</span>
+          </div>
         </section>
       </div>
 
@@ -195,19 +210,16 @@ function CartScaffold({ permissions, catalogPreview }) {
 
         <section className="cart-panel">
           <h3>Cart Preview</h3>
-          <EmptyState title="Cart is intentionally empty">
-            This area is reserved for line items, quantities, destination selection, and checkout controls. Those controls remain disabled until the first cart-write design is confirmed.
+          <EmptyState title="No cart items yet">
+            Add-to-cart remains disabled until the cart-open write is confirmed in production. Checkout controls remain disabled until cart-item writes are verified.
           </EmptyState>
           <div className="cart-actions">
-            <button type="button" className="secondary-button" disabled>Open Cart Later</button>
             <button type="button" className="secondary-button" disabled>Add Item Later</button>
             <button type="button" className="secondary-button" disabled>Checkout Later</button>
           </div>
-          {!canProceedToWrites ? (
-            <p className="build-note">
-              Write controls stay disabled until the next implementation step confirms the server-side cart creation path and vehicle snapshot rule.
-            </p>
-          ) : null}
+          <p className="build-note">
+            Next implementation step: controlled add-to-cart RPC with server-side permission and balance validation.
+          </p>
         </section>
       </div>
     </div>
@@ -223,10 +235,10 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–3</p>
-          <h2>Read-only Inventory + Cart Scaffold</h2>
+          <p className="eyebrow">Inventory Step 1–4A</p>
+          <h2>Read-only Inventory + Cart Open</h2>
           <p>
-            This module reads from live v2 Supabase and now includes a display-only cart scaffold. It does not create carts, add cart rows, move stock, or write inventory transactions.
+            This module reads from live v2 Supabase and now supports the first controlled cart-open write. It does not add cart rows, move stock, or write inventory transactions.
           </p>
         </div>
         <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -259,7 +271,7 @@ function InventoryReadOnlyPanel({ permissions }) {
           Storage Browser
         </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
-          Cart Scaffold
+          Cart Open
         </button>
       </div>
 
@@ -286,7 +298,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory cart scaffold build: 2026-06-09.3</p>
+            <p className="build-note">Inventory cart open build: 2026-06-09.4</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -296,7 +308,7 @@ function Dashboard() {
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module is in read-only plus display-only cart scaffold mode.</p>
+          <p>Base app shell is online. The inventory module supports read-only browsing and a controlled cart-open write.</p>
         </article>
 
         <article className="card">
@@ -313,16 +325,16 @@ function Dashboard() {
           <Database className="card__icon" />
           <h2>Supabase Client</h2>
           <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-          <p className="muted">Live v2 inventory reads are active. Cart writes remain disabled.</p>
+          <p className="muted">Cart opening is routed through a server RPC. Direct cart table mutation is blocked by RLS.</p>
         </article>
 
         <article className="card card--wide">
           <div className="card__header">
             <div>
               <p className="eyebrow">Cart Write Gate</p>
-              <h2>Vehicle Snapshot Required Before First Write</h2>
+              <h2>First Cart Write Is Controlled</h2>
               <p>
-                The next implementation step must design the active vehicle assignment lookup and snapshot it when the cart is created. Checkout must use that stored snapshot, not a fresh vehicle lookup.
+                The only write now allowed is opening a cart through `open_inventory_cart`. Add-to-cart and checkout remain locked until their own server-side RPCs are built and verified.
               </p>
             </div>
             <ShoppingCart className="card__icon" />
