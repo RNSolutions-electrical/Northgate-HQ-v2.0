@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Ryan's Decision). Prior: v2.2 — Responsive build requirement + React Native companion app future phase.
+### Version 2.4 — Build-state update: Permissions hard gate cleared, read-only Inventory UI and staged seed completed (Entry 014). Prior: v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.3
+    ARCHITECTURE.md          ← Architecture Lock Document v2.4
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -953,28 +953,51 @@ Do not prematurely build future modules.
 
 ## 29. First Build Order
 
-> **Updated to reflect work already completed.**
+> **Updated to reflect work already completed through Entry 014.**
 
 **Foundation (complete):**
 
 - Database schema (Phase 1 SQL written and deployed)
-- Auth wiring (Clerk + user_permissions)
-- App shell (Layout, routing, permission-gated nav)
-- Dashboard
-- Materials catalog (read + edit)
+- Clerk auth wiring
+- Server-authoritative `user_permissions` table and RPC
+- Production permission source verified as `server`
+- Ryan/admin account elevated to `Developer / Admin`
+- App shell and dashboard
+- Responsive baseline styling started under Constitutional Rule 18
 
-**Current phase — Inventory:**
+**Inventory foundation completed:**
 
-1. Schema additions from Section 23 and locked table updates
-2. Storage location structure (unit → shelf → bay → bin)
-3. QR generation
-4. Inventory balance cache
-5. Cart and checkout system (with per-line-item destinations)
-6. Inventory transactions
-7. Grand Master read-only view (Supabase VIEW)
-8. Accounting export
-9. Label printing
-10. Van stock template extension points
+- Read-only Inventory confirmation panel implemented in production UI
+- Storage browser shell implemented as read-only UI
+- Live v2 Supabase read path confirmed
+- Staged seed/import completed for existing Phase 1 tables:
+  - `cost_codes`
+  - `items`
+  - `vehicles`
+  - `storage_units`
+  - `shelves`
+  - `bays`
+  - `bins`
+  - `bin_items`
+  - initial balance through an approved `physical_count_correction`
+- Grand Master read-only view exists and returns seeded rows
+
+**Current phase — Inventory cart scaffold:**
+
+1. Display-only cart scaffold — next step; no writes until explicitly started
+2. First cart write — must snapshot active vehicle assignment at cart creation
+3. Add-to-cart writes
+4. Checkout/finalization writes with all locked transaction rules:
+   - `status = 'approved'` for physical movement only
+   - `occurred_at = NOW()` at checkout
+   - `unit_cost_at_time` from catalog price at time of issue/return
+   - per-line-item `destination_type` and `destination_id`
+   - balances affected only by approved rows
+   - balance ordering by `occurred_at DESC, ledger_sequence DESC`
+5. Inventory transaction review / validation screens
+6. Accounting export
+7. Label printing
+8. Van stock template extension points
 
 Inventory must be built to later integrate with:
 
@@ -986,6 +1009,12 @@ Inventory must be built to later integrate with:
 - Reports
 - Documents
 - Dev Console
+
+**Not yet imported / not yet built:**
+
+- Employees were not imported because the current v2 schema does not yet expose a destination table for them.
+- Assemblies were not imported because the current v2 schema does not yet expose destination tables for assemblies / assembly materials.
+- No cart writes, cart item writes, or checkout/finalization UI has been built yet.
 
 ---
 
