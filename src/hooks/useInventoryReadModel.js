@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
 
 const EMPTY_MODEL = Object.freeze({
@@ -19,7 +19,7 @@ const EMPTY_MODEL = Object.freeze({
 });
 
 async function getCount(client, table, queryBuilder) {
-  let query = client.from(table).select('id', { count: 'exact', head: true });
+  let query = client.from(table).select('*', { count: 'exact', head: true });
 
   if (queryBuilder) {
     query = queryBuilder(query);
@@ -36,6 +36,7 @@ async function getCount(client, table, queryBuilder) {
 
 export function useInventoryReadModel({ enabled }) {
   const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
   const [state, setState] = useState({
     isLoading: false,
     error: null,
@@ -154,15 +155,10 @@ export function useInventoryReadModel({ enabled }) {
     return () => {
       isMounted = false;
     };
-  }, [enabled, getToken]);
+  }, [enabled, getToken, refreshKey]);
 
-  return useMemo(
-    () => ({
-      ...state,
-      reload: () => {
-        setState((current) => ({ ...current }));
-      },
-    }),
-    [state],
-  );
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
 }
