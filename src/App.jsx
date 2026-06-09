@@ -1,5 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
-import { Boxes, Database, LayoutDashboard, PackageSearch, ShieldCheck, Warehouse } from 'lucide-react';
+import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
@@ -92,7 +92,7 @@ function StoragePreview({ storageUnits, bins }) {
       <section>
         <h3>Storage Units</h3>
         {storageUnits.length ? (
-          <div className="mobile-list" style={{ display: 'grid' }}>
+          <div className="mobile-list mobile-list--always">
             {storageUnits.map((unit) => (
               <article className="mobile-item" key={unit.id}>
                 <strong>{unit.unit_code}</strong>
@@ -111,7 +111,7 @@ function StoragePreview({ storageUnits, bins }) {
       <section>
         <h3>Bins</h3>
         {bins.length ? (
-          <div className="mobile-list" style={{ display: 'grid' }}>
+          <div className="mobile-list mobile-list--always">
             {bins.map((bin) => (
               <article className="mobile-item" key={bin.id}>
                 <strong>{bin.bin_code}</strong>
@@ -130,6 +130,90 @@ function StoragePreview({ storageUnits, bins }) {
   );
 }
 
+function CartScaffold({ permissions, catalogPreview }) {
+  const candidateItems = catalogPreview.slice(0, 3);
+  const canProceedToWrites = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
+
+  return (
+    <div className="cart-scaffold" aria-label="Display-only inventory cart scaffold">
+      <div className="cart-scaffold__summary">
+        <section className="cart-panel">
+          <div className="card__header">
+            <div>
+              <p className="eyebrow">Inventory Step 3</p>
+              <h3>Cart Scaffold</h3>
+            </div>
+            <span className="status-pill status-pill--warn">Display-only</span>
+          </div>
+          <p>
+            This is the responsive cart layout only. It does not create a cart, create cart items, reserve inventory, move stock, or write inventory transactions.
+          </p>
+          <div className="cart-facts">
+            <span>Cart status: Not opened</span>
+            <span>Cart rows: 0</span>
+            <span>Writes enabled: No</span>
+            <span>Permission source: {permissions.permissionSource}</span>
+          </div>
+        </section>
+
+        <section className="cart-panel cart-panel--locked">
+          <h3>Next Write Gate</h3>
+          <p>
+            The first cart write must snapshot the signed-in user's active vehicle assignment at cart creation. That snapshot must not be re-queried or changed at checkout.
+          </p>
+          <ol className="workflow-steps">
+            <li>Confirm active vehicle assignment lookup.</li>
+            <li>Create cart with user and vehicle snapshot.</li>
+            <li>Only then allow add-to-cart writes.</li>
+          </ol>
+        </section>
+      </div>
+
+      <div className="cart-scaffold__body">
+        <section className="cart-panel">
+          <h3>Catalog Candidates</h3>
+          {candidateItems.length ? (
+            <div className="cart-candidate-list">
+              {candidateItems.map((item) => (
+                <article className="cart-candidate" key={item.id}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.material_code} · {item.unit_of_measure ?? '—'} · ${Number(item.price_per_unit ?? 0).toFixed(2)}</span>
+                  </div>
+                  <button type="button" className="secondary-button" disabled>
+                    Add later
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No candidate items">
+              Catalog preview data has not loaded yet. The cart scaffold will show selectable candidates after read-only catalog data is available.
+            </EmptyState>
+          )}
+        </section>
+
+        <section className="cart-panel">
+          <h3>Cart Preview</h3>
+          <EmptyState title="Cart is intentionally empty">
+            This area is reserved for line items, quantities, destination selection, and checkout controls. Those controls remain disabled until the first cart-write design is confirmed.
+          </EmptyState>
+          <div className="cart-actions">
+            <button type="button" className="secondary-button" disabled>Open Cart Later</button>
+            <button type="button" className="secondary-button" disabled>Add Item Later</button>
+            <button type="button" className="secondary-button" disabled>Checkout Later</button>
+          </div>
+          {!canProceedToWrites ? (
+            <p className="build-note">
+              Write controls stay disabled until the next implementation step confirms the server-side cart creation path and vehicle snapshot rule.
+            </p>
+          ) : null}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function InventoryReadOnlyPanel({ permissions }) {
   const [activeTab, setActiveTab] = useState('catalog');
   const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
@@ -139,10 +223,10 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–2</p>
-          <h2>Read-only Inventory Confirmation</h2>
+          <p className="eyebrow">Inventory Step 1–3</p>
+          <h2>Read-only Inventory + Cart Scaffold</h2>
           <p>
-            This panel only reads from live v2 Supabase. It does not create carts, add cart rows, move stock, or write inventory transactions.
+            This module reads from live v2 Supabase and now includes a display-only cart scaffold. It does not create carts, add cart rows, move stock, or write inventory transactions.
           </p>
         </div>
         <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -174,11 +258,15 @@ function InventoryReadOnlyPanel({ permissions }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'storage'} onClick={() => setActiveTab('storage')}>
           Storage Browser
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
+          Cart Scaffold
+        </button>
       </div>
 
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
+      {activeTab === 'cart' ? <CartScaffold permissions={permissions} catalogPreview={inventory.model.catalogPreview} /> : null}
 
       <p className="build-note">
         Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}
@@ -198,7 +286,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory read-only build: 2026-06-09.2</p>
+            <p className="build-note">Inventory cart scaffold build: 2026-06-09.3</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -208,7 +296,7 @@ function Dashboard() {
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module is now in read-only confirmation mode.</p>
+          <p>Base app shell is online. The inventory module is in read-only plus display-only cart scaffold mode.</p>
         </article>
 
         <article className="card">
@@ -225,7 +313,20 @@ function Dashboard() {
           <Database className="card__icon" />
           <h2>Supabase Client</h2>
           <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-          <p className="muted">Live v2 inventory tables currently read as empty until seed/import.</p>
+          <p className="muted">Live v2 inventory reads are active. Cart writes remain disabled.</p>
+        </article>
+
+        <article className="card card--wide">
+          <div className="card__header">
+            <div>
+              <p className="eyebrow">Cart Write Gate</p>
+              <h2>Vehicle Snapshot Required Before First Write</h2>
+              <p>
+                The next implementation step must design the active vehicle assignment lookup and snapshot it when the cart is created. Checkout must use that stored snapshot, not a fresh vehicle lookup.
+              </p>
+            </div>
+            <ShoppingCart className="card__icon" />
+          </div>
         </article>
 
         <InventoryReadOnlyPanel permissions={permissions} />
