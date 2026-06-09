@@ -14,6 +14,7 @@ function Dashboard() {
           <div>
             <p className="text-sm uppercase tracking-[0.25em] text-slate-400">Northgate HQ v2.0</p>
             <h1 className="text-2xl font-semibold">Operations Dashboard</h1>
+            <p className="mt-1 text-xs text-slate-500">Permissions build: 2026-06-09.1</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
