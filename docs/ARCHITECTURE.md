@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.4 — Build-state update: Permissions hard gate cleared, read-only Inventory UI and staged seed completed (Entry 014). Prior: v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement.
+### Version 2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.4
+    ARCHITECTURE.md          ← Architecture Lock Document v2.6
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -387,6 +387,34 @@ Material transported on a vehicle for a job = coded to the job, not the vehicle.
 
 Unknown / missing requires a mandatory note.
 
+### Cart-open controls (v2.5 clarification — HANDOFF Entry 016)
+
+Opening a cart is a server write into an inventory table, so it is gated by
+permission, not by authentication alone. The cart-open RPC
+(`open_inventory_cart`) must:
+
+- use `auth.jwt() ->> 'sub'` as the authoritative `user_id` (never a
+  client-supplied user ID);
+- verify the caller's `can_inventory_transactions` from
+  `user_permissions.effective_permissions` server-side and fail closed if it is
+  false;
+- block all direct client mutation of `inventory_carts` / `inventory_cart_items`
+  (RLS deny-all; writes go only through controlled RPCs).
+
+The active-vehicle snapshot is **server-derived, never client-passed.** The
+client does not supply the vehicle ID. The server determines the snapshot from
+the user's active vehicle assignment (see Section 16):
+
+- if the user's assigned vehicle has `holds_stock = TRUE`, snapshot that vehicle
+  on the cart at open time and do not re-query it at checkout;
+- otherwise the snapshot is `NULL`. A `NULL`-vehicle cart is a valid, common
+  state — it simply records who handled the material. `NULL` must never be
+  treated as an error by add-to-cart or checkout.
+
+This cart-open snapshot (the stock-carrying vehicle the user is operating from)
+is distinct from the per-line checkout `destination_type = 'vehicle'` (where
+material is going). They are not merged.
+
 ---
 
 ## 12. Inventory Transaction Types
@@ -491,6 +519,57 @@ App job-cost tracking covers internal-stock movements only. Direct/AP
 purchases that never enter stock do not pass through the inventory
 transaction system and do not touch the app's inventory cost tracking.
 
+### 14d. Transaction Completeness — Express Checkout / Manager Override (v2.6)
+
+> **Ryan's Decision (v2.6):** A controlled "take now, complete later" path for
+> when a worker must grab material in a hurry. It is more rigorous than a normal
+> checkout (passcode + audit + forced verification), not a bypass.
+
+This introduces a **third, distinct concept** alongside the two in Section 14:
+**transaction completeness.** It is separate from physical-movement approval
+(14a) and from job-cost approval (14b). One field must never carry more than one
+of these meanings.
+
+Flow:
+
+1. **Worker initiates** the express take (gated by `can_express_checkout`) and
+   fills a short-answer form. The physical removal is real the moment it
+   happens, so the transaction is written immediately with
+   `status = 'approved'`, `occurred_at = NOW()`, and `unit_cost_at_time`
+   snapshotted — the inventory balance stays correct (Rules 1, 9, 16). Express
+   checkout never sets a balance directly and never skips the ledger.
+2. The transaction is flagged `requires_completion = TRUE`, with the worker's
+   short-answer text stored as provisional notes and the structured destination
+   / cost-code fields left provisional. `requires_completion` is its own field —
+   never `transaction_items.status`, never the job-cost approval field.
+3. **An approver** (`can_approve_express_checkout`) fills in the real
+   quantities, destination(s)/job number(s), and cost code(s), then approves.
+   Approval is **blocked until the required structured fields are present** —
+   this, not the passcode, is the real enforcement against rubber-stamping; it
+   is also where Section 11's "destination required" is satisfied.
+4. The approver enters their **own per-user passcode** to finalize. The passcode
+   is verified server-side and stored hashed; it is a deliberateness gate and an
+   unattended-device guard, NOT the authorization (the permission flag is that).
+5. Express items surface as a **queue / worklist** routed to approvers. Today
+   the only approver is the Developer; a division manager can be added later by
+   granting `can_approve_express_checkout` — no code change. Worklist is in-app
+   for now; email/push is deferred to the companion-app phase.
+
+**"Finish later" (deferred completion).** Worklist items are queue-based, never
+modal — a user is never locked out of the rest of the app while a task is
+pending. Holders of `can_defer_completion` may additionally save partial
+completion progress and resume later. This is reserved to the Developer (and any
+explicitly granted select users), per Ryan's decision.
+
+**Audit.** Every express take, every completion/approval, and every override
+generates a mandatory audit entry (Rules 5, 6): who, when, passcode-verified for
+approvals, items and quantities, the short-answer fields, and the override
+reason where applicable.
+
+**Sequencing.** Built after the normal cart checkout/finalization path. Express
+checkout is that write minus the confirmed destination, plus the completeness
+flag, passcode, audit, and deferred-completion handling.
+
 ---
 
 ## 15. Change Orders
@@ -539,6 +618,29 @@ Van stock templates are reserved for future build:
 - `vehicle_bin_items.min_quantity` and `vehicle_bin_items.max_quantity` columns
   must be added to the schema now even if the template UI is not yet built.
 
+> **Ryan's Decision (v2.5):** Whether a vehicle is tracked as a persistent
+> inventory location is set by an explicit stock-carrying flag at the vehicle
+> level, separate from the classification above:
+>
+> ```
+> vehicles.holds_stock  BOOLEAN NOT NULL DEFAULT FALSE
+> ```
+>
+> Not all employees drive a company vehicle, and of those who do, only vehicles
+> that hold stock for extended periods (e.g., the stocking vans) need inventory
+> tracking. Transient stock carried in a truck between the office and a job is
+> not tracked at the vehicle level; those carts record only who handled the
+> material.
+>
+> A user is attached to a vehicle through an active user→vehicle assignment
+> (minimal table or column; the design is locked here and built before van
+> stock is onboarded). The inventory cart derives its vehicle snapshot from this
+> assignment server-side: snapshot the assigned vehicle only when
+> `holds_stock = TRUE`, otherwise `NULL` (see Section 11). The classification
+> field (Residential/Commercial/Service/Other) is the vehicle's role and must
+> not be overloaded to mean "carries stock." Add `holds_stock` now (schema-first)
+> even though only a couple of vehicles will be flagged.
+
 ---
 
 ## 17. Permissions Model
@@ -583,7 +685,19 @@ can_view_financials
 can_field_access
 can_archive_records
 can_manage_change_orders
+can_express_checkout
+can_approve_express_checkout
+can_defer_completion
 ```
+
+> **Express-checkout flag defaults (v2.6 — see Section 14d):**
+> `can_express_checkout` defaults ON for every role that has
+> `can_inventory_transactions`, so any inventory-transacting user can initiate an
+> express take today — but it is independently revocable per user without
+> touching their inventory access and without a code change.
+> `can_approve_express_checkout` defaults to Developer / Administrator only and
+> is expandable to division managers by granting the flag.
+> `can_defer_completion` defaults to Developer only.
 
 > **Non-Negotiable Rule:** Permissions are server-authoritative. The UI may
 > hide buttons based on permission state, but all permission enforcement happens
@@ -742,6 +856,23 @@ Responsibilities:
 - AI prompt templates table
 - AI interaction log table
 - semantic indexing flags
+
+### Developer Override — Process, Not Ledger (v2.6)
+
+> **Ryan's Decision (v2.6):** The Developer may override a human **workflow
+> gate** — for example self-approving an express item or force-closing a
+> completion task — but only with a **mandatory reason that is written to the
+> audit trail.**
+
+This does not conflict with Rules 5 and 6. Those rules forbid *skipping the
+audit log*, not having elevated power; a reason-required, always-logged override
+is the intended expression of developer authority, not an exception to it.
+
+The override is strictly limited to process gates. It does **not** extend to
+structural data invariants: inventory balances are never set directly and locked
+estimate snapshots are never edited — even by the Developer, even with a reason.
+A wrong balance is corrected through a Physical Count Correction transaction
+(itself audited), never a raw override. Override the process, not the ledger.
 
 ---
 
@@ -953,51 +1084,28 @@ Do not prematurely build future modules.
 
 ## 29. First Build Order
 
-> **Updated to reflect work already completed through Entry 014.**
+> **Updated to reflect work already completed.**
 
 **Foundation (complete):**
 
 - Database schema (Phase 1 SQL written and deployed)
-- Clerk auth wiring
-- Server-authoritative `user_permissions` table and RPC
-- Production permission source verified as `server`
-- Ryan/admin account elevated to `Developer / Admin`
-- App shell and dashboard
-- Responsive baseline styling started under Constitutional Rule 18
+- Auth wiring (Clerk + user_permissions)
+- App shell (Layout, routing, permission-gated nav)
+- Dashboard
+- Materials catalog (read + edit)
 
-**Inventory foundation completed:**
+**Current phase — Inventory:**
 
-- Read-only Inventory confirmation panel implemented in production UI
-- Storage browser shell implemented as read-only UI
-- Live v2 Supabase read path confirmed
-- Staged seed/import completed for existing Phase 1 tables:
-  - `cost_codes`
-  - `items`
-  - `vehicles`
-  - `storage_units`
-  - `shelves`
-  - `bays`
-  - `bins`
-  - `bin_items`
-  - initial balance through an approved `physical_count_correction`
-- Grand Master read-only view exists and returns seeded rows
-
-**Current phase — Inventory cart scaffold:**
-
-1. Display-only cart scaffold — next step; no writes until explicitly started
-2. First cart write — must snapshot active vehicle assignment at cart creation
-3. Add-to-cart writes
-4. Checkout/finalization writes with all locked transaction rules:
-   - `status = 'approved'` for physical movement only
-   - `occurred_at = NOW()` at checkout
-   - `unit_cost_at_time` from catalog price at time of issue/return
-   - per-line-item `destination_type` and `destination_id`
-   - balances affected only by approved rows
-   - balance ordering by `occurred_at DESC, ledger_sequence DESC`
-5. Inventory transaction review / validation screens
-6. Accounting export
-7. Label printing
-8. Van stock template extension points
+1. Schema additions from Section 23 and locked table updates
+2. Storage location structure (unit → shelf → bay → bin)
+3. QR generation
+4. Inventory balance cache
+5. Cart and checkout system (with per-line-item destinations)
+6. Inventory transactions
+7. Grand Master read-only view (Supabase VIEW)
+8. Accounting export
+9. Label printing
+10. Van stock template extension points
 
 Inventory must be built to later integrate with:
 
@@ -1009,12 +1117,6 @@ Inventory must be built to later integrate with:
 - Reports
 - Documents
 - Dev Console
-
-**Not yet imported / not yet built:**
-
-- Employees were not imported because the current v2 schema does not yet expose a destination table for them.
-- Assemblies were not imported because the current v2 schema does not yet expose destination tables for assemblies / assembly materials.
-- No cart writes, cart item writes, or checkout/finalization UI has been built yet.
 
 ---
 
