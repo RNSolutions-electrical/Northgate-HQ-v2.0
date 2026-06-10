@@ -7,8 +7,10 @@ export function useInventoryCart() {
   const { user } = useUser();
   const [cart, setCart] = useState(null);
   const [cartItems, setCartItems] = useState([]);
+  const [checkoutResult, setCheckoutResult] = useState(null);
   const [isOpening, setIsOpening] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [error, setError] = useState(null);
 
   const getClient = useCallback(async () => {
@@ -34,6 +36,7 @@ export function useInventoryCart() {
 
       const openedCart = Array.isArray(data) ? data[0] : data;
       setCart(openedCart ?? null);
+      setCheckoutResult(null);
       return openedCart ?? null;
     } catch (caughtError) {
       console.error('Failed to open inventory cart', caughtError);
@@ -79,13 +82,46 @@ export function useInventoryCart() {
     }
   }, [getClient]);
 
+  const checkoutCart = useCallback(async ({ cartId, destinationType = 'office', destinationId = null, note = null }) => {
+    setIsCheckingOut(true);
+    setError(null);
+
+    try {
+      const client = await getClient();
+      const { data, error: rpcError } = await client.rpc('finalize_inventory_cart', {
+        p_cart_id: cartId,
+        p_destination_type: destinationType,
+        p_destination_id: destinationId,
+        p_note: note,
+      });
+
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      setCheckoutResult(result ?? null);
+      setCart((currentCart) => currentCart ? { ...currentCart, status: 'checked_out' } : currentCart);
+      return result ?? null;
+    } catch (caughtError) {
+      console.error('Failed to checkout inventory cart', caughtError);
+      setError(caughtError);
+      return null;
+    } finally {
+      setIsCheckingOut(false);
+    }
+  }, [getClient]);
+
   return {
     cart,
     cartItems,
+    checkoutResult,
     error,
     isAddingItem,
+    isCheckingOut,
     isOpening,
     addItem,
+    checkoutCart,
     openCart,
   };
 }
