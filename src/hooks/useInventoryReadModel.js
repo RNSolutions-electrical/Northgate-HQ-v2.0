@@ -16,6 +16,7 @@ const EMPTY_MODEL = Object.freeze({
   catalogPreview: [],
   storageUnitsPreview: [],
   binsPreview: [],
+  cartCandidates: [],
 });
 
 async function getCount(client, table, queryBuilder) {
@@ -74,6 +75,7 @@ export function useInventoryReadModel({ enabled }) {
           catalogPreviewResult,
           storageUnitsPreviewResult,
           binsPreviewResult,
+          cartCandidatesResult,
         ] = await Promise.all([
           getCount(client, 'items', (query) =>
             query.eq('is_active', true).eq('is_archived', false),
@@ -104,12 +106,21 @@ export function useInventoryReadModel({ enabled }) {
             .select('id, bin_code, label, qr_code')
             .order('bin_code', { ascending: true })
             .limit(10),
+          client
+            .from('inventory_cart_candidates_view')
+            .select(
+              'bin_item_id, item_id, bin_id, bin_code, bin_label, material_code, item_name, unit_of_measure, division, price_per_unit, quantity_on_hand, min_quantity',
+            )
+            .gt('quantity_on_hand', 0)
+            .order('bin_code', { ascending: true })
+            .limit(10),
         ]);
 
         const readError =
           catalogPreviewResult.error ??
           storageUnitsPreviewResult.error ??
-          binsPreviewResult.error;
+          binsPreviewResult.error ??
+          cartCandidatesResult.error;
 
         if (readError) {
           throw readError;
@@ -133,6 +144,7 @@ export function useInventoryReadModel({ enabled }) {
               catalogPreview: catalogPreviewResult.data ?? [],
               storageUnitsPreview: storageUnitsPreviewResult.data ?? [],
               binsPreview: binsPreviewResult.data ?? [],
+              cartCandidates: cartCandidatesResult.data ?? [],
             },
             lastLoadedAt: new Date().toISOString(),
           });
