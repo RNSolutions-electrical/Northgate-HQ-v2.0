@@ -131,11 +131,23 @@ function StoragePreview({ storageUnits, bins }) {
   );
 }
 
-function CartScaffold({ permissions, catalogPreview }) {
-  const candidateItems = catalogPreview.slice(0, 3);
+function CartScaffold({ permissions, cartCandidates }) {
+  const candidateItems = cartCandidates.slice(0, 3);
   const cartState = useInventoryCart();
-  const canOpenCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
+  const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
+
+  async function handleAddCandidate(candidate) {
+    if (!cart?.cart_id) {
+      return;
+    }
+
+    await cartState.addItem({
+      cartId: cart.cart_id,
+      binItemId: candidate.bin_item_id,
+      quantity: 1,
+    });
+  }
 
   return (
     <div className="cart-scaffold" aria-label="Inventory cart scaffold">
@@ -143,30 +155,30 @@ function CartScaffold({ permissions, catalogPreview }) {
         <section className="cart-panel">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Inventory Step 4A</p>
-              <h3>Open Cart</h3>
+              <p className="eyebrow">Inventory Step 4B</p>
+              <h3>Open Cart + Add Item</h3>
             </div>
             <span className={cart ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
               {cart ? 'Active cart opened' : 'Cart not opened'}
             </span>
           </div>
           <p>
-            This step only creates or returns an active cart through the controlled server RPC. It does not create cart items, reserve inventory, move stock, or create transaction rows.
+            Cart opening and add-to-cart are routed through controlled server RPCs. Add-to-cart creates cart item rows only. It does not reserve stock, move inventory, write transaction rows, or affect balances.
           </p>
           <button
             type="button"
             className="primary-button"
-            disabled={!canOpenCart || cartState.isOpening}
+            disabled={!canUseCart || cartState.isOpening}
             onClick={cartState.openCart}
           >
             {cartState.isOpening ? 'Opening Cart…' : cart ? 'Cart Opened' : 'Open Cart'}
           </button>
           {cartState.error ? (
-            <div className="alert">Cart open failed. Stop before add-to-cart writes and check the server RPC/logs.</div>
+            <div className="alert">Cart action failed. Check the server RPC, permissions, available balance, or Netlify deployment status.</div>
           ) : null}
           <div className="cart-facts">
             <span>Cart status: {cart?.status ?? 'Not opened'}</span>
-            <span>Cart rows: 0</span>
+            <span>Cart rows: {cartState.cartItems.length}</span>
             <span>Cart ID: {cart?.cart_id ? `${cart.cart_id.slice(0, 8)}…` : 'None'}</span>
             <span>Permission source: {permissions.permissionSource}</span>
           </div>
@@ -175,7 +187,7 @@ function CartScaffold({ permissions, catalogPreview }) {
         <section className="cart-panel cart-panel--locked">
           <h3>Vehicle Snapshot</h3>
           <p>
-            The cart-open RPC stores `active_vehicle_id` at creation time. There is no active user-to-vehicle assignment table yet, so this first cart write snapshots `NULL` and clearly records that no active vehicle assignment was found.
+            Vehicle snapshot is server-derived. There is no active user-to-vehicle assignment table yet, so the cart correctly snapshots NULL and records who handled the material.
           </p>
           <div className="cart-facts">
             <span>Snapshot status: {cart ? 'Captured at cart open' : 'Pending cart open'}</span>
@@ -186,39 +198,56 @@ function CartScaffold({ permissions, catalogPreview }) {
 
       <div className="cart-scaffold__body">
         <section className="cart-panel">
-          <h3>Catalog Candidates</h3>
+          <h3>Stocked Bin Candidates</h3>
           {candidateItems.length ? (
             <div className="cart-candidate-list">
               {candidateItems.map((item) => (
-                <article className="cart-candidate" key={item.id}>
+                <article className="cart-candidate" key={item.bin_item_id}>
                   <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.material_code} · {item.unit_of_measure ?? '—'} · ${Number(item.price_per_unit ?? 0).toFixed(2)}</span>
+                    <strong>{item.item_name}</strong>
+                    <span>{item.material_code} · Bin {item.bin_code} · On hand: {Number(item.quantity_on_hand ?? 0).toFixed(2)} {item.unit_of_measure ?? ''}</span>
                   </div>
-                  <button type="button" className="secondary-button" disabled>
-                    Add later
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={!cart?.cart_id || !canUseCart || cartState.isAddingItem}
+                    onClick={() => handleAddCandidate(item)}
+                  >
+                    {cartState.isAddingItem ? 'Adding…' : 'Add 1'}
                   </button>
                 </article>
               ))}
             </div>
           ) : (
-            <EmptyState title="No candidate items">
-              Catalog preview data has not loaded yet. The cart scaffold will show selectable candidates after read-only catalog data is available.
+            <EmptyState title="No stocked candidates">
+              No stocked bin items with available quantity were found. Add-to-cart requires a live bin item, not a catalog-only row.
             </EmptyState>
           )}
         </section>
 
         <section className="cart-panel">
           <h3>Cart Preview</h3>
-          <EmptyState title="No cart items yet">
-            Add-to-cart remains disabled until the cart-open write is confirmed in production. Checkout controls remain disabled until cart-item writes are verified.
-          </EmptyState>
+          {cartState.cartItems.length ? (
+            <div className="cart-candidate-list">
+              {cartState.cartItems.map((item) => (
+                <article className="cart-candidate" key={item.cart_item_id}>
+                  <div>
+                    <strong>Cart item {item.cart_item_id.slice(0, 8)}…</strong>
+                    <span>Quantity: {Number(item.quantity ?? 0).toFixed(2)} · Bin item: {item.bin_item_id.slice(0, 8)}…</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No cart items yet">
+              Open the cart, then add one stocked bin candidate. Checkout controls remain disabled until cart-item writes are verified.
+            </EmptyState>
+          )}
           <div className="cart-actions">
-            <button type="button" className="secondary-button" disabled>Add Item Later</button>
             <button type="button" className="secondary-button" disabled>Checkout Later</button>
           </div>
           <p className="build-note">
-            Next implementation step: controlled add-to-cart RPC with server-side permission and balance validation.
+            Current step: controlled add-to-cart RPC only. Checkout and inventory transactions remain disabled.
           </p>
         </section>
       </div>
@@ -235,10 +264,10 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–4A</p>
-          <h2>Read-only Inventory + Cart Open</h2>
+          <p className="eyebrow">Inventory Step 1–4B</p>
+          <h2>Read-only Inventory + Add-to-Cart</h2>
           <p>
-            This module reads from live v2 Supabase and now supports the first controlled cart-open write. It does not add cart rows, move stock, or write inventory transactions.
+            This module reads from live v2 Supabase and supports controlled cart-open and add-to-cart writes. It does not reserve stock, move stock, write transaction rows, or checkout inventory.
           </p>
         </div>
         <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -271,14 +300,14 @@ function InventoryReadOnlyPanel({ permissions }) {
           Storage Browser
         </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
-          Cart Open
+          Add-to-Cart
         </button>
       </div>
 
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
-      {activeTab === 'cart' ? <CartScaffold permissions={permissions} catalogPreview={inventory.model.catalogPreview} /> : null}
+      {activeTab === 'cart' ? <CartScaffold permissions={permissions} cartCandidates={inventory.model.cartCandidates} /> : null}
 
       <p className="build-note">
         Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}
@@ -298,7 +327,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory cart open build: 2026-06-09.4</p>
+            <p className="build-note">Inventory add-to-cart build: 2026-06-10.1</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -308,7 +337,7 @@ function Dashboard() {
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module supports read-only browsing and a controlled cart-open write.</p>
+          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, and controlled add-to-cart.</p>
         </article>
 
         <article className="card">
@@ -325,16 +354,16 @@ function Dashboard() {
           <Database className="card__icon" />
           <h2>Supabase Client</h2>
           <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-          <p className="muted">Cart opening is routed through a server RPC. Direct cart table mutation is blocked by RLS.</p>
+          <p className="muted">Cart opening and add-to-cart are routed through server RPCs. Direct cart table mutation is blocked by RLS.</p>
         </article>
 
         <article className="card card--wide">
           <div className="card__header">
             <div>
               <p className="eyebrow">Cart Write Gate</p>
-              <h2>First Cart Write Is Controlled</h2>
+              <h2>Add-to-Cart Is Controlled</h2>
               <p>
-                The only write now allowed is opening a cart through `open_inventory_cart`. Add-to-cart and checkout remain locked until their own server-side RPCs are built and verified.
+                The app can now add stocked bin items to an active cart through `add_inventory_cart_item`. Checkout remains locked until its own server-side RPC is built and verified.
               </p>
             </div>
             <ShoppingCart className="card__icon" />
