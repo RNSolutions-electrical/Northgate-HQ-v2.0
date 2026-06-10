@@ -16,11 +16,10 @@ export function useInventoryCart() {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+      const displayName = user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Unknown User';
 
       const { data, error: rpcError } = await client.rpc('open_inventory_cart', {
         p_user_name: displayName,
-        p_active_vehicle_id: null,
       });
 
       if (rpcError) {
