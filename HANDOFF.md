@@ -30,27 +30,51 @@ All infrastructure is new and separate from v1.
 - `docs/INVENTORY_SCHEMA.md` — Inventory Schema Plan v2.3, ready for SQL
 
 ### What Has Been Decided (Full Summary)
-**AI Roles:** Claude = architecture reviewer/drift detector. Codex = implementation driver/debugger. Architecture Lock Document = source of truth. Ryan = final authority. Mid-build trigger: pause for Claude review if a decision affects schema, relationships, module boundaries, permissions, audit logging, snapshots, source-of-truth rules, financial logic, inventory logic, or cross-module communication.
+**AI Roles:** Claude = architecture reviewer/drift detector. Codex = implementation
+driver/debugger. Architecture Lock Document = source of truth. Ryan = final authority.
+Mid-build trigger: pause for Claude review if a decision affects schema, relationships,
+module boundaries, permissions, audit logging, snapshots, source-of-truth rules,
+financial logic, inventory logic, or cross-module communication.
 
-**Primary entity naming:** Jobs (not Projects). Table is `jobs`. Nav item is "Jobs." Project Management is a feature set within a Job, not a separate entity.
+**Primary entity naming:** Jobs (not Projects). Table is `jobs`. Nav item is "Jobs."
+Project Management is a feature set within a Job, not a separate entity.
 
-**Core architectural rules (non-negotiable):** Inventory balances transaction-derived only; Jobs are source of truth after creation; approved estimate snapshots immutable (DB trigger); permissions server-authoritative; audit logging cannot be bypassed; Dev Console actions always logged; no duplicate source-of-truth; no direct DB edits outside controlled tools; cost at time of transaction always stored; change orders are financial records not documents; per-line-item transaction destinations from day one; physical locations vs transaction destinations are distinct; archive over delete; snapshot immutability DB-enforced.
+**Core architectural rules (non-negotiable):** Inventory balances transaction-derived
+only; Jobs are source of truth after creation; approved estimate snapshots immutable
+(DB trigger); permissions server-authoritative; audit logging cannot be bypassed; Dev
+Console actions always logged; no duplicate source-of-truth; no direct DB edits outside
+controlled tools; cost at time of transaction always stored; change orders are financial
+records not documents; per-line-item transaction destinations from day one; physical
+locations vs transaction destinations are distinct; archive over delete; snapshot
+immutability DB-enforced.
 
-**Cost structure order (locked):** Material markup → Overhead → Profit (independent percentages, sequential).
+**Cost structure order (locked):** Material markup → Overhead → Profit (independent
+percentages, sequential).
 
-**Permissions:** Roles — Developer, Administrator, Project Manager, Estimator, Field Supervisor, User (Field Tech). Flags: see Architecture Lock Document Section 17.
+**Permissions:** Roles — Developer, Administrator, Project Manager, Estimator, Field
+Supervisor, User (Field Tech). Flags: see Architecture Lock Document Section 17.
 
-**Google Sheets:** Master Data Workbook is the bulk data entry interface. App UI handles one-off edits for authorized users. Supabase is the live source of truth — Sheets is not.
+**Google Sheets:** Master Data Workbook is the bulk data entry interface. App UI handles
+one-off edits for authorized users. Supabase is the live source of truth — Sheets is not.
 
-**Data in the Google Sheet (as of this entry):** Materials — hundreds of live rows with full cascade (broad_category → sub_category → sub_category_2 → sub_category_3 → size); Employees — real team data; Vehicles — E-101 (2019 Chevrolet Express 2500); Cost Codes — Northgate Division 16 electrical codes; Assemblies — E-REC-001; Inventory Levels — bins A111, C211–C224 with real stock data.
+**Data in the Google Sheet (as of this entry):** Materials — hundreds of live rows with
+full cascade (broad_category → sub_category → sub_category_2 → sub_category_3 → size);
+Employees — real team data; Vehicles — E-101 (2019 Chevrolet Express 2500); Cost Codes —
+Northgate Division 16 electrical codes; Assemblies — E-REC-001; Inventory Levels — bins
+A111, C211–C224 with real stock data.
 
-**Known data cleanup needed before import:** Material_Categories has blank field_name on some sub_category_2 rows; Cost_Codes code `16,050.00` needs to be plain text `16050`.
+**Known data cleanup needed before import:** Material_Categories has blank field_name on
+some sub_category_2 rows; Cost_Codes code `16,050.00` needs to be plain text `16050`.
 
 ### What Was Completed in Pre-Build
 - Architecture Lock Document v2.1 finalized
 - AI Development Roles document finalized
 - Inventory Schema Plan reviewed across versions (v1 → v2.1 → v2.2 → v2.3)
-- All schema conflicts with Phase 1 resolved: material_code kept as canonical key; 4-level cascade kept as text columns; Phase 1 table names kept; vehicle_bins restored; min_quantity added to bin_items; Clerk user IDs locked as TEXT; target_quantity added to transaction_items; change_logs column names locked to Phase 1; void_expired_carts() replaces pg_cron (free tier).
+- All schema conflicts with Phase 1 resolved: material_code kept as canonical key;
+  4-level cascade kept as text columns; Phase 1 table names kept; vehicle_bins restored;
+  min_quantity added to bin_items; Clerk user IDs locked as TEXT; target_quantity added
+  to transaction_items; change_logs column names locked to Phase 1; void_expired_carts()
+  replaces pg_cron (free tier).
 - Repository named Northgate-HQ-v2.0; new Supabase project to be created.
 
 ### Next Steps (in order)
@@ -79,10 +103,16 @@ None active at this time.
 
 ### Current Active Repository
 Correct working repo: `RNSolutions-electrical/Northgate-HQ-v2.0`.
-Do NOT use `RNSolutions-electrical/Northgate-Estimator-V2.0` — that was a repo-name confusion during a previous session. GitHub access confirmed for the correct repo.
+Do NOT use `RNSolutions-electrical/Northgate-Estimator-V2.0` — that was a repo-name
+confusion during a previous session. GitHub access confirmed for the correct repo.
 
 ### Migration Review Status
-Codex generated the first full Phase 1 Inventory migration. ChatGPT reviewed and found the original `update_inventory_balance()` trigger mishandled physical count corrections (summed all `physical_count_correction.target_quantity` values instead of treating the latest approved correction as a new baseline). Codex revised. Claude flagged two concerns: UUID ordering is not chronological and should not be a ledger tie-breaker; pending and rejected rows should not affect official balances. Both accepted.
+Codex generated the first full Phase 1 Inventory migration. ChatGPT reviewed and found
+the original `update_inventory_balance()` trigger mishandled physical count corrections
+(summed all `physical_count_correction.target_quantity` values instead of treating the
+latest approved correction as a new baseline). Codex revised. Claude flagged two concerns:
+UUID ordering is not chronological and should not be a ledger tie-breaker; pending and
+rejected rows should not affect official balances. Both accepted.
 
 ### Locked Migration Adjustments Since v2.3
 - `transaction_items` must include `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY`
@@ -94,13 +124,22 @@ Codex generated the first full Phase 1 Inventory migration. ChatGPT reviewed and
 - Cart checkout/finalization must explicitly mark inventory-moving rows `approved`
 
 ### Required Next Claude Review
-Does approved-only balance align with lock document? Is ledger_sequence the correct ordering mechanism? Should checkout mark rows approved immediately? Does separating transaction-log status from job-cost approval need to be added to the lock document?
+Does approved-only balance align with lock document? Is ledger_sequence the correct
+ordering mechanism? Should checkout mark rows approved immediately? Does separating
+transaction-log status from job-cost approval need to be added to the lock document?
 
 ### Important Architectural Concern
-There is now a likely distinction between inventory movement approval and job-cost/accounting approval. Current migration uses a single `transaction_items.status`. If inventory is physically finalized but job-cost approval is still pending, one status may not be enough long-term. Working assumption: `status = 'approved'` means inventory movement is official and affects on-hand balance; job-cost approval may need a separate future field/table/status. Review before building cart checkout.
+There is now a likely distinction between inventory movement approval and
+job-cost/accounting approval. Current migration uses a single `transaction_items.status`.
+If inventory is physically finalized but job-cost approval is still pending, one status
+may not be enough long-term. Working assumption: `status = 'approved'` means inventory
+movement is official and affects on-hand balance; job-cost approval may need a separate
+future field/table/status. Review before building cart checkout.
 
 ### Architecture Drift Warnings
-Do not let pending/rejected rows affect balances. Do not use UUID order for sequencing. Do not merge physical movement approval with accounting/job-cost approval without explicit architectural decision. Do not run the migration until Claude completes final review.
+Do not let pending/rejected rows affect balances. Do not use UUID order for sequencing.
+Do not merge physical movement approval with accounting/job-cost approval without explicit
+architectural decision. Do not run the migration until Claude completes final review.
 
 ---
 
@@ -112,9 +151,13 @@ Do not let pending/rejected rows affect balances. Do not use UUID order for sequ
 **Session type:** Migration update / architecture alignment
 
 ### Decisions Applied This Session
-- Inventory cost valuation invariant preserved: every job-cost effect valued at catalog unit_cost at the moment of transaction, stored in `unit_cost_at_time`, signed by direction.
-- App job-cost remains partial by design — internal-stock movements only. Direct/AP purchases that never enter stock do not touch the app.
-- `transaction_items.status` remains physical-only. `approved` means the physical movement is official and affects on-hand balance. It does NOT mean job-cost, accounting, AP, invoice, or reconciliation approval.
+- Inventory cost valuation invariant preserved: every job-cost effect valued at catalog
+  unit_cost at the moment of transaction, stored in `unit_cost_at_time`, signed by direction.
+- App job-cost remains partial by design — internal-stock movements only. Direct/AP
+  purchases that never enter stock do not touch the app.
+- `transaction_items.status` remains physical-only. `approved` means the physical movement
+  is official and affects on-hand balance. It does NOT mean job-cost, accounting, AP,
+  invoice, or reconciliation approval.
 - `ledger_sequence` remains a deterministic tie-breaker, not real-world event order.
 - `occurred_at` introduced as physical movement event time, distinct from `created_at`.
 
@@ -122,11 +165,18 @@ Do not let pending/rejected rows affect balances. Do not use UUID order for sequ
 - Added `ledger_sequence BIGINT GENERATED ALWAYS AS IDENTITY` on transaction_items.
 - Added `occurred_at TIMESTAMPTZ` to transaction_items.
 - Added constraint preventing approved rows from having null occurred_at.
-- Updated `update_inventory_balance()`: serialize recomputes per bin_item_id via `pg_advisory_xact_lock`; calculate from approved rows only; select latest count correction by `occurred_at DESC, ledger_sequence DESC`; sum approved movements after the latest correction; keep corrections as baselines not additive; recalc both old and new bins if bin_item_id changes; sort/dedupe affected bin IDs before locking to prevent deadlocks.
+- Updated `update_inventory_balance()`: serialize recomputes per bin_item_id via
+  `pg_advisory_xact_lock`; calculate from approved rows only; select latest count
+  correction by `occurred_at DESC, ledger_sequence DESC`; sum approved movements after
+  the latest correction; keep corrections as baselines not additive; recalc both old and
+  new bins if bin_item_id changes; sort/dedupe affected bin IDs before locking to prevent
+  deadlocks.
 - Added minimal canonical `vendors` table.
 
 ### Checkout / Finalization Requirements
-Mark physical movement rows approved when stock physically moves; stamp `occurred_at = NOW()`; snapshot `unit_cost_at_time` from catalog at moment of issue/return; do not use `transaction_items.status` for any financial/accounting approval.
+Mark physical movement rows approved when stock physically moves; stamp `occurred_at = NOW()`;
+snapshot `unit_cost_at_time` from catalog at moment of issue/return; do not use
+`transaction_items.status` for any financial/accounting approval.
 
 ### Still Requires Final Review
 Revised migration prepared but must be reviewed by Ryan/ChatGPT before running. Do not run yet.
@@ -141,10 +191,17 @@ Revised migration prepared but must be reviewed by Ryan/ChatGPT before running. 
 **Session type:** Migration artifact creation / pre-run review
 
 ### What Was Completed
-Created the Phase 1 Inventory SQL migration file: `supabase/migrations/202605310001_phase_1_inventory.sql`. Generated from docs/INVENTORY_SCHEMA.md v2.3 plus the approved Entry 003 balance-trigger revisions. Included approved-row-only balance calc, occurred_at ordering, ledger_sequence tie-breaker, per-bin advisory locks, sorted/deduped lock order, corrections as baselines, the minimal vendors table, occurred_at, ledger_sequence, approved-row constraint, balance indexes, cart tables, vehicle stock tables, utility functions, triggers, and the Grand Master Inventory view.
+Created the Phase 1 Inventory SQL migration file:
+`supabase/migrations/202605310001_phase_1_inventory.sql`. Generated from
+docs/INVENTORY_SCHEMA.md v2.3 plus the approved Entry 003 balance-trigger revisions.
+Included approved-row-only balance calc, occurred_at ordering, ledger_sequence tie-breaker,
+per-bin advisory locks, sorted/deduped lock order, corrections as baselines, the minimal
+vendors table, occurred_at, ledger_sequence, approved-row constraint, balance indexes, cart
+tables, vehicle stock tables, utility functions, triggers, and the Grand Master Inventory view.
 
 ### Important Notes
-Supabase CLI not installed in workspace, so the file was created directly using the timestamped migration filename convention. Migration NOT yet run. Requires final review.
+Supabase CLI not installed in workspace, so the file was created directly using the
+timestamped migration filename convention. Migration NOT yet run. Requires final review.
 
 ---
 
@@ -156,7 +213,12 @@ Supabase CLI not installed in workspace, so the file was created directly using 
 **Session type:** Migration review fix / pre-run review
 
 ### What Was Completed
-Updated `update_inventory_balance()` in both the migration file and docs/INVENTORY_SCHEMA.md so trigger code only references OLD/NEW in valid operations. Replaced the affected-bin subquery with explicit TG_OP branches: INSERT uses NEW.bin_item_id; DELETE uses OLD.bin_item_id; UPDATE uses both. Kept sorted/deduped advisory-lock order by unnesting the affected-bin array. Updated `block_snapshot_mutation()` so DELETE returns OLD and UPDATE returns NEW.
+Updated `update_inventory_balance()` in both the migration file and
+docs/INVENTORY_SCHEMA.md so trigger code only references OLD/NEW in valid operations.
+Replaced the affected-bin subquery with explicit TG_OP branches: INSERT uses
+NEW.bin_item_id; DELETE uses OLD.bin_item_id; UPDATE uses both. Kept sorted/deduped
+advisory-lock order by unnesting the affected-bin array. Updated `block_snapshot_mutation()`
+so DELETE returns OLD and UPDATE returns NEW.
 
 ### Important Notes
 Migration NOT yet run. Still requires final Ryan/ChatGPT review before execution.
@@ -171,16 +233,25 @@ Migration NOT yet run. Still requires final Ryan/ChatGPT review before execution
 **Session type:** Supabase migration execution / post-run verification
 
 ### What Was Completed
-Confirmed projects: v1 backup `northgate-hq / qpbuzinkjbjbvcdwvdfu`; v2 target `northgate-hq-v2.0 / keogysnoukbendfkfjcn`. Confirmed v2 migration history empty before applying. Applied the reviewed Phase 1 Inventory migration to the v2 project only. Supabase recorded it as version `20260531173603`, name `phase_1_inventory`. Ran post-migration balance tests with temporary `codex-test-*` records, then cleaned them up.
+Confirmed projects: v1 backup `northgate-hq / qpbuzinkjbjbvcdwvdfu`; v2 target
+`northgate-hq-v2.0 / keogysnoukbendfkfjcn`. Confirmed v2 migration history empty before
+applying. Applied the reviewed Phase 1 Inventory migration to the v2 project only.
+Supabase recorded it as version `20260531173603`, name `phase_1_inventory`. Ran
+post-migration balance tests with temporary `codex-test-*` records, then cleaned them up.
 
 ### Verification Completed
-Pending insert did not affect balance; updating to `approved` with occurred_at affected balance; approved physical_count_correction reset the baseline; approved movement after correction adjusted from the new baseline; rejected rows did not affect balances; zero remaining codex-test-* rows after cleanup.
+Pending insert did not affect balance; updating to `approved` with occurred_at affected
+balance; approved physical_count_correction reset the baseline; approved movement after
+correction adjusted from the new baseline; rejected rows did not affect balances; zero
+remaining codex-test-* rows after cleanup.
 
 ### Important Notes
 Migration run only against v2 (`keogysnoukbendfkfjcn`). v1 backup not selected, not modified.
 
 ### Next Steps
-Begin wiring the app to v2 Supabase when Ryan is ready. Build cart checkout/finalization so physical movements set `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` = current catalog cost. Import/seed real inventory data after Google Sheets cleanup.
+Begin wiring the app to v2 Supabase when Ryan is ready. Build cart checkout/finalization so
+physical movements set `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` =
+current catalog cost. Import/seed real inventory data after Google Sheets cleanup.
 
 ---
 
@@ -192,25 +263,43 @@ Begin wiring the app to v2 Supabase when Ryan is ready. Build cart checkout/fina
 **Session type:** Architecture Review (mid-build trigger: inventory balance + status semantics)
 
 ### What Was Reviewed
-Reviewed the applied Phase 1 migration (Entries 003–006) against the Architecture Lock Document. Focus: ledger_sequence / approved-only balance behavior and the `transaction_items.status` semantics flagged for Claude review in Entry 002.
+Reviewed the applied Phase 1 migration (Entries 003–006) against the Architecture Lock
+Document. Focus: ledger_sequence / approved-only balance behavior and the
+`transaction_items.status` semantics flagged for Claude review in Entry 002.
 
 ### Findings
-**Technical implementation — approved, no changes needed.** ledger_sequence is the correct deterministic ordering mechanism. occurred_at separated from created_at is correct and was a good addition not in the v2.3 plan; backdated-entry handling via `occurred_at DESC, ledger_sequence DESC` is sound. pg_advisory_xact_lock per bin with sorted/deduped lock order is proper concurrency safety. Approved-only balances and physical-count-correction-as-baseline logic fix the original additive bug.
+**Technical implementation — approved, no changes needed.** ledger_sequence is the correct
+deterministic ordering mechanism. occurred_at separated from created_at is correct and was
+a good addition not in the v2.3 plan; backdated-entry handling via
+`occurred_at DESC, ledger_sequence DESC` is sound. pg_advisory_xact_lock per bin with
+sorted/deduped lock order is proper concurrency safety. Approved-only balances and
+physical-count-correction-as-baseline logic fix the original additive bug.
 
-**Architecture decision resolved — status semantics.** The shift of `transaction_items.status` from "job-cost approval" (original Section 14) to "physical movement approval" (implemented) is CORRECT. Physical movement and accounting approval are genuinely separate events with different reviewers and timing. They cannot share one field.
+**Architecture decision resolved — status semantics.** The shift of
+`transaction_items.status` from "job-cost approval" (original Section 14) to "physical
+movement approval" (implemented) is CORRECT. Physical movement and accounting approval are
+genuinely separate events with different reviewers and timing. They cannot share one field.
 
 ### Decisions Made This Session
 - `transaction_items.status` = physical movement approval only. Approved by Ryan.
-- Job-cost/accounting approval = separate mechanism, reserved for Financials phase. When a transaction has `destination_type = 'job'`, it will generate a separate job-cost entry with its own approval lifecycle. Not built now.
-- Lock document updated: Section 14 rewritten as "Two Distinct Approval Concepts" (14a/14b/14c). Constitutional rules 15 and 16 added.
+- Job-cost/accounting approval = separate mechanism, reserved for Financials phase. When a
+  transaction has `destination_type = 'job'`, it will generate a separate job-cost entry
+  with its own approval lifecycle. Not built now.
+- Lock document updated: Section 14 rewritten as "Two Distinct Approval Concepts"
+  (14a/14b/14c). Constitutional rules 15 and 16 added.
 
 ### Lock Document Changes
-- Section 14 "Pending Job Cost Review" → "Two Distinct Approval Concepts" with subsections for physical movement (14a), reserved job-cost approval (14b), app job-cost scope (14c).
+- Section 14 "Pending Job Cost Review" → "Two Distinct Approval Concepts" with subsections
+  for physical movement (14a), reserved job-cost approval (14b), app job-cost scope (14c).
 - Constitutional rule 15: physical movement approval and accounting approval never merged.
-- Constitutional rule 16: only approved rows affect balances; ordering uses occurred_at with ledger_sequence tie-breaker, never UUID order.
+- Constitutional rule 16: only approved rows affect balances; ordering uses occurred_at with
+  ledger_sequence tie-breaker, never UUID order.
 
 ### What Codex Needs to Know
-Migration as applied is architecturally sound — no rework. `transaction_items.status` is physical-movement-only; do not use it for accounting meaning when building cart checkout. Cart checkout sets `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` = catalog cost at issue/return. Do not build the job-cost approval mechanism yet.
+Migration as applied is architecturally sound — no rework. `transaction_items.status` is
+physical-movement-only; do not use it for accounting meaning when building cart checkout.
+Cart checkout sets `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` =
+catalog cost at issue/return. Do not build the job-cost approval mechanism yet.
 
 ### Next Steps (in order)
 1. Codex builds inventory cart checkout/finalization (unblocked)
@@ -220,8 +309,10 @@ Migration as applied is architecturally sound — no rework. `transaction_items.
 5. Update HANDOFF.md after cart checkout is built
 
 ### Architecture Drift Warnings
-CARRIED FORWARD (now resolved): "Do not merge physical movement and accounting approval" — resolved this session, promoted to constitutional rule 15. Closed.
-ACTIVE: When the Financials phase builds job-cost approval, it must use a separate field/table — never repurpose `transaction_items.status`.
+CARRIED FORWARD (now resolved): "Do not merge physical movement and accounting approval" —
+resolved this session, promoted to constitutional rule 15. Closed.
+ACTIVE: When the Financials phase builds job-cost approval, it must use a separate
+field/table — never repurpose `transaction_items.status`.
 
 ---
 
@@ -234,25 +325,53 @@ ACTIVE: When the Financials phase builds job-cost approval, it must use a separa
 **Note:** This entry was originally mislabeled "Entry 007." Corrected to 008.
 
 ### What Was Completed
-Confirmed working repo `RNSolutions-electrical/Northgate-HQ-v2.0`. Confirmed Phase 1 migration already applied and verified in v2 Supabase. Began front-end wiring after finding app folders existed but several core files were missing/empty/incorrect. Fixed Netlify build failures in sequence: missing root `package.json`; invalid `vite.config.js` (contained package JSON instead of Vite config); missing `src/App.jsx`; missing `src/hooks/usePermissions.js`; Netlify serving old 404 deploy instead of latest successful deploy. Confirmed preview deploy worked. Published to production. Confirmed production URL works: `https://northgate-hq-v2.netlify.app/`.
+Confirmed working repo `RNSolutions-electrical/Northgate-HQ-v2.0`. Confirmed Phase 1
+migration already applied and verified in v2 Supabase. Began front-end wiring after finding
+app folders existed but several core files were missing/empty/incorrect. Fixed Netlify build
+failures in sequence: missing root `package.json`; invalid `vite.config.js` (contained
+package JSON instead of Vite config); missing `src/App.jsx`; missing
+`src/hooks/usePermissions.js`; Netlify serving old 404 deploy instead of latest successful
+deploy. Confirmed preview deploy worked. Published to production. Confirmed production URL
+works: `https://northgate-hq-v2.netlify.app/`.
 
 ### Files Confirmed / Created / Repaired
-`package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`, `src/services/supabaseClient.js`, `src/hooks/usePermissions.js`, `public/_redirects`. App shell includes Clerk provider, signed-out landing, sign-in button, signed-in dashboard shell, UserButton, temporary permissions hook, Supabase client init check.
+`package.json`, `vite.config.js`, `index.html`, `src/main.jsx`, `src/App.jsx`,
+`src/services/supabaseClient.js`, `src/hooks/usePermissions.js`, `public/_redirects`.
+App shell includes Clerk provider, signed-out landing, sign-in button, signed-in dashboard
+shell, UserButton, temporary permissions hook, Supabase client init check.
 
 ### Current App State
-App builds and deploys successfully. UI is a temporary starter shell, NOT the final interface. Current dashboard cards: Dashboard Shell, Clerk Auth, Supabase Client. The temporary permissions hook hardcodes role `Developer`, division `Admin`, `canAccessDeveloper: true`, `canManageInventory: true`, `canViewFinancials: true`. Temporary only — must be replaced with server-authoritative permissions.
+App builds and deploys successfully. UI is a temporary starter shell, NOT the final
+interface. Current dashboard cards: Dashboard Shell, Clerk Auth, Supabase Client. The
+temporary permissions hook hardcodes role `Developer`, division `Admin`,
+`canAccessDeveloper: true`, `canManageInventory: true`, `canViewFinancials: true`. Temporary
+only — must be replaced with server-authoritative permissions.
 
 ### Important Netlify Notes
-Production: `https://northgate-hq-v2.netlify.app/`. The production 404 was caused by the successful deploy not being published, not by repo code. Settings: build `npm run build`, publish `dist`, production branch `main`.
+Production: `https://northgate-hq-v2.netlify.app/`. The production 404 was caused by the
+successful deploy not being published, not by repo code. Settings: build `npm run build`,
+publish `dist`, production branch `main`.
 
 ### Important Warnings
-Do not treat current `usePermissions.js` as real security — temporary scaffold only. Permission enforcement must become server-authoritative per the lock document. Do not build inventory checkout until Clerk auth, Supabase connectivity, and app shell behavior are confirmed in production. The app currently only proves the deployment shell works; it does not yet prove DB reads/writes or Clerk-to-Supabase user mapping.
+Do not treat current `usePermissions.js` as real security — temporary scaffold only.
+Permission enforcement must become server-authoritative per the lock document. Do not build
+inventory checkout until Clerk auth, Supabase connectivity, and app shell behavior are
+confirmed in production. The app currently only proves the deployment shell works; it does
+not yet prove DB reads/writes or Clerk-to-Supabase user mapping.
 
 ### Next Steps
-Manual production test (landing, sign-in, dashboard, UserButton, Supabase card). Add a real Supabase health/read test. Replace temporary permission scaffold with a proper user/permission lookup. Add module layout/navigation shell. Begin Inventory module UI (catalog read view, storage hierarchy browser, cart scaffold, checkout/finalization). Before checkout/finalization, confirm with Claude that the status / physical-vs-accounting approval separation is still aligned.
+Manual production test (landing, sign-in, dashboard, UserButton, Supabase card). Add a real
+Supabase health/read test. Replace temporary permission scaffold with a proper
+user/permission lookup. Add module layout/navigation shell. Begin Inventory module UI
+(catalog read view, storage hierarchy browser, cart scaffold, checkout/finalization). Before
+checkout/finalization, confirm with Claude that the status / physical-vs-accounting approval
+separation is still aligned.
 
 ### Architecture Drift Warnings
-Temporary front-end permissions hook is not compliant as a final permission system. Do not allow client-side permission checks to become authoritative. Do not confuse successful deployment with completed app functionality. Inventory checkout must create physical movement rows with `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` = current catalog cost.
+Temporary front-end permissions hook is not compliant as a final permission system. Do not
+allow client-side permission checks to become authoritative. Do not confuse successful
+deployment with completed app functionality. Inventory checkout must create physical movement
+rows with `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` = current catalog cost.
 
 ---
 
@@ -268,28 +387,42 @@ Temporary front-end permissions hook is not compliant as a final permission syst
 > Architecture Lock Document win. Read this first.
 
 ### Entry Numbering Correction
-Two entries were both labeled "Entry 007." Corrected: Entry 007 = Claude post-migration review (2026-06-02). Entry 008 = ChatGPT app bootstrap (2026-06-02, was mislabeled 007). Entry 009 = this sync point. Going forward: read the last entry number and increment, never reuse.
+Two entries were both labeled "Entry 007." Corrected: Entry 007 = Claude post-migration
+review (2026-06-02). Entry 008 = ChatGPT app bootstrap (2026-06-02, was mislabeled 007).
+Entry 009 = this sync point. Going forward: read the last entry number and increment, never reuse.
 
 ### Current State of Truth (confirmed facts)
-**Infrastructure:** Repo `RNSolutions-electrical/Northgate-HQ-v2.0`; v2 Supabase `northgate-hq-v2.0 / keogysnoukbendfkfjcn`; v1 backup `northgate-hq / qpbuzinkjbjbvcdwvdfu` (untouched); production `https://northgate-hq-v2.netlify.app/`; Netlify build `npm run build`, publish `dist`, branch `main`.
-**Database:** Phase 1 Inventory migration APPLIED and verified in v2 only. Version `20260531173603` / `phase_1_inventory`. Balance behavior tested and passed.
-**App:** Builds and deploys. Current UI is a temporary starter shell, NOT final. Clerk provider, signed-out landing, sign-in, dashboard shell, UserButton, Supabase init check working.
+**Infrastructure:** Repo `RNSolutions-electrical/Northgate-HQ-v2.0`; v2 Supabase
+`northgate-hq-v2.0 / keogysnoukbendfkfjcn`; v1 backup `northgate-hq / qpbuzinkjbjbvcdwvdfu`
+(untouched); production `https://northgate-hq-v2.netlify.app/`; Netlify build `npm run build`,
+publish `dist`, branch `main`.
+**Database:** Phase 1 Inventory migration APPLIED and verified in v2 only. Version
+`20260531173603` / `phase_1_inventory`. Balance behavior tested and passed.
+**App:** Builds and deploys. Current UI is a temporary starter shell, NOT final. Clerk
+provider, signed-out landing, sign-in, dashboard shell, UserButton, Supabase init check working.
 
 ### What Is LOCKED (do not revisit without lock document update)
 1. `transaction_items.status` = physical movement approval ONLY (Section 14a + Rule 15).
 2. Job-cost/accounting approval = separate mechanism, reserved for Financials phase (14b).
-3. Only `approved` rows affect `inventory_balances`; ordering uses occurred_at + ledger_sequence, never UUID order (Rule 16).
+3. Only `approved` rows affect `inventory_balances`; ordering uses occurred_at +
+   ledger_sequence, never UUID order (Rule 16).
 4. Cart checkout sets `status='approved'`, `occurred_at=NOW()`, `unit_cost_at_time` = catalog cost.
 5. All 14 original constitutional rules plus rules 15, 16, 17 are in force.
-6. The status-semantics review ChatGPT requested in Entry 008 step 6 is ALREADY DONE (Entry 007). Does not need repeating.
+6. The status-semantics review ChatGPT requested in Entry 008 step 6 is ALREADY DONE
+   (Entry 007). Does not need repeating.
 
 ### What Is TEMPORARY and MUST Be Replaced
-The `usePermissions.js` scaffold hardcodes Developer / Admin / full access. Violates Constitutional Rule 4. Acceptable only as deployment bootstrap. Corrections required:
-- The real server-authoritative hook already exists from Phase 1 (reads user_permissions by Clerk ID, caches, auto-creates row with safe defaults). RESTORE it — do not write a new system.
-- Until restored, flip the default from full-access to LEAST privilege. Full access is the most dangerous possible default.
+The `usePermissions.js` scaffold hardcodes Developer / Admin / full access. Violates
+Constitutional Rule 4. Acceptable only as deployment bootstrap. Corrections required:
+- The real server-authoritative hook already exists from Phase 1 (reads user_permissions by
+  Clerk ID, caches, auto-creates row with safe defaults). RESTORE it — do not write a new system.
+- Until restored, flip the default from full-access to LEAST privilege. Full access is the
+  most dangerous possible default.
 
 ### Required Action — Documents Out of Sync
-Claude's Entry 007 updated the lock document (Section 14 rewrite, rules 15-16; rule 17 added in this session). If the repo's `docs/ARCHITECTURE.md` lacks these, push the updated version now. Both models must read the same lock document.
+Claude's Entry 007 updated the lock document (Section 14 rewrite, rules 15-16; rule 17 added
+in this session). If the repo's `docs/ARCHITECTURE.md` lacks these, push the updated version
+now. Both models must read the same lock document.
 Checklist:
 - [ ] Updated ARCHITECTURE.md (Section 14 rewrite + rules 15, 16, 17) in repo
 - [ ] HANDOFF.md entries renumbered (007 Claude, 008 ChatGPT, 009 this)
@@ -299,19 +432,26 @@ Checklist:
 1. Push updated ARCHITECTURE.md and this reconciled HANDOFF.md to repo.
 2. Manual production smoke test: landing → sign-in → dashboard → UserButton → Supabase init.
 3. Add a real Supabase health/read test (harmless table or view).
-4. **HARD GATE:** Restore the real server-authoritative `usePermissions` hook and confirm Clerk → Supabase user mapping. Nothing that writes to the DB is built before this. Read-only catalog view MAY proceed in parallel.
+4. **HARD GATE:** Restore the real server-authoritative `usePermissions` hook and confirm
+   Clerk → Supabase user mapping. Nothing that writes to the DB is built before this.
+   Read-only catalog view MAY proceed in parallel.
 5. Add module layout/navigation shell.
-6. Inventory module UI: (a) catalog read view — OK now, read only; (b) storage hierarchy browser; (c) cart scaffold; (d) checkout/finalization — ONLY after step 4 clears.
-7. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost code `16,050.00` → `16050`).
+6. Inventory module UI: (a) catalog read view — OK now, read only; (b) storage hierarchy
+   browser; (c) cart scaffold; (d) checkout/finalization — ONLY after step 4 clears.
+7. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost code
+   `16,050.00` → `16050`).
 8. Update HANDOFF.md after each step.
 
 ### Open Questions / Concerns
 None blocking once documents are synced and the permission hook is restored.
 
 ### Architecture Drift Warnings (active)
-- ACTIVE: Temporary usePermissions scaffold hardcodes full access. Restore to server-authoritative before any write-capable UI. Default must be least-privilege if it remains.
-- ACTIVE (Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`.
-- CLOSED: "Don't merge physical movement and accounting approval" — resolved Entry 007, promoted to Constitutional Rule 15.
+- ACTIVE: Temporary usePermissions scaffold hardcodes full access. Restore to
+  server-authoritative before any write-capable UI. Default must be least-privilege if it remains.
+- ACTIVE (Financials phase): Job-cost approval must use a separate field/table — never
+  repurpose `transaction_items.status`.
+- CLOSED: "Don't merge physical movement and accounting approval" — resolved Entry 007,
+  promoted to Constitutional Rule 15.
 
 ---
 
@@ -323,46 +463,86 @@ None blocking once documents are synced and the permission hook is restored.
 **Session type:** Advisory / architecture decision — mobile & UI strategy
 
 ### Context
-Ryan asked, in general terms, about (a) offline-capable apps, (b) shipping native apps to the app stores, and (c) the React Native vs Flutter vs Capacitor trade-offs. Northgate HQ itself was confirmed to remain ONLINE-based — Supabase is the live source of truth; HQ is not an offline-first design. Out of that discussion Ryan made two forward-looking UI/platform decisions for Northgate HQ.
+Ryan asked, in general terms, about (a) offline-capable apps, (b) shipping native
+apps to the app stores, and (c) the React Native vs Flutter vs Capacitor trade-offs.
+Northgate HQ itself was confirmed to remain ONLINE-based — Supabase is the live
+source of truth; HQ is not an offline-first design. Out of that discussion Ryan made
+two forward-looking UI/platform decisions for Northgate HQ.
 
 ### Decisions Made This Session
-- **Responsive web UI is a foundational build requirement.** The Northgate HQ web app must be built mobile/tablet-responsive from the first screen, not desktop-only. Rationale: the HQ UI has not been built yet, so designing responsiveness in now avoids costly retrofit later (consistent with the "design before build" principle). — Approved: Ryan.
-- **React Native companion app added as a reserved future phase.** A native, app-store-distributed companion app focused on field-inventory workflows (QR scanning, stock/vehicle lookups, on-site job-usage logging, push notifications), reading from and writing to the same Supabase source of truth as the web app. Built only after core HQ is stable. — Approved: Ryan.
+- **Responsive web UI is a foundational build requirement.** The Northgate HQ web app
+  must be built mobile/tablet-responsive from the first screen, not desktop-only.
+  Rationale: the HQ UI has not been built yet, so designing responsiveness in now
+  avoids costly retrofit later (consistent with the "design before build" principle).
+  — Approved: Ryan.
+- **React Native companion app added as a reserved future phase.** A native,
+  app-store-distributed companion app focused on field-inventory workflows (QR
+  scanning, stock/vehicle lookups, on-site job-usage logging, push notifications),
+  reading from and writing to the same Supabase source of truth as the web app. Built
+  only after core HQ is stable. — Approved: Ryan.
 
 ### Why the Companion App Is Low Architectural Risk
-Supabase already exposes the API and enforces auth/RLS, so the companion app is almost purely a new front-end against the existing back-end. No second database, no sync layer, no separate server. Server-authoritative permissions (Constitutional Rule 4) continue to apply to the second client. This fits the Scope Control Rule (Section 28): preserve the clean path now, build later.
+Supabase already exposes the API and enforces auth/RLS, so the companion app is almost
+purely a new front-end against the existing back-end. No second database, no sync
+layer, no separate server. Server-authoritative permissions (Constitutional Rule 4)
+continue to apply to the second client. This fits the Scope Control Rule (Section 28):
+preserve the clean path now, build later.
 
 ### Lock Document Changes
 - Bumped to **v2.2**.
-- Section 26 "Mobile and Desktop Behavior" expanded: added Ryan's Decision on responsive-from-the-start as a foundational requirement (explicitly distinct from the user-customizable layout presets in Section 27, Phase 4), and added a "Future Phase — React Native Companion App (reserved, not now)" subsection documenting the companion app's architecture and constraints.
-- No constitutional rules added. The responsive baseline is documented as a Section 26 build requirement. Ryan may elevate it to a numbered Constitutional Rule (Rule 18) in a future update if he wants it carried with that weight.
+- Section 26 "Mobile and Desktop Behavior" expanded: added Ryan's Decision on
+  responsive-from-the-start as a foundational requirement (explicitly distinct from
+  the user-customizable layout presets in Section 27, Phase 4), and added a "Future
+  Phase — React Native Companion App (reserved, not now)" subsection documenting the
+  companion app's architecture and constraints.
+- No constitutional rules added. The responsive baseline is documented as a Section 26
+  build requirement. Ryan may elevate it to a numbered Constitutional Rule (Rule 18) in
+  a future update if he wants it carried with that weight.
 
 ### Schema Changes
 None this session.
 
 ### What Codex Needs to Know
-- When the HQ UI is built, build it responsive from the start — phone/tablet layouts are a foundational requirement, NOT a Phase 4 add-on. Basic responsiveness is not the same as the customizable layout presets in Section 27, Phase 4.
+- When the HQ UI is built, build it responsive from the start — phone/tablet layouts
+  are a foundational requirement, NOT a Phase 4 add-on. Basic responsiveness is not the
+  same as the customizable layout presets in Section 27, Phase 4.
 - Do not start the React Native companion app yet. It is a reserved future phase.
-- The companion app, when built, must use the same Supabase project and the same server-authoritative permission checks — never a separate data store or a permission bypass.
+- The companion app, when built, must use the same Supabase project and the same
+  server-authoritative permission checks — never a separate data store or a permission
+  bypass.
 
 ### What Claude Needs to Know
-- Mobile/UI strategy is now documented in Section 26 (v2.2). Future reviews touching UI build order should confirm responsiveness is being designed in from the start.
-- Verified this session: the live repo's `docs/ARCHITECTURE.md` already contains the Section 14 rewrite (Two Distinct Approval Concepts, 14a/14b/14c) and Constitutional Rules 15, 16, 17. The Entry 009 checklist item "Updated ARCHITECTURE.md in repo" is therefore satisfied.
+- Mobile/UI strategy is now documented in Section 26 (v2.2). Future reviews touching UI
+  build order should confirm responsiveness is being designed in from the start.
+- Verified this session: the live repo's `docs/ARCHITECTURE.md` already contains the
+  Section 14 rewrite (Two Distinct Approval Concepts, 14a/14b/14c) and Constitutional
+  Rules 15, 16, 17. The Entry 009 checklist item "Updated ARCHITECTURE.md in repo" is
+  therefore satisfied.
 
 ### Next Steps (in order)
 1. Push this v2.2 ARCHITECTURE.md and this HANDOFF.md (Entry 010) to the repo.
-2. HARD GATE unchanged (from Entry 009): restore the server-authoritative `usePermissions` hook and confirm Clerk → Supabase user mapping before any write-capable UI. Read-only catalog view may proceed in parallel.
+2. HARD GATE unchanged (from Entry 009): restore the server-authoritative
+   `usePermissions` hook and confirm Clerk → Supabase user mapping before any
+   write-capable UI. Read-only catalog view may proceed in parallel.
 3. Continue the Inventory module per the Section 29 build order.
-4. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost code `16,050.00` → `16050`).
+4. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost
+   code `16,050.00` → `16050`).
 5. Update HANDOFF.md after each step.
 
 ### Open Questions / Concerns
-- Does Ryan want the responsive-from-the-start requirement elevated to a numbered Constitutional Rule (Rule 18), or is its placement in Section 26 sufficient? Left in Section 26 pending Ryan's call.
+- Does Ryan want the responsive-from-the-start requirement elevated to a numbered
+  Constitutional Rule (Rule 18), or is its placement in Section 26 sufficient? Left in
+  Section 26 pending Ryan's call.
 
 ### Architecture Drift Warnings
-- CARRIED FORWARD (active): Temporary `usePermissions` scaffold hardcodes full access. Restore to server-authoritative before any write-capable UI; default must be least-privilege if it remains. (From Entry 009.)
-- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`. (From Entry 009.)
-- NEW (advisory, future companion-app phase): When/if the React Native companion app is built, it must not become a path around server-authoritative permissions and must not introduce a second source of truth. Carry forward until the companion app phase begins.
+- CARRIED FORWARD (active): Temporary `usePermissions` scaffold hardcodes full access.
+  Restore to server-authoritative before any write-capable UI; default must be
+  least-privilege if it remains. (From Entry 009.)
+- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate
+  field/table — never repurpose `transaction_items.status`. (From Entry 009.)
+- NEW (advisory, future companion-app phase): When/if the React Native companion app is
+  built, it must not become a path around server-authoritative permissions and must not
+  introduce a second source of truth. Carry forward until the companion app phase begins.
 
 ---
 
@@ -374,15 +554,26 @@ None this session.
 **Session type:** Constitutional rule addition / lock document update
 
 ### Context
-Ryan reviewed the open question carried forward from Entry 010: whether the responsive-from-the-start requirement should be elevated from a Section 26 build directive to a numbered Constitutional Rule. After Claude explained the practical difference (Section 26 placement is a strong directive but does not trigger the same mandatory Claude review that a Constitutional Rule violation does), Ryan approved elevation.
+Ryan reviewed the open question carried forward from Entry 010: whether the
+responsive-from-the-start requirement should be elevated from a Section 26 build
+directive to a numbered Constitutional Rule. After Claude explained the practical
+difference (Section 26 placement is a strong directive but does not trigger the
+same mandatory Claude review that a Constitutional Rule violation does), Ryan
+approved elevation.
 
 ### Decisions Made This Session
-- **Constitutional Rule 18 added:** "Responsive UI is a Foundational Build Requirement." Any UI component, layout, or module built desktop-only without phone/tablet responsiveness designed in from the start is a constitutional violation and triggers a mandatory Claude review before proceeding. This rule governs basic responsive layout and is explicitly distinct from the user-customizable layout presets in Section 27 (Phase 4). — Approved: Ryan.
+- **Constitutional Rule 18 added:** "Responsive UI is a Foundational Build
+  Requirement." Any UI component, layout, or module built desktop-only without
+  phone/tablet responsiveness designed in from the start is a constitutional
+  violation and triggers a mandatory Claude review before proceeding. This rule
+  governs basic responsive layout and is explicitly distinct from the
+  user-customizable layout presets in Section 27 (Phase 4). — Approved: Ryan.
 
 ### Lock Document Changes
 - Bumped to **v2.3**.
 - Constitutional Rule 18 added to Section 24 (after Rule 17).
-- Section 26 Ryan's Decision note updated to cross-reference Rule 18 and note the v2.3 elevation.
+- Section 26 Ryan's Decision note updated to cross-reference Rule 18 and note
+  the v2.3 elevation.
 - Version header updated to v2.3.
 - Repository structure reference updated to v2.3.
 
@@ -390,27 +581,44 @@ Ryan reviewed the open question carried forward from Entry 010: whether the resp
 None this session.
 
 ### What Codex Needs to Know
-- Responsive-from-the-start is now Constitutional Rule 18 — the same weight as server-authoritative permissions (Rule 4) or transaction-derived balances (Rule 1). It is not a suggestion. Every UI screen, component, and module must be built with phone/tablet viewports from the moment it is first written. No desktop-first builds with a plan to "make it responsive later."
-- This does NOT mean the Phase 4 layout customization presets (Section 27) should be built now. Basic responsiveness (columns stack, nav collapses, controls are touch-friendly) is the baseline Rule 18 requires.
+- Responsive-from-the-start is now Constitutional Rule 18 — the same weight as
+  server-authoritative permissions (Rule 4) or transaction-derived balances (Rule 1).
+  It is not a suggestion. Every UI screen, component, and module must be built with
+  phone/tablet viewports from the moment it is first written. No desktop-first
+  builds with a plan to "make it responsive later."
+- This does NOT mean the Phase 4 layout customization presets (Section 27) should
+  be built now. Basic responsiveness (columns stack, nav collapses, controls are
+  touch-friendly) is the baseline Rule 18 requires.
 
 ### What Claude Needs to Know
-- Rule 18 is now in force. Future mid-build reviews that touch any UI module should confirm responsiveness is being designed in, not deferred.
+- Rule 18 is now in force. Future mid-build reviews that touch any UI module should
+  confirm responsiveness is being designed in, not deferred.
 - The open question from Entry 010 is now closed.
 
 ### Next Steps (in order — unchanged from Entry 010)
 1. Push this v2.3 ARCHITECTURE.md and this HANDOFF.md (Entry 011) to the repo.
-2. HARD GATE unchanged (from Entry 009): restore the server-authoritative `usePermissions` hook and confirm Clerk → Supabase user mapping before any write-capable UI. Read-only catalog view may proceed in parallel.
+2. HARD GATE unchanged (from Entry 009): restore the server-authoritative
+   `usePermissions` hook and confirm Clerk → Supabase user mapping before any
+   write-capable UI. Read-only catalog view may proceed in parallel.
 3. Continue the Inventory module per the Section 29 build order.
-4. Resolve Google Sheets cleanup before real data import (blank field_name rows; cost code `16,050.00` → `16050`).
+4. Resolve Google Sheets cleanup before real data import (blank field_name rows;
+   cost code `16,050.00` → `16050`).
 5. Update HANDOFF.md after each step.
 
 ### Open Questions / Concerns
 None. The Entry 010 open question is resolved and closed.
 
 ### Architecture Drift Warnings
-- CARRIED FORWARD (active): Temporary `usePermissions` scaffold hardcodes full access. Restore to server-authoritative before any write-capable UI; default must be least-privilege if it remains. (From Entry 009.)
-- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`. (From Entry 009.)
-- CARRIED FORWARD (advisory, future companion-app phase): When/if the React Native companion app is built, it must not become a path around server-authoritative permissions and must not introduce a second source of truth. (From Entry 010.)
+- CARRIED FORWARD (active): Temporary `usePermissions` scaffold hardcodes full
+  access. Restore to server-authoritative before any write-capable UI; default
+  must be least-privilege if it remains. (From Entry 009.)
+- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a
+  separate field/table — never repurpose `transaction_items.status`.
+  (From Entry 009.)
+- CARRIED FORWARD (advisory, future companion-app phase): When/if the React
+  Native companion app is built, it must not become a path around
+  server-authoritative permissions and must not introduce a second source of
+  truth. (From Entry 010.)
 
 ---
 
@@ -430,9 +638,9 @@ None. The Entry 010 open question is resolved and closed.
 - Removed front-end role-default expansion from `usePermissions`; the hook now uses only server-returned `effective_permissions` and fails closed to deny-all/default-deny if lookup fails.
 
 ### Decisions Made This Session
-- Permission defaults are calculated in Supabase, not in the React hook, to preserve the server-authoritative permissions rule. — Approved by Constitutional Rule 4.
-- Missing, failed, signed-out, or unreadable permission state defaults to least privilege / deny-all. — Approved by Constitutional Rule 4 and Entry 009 hard gate.
-- The UI may display permission state for transparency, but those displayed values are not treated as security enforcement. — Approved by Constitutional Rule 4.
+- Permission defaults are calculated in Supabase, not in the React hook, to preserve the server-authoritative permissions rule. — Approved by Architecture Lock Document Rule 4.
+- Missing, failed, signed-out, or unreadable permission state defaults to least privilege / deny-all. — Approved by Architecture Lock Document Rule 4 and Entry 009 hard gate.
+- The UI may display permission state for transparency, but those displayed values are not treated as security enforcement. — Approved by Architecture Lock Document Rule 4.
 
 ### Schema Changes
 - Added `user_permissions` table with Clerk user ID, display name, email, role, division, JSONB permission overrides, active flag, and timestamps.
@@ -749,6 +957,154 @@ None blocking.
 - CARRIED FORWARD (active, Claude review requested): First cart write snapshots `NULL` for active vehicle because no active user-to-vehicle assignment source exists yet.
 - CARRIED FORWARD (active, next implementation step): Add-to-cart must be a controlled server RPC; do not use direct client table mutation.
 - CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`.
+- CARRIED FORWARD (advisory, future companion-app phase): React Native companion app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 016
+
+**Date:** 2026-06-09
+**Updated by:** Claude
+**Phase:** Phase 1 (Inventory) — Cart-open security review + vehicle snapshot model decision
+**Session type:** Architecture review (mid-build trigger: permissions + cart write + vehicle snapshot)
+
+### Context
+Reviewed Entry 015 (ChatGPT cart-open implementation + RLS fix) at Ryan's request before add-to-cart. Two open questions were posed: (1) is a NULL active-vehicle snapshot acceptable without a user→vehicle assignment table; (2) should `open_inventory_cart` validate an inventory permission flag server-side. Ryan reviewed the findings and supplied the business model for vehicle stock.
+
+### Review Findings — Entry 015 Implementation (approved as-is)
+- RLS enabled on `inventory_carts` / `inventory_cart_items` before the first cart write — closes a real Rule 4 / Section 17 gap. Self-select read policies + deny-all client mutation + `SECURITY DEFINER` RPC is the correct pattern and matches the `user_permissions` approach (Entry 012).
+- `open_inventory_cart` uses `auth.jwt() ->> 'sub'` as the authoritative `user_id` and ignores any client-claimed identity. Correct.
+- Cart-open writes only a cart row — no cart items, no stock reservation, no `transaction_items`, no balance movement. Respects the Entry 013 build sequence and Rules 1/16.
+- Return-existing-active-cart instead of duplicating. Sound.
+
+### Decisions Made This Session (locked)
+1. **Cart-open is gated by `can_inventory_transactions` server-side.** `open_inventory_cart` must read the caller's effective permission from `user_permissions.effective_permissions` (keyed off the JWT subject) and fail closed if false. JWT validation establishes identity (authentication); it does not establish authorization. Cart-open is a server write into an inventory table, so Rule 4 / Section 17 require the permission check at the DB/API layer. Required before add-to-cart. — Approved by Rule 4; Ryan.
+2. **NULL active-vehicle snapshot is correct, not merely tolerated.** A NULL-vehicle cart is a legitimate, common state. Add-to-cart and checkout must treat NULL as valid, never an error. The user→vehicle assignment table is NOT a prerequisite for building add-to-cart. — Approved: Ryan.
+3. **Vehicle snapshot is server-derived, never client-passed.** The `p_active_vehicle_id` client parameter on `open_inventory_cart` is removed/ignored; the snapshot is computed server-side. This mirrors the client-claimed-user_id fix already applied to the permission RPC. — Approved by Rule 4 / Section 11; Ryan.
+4. **Vehicle stock-carrying model (Ryan's decision).** Whether a cart captures a vehicle snapshot is determined by a stock-carrying criterion at the vehicle level, attached to the user via an active assignment:
+   - Vehicles carry an explicit stock-carrying flag (`vehicles.holds_stock BOOLEAN NOT NULL DEFAULT FALSE`), distinct from the existing classification (Residential/Commercial/Service/Other). Classification is the vehicle's role; the flag is whether it is tracked as a persistent inventory location.
+   - A user→vehicle active-assignment link attaches a vehicle to a user.
+   - Cart-open server logic: snapshot the user's assigned vehicle **iff** that vehicle `holds_stock = TRUE`; otherwise snapshot NULL.
+   - Business rationale (Ryan): not all employees drive a company vehicle; of those who do, only vans that hold stock for extended periods (e.g., Miguel's and Fabian's) need inventory tracking. Transient stock carried in a truck used office→job (e.g., the operations manager's truck) is not tracked at the vehicle level; those carts snapshot NULL and simply record who handled the material.
+   — Approved: Ryan.
+
+### Distinction Preserved (no conflation)
+The cart-open vehicle snapshot (the stock-carrying vehicle a user operates from) is distinct from the per-line checkout destination (`transaction_items.destination_type = 'vehicle'`). Section 11 already separates these; this decision does not merge them. Material transported on a vehicle for a job is still coded to the job, not the vehicle.
+
+### Schema Changes (locked, to implement — none applied by Claude this session)
+- `open_inventory_cart`: add server-side `can_inventory_transactions` check (fail closed); drop/ignore the `p_active_vehicle_id` client parameter.
+- `vehicles.holds_stock BOOLEAN NOT NULL DEFAULT FALSE` — add now (schema-first), even though only a couple of vehicles will be flagged.
+- User→vehicle active-assignment link (minimal table or column) — design locked; build before Miguel/Fabian van stock is tracked. Not required to build add-to-cart.
+
+### Lock Document Changes
+- ARCHITECTURE.md bumped to v2.5.
+- Section 11 clarified: cart-open gated by `can_inventory_transactions` server-side; vehicle snapshot is server-derived (never client-passed) and is populated only when the user's active vehicle `holds_stock`; NULL-vehicle carts are valid and must not error.
+- Section 16 expanded: added the `vehicles.holds_stock` flag and the user→vehicle active-assignment concept, with business rationale; classification must not be overloaded to mean "carries stock."
+- No new constitutional rule added; both clarifications follow from existing Rule 4 and Section 11. Ryan may elevate "every inventory write is gated by the relevant permission flag server-side" to a numbered rule if he wants constitutional weight.
+
+### What Codex Needs to Know
+- Add the `can_inventory_transactions` server-side check to `open_inventory_cart` and remove the client `p_active_vehicle_id` parameter before building add-to-cart.
+- Add-to-cart may proceed now; it does not touch the vehicle snapshot, and NULL-vehicle carts are valid. Build it as a controlled `SECURITY DEFINER` RPC with: authenticated Clerk subject; active cart owned by that subject; valid `bin_item_id` / `item_id` relationship; quantity > 0; `can_inventory_transactions` check; no balance movement until checkout.
+- Vehicle snapshot logic, when built: server-side lookup of the user's active assignment; snapshot only if `holds_stock = TRUE`, else NULL. Never accept the vehicle ID from the client.
+- Add `vehicles.holds_stock` now (schema-first). Build the user→vehicle assignment link before onboarding van stock for Miguel/Fabian.
+- Checkout/finalization remains untouched and must follow all locked rules (Rules 9, 11, 15, 16): `status = 'approved'`, `occurred_at = NOW()`, `unit_cost_at_time` snapshot, per-line destinations, approved-only balance effect.
+
+### What Claude Needs to Know
+- Entry 015 cart-open + RLS implementation reviewed and approved with one required change (permission gate) folded in.
+- Vehicle snapshot model is now decided: stock-carrying flag at vehicle level + user assignment → server-derived snapshot; NULL is the correct value for non-stock-carrying users and carts.
+- Future reviews touching cart/checkout should confirm the snapshot is server-derived and the permission gate is present on every cart-write RPC.
+
+### Next Steps (in order)
+1. Codex adds the `can_inventory_transactions` server-side check to `open_inventory_cart` and removes the `p_active_vehicle_id` client parameter.
+2. Add the `vehicles.holds_stock` column (schema-first).
+3. Production verification: `Source: server`; Cart Open loads; Open Cart succeeds; status → active; vehicle displays "No active vehicle assignment found"; AND a least-privilege user with `can_inventory_transactions = false` is denied cart-open.
+4. Build the controlled add-to-cart RPC (NULL-vehicle carts valid).
+5. Design/build the user→vehicle active-assignment link before van stock onboarding; wire the server-derived snapshot at that point.
+6. Keep checkout/finalization disabled until add-to-cart writes are verified.
+7. Confirm minor items: `active_vehicle_id` UUID vs `vehicles` PK type and the UUID↔TEXT boundary at `transaction_items.destination_id`; `user_name` fallback should not store the raw Clerk sub (prefer `user_permissions.display_name` or NULL); `expires_at` 24h window matches the `void_expired_carts()` sweep.
+
+### Open Questions / Concerns
+- Confirm exact column/table naming for `holds_stock` and the user→vehicle assignment link when the migration is written.
+- Confirm "one active cart per user" is the intended model vs. multiple concurrent carts.
+- Carried forward: durable import/audit tracking for bulk imports; destination tables / import path for Employees and Assemblies.
+
+### Architecture Drift Warnings
+- CLOSED: Cart-open lacked a server-side permission check — decided this session; `can_inventory_transactions` gate required before add-to-cart.
+- CARRIED FORWARD (active, next step): `active_vehicle_id` is structurally present but unsourced. When the user→vehicle assignment link is built, cart-open must populate the snapshot server-side (assigned vehicle iff `holds_stock`), and the client must never supply it. Do not leave it silently NULL after the assignment source exists.
+- CARRIED FORWARD (active, next step): Add-to-cart must be a controlled server RPC gated by `can_inventory_transactions`; no direct client table mutation.
+- CARRIED FORWARD (active, Financials phase): Job-cost approval must use a separate field/table — never repurpose `transaction_items.status`.
+- CARRIED FORWARD (advisory, future companion-app phase): React Native companion app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 017
+
+**Date:** 2026-06-09
+**Updated by:** Claude
+**Phase:** Phase 1 (Inventory) — Express Checkout / Manager Override design lock
+**Session type:** Architecture decision (mid-build trigger: new transaction-completeness concept, permissions, audit, Dev Console)
+
+### Context
+Following the cart-open review (Entry 016), Ryan proposed an express-checkout / manager-override path: a worker in a hurry physically takes material now, records minimal info, and a manager/admin completes and approves it afterward. This introduces a new "transaction completeness" concept, new permission flags, a reason-gated developer override, and a deferred-completion ("finish later") capability. Design locked here; implementation scheduled after the normal cart checkout path exists.
+
+### Decisions Made This Session (locked)
+1. **Express checkout is a controlled "take now, complete later" path, not a bypass.** The physical removal is real immediately, so the transaction is written `status='approved'`, `occurred_at=NOW()`, `unit_cost_at_time` snapshotted on creation — inventory balance stays correct (Rules 1, 9, 16). Express checkout never sets a balance directly and never skips the ledger.
+2. **"Needs completion" is a third, distinct concept.** A `requires_completion` flag (plus the worker's short-answer fields stored as provisional notes) marks the transaction for admin follow-up. It is NOT `transaction_items.status` (Rule 15) and NOT the Financials-phase job-cost approval (14b). It is transaction completeness — documented as Section 14d.
+3. **Worker initiates; approver completes + approves.** The worker initiates and fills the short-answer form. An approver fills in real quantities, destination(s)/job number(s), and cost code(s), then approves. Approval is blocked until the required structured fields are present — this, not the passcode, is the real enforcement against rubber-stamping, and it is where Section 11's "destination required" is satisfied.
+4. **Passcode is an approver-side deliberateness gate, per-user.** The approver enters their own passcode to finalize approval; verified server-side, stored hashed. It is NOT the authorization (the permission flag is) — its purpose is conscious action and protection against an unattended logged-in device. — Reframed by Ryan: the passcode is for the approver, not the worker.
+5. **New permission flags (Section 17 lock update):**
+   - `can_express_checkout` — initiate an express take. Defaults ON for every role that has `can_inventory_transactions`, so today it behaves as "anyone with inventory rights can initiate," but it is independently revocable per user with no code change. — Approved: Ryan (chose the separate flag because the marginal cost is ~zero given the flag list was already being edited, and it converts "rework code if abused" into "flip a flag if abused").
+   - `can_approve_express_checkout` — complete + approve (passcode required). Defaults Developer/Administrator only; expandable to division managers by granting the flag.
+   - `can_defer_completion` — save partial progress / "finish later." Defaults Developer only, per Ryan's "reserved solely for me, or select permissions."
+6. **Approver routing is permission-based, not hardcoded.** Today the only approver is Ryan (Developer); modeling the approver set as holders of `can_approve_express_checkout` lets a division manager be added later by granting the flag. Express items surface as an in-app worklist now; email/push deferred to the companion-app phase. — Ryan floated developer-only routing for simplicity; resolved as a permission-gated set that currently contains only him.
+7. **"Finish later" is non-blocking by design.** Worklist items are queue-based, never modal — the user is never locked out of the rest of the app while a task is pending. `can_defer_completion` holders may additionally save partial completion progress and resume.
+8. **Developer override: process, not ledger.** A Developer may override a human workflow gate (self-approve an express item, force-close a completion task) ONLY with a mandatory reason written to the audit trail. This does not violate Rules 5/6 — those forbid skipping the audit log, not having elevated power; a reason-required, always-logged override is the intended expression of that authority. The override does NOT extend to structural invariants: balances are never set directly and locked snapshots are never edited, even by the Developer, even with a reason. Balance corrections go through a Physical Count Correction transaction (itself audited). — Confirmed by Ryan: "override the process, not the ledger" matches exactly.
+9. **Mandatory audit entries (Rules 5, 6).** Every express take, every completion/approval, and every developer override is audited — who, when, passcode-verified for approvals, items and quantities, short-answer fields, and override reason where applicable.
+
+### Sequencing
+Express checkout is built AFTER the normal cart checkout/finalization path. Checkout establishes how an approved transaction with a destination and `unit_cost_at_time` is written; express checkout is that write minus the confirmed destination, plus the completeness flag, passcode, audit, and deferred-completion handling. Building checkout first avoids a duplicated transaction-write path.
+
+### Schema Changes (locked, to implement — none applied this session)
+- `requires_completion BOOLEAN` (default FALSE) and provisional short-answer note field(s) on the relevant transaction record — exact naming finalized at migration time.
+- Approver passcode storage (hashed, server-verified) — mechanism finalized at implementation.
+- Three new permission flags added to the role-defaults function and `user_permissions` mapping.
+
+### Lock Document Changes
+- ARCHITECTURE.md bumped to v2.6.
+- Section 14: added 14d "Transaction Completeness — Express Checkout / Manager Override."
+- Section 17: added `can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion` with role defaults.
+- Section 22 (Dev Console): added the reason-gated developer override and the explicit "process, not ledger" boundary.
+- No constitutional rule changed. The developer override is reconciled with existing Rules 5/6, not an exception to them.
+
+### What Codex Needs to Know
+- Do not build express checkout yet — sequenced after normal cart checkout.
+- When built: express take creates an approved physical-movement transaction immediately (balance correct), destination fields provisional, `requires_completion = TRUE`. Never use `transaction_items.status` for completeness.
+- Approval blocked until required structured fields (destination, cost code, quantity) are filled; approver passcode verified server-side (hashed).
+- Gate initiate on `can_express_checkout`, approve on `can_approve_express_checkout`, defer/partial-save on `can_defer_completion` — all server-side.
+- Developer override requires a logged reason and may only override workflow gates, never the balance ledger or locked snapshots.
+- All express/override actions are audited.
+
+### What Claude Needs to Know
+- A third approval-adjacent concept ("transaction completeness") now exists in 14d, distinct from physical-movement approval (14a) and job-cost approval (14b).
+- Future reviews touching checkout or the Dev Console should confirm completeness is its own field, the override is reason-gated and process-only, and the new flags are enforced server-side.
+
+### Next Steps (in order)
+1. Continue the current build sequence: finish add-to-cart, then normal cart checkout/finalization.
+2. Build express checkout / manager override after checkout exists, per Section 14d.
+3. Add the three new flags to the role-defaults function and `user_permissions` mapping when express checkout is implemented.
+4. Implement approver passcode (hashed, server-verified) and the routed completion worklist (in-app first).
+
+### Open Questions / Concerns
+- Confirm final field naming (`requires_completion`, short-answer note fields) at migration time.
+- Decide the in-app worklist surface (badge/queue location) when its UI is built.
+- Carried forward: durable import/audit tracking; Employees/Assemblies destination tables.
+
+### Architecture Drift Warnings
+- CARRIED FORWARD (active, when express checkout is built): completeness must be its own field — never `transaction_items.status` (Rule 15) and never the job-cost approval field.
+- CARRIED FORWARD (active, when express checkout is built): developer override is reason-gated and process-only; structural invariants (balances, locked snapshots) are never overridden — correct via Physical Count Correction transactions.
+- CARRIED FORWARD (active, next step): `active_vehicle_id` snapshot must be server-derived when the assignment source exists (Entry 016).
+- CARRIED FORWARD (active, next step): add-to-cart must be a controlled server RPC gated by `can_inventory_transactions` (Entry 016).
+- CARRIED FORWARD (active, Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (advisory, future companion-app phase): React Native companion app must not bypass server-authoritative permissions or introduce a second source of truth.
 
 ---
