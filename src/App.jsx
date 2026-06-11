@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
@@ -18,6 +18,11 @@ const DESTINATION_OPTIONS = [
 ];
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
+const CART_DESTINATION_DRAFT_PREFIX = 'northgate.inventoryCart.destinationDrafts.';
+
+function getCartDestinationDraftKey(cartId) {
+  return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
+}
 
 function CountCard({ label, value }) {
   return (
@@ -208,8 +213,40 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
   const [applyAllDestination, setApplyAllDestination] = useState('office');
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
+  const cartDraftKey = getCartDestinationDraftKey(cart?.cart_id);
   const cartIsActive = cart?.status === 'active';
   const cartIsCheckedOut = cart?.status === 'checked_out' || cartState.checkoutResult?.status === 'checked_out';
+
+  useEffect(() => {
+    if (!cartDraftKey) {
+      setLineDestinations({});
+      return;
+    }
+
+    try {
+      const savedDraft = window.localStorage.getItem(cartDraftKey);
+      setLineDestinations(savedDraft ? JSON.parse(savedDraft) : {});
+    } catch (caughtError) {
+      console.warn('Failed to load cart destination draft', caughtError);
+      setLineDestinations({});
+    }
+  }, [cartDraftKey]);
+
+  useEffect(() => {
+    if (!cartDraftKey || cartIsCheckedOut) {
+      return;
+    }
+
+    try {
+      if (Object.keys(lineDestinations).length) {
+        window.localStorage.setItem(cartDraftKey, JSON.stringify(lineDestinations));
+      } else {
+        window.localStorage.removeItem(cartDraftKey);
+      }
+    } catch (caughtError) {
+      console.warn('Failed to save cart destination draft', caughtError);
+    }
+  }, [cartDraftKey, cartIsCheckedOut, lineDestinations]);
 
   function getLineDestination(cartItem) {
     return lineDestinations[cartItem.cart_item_id] ?? {
@@ -284,13 +321,18 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
       };
     });
 
-    await cartState.checkoutCart({
+    const result = await cartState.checkoutCart({
       cartId: cart.cart_id,
       destinationType: applyAllDestination,
       destinationId: null,
       note: 'Normal cart checkout from per-line destination UI',
       lineDestinations: preparedLineDestinations,
     });
+
+    if (result && cartDraftKey) {
+      window.localStorage.removeItem(cartDraftKey);
+      setLineDestinations({});
+    }
   }
 
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isLineDestinationValid(item));
@@ -301,15 +343,15 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
         <section className="cart-panel">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Inventory Step 4F</p>
-              <h3>Durable Cart Item Read</h3>
+              <p className="eyebrow">Inventory Step 4G</p>
+              <h3>Draft Destination Persistence</h3>
             </div>
             <span className={cart ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
               {cartIsCheckedOut ? 'Cart checked out' : cart ? 'Active cart opened' : 'Cart not opened'}
             </span>
           </div>
           <p>
-            Cart opening, add-to-cart, and checkout are routed through controlled server RPCs. Cart lines are reloaded from the server after each cart action.
+            Cart lines reload from the server after each cart action. Destination selections are saved locally as cart drafts until checkout writes them permanently.
           </p>
           <button
             type="button"
@@ -326,7 +368,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
             <span>Cart status: {cart?.status ?? 'Not opened'}</span>
             <span>Cart rows: {cartState.cartItems.length}</span>
             <span>Cart ID: {cart?.cart_id ? `${cart.cart_id.slice(0, 8)}…` : 'None'}</span>
-            <span>Permission source: {permissions.permissionSource}</span>
+            <span>Draft destinations: {Object.keys(lineDestinations).length}</span>
           </div>
         </section>
 
@@ -455,7 +497,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
             </div>
           ) : null}
           <p className="build-note">
-            Current step: durable cart item read. Express checkout and manager override remain disabled.
+            Current step: draft destination persistence. Draft selections clear after successful checkout.
           </p>
         </section>
       </div>
@@ -472,10 +514,10 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–4F</p>
-          <h2>Read-only Inventory + Durable Cart Checkout</h2>
+          <p className="eyebrow">Inventory Step 1–4G</p>
+          <h2>Read-only Inventory + Draft-Persistent Cart Checkout</h2>
           <p>
-            This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, durable cart item reads, and per-line normal checkout. Express checkout remains locked.
+            This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, durable cart item reads, draft destination persistence, and per-line normal checkout. Express checkout remains locked.
           </p>
         </div>
         <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -541,7 +583,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory durable cart read build: 2026-06-11.3</p>
+            <p className="build-note">Inventory draft destination build: 2026-06-11.4</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -551,7 +593,7 @@ function Dashboard() {
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, durable cart item reads, and per-line normal checkout.</p>
+          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
         </article>
 
         <article className="card">
@@ -568,7 +610,7 @@ function Dashboard() {
           <Database className="card__icon" />
           <h2>Supabase Client</h2>
           <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-          <p className="muted">Cart opening, add-to-cart, checkout, and cart item reads are routed through server RPCs. Direct cart table mutation is blocked by RLS.</p>
+          <p className="muted">Cart opening, add-to-cart, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
         </article>
 
         <article className="card card--wide">
@@ -577,7 +619,7 @@ function Dashboard() {
               <p className="eyebrow">Cart Write Gate</p>
               <h2>Per-Line Checkout Is Controlled</h2>
               <p>
-                The app can now reload cart items from the server and finalize each active cart line with its own destination through `finalize_inventory_cart`. Express checkout is still not built.
+                The app can reload cart items from the server, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
               </p>
             </div>
             <ShoppingCart className="card__icon" />
