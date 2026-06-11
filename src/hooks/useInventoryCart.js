@@ -82,7 +82,13 @@ export function useInventoryCart() {
     }
   }, [getClient]);
 
-  const checkoutCart = useCallback(async ({ cartId, destinationType = 'office', destinationId = null, note = null }) => {
+  const checkoutCart = useCallback(async ({
+    cartId,
+    destinationType = 'office',
+    destinationId = null,
+    note = null,
+    lineDestinations = null,
+  }) => {
     setIsCheckingOut(true);
     setError(null);
 
@@ -93,6 +99,7 @@ export function useInventoryCart() {
         p_destination_type: destinationType,
         p_destination_id: destinationId,
         p_note: note,
+        p_line_destinations: lineDestinations,
       });
 
       if (rpcError) {
