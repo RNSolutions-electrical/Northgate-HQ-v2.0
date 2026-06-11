@@ -306,6 +306,25 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
     });
   }
 
+  async function handleRemoveCartItem(cartItemId) {
+    if (!cart?.cart_id || !cartIsActive) {
+      return;
+    }
+
+    const result = await cartState.removeItem({
+      cartId: cart.cart_id,
+      cartItemId,
+    });
+
+    if (result) {
+      setLineDestinations((current) => {
+        const next = { ...current };
+        delete next[cartItemId];
+        return next;
+      });
+    }
+  }
+
   async function handleCheckout() {
     if (!cart?.cart_id || !cartState.cartItems.length || !cartIsActive) {
       return;
@@ -336,6 +355,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
   }
 
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isLineDestinationValid(item));
+  const cartActionInProgress = cartState.isAddingItem || cartState.isRemovingItem || cartState.isCheckingOut || cartState.isReadingItems;
 
   return (
     <div className="cart-scaffold" aria-label="Inventory cart scaffold">
@@ -343,8 +363,8 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
         <section className="cart-panel">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Inventory Step 4G</p>
-              <h3>Draft Destination Persistence</h3>
+              <p className="eyebrow">Inventory Step 4H</p>
+              <h3>Removable Cart Lines</h3>
             </div>
             <span className={cart ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
               {cartIsCheckedOut ? 'Cart checked out' : cart ? 'Active cart opened' : 'Cart not opened'}
@@ -400,7 +420,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
                   <button
                     type="button"
                     className="secondary-button"
-                    disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartState.isAddingItem || cartState.isCheckingOut || cartState.isReadingItems}
+                    disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress}
                     onClick={() => handleAddCandidate(item)}
                   >
                     {cartState.isAddingItem ? 'Adding…' : 'Add 1'}
@@ -418,6 +438,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
         <section className="cart-panel">
           <h3>Cart Destinations</h3>
           {cartState.isReadingItems ? <p className="muted">Reloading cart items from server…</p> : null}
+          {cartState.isRemovingItem ? <p className="muted">Removing cart item…</p> : null}
           <div className="meta-grid">
             <label>
               Apply to all
@@ -425,7 +446,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
                 {DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-            <button type="button" className="secondary-button" disabled={!cartState.cartItems.length || cartState.isCheckingOut || cartState.isReadingItems} onClick={applyDestinationToAll}>
+            <button type="button" className="secondary-button" disabled={!cartState.cartItems.length || cartActionInProgress} onClick={applyDestinationToAll}>
               Apply Destination to All Lines
             </button>
           </div>
@@ -466,6 +487,14 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
                         </label>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={!cartIsActive || cartActionInProgress}
+                      onClick={() => handleRemoveCartItem(item.cart_item_id)}
+                    >
+                      {cartState.isRemovingItem ? 'Removing…' : 'Remove'}
+                    </button>
                   </article>
                 );
               })}
@@ -479,7 +508,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
             <button
               type="button"
               className="secondary-button"
-              disabled={!cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations || !canUseCart || cartState.isCheckingOut || cartState.isReadingItems}
+              disabled={!cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations || !canUseCart || cartActionInProgress}
               onClick={handleCheckout}
             >
               {cartState.isCheckingOut ? 'Checking Out…' : 'Checkout Selected Destinations'}
@@ -497,7 +526,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
             </div>
           ) : null}
           <p className="build-note">
-            Current step: draft destination persistence. Draft selections clear after successful checkout.
+            Current step: removable cart lines. Draft selections clear after successful checkout.
           </p>
         </section>
       </div>
@@ -514,10 +543,10 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–4G</p>
-          <h2>Read-only Inventory + Draft-Persistent Cart Checkout</h2>
+          <p className="eyebrow">Inventory Step 1–4H</p>
+          <h2>Read-only Inventory + Removable Cart Lines</h2>
           <p>
-            This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, durable cart item reads, draft destination persistence, and per-line normal checkout. Express checkout remains locked.
+            This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout. Express checkout remains locked.
           </p>
         </div>
         <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -583,7 +612,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory draft destination build: 2026-06-11.4</p>
+            <p className="build-note">Inventory removable cart line build: 2026-06-11.5</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -593,7 +622,7 @@ function Dashboard() {
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
+          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
         </article>
 
         <article className="card">
@@ -610,7 +639,7 @@ function Dashboard() {
           <Database className="card__icon" />
           <h2>Supabase Client</h2>
           <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-          <p className="muted">Cart opening, add-to-cart, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
+          <p className="muted">Cart opening, add-to-cart, remove-line, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
         </article>
 
         <article className="card card--wide">
@@ -619,7 +648,7 @@ function Dashboard() {
               <p className="eyebrow">Cart Write Gate</p>
               <h2>Per-Line Checkout Is Controlled</h2>
               <p>
-                The app can reload cart items from the server, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
+                The app can reload cart items from the server, remove mistaken cart rows, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
               </p>
             </div>
             <ShoppingCart className="card__icon" />
