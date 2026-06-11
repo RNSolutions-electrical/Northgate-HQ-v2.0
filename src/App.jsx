@@ -6,6 +6,19 @@ import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { usePermissions } from './hooks/usePermissions.js';
 
+const DESTINATION_OPTIONS = [
+  { value: 'office', label: 'Office' },
+  { value: 'job', label: 'Job' },
+  { value: 'service_call', label: 'Service Call' },
+  { value: 'vehicle', label: 'Vehicle Stock' },
+  { value: 'user', label: 'User Possession' },
+  { value: 'vendor_return', label: 'Vendor Return' },
+  { value: 'scrap', label: 'Scrap' },
+  { value: 'unknown', label: 'Unknown / Missing' },
+];
+
+const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
+
 function CountCard({ label, value }) {
   return (
     <div className="count-card">
@@ -134,10 +147,58 @@ function StoragePreview({ storageUnits, bins }) {
 function CartScaffold({ permissions, cartCandidates }) {
   const candidateItems = cartCandidates.slice(0, 3);
   const cartState = useInventoryCart();
+  const [lineDestinations, setLineDestinations] = useState({});
+  const [applyAllDestination, setApplyAllDestination] = useState('office');
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
   const cartIsActive = cart?.status === 'active';
   const cartIsCheckedOut = cart?.status === 'checked_out' || cartState.checkoutResult?.status === 'checked_out';
+
+  function getLineDestination(cartItem) {
+    return lineDestinations[cartItem.cart_item_id] ?? {
+      destination_type: applyAllDestination,
+      destination_id: '',
+      note: '',
+    };
+  }
+
+  function updateLineDestination(cartItemId, updates) {
+    setLineDestinations((current) => ({
+      ...current,
+      [cartItemId]: {
+        destination_type: applyAllDestination,
+        destination_id: '',
+        note: '',
+        ...(current[cartItemId] ?? {}),
+        ...updates,
+      },
+    }));
+  }
+
+  function applyDestinationToAll() {
+    setLineDestinations((current) => {
+      const next = { ...current };
+      cartState.cartItems.forEach((item) => {
+        next[item.cart_item_id] = {
+          destination_type: applyAllDestination,
+          destination_id: '',
+          note: '',
+        };
+      });
+      return next;
+    });
+  }
+
+  function isLineDestinationValid(cartItem) {
+    const line = getLineDestination(cartItem);
+    if (DESTINATIONS_REQUIRING_ID.has(line.destination_type) && !line.destination_id?.trim()) {
+      return false;
+    }
+    if (line.destination_type === 'unknown' && !line.note?.trim()) {
+      return false;
+    }
+    return true;
+  }
 
   async function handleAddCandidate(candidate) {
     if (!cart?.cart_id || !cartIsActive) {
@@ -156,13 +217,26 @@ function CartScaffold({ permissions, cartCandidates }) {
       return;
     }
 
+    const preparedLineDestinations = cartState.cartItems.map((item) => {
+      const line = getLineDestination(item);
+      return {
+        cart_item_id: item.cart_item_id,
+        destination_type: line.destination_type,
+        destination_id: line.destination_id?.trim() || null,
+        note: line.note?.trim() || null,
+      };
+    });
+
     await cartState.checkoutCart({
       cartId: cart.cart_id,
-      destinationType: 'office',
+      destinationType: applyAllDestination,
       destinationId: null,
-      note: 'Normal cart checkout to office destination from v2 UI',
+      note: 'Normal cart checkout from per-line destination UI',
+      lineDestinations: preparedLineDestinations,
     });
   }
+
+  const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isLineDestinationValid(item));
 
   return (
     <div className="cart-scaffold" aria-label="Inventory cart scaffold">
@@ -170,15 +244,15 @@ function CartScaffold({ permissions, cartCandidates }) {
         <section className="cart-panel">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Inventory Step 4C</p>
-              <h3>Open Cart + Add Item + Checkout</h3>
+              <p className="eyebrow">Inventory Step 4D</p>
+              <h3>Per-Line Cart Checkout</h3>
             </div>
             <span className={cart ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
               {cartIsCheckedOut ? 'Cart checked out' : cart ? 'Active cart opened' : 'Cart not opened'}
             </span>
           </div>
           <p>
-            Cart opening, add-to-cart, and normal checkout are routed through controlled server RPCs. Express checkout remains out of scope.
+            Cart opening, add-to-cart, and checkout are routed through controlled server RPCs. Each cart row can now carry its own destination before checkout. Express checkout remains out of scope.
           </p>
           <button
             type="button"
@@ -189,7 +263,7 @@ function CartScaffold({ permissions, cartCandidates }) {
             {cartState.isOpening ? 'Opening Cart…' : cart ? 'Cart Opened' : 'Open Cart'}
           </button>
           {cartState.error ? (
-            <div className="alert">Cart action failed. Check permissions, available balance, or deployment status.</div>
+            <div className="alert">Cart action failed. Check permissions, destination requirements, available balance, or deployment status.</div>
           ) : null}
           <div className="cart-facts">
             <span>Cart status: {cart?.status ?? 'Not opened'}</span>
@@ -241,43 +315,89 @@ function CartScaffold({ permissions, cartCandidates }) {
         </section>
 
         <section className="cart-panel">
-          <h3>Cart Preview</h3>
+          <h3>Cart Destinations</h3>
+          <div className="meta-grid">
+            <label>
+              Apply to all
+              <select value={applyAllDestination} onChange={(event) => setApplyAllDestination(event.target.value)}>
+                {DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <button type="button" className="secondary-button" disabled={!cartState.cartItems.length || cartState.isCheckingOut} onClick={applyDestinationToAll}>
+              Apply Destination to All Lines
+            </button>
+          </div>
+
           {cartState.cartItems.length ? (
             <div className="cart-candidate-list">
-              {cartState.cartItems.map((item) => (
-                <article className="cart-candidate" key={item.cart_item_id}>
-                  <div>
-                    <strong>Cart item {item.cart_item_id.slice(0, 8)}…</strong>
-                    <span>Quantity: {Number(item.quantity ?? 0).toFixed(2)} · Bin item: {item.bin_item_id.slice(0, 8)}…</span>
-                  </div>
-                </article>
-              ))}
+              {cartState.cartItems.map((item) => {
+                const line = getLineDestination(item);
+                const requiresId = DESTINATIONS_REQUIRING_ID.has(line.destination_type);
+                const requiresNote = line.destination_type === 'unknown';
+                return (
+                  <article className="cart-candidate" key={item.cart_item_id}>
+                    <div>
+                      <strong>Cart item {item.cart_item_id.slice(0, 8)}…</strong>
+                      <span>Quantity: {Number(item.quantity ?? 0).toFixed(2)} · Bin item: {item.bin_item_id.slice(0, 8)}…</span>
+                      <div className="meta-grid">
+                        <label>
+                          Destination
+                          <select value={line.destination_type} onChange={(event) => updateLineDestination(item.cart_item_id, { destination_type: event.target.value, destination_id: '', note: '' })}>
+                            {DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select>
+                        </label>
+                        <label>
+                          Destination ID
+                          <input
+                            type="text"
+                            placeholder={requiresId ? 'Required' : 'Optional'}
+                            value={line.destination_id}
+                            onChange={(event) => updateLineDestination(item.cart_item_id, { destination_id: event.target.value })}
+                          />
+                        </label>
+                        <label>
+                          Note
+                          <input
+                            type="text"
+                            placeholder={requiresNote ? 'Required for unknown' : 'Optional'}
+                            value={line.note}
+                            onChange={(event) => updateLineDestination(item.cart_item_id, { note: event.target.value })}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <EmptyState title="No cart items yet">
-              Open the cart, then add one stocked bin candidate. Checkout is enabled after at least one cart item exists.
+              Open the cart, then add one stocked bin candidate. Checkout is enabled after each line has a valid destination.
             </EmptyState>
           )}
           <div className="cart-actions">
             <button
               type="button"
               className="secondary-button"
-              disabled={!cart?.cart_id || !cartIsActive || !cartState.cartItems.length || !canUseCart || cartState.isCheckingOut}
+              disabled={!cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations || !canUseCart || cartState.isCheckingOut}
               onClick={handleCheckout}
             >
-              {cartState.isCheckingOut ? 'Checking Out…' : 'Checkout to Office'}
+              {cartState.isCheckingOut ? 'Checking Out…' : 'Checkout Selected Destinations'}
             </button>
           </div>
+          {hasInvalidLineDestinations ? (
+            <p className="muted">Job, service call, vehicle, and user destinations require an ID. Unknown requires a note.</p>
+          ) : null}
           {cartState.checkoutResult ? (
             <div className="cart-facts">
               <span>Checkout status: {cartState.checkoutResult.status}</span>
               <span>Transaction rows: {cartState.checkoutResult.transaction_item_count}</span>
               <span>Transaction ID: {cartState.checkoutResult.transaction_id.slice(0, 8)}…</span>
-              <span>Destination: office</span>
+              <span>Destinations: per line</span>
             </div>
           ) : null}
           <p className="build-note">
-            Current step: normal checkout only. Express checkout and manager override remain disabled.
+            Current step: per-line normal checkout. Express checkout and manager override remain disabled.
           </p>
         </section>
       </div>
@@ -294,10 +414,10 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–4C</p>
-          <h2>Read-only Inventory + Cart Checkout</h2>
+          <p className="eyebrow">Inventory Step 1–4D</p>
+          <h2>Read-only Inventory + Per-Line Cart Checkout</h2>
           <p>
-            This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, and normal checkout. Express checkout remains locked.
+            This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, and per-line normal checkout. Express checkout remains locked.
           </p>
         </div>
         <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -357,7 +477,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory checkout build: 2026-06-10.2</p>
+            <p className="build-note">Inventory per-line checkout build: 2026-06-11.1</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -367,7 +487,7 @@ function Dashboard() {
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, and normal checkout.</p>
+          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, and per-line normal checkout.</p>
         </article>
 
         <article className="card">
@@ -391,9 +511,9 @@ function Dashboard() {
           <div className="card__header">
             <div>
               <p className="eyebrow">Cart Write Gate</p>
-              <h2>Normal Checkout Is Controlled</h2>
+              <h2>Per-Line Checkout Is Controlled</h2>
               <p>
-                The app can now finalize an active cart to an office destination through `finalize_inventory_cart`. Express checkout is still not built.
+                The app can now finalize each active cart line with its own destination through `finalize_inventory_cart`. Express checkout is still not built.
               </p>
             </div>
             <ShoppingCart className="card__icon" />
