@@ -1108,3 +1108,187 @@ Express checkout is built AFTER the normal cart checkout/finalization path. Chec
 - CARRIED FORWARD (advisory, future companion-app phase): React Native companion app must not bypass server-authoritative permissions or introduce a second source of truth.
 
 ---
+
+## Entry 018
+
+**Date:** 2026-06-10  
+**Updated by:** ChatGPT / Codex-style implementation session  
+**Phase:** Phase 1 Inventory — Cart open, add-to-cart, and normal checkout verified  
+**Session type:** Implementation checkpoint + Claude architecture review request
+
+### Context
+Ryan confirmed the updated `HANDOFF.md` through Entry 017 was in the repository before implementation resumed. Work proceeded from the Entry 016/017 sequence: harden cart-open first, then controlled add-to-cart, then normal cart checkout/finalization. Express checkout / manager override remained intentionally out of scope.
+
+### What Was Completed This Session
+1. **Cart-open corrections required by Entry 016 were implemented and verified.**
+   - Added `vehicles.holds_stock BOOLEAN NOT NULL DEFAULT FALSE`.
+   - Replaced `open_inventory_cart` so the active vehicle snapshot is not client-supplied.
+   - The RPC uses `auth.jwt() ->> 'sub'` as the authoritative user ID.
+   - The RPC checks `can_inventory_transactions` server-side using `default_permissions_for_role(role) || permission_overrides`.
+   - NULL vehicle snapshot remains valid until the user-to-vehicle active assignment source exists.
+   - Frontend hook no longer sends `p_active_vehicle_id`.
+
+2. **Permission defaults were updated live in Supabase.**
+   - Added the v2.6 express-related flags to `default_permissions_for_role`:
+     - `can_express_checkout`
+     - `can_approve_express_checkout`
+     - `can_defer_completion`
+   - Important repo caveat: the live Supabase migration succeeded, but the full repo migration file for the permission-default function replacement was blocked by the connector safety layer because of its size/shape. This still needs a clean repo migration representation.
+
+3. **Controlled add-to-cart was implemented and verified.**
+   - Added `add_inventory_cart_item(p_cart_id, p_bin_item_id, p_quantity)` as a `SECURITY DEFINER` RPC.
+   - RPC checks:
+     - authenticated Clerk JWT subject
+     - active user permission record
+     - `can_inventory_transactions`
+     - active cart owned by signed-in user
+     - valid `bin_item_id` / `item_id` relationship
+     - quantity greater than zero
+     - current available balance before adding
+   - Add-to-cart only inserts/increments `inventory_cart_items`; it does not reserve stock, move inventory, create `transaction_items`, or affect balances.
+
+4. **Stocked-bin candidate source was added.**
+   - Added `inventory_cart_candidates_view` so the UI uses real stocked `bin_items`, not catalog-only `items` rows.
+   - View exposes `bin_item_id`, `item_id`, bin info, item info, price, and `quantity_on_hand`.
+
+5. **Normal checkout/finalization was implemented and verified.**
+   - Added `finalize_inventory_cart(p_cart_id, p_destination_type, p_destination_id, p_note)` as a `SECURITY DEFINER` RPC.
+   - RPC checks:
+     - authenticated Clerk JWT subject
+     - active user permission record
+     - `can_inventory_transactions`
+     - active cart owned by signed-in user
+     - at least one cart item
+     - valid destination type
+     - destination ID required for job/service_call/vehicle/user
+     - note required for unknown destination
+     - current available balance before writing ledger rows
+   - RPC writes an `inventory_transactions` header row.
+   - RPC writes approved `transaction_items` rows with:
+     - `status = 'approved'`
+     - `occurred_at = NOW()`
+     - `unit_cost_at_time = items.price_per_unit`
+     - transaction type mapped from destination:
+       - `job` / `service_call` → `assign_to_job`
+       - `vehicle` → `assign_to_vehicle`
+       - `vendor_return` → `vendor_return`
+       - `scrap` → `scrap`
+       - everything else → `remove_stock`
+   - RPC updates cart item destination metadata.
+   - RPC marks `inventory_carts.status = 'checked_out'`.
+   - Existing balance trigger updates `inventory_balances` from approved ledger rows.
+
+6. **Production behavior was verified by Ryan.**
+   - Ryan verified the normal cart path updated Supabase correctly.
+   - Verified path:
+     - Open Cart
+     - Add Item
+     - Checkout to Office
+     - Supabase ledger/balance updates appeared correctly
+
+### Repo Commits Created This Session
+- `a2a8e98` — Add vehicle holds stock flag migration
+- `ffc9e14` — Harden open inventory cart permission gate
+- `fd5d125` — Remove client vehicle parameter from cart open hook
+- `868c27a` — Add inventory cart item RPC
+- `9bcdc4f` — Add inventory cart candidates view
+- `cdb4675` — Load inventory cart candidates from stocked bins
+- `9de4814` — Wire cart candidates to add-to-cart RPC
+- `b72ce95` — Add cart item hook action
+- `afc72ee` — Add inventory cart checkout RPC
+- `52c48b1` — Add inventory cart checkout hook action
+- `701873f` — Expose inventory cart checkout button
+
+### Current Verified Milestone
+**Inventory Step 4C is complete and verified:**
+
+```text
+Open Cart → Add Item → Checkout to Office → approved transaction_items → balance update
+```
+
+### What Claude Needs to Review
+Please review this implementation against `docs/ARCHITECTURE.md` v2.6 and HANDOFF Entries 016–017.
+
+Specific questions:
+1. Does the implemented cart-open / add-to-cart / normal checkout path align with Rules 1, 4, 5, 6, 9, 11, 15, and 16?
+2. Is the `finalize_inventory_cart` destination handling acceptable as the first normal checkout implementation, especially the temporary UI path that checks out to `office`?
+3. Is it acceptable that `finalize_inventory_cart` currently maps `office`, `user`, and `unknown` to `remove_stock` while preserving the per-line `destination_type` metadata?
+4. Should `p_destination_type = 'office'` require a more specific destination ID or is the destination type sufficient for this first internal removal path?
+5. Should the RPC require per-line destination fields now, or is cart-level destination acceptable for this first normal checkout milestone while per-line destinations are structurally supported on `transaction_items`?
+6. Do the new express checkout permission flags being applied live before express implementation create any architecture concern, or is that acceptable because express checkout remains disabled in the UI?
+7. Does the repo caveat need immediate correction before continuing: live Supabase permission defaults were updated, but the corresponding full migration file was not committed because the connector blocked the large function replacement?
+8. Is this the right point to proceed to destination selection UI for job/service/vehicle/user/office, or should another foundation step come first?
+
+### Known Caveats / Carry Forward
+- Express checkout / manager override is still not built.
+- Developer override is still not built.
+- Approver passcode is still not built.
+- User-to-vehicle active assignment source is still not built; vehicle snapshot remains NULL by design until that exists.
+- Repo still needs a clean migration representation for the live `default_permissions_for_role` update that added v2.6 express flags.
+- Destination tables/imports for employees/jobs/service calls/assemblies remain future work.
+- Durable import/audit tracking remains future work.
+
+### Proposed Next Step
+Build **cart destination selection UI** before express checkout:
+- Start with destination types supported by the existing RPC.
+- Keep server-side validation authoritative.
+- Avoid express checkout until Claude approves this normal checkout path.
+
+---
+
+## Entry 019
+
+**Date:** 2026-06-10
+**Updated by:** Claude
+**Phase:** Phase 1 Inventory — Review of Entry 018 (cart-open hardening, add-to-cart, normal checkout)
+**Session type:** Architecture review
+
+### Document-state note (read first)
+The files uploaded for this review were stale. The file labeled "ARCHITECTURE v2.6" was actually v2.4 content (no Section 14d, no express flags, no v2.5 cart-open controls, no `holds_stock`), and the "through Entry 017" handoff ended at Entry 014 (missing 015–017). This review was performed against the canonical v2.6 lock document and HANDOFF through Entry 017 produced in the prior session. **Action:** confirm the repository actually contains v2.6 / Entry 017; if the stale uploads reflect the real repo state, re-commit v2.6 + Entries 015–017, because Codex's Entry 018 work depends on v2.6 decisions (`holds_stock`, server-derived snapshot, `can_inventory_transactions` gate, express flags, `requires_completion` concept).
+
+### Verdict
+The implemented cart-open → add-to-cart → normal checkout path is sound and aligns with the locked inventory, permission, cost, and audit rules. **Milestone 4C approved.** No rule violations found. The items below are sequencing/hardening recommendations, not corrections of broken rules.
+
+### Rule-by-rule
+- **Rule 1** (balances transaction-derived): PASS. Approved `transaction_items` written; balance trigger derives; no direct balance writes.
+- **Rule 4** (server-authoritative permissions): PASS. All three RPCs gate on `can_inventory_transactions` server-side via `default_permissions_for_role || overrides`; JWT `sub` authoritative.
+- **Rule 5** (audit not bypassed): PASS for material movement. Per Section 19 the inventory transaction log (`inventory_transactions` + `transaction_items`) IS the audit record for movement; the ledger rows satisfy it. Confirm the header records the acting user (Clerk `sub`) and timestamp so it is a complete who/when record.
+- **Rule 6** (Dev Console actions logged): N/A — no Dev Console actions in this work.
+- **Rule 9 / Section 13** (cost snapshot): PASS. `unit_cost_at_time = items.price_per_unit`, exactly per Section 13.
+- **Rule 11** (per-line destinations): PASS structurally — destinations are written at the line level and the schema supports differing destinations. `finalize_inventory_cart` currently takes one cart-level destination and applies it to all lines; per-line input is not yet exposed. Not a violation (the rule is "supported/may," and the schema requirement is met), but expose per-line in the upcoming destination UI rather than retrofitting later.
+- **Rule 15** (status = physical movement only): PASS. `status='approved'` for physical movement; completeness and job-cost meanings not conflated.
+- **Rule 16** (only approved rows affect balances): PASS.
+
+### Answers to the eight questions
+1. Aligned with Rules 1, 4, 5, 6, 9, 11, 15, 16 — see rule-by-rule. Yes, with the per-line note on Rule 11.
+2. `finalize_inventory_cart` destination handling is acceptable as the first milestone; `office` is fine as a temporary test destination. Define office's real semantics before it is permanent (see #4).
+3. `office`/`user`/`unknown` → `remove_stock` is acceptable. `Remove Stock` is a valid Section 12 type; per-line `destination_type` metadata is preserved so the mapping can be refined later without data loss; consistent with the cost model (only `job`/`service_call` create job-cost linkage). Confirm `service_call`'s cost treatment and that `user` removals are intentionally not job-costed.
+4. `office`: type-only is acceptable IF office is a singleton consumption destination. If office can hold tracked stock, it is a storage *location* and the movement is a location transfer (needs a location ID; stock stays in inventory) — that is `Transfer Location`, not `Remove Stock`. Decide before office is permanent.
+5. Cart-level destination is acceptable for this milestone. Build the destination UI and evolve `finalize` to be per-line-capable now (cart-level "apply to all" as the default convenience) rather than hardening a cart-level-only path and retrofitting.
+6. Express flags live before express implementation: no concern — dormant; nothing reads them yet. Confirm the per-role default VALUES match Section 17 (`can_express_checkout` ON for inventory-rights roles; `can_approve_express_checkout` Dev/Admin only; `can_defer_completion` Dev only) before express is built.
+7. Repo migration caveat: not a hard blocker for the destination UI, but correct it soon. Live-vs-repo drift on `default_permissions_for_role` will silently regress on any rebuild-from-migrations or new environment (and undercuts the repo-as-source-of-truth discipline). Commit a hand-written migration file for the function (bypasses the connector size limit; you commit via VS Code anyway) before the next permission-touching change or environment rebuild.
+8. Destination-selection UI is the right next step, with two riders: (a) make it per-line-capable now; (b) add an overdraw/concurrency guard before it drives real checkouts (below). Also land the #7 migration.
+
+### Additional findings (not in the eight questions)
+- **Concurrency / overdraw (TOCTOU):** the available-balance pre-check can be raced by two concurrent `finalize`/`add` operations on the same `bin_item` — both pass the check, both write, balance goes negative. Lock the bin_item/balance row (`SELECT ... FOR UPDATE`) inside the `SECURITY DEFINER` function, and add a DB-level guard rejecting negative balances as defense in depth. Realistic with multiple field users on the same stock.
+- **Audit completeness:** confirm the `inventory_transactions` header stores the acting Clerk `sub` and timestamp (who/when), so the ledger fully satisfies Section 19.
+
+### Architecture Drift Warnings (updated)
+- CARRIED FORWARD (active, before next deploy/rebuild): repo migration for the live `default_permissions_for_role` update is uncommitted — live ≠ repo.
+- NEW (active, destination-UI step): expose per-line destinations in `finalize`/UI now; do not harden a cart-level-only path.
+- NEW (active, destination-UI step): add overdraw/concurrency protection (row lock + negative-balance guard) to `add_inventory_cart_item` and `finalize_inventory_cart`.
+- NEW (active, before office is permanent): define office destination semantics — consumption (`remove_stock`) vs tracked storage location (`Transfer Location`).
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags must gate express RPCs.
+- CARRIED FORWARD (active, next step): user→vehicle assignment source still absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+### Next Steps (in order)
+1. Confirm the repo is on v2.6 / Entry 017 (re-commit if the stale uploads reflect the actual repo state).
+2. Commit the `default_permissions_for_role` migration (hand-written file).
+3. Build the destination-selection UI — per-line-capable, server-validated.
+4. Add the overdraw/concurrency guard to add-to-cart and finalize.
+5. Confirm the express per-role default values match Section 17.
+6. Later: express checkout / manager override per Section 14d.
+
+---
