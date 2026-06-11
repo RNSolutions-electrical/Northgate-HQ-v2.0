@@ -37,6 +37,63 @@ function EmptyState({ title, children }) {
   );
 }
 
+function DestinationIdControl({ line, cartItemId, destinationReferences, onChange }) {
+  const users = destinationReferences?.users ?? [];
+  const vehicles = destinationReferences?.vehicles ?? [];
+
+  if (line.destination_type === 'user' && users.length) {
+    return (
+      <label>
+        User
+        <select value={line.destination_id} onChange={(event) => onChange(cartItemId, { destination_id: event.target.value })}>
+          <option value="">Select user</option>
+          {users.map((user) => (
+            <option key={user.clerk_user_id} value={user.clerk_user_id}>
+              {user.display_name || user.email || user.clerk_user_id} — {user.role ?? 'User'}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  if (line.destination_type === 'vehicle' && vehicles.length) {
+    return (
+      <label>
+        Vehicle
+        <select value={line.destination_id} onChange={(event) => onChange(cartItemId, { destination_id: event.target.value })}>
+          <option value="">Select vehicle</option>
+          {vehicles.map((vehicle) => (
+            <option key={vehicle.id} value={vehicle.id}>
+              {vehicle.vehicle_number || vehicle.id} — {vehicle.classification ?? 'Vehicle'}{vehicle.holds_stock ? ' / holds stock' : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  const requiresId = DESTINATIONS_REQUIRING_ID.has(line.destination_type);
+  const placeholderByType = {
+    job: 'Job ID / number required',
+    service_call: 'Service call ID / number required',
+    vehicle: 'Vehicle ID required until vehicles are imported',
+    user: 'User ID required until users load',
+  };
+
+  return (
+    <label>
+      Destination ID
+      <input
+        type="text"
+        placeholder={requiresId ? placeholderByType[line.destination_type] ?? 'Required' : 'Optional'}
+        value={line.destination_id}
+        onChange={(event) => onChange(cartItemId, { destination_id: event.target.value })}
+      />
+    </label>
+  );
+}
+
 function CatalogPreview({ rows }) {
   if (!rows.length) {
     return (
@@ -144,7 +201,7 @@ function StoragePreview({ storageUnits, bins }) {
   );
 }
 
-function CartScaffold({ permissions, cartCandidates }) {
+function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
   const candidateItems = cartCandidates.slice(0, 3);
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
@@ -244,7 +301,7 @@ function CartScaffold({ permissions, cartCandidates }) {
         <section className="cart-panel">
           <div className="card__header">
             <div>
-              <p className="eyebrow">Inventory Step 4D</p>
+              <p className="eyebrow">Inventory Step 4E</p>
               <h3>Per-Line Cart Checkout</h3>
             </div>
             <span className={cart ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
@@ -252,7 +309,7 @@ function CartScaffold({ permissions, cartCandidates }) {
             </span>
           </div>
           <p>
-            Cart opening, add-to-cart, and checkout are routed through controlled server RPCs. Each cart row can now carry its own destination before checkout. Express checkout remains out of scope.
+            Cart opening, add-to-cart, and checkout are routed through controlled server RPCs. Each cart row can carry its own destination before checkout. Express checkout remains out of scope.
           </p>
           <button
             type="button"
@@ -274,13 +331,15 @@ function CartScaffold({ permissions, cartCandidates }) {
         </section>
 
         <section className="cart-panel cart-panel--locked">
-          <h3>Vehicle Snapshot</h3>
+          <h3>Destination Sources</h3>
           <p>
-            Vehicle snapshot is server-derived. There is no active user-to-vehicle assignment table yet, so the cart correctly snapshots NULL.
+            User and vehicle references come from live Supabase when available. Jobs and service calls remain manual IDs until those modules are built.
           </p>
           <div className="cart-facts">
-            <span>Snapshot status: {cart ? 'Captured at cart open' : 'Pending cart open'}</span>
-            <span>Vehicle snapshot: {cart?.active_vehicle_id ?? 'No active vehicle assignment found'}</span>
+            <span>Users loaded: {destinationReferences?.users?.length ?? 0}</span>
+            <span>Vehicles loaded: {destinationReferences?.vehicles?.length ?? 0}</span>
+            <span>Job table: not built yet</span>
+            <span>Service calls: not built yet</span>
           </div>
         </section>
       </div>
@@ -332,7 +391,6 @@ function CartScaffold({ permissions, cartCandidates }) {
             <div className="cart-candidate-list">
               {cartState.cartItems.map((item) => {
                 const line = getLineDestination(item);
-                const requiresId = DESTINATIONS_REQUIRING_ID.has(line.destination_type);
                 const requiresNote = line.destination_type === 'unknown';
                 return (
                   <article className="cart-candidate" key={item.cart_item_id}>
@@ -346,15 +404,12 @@ function CartScaffold({ permissions, cartCandidates }) {
                             {DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                           </select>
                         </label>
-                        <label>
-                          Destination ID
-                          <input
-                            type="text"
-                            placeholder={requiresId ? 'Required' : 'Optional'}
-                            value={line.destination_id}
-                            onChange={(event) => updateLineDestination(item.cart_item_id, { destination_id: event.target.value })}
-                          />
-                        </label>
+                        <DestinationIdControl
+                          line={line}
+                          cartItemId={item.cart_item_id}
+                          destinationReferences={destinationReferences}
+                          onChange={updateLineDestination}
+                        />
                         <label>
                           Note
                           <input
@@ -414,7 +469,7 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–4D</p>
+          <p className="eyebrow">Inventory Step 1–4E</p>
           <h2>Read-only Inventory + Per-Line Cart Checkout</h2>
           <p>
             This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, and per-line normal checkout. Express checkout remains locked.
@@ -457,7 +512,13 @@ function InventoryReadOnlyPanel({ permissions }) {
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
-      {activeTab === 'cart' ? <CartScaffold permissions={permissions} cartCandidates={inventory.model.cartCandidates} /> : null}
+      {activeTab === 'cart' ? (
+        <CartScaffold
+          permissions={permissions}
+          cartCandidates={inventory.model.cartCandidates}
+          destinationReferences={inventory.model.destinationReferences}
+        />
+      ) : null}
 
       <p className="build-note">
         Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}
@@ -477,7 +538,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory per-line checkout build: 2026-06-11.1</p>
+            <p className="build-note">Inventory destination reference build: 2026-06-11.2</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
