@@ -10,6 +10,7 @@ export function useInventoryCart() {
   const [checkoutResult, setCheckoutResult] = useState(null);
   const [isOpening, setIsOpening] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [isRemovingItem, setIsRemovingItem] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isReadingItems, setIsReadingItems] = useState(false);
   const [error, setError] = useState(null);
@@ -110,6 +111,32 @@ export function useInventoryCart() {
     }
   }, [getClient, readCartItems]);
 
+  const removeItem = useCallback(async ({ cartId, cartItemId }) => {
+    setIsRemovingItem(true);
+    setError(null);
+
+    try {
+      const client = await getClient();
+      const { data, error: rpcError } = await client.rpc('remove_inventory_cart_item', {
+        p_cart_item_id: cartItemId,
+      });
+
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+      await readCartItems(cartId, client);
+      return result ?? null;
+    } catch (caughtError) {
+      console.error('Failed to remove inventory cart item', caughtError);
+      setError(caughtError);
+      return null;
+    } finally {
+      setIsRemovingItem(false);
+    }
+  }, [getClient, readCartItems]);
+
   const checkoutCart = useCallback(async ({
     cartId,
     destinationType = 'office',
@@ -154,10 +181,12 @@ export function useInventoryCart() {
     checkoutResult,
     error,
     isAddingItem,
+    isRemovingItem,
     isCheckingOut,
     isOpening,
     isReadingItems,
     addItem,
+    removeItem,
     checkoutCart,
     openCart,
     readCartItems,
