@@ -137,12 +137,18 @@ export function useInventoryReadModel({ enabled }) {
           catalogPreviewResult.error ??
           storageUnitsPreviewResult.error ??
           binsPreviewResult.error ??
-          cartCandidatesResult.error ??
-          usersResult.error ??
-          vehiclesResult.error;
+          cartCandidatesResult.error;
 
         if (readError) {
           throw readError;
+        }
+
+        if (usersResult.error) {
+          console.warn('Destination user references unavailable', usersResult.error);
+        }
+
+        if (vehiclesResult.error) {
+          console.warn('Destination vehicle references unavailable', vehiclesResult.error);
         }
 
         if (isMounted) {
@@ -165,8 +171,8 @@ export function useInventoryReadModel({ enabled }) {
               binsPreview: binsPreviewResult.data ?? [],
               cartCandidates: cartCandidatesResult.data ?? [],
               destinationReferences: {
-                users: usersResult.data ?? [],
-                vehicles: vehiclesResult.data ?? [],
+                users: usersResult.error ? [] : usersResult.data ?? [],
+                vehicles: vehiclesResult.error ? [] : vehiclesResult.data ?? [],
               },
             },
             lastLoadedAt: new Date().toISOString(),
