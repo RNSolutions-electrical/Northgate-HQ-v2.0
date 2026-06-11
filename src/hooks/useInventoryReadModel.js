@@ -17,6 +17,10 @@ const EMPTY_MODEL = Object.freeze({
   storageUnitsPreview: [],
   binsPreview: [],
   cartCandidates: [],
+  destinationReferences: {
+    users: [],
+    vehicles: [],
+  },
 });
 
 async function getCount(client, table, queryBuilder) {
@@ -76,6 +80,8 @@ export function useInventoryReadModel({ enabled }) {
           storageUnitsPreviewResult,
           binsPreviewResult,
           cartCandidatesResult,
+          usersResult,
+          vehiclesResult,
         ] = await Promise.all([
           getCount(client, 'items', (query) =>
             query.eq('is_active', true).eq('is_archived', false),
@@ -114,13 +120,26 @@ export function useInventoryReadModel({ enabled }) {
             .gt('quantity_on_hand', 0)
             .order('bin_code', { ascending: true })
             .limit(10),
+          client
+            .from('user_permissions')
+            .select('clerk_user_id, display_name, email, role, division')
+            .eq('is_active', true)
+            .order('display_name', { ascending: true, nullsFirst: false })
+            .limit(25),
+          client
+            .from('vehicles')
+            .select('id, vehicle_number, make, model, classification, holds_stock')
+            .order('vehicle_number', { ascending: true })
+            .limit(25),
         ]);
 
         const readError =
           catalogPreviewResult.error ??
           storageUnitsPreviewResult.error ??
           binsPreviewResult.error ??
-          cartCandidatesResult.error;
+          cartCandidatesResult.error ??
+          usersResult.error ??
+          vehiclesResult.error;
 
         if (readError) {
           throw readError;
@@ -145,6 +164,10 @@ export function useInventoryReadModel({ enabled }) {
               storageUnitsPreview: storageUnitsPreviewResult.data ?? [],
               binsPreview: binsPreviewResult.data ?? [],
               cartCandidates: cartCandidatesResult.data ?? [],
+              destinationReferences: {
+                users: usersResult.data ?? [],
+                vehicles: vehiclesResult.data ?? [],
+              },
             },
             lastLoadedAt: new Date().toISOString(),
           });
