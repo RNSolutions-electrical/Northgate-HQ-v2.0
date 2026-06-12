@@ -65,15 +65,16 @@ WITH viewer AS (
 SELECT
   target.id,
   target.vehicle_number,
-  target.make,
-  target.model,
+  target.name,
+  NULL::TEXT AS make,
+  NULL::TEXT AS model,
   target.classification,
   target.holds_stock,
-  target.division
+  NULL::TEXT AS division
 FROM public.vehicles target
 CROSS JOIN viewer v
-WHERE v.division = 'Admin'
-   OR (v.division IN ('Electrical', 'Construction') AND target.division = v.division);
+WHERE target.is_active = TRUE
+  AND v.division = 'Admin';
 
 GRANT SELECT ON public.inventory_cart_candidates_view TO anon, authenticated;
 GRANT SELECT ON public.inventory_destination_users_view TO anon, authenticated;
