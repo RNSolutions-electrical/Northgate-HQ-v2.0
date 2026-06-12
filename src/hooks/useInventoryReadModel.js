@@ -119,16 +119,15 @@ export function useInventoryReadModel({ enabled }) {
             )
             .gt('quantity_on_hand', 0)
             .order('bin_code', { ascending: true })
-            .limit(10),
+            .limit(50),
           client
-            .from('user_permissions')
+            .from('inventory_destination_users_view')
             .select('clerk_user_id, display_name, email, role, division')
-            .eq('is_active', true)
             .order('display_name', { ascending: true, nullsFirst: false })
             .limit(25),
           client
-            .from('vehicles')
-            .select('id, vehicle_number, make, model, classification, holds_stock')
+            .from('inventory_destination_vehicles_view')
+            .select('id, vehicle_number, make, model, classification, holds_stock, division')
             .order('vehicle_number', { ascending: true })
             .limit(25),
         ]);

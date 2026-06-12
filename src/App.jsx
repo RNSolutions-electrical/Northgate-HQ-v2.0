@@ -19,6 +19,7 @@ const DESTINATION_OPTIONS = [
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
 const CART_DESTINATION_DRAFT_PREFIX = 'northgate.inventoryCart.destinationDrafts.';
+const DEFAULT_CANDIDATE_QUANTITY = 1;
 
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
@@ -207,15 +208,30 @@ function StoragePreview({ storageUnits, bins }) {
 }
 
 function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
-  const candidateItems = cartCandidates.slice(0, 3);
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
   const [applyAllDestination, setApplyAllDestination] = useState('office');
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [candidateQuantities, setCandidateQuantities] = useState({});
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
   const cartDraftKey = getCartDestinationDraftKey(cart?.cart_id);
   const cartIsActive = cart?.status === 'active';
   const cartIsCheckedOut = cart?.status === 'checked_out' || cartState.checkoutResult?.status === 'checked_out';
+  const normalizedCandidateSearch = candidateSearch.trim().toLowerCase();
+  const candidateItems = cartCandidates
+    .filter((candidate) => Number(candidate.quantity_on_hand ?? 0) >= DEFAULT_CANDIDATE_QUANTITY)
+    .filter((candidate) => {
+      if (!normalizedCandidateSearch) {
+        return true;
+      }
+
+      return [
+        candidate.material_code,
+        candidate.item_name,
+        candidate.bin_code,
+      ].some((value) => String(value ?? '').toLowerCase().includes(normalizedCandidateSearch));
+    });
 
   useEffect(() => {
     if (!cartDraftKey) {
@@ -299,11 +315,37 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
       return;
     }
 
+    const quantity = getCandidateQuantity(candidate);
+
     await cartState.addItem({
       cartId: cart.cart_id,
       binItemId: candidate.bin_item_id,
-      quantity: 1,
+      quantity,
     });
+  }
+
+  function getCandidateQuantity(candidate) {
+    const maxQuantity = Math.max(DEFAULT_CANDIDATE_QUANTITY, Number(candidate.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY));
+    const requestedQuantity = Number(candidateQuantities[candidate.bin_item_id] ?? DEFAULT_CANDIDATE_QUANTITY);
+
+    if (!Number.isFinite(requestedQuantity)) {
+      return DEFAULT_CANDIDATE_QUANTITY;
+    }
+
+    return Math.min(Math.max(requestedQuantity, DEFAULT_CANDIDATE_QUANTITY), maxQuantity);
+  }
+
+  function updateCandidateQuantity(candidate, rawValue) {
+    const maxQuantity = Math.max(DEFAULT_CANDIDATE_QUANTITY, Number(candidate.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY));
+    const nextQuantity = Number(rawValue);
+    const boundedQuantity = Number.isFinite(nextQuantity)
+      ? Math.min(Math.max(nextQuantity, DEFAULT_CANDIDATE_QUANTITY), maxQuantity)
+      : DEFAULT_CANDIDATE_QUANTITY;
+
+    setCandidateQuantities((current) => ({
+      ...current,
+      [candidate.bin_item_id]: boundedQuantity,
+    }));
   }
 
   async function handleRemoveCartItem(cartItemId) {
@@ -408,29 +450,58 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
 
       <div className="cart-scaffold__body">
         <section className="cart-panel">
-          <h3>Stocked Bin Candidates</h3>
+          <div className="cart-panel__toolbar">
+            <h3>Stocked Bin Candidates</h3>
+            <label className="cart-search">
+              <span>Search</span>
+              <input
+                type="search"
+                placeholder="Code, item, or bin"
+                value={candidateSearch}
+                onChange={(event) => setCandidateSearch(event.target.value)}
+              />
+            </label>
+          </div>
           {candidateItems.length ? (
             <div className="cart-candidate-list">
-              {candidateItems.map((item) => (
-                <article className="cart-candidate" key={item.bin_item_id}>
-                  <div>
-                    <strong>{item.item_name}</strong>
-                    <span>{item.material_code} · Bin {item.bin_code} · On hand: {Number(item.quantity_on_hand ?? 0).toFixed(2)} {item.unit_of_measure ?? ''}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress}
-                    onClick={() => handleAddCandidate(item)}
-                  >
-                    {cartState.isAddingItem ? 'Adding…' : 'Add 1'}
-                  </button>
-                </article>
-              ))}
+              {candidateItems.map((item) => {
+                const maxQuantity = Number(item.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY);
+                const quantity = getCandidateQuantity(item);
+
+                return (
+                  <article className="cart-candidate" key={item.bin_item_id}>
+                    <div>
+                      <strong>{item.item_name}</strong>
+                      <span>{item.material_code} · Bin {item.bin_code} · On hand: {maxQuantity.toFixed(2)} {item.unit_of_measure ?? ''}</span>
+                    </div>
+                    <div className="cart-candidate__actions">
+                      <label className="quantity-field">
+                        <span>Qty</span>
+                        <input
+                          type="number"
+                          min={DEFAULT_CANDIDATE_QUANTITY}
+                          max={maxQuantity}
+                          step="1"
+                          value={quantity}
+                          onChange={(event) => updateCandidateQuantity(item, event.target.value)}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress}
+                        onClick={() => handleAddCandidate(item)}
+                      >
+                        {cartState.isAddingItem ? 'Adding…' : `Add ${quantity}`}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <EmptyState title="No stocked candidates">
-              No stocked bin items with available quantity were found. Add-to-cart requires a live bin item, not a catalog-only row.
+              No stocked bin items match the current picker filters.
             </EmptyState>
           )}
         </section>
@@ -543,8 +614,8 @@ function InventoryReadOnlyPanel({ permissions }) {
     <article className="card card--wide">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Inventory Step 1–4H</p>
-          <h2>Read-only Inventory + Removable Cart Lines</h2>
+          <p className="eyebrow">Inventory Step 1–4I</p>
+          <h2>Read-only Inventory + Cart Candidate Picker</h2>
           <p>
             This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout. Express checkout remains locked.
           </p>
@@ -612,7 +683,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory removable cart line build: 2026-06-11.5</p>
+            <p className="build-note">Inventory candidate picker build: 2026-06-11.6</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
