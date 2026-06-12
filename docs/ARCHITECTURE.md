@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.6
+    ARCHITECTURE.md          ← Architecture Lock Document v2.7
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -980,6 +980,26 @@ formal lock document update reviewed by Ryan.
     from the user-customizable layout presets described in Section 27 (Phase 4),
     which are an enhancement on top of this baseline.*
 
+19. **The coordination documents are the versioned source of truth and must
+    stay consistent.** `ARCHITECTURE.md` and `HANDOFF.md` are canonical; the
+    build is only as trustworthy as they are.
+    (a) **Append-only.** HANDOFF entries are sequentially numbered and
+    append-only. A past entry is never deleted, renumbered, or rewritten —
+    mistakes and wrong turns stay in the record; corrections are logged as a new
+    entry that references the entry being corrected.
+    (b) **One format.** Every entry uses the identical structure defined in
+    Section 34. No addendum blocks, no parallel or guessed numbering, no ad-hoc
+    formats. One checkpoint = one entry.
+    (c) **Stable filenames.** The canonical files are named exactly
+    `ARCHITECTURE.md` and `HANDOFF.md` and are never renamed, suffixed, or
+    version-stamped in the filename (the version lives *inside* the document).
+    The canonical file is overwritten in place. A working or review copy must
+    never be given a filename that could be mistaken for the canonical file
+    (e.g. `ARCHITECTURE_v2_6_FOR_CLAUDE.md`); mislabeled copies are the documented
+    cause of the Entry 022 drift.
+    Violations trigger a mandatory documentation reconciliation before further
+    code work.
+
 ---
 
 ## 25. Label and QR Printing
@@ -1434,3 +1454,71 @@ Northgate HQ should prioritize:
 
 The system should reflect how Northgate actually operates, not how generic
 software assumes construction companies operate.
+
+---
+
+## 34. Documentation Standard (locked — see Rule 19)
+
+The coordination documents are the source of truth. This section defines how
+they are kept consistent so the build never goes foggy again.
+
+### 34a. Canonical files and filenames
+- Exactly two canonical coordination files: `ARCHITECTURE.md` (this document)
+  and `HANDOFF.md`.
+- Filenames are immutable. Never rename, suffix, date-stamp, or version-stamp
+  them. The version number lives inside the document (the line under the title
+  for ARCHITECTURE; the entry sequence for HANDOFF).
+- Working/review copies sent between Ryan, Claude, and Codex must keep the
+  canonical name or be clearly non-canonical in a way that cannot be confused
+  with the source of truth. Do not produce files like
+  `ARCHITECTURE_v2_x_FOR_CLAUDE.md` or `HANDOFF_THROUGH_ENTRY_0xx.md` as the
+  thing that gets committed.
+
+### 34b. File-handling protocol (Ryan's workflow)
+- The current canonical copy lives in the `Current Docs` folder.
+- When a new version is produced, the prior canonical copy is moved to the
+  `Outdated` folder, then the canonical file in `Current Docs` is overwritten
+  in place (same filename). The repo copy is updated the same way.
+- Because the filename never changes, overwrite-in-place is safe and the sync
+  workflow stays unambiguous.
+
+### 34c. Append-only entry rule
+- HANDOFF entries are append-only and sequentially numbered with no gaps.
+- Never delete, renumber, or rewrite a past entry. If something logged earlier
+  was wrong, add a new entry that states the correction and references the prior
+  entry number. The record of what happened — including mistakes — is preserved
+  intentionally.
+- One checkpoint produces exactly one entry. Do not consolidate multiple
+  checkpoints into an addendum block or split one into parallel numbering.
+
+### 34d. Entry format (the single template)
+Every HANDOFF entry uses this exact structure. The header block is mandatory;
+body sections are included when they apply, always in this order; omit a section
+only if it is genuinely empty.
+
+```
+## Entry NNN[ — optional short title]
+
+**Date:** YYYY-MM-DD
+**Updated by:** <Claude | Codex | Ryan>
+**Phase:** <phase / milestone>
+**Session type:** <implementation | review | decision | alignment>
+
+### Context
+### What Was Completed   (implementation)  — or —
+### Review Findings       (review)          — or —
+### Decisions Made This Session (locked)    (decision)
+### Schema Changes
+### Code / File Changes
+### Lock Document Changes
+### What Codex Needs to Know
+### What Claude Needs to Know
+### Next Steps (in order)
+### Open Questions / Concerns
+### Architecture Drift Warnings
+
+---
+```
+
+The same template is mirrored at the top of `HANDOFF.md` so it is visible where
+entries are written. If the two ever disagree, this section governs.
