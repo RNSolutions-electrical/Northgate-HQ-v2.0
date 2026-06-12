@@ -5,6 +5,38 @@
 
 ---
 
+## Entry Format Standard (locked — Constitutional Rule 19, ARCHITECTURE Section 34)
+
+Every entry below uses this exact structure. Header block mandatory; body
+sections included when they apply, always in this order. Append-only: never
+delete, renumber, or rewrite a past entry — log corrections as a new entry that
+references the one being corrected. One checkpoint = one entry. Filenames
+(`ARCHITECTURE.md`, `HANDOFF.md`) are never changed.
+
+```
+## Entry NNN[ — optional short title]
+
+**Date:** YYYY-MM-DD
+**Updated by:** <Claude | Codex | Ryan>
+**Phase:** <phase / milestone>
+**Session type:** <implementation | review | decision | alignment>
+
+### Context
+### What Was Completed  /  Review Findings  /  Decisions Made This Session (locked)
+### Schema Changes
+### Code / File Changes
+### Lock Document Changes
+### What Codex Needs to Know
+### What Claude Needs to Know
+### Next Steps (in order)
+### Open Questions / Concerns
+### Architecture Drift Warnings
+
+---
+```
+
+---
+
 ## Entry 001
 
 **Date:** 2026-05-29
@@ -1290,5 +1322,137 @@ The implemented cart-open → add-to-cart → normal checkout path is sound and 
 4. Add the overdraw/concurrency guard to add-to-cart and finalize.
 5. Confirm the express per-role default values match Section 17.
 6. Later: express checkout / manager override per Section 14d.
+
+---
+
+## Entry 020
+
+**Date:** 2026-06-11
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — Read-path stabilization, per-line checkout, cart durability
+**Session type:** Implementation
+
+### Context
+Work completed in the active repo/Supabase on 2026-06-11, following the Entry 018/019 normal-checkout milestone and the Entry 019 recommendation to expose per-line destinations. (Originally logged as a consolidated "Codex Addendum — Entries 018–022"; reconciled into sequential entries in Entry 022 per Rule 19.)
+
+### What Was Completed
+- **Inventory read-path stabilization.** Optional destination-reference reads (`user_permissions`, `vehicles`) were made fail-soft so they no longer block the inventory panel. Marker `Inventory destination reference build: 2026-06-11.2`.
+- **Per-line normal checkout.** Added a 5-argument overload of `public.finalize_inventory_cart(p_cart_id uuid, p_destination_type text, p_destination_id text default null, p_note text default null, p_line_destinations jsonb default null)`. Per-line checkout validates destinations line-by-line and writes per-line destination data to `transaction_items`. The legacy 4-argument checkout remains available. This implements the Entry 019 Rule 11 recommendation to expose per-line destinations.
+- **Destination source dropdowns.** UI loads user and vehicle destination references when available; user dropdown shows `user_permissions` users, vehicle dropdown shows `vehicles` rows when present. Jobs and service calls remain manual IDs (those modules/tables not built yet).
+- **Durable cart item read.** Added `public.read_inventory_cart_items(p_cart_id uuid)`. Cart open, add-item, and checkout reload line items from the server; line display shows material/bin detail rather than raw IDs. Marker `Inventory durable cart read build: 2026-06-11.3`.
+- **Draft destination persistence.** Destination selections saved locally as cart-keyed drafts; survive reloads/refresh/reopen; clear after checkout. Draft-only — permanent destination writes happen at checkout. Marker `Inventory draft destination build: 2026-06-11.4`.
+- **Remove mistaken cart line.** Added `public.remove_inventory_cart_item(p_cart_item_id uuid)`, gated by `can_inventory_transactions`, active-cart-owned-by-signed-in-user only. UI exposes a per-line Remove button. Marker `Inventory removable cart line build: 2026-06-11.5`.
+- **Seeded additional test inventory** from the Master Data Workbook (`Inventory_Levels`): 9 stocked EMT materials with positive balances (A111 q100; C211 q25; C212 q35; C213 q45; C214 q55; C221 q15; C222 q10; C223 q5; C224 q99).
+
+### Code / File Changes
+- New RPCs: `read_inventory_cart_items`, `remove_inventory_cart_item`; 5-arg `finalize_inventory_cart` overload.
+- UI: destination dropdowns, durable cart read, draft destination persistence, per-line remove.
+
+### Code / File Changes — Repo Commits
+- `a553af1` Add cart item read RPC
+- `23798bc` Reload cart items from server
+- `a3ab076` Show reloaded cart item details
+- `1d761b7` Preserve draft cart destinations across reloads
+- `c83bc15` Add cart item remove RPC
+- `881a68f` Wire remove cart item hook action
+- `439a430` Expose remove cart item action
+
+### What Claude Needs to Know
+- Per-line checkout is now implemented (5-arg finalize with `p_line_destinations`), satisfying the Entry 019 Rule 11 recommendation. Legacy 4-arg path retained.
+- All new writes route through `SECURITY DEFINER` RPCs gated by `can_inventory_transactions`; no direct client table mutation.
+
+### Architecture Drift Warnings
+- CARRIED FORWARD (active): overdraw/concurrency guard (row lock + negative-balance rejection) still recommended on add/finalize (Entry 019).
+- CARRIED FORWARD (active): confirm `inventory_cart_candidates_view` and destination-reference reads respect division separation / RLS.
+
+---
+
+## Entry 021
+
+**Date:** 2026-06-11
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — Milestone 4I, Cart Candidate Picker v1
+**Session type:** Implementation
+
+### Context
+Replaced the temporary `cartCandidates.slice(0, 3)` test display with a usable stocked-material picker.
+
+### What Was Completed
+- Removed the `cartCandidates.slice(0, 3)` limiter; candidate source now requests up to 50 stocked rows from `inventory_cart_candidates_view`.
+- Added a search box filtering stocked candidates by material code, item name, and bin code (client-side over the fetched rows).
+- Added a per-candidate quantity input: defaults to 1, clamped client-side to [1, `quantity_on_hand`].
+- Add routes the selected quantity through existing `cartState.addItem` → existing RPCs (`open_inventory_cart`, `add_inventory_cart_item`, `remove_inventory_cart_item`, `finalize_inventory_cart`). No direct table mutation added.
+- Preserved existing behavior: open/add/remove, server cart reload, draft destination persistence, per-line checkout, user/vehicle destination dropdowns.
+- Express checkout and job/service-call source pickers intentionally not added.
+- Build marker `Inventory candidate picker build: 2026-06-11.6`.
+
+### Code / File Changes
+- `src/App.jsx`, `src/hooks/useInventoryReadModel.js`, `src/styles.css`.
+- Removed duplicate lowercase `src/app.jsx` from tracking (`git rm --cached`); canonical file is `src/App.jsx` (the app imports `./App.jsx`). Resolves a Windows/Mac case-insensitive filename collision.
+
+### Code / File Changes — Verification
+- `npm run build` passed (production build).
+- Browser smoke test NOT completed (in-app browser plugin failed to connect in the Windows sandbox); foreground Vite reached ready before timeout.
+- `package-lock.json` generated then removed (repo did not previously track one; out of milestone scope). npm reported one high-severity advisory and a Clerk deprecation; no dependency changes made (out of scope).
+
+### Open Questions / Concerns
+- 4I is "implemented and builds," not yet verified working end-to-end (no browser smoke test). Run the manual path before marking verified.
+
+### Architecture Drift Warnings
+- CARRIED FORWARD (active): client search filters only the 50 fetched rows; move search server-side before stocked items exceed the fetch limit.
+- CARRIED FORWARD (active): confirm `inventory_cart_candidates_view` respects division separation / RLS.
+
+---
+
+## Entry 022
+
+**Date:** 2026-06-12
+**Updated by:** Claude
+**Phase:** Documentation reconciliation + Milestone 4I review
+**Session type:** Review + documentation standardization
+
+### Context
+Ryan paused code work to repair the coordination documents after the canonical set drifted from the build. Diagnosis: canonical `ARCHITECTURE.md` was still v2.4 (missing the v2.5 cart-open controls / `holds_stock` and the v2.6 express-checkout section, flags, and developer-override decisions), and `HANDOFF.md` had clean entries only through 014 — Entries 015–017 were missing entirely and all 2026-06-11 work plus Milestone 4I were captured in a single non-standard "Codex Addendum — Entries 018–022" block. The code, meanwhile, already depended on the v2.5/v2.6 decisions. This entry reconciles both documents and adds Constitutional Rule 19 to prevent recurrence.
+
+### Decisions Made This Session (locked)
+- **Constitutional Rule 19 added** (ARCHITECTURE → v2.7): the coordination documents are the versioned source of truth and must stay consistent — append-only sequential entries (never deleted/renumbered/rewritten), one identical entry format (Section 34), and canonical filenames never renamed or version-stamped in the filename.
+- **Section 34 added** (Documentation Standard): canonical filenames, the file-handling protocol (overwrite in place; Current Docs → canonical, prior version → Outdated), the append-only correction protocol, and the single entry-format template (mirrored at the top of HANDOFF.md).
+- **HANDOFF reconciled to gapless sequential entries**: the missing Entries 015–017 (cart-open review, vehicle-snapshot model, express-checkout design) and 018–019 (cart-open hardening / add-to-cart / normal checkout + review) were restored from the design sessions; the "Codex Addendum (018–022)" block was converted into Entry 020 (2026-06-11 implementation work) and Entry 021 (Milestone 4I). One-time reconciliation; strictly append-only from here per Rule 19.
+
+### Review Findings — Milestone 4I (Entry 021)
+Reviewed against ARCHITECTURE v2.6. No drift. (1) Write boundary preserved — picker is read + UI; writes go through existing RPCs; no direct table mutation. (2) Client quantity clamping is acceptable UX; the RPC `qty > 0` / balance check remains authoritative. (3) 10→50 read limit fine; move search server-side before stock exceeds the fetch limit. (4) Lowercase `src/app.jsx` removal correct; verify with `git ls-files src/` that only `App.jsx` remains tracked. Status: builds but not browser-verified — run the manual smoke path before marking verified. Verify `inventory_cart_candidates_view` division/RLS scoping.
+
+### Lock Document Changes
+- ARCHITECTURE.md → v2.7: Rule 19 (Section 24); Section 34 "Documentation Standard." Also now present in the canonical file (carried from prior sessions but previously absent): v2.5 Section 11 cart-open controls + Section 16 `holds_stock`; v2.6 Section 14d express checkout + Section 17 flags + Section 22 developer override.
+- HANDOFF.md: Entry Format Standard preamble added at top; Entries 015–022 present in standard format.
+
+### What Codex Needs to Know
+- The canonical HANDOFF is now sequential through **Entry 022**. The next entry is **023** — do not resume the old "018–022" addendum numbering.
+- Every entry must follow the Section 34 / HANDOFF-preamble format exactly. No addendum blocks, no parallel numbering.
+- Canonical filenames are `ARCHITECTURE.md` and `HANDOFF.md` — never rename or suffix them.
+- Build against ARCHITECTURE **v2.7**, which now contains the v2.5/v2.6 decisions the code already depends on.
+
+### What Claude Needs to Know
+- Canonical docs are reconciled and consistent. Future reviews start from v2.7 / Entry 022.
+
+### Next Steps (in order)
+1. Ryan commits the reconciled `ARCHITECTURE.md` (v2.7) and `HANDOFF.md` to the repo and `Current Docs`; prior versions move to `Outdated`.
+2. Resume code: commit the uncommitted `default_permissions_for_role` migration (Entry 019); add the overdraw/concurrency guard; verify Milestone 4I end-to-end in the browser.
+3. Continue per-line destination UI hardening; confirm candidate-view division scoping.
+4. Express checkout / manager override remains deferred (Section 14d) until the normal path is fully verified.
+
+### Open Questions / Concerns
+- Confirm the live `default_permissions_for_role` per-role default values match Section 17 before express is built.
+
+### Architecture Drift Warnings
+- RESOLVED: canonical ARCHITECTURE / HANDOFF drift — reconciled this entry; Rule 19 added to prevent recurrence.
+- CARRIED FORWARD (active): uncommitted `default_permissions_for_role` migration — live ≠ repo (Entry 019).
+- CARRIED FORWARD (active): overdraw/concurrency guard on add/finalize (Entry 019).
+- CARRIED FORWARD (active): confirm `inventory_cart_candidates_view` + destination-reference reads respect division separation / RLS.
+- CARRIED FORWARD (active): Milestone 4I not browser-verified yet.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
 
 ---
