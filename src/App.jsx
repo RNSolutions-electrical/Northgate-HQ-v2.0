@@ -210,7 +210,11 @@ function StoragePreview({ storageUnits, bins }) {
 function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
-  const [applyAllDestination, setApplyAllDestination] = useState('office');
+  const [applyAllDestination, setApplyAllDestination] = useState({
+    destination_type: 'office',
+    destination_id: '',
+    note: '',
+  });
   const [candidateSearch, setCandidateSearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
@@ -266,7 +270,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
 
   function getLineDestination(cartItem) {
     return lineDestinations[cartItem.cart_item_id] ?? {
-      destination_type: cartItem.destination_type ?? applyAllDestination,
+      destination_type: cartItem.destination_type ?? applyAllDestination.destination_type,
       destination_id: cartItem.destination_id ?? '',
       note: cartItem.note ?? '',
     };
@@ -276,7 +280,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
     setLineDestinations((current) => ({
       ...current,
       [cartItemId]: {
-        destination_type: applyAllDestination,
+        destination_type: applyAllDestination.destination_type,
         destination_id: '',
         note: '',
         ...(current[cartItemId] ?? {}),
@@ -285,14 +289,21 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
     }));
   }
 
+  function updateApplyAllDestination(updates) {
+    setApplyAllDestination((current) => ({
+      ...current,
+      ...updates,
+    }));
+  }
+
   function applyDestinationToAll() {
     setLineDestinations((current) => {
       const next = { ...current };
       cartState.cartItems.forEach((item) => {
         next[item.cart_item_id] = {
-          destination_type: applyAllDestination,
-          destination_id: '',
-          note: '',
+          destination_type: applyAllDestination.destination_type,
+          destination_id: applyAllDestination.destination_id,
+          note: applyAllDestination.note,
         };
       });
       return next;
@@ -305,6 +316,16 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
       return false;
     }
     if (line.destination_type === 'unknown' && !line.note?.trim()) {
+      return false;
+    }
+    return true;
+  }
+
+  function isDestinationDraftValid(destinationDraft) {
+    if (DESTINATIONS_REQUIRING_ID.has(destinationDraft.destination_type) && !destinationDraft.destination_id?.trim()) {
+      return false;
+    }
+    if (destinationDraft.destination_type === 'unknown' && !destinationDraft.note?.trim()) {
       return false;
     }
     return true;
@@ -384,7 +405,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
 
     const result = await cartState.checkoutCart({
       cartId: cart.cart_id,
-      destinationType: applyAllDestination,
+      destinationType: applyAllDestination.destination_type,
       destinationId: null,
       note: 'Normal cart checkout from per-line destination UI',
       lineDestinations: preparedLineDestinations,
@@ -397,6 +418,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
   }
 
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isLineDestinationValid(item));
+  const applyAllDestinationIsValid = isDestinationDraftValid(applyAllDestination);
   const cartActionInProgress = cartState.isAddingItem || cartState.isRemovingItem || cartState.isCheckingOut || cartState.isReadingItems;
 
   return (
@@ -510,14 +532,37 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
           <h3>Cart Destinations</h3>
           {cartState.isReadingItems ? <p className="muted">Reloading cart items from server…</p> : null}
           {cartState.isRemovingItem ? <p className="muted">Removing cart item…</p> : null}
-          <div className="meta-grid">
+          <div className="cart-apply-all">
             <label>
-              Apply to all
-              <select value={applyAllDestination} onChange={(event) => setApplyAllDestination(event.target.value)}>
+              Apply destination
+              <select
+                value={applyAllDestination.destination_type}
+                onChange={(event) => updateApplyAllDestination({ destination_type: event.target.value, destination_id: '', note: '' })}
+              >
                 {DESTINATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-            <button type="button" className="secondary-button" disabled={!cartState.cartItems.length || cartActionInProgress} onClick={applyDestinationToAll}>
+            <DestinationIdControl
+              line={applyAllDestination}
+              cartItemId="apply-all-destination"
+              destinationReferences={destinationReferences}
+              onChange={(_, updates) => updateApplyAllDestination(updates)}
+            />
+            <label>
+              Note
+              <input
+                type="text"
+                placeholder={applyAllDestination.destination_type === 'unknown' ? 'Required for unknown' : 'Optional'}
+                value={applyAllDestination.note}
+                onChange={(event) => updateApplyAllDestination({ note: event.target.value })}
+              />
+            </label>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!cartState.cartItems.length || !applyAllDestinationIsValid || cartActionInProgress}
+              onClick={applyDestinationToAll}
+            >
               Apply Destination to All Lines
             </button>
           </div>
