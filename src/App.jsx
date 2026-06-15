@@ -5,6 +5,7 @@ import { supabase } from './services/supabaseClient.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { useInventoryCountCorrection } from './hooks/useInventoryCountCorrection.js';
+import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from './hooks/usePermissions.js';
 
 const DESTINATION_OPTIONS = [
@@ -21,6 +22,12 @@ const DESTINATION_OPTIONS = [
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
 const CART_DESTINATION_DRAFT_PREFIX = 'northgate.inventoryCart.destinationDrafts.';
 const DEFAULT_CANDIDATE_QUANTITY = 1;
+const TRANSACTION_TYPE_FILTER_OPTIONS = [
+  { value: '', label: 'All movement' },
+  { value: 'checkout', label: 'Checkout / Remove Stock' },
+  { value: 'physical_count_correction', label: 'Physical Count Correction' },
+  { value: 'add_stock', label: 'Add Stock' },
+];
 
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
@@ -208,6 +215,174 @@ function StoragePreview({ storageUnits, bins }) {
   );
 }
 
+function formatTransactionType(type) {
+  return String(type ?? 'unknown')
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatHistoryTimestamp(value) {
+  return value ? new Date(value).toLocaleString() : 'No timestamp';
+}
+
+function formatHistoryQuantity(row) {
+  if (row.target_quantity !== null && row.target_quantity !== undefined) {
+    return `Target ${Number(row.target_quantity).toFixed(2)}`;
+  }
+
+  return `Qty ${Number(row.quantity ?? 0).toFixed(2)}`;
+}
+
+function formatDestination(row) {
+  if (!row.destination_type) {
+    return 'None';
+  }
+
+  return [formatTransactionType(row.destination_type), row.destination_id].filter(Boolean).join(' / ');
+}
+
+function TransactionHistoryPanel({ permissions }) {
+  const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
+  const [search, setSearch] = useState('');
+  const [transactionType, setTransactionType] = useState('');
+  const [limit, setLimit] = useState(50);
+  const history = useInventoryTransactionHistory({
+    enabled: isDeveloper,
+    limit,
+    transactionType,
+    search,
+  });
+
+  if (!isDeveloper) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Read-only review</p>
+            <h3>Recent Inventory Transactions</h3>
+          </div>
+          <span className="status-pill status-pill--warn">Developer only</span>
+        </div>
+        <p>
+          Transaction history is locked to Developer role while division-scoped history visibility is still undefined.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel transaction-history">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Read-only review</p>
+          <h3>Recent Inventory Transactions</h3>
+        </div>
+        <button type="button" className="secondary-button" onClick={history.reload} disabled={history.isLoading}>
+          {history.isLoading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className="history-toolbar">
+        <label>
+          Search
+          <input
+            type="search"
+            placeholder="Material, item, or bin"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <label>
+          Type
+          <select value={transactionType} onChange={(event) => setTransactionType(event.target.value)}>
+            {TRANSACTION_TYPE_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Latest
+          <select value={limit} onChange={(event) => setLimit(Number(event.target.value))}>
+            <option value={25}>25 rows</option>
+            <option value={50}>50 rows</option>
+          </select>
+        </label>
+      </div>
+
+      {history.error ? (
+        <div className="alert">Transaction history failed to load. Confirm Developer role and deployed RPC.</div>
+      ) : null}
+      {history.isLoading ? <p className="muted">Loading transaction history...</p> : null}
+
+      {history.rows.length ? (
+        <>
+          <div className="table-wrap history-table-wrap">
+            <table className="data-table history-table">
+              <thead>
+                <tr>
+                  <th>Date / Time</th>
+                  <th>Type</th>
+                  <th>Item</th>
+                  <th>Bin</th>
+                  <th>Qty / Target</th>
+                  <th>Destination</th>
+                  <th>Status</th>
+                  <th>Unit Cost</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.rows.map((row) => (
+                  <tr key={row.transaction_item_id}>
+                    <td>{formatHistoryTimestamp(row.occurred_at ?? row.transaction_created_at)}</td>
+                    <td>{formatTransactionType(row.transaction_type)}</td>
+                    <td>
+                      <strong>{row.item_name}</strong>
+                      <span>{row.material_code}</span>
+                    </td>
+                    <td>{row.bin_code}</td>
+                    <td>{formatHistoryQuantity(row)}</td>
+                    <td>{formatDestination(row)}</td>
+                    <td>{formatTransactionType(row.status)}</td>
+                    <td>{Number(row.unit_cost_at_time ?? 0).toFixed(2)}</td>
+                    <td>{row.note ?? 'None'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-list history-mobile-list">
+            {history.rows.map((row) => (
+              <article className="mobile-item" key={row.transaction_item_id}>
+                <strong>{row.item_name}</strong>
+                <span>{row.material_code} / Bin {row.bin_code}</span>
+                <div className="meta-grid">
+                  <span>{formatHistoryTimestamp(row.occurred_at ?? row.transaction_created_at)}</span>
+                  <span>{formatTransactionType(row.transaction_type)}</span>
+                  <span>{formatHistoryQuantity(row)}</span>
+                  <span>{formatDestination(row)}</span>
+                  <span>Status: {formatTransactionType(row.status)}</span>
+                  <span>Unit cost: {Number(row.unit_cost_at_time ?? 0).toFixed(2)}</span>
+                </div>
+                <p className="muted">{row.note ?? 'No note'}</p>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <EmptyState title="No transaction rows">
+          No inventory movement history matches the current filters.
+        </EmptyState>
+      )}
+
+      <p className="build-note">
+        Last loaded: {history.lastLoadedAt ? new Date(history.lastLoadedAt).toLocaleString() : 'not loaded yet'}
+      </p>
+    </section>
+  );
+}
+
 function DeveloperCountCorrectionPanel({ permissions, cartCandidates, onSuccess }) {
   const countCorrection = useInventoryCountCorrection();
   const [selectedBinItemId, setSelectedBinItemId] = useState('');
@@ -326,6 +501,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   });
   const [candidateSearch, setCandidateSearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
+  const [candidateQuantityMessage, setCandidateQuantityMessage] = useState('');
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
   const cartDraftKey = getCartDestinationDraftKey(cart?.cart_id);
@@ -445,7 +621,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
       return;
     }
 
-    const quantity = getCandidateQuantity(candidate);
+    const quantity = getCandidateQuantityForSubmit(candidate);
 
     await cartState.addItem({
       cartId: cart.cart_id,
@@ -454,28 +630,44 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     });
   }
 
-  function getCandidateQuantity(candidate) {
+  function getCandidateQuantityInputValue(candidate) {
+    return candidateQuantities[candidate.bin_item_id] ?? String(DEFAULT_CANDIDATE_QUANTITY);
+  }
+
+  function getCandidateQuantityForSubmit(candidate) {
     const maxQuantity = Math.max(DEFAULT_CANDIDATE_QUANTITY, Number(candidate.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY));
-    const requestedQuantity = Number(candidateQuantities[candidate.bin_item_id] ?? DEFAULT_CANDIDATE_QUANTITY);
+    const requestedQuantity = Number(getCandidateQuantityInputValue(candidate));
 
     if (!Number.isFinite(requestedQuantity)) {
+      setCandidateQuantities((current) => ({
+        ...current,
+        [candidate.bin_item_id]: String(DEFAULT_CANDIDATE_QUANTITY),
+      }));
+      setCandidateQuantityMessage('Quantity reset to 1 because the field was blank or invalid.');
       return DEFAULT_CANDIDATE_QUANTITY;
     }
 
-    return Math.min(Math.max(requestedQuantity, DEFAULT_CANDIDATE_QUANTITY), maxQuantity);
+    const clampedQuantity = Math.min(Math.max(requestedQuantity, DEFAULT_CANDIDATE_QUANTITY), maxQuantity);
+    setCandidateQuantities((current) => ({
+      ...current,
+      [candidate.bin_item_id]: String(clampedQuantity),
+    }));
+
+    if (clampedQuantity !== requestedQuantity) {
+      setCandidateQuantityMessage(`Quantity adjusted to ${clampedQuantity} based on available stock.`);
+    } else {
+      setCandidateQuantityMessage('');
+    }
+
+    return clampedQuantity;
   }
 
   function updateCandidateQuantity(candidate, rawValue) {
-    const maxQuantity = Math.max(DEFAULT_CANDIDATE_QUANTITY, Number(candidate.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY));
-    const nextQuantity = Number(rawValue);
-    const boundedQuantity = Number.isFinite(nextQuantity)
-      ? Math.min(Math.max(nextQuantity, DEFAULT_CANDIDATE_QUANTITY), maxQuantity)
-      : DEFAULT_CANDIDATE_QUANTITY;
-
     setCandidateQuantities((current) => ({
       ...current,
-      [candidate.bin_item_id]: boundedQuantity,
+      [candidate.bin_item_id]: rawValue,
     }));
+    setCandidateQuantityMessage('');
   }
 
   async function handleRemoveCartItem(cartItemId) {
@@ -597,7 +789,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
             <div className="cart-candidate-list">
               {candidateItems.map((item) => {
                 const maxQuantity = Number(item.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY);
-                const quantity = getCandidateQuantity(item);
+                const quantityInputValue = getCandidateQuantityInputValue(item);
 
                 return (
                   <article className="cart-candidate" key={item.bin_item_id}>
@@ -613,8 +805,9 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
                           min={DEFAULT_CANDIDATE_QUANTITY}
                           max={maxQuantity}
                           step="1"
-                          value={quantity}
+                          value={quantityInputValue}
                           onChange={(event) => updateCandidateQuantity(item, event.target.value)}
+                          onBlur={() => getCandidateQuantityForSubmit(item)}
                         />
                       </label>
                       <button
@@ -623,7 +816,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
                         disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress}
                         onClick={() => handleAddCandidate(item)}
                       >
-                        {cartState.isAddingItem ? 'Adding…' : `Add ${quantity}`}
+                        {cartState.isAddingItem ? 'Adding…' : 'Add'}
                       </button>
                     </div>
                   </article>
@@ -635,6 +828,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
               No stocked bin items match the current picker filters.
             </EmptyState>
           )}
+          {candidateQuantityMessage ? <p className="muted">{candidateQuantityMessage}</p> : null}
         </section>
 
         <DeveloperCountCorrectionPanel
@@ -812,6 +1006,9 @@ function InventoryReadOnlyPanel({ permissions }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
           Cart Checkout
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>
+          Transactions
+        </button>
       </div>
 
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
@@ -825,6 +1022,7 @@ function InventoryReadOnlyPanel({ permissions }) {
           onInventoryReload={inventory.reload}
         />
       ) : null}
+      {activeTab === 'transactions' ? <TransactionHistoryPanel permissions={permissions} /> : null}
 
       <p className="build-note">
         Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}

@@ -86,13 +86,20 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .cart-search input { width: min(18rem, 48vw); }
 .quantity-field input { width: 5.5rem; }
 .cart-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+.transaction-history { display: grid; gap: .85rem; }
+.history-toolbar { display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(12rem, .7fr) minmax(8rem, .45fr); gap: .6rem; align-items: end; }
+.history-toolbar label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
+.history-toolbar input, .history-toolbar select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; }
+.history-table { min-width: 960px; }
+.history-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.history-mobile-list { display: none; }
 .secondary-button { border: 1px solid rgba(148,163,184,.26); border-radius: .85rem; background: rgba(15,23,42,.75); color: #e5edf8; padding: .65rem .8rem; font-weight: 700; }
 .landing { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
 .landing-card { width: min(34rem, 100%); border: 1px solid rgba(148,163,184,.18); border-radius: 1.5rem; background: rgba(15,23,42,.9); padding: clamp(1.25rem, 5vw, 2rem); text-align: center; box-shadow: 0 24px 64px rgba(2,6,23,.42); }
 .primary-button { border: 0; border-radius: .9rem; background: #e2e8f0; color: #020617; padding: .8rem 1.05rem; font-weight: 800; cursor: pointer; }
 
 @media (max-width: 900px) {
-  .dashboard-grid, .inventory-layout, .cart-scaffold__summary, .cart-scaffold__body, .cart-apply-all, .count-correction-form { grid-template-columns: 1fr; }
+  .dashboard-grid, .inventory-layout, .cart-scaffold__summary, .cart-scaffold__body, .cart-apply-all, .count-correction-form, .history-toolbar { grid-template-columns: 1fr; }
   .count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -102,6 +109,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .count-grid, .meta-grid, .cart-facts { grid-template-columns: 1fr; }
   .table-wrap { display: none; }
   .mobile-list { display: grid; }
+  .history-mobile-list { display: grid; }
   .cart-candidate { align-items: stretch; flex-direction: column; }
   .cart-candidate__actions, .cart-panel__toolbar { align-items: stretch; flex-direction: column; }
   .cart-search input, .quantity-field input { width: 100%; }
