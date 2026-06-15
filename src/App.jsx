@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
+import { useInventoryCountCorrection } from './hooks/useInventoryCountCorrection.js';
 import { usePermissions } from './hooks/usePermissions.js';
 
 const DESTINATION_OPTIONS = [
@@ -207,7 +208,115 @@ function StoragePreview({ storageUnits, bins }) {
   );
 }
 
-function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
+function DeveloperCountCorrectionPanel({ permissions, cartCandidates, onSuccess }) {
+  const countCorrection = useInventoryCountCorrection();
+  const [selectedBinItemId, setSelectedBinItemId] = useState('');
+  const [targetQuantity, setTargetQuantity] = useState('');
+  const [reason, setReason] = useState('');
+  const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
+  const selectedCandidate = cartCandidates.find((candidate) => candidate.bin_item_id === selectedBinItemId) ?? null;
+  const parsedQuantity = Number(targetQuantity);
+  const canSubmit = Boolean(
+    selectedCandidate &&
+    reason.trim() &&
+    targetQuantity !== '' &&
+    Number.isFinite(parsedQuantity) &&
+    parsedQuantity >= 0 &&
+    !countCorrection.isSettingQuantity,
+  );
+
+  if (!isDeveloper) {
+    return null;
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (!canSubmit) {
+      return;
+    }
+
+    const result = await countCorrection.setCountQuantity({
+      binItemId: selectedCandidate.bin_item_id,
+      targetQuantity: parsedQuantity,
+      reason: reason.trim(),
+    });
+
+    if (result) {
+      setTargetQuantity('');
+      setReason('');
+      await onSuccess?.();
+    }
+  }
+
+  return (
+    <section className="cart-panel cart-panel--developer">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Developer Count Tool</p>
+          <h3>Set / Adjust Quantity</h3>
+        </div>
+        <span className="status-pill status-pill--warn">Developer only</span>
+      </div>
+      <form className="count-correction-form" onSubmit={handleSubmit}>
+        <label>
+          Stocked bin item
+          <select value={selectedBinItemId} onChange={(event) => setSelectedBinItemId(event.target.value)}>
+            <option value="">Select stocked material</option>
+            {cartCandidates.map((candidate) => (
+              <option key={candidate.bin_item_id} value={candidate.bin_item_id}>
+                {candidate.material_code} / {candidate.item_name} / Bin {candidate.bin_code}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Target quantity
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={targetQuantity}
+            onChange={(event) => setTargetQuantity(event.target.value)}
+          />
+        </label>
+        <label>
+          Reason
+          <input
+            type="text"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Required"
+          />
+        </label>
+        {selectedCandidate ? (
+          <div className="cart-facts count-correction-facts">
+            <span>Item: {selectedCandidate.item_name}</span>
+            <span>Code: {selectedCandidate.material_code}</span>
+            <span>Bin: {selectedCandidate.bin_code}</span>
+            <span>On hand: {Number(selectedCandidate.quantity_on_hand ?? 0).toFixed(2)} {selectedCandidate.unit_of_measure ?? ''}</span>
+          </div>
+        ) : null}
+        <button type="submit" className="secondary-button" disabled={!canSubmit}>
+          {countCorrection.isSettingQuantity ? 'Setting Count...' : 'Set Count Quantity'}
+        </button>
+      </form>
+      {countCorrection.error ? (
+        <div className="alert">Set count failed. Confirm Developer role, active item, nonnegative quantity, and required reason.</div>
+      ) : null}
+      {countCorrection.result ? (
+        <div className="cart-facts">
+          <span>Status: {countCorrection.result.status}</span>
+          <span>Quantity: {Number(countCorrection.result.quantity_on_hand ?? 0).toFixed(2)}</span>
+          <span>Transaction: {countCorrection.result.transaction_id.slice(0, 8)}...</span>
+          <span>Bin: {countCorrection.result.bin_item_id.slice(0, 8)}...</span>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function CartScaffold({ permissions, cartCandidates, destinationReferences, onInventoryReload }) {
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
   const [applyAllDestination, setApplyAllDestination] = useState({
@@ -528,6 +637,12 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences }) {
           )}
         </section>
 
+        <DeveloperCountCorrectionPanel
+          permissions={permissions}
+          cartCandidates={cartCandidates}
+          onSuccess={onInventoryReload}
+        />
+
         <section className="cart-panel">
           <h3>Cart Destinations</h3>
           {cartState.isReadingItems ? <p className="muted">Reloading cart items from server…</p> : null}
@@ -707,6 +822,7 @@ function InventoryReadOnlyPanel({ permissions }) {
           permissions={permissions}
           cartCandidates={inventory.model.cartCandidates}
           destinationReferences={inventory.model.destinationReferences}
+          onInventoryReload={inventory.reload}
         />
       ) : null}
 
