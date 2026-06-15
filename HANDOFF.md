@@ -1478,3 +1478,143 @@ After documentation alignment was resolved (ARCHITECTURE v2.7 and HANDOFF throug
 - CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
 
 ---
+
+## Entry 024
+
+**Date:** 2026-06-12
+**Updated by:** Claude
+**Phase:** Phase 1 Inventory — Review of Entry 023 (4I commit, checkout hardening, ledger backfill) + test/opening quantity handling
+**Session type:** Review + decision proposal
+
+### Context
+Review of Entry 023, requested by Codex (specifically the production ledger backfill). Ryan also disclosed the root cause of the checkout failure: he edited inventory quantities directly in Supabase to test different materials. It was a mistake, but it surfaced a latent problem (seeded balances had no ledger baseline) before it could grow. This entry records the review and proposes a sanctioned approach to test and opening quantities.
+
+### Review Findings — Entry 023
+- Documentation alignment confirmed resolved: ARCHITECTURE v2.7, HANDOFF current; Entry 023 written in standard format with the correct sequential number. The Rule 19 standard is holding.
+- Resolved warnings carried forward from prior reviews — all approved:
+  - Division scoping on candidate/reference reads — server-side scoped views (`202606120001`).
+  - Overdraw/concurrency — checkout quantity aggregated by `bin_item_id` plus `inventory_balances_quantity_nonnegative` constraint as the hard floor.
+  - `default_permissions_for_role` repo drift — resolved in-repo by `202606110001`.
+- Per-line finalize fix (skip cart-level destination validation when `p_line_destinations` is supplied; aggregate by `bin_item_id`) — correct.
+- Apply Destination to All Lines UI — the per-line-capable + cart-level-convenience pattern recommended in Entry 019. Correct.
+- **Ledger baseline backfill — APPROVED as a correct repair.** Root cause: seeded `inventory_balances` had no corresponding ledger rows (a latent Rule 1 violation). The first real checkout made the balance trigger compute a negative value (only the removal existed, no baseline behind it), tripping `inventory_balances_quantity_nonnegative`. The fix inserted 9 approved `physical_count_correction` rows totaling 389 (matches the seeded EMT quantities exactly: 100+25+35+45+55+15+10+5+99), so balances are now transaction-derived. Sanctioned mechanism (Section 12), explicit approval obtained, the transaction-derived rule preserved.
+  - VERIFY: the baseline rows carry catalog `unit_cost_at_time` so inventory valuation is not $0.
+  - VERIFY: the corrections are audited per Section 12 (a migration insert may bypass the in-app audit hook), or are explicitly documented as a one-time setup backfill.
+
+### Root Cause (logged)
+The 023 checkout failure originated from direct edits to inventory quantities in Supabase during testing. Direct edits to `inventory_balances` bypass the ledger and violate Rule 1 (balances are transaction-derived) and Rule 8 (no direct DB edits outside controlled tools). This was an honest testing mistake; it usefully exposed that the seed process had the same flaw. Corrective principle, already in force and restated: quantities are never set by editing `inventory_balances` directly — only through approved ledger transactions (`physical_count_correction` or `add_stock`).
+
+### Proposed Decision — Test & Opening Quantity Handling (pending Ryan confirm)
+One mechanism, used at three moments:
+1. **Sanctioned quantity entry.** A "Set/Adjust Quantity" admin action that takes a target quantity, computes the delta, and writes a `physical_count_correction` (delta) transaction. This is not throwaway test scaffolding — it is the real production physical-count feature. Open choice: build this RPC now (removes the direct-edit temptation that caused the failure) vs. keep doing manual tagged count-correction inserts until later.
+2. **Tag pre-release adjustments.** Every quantity change made before go-live is a `physical_count_correction` carrying a clear marker (e.g. note/reason `pre-release testing`) so test data is unambiguously identifiable.
+3. **Go-live reset.** At go-live, clear the pre-release test ledger (all test data), then load verified opening balances as fresh count-correction rows dated at go-live. Clean, transaction-derived ledger from day one.
+Across all three: nothing ever writes `inventory_balances` directly.
+
+### Decisions Made This Session (locked)
+- Restated existing rules with teeth: direct `inventory_balances` edits are forbidden for everyone, including manual Supabase edits during testing. All quantity establishment/adjustment goes through approved ledger transactions (Rule 1 / Rule 8).
+
+### Lock Document Changes
+- None yet. On Ryan's confirmation of the quantity-handling approach, lock it in the relevant inventory section (Section 12 transaction types and/or Section 23 balance cache) and bump the ARCHITECTURE version.
+
+### What Codex Needs to Know
+- Never edit `inventory_balances` directly. Use `physical_count_correction` / `add_stock` transactions for all quantity changes, test or real.
+- Verify the backfill rows' `unit_cost_at_time` and audit-trail status (above).
+- Pending Ryan confirm: a "Set/Adjust Quantity" admin RPC (count-correction-backed) may be the next small build; it doubles as the production physical-count feature and as the go-live opening-balance tool.
+
+### What Claude Needs to Know
+- Root cause of the 023 failure was a direct DB edit, not a logic error in the checkout path. The corrective approach is proposed above and pending confirmation.
+
+### Next Steps (in order)
+1. Confirm Netlify is serving HEAD `c215bc7`; run one clean post-fix checkout and inspect the resulting `inventory_transactions` / `transaction_items` / `inventory_balances` rows (from Entry 023).
+2. Ryan confirms the test/opening-quantity approach; then lock it in ARCHITECTURE and bump the version.
+3. (Likely) build the Set/Adjust Quantity admin RPC (count-correction-backed) as both the test tool and the real physical-count feature.
+4. Build the transaction-history review surface before express checkout.
+
+### Open Questions / Concerns
+- Choose: build the Set/Adjust Quantity RPC now vs. manual tagged count-correction inserts for testing until later.
+- Backfill rows: confirm `unit_cost_at_time` and audit-trail status.
+- Carried: office destination semantics; user→vehicle assignment source.
+
+### Architecture Drift Warnings
+- NEW (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities (Rule 1 / Rule 8). Pre-release test adjustments use count-correction and are tagged for go-live cleanup.
+- CARRIED FORWARD (active): confirm Netlify deploy on HEAD `c215bc7`; inspect one clean post-fix checkout in Supabase.
+- CARRIED FORWARD (active): verify backfill rows carry `unit_cost_at_time` and are audited or documented as a one-time setup backfill.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent (consumption vs storage location).
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 025
+
+**Date:** 2026-06-12  
+**Updated by:** ChatGPT  
+**Phase:** Phase 1 Inventory — Milestone 4J Developer-only count correction tool functional  
+**Session type:** Implementation documentation update
+
+### Context
+After Entry 024 reviewed the direct `inventory_balances` edit problem and proposed a sanctioned quantity adjustment mechanism, Ryan proceeded with the next milestone: a Developer-only Set / Adjust Quantity tool backed by `physical_count_correction` ledger transactions. Ryan reported that the Developer count tool appears to be functioning properly. This entry records the reported functional state and carries forward remaining verification items.
+
+### What Was Completed
+- **Milestone 4J Developer-only count correction tool appears functional.**
+- A controlled Set / Adjust Quantity workflow was built to replace direct testing edits to `inventory_balances`.
+- The tool is intended to write approved `physical_count_correction` ledger rows rather than directly setting `inventory_balances`.
+- The workflow supports the testing/pre-release need identified in Entry 024: Ryan can adjust quantities safely without breaking the transaction-derived balance model.
+- Ryan reported that the Developer count tool is functioning properly.
+
+### Schema Changes
+- A controlled RPC for setting inventory count quantity was added or expected to have been added during 4J.
+- The exact migration filename, RPC signature, and commit hash still need to be confirmed by Codex and recorded in the next implementation entry if not already documented.
+
+### Code / File Changes
+- Developer-only count correction UI and supporting hook/RPC wiring were added or expected to have been added during 4J.
+- The exact pushed commit hash and changed files still need to be confirmed.
+
+### Lock Document Changes
+- None. ARCHITECTURE.md remains v2.7.
+
+### What Codex Needs to Know
+- The Developer-only count correction tool is the approved replacement for direct `inventory_balances` edits during testing.
+- The RPC must enforce Developer-only access server-side, not merely hide the UI.
+- All quantity adjustments must continue to create ledger transactions, preferably `physical_count_correction`, and must never directly edit `inventory_balances`.
+- Before starting 4K, confirm:
+  - the 4J commit hash;
+  - the migration filename;
+  - the RPC name/signature;
+  - that the migration was applied live to project `keogysnoukbendfkfjcn`;
+  - that production is deployed to the 4J commit;
+  - that the Developer-only gate is enforced server-side.
+
+### What Claude Needs to Know
+- Entry 024's proposed corrective path has moved from proposal to implementation: a Developer-only physical count / set quantity tool exists and is reportedly functional.
+- This mitigates the direct-edit testing risk by providing a controlled ledger-backed path.
+
+### Next Steps (in order)
+1. Confirm and record the exact 4J commit hash, migration filename, RPC signature, and live migration/deploy status.
+2. Build Milestone 4K: Inventory Transaction History / Review Surface before Express Checkout.
+3. Continue to defer Express Checkout, Manager Override, approver passcode, and completion worklist until normal transaction history is inspectable.
+
+### Open Questions / Concerns
+- Exact 4J commit hash and migration filename were not recorded in this entry.
+- Confirm whether the 4J commit has been pushed to GitHub and whether Netlify is serving it.
+- Confirm the RPC is Developer-only server-side, not merely hidden in the UI.
+- Confirm baseline/setup and pre-release count-correction rows carry `unit_cost_at_time` and enough note/reason/audit context for future cleanup.
+- Office destination semantics remain unresolved.
+- User→vehicle active assignment source remains absent; vehicle snapshot remains NULL by design until it exists.
+
+### Architecture Drift Warnings
+- RESOLVED / MITIGATED: direct quantity testing by editing `inventory_balances` now has a controlled replacement path through the Developer-only count correction tool.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities (Rule 1 / Rule 8).
+- CARRIED FORWARD (active): verify exact 4J commit hash, migration filename, RPC signature, pushed/deployed status, and live Developer-only enforcement.
+- CARRIED FORWARD (active): build transaction/history review surface before Express Checkout so normal checkout and count corrections are inspectable.
+- CARRIED FORWARD (active): verify backfill and count-correction rows carry `unit_cost_at_time` and are audited or documented as one-time setup/pre-release rows.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent (consumption vs storage location).
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
