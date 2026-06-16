@@ -1,7 +1,37 @@
-﻿# Northgate HQ v2.0 — Handoff Log
+# Northgate HQ v2.0 — Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
+
+## Entry Format Standard
+
+Every HANDOFF entry uses this exact structure. The header block is mandatory;
+body sections are included when they apply, always in this order; omit a section
+only if it is genuinely empty.
+
+```
+## Entry NNN[ — optional short title]
+
+**Date:** YYYY-MM-DD
+**Updated by:** <Claude | Codex | Ryan>
+**Phase:** <phase / milestone>
+**Session type:** <implementation | review | decision | alignment>
+
+### Context
+### What Was Completed   (implementation)  — or —
+### Review Findings       (review)          — or —
+### Decisions Made This Session (locked)    (decision)
+### Schema Changes
+### Code / File Changes
+### Lock Document Changes
+### What Codex Needs to Know
+### What Claude Needs to Know
+### Next Steps (in order)
+### Open Questions / Concerns
+### Architecture Drift Warnings
+
+---
+```
 
 ---
 
@@ -1623,13 +1653,13 @@ After Entry 024 reviewed the direct `inventory_balances` edit problem and propos
 
 **Date:** 2026-06-15
 **Updated by:** Claude
-**Phase:** Phase 1 Inventory â€” Review of Milestone 4K (Transaction History Review Surface) + 4J gate verification + ledger verification
+**Phase:** Phase 1 Inventory — Review of Milestone 4K (Transaction History Review Surface) + 4J gate verification + ledger verification
 **Session type:** Review
 
 ### Context
 Claude reviewed the 4K review packet: the `read_inventory_transaction_history` RPC plus a TransactionHistoryPanel UI/hook, bundled with 4J Developer-only gate verification, numeric-input UX fix, and ledger verification queries. The 4K migration `202606150001` was staged but not yet applied live at the time of review.
 
-### Review Findings â€” Milestone 4K
+### Review Findings — Milestone 4K
 - **APPROVED to commit and apply live.** Developer-only-first visibility is accepted as the safe first version.
 - **Read-only confirmed.** The RPC is SELECT-only; the hook calls only `read_inventory_transaction_history`; no insert/update/delete is introduced.
 - **Permission gate passes Rule 4.** The RPC is `SECURITY DEFINER`, uses `auth.jwt() ->> 'sub'`, requires an active `user_permissions` row, fails closed without a caller, and requires `caller.role = 'Developer'`.
@@ -1680,17 +1710,17 @@ Claude reviewed the 4K review packet: the `read_inventory_transaction_history` R
 ### Open Questions / Concerns
 - Whether to lock the "read surfaces are Developer-only until division-scoping is defined" principle in ARCHITECTURE.
 - Office destination semantics.
-- Userâ†’vehicle assignment source remains absent; vehicle snapshot NULL by design until it exists.
+- User→vehicle assignment source remains absent; vehicle snapshot NULL by design until it exists.
 
 ### Architecture Drift Warnings
 - RESOLVED: 4J Developer-only gate server enforcement; backfill/count-correction `unit_cost_at_time`; clean checkout inspection; balance/ledger integrity; transaction-header audit completeness.
 - CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
 - CARRIED FORWARD (active): improve transaction history actor display to prefer display name/email over raw Clerk user ID.
-- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
 - CARRIED FORWARD (active): apply 4K migration live and runtime-test the RPC.
 - CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
-- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
-- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
 - CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
 
@@ -1700,7 +1730,7 @@ Claude reviewed the 4K review packet: the `read_inventory_transaction_history` R
 
 **Date:** 2026-06-15
 **Updated by:** ChatGPT
-**Phase:** Phase 1 Inventory â€” Current lock-in checkpoint after Claude 4K approval
+**Phase:** Phase 1 Inventory — Current lock-in checkpoint after Claude 4K approval
 **Session type:** Handoff consolidation / next-step sequencing
 
 ### Context
@@ -1746,7 +1776,7 @@ Ryan asked to lock in the current state and generate updated coordination docume
 1. If not already done, commit 4K with message: `Add inventory transaction history review surface`.
 2. If not already done, apply migration `202606150001_inventory_transaction_history_review.sql` live to `keogysnoukbendfkfjcn`.
 3. Runtime-test the Transactions tab from the app and confirm history rows return.
-4. Update history actor display so rows prefer: `performed_by_name` â†’ `user_permissions.display_name` â†’ `user_permissions.email` â†’ raw Clerk `user_id` fallback.
+4. Update history actor display so rows prefer: `performed_by_name` → `user_permissions.display_name` → `user_permissions.email` → raw Clerk `user_id` fallback.
 5. Define the division-scoped read rule before exposing history or any broad/sensitive read surface beyond Developer.
 6. Resolve office destination semantics: office as singleton consumption destination vs tracked storage/transfer location.
 7. Keep Express Checkout / Manager Override deferred until the normal path and history surface are verified live.
@@ -1756,16 +1786,16 @@ Ryan asked to lock in the current state and generate updated coordination docume
 - Has migration `202606150001` been applied live and runtime-tested from the app?
 - Should read surfaces remain Developer-only by convention only, or should this be locked into ARCHITECTURE before division scoping is designed?
 - Office destination semantics remain unresolved.
-- Userâ†’vehicle assignment source remains absent; vehicle snapshot NULL by design until it exists.
+- User→vehicle assignment source remains absent; vehicle snapshot NULL by design until it exists.
 
 ### Architecture Drift Warnings
 - CARRIED FORWARD (active): apply 4K migration live and runtime-test the RPC from the app if not already done.
 - CARRIED FORWARD (active): improve history actor display to prefer readable display name/email over raw Clerk user ID.
 - CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
-- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
 - CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
-- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
-- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
 - CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
 
@@ -1775,26 +1805,26 @@ Ryan asked to lock in the current state and generate updated coordination docume
 
 **Date:** 2026-06-15
 **Updated by:** Claude
-**Phase:** Coordination / governance â€” escalation protocol locked
+**Phase:** Coordination / governance — escalation protocol locked
 **Session type:** Decision
 
 ### Context
-Ryan asked to lock the "when must Claude be involved" routing rule into the architecture so it is canonical rather than living only in a pasted prompt (which would itself be a drift risk â€” the exact failure mode Rule 19 exists to prevent). He will then start fresh chats across all models from the updated ARCHITECTURE and HANDOFF.
+Ryan asked to lock the "when must Claude be involved" routing rule into the architecture so it is canonical rather than living only in a pasted prompt (which would itself be a drift risk — the exact failure mode Rule 19 exists to prevent). He will then start fresh chats across all models from the updated ARCHITECTURE and HANDOFF.
 
 ### Decisions Made This Session (locked)
-- **Escalation protocol locked into Section 30 (AI Development Roles); ARCHITECTURE â†’ v2.8.** Core principle: Claude is required when an architectural decision is being *made* or a locked rule is *touched* â€” not when a settled decision is being *implemented*. Codex MUST route to Claude before proceeding when work involves: any ARCHITECTURE.md change; a new decision not already covered by the lock document; anything touching a locked invariant (ledger/balances, permissions, audit, approval/status meaning, cost snapshots, per-line destinations, source-of-truth, no-direct-DB-edit); schema changes; a new inventory/money/permission write path; build-sequence/ordering questions; conflicts with the lock doc or a prior HANDOFF decision; a constitutional-rule violation flag; starting a deferred major feature (express checkout/manager override, developer override, division-scoped read rule, Financials/job-cost, RN companion app); documentation drift; or anything touching live production data/repair.
+- **Escalation protocol locked into Section 30 (AI Development Roles); ARCHITECTURE → v2.8.** Core principle: Claude is required when an architectural decision is being *made* or a locked rule is *touched* — not when a settled decision is being *implemented*. Codex MUST route to Claude before proceeding when work involves: any ARCHITECTURE.md change; a new decision not already covered by the lock document; anything touching a locked invariant (ledger/balances, permissions, audit, approval/status meaning, cost snapshots, per-line destinations, source-of-truth, no-direct-DB-edit); schema changes; a new inventory/money/permission write path; build-sequence/ordering questions; conflicts with the lock doc or a prior HANDOFF decision; a constitutional-rule violation flag; starting a deferred major feature (express checkout/manager override, developer override, division-scoped read rule, Financials/job-cost, RN companion app); documentation drift; or anything touching live production data/repair.
 - **Proceed-without-Claude conditions (all must hold):** implements an already-locked decision; no change to schema/permissions/ledger/audit/constitutional rules; a read-only surface in an approved scope, or a bug fix / UX-styling / refactor leaving invariants untouched; test/seed quantities via `physical_count_correction` only, never direct `inventory_balances` edits.
-- **Required routing verdict:** every Codex work summary ends with exactly one line â€” `No Claude review needed â€” within locked decisions (ARCHITECTURE v__, HANDOFF Entry __).` or `Claude review required before proceeding â€” [trigger].` This makes "if Codex says bring it to Claude, do it" a reliable rule.
+- **Required routing verdict:** every Codex work summary ends with exactly one line — `No Claude review needed — within locked decisions (ARCHITECTURE v__, HANDOFF Entry __).` or `Claude review required before proceeding — [trigger].` This makes "if Codex says bring it to Claude, do it" a reliable rule.
 - Tie-breaker recorded: if a trigger is even arguably hit (especially invariants or schema), route to Claude; an unnecessary review is cheap, a missed one on a locked invariant is an expensive retrofit.
 
 ### Lock Document Changes
-- ARCHITECTURE â†’ v2.8: Section 30 gains the "When Claude Must Be Involved (Escalation Protocol)" subsection, expanding the existing Mid-Build Review Trigger into a decision-ready MUST/PROCEED rule plus the required routing verdict.
+- ARCHITECTURE → v2.8: Section 30 gains the "When Claude Must Be Involved (Escalation Protocol)" subsection, expanding the existing Mid-Build Review Trigger into a decision-ready MUST/PROCEED rule plus the required routing verdict.
 - No constitutional rule added; the protocol lives in Section 30 (roles/process). Ryan may elevate it to a numbered rule later if he wants it to carry constitutional weight and trigger mandatory review flags.
 
 ### What Codex Needs to Know
 - Read Section 30's escalation protocol and apply it. End every work summary with the routing-verdict line.
 - Build against ARCHITECTURE **v2.8** and HANDOFF **Entry 028**.
-- All prior next-steps stand: commit/apply/runtime-test 4K (`202606150001`); improve history actor display (`performed_by_name` â†’ `display_name` â†’ `email` â†’ raw Clerk ID); keep history read-only and Developer-only until the division-scoped read rule is defined; resolve office destination semantics; keep Express Checkout deferred.
+- All prior next-steps stand: commit/apply/runtime-test 4K (`202606150001`); improve history actor display (`performed_by_name` → `display_name` → `email` → raw Clerk ID); keep history read-only and Developer-only until the division-scoped read rule is defined; resolve office destination semantics; keep Express Checkout deferred.
 
 ### What Claude Needs to Know
 - The routing rule is now canonical in Section 30, not just a pasted prompt. Future sessions start from v2.8 / Entry 028.
@@ -1807,17 +1837,17 @@ Ryan asked to lock the "when must Claude be involved" routing rule into the arch
 ### Open Questions / Concerns
 - Whether to later elevate the escalation protocol to a numbered constitutional rule.
 - Has 4K been committed, the migration applied live, and the Transactions tab runtime-tested?
-- Office destination semantics; userâ†’vehicle assignment source (carried).
+- Office destination semantics; user→vehicle assignment source (carried).
 
 ### Architecture Drift Warnings
-- RESOLVED: routing rule was a working convention / pasted prompt only â€” now canonical in Section 30 (v2.8).
+- RESOLVED: routing rule was a working convention / pasted prompt only — now canonical in Section 30 (v2.8).
 - CARRIED FORWARD (active): apply 4K migration `202606150001` live and runtime-test the history RPC from the app.
 - CARRIED FORWARD (active): improve history actor display to prefer readable display name/email over raw Clerk user ID.
 - CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
-- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities (Rule 1 / Rule 8).
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities (Rule 1 / Rule 8).
 - CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent (consumption vs storage/transfer location).
-- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
-- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
 - CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
 
@@ -1827,7 +1857,7 @@ Ryan asked to lock the "when must Claude be involved" routing rule into the arch
 
 **Date:** 2026-06-16
 **Updated by:** Codex
-**Phase:** Phase 1 Inventory â€” Milestone 4K closeout and transaction-history actor display polish
+**Phase:** Phase 1 Inventory — Milestone 4K closeout and transaction-history actor display polish
 **Session type:** Implementation / live verification / documentation update
 
 ### Context
@@ -1841,7 +1871,7 @@ Work resumed from ARCHITECTURE v2.8 and HANDOFF Entry 028. The repo copy of the 
 - Updated the history read path so `actor_name` now prefers `inventory_transactions.performed_by_name`, then `user_permissions.display_name`, then `user_permissions.email`, then raw Clerk `user_id`.
 - Updated the Transactions table/mobile card UI to display the resolved actor.
 - Kept the history surface read-only and Developer-only.
-- Did not add permission flags, widen role access, define division-scoped read rules, edit `inventory_balances`, add quantity adjustments, start Express Checkout, alter office semantics, or start userâ†’vehicle assignment work.
+- Did not add permission flags, widen role access, define division-scoped read rules, edit `inventory_balances`, add quantity adjustments, start Express Checkout, alter office semantics, or start user→vehicle assignment work.
 
 ### Schema Changes
 - No table, column, permission-flag, ledger, audit, balance, destination-semantics, or write-path schema change was made.
@@ -1851,9 +1881,9 @@ Work resumed from ARCHITECTURE v2.8 and HANDOFF Entry 028. The repo copy of the 
 
 ### Code / File Changes
 - Already-present 4K commit:
-  - `906051d` â€” `Add inventory transaction history review surface`
+  - `906051d` — `Add inventory transaction history review surface`
 - New implementation commit:
-  - `d617d6c` â€” `Polish inventory transaction history actor display`
+  - `d617d6c` — `Polish inventory transaction history actor display`
 - Files changed by `d617d6c`:
   - `src/App.jsx`
   - `src/styles.css`
@@ -1887,9 +1917,9 @@ Work resumed from ARCHITECTURE v2.8 and HANDOFF Entry 028. The repo copy of the 
 
 ### What Codex Needs to Know
 - The Inventory Transaction History surface remains read-only and Developer-only.
-- The live history RPC now resolves actor display using `performed_by_name` â†’ `display_name` â†’ `email` â†’ raw Clerk ID.
+- The live history RPC now resolves actor display using `performed_by_name` → `display_name` → `email` → raw Clerk ID.
 - The division-scoped read rule is still not designed and history must not be exposed beyond Developer until Claude/Ryan lock that rule.
-- Do not start Express Checkout, Manager Override, approver passcode, completion worklist, office semantics, userâ†’vehicle assignment, or division-scoped read work from this entry.
+- Do not start Express Checkout, Manager Override, approver passcode, completion worklist, office semantics, user→vehicle assignment, or division-scoped read work from this entry.
 - Continue never editing `inventory_balances` directly.
 
 ### What Claude Needs to Know
@@ -1902,30 +1932,88 @@ Work resumed from ARCHITECTURE v2.8 and HANDOFF Entry 028. The repo copy of the 
 1. If Ryan wants visual confirmation, test the production Transactions tab from a logged-in Developer browser session and confirm the Actor column/card field is visible.
 2. Keep the history surface Developer-only until the division-scoped read rule is designed and locked.
 3. Resolve office destination semantics before office is treated as permanent behavior.
-4. Continue carrying forward userâ†’vehicle assignment source work for the future vehicle snapshot phase.
+4. Continue carrying forward user→vehicle assignment source work for the future vehicle snapshot phase.
 5. Keep Express Checkout / Manager Override deferred until normal transaction history and scoping are fully settled.
 
 ### Open Questions / Concerns
 - Browser UI verification of the Transactions tab still needs a logged-in Developer browser session because local runtime env was unavailable and in-app browser automation failed before navigation.
 - Division-scoped history visibility remains intentionally undefined and must not be inferred in this pass.
 - Office destination semantics remain unresolved.
-- Userâ†’vehicle active assignment source remains absent; vehicle snapshot remains NULL by design until it exists.
+- User→vehicle active assignment source remains absent; vehicle snapshot remains NULL by design until it exists.
 
 ### Architecture Drift Warnings
-- RESOLVED: 4K commit status â€” commit `906051d` exists locally.
-- RESOLVED: 4K live migration status â€” `inventory_transaction_history_review` exists live.
-- RESOLVED: actor display polish â€” implemented and applied live with readable actor fallback order.
-- RESOLVED: build check â€” `npm run build` passed.
+- RESOLVED: 4K commit status — commit `906051d` exists locally.
+- RESOLVED: 4K live migration status — `inventory_transaction_history_review` exists live.
+- RESOLVED: actor display polish — implemented and applied live with readable actor fallback order.
+- RESOLVED: build check — `npm run build` passed.
 - CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
 - CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
-- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
 - CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
-- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
-- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
 - CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.8, HANDOFF Entry 028).
+
+---
+
+## Entry 030
+
+**Date:** 2026-06-16
+**Updated by:** Codex
+**Phase:** Coordination documents — HANDOFF encoding normalization
+**Session type:** Documentation repair
+
+### Context
+Ryan paused acceptance of the HANDOFF diff after a large external deletion count appeared. Claude reviewed and cleared the Rule 20 repair plan for encoding-only normalization. This entry records the documentation-format repair only.
+
+### What Was Completed
+- Removed the UTF-8 BOM from `HANDOFF.md`.
+- Normalized `HANDOFF.md` line endings to LF with exactly one trailing newline.
+- Verified the `## Entry Format Standard` preamble is present near the top of `HANDOFF.md`.
+- Confirmed mojibake glyphs were repaired for em dash and right-arrow characters.
+- Added repo-root `.gitattributes` to enforce LF normalization.
+- Added repo-root `.editorconfig` to document UTF-8, LF endings, final newline, and no trailing-whitespace trimming.
+- Ran `git add --renormalize .` after adding text-normalization rules.
+- Verified Entries 001–028 remained unchanged after normalization except for the cleared formatting/encoding repair scope.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `HANDOFF.md` encoding and line-ending normalization only, plus this Entry 030.
+- Added `.gitattributes`.
+- Added `.editorconfig`.
+
+### Lock Document Changes
+- None. ARCHITECTURE.md was not changed.
+
+### What Codex Needs to Know
+- Treat coordination-document encoding normalization as documentation repair only.
+- Keep future edits UTF-8 without BOM and LF-normalized.
+- Do not use PowerShell UTF-8-with-BOM writes for coordination documents.
+
+### What Claude Needs to Know
+- This repair followed the Claude-reviewed Rule 20 plan surfaced to Ryan.
+- No code, schema, permission, ledger, audit, destination-semantics, or feature work was performed.
+
+### Next Steps (in order)
+1. Ryan reviews the verification output for the encoding repair.
+2. Resume implementation only after Ryan accepts the repaired documentation diff.
+
+### Open Questions / Concerns
+- None for this encoding repair.
+
+### Architecture Drift Warnings
+- RESOLVED: `HANDOFF.md` BOM removed.
+- RESOLVED: `HANDOFF.md` line endings normalized to LF.
+- RESOLVED: `HANDOFF.md` Entry Format Standard preamble verified present.
+- RESOLVED: HANDOFF mojibake glyphs corrected.
+
+### Routing Verdict
+Claude review required before proceeding — already reviewed/cleared this session per Rule 20; report verification output for final confirmation.
 
 ---
