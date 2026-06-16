@@ -2099,3 +2099,85 @@ The repo `docs/ARCHITECTURE.md` was already v2.9 at session start. HANDOFF still
 No Claude review needed — within locked decisions (ARCHITECTURE v2.9, HANDOFF Entry 031).
 
 ---
+
+## Entry 032
+
+**Date:** 2026-06-16
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — Milestone 4M Add All cart picker polish
+**Session type:** Implementation
+
+### Context
+Work resumed after Milestone 4L was pushed at commit `a1fd0455f318387cf8d256a0fc60e3cdde9fc52e`. Ryan asked Codex to verify the v2.9 / Entry 031 baseline, attempt production UI/browser verification, and push the next safe step only if it remained UI-only and continued using the existing approved `cartState.addItem(...)` / `add_inventory_cart_item(p_cart_id, p_bin_item_id, p_quantity)` path.
+
+### What Was Completed
+- Confirmed local `main` matched `origin/main` at `a1fd0455f318387cf8d256a0fc60e3cdde9fc52e` before implementation.
+- Confirmed `docs/ARCHITECTURE.md` is v2.9.
+- Confirmed HANDOFF ended at Entry 031 before this append.
+- Attempted production browser verification through the logged-in Chrome path. The browser-control bridge failed before attaching to Chrome, so production visual verification remains carried forward and was not claimed as complete.
+- Implemented Milestone 4M as UI-only Add All / cart picker polish:
+  - selected-row count and selected total quantity are shown in the stocked candidate picker;
+  - `Add All` shows progress while the client-side add loop is running;
+  - `Add All` and single-row `Add` remain disabled when quantity is `0`;
+  - successful rows reset to `0`;
+  - failed rows keep their entered quantities;
+  - per-row success/failure messages are surfaced;
+  - added a `Clear Quantities` button;
+  - improved the empty/guard message when no rows have quantity greater than `0`;
+  - improved responsive layout for the picker status controls.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- Implementation commit: `c64f6767a54887609ed0bd54d5d5d6b19a9696df` (`Polish cart picker Add All feedback`).
+- Push result for implementation commit: `a1fd045..c64f676  main -> main`.
+- Files changed in implementation commit:
+  - `src/App.jsx`
+  - `src/styles.css`
+- This documentation entry appends Entry 032 only.
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` was not edited.
+
+### What Codex Needs to Know
+- 4M stayed UI-only.
+- The Add All behavior remains a client-side loop over the existing sanctioned `cartState.addItem(...)` hook path.
+- No new RPC, batch server function, schema, migration, permission, ledger, balance, checkout, finalization, division-scoped read rule, office semantics, user→vehicle assignment, Express Checkout, Manager Override, approver passcode, or completion worklist work was started.
+- Production UI/browser verification remains blocked from Codex until browser automation can attach to a logged-in Developer browser session.
+
+### What Claude Needs to Know
+- No architecture-trigger work was performed.
+- No direct mutation of `inventory_cart_items`, `inventory_balances`, or `transaction_items` was introduced.
+- The only write-capable app path used by the changed UI remains the existing approved `cartState.addItem(...)` path.
+
+### Next Steps (in order)
+1. Ryan or a working logged-in browser session visually verifies the production Transactions tab for Developer and confirms the Actor column/card field shows a readable actor name.
+2. Ryan tests the 4M picker in production or a logged-in local session: open cart, enter quantities greater than `0` for multiple stocked rows, click `Add All`, confirm selected rows add, successful rows reset to `0`, and any failed rows keep their quantities.
+3. Keep history Developer-only until the division-scoped read rule is designed and locked.
+4. Resolve office destination semantics before office is treated as permanent behavior.
+5. Continue carrying forward user→vehicle assignment source work for the future vehicle snapshot phase.
+6. Keep Express Checkout / Manager Override deferred.
+
+### Open Questions / Concerns
+- Production visual verification remains blocked in Codex because the Chrome browser-control bridge failed before attaching to the logged-in session.
+- `Add All` remains intentionally not all-or-nothing because no batch RPC was introduced.
+- Division-scoped history visibility remains intentionally undefined.
+- Office destination semantics remain unresolved.
+
+### Architecture Drift Warnings
+- RESOLVED: 4M stayed UI-only and used the existing approved `cartState.addItem(...)` path.
+- RESOLVED: build check passed with `cmd /c npm run build`.
+- RESOLVED: implementation commit pushed to `origin/main`.
+- CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.9, HANDOFF Entry 031).
+
+---
