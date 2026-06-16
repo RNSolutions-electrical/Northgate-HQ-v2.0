@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.9
+    ARCHITECTURE.md          ← Architecture Lock Document v2.10
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -640,6 +640,85 @@ Van stock templates are reserved for future build:
 > field (Residential/Commercial/Service/Other) is the vehicle's role and must
 > not be overloaded to mean "carries stock." Add `holds_stock` now (schema-first)
 > even though only a couple of vehicles will be flagged.
+
+### User→Vehicle Assignment Model (locked v2.10 — HANDOFF Entry 033)
+
+The "active user→vehicle assignment" referenced above (and consumed by the
+Section 11 cart-open snapshot) is a dedicated, time-bounded bridge table — not a
+column on `user_permissions`, and not a wait on the future Employee module.
+Keying is by Clerk user ID (TEXT), consistent with the project-wide rule that
+Clerk IDs are TEXT everywhere; when the Employee module lands, employees
+reference the same Clerk identity, so no stored assignment data needs to migrate.
+
+```
+vehicle_assignments (
+  id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id        TEXT NOT NULL,             -- Clerk sub; the assigned operator
+  vehicle_id     <match vehicles PK type> NOT NULL REFERENCES vehicles(id),
+  assigned_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  unassigned_at  TIMESTAMPTZ,               -- NULL = currently active
+  assigned_by    TEXT,                      -- Clerk sub of who set the assignment
+  note           TEXT
+)
+-- at most one ACTIVE assignment per user:
+CREATE UNIQUE INDEX ux_vehicle_assignments_active_user
+  ON vehicle_assignments (user_id) WHERE unassigned_at IS NULL;
+```
+
+- The **active** assignment for a user is the single row with
+  `unassigned_at IS NULL`. Reassignment closes the prior row
+  (`unassigned_at = now()`) and inserts a new active row. Rows are never edited in
+  place or deleted, so the table is a faithful assignment history.
+- The Section 11 cart-open snapshot derives `active_vehicle_id` from this active
+  row, snapshotting it only when the assigned vehicle's `holds_stock = TRUE`
+  (otherwise `NULL`). The per-line `destination_type = 'vehicle'` destination is
+  independent of this snapshot and is not merged with it.
+
+### Vehicle Display Label (locked v2.10)
+
+Vehicles carry their own stable, human-readable unit label, independent of who is
+assigned to them:
+
+```
+vehicles.display_name  TEXT NOT NULL  -- e.g. "E-101", "Service Van 3", "Ryan's Truck"; stable unit label, not derived from assignment
+```
+
+This is the vehicle's identity. It is never derived from assignment and does not
+change when the vehicle is reassigned.
+
+### Destination Display Resolution (read-path only — locked v2.10)
+
+The stored structural destination is unchanged: `transaction_items.destination_type`
++ `destination_id` remain the source of truth (Section 11). Readable labels are a
+**read-path concern only** — resolving a label must never write a value, never
+become a second source of truth, and never alter checkout/finalization. Resolution
+by destination type:
+
+- **user** → the operator's identity record: `user_permissions.display_name`, else
+  `email`, else the raw Clerk ID. (Source swaps to the Employee module when it
+  exists; `destination_id` is unchanged either way.)
+- **vehicle** → the vehicle's *current* `display_name`, resolved dynamically by
+  joining `destination_id` to `vehicles` — a renamed unit is the same physical
+  vehicle, so current is correct. The operator association (e.g. "Miguel") is
+  **point-in-time**: the person assigned to that vehicle is resolved from
+  `vehicle_assignments` as of the transaction's `occurred_at`, never "who drives
+  it now." Display is the unit label, optionally adorned with the historical
+  operator when assignment history is available — e.g. `E-101` or
+  `E-101 (Miguel)` — but the vehicle unit label remains canonical and the
+  operator adornment is contextual.
+- **office** → `Office` (literal; office semantics remain unresolved and out of
+  scope until separately locked).
+- **job / service_call** → a readable job/service label once those modules exist;
+  until then, the raw `destination_id`.
+- Any unresolved reference (archived/deleted vehicle, unknown user) falls back to
+  the raw `destination_id` rather than failing.
+
+This achieves historical correctness *without* snapshotting display strings onto
+transactions: vehicle unit labels follow the current (corrected) name, while the
+operator association is reconstructed from the time-bounded assignment history. A
+write-once display-label fallback column MAY be added later — only if history is
+opened beyond Developer and raw-ID fallbacks become user-visible — and that would
+be a separately reviewed checkout addition, deliberately not built now.
 
 ---
 

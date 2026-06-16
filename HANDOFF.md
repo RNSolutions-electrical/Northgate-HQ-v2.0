@@ -2181,3 +2181,89 @@ Work resumed after Milestone 4L was pushed at commit `a1fd0455f318387cf8d256a0fc
 No Claude review needed — within locked decisions (ARCHITECTURE v2.9, HANDOFF Entry 031).
 
 ---
+
+## Entry 033
+
+**Date:** 2026-06-16
+**Updated by:** ChatGPT
+**Phase:** Architecture — Vehicle assignment and destination display doctrine
+**Session type:** decision / documentation cross-clearance
+
+### Context
+Ryan routed the transaction-history destination display question for architecture review because readable labels such as `Miguel's Van` or `Ryan's Truck` depend on the unresolved user→vehicle assignment model. Claude proposed ARCHITECTURE v2.10 wording for Section 16, covering a dedicated time-bounded `vehicle_assignments` bridge table, stable vehicle display labels, and read-path-only destination display resolution. Under Constitutional Rule 20, ChatGPT then reviewed and cleared the actual v2.10 lock wording before Codex applies the architecture edit.
+
+### Decisions Made This Session (locked)
+- ARCHITECTURE v2.10 is cleared for application under Rule 20.
+- The active user→vehicle assignment model is a dedicated time-bounded bridge table, `vehicle_assignments`, keyed by Clerk user ID and permitting at most one active assignment per user.
+- Vehicle assignment history is preserved by closing prior rows with `unassigned_at` and inserting a new active row; assignments are not rewritten in place or deleted.
+- Vehicles carry a stable required human-readable unit label, `vehicles.display_name`, independent of who is assigned to the vehicle.
+- Transaction-history destination labels are read-path-only display resolution. Stored structural destination fields remain `transaction_items.destination_type` + `destination_id`.
+- Vehicle destination display uses the current vehicle unit label, optionally adorned with the historical operator resolved from assignment history at the transaction `occurred_at` time.
+- Operator names are contextual adornments, not vehicle identity.
+- No display strings are snapshotted onto transactions in this decision.
+- Checkout/finalization behavior is unchanged.
+
+### Schema Changes
+- None applied in this entry.
+- ARCHITECTURE v2.10 defines future schema expectations only:
+  - `vehicle_assignments` bridge table.
+  - `vehicles.display_name TEXT NOT NULL` as the stable unit label.
+  - Partial unique index enforcing at most one active assignment per user.
+
+### Code / File Changes
+- Prepared updated coordination documents:
+  - `ARCHITECTURE.md` updated to v2.10 with Section 16 user→vehicle assignment and destination display doctrine.
+  - `HANDOFF.md` appended with this Entry 033.
+- No app code, migrations, RPCs, permissions, ledger logic, checkout logic, or production data were changed by this documentation entry.
+
+### Lock Document Changes
+- ARCHITECTURE.md bumped from v2.9 to v2.10.
+- Section 16 now concretizes:
+  - `vehicle_assignments` as the user→vehicle assignment source.
+  - `vehicles.display_name` as the stable vehicle unit label.
+  - destination display resolution as read-path only.
+  - structural destination IDs unchanged.
+  - point-in-time historical operator association from assignment history.
+  - no checkout/finalization change.
+
+### What Codex Needs to Know
+- Apply ARCHITECTURE v2.10 exactly as cleared, preserving the Rule 20 cleanup that `vehicles.display_name` is treated as a required stable unit label and that operator names are contextual adornments.
+- Do not implement the `vehicle_assignments` table, `vehicles.display_name` migration, destination display joins, cart-open assignment lookup, or any UI changes unless explicitly instructed after the architecture update is accepted.
+- The immediate Codex task is documentation-only unless Ryan gives a separate implementation prompt.
+- Preserve HANDOFF append-only behavior and do not rewrite prior entries.
+
+### What Claude Needs to Know
+- ChatGPT cleared the proposed v2.10 Section 16 wording under Rule 20 with two cleanup edits:
+  - `vehicles.display_name` should be treated as a stable required unit label.
+  - historical operator names are contextual adornments and not vehicle identity.
+- The architecture decision is ready for Codex to apply as a documentation update.
+
+### Next Steps (in order)
+1. Codex applies ARCHITECTURE v2.10 and this HANDOFF Entry 033 as a documentation-only update.
+2. Verify ARCHITECTURE says v2.10 and HANDOFF is gapless through Entry 033.
+3. Verify UTF-8 without BOM, LF line endings, and no mojibake.
+4. After Ryan accepts the documentation diff, choose the next implementation step separately.
+5. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+6. Keep office destination semantics unresolved until separately reviewed.
+7. Keep Express Checkout / Manager Override deferred.
+
+### Open Questions / Concerns
+- Actual implementation of `vehicle_assignments` and `vehicles.display_name` still needs a future Codex prompt and may require migrations.
+- Destination display resolution implementation is not part of this documentation-only update.
+- Division-scoped history visibility remains intentionally undefined.
+- Office destination semantics remain unresolved.
+
+### Architecture Drift Warnings
+- RESOLVED: v2.10 wording received Rule 20 cross-clearance from ChatGPT after Claude proposal.
+- CARRIED FORWARD (active): implement no user→vehicle assignment schema or destination display read path until Ryan explicitly starts that implementation step.
+- CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 033).
+
+---
