@@ -509,6 +509,8 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   const [candidateSearch, setCandidateSearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
   const [candidateQuantityMessage, setCandidateQuantityMessage] = useState('');
+  const [candidateRowMessages, setCandidateRowMessages] = useState({});
+  const [addAllProgress, setAddAllProgress] = useState(null);
   const [isAddingAllCandidates, setIsAddingAllCandidates] = useState(false);
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
@@ -632,9 +634,11 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     const quantity = getCandidateQuantityForSubmit(candidate);
     if (quantity <= DEFAULT_CANDIDATE_QUANTITY) {
       setCandidateQuantityMessage('Enter a quantity greater than 0 before adding a stocked material.');
+      setCandidateRowMessage(candidate.bin_item_id, 'error', 'Enter a quantity greater than 0.');
       return;
     }
 
+    clearCandidateRowMessage(candidate.bin_item_id);
     const result = await cartState.addItem({
       cartId: cart.cart_id,
       binItemId: candidate.bin_item_id,
@@ -643,6 +647,9 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 
     if (result) {
       setCandidateQuantity(candidate.bin_item_id, String(DEFAULT_CANDIDATE_QUANTITY));
+      setCandidateRowMessage(candidate.bin_item_id, 'success', `Added ${quantity} to the cart.`);
+    } else {
+      setCandidateRowMessage(candidate.bin_item_id, 'error', 'Add failed. Check available balance and permissions.');
     }
   }
 
@@ -670,7 +677,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         ...current,
         [candidate.bin_item_id]: String(DEFAULT_CANDIDATE_QUANTITY),
       }));
-      setCandidateQuantityMessage('Quantity reset to 1 because the field was blank or invalid.');
+      setCandidateQuantityMessage('Quantity reset to 0 because the field was blank or invalid.');
       return DEFAULT_CANDIDATE_QUANTITY;
     }
 
@@ -698,7 +705,34 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 
   function updateCandidateQuantity(candidate, rawValue) {
     setCandidateQuantity(candidate.bin_item_id, rawValue);
+    clearCandidateRowMessage(candidate.bin_item_id);
     setCandidateQuantityMessage('');
+  }
+
+  function setCandidateRowMessage(binItemId, type, text) {
+    setCandidateRowMessages((current) => ({
+      ...current,
+      [binItemId]: { type, text },
+    }));
+  }
+
+  function clearCandidateRowMessage(binItemId) {
+    setCandidateRowMessages((current) => {
+      if (!current[binItemId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[binItemId];
+      return next;
+    });
+  }
+
+  function clearCandidateQuantities() {
+    setCandidateQuantities({});
+    setCandidateRowMessages({});
+    setCandidateQuantityMessage('Quantities cleared.');
+    setAddAllProgress(null);
   }
 
   async function handleAddAllCandidates() {
@@ -719,11 +753,18 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     }
 
     setIsAddingAllCandidates(true);
+    setAddAllProgress({ completed: 0, total: selectedCandidates.length });
+    setCandidateQuantityMessage(`Adding 0 of ${selectedCandidates.length} selected material${selectedCandidates.length === 1 ? '' : 's'}...`);
 
     try {
       const addedBinItemIds = [];
+      const failedBinItemIds = [];
 
-      for (const { candidate, quantity } of selectedCandidates) {
+      for (let index = 0; index < selectedCandidates.length; index += 1) {
+        const { candidate, quantity } = selectedCandidates[index];
+        setAddAllProgress({ completed: index, total: selectedCandidates.length });
+        clearCandidateRowMessage(candidate.bin_item_id);
+
         const result = await cartState.addItem({
           cartId: cart.cart_id,
           binItemId: candidate.bin_item_id,
@@ -731,13 +772,15 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         });
 
         if (!result) {
-          setCandidateQuantityMessage(`Add All stopped after ${addedBinItemIds.length} material${addedBinItemIds.length === 1 ? '' : 's'}. Check available balance and permissions.`);
-          return;
+          failedBinItemIds.push(candidate.bin_item_id);
+          setCandidateRowMessage(candidate.bin_item_id, 'error', 'Add failed. Quantity was left in place.');
+        } else {
+          addedBinItemIds.push(candidate.bin_item_id);
+          setCandidateRowMessage(candidate.bin_item_id, 'success', `Added ${quantity} to the cart.`);
         }
-
-        addedBinItemIds.push(candidate.bin_item_id);
       }
 
+      setAddAllProgress({ completed: selectedCandidates.length, total: selectedCandidates.length });
       setCandidateQuantities((current) => {
         const next = { ...current };
         addedBinItemIds.forEach((binItemId) => {
@@ -745,8 +788,14 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         });
         return next;
       });
-      setCandidateQuantityMessage(`Added ${addedBinItemIds.length} material${addedBinItemIds.length === 1 ? '' : 's'} to the cart.`);
+
+      if (failedBinItemIds.length) {
+        setCandidateQuantityMessage(`Added ${addedBinItemIds.length} material${addedBinItemIds.length === 1 ? '' : 's'}; ${failedBinItemIds.length} failed and kept its quantity.`);
+      } else {
+        setCandidateQuantityMessage(`Added ${addedBinItemIds.length} material${addedBinItemIds.length === 1 ? '' : 's'} to the cart.`);
+      }
     } finally {
+      setAddAllProgress(null);
       setIsAddingAllCandidates(false);
     }
   }
@@ -801,7 +850,14 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isLineDestinationValid(item));
   const applyAllDestinationIsValid = isDestinationDraftValid(applyAllDestination);
-  const selectedCandidateCount = candidateItems.filter((candidate) => getCandidateQuantityForAction(candidate) > DEFAULT_CANDIDATE_QUANTITY).length;
+  const selectedCandidateSelections = candidateItems
+    .map((candidate) => ({
+      candidate,
+      quantity: getCandidateQuantityForAction(candidate),
+    }))
+    .filter((selection) => selection.quantity > DEFAULT_CANDIDATE_QUANTITY);
+  const selectedCandidateCount = selectedCandidateSelections.length;
+  const selectedCandidateTotalQuantity = selectedCandidateSelections.reduce((total, selection) => total + selection.quantity, 0);
   const cartActionInProgress = isAddingAllCandidates || cartState.isAddingItem || cartState.isRemovingItem || cartState.isCheckingOut || cartState.isReadingItems;
 
   return (
@@ -867,27 +923,45 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
                   onChange={(event) => setCandidateSearch(event.target.value)}
                 />
               </label>
+              <div className="cart-picker-summary" aria-live="polite">
+                <span>{selectedCandidateCount} selected</span>
+                <span>{selectedCandidateTotalQuantity.toFixed(2)} total qty</span>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={cartActionInProgress || selectedCandidateCount === 0}
+                onClick={clearCandidateQuantities}
+              >
+                Clear Quantities
+              </button>
               <button
                 type="button"
                 className="secondary-button"
                 disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress || selectedCandidateCount === 0}
                 onClick={handleAddAllCandidates}
               >
-                {isAddingAllCandidates ? 'Adding All...' : `Add All (${selectedCandidateCount})`}
+                {isAddingAllCandidates && addAllProgress ? `Adding ${addAllProgress.completed} of ${addAllProgress.total}...` : `Add All (${selectedCandidateCount})`}
               </button>
             </div>
           </div>
+          {selectedCandidateCount === 0 ? (
+            <p className="muted">Enter quantities greater than 0 to enable Add All.</p>
+          ) : null}
           {candidateItems.length ? (
             <div className="cart-candidate-list">
               {candidateItems.map((item) => {
                 const maxQuantity = Number(item.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY);
                 const quantityInputValue = getCandidateQuantityInputValue(item);
+                const rowMessage = candidateRowMessages[item.bin_item_id];
+                const canAddRow = getCandidateQuantityForAction(item) > DEFAULT_CANDIDATE_QUANTITY;
 
                 return (
                   <article className="cart-candidate" key={item.bin_item_id}>
                     <div>
                       <strong>{item.item_name}</strong>
                       <span>{item.material_code} · Bin {item.bin_code} · On hand: {maxQuantity.toFixed(2)} {item.unit_of_measure ?? ''}</span>
+                      {rowMessage ? <span className={`cart-candidate__message cart-candidate__message--${rowMessage.type}`}>{rowMessage.text}</span> : null}
                     </div>
                     <div className="cart-candidate__actions">
                       <label className="quantity-field">
@@ -905,7 +979,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
                       <button
                         type="button"
                         className="secondary-button"
-                        disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress}
+                        disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress || !canAddRow}
                         onClick={() => handleAddCandidate(item)}
                       >
                         {cartState.isAddingItem ? 'Adding…' : 'Add'}
