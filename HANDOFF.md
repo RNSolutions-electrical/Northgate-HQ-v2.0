@@ -2267,3 +2267,95 @@ Ryan routed the transaction-history destination display question for architectur
 No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 033).
 
 ---
+
+## Entry 034
+
+**Date:** 2026-06-16
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — Milestone 4N vehicle assignment foundation and destination labels
+**Session type:** implementation
+
+### Context
+Ryan instructed Codex to proceed with the v2.10-approved Section 16 implementation while staying inside ARCHITECTURE v2.10 / HANDOFF Entry 033. The approved scope was limited to `vehicles.display_name`, the Clerk-keyed `vehicle_assignments` bridge, server-side cart-open vehicle snapshot derivation, and Developer-only read-path transaction-history destination display labels.
+
+### What Was Completed
+- Implemented the approved Section 16 database foundation in migration `202606160002_vehicle_assignments_destination_display.sql`.
+- Added `vehicles.display_name TEXT NOT NULL` and backfilled the current vehicle with the existing safe label `E-101`.
+- Added `vehicle_assignments` keyed by Clerk `user_id`, with a time-bounded assignment model and a partial unique index enforcing at most one active assignment per user.
+- Inserted no assignment seed rows because the live project currently has no explicit Miguel/Fabian/Ryan user-to-vehicle mapping to preserve. This avoids inventing assignment data.
+- Replaced `open_inventory_cart(TEXT)` internals so the active vehicle snapshot is derived server-side from `vehicle_assignments` joined to active vehicles with `holds_stock = TRUE`.
+- Updated the Developer-only transaction-history RPC read path to return `destination_label` without changing stored `transaction_items.destination_type` or `destination_id`.
+- Updated the React history formatter to prefer the RPC-provided `destination_label` before falling back to the structural destination fields.
+
+### Schema Changes
+- Added `public.vehicles.display_name TEXT NOT NULL`.
+- Added `public.vehicle_assignments`:
+  - `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`
+  - `user_id TEXT NOT NULL`
+  - `vehicle_id UUID NOT NULL REFERENCES public.vehicles(id)`
+  - `assigned_at TIMESTAMPTZ NOT NULL DEFAULT now()`
+  - `unassigned_at TIMESTAMPTZ`
+  - `assigned_by TEXT`
+  - `note TEXT`
+- Added partial unique index `ux_vehicle_assignments_active_user` on `(user_id)` where `unassigned_at IS NULL`.
+- Added lookup index `idx_vehicle_assignments_vehicle_time` on `(vehicle_id, assigned_at, unassigned_at)`.
+- Enabled RLS on `vehicle_assignments`.
+
+### Code / File Changes
+- Implementation commit: `f29fb8b` (`Implement vehicle assignment foundation and history labels`).
+- Push result for implementation commit: `faa0c0f..f29fb8b  main -> main`.
+- Files changed in implementation commit:
+  - `src/App.jsx`
+  - `supabase/migrations/202606160002_vehicle_assignments_destination_display.sql`
+- This documentation entry appends Entry 034 only.
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained v2.10 and was not edited.
+
+### What Codex Needs to Know
+- `open_inventory_cart` still accepts only `p_user_name`; no client-supplied vehicle ID was added.
+- Cart-open snapshots `active_vehicle_id` only when the active assignment points to an active vehicle with `holds_stock = TRUE`; otherwise the snapshot remains `NULL`.
+- Transaction history remains read-only and Developer-only.
+- Destination display labels are read-path-only:
+  - user destinations resolve display name, then email, then raw ID;
+  - vehicle destinations resolve current vehicle display name and optionally the point-in-time assigned operator;
+  - office displays `Office`;
+  - job and service-call destinations keep raw IDs until those modules exist;
+  - unresolved references fall back to raw destination ID.
+
+### What Claude Needs to Know
+- The implementation stayed within the v2.10 decision.
+- No checkout/finalization behavior was changed.
+- No ledger or balance behavior was changed.
+- No direct `inventory_balances` writes were introduced.
+- No `transaction_items` meaning was changed.
+- No permissions were widened.
+- No division-scoped read rule, office semantics, Express Checkout, Manager Override, approver passcode, completion worklist, employee-module identity model, unrelated production data repair, or vehicle stock onboarding work was started.
+
+### Next Steps (in order)
+1. Ryan provides the explicit user-to-vehicle mappings before any assignment seed rows are added.
+2. Production UI/browser visual verification from a logged-in Developer session remains carried forward.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+4. Keep office destination semantics unresolved until separately reviewed.
+5. Keep Express Checkout / Manager Override deferred.
+
+### Open Questions / Concerns
+- No active assignment rows exist yet because no explicit mapping was available in the live data.
+- The current live vehicle `E-101` has `holds_stock = FALSE`, so cart-open will snapshot `NULL` until a valid active stock-holding assignment exists.
+- Browser visual verification was not completed in this pass.
+
+### Architecture Drift Warnings
+- RESOLVED: live migration `20260616202416 vehicle_assignments_destination_display` is applied.
+- RESOLVED: build check passed with `cmd /c npm run build`.
+- RESOLVED: live verification confirmed `vehicles.display_name`, `vehicle_assignments`, `ux_vehicle_assignments_active_user`, cart-open assignment derivation, cart-open no client vehicle ID, and Developer-only read-only history guards.
+- CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 033).
+
+---
