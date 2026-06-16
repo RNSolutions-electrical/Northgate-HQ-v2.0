@@ -1,4 +1,4 @@
-# Northgate HQ v2.0 — Handoff Log
+﻿# Northgate HQ v2.0 — Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
@@ -1616,5 +1616,316 @@ After Entry 024 reviewed the direct `inventory_balances` edit problem and propos
 - CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
 - CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 026
+
+**Date:** 2026-06-15
+**Updated by:** Claude
+**Phase:** Phase 1 Inventory â€” Review of Milestone 4K (Transaction History Review Surface) + 4J gate verification + ledger verification
+**Session type:** Review
+
+### Context
+Claude reviewed the 4K review packet: the `read_inventory_transaction_history` RPC plus a TransactionHistoryPanel UI/hook, bundled with 4J Developer-only gate verification, numeric-input UX fix, and ledger verification queries. The 4K migration `202606150001` was staged but not yet applied live at the time of review.
+
+### Review Findings â€” Milestone 4K
+- **APPROVED to commit and apply live.** Developer-only-first visibility is accepted as the safe first version.
+- **Read-only confirmed.** The RPC is SELECT-only; the hook calls only `read_inventory_transaction_history`; no insert/update/delete is introduced.
+- **Permission gate passes Rule 4.** The RPC is `SECURITY DEFINER`, uses `auth.jwt() ->> 'sub'`, requires an active `user_permissions` row, fails closed without a caller, and requires `caller.role = 'Developer'`.
+- **Division scoping.** Developer-only-for-now is the conservative choice because the division-scoped read rule is not locked yet. History must not be widened beyond Developer until division scoping and per-role field visibility are defined.
+- **Responsive behavior.** The history toolbar collapses below 900px and the table converts to mobile cards below 640px. This aligns with Rule 18.
+- **Numeric input fix.** Cart candidate quantity now stores in-progress values as strings, allows temporary blank state while editing, and clamps only on blur/Add. Server-side validation remains authoritative.
+
+### Verification Closures
+- 4J Developer-only gate is enforced server-side in `set_inventory_count_quantity` with a fail-closed `caller.role <> 'Developer'` check.
+- Baseline backfill rows carry `unit_cost_at_time` (9 rows, 0 null; zeros only where catalog price is genuinely 0).
+- Developer count-correction rows carry `unit_cost_at_time` (6 rows, all 9.17).
+- Clean post-fix normal checkout was inspected: `remove_stock` header, 4 line items, `destination_type = user`, `unit_cost_at_time` populated, and actor recorded.
+- Cached `inventory_balances` match the ledger-derived calculation with zero mismatches across 9 rows.
+- Transaction headers record actor (`user_id` + `performed_by_name`) and timestamps.
+
+### Code / File Changes (reviewed, not yet committed at review time)
+- New: `src/hooks/useInventoryTransactionHistory.js`.
+- New: `supabase/migrations/202606150001_inventory_transaction_history_review.sql`.
+- Modified: `src/App.jsx` for TransactionHistoryPanel and numeric input fix.
+- Modified: `src/styles.css` for history and responsive rules.
+
+### Minor / Housekeeping
+- `GRANT EXECUTE ... TO anon` is unnecessary because the body fails closed, but harmless.
+- `cart_id` returns NULL because current ledger rows do not store cart ID. Acceptable for now.
+- `.netlify/` is untracked and must not be committed.
+
+### Lock Document Changes
+- None. ARCHITECTURE remains v2.7.
+- Candidate principle, not locked yet: read/history surfaces default to Developer-only until a division-scoped read rule is defined.
+
+### What Codex Needs to Know
+- 4K is approved: commit as `Add inventory transaction history review surface`, apply migration `202606150001` live to `keogysnoukbendfkfjcn`, then runtime-test the history RPC from the app.
+- Keep the surface read-only.
+- Do not widen visibility beyond Developer until the division-scoping read rule is defined and applied.
+- Add `.netlify/` to `.gitignore` if needed and do not commit `.netlify/`.
+
+### What Claude Needs to Know
+- 4K is the verification lens that closed the 4J gate, backfill unit-cost verification, clean checkout inspection, ledger integrity, and transaction-header audit completeness items.
+- The ledger is now confirmed healthy and transaction-derived.
+
+### Next Steps (in order)
+1. Commit 4K, apply migration `202606150001` live, and runtime-test the history RPC from the app.
+2. Improve actor display in the history surface so records show the readable display name where available instead of raw Clerk IDs.
+3. Define the division-scoped read rule before exposing history or any broad read surface beyond Developer.
+4. Resolve office destination semantics (consumption vs storage location).
+5. Continue deferring Express Checkout / Manager Override until the normal path + history are verified in the live UI.
+
+### Open Questions / Concerns
+- Whether to lock the "read surfaces are Developer-only until division-scoping is defined" principle in ARCHITECTURE.
+- Office destination semantics.
+- Userâ†’vehicle assignment source remains absent; vehicle snapshot NULL by design until it exists.
+
+### Architecture Drift Warnings
+- RESOLVED: 4J Developer-only gate server enforcement; backfill/count-correction `unit_cost_at_time`; clean checkout inspection; balance/ledger integrity; transaction-header audit completeness.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): improve transaction history actor display to prefer display name/email over raw Clerk user ID.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): apply 4K migration live and runtime-test the RPC.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 027
+
+**Date:** 2026-06-15
+**Updated by:** ChatGPT
+**Phase:** Phase 1 Inventory â€” Current lock-in checkpoint after Claude 4K approval
+**Session type:** Handoff consolidation / next-step sequencing
+
+### Context
+Ryan asked to lock in the current state and generate updated coordination documents before proceeding further. Claude approved Milestone 4K to commit and apply live, and Ryan asked that the transaction history actor display-name improvement be added as one of the next steps. Ryan also asked whether an ARCHITECTURE update was needed.
+
+### What Was Completed
+- Consolidated the current handoff through Entry 027.
+- Recorded Claude's 4K approval and current next-step sequence.
+- Added a specific next step to improve transaction history actor display so history rows prefer a readable display name/email over raw Clerk user IDs.
+- Confirmed that no ARCHITECTURE update is required for this checkpoint because no new architecture rule has been locked. ARCHITECTURE remains v2.7.
+
+### Decisions Made This Session
+- **No ARCHITECTURE bump for actor display-name polish.** Showing display names in transaction history is an implementation/display improvement, not an architecture change. The read path remains Developer-only and read-only.
+- **Do not lock the Developer-only read-surface convention yet.** The current convention remains: broad/sensitive read surfaces stay Developer-only until a division-scoped read rule is designed. Ryan may later decide to lock this into ARCHITECTURE, but for now the actual locked decision should wait until the real division-scoped read rule is defined.
+- **Actor display should prefer readable names.** The next implementation should update `read_inventory_transaction_history` to prefer `inventory_transactions.performed_by_name`, then `user_permissions.display_name`, then `user_permissions.email`, and only show raw Clerk ID as the final fallback.
+
+### Schema Changes
+- None in this documentation checkpoint.
+- Expected next implementation will update the 4K history RPC/read path only; it should remain read-only and Developer-only.
+
+### Code / File Changes
+- No code changed by this documentation checkpoint.
+- `HANDOFF.md` updated through Entry 027.
+- `ARCHITECTURE.md` not changed; v2.7 remains current.
+
+### What Codex Needs to Know
+- Proceed from HANDOFF Entry 027 and ARCHITECTURE v2.7.
+- Commit 4K as approved if it has not already been committed, using: `Add inventory transaction history review surface`.
+- Apply migration `202606150001_inventory_transaction_history_review.sql` live to Supabase project `keogysnoukbendfkfjcn` if it has not already been applied.
+- Runtime-test the Transactions tab from the app after the migration exists.
+- Improve history actor display so rows show a readable display name/email instead of raw Clerk ID wherever possible.
+- Keep the history surface read-only and Developer-only until division-scoped read rules are designed.
+- Do not start Express Checkout, Manager Override, approver passcode, or completion worklist yet.
+- Do not edit `inventory_balances` directly.
+
+### What Claude Needs to Know
+- 4K was approved by Claude and is ready for commit/live migration/runtime test.
+- Actor display-name polish was added as a next implementation step.
+- No ARCHITECTURE update was made; v2.7 remains current.
+- The decision whether to lock Developer-only read surfaces until division scoping exists remains open and should be revisited when the division-scoped read rule is designed.
+
+### Next Steps (in order)
+1. If not already done, commit 4K with message: `Add inventory transaction history review surface`.
+2. If not already done, apply migration `202606150001_inventory_transaction_history_review.sql` live to `keogysnoukbendfkfjcn`.
+3. Runtime-test the Transactions tab from the app and confirm history rows return.
+4. Update history actor display so rows prefer: `performed_by_name` â†’ `user_permissions.display_name` â†’ `user_permissions.email` â†’ raw Clerk `user_id` fallback.
+5. Define the division-scoped read rule before exposing history or any broad/sensitive read surface beyond Developer.
+6. Resolve office destination semantics: office as singleton consumption destination vs tracked storage/transfer location.
+7. Keep Express Checkout / Manager Override deferred until the normal path and history surface are verified live.
+
+### Open Questions / Concerns
+- Has 4K been committed and pushed after Claude approval?
+- Has migration `202606150001` been applied live and runtime-tested from the app?
+- Should read surfaces remain Developer-only by convention only, or should this be locked into ARCHITECTURE before division scoping is designed?
+- Office destination semantics remain unresolved.
+- Userâ†’vehicle assignment source remains absent; vehicle snapshot NULL by design until it exists.
+
+### Architecture Drift Warnings
+- CARRIED FORWARD (active): apply 4K migration live and runtime-test the RPC from the app if not already done.
+- CARRIED FORWARD (active): improve history actor display to prefer readable display name/email over raw Clerk user ID.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 028
+
+**Date:** 2026-06-15
+**Updated by:** Claude
+**Phase:** Coordination / governance â€” escalation protocol locked
+**Session type:** Decision
+
+### Context
+Ryan asked to lock the "when must Claude be involved" routing rule into the architecture so it is canonical rather than living only in a pasted prompt (which would itself be a drift risk â€” the exact failure mode Rule 19 exists to prevent). He will then start fresh chats across all models from the updated ARCHITECTURE and HANDOFF.
+
+### Decisions Made This Session (locked)
+- **Escalation protocol locked into Section 30 (AI Development Roles); ARCHITECTURE â†’ v2.8.** Core principle: Claude is required when an architectural decision is being *made* or a locked rule is *touched* â€” not when a settled decision is being *implemented*. Codex MUST route to Claude before proceeding when work involves: any ARCHITECTURE.md change; a new decision not already covered by the lock document; anything touching a locked invariant (ledger/balances, permissions, audit, approval/status meaning, cost snapshots, per-line destinations, source-of-truth, no-direct-DB-edit); schema changes; a new inventory/money/permission write path; build-sequence/ordering questions; conflicts with the lock doc or a prior HANDOFF decision; a constitutional-rule violation flag; starting a deferred major feature (express checkout/manager override, developer override, division-scoped read rule, Financials/job-cost, RN companion app); documentation drift; or anything touching live production data/repair.
+- **Proceed-without-Claude conditions (all must hold):** implements an already-locked decision; no change to schema/permissions/ledger/audit/constitutional rules; a read-only surface in an approved scope, or a bug fix / UX-styling / refactor leaving invariants untouched; test/seed quantities via `physical_count_correction` only, never direct `inventory_balances` edits.
+- **Required routing verdict:** every Codex work summary ends with exactly one line â€” `No Claude review needed â€” within locked decisions (ARCHITECTURE v__, HANDOFF Entry __).` or `Claude review required before proceeding â€” [trigger].` This makes "if Codex says bring it to Claude, do it" a reliable rule.
+- Tie-breaker recorded: if a trigger is even arguably hit (especially invariants or schema), route to Claude; an unnecessary review is cheap, a missed one on a locked invariant is an expensive retrofit.
+
+### Lock Document Changes
+- ARCHITECTURE â†’ v2.8: Section 30 gains the "When Claude Must Be Involved (Escalation Protocol)" subsection, expanding the existing Mid-Build Review Trigger into a decision-ready MUST/PROCEED rule plus the required routing verdict.
+- No constitutional rule added; the protocol lives in Section 30 (roles/process). Ryan may elevate it to a numbered rule later if he wants it to carry constitutional weight and trigger mandatory review flags.
+
+### What Codex Needs to Know
+- Read Section 30's escalation protocol and apply it. End every work summary with the routing-verdict line.
+- Build against ARCHITECTURE **v2.8** and HANDOFF **Entry 028**.
+- All prior next-steps stand: commit/apply/runtime-test 4K (`202606150001`); improve history actor display (`performed_by_name` â†’ `display_name` â†’ `email` â†’ raw Clerk ID); keep history read-only and Developer-only until the division-scoped read rule is defined; resolve office destination semantics; keep Express Checkout deferred.
+
+### What Claude Needs to Know
+- The routing rule is now canonical in Section 30, not just a pasted prompt. Future sessions start from v2.8 / Entry 028.
+
+### Next Steps (in order)
+1. Ryan commits ARCHITECTURE v2.8 and HANDOFF (through Entry 028) to the repo and `Current Docs`; prior versions to `Outdated`.
+2. Ryan starts fresh chats across all models from these two documents.
+3. Resume Phase 1 inventory per the carried-forward next steps: commit/apply/runtime-test 4K; actor display-name improvement; then define the division-scoped read rule and resolve office semantics.
+
+### Open Questions / Concerns
+- Whether to later elevate the escalation protocol to a numbered constitutional rule.
+- Has 4K been committed, the migration applied live, and the Transactions tab runtime-tested?
+- Office destination semantics; userâ†’vehicle assignment source (carried).
+
+### Architecture Drift Warnings
+- RESOLVED: routing rule was a working convention / pasted prompt only â€” now canonical in Section 30 (v2.8).
+- CARRIED FORWARD (active): apply 4K migration `202606150001` live and runtime-test the history RPC from the app.
+- CARRIED FORWARD (active): improve history actor display to prefer readable display name/email over raw Clerk user ID.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities (Rule 1 / Rule 8).
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent (consumption vs storage/transfer location).
+- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+---
+
+## Entry 029
+
+**Date:** 2026-06-16
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory â€” Milestone 4K closeout and transaction-history actor display polish
+**Session type:** Implementation / live verification / documentation update
+
+### Context
+Work resumed from ARCHITECTURE v2.8 and HANDOFF Entry 028. The repo copy of the coordination documents was behind the canonical files Ryan provided at session start, so `docs/ARCHITECTURE.md` was synced to v2.8 and `HANDOFF.md` was synced through Entry 028 before this entry was appended. No new architecture decision was made during that sync; Codex used Claude's already-authored v2.8 / Entry 028 content as the source.
+
+### What Was Completed
+- Confirmed 4K was already committed locally at `906051d` with message `Add inventory transaction history review surface`.
+- Confirmed the 4K migration file exists in repo: `supabase/migrations/202606150001_inventory_transaction_history_review.sql`.
+- Confirmed the 4K migration was already applied live in Supabase project `keogysnoukbendfkfjcn` as migration `20260615203424` / `inventory_transaction_history_review`.
+- Implemented transaction-history actor display polish in commit `d617d6c` (`Polish inventory transaction history actor display`).
+- Updated the history read path so `actor_name` now prefers `inventory_transactions.performed_by_name`, then `user_permissions.display_name`, then `user_permissions.email`, then raw Clerk `user_id`.
+- Updated the Transactions table/mobile card UI to display the resolved actor.
+- Kept the history surface read-only and Developer-only.
+- Did not add permission flags, widen role access, define division-scoped read rules, edit `inventory_balances`, add quantity adjustments, start Express Checkout, alter office semantics, or start userâ†’vehicle assignment work.
+
+### Schema Changes
+- No table, column, permission-flag, ledger, audit, balance, destination-semantics, or write-path schema change was made.
+- Added a follow-up RPC replacement migration:
+  - `supabase/migrations/202606160001_inventory_transaction_history_actor_display.sql`
+- The migration only replaces existing function `public.read_inventory_transaction_history(integer, text, text)` with the same return shape and Developer-only gate, adding a read-only `LEFT JOIN` to `user_permissions` for actor fallback display.
+
+### Code / File Changes
+- Already-present 4K commit:
+  - `906051d` â€” `Add inventory transaction history review surface`
+- New implementation commit:
+  - `d617d6c` â€” `Polish inventory transaction history actor display`
+- Files changed by `d617d6c`:
+  - `src/App.jsx`
+  - `src/styles.css`
+  - `supabase/migrations/202606160001_inventory_transaction_history_actor_display.sql`
+- Documentation files synced/updated in this documentation pass:
+  - `docs/ARCHITECTURE.md` synced to v2.8 from the provided canonical copy.
+  - `HANDOFF.md` synced through Entry 028 from the provided canonical copy, then Entry 029 appended.
+- `.netlify/` remained ignored and was not staged or committed.
+- `4K_REVIEW_PACKET.md` remained untracked and was not staged or committed.
+
+### Live Migration / Runtime Test Status
+- Live migration status:
+  - `20260615203424` / `inventory_transaction_history_review` was already applied.
+  - `20260616105748` / `inventory_transaction_history_actor_display` was applied successfully.
+- Live RPC verification:
+  - With the active Developer Clerk subject, `read_inventory_transaction_history(5, NULL, NULL)` returned history rows.
+  - Returned rows showed readable actor display (`Christopher Noel`) instead of only the raw Clerk user ID.
+  - A fake / non-permissioned subject failed closed with `active user permission record is required`.
+  - Function-definition inspection confirmed the Developer gate remains present and no `INSERT`, `UPDATE`, or `DELETE` keywords exist in the RPC body.
+- Browser/runtime limitation:
+  - `npm run build` passed.
+  - A local browser app test could not be completed because local Vite env vars were not present in the shell and the in-app browser backend failed before navigation. The verified live runtime evidence for this pass is the production Supabase RPC result above.
+
+### Build Result
+- `cmd /c npm run build` passed.
+
+### Lock Document Changes
+- No new architecture rule or decision was authored by Codex.
+- Repo `docs/ARCHITECTURE.md` was synced to the already-authored Claude v2.8 canonical copy supplied by Ryan.
+- HANDOFF remains append-only; Entry 029 was appended after Entry 028.
+
+### What Codex Needs to Know
+- The Inventory Transaction History surface remains read-only and Developer-only.
+- The live history RPC now resolves actor display using `performed_by_name` â†’ `display_name` â†’ `email` â†’ raw Clerk ID.
+- The division-scoped read rule is still not designed and history must not be exposed beyond Developer until Claude/Ryan lock that rule.
+- Do not start Express Checkout, Manager Override, approver passcode, completion worklist, office semantics, userâ†’vehicle assignment, or division-scoped read work from this entry.
+- Continue never editing `inventory_balances` directly.
+
+### What Claude Needs to Know
+- 4K was already committed and already applied live before this pass.
+- Codex applied only the already-requested actor-display polish through a read-only replacement of the existing Developer-only history RPC.
+- No permission widening, ledger/balance change, destination-semantics change, or new write path was introduced.
+- Browser UI verification remains the only incomplete runtime item because local env/browser automation was unavailable; live RPC verification succeeded.
+
+### Next Steps (in order)
+1. If Ryan wants visual confirmation, test the production Transactions tab from a logged-in Developer browser session and confirm the Actor column/card field is visible.
+2. Keep the history surface Developer-only until the division-scoped read rule is designed and locked.
+3. Resolve office destination semantics before office is treated as permanent behavior.
+4. Continue carrying forward userâ†’vehicle assignment source work for the future vehicle snapshot phase.
+5. Keep Express Checkout / Manager Override deferred until normal transaction history and scoping are fully settled.
+
+### Open Questions / Concerns
+- Browser UI verification of the Transactions tab still needs a logged-in Developer browser session because local runtime env was unavailable and in-app browser automation failed before navigation.
+- Division-scoped history visibility remains intentionally undefined and must not be inferred in this pass.
+- Office destination semantics remain unresolved.
+- Userâ†’vehicle active assignment source remains absent; vehicle snapshot remains NULL by design until it exists.
+
+### Architecture Drift Warnings
+- RESOLVED: 4K commit status â€” commit `906051d` exists locally.
+- RESOLVED: 4K live migration status â€” `inventory_transaction_history_review` exists live.
+- RESOLVED: actor display polish â€” implemented and applied live with readable actor fallback order.
+- RESOLVED: build check â€” `npm run build` passed.
+- CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits â€” only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (next step): userâ†’vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table â€” never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+- CARRIED FORWARD (advisory, companion-app phase): React Native app must not bypass server-authoritative permissions or introduce a second source of truth.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.8, HANDOFF Entry 028).
 
 ---

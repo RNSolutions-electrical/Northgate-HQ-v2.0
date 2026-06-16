@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.7
+    ARCHITECTURE.md          ← Architecture Lock Document v2.8
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -1272,6 +1272,71 @@ Codex may make routine implementation decisions inline.
 
 Routine decisions that stay with Codex: UI styling, component cleanup, local
 state, bug fixes, layout, straightforward CRUD, non-architectural refactors.
+
+---
+
+### When Claude Must Be Involved (Escalation Protocol)
+
+**Core principle:** Claude is required when an architectural decision is being
+*made* or a locked rule is *touched* — not when a settled decision is being
+*implemented*. Building the "how" of something already locked is Codex's lane;
+deciding or changing the "what" requires Claude. This expands the Mid-Build
+Review Trigger above into a decision-ready rule.
+
+**Codex MUST route to Claude before proceeding if any one of these is true:**
+
+1. Any change to ARCHITECTURE.md — a new or edited constitutional rule, section,
+   or locked decision. Claude maintains the lock document.
+2. A new architectural decision not already covered by the lock document — any
+   design fork with a tradeoff (deciding how it works, not implementing how it
+   is already defined): new workflows, approval/status concepts, scoping rules,
+   destination semantics, etc.
+3. Anything that touches a **locked invariant**: the inventory ledger / balances
+   (transaction-derived rule, transaction types, any write to `transaction_items`
+   or `inventory_balances`); permissions (new flags, enforcement, role defaults,
+   any gate); audit logging; approval/status meaning (`transaction_items.status`,
+   completeness, job-cost); cost snapshots; per-line destinations;
+   source-of-truth; the no-direct-DB-edit rule.
+4. Schema changes — new tables, columns, or migrations that establish or change
+   structure. Lock before build; retrofits are the expensive failure mode.
+5. A new write path or RPC that moves inventory, money, or permissions.
+   (Read-only surfaces following an already-approved pattern do not count.)
+6. Build-sequence / ordering questions, or anything expensive to retrofit if
+   built in the wrong order.
+7. Anything that conflicts with, contradicts, or is not covered by the lock
+   document or a prior HANDOFF decision.
+8. Any constitutional-rule violation flag (e.g., Rule 18 responsive UI, Rule 19
+   documentation / format / filenames).
+9. Starting any deferred major feature: Express Checkout / Manager Override,
+   developer override, the division-scoped read rule, Financials / job-cost, or
+   the React Native companion app.
+10. Documentation drift — ARCHITECTURE and HANDOFF out of sync, version
+    mismatch, or any break in the append-only / format / filename rules.
+11. Anything that touches or repairs live production data or history.
+
+**Codex may proceed without Claude (logging a HANDOFF entry) only when ALL hold:**
+
+- It implements a decision already locked in ARCHITECTURE/HANDOFF (the "what" is
+  settled; Codex builds the "how").
+- It does not change schema, permissions, the ledger, audit, or any
+  constitutional rule.
+- It is a read-only surface within an already-approved scope, or a bug fix,
+  UX/styling polish, or refactor that leaves locked invariants untouched.
+- Any test/seed quantities go through the sanctioned mechanism
+  (`physical_count_correction`), never direct `inventory_balances` edits.
+
+**Tie-breaker:** if a trigger is even arguably hit — especially the invariant
+list (#3) or schema (#4) — route to Claude. An unnecessary review is cheap; a
+missed one on a locked invariant means an expensive retrofit. When genuinely
+unsure, recommend Claude review rather than guessing.
+
+**Required routing verdict:** every Codex work summary ends with exactly one of:
+
+- `No Claude review needed — within locked decisions (ARCHITECTURE v__, HANDOFF Entry __).`
+- `Claude review required before proceeding — [trigger].`
+
+This is the standing routing instruction Ryan gives Codex, so "if Codex says
+bring it to Claude, bring it to Claude" is a reliable rule rather than a guess.
 
 ---
 
