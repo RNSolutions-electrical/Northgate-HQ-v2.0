@@ -234,6 +234,10 @@ function formatHistoryQuantity(row) {
 }
 
 function formatDestination(row) {
+  if (row.destination_label) {
+    return row.destination_label;
+  }
+
   if (!row.destination_type) {
     return 'None';
   }
