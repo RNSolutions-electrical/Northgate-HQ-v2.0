@@ -241,6 +241,10 @@ function formatDestination(row) {
   return [formatTransactionType(row.destination_type), row.destination_id].filter(Boolean).join(' / ');
 }
 
+function formatHistoryActor(row) {
+  return row.actor_name || row.actor_user_id || 'Unknown';
+}
+
 function TransactionHistoryPanel({ permissions }) {
   const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
   const [search, setSearch] = useState('');
@@ -321,6 +325,7 @@ function TransactionHistoryPanel({ permissions }) {
               <thead>
                 <tr>
                   <th>Date / Time</th>
+                  <th>Actor</th>
                   <th>Type</th>
                   <th>Item</th>
                   <th>Bin</th>
@@ -335,6 +340,7 @@ function TransactionHistoryPanel({ permissions }) {
                 {history.rows.map((row) => (
                   <tr key={row.transaction_item_id}>
                     <td>{formatHistoryTimestamp(row.occurred_at ?? row.transaction_created_at)}</td>
+                    <td>{formatHistoryActor(row)}</td>
                     <td>{formatTransactionType(row.transaction_type)}</td>
                     <td>
                       <strong>{row.item_name}</strong>
@@ -359,6 +365,7 @@ function TransactionHistoryPanel({ permissions }) {
                 <span>{row.material_code} / Bin {row.bin_code}</span>
                 <div className="meta-grid">
                   <span>{formatHistoryTimestamp(row.occurred_at ?? row.transaction_created_at)}</span>
+                  <span>Actor: {formatHistoryActor(row)}</span>
                   <span>{formatTransactionType(row.transaction_type)}</span>
                   <span>{formatHistoryQuantity(row)}</span>
                   <span>{formatDestination(row)}</span>
