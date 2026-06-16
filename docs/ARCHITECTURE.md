@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.8
+    ARCHITECTURE.md          ← Architecture Lock Document v2.9
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -1000,6 +1000,30 @@ formal lock document update reviewed by Ryan.
     Violations trigger a mandatory documentation reconciliation before further
     code work.
 
+20. **The coordination documents are never edited or repaired silently.** No
+    model may modify, reformat, re-encode, or repair `ARCHITECTURE.md` or
+    `HANDOFF.md` on its own initiative or "behind the scenes" — not even a
+    correct, well-intentioned fix. This is separate from, and does not block, the
+    sanctioned append of a new correctly formatted HANDOFF entry (Rule 19,
+    Section 34): routine logging remains the normal path and needs no special
+    clearance. Every change *beyond* that clean append — encoding / line-ending /
+    BOM / mojibake repairs, structural or formatting fixes, a logged correction to
+    a prior entry (Rule 19a), or any edit to ARCHITECTURE — must follow this
+    protocol, in order:
+    (a) **Ryan first.** The need for the edit is surfaced to Ryan before anything
+    is changed. Ryan is never bypassed and must never discover a
+    coordination-document change after the fact.
+    (b) **A model is in the loop.** At minimum the proposed edit is brought to
+    Claude or ChatGPT. It is never applied unilaterally by the model that noticed
+    the problem.
+    (c) **Cross-clearance between the two models.** A coordination-document fix
+    proposed by Claude must be cleared by ChatGPT; one proposed by ChatGPT must be
+    cleared by Claude. The proposing model never self-approves the edit. Ryan
+    retains final authority and is the one who applies and commits the change.
+    A silent or unilateral repair — however minor or technically correct — is
+    itself a documentation-drift event and a constitutional violation, and
+    triggers the mandatory reconciliation in Rule 19.
+
 ---
 
 ## 25. Label and QR Printing
@@ -1306,7 +1330,7 @@ Review Trigger above into a decision-ready rule.
 7. Anything that conflicts with, contradicts, or is not covered by the lock
    document or a prior HANDOFF decision.
 8. Any constitutional-rule violation flag (e.g., Rule 18 responsive UI, Rule 19
-   documentation / format / filenames).
+   documentation / format / filenames, Rule 20 silent/unilateral doc repair).
 9. Starting any deferred major feature: Express Checkout / Manager Override,
    developer override, the division-scoped read rule, Financials / job-cost, or
    the React Native companion app.
