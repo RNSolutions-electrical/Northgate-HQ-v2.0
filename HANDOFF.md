@@ -2017,3 +2017,85 @@ Ryan paused acceptance of the HANDOFF diff after a large external deletion count
 Claude review required before proceeding — already reviewed/cleared this session per Rule 20; report verification output for final confirmation.
 
 ---
+
+## Entry 031
+
+**Date:** 2026-06-16
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — Milestone 4L Add All cart picker UI
+**Session type:** Implementation
+
+### Context
+Work resumed after Milestone 4K was committed and closed per Entry 029. Ryan asked Codex to first visually verify the production Transactions tab from a logged-in Developer browser session, then proceed to Milestone 4L only if it could be implemented as UI-only through the existing approved `add_inventory_cart_item(p_cart_id, p_bin_item_id, p_quantity)` RPC.
+
+The repo `docs/ARCHITECTURE.md` was already v2.9 at session start. HANDOFF still ended at Entry 030, so this clean append also records the current v2.9 baseline without editing prior entries.
+
+### What Was Completed
+- Attempted production browser verification for the Transactions tab from the logged-in browser path. The browser-control bridge failed before it could attach to Chrome or the in-app browser, so visual verification remains carried forward.
+- Implemented Milestone 4L as UI-only cart picker polish:
+  - stocked candidate quantity inputs now default to `0`;
+  - single-row `Add` now requires a quantity greater than `0`;
+  - added an `Add All` button for stocked candidate rows with quantity greater than `0`;
+  - `Add All` calls the existing `cartState.addItem` path once per selected row, preserving the existing `add_inventory_cart_item(p_cart_id, p_bin_item_id, p_quantity)` RPC as the only write path;
+  - successfully added rows reset their quantity inputs back to `0`.
+- Kept server-side validation authoritative. The UI clamps only for input hygiene and does not bypass RPC validation.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Default cart candidate quantity changed from `1` to `0`.
+  - Added selected-row counting and sequential `Add All` handling through the existing cart hook.
+  - Kept single-row add on the existing `cartState.addItem` path.
+- `src/styles.css`
+  - Added responsive toolbar styling for the search + `Add All` control group.
+- `HANDOFF.md`
+  - Appended this Entry 031 only.
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` was not edited during this pass.
+- Current repo baseline is `docs/ARCHITECTURE.md` v2.9, which includes Rule 20 and preserves the v2.8 Section 30 routing rule.
+
+### What Codex Needs to Know
+- Milestone 4L was implemented as UI-only.
+- Do not replace this with a batch RPC unless Ryan/Claude explicitly approve a new write-path design.
+- `Add All` is intentionally a client-side loop over the existing sanctioned add-to-cart RPC.
+- The cart still does not reserve stock, create `transaction_items`, affect `inventory_balances`, change schema, change permissions, or alter checkout/finalization behavior.
+- Express Checkout, Manager Override, approver passcode, completion worklist, division-scoped read rules, office destination semantics, and user→vehicle assignment remain out of scope.
+
+### What Claude Needs to Know
+- No schema, permission, ledger, audit, destination-semantics, checkout, or balance behavior was changed.
+- No direct mutation of cart tables was introduced in React; the UI continues to call the existing cart hook.
+- The only write-capable call added by this milestone is repeated use of the existing approved `add_inventory_cart_item` RPC via `cartState.addItem`.
+- Production Transactions-tab visual verification is still incomplete because browser automation could not attach to a logged-in Developer browser session.
+
+### Next Steps (in order)
+1. Ryan or a working logged-in browser session visually verifies the production Transactions tab for Developer.
+2. Ryan tests the 4L picker in production or a logged-in local session: open cart, enter quantities greater than `0` for multiple stocked rows, click `Add All`, and confirm only selected rows are added.
+3. Keep history Developer-only until the division-scoped read rule is designed and locked.
+4. Resolve office destination semantics before office is treated as permanent behavior.
+5. Continue carrying forward user→vehicle assignment source work for the future vehicle snapshot phase.
+6. Keep Express Checkout / Manager Override deferred.
+
+### Open Questions / Concerns
+- Production visual verification of the Transactions tab remains blocked in Codex because both Chrome and in-app browser automation failed before navigation.
+- `Add All` is not all-or-nothing. Because no batch RPC was introduced, earlier rows may be added before a later row fails server validation.
+- Division-scoped history visibility remains intentionally undefined.
+- Office destination semantics remain unresolved.
+
+### Architecture Drift Warnings
+- RESOLVED: 4L stayed UI-only and used the existing approved `add_inventory_cart_item` RPC path.
+- RESOLVED: build check passed with `cmd /c npm run build`.
+- CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.9, HANDOFF Entry 031).
+
+---

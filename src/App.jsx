@@ -21,7 +21,7 @@ const DESTINATION_OPTIONS = [
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
 const CART_DESTINATION_DRAFT_PREFIX = 'northgate.inventoryCart.destinationDrafts.';
-const DEFAULT_CANDIDATE_QUANTITY = 1;
+const DEFAULT_CANDIDATE_QUANTITY = 0;
 const TRANSACTION_TYPE_FILTER_OPTIONS = [
   { value: '', label: 'All movement' },
   { value: 'checkout', label: 'Checkout / Remove Stock' },
@@ -509,6 +509,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   const [candidateSearch, setCandidateSearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
   const [candidateQuantityMessage, setCandidateQuantityMessage] = useState('');
+  const [isAddingAllCandidates, setIsAddingAllCandidates] = useState(false);
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
   const cartDraftKey = getCartDestinationDraftKey(cart?.cart_id);
@@ -516,7 +517,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   const cartIsCheckedOut = cart?.status === 'checked_out' || cartState.checkoutResult?.status === 'checked_out';
   const normalizedCandidateSearch = candidateSearch.trim().toLowerCase();
   const candidateItems = cartCandidates
-    .filter((candidate) => Number(candidate.quantity_on_hand ?? 0) >= DEFAULT_CANDIDATE_QUANTITY)
+    .filter((candidate) => Number(candidate.quantity_on_hand ?? 0) > DEFAULT_CANDIDATE_QUANTITY)
     .filter((candidate) => {
       if (!normalizedCandidateSearch) {
         return true;
@@ -629,16 +630,35 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     }
 
     const quantity = getCandidateQuantityForSubmit(candidate);
+    if (quantity <= DEFAULT_CANDIDATE_QUANTITY) {
+      setCandidateQuantityMessage('Enter a quantity greater than 0 before adding a stocked material.');
+      return;
+    }
 
-    await cartState.addItem({
+    const result = await cartState.addItem({
       cartId: cart.cart_id,
       binItemId: candidate.bin_item_id,
       quantity,
     });
+
+    if (result) {
+      setCandidateQuantity(candidate.bin_item_id, String(DEFAULT_CANDIDATE_QUANTITY));
+    }
   }
 
   function getCandidateQuantityInputValue(candidate) {
     return candidateQuantities[candidate.bin_item_id] ?? String(DEFAULT_CANDIDATE_QUANTITY);
+  }
+
+  function getCandidateQuantityForAction(candidate) {
+    const maxQuantity = Math.max(DEFAULT_CANDIDATE_QUANTITY, Number(candidate.quantity_on_hand ?? DEFAULT_CANDIDATE_QUANTITY));
+    const requestedQuantity = Number(getCandidateQuantityInputValue(candidate));
+
+    if (!Number.isFinite(requestedQuantity)) {
+      return DEFAULT_CANDIDATE_QUANTITY;
+    }
+
+    return Math.min(Math.max(requestedQuantity, DEFAULT_CANDIDATE_QUANTITY), maxQuantity);
   }
 
   function getCandidateQuantityForSubmit(candidate) {
@@ -669,12 +689,66 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     return clampedQuantity;
   }
 
-  function updateCandidateQuantity(candidate, rawValue) {
+  function setCandidateQuantity(binItemId, rawValue) {
     setCandidateQuantities((current) => ({
       ...current,
-      [candidate.bin_item_id]: rawValue,
+      [binItemId]: rawValue,
     }));
+  }
+
+  function updateCandidateQuantity(candidate, rawValue) {
+    setCandidateQuantity(candidate.bin_item_id, rawValue);
     setCandidateQuantityMessage('');
+  }
+
+  async function handleAddAllCandidates() {
+    if (!cart?.cart_id || !cartIsActive) {
+      return;
+    }
+
+    const selectedCandidates = candidateItems
+      .map((candidate) => ({
+        candidate,
+        quantity: getCandidateQuantityForSubmit(candidate),
+      }))
+      .filter((selection) => selection.quantity > DEFAULT_CANDIDATE_QUANTITY);
+
+    if (!selectedCandidates.length) {
+      setCandidateQuantityMessage('Enter a quantity greater than 0 for at least one stocked material.');
+      return;
+    }
+
+    setIsAddingAllCandidates(true);
+
+    try {
+      const addedBinItemIds = [];
+
+      for (const { candidate, quantity } of selectedCandidates) {
+        const result = await cartState.addItem({
+          cartId: cart.cart_id,
+          binItemId: candidate.bin_item_id,
+          quantity,
+        });
+
+        if (!result) {
+          setCandidateQuantityMessage(`Add All stopped after ${addedBinItemIds.length} material${addedBinItemIds.length === 1 ? '' : 's'}. Check available balance and permissions.`);
+          return;
+        }
+
+        addedBinItemIds.push(candidate.bin_item_id);
+      }
+
+      setCandidateQuantities((current) => {
+        const next = { ...current };
+        addedBinItemIds.forEach((binItemId) => {
+          next[binItemId] = String(DEFAULT_CANDIDATE_QUANTITY);
+        });
+        return next;
+      });
+      setCandidateQuantityMessage(`Added ${addedBinItemIds.length} material${addedBinItemIds.length === 1 ? '' : 's'} to the cart.`);
+    } finally {
+      setIsAddingAllCandidates(false);
+    }
   }
 
   async function handleRemoveCartItem(cartItemId) {
@@ -727,7 +801,8 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isLineDestinationValid(item));
   const applyAllDestinationIsValid = isDestinationDraftValid(applyAllDestination);
-  const cartActionInProgress = cartState.isAddingItem || cartState.isRemovingItem || cartState.isCheckingOut || cartState.isReadingItems;
+  const selectedCandidateCount = candidateItems.filter((candidate) => getCandidateQuantityForAction(candidate) > DEFAULT_CANDIDATE_QUANTITY).length;
+  const cartActionInProgress = isAddingAllCandidates || cartState.isAddingItem || cartState.isRemovingItem || cartState.isCheckingOut || cartState.isReadingItems;
 
   return (
     <div className="cart-scaffold" aria-label="Inventory cart scaffold">
@@ -782,15 +857,25 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         <section className="cart-panel">
           <div className="cart-panel__toolbar">
             <h3>Stocked Bin Candidates</h3>
-            <label className="cart-search">
-              <span>Search</span>
-              <input
-                type="search"
-                placeholder="Code, item, or bin"
-                value={candidateSearch}
-                onChange={(event) => setCandidateSearch(event.target.value)}
-              />
-            </label>
+            <div className="cart-panel__toolbar-actions">
+              <label className="cart-search">
+                <span>Search</span>
+                <input
+                  type="search"
+                  placeholder="Code, item, or bin"
+                  value={candidateSearch}
+                  onChange={(event) => setCandidateSearch(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!cart?.cart_id || !cartIsActive || !canUseCart || cartActionInProgress || selectedCandidateCount === 0}
+                onClick={handleAddAllCandidates}
+              >
+                {isAddingAllCandidates ? 'Adding All...' : `Add All (${selectedCandidateCount})`}
+              </button>
+            </div>
           </div>
           {candidateItems.length ? (
             <div className="cart-candidate-list">
