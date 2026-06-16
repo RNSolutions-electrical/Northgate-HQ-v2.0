@@ -2359,3 +2359,90 @@ Ryan instructed Codex to proceed with the v2.10-approved Section 16 implementati
 No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 033).
 
 ---
+
+## Entry 035
+
+**Date:** 2026-06-16
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — transaction-history production bugfix
+**Session type:** implementation
+
+### Context
+Ryan reported that the production Transactions tab showed `Transaction history failed to load. Confirm Developer role and deployed RPC.` after the v2.10-approved vehicle assignment and destination label implementation. The fix scope was limited to the existing read-only, Developer-only transaction-history RPC and frontend parsing/display if needed.
+
+### What Was Completed
+- Confirmed Supabase API logs showed `POST /rest/v1/rpc/read_inventory_transaction_history` returning HTTP 400.
+- Confirmed Supabase Postgres logs showed the failing error: `invalid input syntax for type uuid: "user_3DuPNUmxDtcYaes5rVbtmFJ21jX"`.
+- Reproduced the failure with the active Developer Clerk subject by setting local JWT claims and calling `read_inventory_transaction_history(5, NULL, NULL)`.
+- Identified the bug in the vehicle destination join: `ti.destination_id::UUID` could be evaluated for non-UUID destination IDs even when the regex guard was false.
+- Applied live hotfix migration `20260616204359 fix_history_destination_uuid_guard`.
+- Added repo migration `202606160003_fix_history_destination_uuid_guard.sql`.
+- Replaced only the existing `read_inventory_transaction_history(INTEGER, TEXT, TEXT)` body, preserving the same signature and return shape.
+- Changed the vehicle destination path to compute a guarded nullable UUID in `destination_vehicle_key` before joining `vehicles`.
+- Verified the active Developer-context RPC now returns rows, including user destinations resolving to `Christopher Noel` and vehicle destinations resolving to `E-101`.
+- Verified a fake Clerk subject fails closed with `active user permission record is required`.
+- Verified Netlify production deploy is ready at commit `4e53608d656df69d375a6f9470fbc57315fcc92a`.
+
+### Schema Changes
+- No table schema changes.
+- No new table, column, permission, or data repair was introduced.
+- Existing v2.10 `vehicles.display_name` and `vehicle_assignments` model was preserved.
+
+### Code / File Changes
+- Hotfix commit: `4e53608d656df69d375a6f9470fbc57315fcc92a` (`Fix transaction history vehicle destination UUID guard`).
+- Push result: `9d818b4..4e53608  main -> main`.
+- Files changed:
+  - `supabase/migrations/202606160003_fix_history_destination_uuid_guard.sql`
+- This documentation entry appends Entry 035 only.
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained v2.10 and was not edited.
+
+### What Codex Needs to Know
+- The frontend hook was not changed because it already calls the live signature with `p_limit`, `p_transaction_type`, and `p_search`.
+- Corrected RPC signature remains `read_inventory_transaction_history(integer, text, text)`.
+- Corrected return shape still includes `destination_label`.
+- The RPC remains read-only and Developer-only:
+  - Developer guard present.
+  - SQL inspection showed no `INSERT`, `UPDATE`, or `DELETE` keywords in the function definition.
+- Production visual verification through Chrome was attempted, but the browser-control bridge failed before attaching with `CreateProcessAsUserW failed: 5`; visual verification remains carried forward.
+
+### What Claude Needs to Know
+- No v2.10 architecture decision changed.
+- Structural destination IDs remain unchanged.
+- Destination labels remain read-path only.
+- No checkout/finalization behavior was changed.
+- No add-to-cart behavior was changed.
+- No cart-open behavior was changed.
+- No ledger or balance behavior was changed.
+- No direct `inventory_balances` edits were made.
+- No permissions were widened.
+- No division-scoped reads, office semantics, Express Checkout, Manager Override, approver passcode, completion worklist, or destination identity redesign work was started.
+
+### Next Steps (in order)
+1. Ryan visually verifies the production Transactions tab from a logged-in Developer browser session.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+3. Keep office destination semantics unresolved until separately reviewed.
+4. Keep Express Checkout / Manager Override deferred.
+
+### Open Questions / Concerns
+- Browser visual verification remains blocked in Codex because Chrome automation cannot attach in this environment.
+- No active assignment seed rows exist yet because no explicit user-to-vehicle mapping has been provided.
+
+### Architecture Drift Warnings
+- RESOLVED: production RPC failure root cause identified as unsafe UUID cast during read-path destination label resolution.
+- RESOLVED: live RPC now returns rows for active Developer subject `user_3DuPNUmxDtcYaes5rVbtmFJ21jX`.
+- RESOLVED: fake subject fails closed.
+- RESOLVED: build check passed with `cmd /c npm run build`.
+- RESOLVED: Netlify production deploy is ready at hotfix commit `4e53608d656df69d375a6f9470fbc57315fcc92a`.
+- CARRIED FORWARD (active): production UI/browser visual verification from a logged-in Developer session.
+- CARRIED FORWARD (active, before widening history): division-scoped read rule must be defined before history is exposed beyond Developer.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent.
+- CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
+- CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 034).
+
+---
