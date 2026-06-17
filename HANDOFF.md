@@ -3170,3 +3170,62 @@ Built `bin_item` retirement under ARCHITECTURE v2.13 / HANDOFF Entry 042 after c
 No Claude review needed — within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 042).
 
 ---
+
+## Entry 044 — ALIGNMENT / SYNC POINT
+
+**Date:** 2026-06-17
+**Updated by:** Claude
+**Phase:** Coordination / governance — re-baseline after HANDOFF lineage reconciliation
+**Session type:** Alignment / sync point
+
+### Context
+A multi-session inventory run (office retirement v2.11, Count Intake v2.12, bin_item
+retirement v2.13) was followed by a git/documentation divergence: origin/main had been
+regressed to a stale HANDOFF (Entry 039) by out-of-band uploads, while the local working
+tree held a divergent HANDOFF fork (missing the Entry Format Standard preamble, untitled
+033-035 headings, stale 024/025 wording) that was the only source of Entries 040-043.
+Migration 0005 was applied live but unpublished in git. This entry records the
+reconciliation and re-baselines all collaborators.
+
+### Reconciliation performed
+- Identified the canonical HANDOFF lineage (preamble + titled 033-035 headings) and
+  restored it as the base for Entries 001-039.
+- Appended the genuinely-new Entries 040-043 onto the canonical lineage; result is
+  gapless 001-043, clean encoding (no BOM, LF, no mojibake).
+- Published migration 202606170005_harden_bin_item_retirement_grants.sql (already applied
+  live) so the repo matches the live DB.
+- Reconciled with a fast-forward + clean commit (no force-push, no history rewrite).
+
+### Verified synced state (origin/main == local at 5a3f551)
+- docs/ARCHITECTURE.md = Version 2.13.
+- HANDOFF.md gapless through Entry 043; Entry Format Standard preamble present; titled
+  033-035 headings present.
+- Live Supabase (keogysnoukbendfkfjcn) migrations applied through
+  20260617193808 harden_bin_item_retirement_grants (0004 + 0005), matching the repo.
+- Codex and ChatGPT both re-baselined and acknowledged this state.
+
+### Root cause + locked discipline
+- Recurring root cause across this run: more than one source of truth for the
+  coordination docs (OneDrive-synced stale copies, stale manual uploads, a GitHub
+  web-UI "upload files" commit, and a forked local HANDOFF lineage).
+- Discipline (in force): the git clone is the ONLY place ARCHITECTURE/HANDOFF are read,
+  edited, or committed. Never edit/commit/upload these docs from a OneDrive-synced folder
+  or via the GitHub web UI. Always pull from origin and verify versions/entry numbers
+  against origin before acting. Entry numbers come from the actual current HANDOFF.
+
+### Roles reaffirmed
+- Claude: architecture review, lock-doc maintenance, build-sequence validation.
+- ChatGPT: assembles Codex prompts, clears version-bump wording (Rule 20 cross-clearance).
+- Codex: implementation against the committed lock doc; routes architecture-sensitive
+  items to Claude; ends summaries with a routing verdict.
+- Ryan: final authority; sole committer of ARCHITECTURE/HANDOFF.
+
+### Drift Warnings (carry forward)
+- OPEN: division-scoped read rule; transaction history remains Developer-only until locked.
+- RESERVED (not built): Return-to-Inventory, Buyout, Tools locations, vehicle bins /
+  van-stock onboarding, Express Checkout, Manager Override, reorder/min-max & low-stock
+  thresholds, structured count-type field, catalog-item creation from the count UI.
+
+### Routing Verdict
+No Claude review needed — alignment/sync record within locked decisions
+(ARCHITECTURE v2.13, HANDOFF Entry 044).
