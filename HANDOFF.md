@@ -2532,3 +2532,66 @@ Ryan instructed Codex to split the work into two safe phases: Phase A read-only 
 Claude review required before proceeding — office-retirement migration/function edits await Claude review of the Phase A findings and v2.11 in repo.
 
 ---
+
+## Entry 037 — Office disposition resolved (ARCHITECTURE v2.11)
+
+**Date:** 2026-06-17
+**Updated by:** Claude
+**Phase:** Inventory (Stage 1) — semantics lock
+**Session type:** Architecture decision (lock)
+
+### Decisions Made This Session (locked)
+- `destination_type` records OUTBOUND disposition only; NULL for inbound/non-movement (Add Stock, Return-to-Inventory, Physical Count Correction).
+- `'office'` is a physical location, NOT a material disposition; removed from the material `destination_type` enum (Sections 9, 11).
+- Physical Count Correction → `destination_type = NULL`.
+- Return-to-Inventory and Buyout reserved as defined-but-unbuilt; tools-at-office is a Tools-module location.
+- Section 16 display: NULL destinations labeled from transaction type, never "Office."
+
+### Schema Changes
+- None applied in this entry.
+- ARCHITECTURE v2.11 locks the future migration expectation:
+  - existing pre-release physical-count correction rows with `destination_type = 'office'` migrate to NULL;
+  - the 3 pre-release `remove_stock` office test checkout rows from Entry 036 re-tag to `unknown` with provenance note;
+  - the `transaction_items_destination_type_check` constraint is tightened only after writers stop producing `office` and all existing `office` rows are resolved.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md` updated from v2.10 to v2.11.
+- `HANDOFF.md` appended with this Entry 037.
+- No app code, migrations, RPCs, permissions, checkout/finalization logic, ledger logic, balance logic, or production rows were changed by this documentation entry.
+
+### Lock Document Changes
+- ARCHITECTURE v2.11 resolves office disposition semantics:
+  - `office` is removed from material destination options.
+  - `destination_type` means outbound disposition.
+  - inbound/non-movement transactions use `destination_type = NULL`.
+  - Physical Count Correction writes NULL destination.
+  - Return-to-Inventory, Buyout, and Tools office-location concepts remain reserved and unbuilt.
+
+### What Codex Needs to Know
+- Codex may execute office retirement as Entry 038 only after confirming this Entry 037 and ARCHITECTURE v2.11 are present in the repo.
+- Required execution order: stop all `office` writers, re-tag existing rows, then tighten the destination constraint.
+- The 3 `remove_stock` + `office` rows from Entry 036 are confirmed pre-release test checkouts and should re-tag to `unknown` with provenance note, not be reversed or deleted.
+- Do not touch `inventory_balances`, quantities, ledger semantics, checkout/finalization behavior beyond removing `office`, vehicle bins, reorder/min-max, Return-to-Inventory, Buyout, or Tools features.
+
+### What Claude Needs to Know
+- The 3 non-correction office rows were settled by their own notes as pre-release UI test checkouts, not real ongoing disposition.
+- The gate in Entry 036 worked as intended by preventing silent NULLing of outbound rows.
+- Office retirement implementation remains a separate Entry 038 execution step.
+
+### Next Steps (in order)
+1. Codex executes office retirement as Entry 038: fix the 4 functions plus checkout UI, re-tag rows, and tighten the constraint.
+2. Verify zero `office` rows remain and the tightened constraint rejects `office` while allowing NULL.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+
+### Open Questions / Concerns
+- Production browser verification remains carried forward.
+
+### Architecture Drift Warnings
+- RESOLVED: office destination semantics.
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED (not built): Return-to-Inventory, Buyout, Tools locations.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.11, HANDOFF Entry 037).
+
+---

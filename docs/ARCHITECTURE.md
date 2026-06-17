@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.10
+    ARCHITECTURE.md          ← Architecture Lock Document v2.11
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -307,7 +307,6 @@ Bin code format: A111 = Unit A / Shelf 1 / Bay 1 / Bin 1
 - service call
 - vehicle (stocking the vehicle)
 - user possession
-- office inventory
 - returned to vendor
 - scrap / waste
 - unknown / missing (requires a note)
@@ -315,6 +314,18 @@ Bin code format: A111 = Unit A / Shelf 1 / Bay 1 / Bin 1
 > Physical bins and transaction destinations are not the same concept and must
 > not be merged into a single "locations" model. They serve different purposes
 > and are stored in different tables.
+>
+> **"Office" is a physical location, not a material disposition (locked v2.11).**
+> The office/warehouse as a place where things sit belongs to the physical-location
+> model (bins for material; tool locations for the future Tools module). It is
+> therefore NOT a material transaction destination and has been removed from the
+> list above. The cases it used to cover map elsewhere: returning material "to
+> office" is **return-to-inventory** (material re-enters a bin and the job cost is
+> reversed — an inbound transaction, see Section 11); a **buyout** staged at the
+> office is job-earmarked material at a staging location (reserved future
+> job-procurement concept — the office is its physical whereabouts, the job is its
+> disposition); a tool at the office is a **Tools-module** location. See Section 11
+> for the disposition rule.
 
 Bins may contain multiple material items and tools.
 
@@ -371,8 +382,8 @@ Checkout requires a destination before completion.
 
 ```
 destination_type  TEXT CHECK (destination_type IN
-                    ('job','service_call','vehicle','user','office',
-                     'vendor_return','scrap','unknown'))
+                    ('job','service_call','vehicle','user',
+                     'vendor_return','scrap','unknown'))   -- NULL allowed; see disposition rule
 destination_id    TEXT  -- FK target depends on destination_type
 unit_cost_at_time NUMERIC NOT NULL DEFAULT 0
 ```
@@ -386,6 +397,28 @@ Vehicle destination = stocking the vehicle (not job coding).
 Material transported on a vehicle for a job = coded to the job, not the vehicle.
 
 Unknown / missing requires a mandatory note.
+
+> **Ryan's Decision — disposition vs. location (locked v2.11):**
+> `destination_type` records an *outbound disposition* — where material goes, and
+> what happens to its cost, when it LEAVES trackable stock. It is populated only
+> for outbound moves and is **NULL for inbound and non-movement transactions**
+> (Add Stock, Return-to-Inventory, Physical Count Correction), which instead act on
+> a bin (physical location). In particular:
+>
+> - **Physical Count Correction → `destination_type = NULL`.** A correction is a
+>   reconciliation, not a movement; its nature is already carried by the
+>   transaction type, so it must never borrow a movement label. It previously wrote
+>   `'office'`; that is retired. Existing pre-release count-correction rows are
+>   migrated `'office' → NULL` — balance-neutral (destination_type does not affect
+>   quantity), scoped strictly to rows whose transaction type is Physical Count
+>   Correction.
+> - **Return-to-Inventory** (returning material "to office") → a "Return from Job"
+>   transaction with `destination_type = NULL`, landing back in a bin with the job
+>   cost reversed. Built when Returns are built; reserved here so it is never
+>   modeled as an "office destination."
+> - **`'office'` is not a valid material `destination_type`** and is removed from
+>   the enum (Section 9). The database enum change must follow the row migration,
+>   never precede it (the constraint cannot tighten while `'office'` rows remain).
 
 ### Cart-open controls (v2.5 clarification — HANDOFF Entry 016)
 
@@ -706,10 +739,12 @@ by destination type:
   operator when assignment history is available — e.g. `E-101` or
   `E-101 (Miguel)` — but the vehicle unit label remains canonical and the
   operator adornment is contextual.
-- **office** → `Office` (literal; office semantics remain unresolved and out of
-  scope until separately locked).
 - **job / service_call** → a readable job/service label once those modules exist;
   until then, the raw `destination_id`.
+- **NULL destination** (inbound / non-movement — Add Stock, Return-to-Inventory,
+  Physical Count Correction; see Section 11) → label from the *transaction type*,
+  e.g. "Count correction", "Add stock", "Return to inventory" — never a raw ID and
+  never "Office." (`'office'` is no longer a material destination — locked v2.11.)
 - Any unresolved reference (archived/deleted vehicle, unknown user) falls back to
   the raw `destination_id` rather than failing.
 
