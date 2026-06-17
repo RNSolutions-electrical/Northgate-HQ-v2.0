@@ -2682,3 +2682,89 @@ Ryan supplied Claude's final retirement packet after Entry 036 discovery. ARCHIT
 No Claude review needed — within locked decisions (ARCHITECTURE v2.11, HANDOFF Entry 038).
 
 ---
+
+## Entry 039 — Count Intake locked (ARCHITECTURE v2.12)
+
+**Date:** 2026-06-17
+**Updated by:** Claude
+**Phase:** Inventory (Stage 1) — count intake write surface
+**Session type:** Architecture decision (lock)
+
+### Context
+Ryan requested a shelf-by-shelf, bay-by-bay, bin-by-bin inventory intake workflow so physical material counts can be entered through the app and made official while the rest of Northgate HQ continues to be built. The decision was routed to Claude because allowing the UI to add material to bins touches source-of-truth boundaries between the material catalog, physical bin structure, `bin_items`, and transaction-derived balances.
+
+ARCHITECTURE v2.12 locks the Count Intake subsection in Section 23. The update is narrow and localized: the count intake workflow is allowed to create structural `bin_items` from the UI only through a controlled atomic server RPC, while all official quantity establishment continues to use the existing `physical_count_correction` mechanic.
+
+### Decisions Made This Session (locked)
+- Official quantity establishment uses `physical_count_correction` only with `destination_type = NULL`.
+- No new transaction type is introduced for count intake.
+- `inventory_balances` must never be written directly.
+- No cached or structural quantity may be written directly to `bin_items`.
+- `bin_item` creation from count intake is structural only: find-or-create `(bin, item)`, opens at zero, and quantity comes solely from the following correction.
+- Count intake uses one atomic server RPC: find-or-create the `bin_item` and apply the existing count-correction path in one transaction.
+- The count intake RPC must not fork a parallel correction path.
+- Existing catalog items only. Missing catalog items must be added through the Materials workbook / catalog flow first.
+- The count screen must not become an in-UI catalog editor.
+- No temporary or unknown material rows are allowed from the count intake UI.
+- Zero is a valid count. Counting to zero sets the balance to zero through `physical_count_correction` and preserves the `bin_item` and its history.
+- Audit requirements: who counted, when, prior system quantity, counted quantity, variance, and required reason/note.
+- Reason/note text is sufficient for this version. A structured count-type field is reserved for later only if reporting requires it.
+- Permissions are server-authoritative:
+  - read: `can_manage_inventory`;
+  - correction-write plus `bin_item` creation: Developer/Admin only;
+  - catalog creation: deferred and not available in this milestone.
+
+### Schema Changes
+- None applied in this entry.
+- ARCHITECTURE v2.12 locks the future implementation expectation for Count Intake, including an atomic intake RPC and structural `bin_item` creation rules.
+
+### Code / File Changes
+- No app code, migrations, RPCs, functions, production rows, balances, or ledger data were changed by this architecture entry.
+
+### Lock Document Changes
+- `docs/ARCHITECTURE.md` updated from v2.11 to v2.12.
+- Section 23 now includes the Count Intake subsection locking the official count intake mechanic:
+  - atomic find-or-create `bin_item` plus physical count correction;
+  - existing catalog items only;
+  - zero count supported;
+  - Developer/Admin write gate;
+  - no direct `inventory_balances` writes;
+  - no new transaction type;
+  - no second source of truth.
+
+### What Codex Needs to Know
+- Codex may build Inventory Count Intake Mode as Entry 040 only after confirming ARCHITECTURE v2.12 and this Entry 039 are present in the repo.
+- Build against the locked Section 23 Count Intake rules.
+- The load-bearing implementation decision is the single atomic RPC. Do not split `bin_item` creation and count correction into two client-driven writes.
+- The intake RPC must find-or-create the `(bin_id, item_id)` `bin_item`, opening at zero, then apply the same correction path used by `set_inventory_count_quantity`.
+- Count corrections must write `destination_type = NULL`.
+- Existing catalog items only. Do not create/edit catalog items or temporary material rows from the count UI.
+- Count-to-zero is valid and must preserve the `bin_item`.
+- Do not change checkout/finalization, ledger semantics, office/destination semantics, Return-to-Inventory, Buyout, Tools, vehicle bins, reorder/min-max, Express Checkout, Manager Override, or transaction-history visibility.
+
+### What Claude Needs to Know
+- The Count Intake workflow is locked narrowly in ARCHITECTURE v2.12 to prevent a second source of truth.
+- The count workflow is allowed to become write-enabled only through the atomic RPC pattern described above.
+- Catalog creation remains outside this milestone.
+
+### Next Steps (in order)
+1. Commit ARCHITECTURE v2.12 and this HANDOFF Entry 039 to the repo.
+2. Codex builds Count Intake Mode as Entry 040 under v2.12 / Entry 039.
+3. Verify the atomic intake RPC is the only new write path.
+4. Verify `bin_item` creation opens at zero and quantity is established only through `physical_count_correction`.
+5. Verify count-to-zero preserves the `bin_item`.
+6. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+
+### Open Questions / Concerns
+- Exact intake RPC name and signature will be finalized during implementation, but the behavior is locked.
+- Structured count-type reporting remains reserved, not built.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule remains undefined; history remains Developer-only.
+- RESERVED (not built): Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, structured count-type field.
+- CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 039).
+
+---

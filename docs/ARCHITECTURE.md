@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -22,7 +22,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.11
+    ARCHITECTURE.md          ← Architecture Lock Document v2.12
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -1011,6 +1011,43 @@ inventory_balances (
 Balance cache is updated on every transaction. If the cache is suspected to be
 wrong, the Dev Console rebuild function recalculates from full transaction
 history.
+
+### Count Intake — establishing physical quantities (locked v2.12 — Entry 039)
+
+The Inventory Count Intake workflow follows the existing balance discipline exactly:
+it adds a controlled way to count physical stock into the system, never a new source
+of truth.
+
+- **One mechanic.** All official quantity establishment and correction uses the
+  existing `physical_count_correction` transaction (Section 12), with
+  `destination_type = NULL` (v2.11). No new transaction type is introduced for
+  counting, and `inventory_balances` (and any cached `bin_item` quantity) is never
+  written directly.
+- **`bin_item` creation is structural only.** When a catalog item is physically
+  present in a bin but no `bin_item` exists for that (bin, item) pair, the intake flow
+  may create the `bin_item` — but it only links the item to the bin and **opens at
+  zero balance**. The counted quantity is established solely by the
+  `physical_count_correction` that follows. A `bin_item` is never created with a
+  non-zero opening quantity; its balance comes from the ledger and nowhere else.
+- **Atomic intake RPC.** A single server-authoritative RPC performs the intake: it
+  find-or-creates the `bin_item` for (bin, item) — idempotent, opening 0 — and then
+  applies the *same* count-correction path used by `set_inventory_count_quantity`
+  (it does not fork a parallel correction). One transaction: no orphaned zero-balance
+  `bin_item` without a count, and no count without a `bin_item`.
+- **Catalog is authoritative elsewhere.** The intake UI selects only from existing
+  catalog `items`; it does not create catalog items. A physically present item that is
+  not in the catalog is added through the catalog data flow (the Materials workbook)
+  before it can be counted. The count screen never becomes a back-door catalog editor.
+- **Zero is a valid count.** Counting an existing `bin_item` to 0 (confirming a bin is
+  empty) is a normal `physical_count_correction` setting the absolute quantity to 0. It
+  sets the balance to 0; it does not delete the `bin_item` or its history.
+- **Audit.** Every intake records who counted, when, the prior system quantity, the
+  counted quantity, the variance, and a required reason/note (e.g. "initial shelf
+  count", "cycle count", "correction"). The reason is captured in the correction's
+  reason text; count-type is not a separate structured field in this version.
+- **Permissions (server-authoritative).** Read: `can_manage_inventory`. Official
+  count-correction writes and `bin_item` creation: Developer/Admin only. Catalog-item
+  creation: not available here (deferred to the catalog flow).
 
 ---
 
