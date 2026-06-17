@@ -2860,3 +2860,68 @@ Built Inventory Count Intake Mode under ARCHITECTURE v2.12 / Entry 039 after con
 No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 039).
 
 ---
+
+## Entry 041 — Count Intake UI usability polish
+
+**Date:** 2026-06-17
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) — count intake UI polish
+**Session type:** implementation
+
+### Context
+Ryan manually tested Inventory Count Intake Mode from Entry 040 and reported that the workflow appears to work, but the intake input card was difficult to use because the layout forced horizontal scrolling to fill in values. This pass was limited to UI-only usability polish for the existing Count Intake screen under ARCHITECTURE v2.12.
+
+### What Was Completed
+- Updated `src/styles.css` only.
+- Changed the Count Intake workspace from a squeezed main-column/sidebar layout to a full-width single-column workspace.
+- Made the storage path toolbar and count search/category toolbar auto-wrap instead of forcing fixed four-column widths.
+- Reduced the count table minimum width from `1160px` to `980px`.
+- Reduced counted-quantity input minimum width in the count table.
+- Made the selected-bin Count Intake card wrap its fields more gracefully.
+- Moved the Count Intake Record button onto its own grid row when space is constrained.
+- Removed sticky sidebar positioning from the count history panel so it no longer constrains the intake form area.
+
+### Schema Changes
+- None.
+- No migrations were added.
+- No RPCs/functions were added, replaced, or modified.
+- No Supabase schema/write-path changes were made.
+
+### Code / File Changes
+- Updated:
+  - `src/styles.css`
+- Not changed:
+  - `src/App.jsx`
+  - `src/hooks/useInventoryCountIntake.js`
+  - `supabase/migrations/*`
+
+### Lock Document Changes
+- None.
+
+### What Codex Needs to Know
+- Count Intake still calls the existing `intake_inventory_count` RPC only through `src/hooks/useInventoryCountIntake.js`.
+- This pass changed CSS layout only.
+- No remove/delete material-from-bin functionality was added.
+- Ryan's requested future Developer-level material-removal workflow remains unbuilt and should route to Claude because it touches structural `bin_items`, audit, history, and archive/delete behavior.
+
+### What Claude Needs to Know
+- No architecture-sensitive work was performed.
+- No schema, permission, RPC, ledger/balance, `bin_items`, checkout/finalization, transaction-history visibility, catalog creation, Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, or structured count-type work was started.
+
+### Next Steps (in order)
+1. Ryan visually verifies the Count Intake screen after deployment on desktop/tablet/mobile widths.
+2. Route the future Developer-level material removal/archive workflow to Claude before implementation.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+
+### Open Questions / Concerns
+- Browser automation could not attach in Codex due `CreateProcessAsUserW failed: 5`; local Vite responded `200`, but no automated visual browser verification was claimed.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule remains undefined; history remains Developer-only.
+- RESERVED (not built): Developer material removal/archive workflow, Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, structured count-type field.
+- CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 040).
+
+---
