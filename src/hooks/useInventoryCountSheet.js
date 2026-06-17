@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
 
 const EMPTY_ROWS = Object.freeze([]);
+const EMPTY_COLLECTION = Object.freeze([]);
 
 export function useInventoryCountSheet({ enabled }) {
   const { getToken } = useAuth();
@@ -11,6 +12,11 @@ export function useInventoryCountSheet({ enabled }) {
     isLoading: false,
     error: null,
     rows: EMPTY_ROWS,
+    catalogItems: EMPTY_COLLECTION,
+    storageUnits: EMPTY_COLLECTION,
+    shelves: EMPTY_COLLECTION,
+    bays: EMPTY_COLLECTION,
+    bins: EMPTY_COLLECTION,
     lastLoadedAt: null,
   });
 
@@ -23,6 +29,11 @@ export function useInventoryCountSheet({ enabled }) {
           ...current,
           isLoading: false,
           rows: EMPTY_ROWS,
+          catalogItems: EMPTY_COLLECTION,
+          storageUnits: EMPTY_COLLECTION,
+          shelves: EMPTY_COLLECTION,
+          bays: EMPTY_COLLECTION,
+          bins: EMPTY_COLLECTION,
         }));
         return;
       }
@@ -33,89 +44,80 @@ export function useInventoryCountSheet({ enabled }) {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
 
-        const { data: candidates, error: candidatesError } = await client
-          .from('inventory_cart_candidates_view')
-          .select(
-            'bin_item_id,item_id,bin_id,bin_code,bin_label,material_code,item_name,unit_of_measure,division,price_per_unit,quantity_on_hand,min_quantity',
-          )
-          .order('bin_code', { ascending: true })
-          .order('material_code', { ascending: true })
-          .limit(500);
-
-        if (candidatesError) {
-          throw candidatesError;
-        }
-
-        const candidateRows = candidates ?? [];
-        const itemIds = [...new Set(candidateRows.map((row) => row.item_id).filter(Boolean))];
-        const binIds = [...new Set(candidateRows.map((row) => row.bin_id).filter(Boolean))];
-
         const [
+          candidatesResult,
           itemsResult,
           binsResult,
+          baysResult,
+          shelvesResult,
+          storageUnitsResult,
         ] = await Promise.all([
-          itemIds.length
-            ? client
-              .from('items')
-              .select('id,broad_category,sub_category,sub_category_2,sub_category_3,sub_category_4')
-              .in('id', itemIds)
-            : Promise.resolve({ data: [], error: null }),
-          binIds.length
-            ? client
-              .from('bins')
-              .select('id,bin_code,label,bay_id')
-              .in('id', binIds)
-            : Promise.resolve({ data: [], error: null }),
-        ]);
-
-        if (itemsResult.error ?? binsResult.error) {
-          throw itemsResult.error ?? binsResult.error;
-        }
-
-        const binRows = binsResult.data ?? [];
-        const bayIds = [...new Set(binRows.map((row) => row.bay_id).filter(Boolean))];
-        const baysResult = bayIds.length
-          ? await client
+          client
+            .from('inventory_cart_candidates_view')
+            .select(
+              'bin_item_id,item_id,bin_id,bin_code,bin_label,material_code,item_name,unit_of_measure,division,price_per_unit,quantity_on_hand,min_quantity',
+            )
+            .order('bin_code', { ascending: true })
+            .order('material_code', { ascending: true })
+            .limit(1000),
+          client
+            .from('items')
+            .select('id,material_code,name,broad_category,sub_category,sub_category_2,sub_category_3,sub_category_4,unit_of_measure,division,price_per_unit,default_min_qty,is_active,is_archived')
+            .eq('is_active', true)
+            .eq('is_archived', false)
+            .order('material_code', { ascending: true })
+            .limit(1000),
+          client
+            .from('bins')
+            .select('id,bin_code,label,bay_id,position')
+            .order('position', { ascending: true })
+            .order('bin_code', { ascending: true }),
+          client
             .from('bays')
-            .select('id,bay_code,label,shelf_id')
-            .in('id', bayIds)
-          : { data: [], error: null };
-
-        if (baysResult.error) {
-          throw baysResult.error;
-        }
-
-        const bayRows = baysResult.data ?? [];
-        const shelfIds = [...new Set(bayRows.map((row) => row.shelf_id).filter(Boolean))];
-        const shelvesResult = shelfIds.length
-          ? await client
+            .select('id,bay_code,label,shelf_id,position')
+            .order('position', { ascending: true })
+            .order('bay_code', { ascending: true }),
+          client
             .from('shelves')
-            .select('id,shelf_code,label,unit_id')
-            .in('id', shelfIds)
-          : { data: [], error: null };
-
-        if (shelvesResult.error) {
-          throw shelvesResult.error;
-        }
-
-        const shelfRows = shelvesResult.data ?? [];
-        const storageUnitIds = [...new Set(shelfRows.map((row) => row.unit_id).filter(Boolean))];
-        const storageUnitsResult = storageUnitIds.length
-          ? await client
+            .select('id,shelf_code,label,unit_id,position')
+            .order('position', { ascending: true })
+            .order('shelf_code', { ascending: true }),
+          client
             .from('storage_units')
             .select('id,unit_code,name,division')
-            .in('id', storageUnitIds)
-          : { data: [], error: null };
+            .order('unit_code', { ascending: true }),
+        ]);
 
-        if (storageUnitsResult.error) {
-          throw storageUnitsResult.error;
+        if (
+          candidatesResult.error ??
+          itemsResult.error ??
+          binsResult.error ??
+          baysResult.error ??
+          shelvesResult.error ??
+          storageUnitsResult.error
+        ) {
+          throw (
+            candidatesResult.error ??
+            itemsResult.error ??
+            binsResult.error ??
+            baysResult.error ??
+            shelvesResult.error ??
+            storageUnitsResult.error
+          );
         }
 
-        const itemById = new Map((itemsResult.data ?? []).map((row) => [row.id, row]));
+        const candidateRows = candidatesResult.data ?? [];
+        const catalogItems = itemsResult.data ?? [];
+        const binRows = binsResult.data ?? [];
+        const bayRows = baysResult.data ?? [];
+        const shelfRows = shelvesResult.data ?? [];
+        const storageUnitRows = storageUnitsResult.data ?? [];
+
+        const itemById = new Map(catalogItems.map((row) => [row.id, row]));
         const binById = new Map(binRows.map((row) => [row.id, row]));
         const bayById = new Map(bayRows.map((row) => [row.id, row]));
         const shelfById = new Map(shelfRows.map((row) => [row.id, row]));
-        const storageUnitById = new Map((storageUnitsResult.data ?? []).map((row) => [row.id, row]));
+        const storageUnitById = new Map(storageUnitRows.map((row) => [row.id, row]));
         const rows = candidateRows.map((row) => {
           const item = itemById.get(row.item_id) ?? {};
           const bin = binById.get(row.bin_id) ?? {};
@@ -149,6 +151,11 @@ export function useInventoryCountSheet({ enabled }) {
             isLoading: false,
             error: null,
             rows,
+            catalogItems,
+            storageUnits: storageUnitRows,
+            shelves: shelfRows,
+            bays: bayRows,
+            bins: binRows,
             lastLoadedAt: new Date().toISOString(),
           });
         }
@@ -159,6 +166,11 @@ export function useInventoryCountSheet({ enabled }) {
             isLoading: false,
             error: caughtError,
             rows: EMPTY_ROWS,
+            catalogItems: EMPTY_COLLECTION,
+            storageUnits: EMPTY_COLLECTION,
+            shelves: EMPTY_COLLECTION,
+            bays: EMPTY_COLLECTION,
+            bins: EMPTY_COLLECTION,
             lastLoadedAt: null,
           });
         }

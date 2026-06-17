@@ -2,6 +2,7 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/c
 import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
+import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
@@ -27,6 +28,12 @@ const TRANSACTION_TYPE_FILTER_OPTIONS = [
   { value: 'checkout', label: 'Checkout / Remove Stock' },
   { value: 'physical_count_correction', label: 'Physical Count Correction' },
   { value: 'add_stock', label: 'Add Stock' },
+];
+const COUNT_REASON_OPTIONS = [
+  { value: 'initial shelf count', label: 'Initial shelf count' },
+  { value: 'cycle count', label: 'Cycle count' },
+  { value: 'correction', label: 'Correction' },
+  { value: 'custom', label: 'Custom note' },
 ];
 
 function getCartDestinationDraftKey(cartId) {
@@ -756,6 +763,597 @@ function InventoryCountCorrectionPanel({ permissions }) {
     </div>
   );
 }
+
+function InventoryCountIntakePanel({ permissions }) {
+  const canReadCounts = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const canWriteCounts = canReadCounts && ['Developer', 'Admin'].includes(permissions.role);
+  const countSheet = useInventoryCountSheet({ enabled: canReadCounts });
+  const intake = useInventoryCountIntake();
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    storage_unit_id: '',
+    shelf_id: '',
+    bay_id: '',
+    bin_id: '',
+    category: '',
+  });
+  const [countDrafts, setCountDrafts] = useState({});
+  const [rowMessages, setRowMessages] = useState({});
+  const [selectedHistoryBinItemId, setSelectedHistoryBinItemId] = useState('');
+  const [newItemSearch, setNewItemSearch] = useState('');
+  const [newItemDraft, setNewItemDraft] = useState({
+    item_id: '',
+    countedQuantity: '',
+    reason: 'initial shelf count',
+    customReason: '',
+  });
+  const normalizedSearch = search.trim().toLowerCase();
+  const normalizedNewItemSearch = newItemSearch.trim().toLowerCase();
+  const selectedUnit = countSheet.storageUnits.find((unit) => unit.id === filters.storage_unit_id) ?? null;
+  const selectedShelf = countSheet.shelves.find((shelf) => shelf.id === filters.shelf_id) ?? null;
+  const selectedBay = countSheet.bays.find((bay) => bay.id === filters.bay_id) ?? null;
+  const selectedBin = countSheet.bins.find((bin) => bin.id === filters.bin_id) ?? null;
+  const shelvesForUnit = filters.storage_unit_id
+    ? countSheet.shelves.filter((shelf) => shelf.unit_id === filters.storage_unit_id)
+    : [];
+  const baysForShelf = filters.shelf_id
+    ? countSheet.bays.filter((bay) => bay.shelf_id === filters.shelf_id)
+    : [];
+  const binsForBay = filters.bay_id
+    ? countSheet.bins.filter((bin) => bin.bay_id === filters.bay_id)
+    : [];
+  const categoryOptions = countSheet.rows
+    .reduce((options, row) => {
+      const label = getCategoryLabel(row);
+      if (options.some((option) => option.value === label)) return options;
+      return [...options, { value: label, label }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const filteredRows = countSheet.rows.filter((row) => {
+    if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
+    if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
+    if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
+    if (filters.bin_id && row.bin_id !== filters.bin_id) return false;
+    if (filters.category && getCategoryLabel(row) !== filters.category) return false;
+    if (!normalizedSearch) return true;
+
+    return [
+      row.material_code,
+      row.item_name,
+      row.bin_code,
+      row.bay_code,
+      row.shelf_code,
+      row.storage_unit_code,
+    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
+  });
+  const rowsForSelectedBin = filters.bin_id
+    ? countSheet.rows.filter((row) => row.bin_id === filters.bin_id)
+    : [];
+  const existingItemIdsInSelectedBin = new Set(rowsForSelectedBin.map((row) => row.item_id));
+  const catalogOptions = countSheet.catalogItems
+    .filter((item) => !existingItemIdsInSelectedBin.has(item.id))
+    .filter((item) => {
+      if (!normalizedNewItemSearch) return true;
+      return [
+        item.material_code,
+        item.name,
+        item.broad_category,
+        item.sub_category,
+      ].some((value) => String(value ?? '').toLowerCase().includes(normalizedNewItemSearch));
+    })
+    .slice(0, 80);
+  const selectedHistoryRow = countSheet.rows.find((row) => row.bin_item_id === selectedHistoryBinItemId) ?? null;
+
+  function getCountDraft(row) {
+    return countDrafts[row.bin_item_id] ?? {
+      countedQuantity: '',
+      reason: 'cycle count',
+      customReason: '',
+    };
+  }
+
+  function updateCountDraft(binItemId, updates) {
+    setCountDrafts((current) => ({
+      ...current,
+      [binItemId]: {
+        countedQuantity: '',
+        reason: 'cycle count',
+        customReason: '',
+        ...(current[binItemId] ?? {}),
+        ...updates,
+      },
+    }));
+    setRowMessages((current) => ({ ...current, [binItemId]: null }));
+  }
+
+  function resolveReason(draft) {
+    return draft.reason === 'custom' ? draft.customReason.trim() : draft.reason;
+  }
+
+  function isDraftReady(draft) {
+    const countedQuantity = Number(draft.countedQuantity);
+    return (
+      draft.countedQuantity !== '' &&
+      Number.isFinite(countedQuantity) &&
+      countedQuantity >= 0 &&
+      resolveReason(draft).length > 0
+    );
+  }
+
+  function setPath(nextFilters) {
+    setFilters((current) => ({
+      ...current,
+      ...nextFilters,
+    }));
+  }
+
+  function clearFilters() {
+    setSearch('');
+    setNewItemSearch('');
+    setNewItemDraft({
+      item_id: '',
+      countedQuantity: '',
+      reason: 'initial shelf count',
+      customReason: '',
+    });
+    setFilters({
+      storage_unit_id: '',
+      shelf_id: '',
+      bay_id: '',
+      bin_id: '',
+      category: '',
+    });
+  }
+
+  function printCountSheet() {
+    window.print();
+  }
+
+  async function recordExistingCount(row) {
+    const draft = getCountDraft(row);
+    if (!canWriteCounts || !isDraftReady(draft)) {
+      setRowMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { type: 'error', text: 'Developer/Admin role, count, and reason are required.' },
+      }));
+      return;
+    }
+
+    const result = await intake.recordCount({
+      binId: row.bin_id,
+      itemId: row.item_id,
+      countedQuantity: Number(draft.countedQuantity),
+      reason: resolveReason(draft),
+    });
+
+    if (!result) {
+      setRowMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { type: 'error', text: 'Count intake failed. Check role and server validation.' },
+      }));
+      return;
+    }
+
+    setRowMessages((current) => ({
+      ...current,
+      [row.bin_item_id]: {
+        type: 'success',
+        text: `Recorded ${Number(result.counted_quantity ?? 0).toFixed(2)}. Variance ${Number(result.variance ?? 0).toFixed(2)}.`,
+      },
+    }));
+    setCountDrafts((current) => ({
+      ...current,
+      [row.bin_item_id]: {
+        countedQuantity: '',
+        reason: 'cycle count',
+        customReason: '',
+      },
+    }));
+    setSelectedHistoryBinItemId(result.bin_item_id);
+    countSheet.reload();
+  }
+
+  async function recordNewItemCount() {
+    if (!selectedBin || !canWriteCounts || !newItemDraft.item_id || !isDraftReady(newItemDraft)) {
+      setRowMessages((current) => ({
+        ...current,
+        new: { type: 'error', text: 'Select a bin, catalog item, count, and reason with Developer/Admin role.' },
+      }));
+      return;
+    }
+
+    const result = await intake.recordCount({
+      binId: selectedBin.id,
+      itemId: newItemDraft.item_id,
+      countedQuantity: Number(newItemDraft.countedQuantity),
+      reason: resolveReason(newItemDraft),
+    });
+
+    if (!result) {
+      setRowMessages((current) => ({
+        ...current,
+        new: { type: 'error', text: 'Count intake failed. Check role and server validation.' },
+      }));
+      return;
+    }
+
+    setRowMessages((current) => ({
+      ...current,
+      new: {
+        type: 'success',
+        text: `Recorded catalog item in bin. Variance ${Number(result.variance ?? 0).toFixed(2)}.`,
+      },
+    }));
+    setNewItemDraft({
+      item_id: '',
+      countedQuantity: '',
+      reason: 'initial shelf count',
+      customReason: '',
+    });
+    setSelectedHistoryBinItemId(result.bin_item_id);
+    countSheet.reload();
+  }
+
+  function renderReasonControls(draft, onChange) {
+    return (
+      <>
+        <select value={draft.reason} onChange={(event) => onChange({ reason: event.target.value })}>
+          {COUNT_REASON_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        {draft.reason === 'custom' ? (
+          <input
+            type="text"
+            value={draft.customReason}
+            onChange={(event) => onChange({ customReason: event.target.value })}
+            placeholder="Required note"
+          />
+        ) : null}
+      </>
+    );
+  }
+
+  if (!canReadCounts) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Physical storage bins</p>
+            <h3>Inventory Count Intake</h3>
+          </div>
+          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+        </div>
+        <p>This count screen is available only when server permissions include inventory management.</p>
+      </section>
+    );
+  }
+
+  return (
+    <div className="count-workspace">
+      <section className="cart-panel count-workspace__main">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Physical storage bins</p>
+            <h3>Inventory Count Intake</h3>
+          </div>
+          <span className={`status-pill ${canWriteCounts ? 'status-pill--good' : 'status-pill--warn'}`}>
+            {canWriteCounts ? 'Developer/Admin intake' : 'Read only'}
+          </span>
+        </div>
+
+        <div className="count-toolbar count-path-toolbar">
+          <label>
+            Storage unit
+            <select
+              value={filters.storage_unit_id}
+              onChange={(event) => setPath({
+                storage_unit_id: event.target.value,
+                shelf_id: '',
+                bay_id: '',
+                bin_id: '',
+              })}
+            >
+              <option value="">Select unit</option>
+              {countSheet.storageUnits.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.unit_code}{unit.name ? ` / ${unit.name}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Shelf
+            <select
+              value={filters.shelf_id}
+              onChange={(event) => setPath({ shelf_id: event.target.value, bay_id: '', bin_id: '' })}
+              disabled={!filters.storage_unit_id}
+            >
+              <option value="">Select shelf</option>
+              {shelvesForUnit.map((shelf) => (
+                <option key={shelf.id} value={shelf.id}>{shelf.shelf_code}{shelf.label ? ` / ${shelf.label}` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Bay
+            <select
+              value={filters.bay_id}
+              onChange={(event) => setPath({ bay_id: event.target.value, bin_id: '' })}
+              disabled={!filters.shelf_id}
+            >
+              <option value="">Select bay</option>
+              {baysForShelf.map((bay) => (
+                <option key={bay.id} value={bay.id}>{bay.bay_code}{bay.label ? ` / ${bay.label}` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Bin
+            <select value={filters.bin_id} onChange={(event) => setPath({ bin_id: event.target.value })} disabled={!filters.bay_id}>
+              <option value="">Select bin</option>
+              {binsForBay.map((bin) => (
+                <option key={bin.id} value={bin.id}>{bin.bin_code}{bin.label ? ` / ${bin.label}` : ''}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="count-toolbar">
+          <label>
+            Search loaded rows
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Material, bin, shelf, bay, or unit"
+            />
+          </label>
+          <label>
+            Category
+            <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
+              <option value="">All categories</option>
+              {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
+          <button type="button" className="secondary-button" onClick={printCountSheet}>Print / Export</button>
+        </div>
+
+        {countSheet.error ? <div className="alert">Inventory count list failed to load. Confirm can_manage_inventory and existing inventory read access.</div> : null}
+        {intake.error ? <div className="alert">Inventory count intake failed. Confirm Developer/Admin role and deployed RPC.</div> : null}
+        {countSheet.isLoading ? <p className="muted">Loading count sheet...</p> : null}
+
+        <div className="cart-facts count-summary">
+          <span>Loaded bin/material rows: {countSheet.rows.length}</span>
+          <span>Visible rows: {filteredRows.length}</span>
+          <span>Selected bin rows: {rowsForSelectedBin.length}</span>
+          <span>Last loaded: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
+        </div>
+
+        <section className="count-intake-card">
+          <div>
+            <p className="eyebrow">Selected path</p>
+            <h3>
+              {[selectedUnit?.unit_code, selectedShelf?.shelf_code, selectedBay?.bay_code, selectedBin?.bin_code].filter(Boolean).join(' / ') || 'Choose a bin'}
+            </h3>
+          </div>
+          <p className="muted">
+            Counts use existing catalog items only. Missing materials must be added through the catalog workflow before they can be counted.
+          </p>
+
+          {selectedBin ? (
+            <div className="count-intake-form">
+              <label>
+                Material search
+                <input
+                  type="search"
+                  value={newItemSearch}
+                  onChange={(event) => setNewItemSearch(event.target.value)}
+                  placeholder="Search catalog"
+                />
+              </label>
+              <label>
+                Existing catalog item
+                <select
+                  value={newItemDraft.item_id}
+                  onChange={(event) => setNewItemDraft((current) => ({ ...current, item_id: event.target.value }))}
+                >
+                  <option value="">Select item</option>
+                  {catalogOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.material_code} / {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Counted quantity
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={newItemDraft.countedQuantity}
+                  onChange={(event) => setNewItemDraft((current) => ({ ...current, countedQuantity: event.target.value }))}
+                  placeholder="0"
+                />
+              </label>
+              <label>
+                Reason
+                {renderReasonControls(newItemDraft, (updates) => setNewItemDraft((current) => ({ ...current, ...updates })))}
+              </label>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={recordNewItemCount}
+                disabled={!canWriteCounts || intake.isRecording || !newItemDraft.item_id || !isDraftReady(newItemDraft)}
+              >
+                {intake.isRecording ? 'Recording...' : 'Record Count'}
+              </button>
+            </div>
+          ) : (
+            <EmptyState title="Select a bin">
+              Choose a storage unit, shelf, bay, and bin before recording a count for a catalog item.
+            </EmptyState>
+          )}
+          {rowMessages.new ? (
+            <div className={`count-row-message count-row-message--${rowMessages.new.type}`}>{rowMessages.new.text}</div>
+          ) : null}
+          {intake.result ? (
+            <div className="cart-facts count-correction-facts">
+              <span>Last bin item: {intake.result.bin_item_id}</span>
+              <span>Prior: {Number(intake.result.prior_system_quantity ?? 0).toFixed(2)}</span>
+              <span>Counted: {Number(intake.result.counted_quantity ?? 0).toFixed(2)}</span>
+              <span>Variance: {Number(intake.result.variance ?? 0).toFixed(2)}</span>
+            </div>
+          ) : null}
+        </section>
+
+        {filteredRows.length ? (
+          <>
+            <div className="table-wrap count-table-wrap">
+              <table className="data-table count-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Physical Location</th>
+                    <th>System Quantity</th>
+                    <th>Counted Quantity</th>
+                    <th>Variance</th>
+                    <th>Reason</th>
+                    <th>Action</th>
+                    <th>History</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => {
+                    const draft = getCountDraft(row);
+                    const countedQuantity = Number(draft.countedQuantity);
+                    const hasCount = draft.countedQuantity !== '' && Number.isFinite(countedQuantity);
+                    const systemQuantity = Number(row.system_quantity ?? 0);
+                    const variance = hasCount ? countedQuantity - systemQuantity : null;
+                    const rowMessage = rowMessages[row.bin_item_id];
+
+                    return (
+                      <tr key={row.bin_item_id}>
+                        <td>
+                          <strong>{row.item_name}</strong>
+                          <span>{row.material_code}</span>
+                          <span>{getCategoryLabel(row)}</span>
+                        </td>
+                        <td>
+                          <strong>{row.bin_code}</strong>
+                          <span>{row.storage_unit_code} / {row.shelf_code} / {row.bay_code} / {row.bin_code}</span>
+                        </td>
+                        <td>{systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={draft.countedQuantity}
+                            onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className={variance === null ? '' : variance === 0 ? 'variance-neutral' : variance > 0 ? 'variance-positive' : 'variance-negative'}>
+                          {variance === null ? '-' : variance.toFixed(2)}
+                        </td>
+                        <td className="count-reason-cell">
+                          {renderReasonControls(draft, (updates) => updateCountDraft(row.bin_item_id, updates))}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() => recordExistingCount(row)}
+                            disabled={!canWriteCounts || intake.isRecording || !isDraftReady(draft)}
+                          >
+                            Record
+                          </button>
+                          {rowMessage ? (
+                            <span className={`count-inline-message count-inline-message--${rowMessage.type}`}>{rowMessage.text}</span>
+                          ) : null}
+                        </td>
+                        <td>
+                          <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list count-mobile-list">
+              {filteredRows.map((row) => {
+                const draft = getCountDraft(row);
+                const countedQuantity = Number(draft.countedQuantity);
+                const hasCount = draft.countedQuantity !== '' && Number.isFinite(countedQuantity);
+                const systemQuantity = Number(row.system_quantity ?? 0);
+                const variance = hasCount ? countedQuantity - systemQuantity : null;
+                const rowMessage = rowMessages[row.bin_item_id];
+
+                return (
+                  <article className="mobile-item count-mobile-item" key={row.bin_item_id}>
+                    <strong>{row.item_name}</strong>
+                    <span>{row.material_code} / Bin {row.bin_code}</span>
+                    <div className="meta-grid">
+                      <span>{row.storage_unit_code} / {row.shelf_code} / {row.bay_code} / {row.bin_code}</span>
+                      <span>System Quantity: {systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</span>
+                      <span>Variance: {variance === null ? '-' : variance.toFixed(2)}</span>
+                      <span>{getCategoryLabel(row)}</span>
+                    </div>
+                    <label>
+                      Counted Quantity
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={draft.countedQuantity}
+                        onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
+                        placeholder="0"
+                      />
+                    </label>
+                    <label>
+                      Reason
+                      {renderReasonControls(draft, (updates) => updateCountDraft(row.bin_item_id, updates))}
+                    </label>
+                    {rowMessage ? (
+                      <div className={`count-row-message count-row-message--${rowMessage.type}`}>{rowMessage.text}</div>
+                    ) : null}
+                    <div className="cart-actions">
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => recordExistingCount(row)}
+                        disabled={!canWriteCounts || intake.isRecording || !isDraftReady(draft)}
+                      >
+                        Record Count
+                      </button>
+                      <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
+                        View History
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <EmptyState title="No count rows">
+            No physical bin/material rows match the current count filters.
+          </EmptyState>
+        )}
+      </section>
+
+      <CountHistoryForItem row={selectedHistoryRow} permissions={permissions} />
+    </div>
+  );
+}
+
 function CartScaffold({ permissions, cartCandidates, destinationReferences, onInventoryReload }) {
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
@@ -1456,7 +2054,7 @@ function InventoryReadOnlyPanel({ permissions }) {
         />
       ) : null}
       {activeTab === 'count' ? (
-        <InventoryCountCorrectionPanel permissions={permissions} />
+        <InventoryCountIntakePanel permissions={permissions} />
       ) : null}
       {activeTab === 'transactions' ? <TransactionHistoryPanel permissions={permissions} /> : null}
 
