@@ -1,7 +1,8 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
+import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
@@ -42,6 +43,10 @@ function getCartDestinationDraftKey(cartId) {
 
 function normalizeDestinationType(destinationType) {
   return VALID_DESTINATION_TYPES.has(destinationType) ? destinationType : 'unknown';
+}
+
+function isDeveloperOrAdminRole(role) {
+  return ['Developer', 'Administrator', 'Admin'].includes(role);
 }
 
 function CountCard({ label, value }) {
@@ -766,9 +771,11 @@ function InventoryCountCorrectionPanel({ permissions }) {
 
 function InventoryCountIntakePanel({ permissions }) {
   const canReadCounts = permissions.permissionSource === 'server' && permissions.canManageInventory;
-  const canWriteCounts = canReadCounts && ['Developer', 'Admin'].includes(permissions.role);
+  const canWriteCounts = canReadCounts && isDeveloperOrAdminRole(permissions.role);
+  const canRetireBinItems = canReadCounts && isDeveloperOrAdminRole(permissions.role) && permissions.canArchiveRecords;
   const countSheet = useInventoryCountSheet({ enabled: canReadCounts });
   const intake = useInventoryCountIntake();
+  const retirement = useBinItemRetirement();
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState({
     storage_unit_id: '',
@@ -780,6 +787,10 @@ function InventoryCountIntakePanel({ permissions }) {
   const [countDrafts, setCountDrafts] = useState({});
   const [rowMessages, setRowMessages] = useState({});
   const [selectedHistoryBinItemId, setSelectedHistoryBinItemId] = useState('');
+  const [retirementDraft, setRetirementDraft] = useState({
+    binItemId: '',
+    reason: '',
+  });
   const [newItemSearch, setNewItemSearch] = useState('');
   const [newItemDraft, setNewItemDraft] = useState({
     item_id: '',
@@ -994,6 +1005,78 @@ function InventoryCountIntakePanel({ permissions }) {
     countSheet.reload();
   }
 
+  function startRetirement(row) {
+    const systemQuantity = Number(row.system_quantity ?? 0);
+
+    if (!canRetireBinItems) {
+      setRowMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { type: 'error', text: 'Developer/Admin role and can_archive_records are required.' },
+      }));
+      return;
+    }
+
+    if (systemQuantity !== 0) {
+      setRowMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { type: 'error', text: 'Record a zero physical count before retiring this material from the bin.' },
+      }));
+      return;
+    }
+
+    setRetirementDraft({
+      binItemId: row.bin_item_id,
+      reason: '',
+    });
+    setRowMessages((current) => ({ ...current, [row.bin_item_id]: null }));
+  }
+
+  function cancelRetirement() {
+    setRetirementDraft({
+      binItemId: '',
+      reason: '',
+    });
+  }
+
+  async function confirmRetirement(row) {
+    const reason = retirementDraft.reason.trim();
+
+    if (!canRetireBinItems || retirementDraft.binItemId !== row.bin_item_id || !reason) {
+      setRowMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { type: 'error', text: 'A retirement reason is required.' },
+      }));
+      return;
+    }
+
+    const result = await retirement.retireBinItem({
+      binItemId: row.bin_item_id,
+      reason,
+    });
+
+    if (!result) {
+      const message = retirement.error?.message?.includes('balance is')
+        ? 'Record a zero physical count before retiring this material from the bin.'
+        : 'Retirement failed. Confirm permissions, zero balance, and deployed RPC.';
+      setRowMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { type: 'error', text: message },
+      }));
+      return;
+    }
+
+    setRowMessages((current) => ({
+      ...current,
+      [row.bin_item_id]: { type: 'success', text: 'Material retired from active bin views. History is preserved.' },
+    }));
+    setRetirementDraft({
+      binItemId: '',
+      reason: '',
+    });
+    setSelectedHistoryBinItemId('');
+    countSheet.reload();
+  }
+
   function renderReasonControls(draft, onChange) {
     return (
       <>
@@ -1122,6 +1205,7 @@ function InventoryCountIntakePanel({ permissions }) {
 
         {countSheet.error ? <div className="alert">Inventory count list failed to load. Confirm can_manage_inventory and existing inventory read access.</div> : null}
         {intake.error ? <div className="alert">Inventory count intake failed. Confirm Developer/Admin role and deployed RPC.</div> : null}
+        {retirement.error ? <div className="alert">Bin item retirement failed. Confirm Developer/Admin role, can_archive_records, zero balance, and deployed RPC.</div> : null}
         {countSheet.isLoading ? <p className="muted">Loading count sheet...</p> : null}
 
         <div className="cart-facts count-summary">
@@ -1235,52 +1319,104 @@ function InventoryCountIntakePanel({ permissions }) {
                     const rowMessage = rowMessages[row.bin_item_id];
 
                     return (
-                      <tr key={row.bin_item_id}>
-                        <td>
-                          <strong>{row.item_name}</strong>
-                          <span>{row.material_code}</span>
-                          <span>{getCategoryLabel(row)}</span>
-                        </td>
-                        <td>
-                          <strong>{row.bin_code}</strong>
-                          <span>{row.storage_unit_code} / {row.shelf_code} / {row.bay_code} / {row.bin_code}</span>
-                        </td>
-                        <td>{systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</td>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={draft.countedQuantity}
-                            onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className={variance === null ? '' : variance === 0 ? 'variance-neutral' : variance > 0 ? 'variance-positive' : 'variance-negative'}>
-                          {variance === null ? '-' : variance.toFixed(2)}
-                        </td>
-                        <td className="count-reason-cell">
-                          {renderReasonControls(draft, (updates) => updateCountDraft(row.bin_item_id, updates))}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="primary-button"
-                            onClick={() => recordExistingCount(row)}
-                            disabled={!canWriteCounts || intake.isRecording || !isDraftReady(draft)}
-                          >
-                            Record
-                          </button>
-                          {rowMessage ? (
-                            <span className={`count-inline-message count-inline-message--${rowMessage.type}`}>{rowMessage.text}</span>
-                          ) : null}
-                        </td>
-                        <td>
-                          <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
-                            View
-                          </button>
-                        </td>
-                      </tr>
+                      <Fragment key={row.bin_item_id}>
+                        <tr>
+                          <td>
+                            <strong>{row.item_name}</strong>
+                            <span>{row.material_code}</span>
+                            <span>{getCategoryLabel(row)}</span>
+                          </td>
+                          <td>
+                            <strong>{row.bin_code}</strong>
+                            <span>{row.storage_unit_code} / {row.shelf_code} / {row.bay_code} / {row.bin_code}</span>
+                          </td>
+                          <td>{systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</td>
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={draft.countedQuantity}
+                              onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className={variance === null ? '' : variance === 0 ? 'variance-neutral' : variance > 0 ? 'variance-positive' : 'variance-negative'}>
+                            {variance === null ? '-' : variance.toFixed(2)}
+                          </td>
+                          <td className="count-reason-cell">
+                            {renderReasonControls(draft, (updates) => updateCountDraft(row.bin_item_id, updates))}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="primary-button"
+                              onClick={() => recordExistingCount(row)}
+                              disabled={!canWriteCounts || intake.isRecording || !isDraftReady(draft)}
+                            >
+                              Record
+                            </button>
+                            {rowMessage ? (
+                              <span className={`count-inline-message count-inline-message--${rowMessage.type}`}>{rowMessage.text}</span>
+                            ) : null}
+                          </td>
+                          <td>
+                            <div className="count-action-stack">
+                              <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
+                                View
+                              </button>
+                              {canRetireBinItems ? (
+                                <button
+                                  type="button"
+                                  className="secondary-button secondary-button--danger"
+                                  onClick={() => startRetirement(row)}
+                                  disabled={retirement.isRetiring}
+                                  title={systemQuantity === 0 ? 'Retire this bin/material link' : 'Record a zero physical count before retiring'}
+                                >
+                                  Retire
+                                </button>
+                              ) : null}
+                            </div>
+                            {canRetireBinItems && systemQuantity !== 0 ? (
+                              <span className="count-inline-message count-inline-message--error">Zero count required first</span>
+                            ) : null}
+                          </td>
+                        </tr>
+                        {retirementDraft.binItemId === row.bin_item_id ? (
+                          <tr className="count-retire-row">
+                            <td colSpan="8">
+                              <div className="count-retire-panel">
+                                <div>
+                                  <strong>Retire {row.material_code} from bin {row.bin_code}</strong>
+                                  <span>Archives the bin/material link only. Ledger history and quantities are not changed.</span>
+                                </div>
+                                <label>
+                                  Reason
+                                  <input
+                                    type="text"
+                                    value={retirementDraft.reason}
+                                    onChange={(event) => setRetirementDraft((current) => ({ ...current, reason: event.target.value }))}
+                                    placeholder="Required retirement reason"
+                                  />
+                                </label>
+                                <div className="count-action-stack count-action-stack--inline">
+                                  <button
+                                    type="button"
+                                    className="primary-button"
+                                    onClick={() => confirmRetirement(row)}
+                                    disabled={retirement.isRetiring || !retirementDraft.reason.trim()}
+                                  >
+                                    {retirement.isRetiring ? 'Retiring...' : 'Confirm Retire'}
+                                  </button>
+                                  <button type="button" className="secondary-button" onClick={cancelRetirement} disabled={retirement.isRetiring}>
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -1336,7 +1472,50 @@ function InventoryCountIntakePanel({ permissions }) {
                       <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
                         View History
                       </button>
+                      {canRetireBinItems ? (
+                        <button
+                          type="button"
+                          className="secondary-button secondary-button--danger"
+                          onClick={() => startRetirement(row)}
+                          disabled={retirement.isRetiring}
+                        >
+                          Retire
+                        </button>
+                      ) : null}
                     </div>
+                    {canRetireBinItems && systemQuantity !== 0 ? (
+                      <div className="count-row-message count-row-message--error">Record a zero physical count before retiring this material from the bin.</div>
+                    ) : null}
+                    {retirementDraft.binItemId === row.bin_item_id ? (
+                      <div className="count-retire-panel">
+                        <div>
+                          <strong>Retire {row.material_code} from bin {row.bin_code}</strong>
+                          <span>Archives the bin/material link only. Ledger history and quantities are not changed.</span>
+                        </div>
+                        <label>
+                          Reason
+                          <input
+                            type="text"
+                            value={retirementDraft.reason}
+                            onChange={(event) => setRetirementDraft((current) => ({ ...current, reason: event.target.value }))}
+                            placeholder="Required retirement reason"
+                          />
+                        </label>
+                        <div className="cart-actions">
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() => confirmRetirement(row)}
+                            disabled={retirement.isRetiring || !retirementDraft.reason.trim()}
+                          >
+                            {retirement.isRetiring ? 'Retiring...' : 'Confirm Retire'}
+                          </button>
+                          <button type="button" className="secondary-button" onClick={cancelRetirement} disabled={retirement.isRetiring}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
