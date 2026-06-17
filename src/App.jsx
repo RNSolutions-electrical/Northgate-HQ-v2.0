@@ -9,7 +9,6 @@ import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionH
 import { usePermissions } from './hooks/usePermissions.js';
 
 const DESTINATION_OPTIONS = [
-  { value: 'office', label: 'Office' },
   { value: 'job', label: 'Job' },
   { value: 'service_call', label: 'Service Call' },
   { value: 'vehicle', label: 'Vehicle Stock' },
@@ -20,6 +19,7 @@ const DESTINATION_OPTIONS = [
 ];
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
+const VALID_DESTINATION_TYPES = new Set(DESTINATION_OPTIONS.map((option) => option.value));
 const CART_DESTINATION_DRAFT_PREFIX = 'northgate.inventoryCart.destinationDrafts.';
 const DEFAULT_CANDIDATE_QUANTITY = 0;
 const TRANSACTION_TYPE_FILTER_OPTIONS = [
@@ -31,6 +31,10 @@ const TRANSACTION_TYPE_FILTER_OPTIONS = [
 
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
+}
+
+function normalizeDestinationType(destinationType) {
+  return VALID_DESTINATION_TYPES.has(destinationType) ? destinationType : 'unknown';
 }
 
 function CountCard({ label, value }) {
@@ -756,7 +760,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
   const [applyAllDestination, setApplyAllDestination] = useState({
-    destination_type: 'office',
+    destination_type: 'unknown',
     destination_id: '',
     note: '',
   });
@@ -818,10 +822,16 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   }, [cartDraftKey, cartIsCheckedOut, lineDestinations]);
 
   function getLineDestination(cartItem) {
-    return lineDestinations[cartItem.cart_item_id] ?? {
-      destination_type: cartItem.destination_type ?? applyAllDestination.destination_type,
-      destination_id: cartItem.destination_id ?? '',
-      note: cartItem.note ?? '',
+    const savedLine = lineDestinations[cartItem.cart_item_id];
+    const destinationType = normalizeDestinationType(
+      savedLine?.destination_type ?? cartItem.destination_type ?? applyAllDestination.destination_type,
+    );
+
+    return {
+      ...(savedLine ?? {}),
+      destination_type: destinationType,
+      destination_id: savedLine?.destination_id ?? cartItem.destination_id ?? '',
+      note: savedLine?.note ?? cartItem.note ?? '',
     };
   }
 
@@ -861,6 +871,9 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 
   function isLineDestinationValid(cartItem) {
     const line = getLineDestination(cartItem);
+    if (!VALID_DESTINATION_TYPES.has(line.destination_type)) {
+      return false;
+    }
     if (DESTINATIONS_REQUIRING_ID.has(line.destination_type) && !line.destination_id?.trim()) {
       return false;
     }
@@ -871,6 +884,9 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   }
 
   function isDestinationDraftValid(destinationDraft) {
+    if (!VALID_DESTINATION_TYPES.has(destinationDraft.destination_type)) {
+      return false;
+    }
     if (DESTINATIONS_REQUIRING_ID.has(destinationDraft.destination_type) && !destinationDraft.destination_id?.trim()) {
       return false;
     }

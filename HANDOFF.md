@@ -2595,3 +2595,90 @@ Claude review required before proceeding — office-retirement migration/functio
 No Claude review needed — within locked decisions (ARCHITECTURE v2.11, HANDOFF Entry 037).
 
 ---
+
+## Entry 038 — Office retirement executed
+
+**Date:** 2026-06-17
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) — office destination retirement
+**Session type:** implementation
+
+### Context
+Ryan supplied Claude's final retirement packet after Entry 036 discovery. ARCHITECTURE v2.11 and Entry 037 were committed first, satisfying the precondition to execute the office-retirement implementation. The allowed scope was limited to removing `office` as a material destination, re-tagging the known pre-release rows, and tightening the destination constraint. Return-to-Inventory, Buyout, and Tools locations remain reserved and unbuilt.
+
+### What Was Completed
+- Confirmed repo `docs/ARCHITECTURE.md` is v2.11 and Section 11 excludes `office`.
+- Confirmed HANDOFF was gapless through Entry 037 before implementation.
+- Added migration `supabase/migrations/202606170002_retire_office_destination.sql`.
+- Applied live Supabase migration `20260617135522 retire_office_destination` to project `keogysnoukbendfkfjcn`.
+- Stopped all known `office` writers:
+  - `set_inventory_count_quantity(uuid,numeric,text)` now writes `destination_type = NULL` for physical count corrections.
+  - `finalize_inventory_cart(uuid,text,text,text)` no longer accepts `office` in destination validation.
+  - `finalize_inventory_cart(uuid,text,text,text,jsonb)` no longer accepts `office` in header or per-line destination validation.
+  - `read_inventory_transaction_history(integer,text,text)` no longer maps `office` to `Office`; NULL destinations label from transaction type.
+- Removed Office from the checkout destination picker in `src/App.jsx`.
+- Added client-side stale-draft normalization so old local `office` destination drafts resolve to `unknown` instead of being sent back to checkout.
+- Re-tagged the 3 confirmed pre-release `remove_stock` office test checkout rows to `destination_type = 'unknown'` with appended provenance note `(retired office destination v2.11)`.
+- Re-tagged the 15 pre-release physical count correction rows from `destination_type = 'office'` to `destination_type = NULL`.
+- Tightened `transaction_items_destination_type_check` so valid non-NULL destination types are now only:
+  - `job`
+  - `service_call`
+  - `vehicle`
+  - `user`
+  - `vendor_return`
+  - `scrap`
+  - `unknown`
+
+### Schema Changes
+- Existing check constraint `transaction_items_destination_type_check` was dropped and recreated without `office`.
+- No new table or column was added.
+- No quantity, cost, balance, checkout finalization, or ledger movement semantics were changed.
+
+### Code / File Changes
+- Added:
+  - `supabase/migrations/202606170002_retire_office_destination.sql`
+- Updated:
+  - `src/App.jsx`
+  - `HANDOFF.md`
+- No `inventory_balances` write path was introduced.
+- No Set Quantity write surface was built.
+
+### Lock Document Changes
+- None in this entry.
+- ARCHITECTURE v2.11 was already committed in Entry 037 before this implementation.
+
+### What Codex Needs to Know
+- Live office retirement is complete.
+- Query verification after migration:
+  - `transaction_items.destination_type = 'office'`: zero rows.
+  - 15 `physical_count_correction` rows now have `destination_type = NULL`.
+  - 3 pre-release test checkout rows now have `destination_type = 'unknown'` and provenance notes.
+  - no public function definitions still contain the `'office'` literal.
+  - rollback-only constraint test returned `office_rejected` and `null_allowed`.
+  - Developer transaction history still loads.
+  - physical count correction history now labels NULL destinations as `Count correction`.
+- The migration uses exact live function-definition replacements and fails closed if expected office literals are absent or unexpected office literals remain.
+
+### What Claude Needs to Know
+- The 3 outbound pre-release office test rows were not reversed or deleted; they were classified as `unknown` per Entry 037.
+- No production quantity repair was performed.
+- No `inventory_balances` rows were directly edited.
+- No Return-to-Inventory, Buyout, Tools-location, Express Checkout, Manager Override, passcode, completion worklist, vehicle-bin, or reorder/min-max work was started.
+
+### Next Steps (in order)
+1. Visually verify production checkout no longer offers Office as a destination after deployment.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+3. Keep Return-to-Inventory, Buyout, and Tools-location concepts reserved until their own milestones.
+
+### Open Questions / Concerns
+- Production browser visual verification remains carried forward.
+
+### Architecture Drift Warnings
+- RESOLVED: office destination semantics and live `office` destination retirement.
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED (not built): Return-to-Inventory, Buyout, Tools locations.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.11, HANDOFF Entry 038).
+
+---
