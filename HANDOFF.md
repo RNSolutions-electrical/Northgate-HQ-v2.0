@@ -2768,3 +2768,95 @@ ARCHITECTURE v2.12 locks the Count Intake subsection in Section 23. The update i
 No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 039).
 
 ---
+
+## Entry 040 — Inventory Count Intake Mode built
+
+**Date:** 2026-06-17
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) — count intake write surface
+**Session type:** implementation
+
+### Context
+Built Inventory Count Intake Mode under ARCHITECTURE v2.12 / Entry 039 after confirming the repo contained the v2.12 Count Intake lock and HANDOFF Entry 039. The load-bearing rule was preserved: official intake is one client call to one atomic server RPC that find-or-creates the structural `bin_item` and then applies the existing `physical_count_correction` mechanism in the same database transaction.
+
+### What Was Completed
+- Committed implementation as `d94108f099799b92c047a9e2792837e11fc38640` (`Build inventory count intake mode`).
+- Added migration `supabase/migrations/202606170003_inventory_count_intake_mode.sql`.
+- Applied live Supabase migration `20260617150535 inventory_count_intake_mode` to v2 project `keogysnoukbendfkfjcn`.
+- Added `public.intake_inventory_count(p_bin_id uuid, p_item_id uuid, p_counted_quantity numeric, p_reason text)`.
+- Updated `public.set_inventory_count_quantity(uuid,numeric,text)` so count-correction writes remain `destination_type = NULL` and Developer/Admin can use the correction mechanic required by v2.12.
+- Added `src/hooks/useInventoryCountIntake.js` as the only new client write hook; it calls `intake_inventory_count`.
+- Expanded `src/hooks/useInventoryCountSheet.js` to load physical storage units, shelves, bays, bins, existing bin/material rows, and active catalog items for intake selection.
+- Added `InventoryCountIntakePanel` in `src/App.jsx` and routed the Inventory Count tab to it.
+- Added storage-path navigation: Storage Unit → Shelf → Bay → Bin.
+- Added existing-bin-item count entry with counted quantity, required reason, variance, and Record action.
+- Added selected-bin catalog-item intake for existing catalog items only.
+- Added count-to-zero support through the same count intake path.
+- Added result messaging showing prior system quantity, counted quantity, variance, and bin item.
+- Updated count styling in `src/styles.css` for the intake card, path controls, reason controls, responsive layout, and row messages.
+
+### Schema Changes
+- No new table or column was added.
+- No direct `inventory_balances` write path was introduced.
+- No quantity was stored directly on `bin_items`.
+- No catalog item creation/editing path was added.
+- No new transaction type was added.
+
+### Code / File Changes
+- Added:
+  - `src/hooks/useInventoryCountIntake.js`
+  - `supabase/migrations/202606170003_inventory_count_intake_mode.sql`
+- Updated:
+  - `src/App.jsx`
+  - `src/hooks/useInventoryCountSheet.js`
+  - `src/styles.css`
+  - `HANDOFF.md`
+
+### Lock Document Changes
+- None in this entry.
+- ARCHITECTURE v2.12 and HANDOFF Entry 039 were committed first in `f43c02e8b9d2956f38f60d72a6a7696c8a455d6a`.
+
+### What Codex Needs to Know
+- Intake write path is one client call: `useInventoryCountIntake.recordCount(...)` → `intake_inventory_count(...)`.
+- `intake_inventory_count(...)` performs structural `bin_items` find-or-create, opening at zero (`min_quantity = 0` only), then calls `set_inventory_count_quantity(...)`.
+- Live signature verified:
+  - `intake_inventory_count(p_bin_id uuid, p_item_id uuid, p_counted_quantity numeric, p_reason text)`
+  - returns `bin_item_id`, transaction IDs, prior system quantity, counted quantity, variance, reason, quantity on hand, status, occurred_at, and created flag.
+- Live definition proof verified:
+  - intake RPC calls `public.set_inventory_count_quantity`;
+  - count correction uses `physical_count_correction`;
+  - count correction writes `destination_type = NULL`;
+  - intake RPC has no `INSERT/UPDATE` against `inventory_balances`.
+- Rollback-only Developer verification:
+  - existing bin/material count returned prior `57`, counted `57`, variance `0`, status `approved`, `created_bin_item = false`;
+  - new bin/material count-to-zero returned prior `0`, counted `0`, variance `0`, quantity_on_hand `0`, status `approved`, `created_bin_item = true`;
+  - fake subject failed closed with `active user permission record is required`;
+  - rollback verification left zero test `inventory_transactions` and zero test `transaction_items`.
+- Browser status: local Vite server responded `200` at `http://127.0.0.1:5173`, but in-app browser automation could not attach because the browser runtime failed with `CreateProcessAsUserW failed: 5`; no visual browser verification was claimed.
+- Build result: `npm run build` passed.
+
+### What Claude Needs to Know
+- The single atomic RPC boundary was preserved; Codex did not split bin-item creation and count correction into two client writes.
+- No `inventory_balances` rows were directly edited.
+- No checkout/finalization, ledger/balance semantics, office/destination semantics, Return-to-Inventory, Buyout, Tools locations, vehicle bins, vehicle stock onboarding, reorder/min-max, low-stock thresholds, Express Checkout, Manager Override, or transaction-history visibility work was started.
+- Catalog creation remains outside the count UI.
+- Structured count-type field remains reserved and unbuilt.
+
+### Next Steps (in order)
+1. Visually verify the production Inventory Count tab after GitHub/Netlify deployment.
+2. If desired, remove the now-unused legacy `InventoryCountCorrectionPanel` component in a later cleanup-only pass.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
+
+### Open Questions / Concerns
+- Production browser verification remains carried forward.
+- Admin-role live write behavior is locked by the RPC definition, but the current live user table only exposed a Developer test user during verification.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule remains undefined; history remains Developer-only.
+- RESERVED (not built): Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, structured count-type field.
+- CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 039).
+
+---
