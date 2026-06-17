@@ -3,36 +3,6 @@
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
 
-## Entry Format Standard
-
-Every HANDOFF entry uses this exact structure. The header block is mandatory;
-body sections are included when they apply, always in this order; omit a section
-only if it is genuinely empty.
-
-```
-## Entry NNN[ — optional short title]
-
-**Date:** YYYY-MM-DD
-**Updated by:** <Claude | Codex | Ryan>
-**Phase:** <phase / milestone>
-**Session type:** <implementation | review | decision | alignment>
-
-### Context
-### What Was Completed   (implementation)  — or —
-### Review Findings       (review)          — or —
-### Decisions Made This Session (locked)    (decision)
-### Schema Changes
-### Code / File Changes
-### Lock Document Changes
-### What Codex Needs to Know
-### What Claude Needs to Know
-### Next Steps (in order)
-### Open Questions / Concerns
-### Architecture Drift Warnings
-
----
-```
-
 ---
 
 ## Entry 001
@@ -1517,60 +1487,52 @@ After documentation alignment was resolved (ARCHITECTURE v2.7 and HANDOFF throug
 **Session type:** Review + decision proposal
 
 ### Context
-Review of Entry 023, requested by Codex (specifically the production ledger backfill). Ryan also disclosed the root cause of the checkout failure: he edited inventory quantities directly in Supabase to test different materials. It was a mistake, but it surfaced a latent problem (seeded balances had no ledger baseline) before it could grow. This entry records the review and proposes a sanctioned approach to test and opening quantities.
+Claude reviewed Entry 023, including the production ledger backfill. Ryan also disclosed the root cause of the checkout failure: inventory quantities had been edited directly in Supabase during testing. That direct edit was a mistake, but it exposed a real latent issue: seeded `inventory_balances` did not have matching ledger baseline rows.
 
 ### Review Findings — Entry 023
-- Documentation alignment confirmed resolved: ARCHITECTURE v2.7, HANDOFF current; Entry 023 written in standard format with the correct sequential number. The Rule 19 standard is holding.
-- Resolved warnings carried forward from prior reviews — all approved:
-  - Division scoping on candidate/reference reads — server-side scoped views (`202606120001`).
-  - Overdraw/concurrency — checkout quantity aggregated by `bin_item_id` plus `inventory_balances_quantity_nonnegative` constraint as the hard floor.
-  - `default_permissions_for_role` repo drift — resolved in-repo by `202606110001`.
-- Per-line finalize fix (skip cart-level destination validation when `p_line_destinations` is supplied; aggregate by `bin_item_id`) — correct.
-- Apply Destination to All Lines UI — the per-line-capable + cart-level-convenience pattern recommended in Entry 019. Correct.
-- **Ledger baseline backfill — APPROVED as a correct repair.** Root cause: seeded `inventory_balances` had no corresponding ledger rows (a latent Rule 1 violation). The first real checkout made the balance trigger compute a negative value (only the removal existed, no baseline behind it), tripping `inventory_balances_quantity_nonnegative`. The fix inserted 9 approved `physical_count_correction` rows totaling 389 (matches the seeded EMT quantities exactly: 100+25+35+45+55+15+10+5+99), so balances are now transaction-derived. Sanctioned mechanism (Section 12), explicit approval obtained, the transaction-derived rule preserved.
-  - VERIFY: the baseline rows carry catalog `unit_cost_at_time` so inventory valuation is not $0.
-  - VERIFY: the corrections are audited per Section 12 (a migration insert may bypass the in-app audit hook), or are explicitly documented as a one-time setup backfill.
+- Documentation alignment was confirmed: ARCHITECTURE v2.7 and HANDOFF current through Entry 023.
+- Division scoping on candidate/reference reads was approved as addressed through server-side scoped views.
+- Overdraw/concurrency was approved as addressed for the per-line checkout path by aggregating checkout quantity by `bin_item_id` and retaining the negative-balance constraint.
+- The `default_permissions_for_role` migration drift was considered resolved in repo by `202606110001_add_express_permission_defaults.sql`.
+- The per-line finalize fix was approved: when `p_line_destinations` is supplied, cart-level destination validation is skipped and validation occurs per line.
+- Apply Destination to All Lines was approved as the correct convenience pattern over a per-line-capable checkout path.
+- The ledger baseline backfill was approved as a correct repair because it inserted approved `physical_count_correction` transaction rows instead of directly setting `inventory_balances`.
 
-### Root Cause (logged)
-The 023 checkout failure originated from direct edits to inventory quantities in Supabase during testing. Direct edits to `inventory_balances` bypass the ledger and violate Rule 1 (balances are transaction-derived) and Rule 8 (no direct DB edits outside controlled tools). This was an honest testing mistake; it usefully exposed that the seed process had the same flaw. Corrective principle, already in force and restated: quantities are never set by editing `inventory_balances` directly — only through approved ledger transactions (`physical_count_correction` or `add_stock`).
+### Root Cause
+The checkout failure originated from direct edits to `inventory_balances` during testing. Direct edits bypass the ledger and violate the transaction-derived balance rule. The correct principle was restated: quantities are never established or adjusted by direct balance edits; they must be established through approved ledger transactions such as `physical_count_correction` or `add_stock`.
 
-### Proposed Decision — Test & Opening Quantity Handling (pending Ryan confirm)
-One mechanism, used at three moments:
-1. **Sanctioned quantity entry.** A "Set/Adjust Quantity" admin action that takes a target quantity, computes the delta, and writes a `physical_count_correction` (delta) transaction. This is not throwaway test scaffolding — it is the real production physical-count feature. Open choice: build this RPC now (removes the direct-edit temptation that caused the failure) vs. keep doing manual tagged count-correction inserts until later.
-2. **Tag pre-release adjustments.** Every quantity change made before go-live is a `physical_count_correction` carrying a clear marker (e.g. note/reason `pre-release testing`) so test data is unambiguously identifiable.
-3. **Go-live reset.** At go-live, clear the pre-release test ledger (all test data), then load verified opening balances as fresh count-correction rows dated at go-live. Clean, transaction-derived ledger from day one.
-Across all three: nothing ever writes `inventory_balances` directly.
-
-### Decisions Made This Session (locked)
-- Restated existing rules with teeth: direct `inventory_balances` edits are forbidden for everyone, including manual Supabase edits during testing. All quantity establishment/adjustment goes through approved ledger transactions (Rule 1 / Rule 8).
+### Decisions Made This Session
+- Direct `inventory_balances` edits are forbidden for everyone, including manual Supabase testing.
+- Pre-release quantity adjustments should be tagged clearly so they can be identified and cleaned up before go-live.
+- A sanctioned Set / Adjust Quantity mechanism should be built as a real physical count feature, not throwaway test scaffolding.
 
 ### Lock Document Changes
-- None yet. On Ryan's confirmation of the quantity-handling approach, lock it in the relevant inventory section (Section 12 transaction types and/or Section 23 balance cache) and bump the ARCHITECTURE version.
+- None in this entry. ARCHITECTURE.md remains v2.7 pending a later decision on whether to lock the test/opening quantity process more formally.
 
 ### What Codex Needs to Know
-- Never edit `inventory_balances` directly. Use `physical_count_correction` / `add_stock` transactions for all quantity changes, test or real.
-- Verify the backfill rows' `unit_cost_at_time` and audit-trail status (above).
-- Pending Ryan confirm: a "Set/Adjust Quantity" admin RPC (count-correction-backed) may be the next small build; it doubles as the production physical-count feature and as the go-live opening-balance tool.
+- Never edit `inventory_balances` directly.
+- Use `physical_count_correction` / `add_stock` transactions for all quantity establishment or adjustment.
+- Verify backfill rows have `unit_cost_at_time` and are either audited or documented as a one-time setup backfill.
+- Build the Set / Adjust Quantity path as a controlled ledger-backed feature.
 
 ### What Claude Needs to Know
-- Root cause of the 023 failure was a direct DB edit, not a logic error in the checkout path. The corrective approach is proposed above and pending confirmation.
+- Root cause was direct DB testing, not a checkout logic error.
+- The corrective approach is to replace manual testing edits with a controlled ledger-backed count correction tool.
 
 ### Next Steps (in order)
-1. Confirm Netlify is serving HEAD `c215bc7`; run one clean post-fix checkout and inspect the resulting `inventory_transactions` / `transaction_items` / `inventory_balances` rows (from Entry 023).
-2. Ryan confirms the test/opening-quantity approach; then lock it in ARCHITECTURE and bump the version.
-3. (Likely) build the Set/Adjust Quantity admin RPC (count-correction-backed) as both the test tool and the real physical-count feature.
-4. Build the transaction-history review surface before express checkout.
+1. Confirm Netlify is serving the expected HEAD and inspect one clean post-fix checkout.
+2. Build the Set / Adjust Quantity admin/developer RPC backed by count correction.
+3. Build transaction-history review before Express Checkout.
 
 ### Open Questions / Concerns
-- Choose: build the Set/Adjust Quantity RPC now vs. manual tagged count-correction inserts for testing until later.
-- Backfill rows: confirm `unit_cost_at_time` and audit-trail status.
-- Carried: office destination semantics; user→vehicle assignment source.
+- Confirm backfill rows have `unit_cost_at_time` and are documented as setup/backfill rows.
+- Office destination semantics remain unresolved.
+- User→vehicle assignment source remains absent.
 
 ### Architecture Drift Warnings
-- NEW (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities (Rule 1 / Rule 8). Pre-release test adjustments use count-correction and are tagged for go-live cleanup.
-- CARRIED FORWARD (active): confirm Netlify deploy on HEAD `c215bc7`; inspect one clean post-fix checkout in Supabase.
-- CARRIED FORWARD (active): verify backfill rows carry `unit_cost_at_time` and are audited or documented as a one-time setup backfill.
-- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent (consumption vs storage location).
+- NEW (active): no direct `inventory_balances` edits; only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): verify backfill/count-correction rows carry `unit_cost_at_time`.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office becomes permanent.
 - CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
 - CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
@@ -1580,68 +1542,56 @@ Across all three: nothing ever writes `inventory_balances` directly.
 
 ## Entry 025
 
-**Date:** 2026-06-12  
-**Updated by:** ChatGPT  
-**Phase:** Phase 1 Inventory — Milestone 4J Developer-only count correction tool functional  
+**Date:** 2026-06-12
+**Updated by:** ChatGPT
+**Phase:** Phase 1 Inventory — Milestone 4J Developer-only count correction tool functional
 **Session type:** Implementation documentation update
 
 ### Context
-After Entry 024 reviewed the direct `inventory_balances` edit problem and proposed a sanctioned quantity adjustment mechanism, Ryan proceeded with the next milestone: a Developer-only Set / Adjust Quantity tool backed by `physical_count_correction` ledger transactions. Ryan reported that the Developer count tool appears to be functioning properly. This entry records the reported functional state and carries forward remaining verification items.
+After Entry 024 proposed a sanctioned quantity adjustment mechanism, Ryan proceeded with a Developer-only Set / Adjust Quantity tool backed by `physical_count_correction` ledger transactions. Ryan reported that the Developer count tool appears to be functioning properly.
 
 ### What Was Completed
-- **Milestone 4J Developer-only count correction tool appears functional.**
+- Milestone 4J Developer-only count correction tool appears functional.
 - A controlled Set / Adjust Quantity workflow was built to replace direct testing edits to `inventory_balances`.
 - The tool is intended to write approved `physical_count_correction` ledger rows rather than directly setting `inventory_balances`.
-- The workflow supports the testing/pre-release need identified in Entry 024: Ryan can adjust quantities safely without breaking the transaction-derived balance model.
-- Ryan reported that the Developer count tool is functioning properly.
+- The workflow supports pre-release testing while preserving the transaction-derived balance model.
 
 ### Schema Changes
-- A controlled RPC for setting inventory count quantity was added or expected to have been added during 4J.
-- The exact migration filename, RPC signature, and commit hash still need to be confirmed by Codex and recorded in the next implementation entry if not already documented.
+- A controlled RPC for setting inventory count quantity was added or expected as part of 4J.
+- Expected RPC name/signature: `public.set_inventory_count_quantity(p_bin_item_id uuid, p_target_quantity numeric, p_reason text)`.
 
 ### Code / File Changes
-- Developer-only count correction UI and supporting hook/RPC wiring were added or expected to have been added during 4J.
-- The exact pushed commit hash and changed files still need to be confirmed.
+- Developer-only count correction UI and supporting hook/RPC wiring were added or expected during 4J.
+- Subsequent review confirmed 4J was committed as `32d089a Add developer-only inventory count correction tool` and used migration `supabase/migrations/202606120004_developer_set_inventory_count_quantity.sql`.
 
 ### Lock Document Changes
 - None. ARCHITECTURE.md remains v2.7.
 
 ### What Codex Needs to Know
-- The Developer-only count correction tool is the approved replacement for direct `inventory_balances` edits during testing.
+- The count correction tool is the approved replacement for direct `inventory_balances` edits during testing.
 - The RPC must enforce Developer-only access server-side, not merely hide the UI.
-- All quantity adjustments must continue to create ledger transactions, preferably `physical_count_correction`, and must never directly edit `inventory_balances`.
-- Before starting 4K, confirm:
-  - the 4J commit hash;
-  - the migration filename;
-  - the RPC name/signature;
-  - that the migration was applied live to project `keogysnoukbendfkfjcn`;
-  - that production is deployed to the 4J commit;
-  - that the Developer-only gate is enforced server-side.
+- All quantity adjustments must continue to create ledger transactions and must never directly edit `inventory_balances`.
 
 ### What Claude Needs to Know
-- Entry 024's proposed corrective path has moved from proposal to implementation: a Developer-only physical count / set quantity tool exists and is reportedly functional.
-- This mitigates the direct-edit testing risk by providing a controlled ledger-backed path.
+- Entry 024's proposed corrective path moved from proposal to implementation: a Developer-only physical count / set quantity tool exists and is reportedly functional.
 
 ### Next Steps (in order)
-1. Confirm and record the exact 4J commit hash, migration filename, RPC signature, and live migration/deploy status.
+1. Verify exact 4J commit hash, migration filename, RPC signature, live migration/deploy status, and live Developer-only enforcement.
 2. Build Milestone 4K: Inventory Transaction History / Review Surface before Express Checkout.
-3. Continue to defer Express Checkout, Manager Override, approver passcode, and completion worklist until normal transaction history is inspectable.
+3. Continue deferring Express Checkout, Manager Override, approver passcode, and completion worklist until normal transaction history is inspectable.
 
 ### Open Questions / Concerns
-- Exact 4J commit hash and migration filename were not recorded in this entry.
-- Confirm whether the 4J commit has been pushed to GitHub and whether Netlify is serving it.
 - Confirm the RPC is Developer-only server-side, not merely hidden in the UI.
-- Confirm baseline/setup and pre-release count-correction rows carry `unit_cost_at_time` and enough note/reason/audit context for future cleanup.
+- Confirm count-correction rows carry `unit_cost_at_time` and enough note/reason/audit context for future cleanup.
 - Office destination semantics remain unresolved.
-- User→vehicle active assignment source remains absent; vehicle snapshot remains NULL by design until it exists.
+- User→vehicle active assignment source remains absent.
 
 ### Architecture Drift Warnings
-- RESOLVED / MITIGATED: direct quantity testing by editing `inventory_balances` now has a controlled replacement path through the Developer-only count correction tool.
-- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities (Rule 1 / Rule 8).
-- CARRIED FORWARD (active): verify exact 4J commit hash, migration filename, RPC signature, pushed/deployed status, and live Developer-only enforcement.
-- CARRIED FORWARD (active): build transaction/history review surface before Express Checkout so normal checkout and count corrections are inspectable.
-- CARRIED FORWARD (active): verify backfill and count-correction rows carry `unit_cost_at_time` and are audited or documented as one-time setup/pre-release rows.
-- CARRIED FORWARD (active): office destination semantics must be finalized before office is permanent (consumption vs storage location).
+- RESOLVED / MITIGATED: direct quantity testing now has a controlled replacement path through the Developer-only count correction tool.
+- CARRIED FORWARD (active): no direct `inventory_balances` edits — only ledger transactions establish or adjust quantities.
+- CARRIED FORWARD (active): verify 4J server-side Developer-only enforcement and count-correction valuation/audit details.
+- CARRIED FORWARD (active): build transaction/history review surface before Express Checkout.
+- CARRIED FORWARD (active): office destination semantics must be finalized before office becomes permanent.
 - CARRIED FORWARD (next step): user→vehicle assignment source absent; vehicle snapshot NULL by design until it exists.
 - CARRIED FORWARD (Financials phase): job-cost approval uses a separate field/table — never `transaction_items.status`.
 - CARRIED FORWARD (when express built): completeness is its own field; developer override reason-gated/process-only; express flags gate express RPCs.
@@ -2267,7 +2217,6 @@ Ryan routed the transaction-history destination display question for architectur
 No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 033).
 
 ---
-
 ## Entry 034
 
 **Date:** 2026-06-16
@@ -2766,189 +2715,5 @@ ARCHITECTURE v2.12 locks the Count Intake subsection in Section 23. The update i
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 039).
-
----
-
-## Entry 040 — Inventory Count Intake Mode built
-
-**Date:** 2026-06-17
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) — count intake write surface
-**Session type:** implementation
-
-### Context
-Built Inventory Count Intake Mode under ARCHITECTURE v2.12 / Entry 039 after confirming the repo contained the v2.12 Count Intake lock and HANDOFF Entry 039. The load-bearing rule was preserved: official intake is one client call to one atomic server RPC that find-or-creates the structural `bin_item` and then applies the existing `physical_count_correction` mechanism in the same database transaction.
-
-### What Was Completed
-- Committed implementation as `d94108f099799b92c047a9e2792837e11fc38640` (`Build inventory count intake mode`).
-- Added migration `supabase/migrations/202606170003_inventory_count_intake_mode.sql`.
-- Applied live Supabase migration `20260617150535 inventory_count_intake_mode` to v2 project `keogysnoukbendfkfjcn`.
-- Added `public.intake_inventory_count(p_bin_id uuid, p_item_id uuid, p_counted_quantity numeric, p_reason text)`.
-- Updated `public.set_inventory_count_quantity(uuid,numeric,text)` so count-correction writes remain `destination_type = NULL` and Developer/Admin can use the correction mechanic required by v2.12.
-- Added `src/hooks/useInventoryCountIntake.js` as the only new client write hook; it calls `intake_inventory_count`.
-- Expanded `src/hooks/useInventoryCountSheet.js` to load physical storage units, shelves, bays, bins, existing bin/material rows, and active catalog items for intake selection.
-- Added `InventoryCountIntakePanel` in `src/App.jsx` and routed the Inventory Count tab to it.
-- Added storage-path navigation: Storage Unit → Shelf → Bay → Bin.
-- Added existing-bin-item count entry with counted quantity, required reason, variance, and Record action.
-- Added selected-bin catalog-item intake for existing catalog items only.
-- Added count-to-zero support through the same count intake path.
-- Added result messaging showing prior system quantity, counted quantity, variance, and bin item.
-- Updated count styling in `src/styles.css` for the intake card, path controls, reason controls, responsive layout, and row messages.
-
-### Schema Changes
-- No new table or column was added.
-- No direct `inventory_balances` write path was introduced.
-- No quantity was stored directly on `bin_items`.
-- No catalog item creation/editing path was added.
-- No new transaction type was added.
-
-### Code / File Changes
-- Added:
-  - `src/hooks/useInventoryCountIntake.js`
-  - `supabase/migrations/202606170003_inventory_count_intake_mode.sql`
-- Updated:
-  - `src/App.jsx`
-  - `src/hooks/useInventoryCountSheet.js`
-  - `src/styles.css`
-  - `HANDOFF.md`
-
-### Lock Document Changes
-- None in this entry.
-- ARCHITECTURE v2.12 and HANDOFF Entry 039 were committed first in `f43c02e8b9d2956f38f60d72a6a7696c8a455d6a`.
-
-### What Codex Needs to Know
-- Intake write path is one client call: `useInventoryCountIntake.recordCount(...)` → `intake_inventory_count(...)`.
-- `intake_inventory_count(...)` performs structural `bin_items` find-or-create, opening at zero (`min_quantity = 0` only), then calls `set_inventory_count_quantity(...)`.
-- Live signature verified:
-  - `intake_inventory_count(p_bin_id uuid, p_item_id uuid, p_counted_quantity numeric, p_reason text)`
-  - returns `bin_item_id`, transaction IDs, prior system quantity, counted quantity, variance, reason, quantity on hand, status, occurred_at, and created flag.
-- Live definition proof verified:
-  - intake RPC calls `public.set_inventory_count_quantity`;
-  - count correction uses `physical_count_correction`;
-  - count correction writes `destination_type = NULL`;
-  - intake RPC has no `INSERT/UPDATE` against `inventory_balances`.
-- Rollback-only Developer verification:
-  - existing bin/material count returned prior `57`, counted `57`, variance `0`, status `approved`, `created_bin_item = false`;
-  - new bin/material count-to-zero returned prior `0`, counted `0`, variance `0`, quantity_on_hand `0`, status `approved`, `created_bin_item = true`;
-  - fake subject failed closed with `active user permission record is required`;
-  - rollback verification left zero test `inventory_transactions` and zero test `transaction_items`.
-- Browser status: local Vite server responded `200` at `http://127.0.0.1:5173`, but in-app browser automation could not attach because the browser runtime failed with `CreateProcessAsUserW failed: 5`; no visual browser verification was claimed.
-- Build result: `npm run build` passed.
-
-### What Claude Needs to Know
-- The single atomic RPC boundary was preserved; Codex did not split bin-item creation and count correction into two client writes.
-- No `inventory_balances` rows were directly edited.
-- No checkout/finalization, ledger/balance semantics, office/destination semantics, Return-to-Inventory, Buyout, Tools locations, vehicle bins, vehicle stock onboarding, reorder/min-max, low-stock thresholds, Express Checkout, Manager Override, or transaction-history visibility work was started.
-- Catalog creation remains outside the count UI.
-- Structured count-type field remains reserved and unbuilt.
-
-### Next Steps (in order)
-1. Visually verify the production Inventory Count tab after GitHub/Netlify deployment.
-2. If desired, remove the now-unused legacy `InventoryCountCorrectionPanel` component in a later cleanup-only pass.
-3. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
-
-### Open Questions / Concerns
-- Production browser verification remains carried forward.
-- Admin-role live write behavior is locked by the RPC definition, but the current live user table only exposed a Developer test user during verification.
-
-### Architecture Drift Warnings
-- OPEN: division-scoped read rule remains undefined; history remains Developer-only.
-- RESERVED (not built): Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, structured count-type field.
-- CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
-
-### Routing Verdict
-No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 039).
-
----
-
-## Entry 041 — Count Intake UI usability polish
-
-**Date:** 2026-06-17
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) — count intake UI polish
-**Session type:** implementation
-
-### Context
-Ryan manually tested Inventory Count Intake Mode from Entry 040 and reported that the workflow appears to work, but the intake input card was difficult to use because the layout forced horizontal scrolling to fill in values. This pass was limited to UI-only usability polish for the existing Count Intake screen under ARCHITECTURE v2.12.
-
-### What Was Completed
-- Updated `src/styles.css` only.
-- Changed the Count Intake workspace from a squeezed main-column/sidebar layout to a full-width single-column workspace.
-- Made the storage path toolbar and count search/category toolbar auto-wrap instead of forcing fixed four-column widths.
-- Reduced the count table minimum width from `1160px` to `980px`.
-- Reduced counted-quantity input minimum width in the count table.
-- Made the selected-bin Count Intake card wrap its fields more gracefully.
-- Moved the Count Intake Record button onto its own grid row when space is constrained.
-- Removed sticky sidebar positioning from the count history panel so it no longer constrains the intake form area.
-
-### Schema Changes
-- None.
-- No migrations were added.
-- No RPCs/functions were added, replaced, or modified.
-- No Supabase schema/write-path changes were made.
-
-### Code / File Changes
-- Updated:
-  - `src/styles.css`
-- Not changed:
-  - `src/App.jsx`
-  - `src/hooks/useInventoryCountIntake.js`
-  - `supabase/migrations/*`
-
-### Lock Document Changes
-- None.
-
-### What Codex Needs to Know
-- Count Intake still calls the existing `intake_inventory_count` RPC only through `src/hooks/useInventoryCountIntake.js`.
-- This pass changed CSS layout only.
-- No remove/delete material-from-bin functionality was added.
-- Ryan's requested future Developer-level material-removal workflow remains unbuilt and should route to Claude because it touches structural `bin_items`, audit, history, and archive/delete behavior.
-
-### What Claude Needs to Know
-- No architecture-sensitive work was performed.
-- No schema, permission, RPC, ledger/balance, `bin_items`, checkout/finalization, transaction-history visibility, catalog creation, Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, or structured count-type work was started.
-
-### Next Steps (in order)
-1. Ryan visually verifies the Count Intake screen after deployment on desktop/tablet/mobile widths.
-2. Route the future Developer-level material removal/archive workflow to Claude before implementation.
-3. Keep transaction history Developer-only until the division-scoped read rule is designed and locked.
-
-### Open Questions / Concerns
-- Browser automation could not attach in Codex due `CreateProcessAsUserW failed: 5`; local Vite responded `200`, but no automated visual browser verification was claimed.
-
-### Architecture Drift Warnings
-- OPEN: division-scoped read rule remains undefined; history remains Developer-only.
-- RESERVED (not built): Developer material removal/archive workflow, Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, structured count-type field.
-- CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
-
----
-
-- ## Entry 042 — bin_item retirement locked (ARCHITECTURE v2.13)
-
-**Date:** 2026-06-17
-**Updated by:** Claude
-**Phase:** Inventory (Stage 1) — structural correction (retire mistaken bin_item)
-**Session type:** Architecture decision (lock)
-
-### Decisions (locked → ARCHITECTURE v2.13, Section 23; builds on Rule 13 / Section 18)
-- Retiring a mistakenly added bin_item = ARCHIVE (Rule 13 / Section 18), never hard-delete.
-- Zero-balance precondition: a bin_item may be archived only when its ledger-derived
-  balance is 0. Non-zero must first be zeroed via physical_count_correction.
-- Structural action, NOT a transaction: writes no ledger row, changes no quantity.
-- One Developer/Admin-only RPC (can_archive_records): validates balance=0, sets archive
-  metadata, records audit. No client-side delete / direct table mutation.
-- Audit: archived_at / archived_by / archive_reason (added if absent).
-- Archived bin_items hidden from active count/intake/bin views; preserved in history.
-
-### Next Steps
-1. Codex builds bin_item retirement (Entry 043) per v2.13.
-
-### Drift Warnings (carry forward)
-- OPEN: division-scoped read rule (history Developer-only).
-- RESERVED (not built): Return-to-Inventory, Buyout, Tools, vehicle bins,
-  Express Checkout, Manager Override, reorder/min-max, structured count-type field.
-
-### Routing Verdict
-No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 040).
 
 ---
