@@ -2921,6 +2921,33 @@ Ryan manually tested Inventory Count Intake Mode from Entry 040 and reported tha
 - RESERVED (not built): Developer material removal/archive workflow, Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout, Manager Override, reorder/min-max, structured count-type field.
 - CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
 
+---
+
+- ## Entry 042 — bin_item retirement locked (ARCHITECTURE v2.13)
+
+**Date:** 2026-06-17
+**Updated by:** Claude
+**Phase:** Inventory (Stage 1) — structural correction (retire mistaken bin_item)
+**Session type:** Architecture decision (lock)
+
+### Decisions (locked → ARCHITECTURE v2.13, Section 23; builds on Rule 13 / Section 18)
+- Retiring a mistakenly added bin_item = ARCHIVE (Rule 13 / Section 18), never hard-delete.
+- Zero-balance precondition: a bin_item may be archived only when its ledger-derived
+  balance is 0. Non-zero must first be zeroed via physical_count_correction.
+- Structural action, NOT a transaction: writes no ledger row, changes no quantity.
+- One Developer/Admin-only RPC (can_archive_records): validates balance=0, sets archive
+  metadata, records audit. No client-side delete / direct table mutation.
+- Audit: archived_at / archived_by / archive_reason (added if absent).
+- Archived bin_items hidden from active count/intake/bin views; preserved in history.
+
+### Next Steps
+1. Codex builds bin_item retirement (Entry 043) per v2.13.
+
+### Drift Warnings (carry forward)
+- OPEN: division-scoped read rule (history Developer-only).
+- RESERVED (not built): Return-to-Inventory, Buyout, Tools, vehicle bins,
+  Express Checkout, Manager Override, reorder/min-max, structured count-type field.
+
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.12, HANDOFF Entry 040).
 
