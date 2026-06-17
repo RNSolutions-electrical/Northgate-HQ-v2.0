@@ -2,9 +2,9 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/c
 import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
+import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
-import { useInventoryCountCorrection } from './hooks/useInventoryCountCorrection.js';
 import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from './hooks/usePermissions.js';
 
@@ -394,114 +394,364 @@ function TransactionHistoryPanel({ permissions }) {
   );
 }
 
-function DeveloperCountCorrectionPanel({ permissions, cartCandidates, onSuccess }) {
-  const countCorrection = useInventoryCountCorrection();
-  const [selectedBinItemId, setSelectedBinItemId] = useState('');
-  const [targetQuantity, setTargetQuantity] = useState('');
-  const [reason, setReason] = useState('');
-  const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
-  const selectedCandidate = cartCandidates.find((candidate) => candidate.bin_item_id === selectedBinItemId) ?? null;
-  const parsedQuantity = Number(targetQuantity);
-  const canSubmit = Boolean(
-    selectedCandidate &&
-    reason.trim() &&
-    targetQuantity !== '' &&
-    Number.isFinite(parsedQuantity) &&
-    parsedQuantity >= 0 &&
-    !countCorrection.isSettingQuantity,
-  );
+function buildCountFilterOptions(rows, key, labelBuilder) {
+  return rows
+    .reduce((options, row) => {
+      const value = row[key];
+      if (!value || options.some((option) => option.value === value)) {
+        return options;
+      }
+      return [...options, { value, label: labelBuilder(row) }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+}
 
-  if (!isDeveloper) {
-    return null;
+function getCategoryLabel(row) {
+  return [
+    row.broad_category,
+    row.sub_category,
+    row.sub_category_2,
+    row.sub_category_3,
+    row.sub_category_4,
+  ].filter(Boolean).join(' / ') || 'Uncategorized';
+}
+
+function CountHistoryForItem({ row, permissions }) {
+  const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
+  const history = useInventoryTransactionHistory({
+    enabled: Boolean(row && isDeveloper),
+    limit: 25,
+    transactionType: 'physical_count_correction',
+    search: row?.material_code ?? '',
+  });
+  const matchingRows = history.rows.filter((historyRow) => historyRow.bin_item_id === row?.bin_item_id);
+
+  if (!row) {
+    return (
+      <section className="cart-panel count-history-panel">
+        <h3>Count History</h3>
+        <p className="muted">Select a bin/material row to review its count corrections.</p>
+      </section>
+    );
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-
-    if (!canSubmit) {
-      return;
-    }
-
-    const result = await countCorrection.setCountQuantity({
-      binItemId: selectedCandidate.bin_item_id,
-      targetQuantity: parsedQuantity,
-      reason: reason.trim(),
-    });
-
-    if (result) {
-      setTargetQuantity('');
-      setReason('');
-      await onSuccess?.();
-    }
+  if (!isDeveloper) {
+    return (
+      <section className="cart-panel cart-panel--locked count-history-panel">
+        <h3>Count History</h3>
+        <p>Count history uses the existing transaction-history read path and remains Developer-only.</p>
+      </section>
+    );
   }
 
   return (
-    <section className="cart-panel cart-panel--developer">
+    <section className="cart-panel count-history-panel">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Developer Count Tool</p>
-          <h3>Set / Adjust Quantity</h3>
+          <p className="eyebrow">Existing history read</p>
+          <h3>Count History</h3>
         </div>
-        <span className="status-pill status-pill--warn">Developer only</span>
-      </div>
-      <form className="count-correction-form" onSubmit={handleSubmit}>
-        <label>
-          Stocked bin item
-          <select value={selectedBinItemId} onChange={(event) => setSelectedBinItemId(event.target.value)}>
-            <option value="">Select stocked material</option>
-            {cartCandidates.map((candidate) => (
-              <option key={candidate.bin_item_id} value={candidate.bin_item_id}>
-                {candidate.material_code} / {candidate.item_name} / Bin {candidate.bin_code}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Target quantity
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={targetQuantity}
-            onChange={(event) => setTargetQuantity(event.target.value)}
-          />
-        </label>
-        <label>
-          Reason
-          <input
-            type="text"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Required"
-          />
-        </label>
-        {selectedCandidate ? (
-          <div className="cart-facts count-correction-facts">
-            <span>Item: {selectedCandidate.item_name}</span>
-            <span>Code: {selectedCandidate.material_code}</span>
-            <span>Bin: {selectedCandidate.bin_code}</span>
-            <span>On hand: {Number(selectedCandidate.quantity_on_hand ?? 0).toFixed(2)} {selectedCandidate.unit_of_measure ?? ''}</span>
-          </div>
-        ) : null}
-        <button type="submit" className="secondary-button" disabled={!canSubmit}>
-          {countCorrection.isSettingQuantity ? 'Setting Count...' : 'Set Count Quantity'}
+        <button type="button" className="secondary-button" onClick={history.reload} disabled={history.isLoading}>
+          {history.isLoading ? 'Refreshing...' : 'Refresh'}
         </button>
-      </form>
-      {countCorrection.error ? (
-        <div className="alert">Set count failed. Confirm Developer role, active item, nonnegative quantity, and required reason.</div>
-      ) : null}
-      {countCorrection.result ? (
-        <div className="cart-facts">
-          <span>Status: {countCorrection.result.status}</span>
-          <span>Quantity: {Number(countCorrection.result.quantity_on_hand ?? 0).toFixed(2)}</span>
-          <span>Transaction: {countCorrection.result.transaction_id.slice(0, 8)}...</span>
-          <span>Bin: {countCorrection.result.bin_item_id.slice(0, 8)}...</span>
+      </div>
+      <p className="muted">
+        {row.material_code} / {row.item_name} / Bin {row.bin_code}
+      </p>
+      {history.error ? <div className="alert">Count history failed to load through the existing history RPC.</div> : null}
+      {history.isLoading ? <p className="muted">Loading count history...</p> : null}
+      {matchingRows.length ? (
+        <div className="count-history-list">
+          {matchingRows.map((historyRow) => (
+            <article className="count-history-item" key={historyRow.transaction_item_id}>
+              <strong>{formatHistoryTimestamp(historyRow.occurred_at ?? historyRow.transaction_created_at)}</strong>
+              <span>Target: {Number(historyRow.target_quantity ?? 0).toFixed(2)}</span>
+              <span>Actor: {formatHistoryActor(historyRow)}</span>
+              <span>{historyRow.note ?? 'No note'}</span>
+            </article>
+          ))}
         </div>
-      ) : null}
+      ) : (
+        <p className="muted">No count corrections returned for this bin/material in the latest history window.</p>
+      )}
     </section>
   );
 }
 
+function InventoryCountCorrectionPanel({ permissions }) {
+  const canReadCounts = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const countSheet = useInventoryCountSheet({ enabled: canReadCounts });
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    storage_unit_id: '',
+    shelf_id: '',
+    bay_id: '',
+    bin_id: '',
+    category: '',
+  });
+  const [countDrafts, setCountDrafts] = useState({});
+  const [selectedHistoryBinItemId, setSelectedHistoryBinItemId] = useState('');
+  const normalizedSearch = search.trim().toLowerCase();
+  const categoryOptions = countSheet.rows
+    .reduce((options, row) => {
+      const label = getCategoryLabel(row);
+      if (options.some((option) => option.value === label)) {
+        return options;
+      }
+      return [...options, { value: label, label }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const storageUnitOptions = buildCountFilterOptions(
+    countSheet.rows,
+    'storage_unit_id',
+    (row) => `${row.storage_unit_code}${row.storage_unit_name ? ` / ${row.storage_unit_name}` : ''}`,
+  );
+  const shelfOptions = buildCountFilterOptions(countSheet.rows, 'shelf_id', (row) => row.shelf_code);
+  const bayOptions = buildCountFilterOptions(countSheet.rows, 'bay_id', (row) => row.bay_code);
+  const binOptions = buildCountFilterOptions(countSheet.rows, 'bin_id', (row) => row.bin_code);
+  const filteredRows = countSheet.rows.filter((row) => {
+    if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
+    if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
+    if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
+    if (filters.bin_id && row.bin_id !== filters.bin_id) return false;
+    if (filters.category && getCategoryLabel(row) !== filters.category) return false;
+    if (!normalizedSearch) return true;
+
+    return [
+      row.material_code,
+      row.item_name,
+      row.bin_code,
+      row.bay_code,
+      row.shelf_code,
+      row.storage_unit_code,
+    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
+  });
+  const selectedHistoryRow = countSheet.rows.find((row) => row.bin_item_id === selectedHistoryBinItemId) ?? null;
+
+  function getCountDraft(row) {
+    return countDrafts[row.bin_item_id] ?? { countedQuantity: '' };
+  }
+
+  function updateCountDraft(binItemId, updates) {
+    setCountDrafts((current) => ({
+      ...current,
+      [binItemId]: {
+        countedQuantity: '',
+        ...(current[binItemId] ?? {}),
+        ...updates,
+      },
+    }));
+  }
+
+  function clearFilters() {
+    setSearch('');
+    setFilters({
+      storage_unit_id: '',
+      shelf_id: '',
+      bay_id: '',
+      bin_id: '',
+      category: '',
+    });
+  }
+
+  function printCountSheet() {
+    window.print();
+  }
+
+  if (!canReadCounts) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Physical storage bins</p>
+            <h3>Inventory Count & Correction</h3>
+          </div>
+          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+        </div>
+        <p>This count screen is available only when server permissions include inventory management.</p>
+      </section>
+    );
+  }
+
+  return (
+    <div className="count-workspace">
+      <section className="cart-panel count-workspace__main">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Physical storage bins</p>
+            <h3>Inventory Count & Correction</h3>
+          </div>
+          <span className="status-pill status-pill--warn">Read only</span>
+        </div>
+
+        <div className="count-toolbar">
+          <label>
+            Search
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Material, bin, shelf, bay, or unit"
+            />
+          </label>
+          <label>
+            Storage unit
+            <select value={filters.storage_unit_id} onChange={(event) => setFilters((current) => ({ ...current, storage_unit_id: event.target.value }))}>
+              <option value="">All units</option>
+              {storageUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Shelf
+            <select value={filters.shelf_id} onChange={(event) => setFilters((current) => ({ ...current, shelf_id: event.target.value }))}>
+              <option value="">All shelves</option>
+              {shelfOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Bay
+            <select value={filters.bay_id} onChange={(event) => setFilters((current) => ({ ...current, bay_id: event.target.value }))}>
+              <option value="">All bays</option>
+              {bayOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Bin
+            <select value={filters.bin_id} onChange={(event) => setFilters((current) => ({ ...current, bin_id: event.target.value }))}>
+              <option value="">All bins</option>
+              {binOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label>
+            Category
+            <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
+              <option value="">All categories</option>
+              {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
+          <button type="button" className="secondary-button" onClick={printCountSheet}>Print / Export</button>
+        </div>
+
+        {countSheet.error ? <div className="alert">Inventory count list failed to load. Confirm can_manage_inventory and existing inventory read access.</div> : null}
+        {countSheet.isLoading ? <p className="muted">Loading count sheet...</p> : null}
+
+        <div className="cart-facts count-summary">
+          <span>Loaded rows: {countSheet.rows.length}</span>
+          <span>Visible rows: {filteredRows.length}</span>
+          <span>Correction writes: Deferred</span>
+          <span>Last loaded: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
+        </div>
+
+        {filteredRows.length ? (
+          <>
+            <div className="table-wrap count-table-wrap">
+              <table className="data-table count-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Physical Location</th>
+                    <th>System Quantity</th>
+                    <th>Counted Quantity</th>
+                    <th>Variance</th>
+                    <th>History</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => {
+                    const draft = getCountDraft(row);
+                    const countedQuantity = Number(draft.countedQuantity);
+                    const hasCount = draft.countedQuantity !== '' && Number.isFinite(countedQuantity);
+                    const systemQuantity = Number(row.system_quantity ?? 0);
+                    const variance = hasCount ? countedQuantity - systemQuantity : null;
+
+                    return (
+                      <tr key={row.bin_item_id}>
+                        <td>
+                          <strong>{row.item_name}</strong>
+                          <span>{row.material_code}</span>
+                          <span>{getCategoryLabel(row)}</span>
+                        </td>
+                        <td>
+                          <strong>{row.bin_code}</strong>
+                          <span>{row.storage_unit_code} / {row.shelf_code} / {row.bay_code} / {row.bin_code}</span>
+                        </td>
+                        <td>{systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={draft.countedQuantity}
+                            onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
+                            placeholder="0"
+                          />
+                        </td>
+                        <td className={variance === null ? '' : variance === 0 ? 'variance-neutral' : variance > 0 ? 'variance-positive' : 'variance-negative'}>
+                          {variance === null ? '—' : variance.toFixed(2)}
+                        </td>
+                        <td>
+                          <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list count-mobile-list">
+              {filteredRows.map((row) => {
+                const draft = getCountDraft(row);
+                const countedQuantity = Number(draft.countedQuantity);
+                const hasCount = draft.countedQuantity !== '' && Number.isFinite(countedQuantity);
+                const systemQuantity = Number(row.system_quantity ?? 0);
+                const variance = hasCount ? countedQuantity - systemQuantity : null;
+
+                return (
+                  <article className="mobile-item count-mobile-item" key={row.bin_item_id}>
+                    <strong>{row.item_name}</strong>
+                    <span>{row.material_code} / Bin {row.bin_code}</span>
+                    <div className="meta-grid">
+                      <span>{row.storage_unit_code} / {row.shelf_code} / {row.bay_code} / {row.bin_code}</span>
+                      <span>System Quantity: {systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</span>
+                      <span>Variance: {variance === null ? '—' : variance.toFixed(2)}</span>
+                      <span>{getCategoryLabel(row)}</span>
+                    </div>
+                    <label>
+                      Counted Quantity
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={draft.countedQuantity}
+                        onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
+                        placeholder="0"
+                      />
+                    </label>
+                    <div className="cart-actions">
+                      <button type="button" className="secondary-button" onClick={() => setSelectedHistoryBinItemId(row.bin_item_id)}>
+                        View History
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <EmptyState title="No count rows">
+            No physical bin/material rows match the current count filters.
+          </EmptyState>
+        )}
+      </section>
+
+      <CountHistoryForItem row={selectedHistoryRow} permissions={permissions} />
+    </div>
+  );
+}
 function CartScaffold({ permissions, cartCandidates, destinationReferences, onInventoryReload }) {
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
@@ -1001,12 +1251,6 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
           {candidateQuantityMessage ? <p className="muted">{candidateQuantityMessage}</p> : null}
         </section>
 
-        <DeveloperCountCorrectionPanel
-          permissions={permissions}
-          cartCandidates={cartCandidates}
-          onSuccess={onInventoryReload}
-        />
-
         <section className="cart-panel">
           <h3>Cart Destinations</h3>
           {cartState.isReadingItems ? <p className="muted">Reloading cart items from server…</p> : null}
@@ -1176,6 +1420,9 @@ function InventoryReadOnlyPanel({ permissions }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
           Cart Checkout
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'count'} onClick={() => setActiveTab('count')}>
+          Inventory Count & Correction
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>
           Transactions
         </button>
@@ -1191,6 +1438,9 @@ function InventoryReadOnlyPanel({ permissions }) {
           destinationReferences={inventory.model.destinationReferences}
           onInventoryReload={inventory.reload}
         />
+      ) : null}
+      {activeTab === 'count' ? (
+        <InventoryCountCorrectionPanel permissions={permissions} />
       ) : null}
       {activeTab === 'transactions' ? <TransactionHistoryPanel permissions={permissions} /> : null}
 

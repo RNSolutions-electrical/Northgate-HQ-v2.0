@@ -2446,3 +2446,89 @@ Ryan reported that the production Transactions tab showed `Transaction history f
 No Claude review needed — within locked decisions (ARCHITECTURE v2.10, HANDOFF Entry 034).
 
 ---
+
+## Entry 036 — Inventory Count surface (read-only) + office-retirement discovery
+
+**Date:** 2026-06-17
+**Updated by:** Codex
+**Phase:** Phase 1 Inventory — count review and office-retirement discovery
+**Session type:** implementation / discovery
+
+### Context
+Ryan instructed Codex to split the work into two safe phases: Phase A read-only discovery for retiring `office` as a material destination, and Phase B a read-only Inventory Count surface. The actual office-retirement row migration, function edits, and constraint tightening were explicitly not authorized in this task and remain gated on ARCHITECTURE v2.11 being committed to the repo and Claude reviewing the Phase A findings.
+
+### What Was Completed
+- Discarded the superseded local migration `supabase/migrations/202606170001_inventory_count_correction_surface.sql` because it replaced `set_inventory_count_quantity` and changed destination semantics.
+- Ran Phase A read-only discovery against Supabase project `keogysnoukbendfkfjcn`.
+- Found 18 live `transaction_items.destination_type = 'office'` rows:
+  - 15 `physical_count_correction` rows.
+  - 3 `remove_stock` rows.
+- Inspected and reported the 3 `remove_stock` + `office` rows in full for Claude review.
+- Dumped and reported the full live definitions of:
+  - `set_inventory_count_quantity(uuid,numeric,text)`;
+  - `finalize_inventory_cart(uuid,text,text,text)`;
+  - `finalize_inventory_cart(uuid,text,text,text,jsonb)`;
+  - `read_inventory_transaction_history(integer,text,text)`.
+- Built the read-only Inventory Count & Correction surface without any correction write path.
+- Added searchable/filterable physical bin/material count review using existing read paths only.
+- Added transient client-side counted quantity inputs and variance display (`counted - system`) that stores nothing.
+- Added count history per bin/material using the existing Developer-only transaction-history read path.
+- Added client-side print/export styling for the loaded count sheet.
+
+### Schema Changes
+- None.
+- No migration was created, applied, or kept for this task.
+- No tables, columns, constraints, functions, RPCs, rows, ledger records, or balances were changed.
+
+### Code / File Changes
+- Removed the superseded untracked migration file:
+  - `supabase/migrations/202606170001_inventory_count_correction_surface.sql`
+- Added read-only count data loading:
+  - `src/hooks/useInventoryCountSheet.js`
+- Updated the Inventory module UI:
+  - `src/App.jsx`
+  - `src/styles.css`
+- The count surface now loads from existing read access (`inventory_cart_candidates_view` plus read-only lookup tables) instead of a new view.
+- Removed all local Set Quantity / correction-submit wiring from the count surface.
+
+### Lock Document Changes
+- None.
+- Repo `docs/ARCHITECTURE.md` remained v2.10 during this task.
+- Office retirement remains gated until ARCHITECTURE v2.11 is committed to the repo and Claude reviews the Phase A findings.
+
+### What Codex Needs to Know
+- The Inventory Count surface is read-only. It does not call `set_inventory_count_quantity`.
+- Counted quantities are local UI state only and are not persisted.
+- The old correction write hook still exists in the repo from earlier work, but the count surface no longer imports or calls it.
+- Existing checkout UI still contains pre-v2.11 `office` destination behavior; it was not edited in this task because the office-retirement migration/function cleanup was explicitly deferred.
+- Live office-row discovery must be reviewed before any office-retirement migration proceeds.
+
+### What Claude Needs to Know
+- Phase A found 3 non-correction `office` rows, all `remove_stock` rows created by normal cart checkout from the v2 UI:
+  - `7debe811-2c0b-4325-b903-939b88b4e90f`, transaction `6e783067-c245-4c99-9fce-1cf07afa0477`, quantity `5`, created `2026-06-10 19:13:58.558076+00`.
+  - `0ff9c7cb-5b88-4d8b-9c53-e7bae787a961`, transaction `3a906897-992f-4e2d-b28c-66b5b0a395a3`, quantity `8`, created `2026-06-10 19:14:32.243944+00`.
+  - `fc0d1ab4-174b-48df-9d5e-9071644a604a`, transaction `328d5072-3e1e-47c3-87fa-9066a5c3de01`, quantity `2`, created `2026-06-10 20:40:30.418558+00`.
+- All 3 rows have `performed_by_name = Christopher Noel`, `user_id = user_3DuPNUmxDtcYaes5rVbtmFJ21jX`, `status = approved`, `destination_id = NULL`, and notes reading `Normal cart checkout to office destination from v2 UI`.
+- No office rows were re-tagged, nulled, deleted, or otherwise modified.
+- No office-retirement function edits or destination constraint changes were made.
+
+### Next Steps (in order)
+1. Ryan/Claude review the Phase A office-row and function-definition findings.
+2. Commit repo ARCHITECTURE v2.11 before any office-retirement implementation proceeds.
+3. After Claude approval, retire `office` as a material destination in the required order: stop writers, re-tag approved rows as directed, then tighten the constraint.
+4. Keep the Inventory Count surface read-only until the correction write path is explicitly re-approved under the updated architecture.
+
+### Open Questions / Concerns
+- The 3 `remove_stock` + `office` rows need a Claude/Ryan decision before any migration can classify or re-tag them.
+- Browser visual verification was not completed in this pass.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule remains undefined; transaction history stays Developer-only.
+- OPEN: office retirement is in progress but gated on ARCHITECTURE v2.11 in repo plus Claude review of the Phase A findings.
+- CARRIED FORWARD: Return-to-Inventory, Buyout, and Tools locations are reserved but not built.
+- CARRIED FORWARD: no direct `inventory_balances` edits; balances remain transaction-derived only.
+
+### Routing Verdict
+Claude review required before proceeding — office-retirement migration/function edits await Claude review of the Phase A findings and v2.11 in repo.
+
+---
