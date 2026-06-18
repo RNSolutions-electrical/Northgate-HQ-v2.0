@@ -915,6 +915,7 @@ function InventoryCountIntakePanel({ permissions }) {
     bin_id: '',
     category: '',
   });
+  const [reviewRepeats, setReviewRepeats] = useState(false);
   const [countDrafts, setCountDrafts] = useState({});
   const [rowMessages, setRowMessages] = useState({});
   const [selectedHistoryBinItemId, setSelectedHistoryBinItemId] = useState('');
@@ -951,7 +952,8 @@ function InventoryCountIntakePanel({ permissions }) {
       return [...options, { value: label, label }];
     }, [])
     .sort((first, second) => first.label.localeCompare(second.label));
-  const filteredRows = countSheet.rows.filter((row) => {
+  const repeatReview = useMemo(() => buildRepeatReview(countSheet.rows), [countSheet.rows]);
+  const baseFilteredRows = countSheet.rows.filter((row) => {
     if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
     if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
     if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
@@ -968,6 +970,12 @@ function InventoryCountIntakePanel({ permissions }) {
       row.storage_unit_code,
     ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
   });
+  const filteredRows = reviewRepeats
+    ? baseFilteredRows.filter((row) => repeatReview.rowMatchesById.has(row.bin_item_id))
+    : baseFilteredRows;
+  const visibleRepeatGroups = reviewRepeats
+    ? repeatReview.groups.filter((group) => group.rows.some((row) => filteredRows.some((visibleRow) => visibleRow.bin_item_id === row.bin_item_id)))
+    : [];
   const rowsForSelectedBin = filters.bin_id
     ? countSheet.rows.filter((row) => row.bin_id === filters.bin_id)
     : [];
@@ -1329,6 +1337,14 @@ function InventoryCountIntakePanel({ permissions }) {
               <option value="">All categories</option>
               {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
+          </label>
+          <label className="count-toggle">
+            <input
+              type="checkbox"
+              checked={reviewRepeats}
+              onChange={(event) => setReviewRepeats(event.target.checked)}
+            />
+            <span>Review Repeats</span>
           </label>
           <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
           <button type="button" className="secondary-button" onClick={printCountSheet}>Print / Export</button>

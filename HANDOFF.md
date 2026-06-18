@@ -3320,3 +3320,67 @@ behavior, bin_item retirement behavior, transaction history, or inventory balanc
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 045).
+
+---
+
+## Entry 046 - Review Repeats runtime hotfix
+
+**Date:** 2026-06-18
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Count Intake usability hotfix
+**Session type:** implementation
+
+### Context
+After Entry 045 was pushed, Ryan reported a production console crash:
+`Uncaught ReferenceError: reviewRepeats is not defined`. The Review Repeats UI had been
+rendered in the Inventory Count Intake panel, but the Intake component was missing its
+local `reviewRepeats` state and repeat-review derived values.
+
+### What Was Completed
+- Added missing `reviewRepeats` / `setReviewRepeats` state to `InventoryCountIntakePanel`.
+- Added the Intake panel repeat-review memo, base filtered rows, repeat-filtered rows,
+  and visible repeat group calculation.
+- Added the missing Review Repeats toggle control to the Intake toolbar.
+- Confirmed `npm.cmd run build` passes after the fix.
+
+### Schema Changes
+- None.
+- No migration, RPC, permission, ledger, count correction, bin_item retirement,
+  transaction history, or inventory balance behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx` only.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Entry 045 had a runtime-only gap in the Intake component.
+- The hotfix keeps Review Repeats UI-only and read/filter/display-only.
+- Build passes, but in-app Browser verification remains blocked by the known local browser
+  runtime issue.
+
+### What Claude Needs to Know
+- This was a UI runtime bugfix only.
+- No architecture-sensitive behavior was changed.
+
+### Next Steps (in order)
+1. Ryan refreshes the deployed app after Netlify deploys the hotfix and confirms the Count
+   Intake page no longer crashes.
+2. Review the separate Clerk development-key warning and duplicate GoTrue client warning
+   later as deployment/config cleanup, not as part of this UI hotfix.
+
+### Open Questions / Concerns
+- Clerk development-key and duplicate GoTrue client console warnings remain separate from
+  the fixed `reviewRepeats` crash.
+- In-app Browser verification could not run in Codex due the known
+  `CreateProcessAsUserW failed: 5` browser runtime failure.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 046).
