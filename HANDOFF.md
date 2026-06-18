@@ -3384,3 +3384,101 @@ local `reviewRepeats` state and repeat-review derived values.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 046).
+
+---
+
+## Entry 047 - Count Intake location hierarchy search polish
+
+**Date:** 2026-06-18
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Count Intake usability / search polish
+**Session type:** implementation
+
+### Context
+Ryan requested the next safe Count Intake UI milestone. Required pre-work was completed:
+pulled from `origin/main`, confirmed the remote branch was already up to date, confirmed
+`origin/main` was the source of truth, confirmed `docs/ARCHITECTURE.md` is v2.13,
+confirmed `HANDOFF.md` is current and gapless through Entry 046, and inspected the
+current Count Intake / Inventory Count implementation before coding.
+
+Review Repeats / Show Repeated Values was already implemented, so it was not rebuilt,
+duplicated, renamed, or refactored. Verification result:
+- Review Repeats is UI-only and computed locally from loaded count-sheet rows.
+- It does not merge, delete, archive, retire, correct, or modify records.
+- It excludes quantity and category-only matches.
+- It flags repeated meaningful values including material code, item name, bin code, unit,
+  shelf, bay, storage path, part-number aliases when available, manufacturer fields, and
+  description.
+
+### What Was Completed
+- Added shared Count Intake / Inventory Count search helpers for compact location hierarchy
+  matching.
+- Supported compact hierarchy searches:
+  - `C` = Unit C;
+  - `C1` = Unit C / Shelf 1;
+  - `C11` = Unit C / Shelf 1 / Bay 1;
+  - `C111` = Unit C / Shelf 1 / Bay 1 / Bin 1.
+- Added ordinary text matching against visible location fields where practical:
+  - storage unit code / name;
+  - shelf code / label;
+  - bay code / label;
+  - bin code / label;
+  - full storage path.
+- Kept existing material-oriented search behavior for normal non-hierarchy searches.
+- Updated search placeholders to surface the `C111` style pattern.
+- Applied the same search behavior to both Inventory Count & Correction and Inventory
+  Count Intake views.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, ledger row,
+  transaction history row, bin_item retirement rule, count correction behavior, write path,
+  or inventory balance behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx` only:
+  - added search normalization helpers;
+  - added compact location-code construction;
+  - added shared count-row search matching;
+  - replaced ad hoc row search checks in both count views with the shared matcher;
+  - updated search input placeholders.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This was a read/filter/display-only UI polish pass.
+- Do not treat compact location search as a new data model or source of truth.
+- The search helper derives display/search tokens from existing loaded row fields only.
+- Review Repeats remains unchanged except for verification.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, permissions, ledger, count correction, transaction history, bin_item
+  retirement, inventory balance, or write-path behavior changed.
+- Deferred features remain deferred.
+
+### Next Steps (in order)
+1. Ryan visually verifies compact searches such as `C`, `C1`, `C11`, and `C111` in the
+   deployed app after this code is pushed/deployed.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- In-app Browser verification remains blocked in Codex by the known
+  `CreateProcessAsUserW failed: 5` browser runtime issue.
+- Clerk development-key and duplicate GoTrue client console warnings remain separate
+  deployment/config cleanup items.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 047).

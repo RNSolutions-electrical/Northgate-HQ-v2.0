@@ -67,6 +67,75 @@ function buildStoragePath(row) {
   return [row.storage_unit_code, row.shelf_code, row.bay_code, row.bin_code].filter(Boolean).join(' / ');
 }
 
+function normalizeSearchText(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function normalizeLocationSegment(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/^(storageunit|unit|shelf|bay|bin)/, '');
+}
+
+function getLocationSegment(value, prefix = '') {
+  const normalized = normalizeLocationSegment(value);
+  if (!normalized) return '';
+  return prefix && normalized.startsWith(prefix) && normalized.length > prefix.length
+    ? normalized.slice(prefix.length)
+    : normalized;
+}
+
+function buildCompactLocationCode(row) {
+  const unit = getLocationSegment(row.storage_unit_code);
+  const shelf = getLocationSegment(row.shelf_code, unit);
+  const bay = getLocationSegment(row.bay_code, `${unit}${shelf}`);
+  const bin = getLocationSegment(row.bin_code, `${unit}${shelf}${bay}`);
+  return `${unit}${shelf}${bay}${bin}`;
+}
+
+function getLocationSearchValues(row) {
+  return [
+    row.bin_code,
+    row.bin_label,
+    row.bay_code,
+    row.bay_label,
+    row.shelf_code,
+    row.shelf_label,
+    row.storage_unit_code,
+    row.storage_unit_name,
+    buildStoragePath(row),
+  ];
+}
+
+function getCountRowSearchValues(row) {
+  return [
+    row.material_code,
+    row.item_name,
+    row.manufacturer,
+    row.manufacturer_sub,
+    row.manufacturer_part_number,
+    row.vendor_part_number,
+    row.description,
+    ...getLocationSearchValues(row),
+  ];
+}
+
+function matchesCountRowSearch(row, searchText) {
+  const normalizedSearch = normalizeSearchText(searchText);
+  if (!normalizedSearch) return true;
+
+  const compactSearch = normalizeLocationSegment(searchText);
+  const compactLocationCode = buildCompactLocationCode(row);
+  const isHierarchySearch = /^[a-z]\d{0,3}$/.test(compactSearch);
+  const searchableValues = isHierarchySearch ? getLocationSearchValues(row) : getCountRowSearchValues(row);
+  const plainMatch = searchableValues.some((value) => normalizeSearchText(value).includes(normalizedSearch));
+  const compactLocationMatch = compactSearch ? compactLocationCode.startsWith(compactSearch) : false;
+
+  return plainMatch || compactLocationMatch;
+}
+
 function normalizeRepeatValue(value) {
   const normalized = String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
   if (!normalized || normalized === '-' || normalized === 'n/a' || normalized === 'none') {
@@ -601,7 +670,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
   const [reviewRepeats, setReviewRepeats] = useState(false);
   const [countDrafts, setCountDrafts] = useState({});
   const [selectedHistoryBinItemId, setSelectedHistoryBinItemId] = useState('');
-  const normalizedSearch = search.trim().toLowerCase();
+  const normalizedSearch = normalizeSearchText(search);
   const categoryOptions = countSheet.rows
     .reduce((options, row) => {
       const label = getCategoryLabel(row);
@@ -626,16 +695,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
     if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
     if (filters.bin_id && row.bin_id !== filters.bin_id) return false;
     if (filters.category && getCategoryLabel(row) !== filters.category) return false;
-    if (!normalizedSearch) return true;
-
-    return [
-      row.material_code,
-      row.item_name,
-      row.bin_code,
-      row.bay_code,
-      row.shelf_code,
-      row.storage_unit_code,
-    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
+    return matchesCountRowSearch(row, normalizedSearch);
   });
   const filteredRows = reviewRepeats
     ? baseFilteredRows.filter((row) => repeatReview.rowMatchesById.has(row.bin_item_id))
@@ -708,7 +768,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Material, bin, shelf, bay, or unit"
+              placeholder="Material, C111, bin, shelf, bay, or unit"
             />
           </label>
           <label>
@@ -930,7 +990,7 @@ function InventoryCountIntakePanel({ permissions }) {
     reason: 'initial shelf count',
     customReason: '',
   });
-  const normalizedSearch = search.trim().toLowerCase();
+  const normalizedSearch = normalizeSearchText(search);
   const normalizedNewItemSearch = newItemSearch.trim().toLowerCase();
   const selectedUnit = countSheet.storageUnits.find((unit) => unit.id === filters.storage_unit_id) ?? null;
   const selectedShelf = countSheet.shelves.find((shelf) => shelf.id === filters.shelf_id) ?? null;
@@ -959,16 +1019,7 @@ function InventoryCountIntakePanel({ permissions }) {
     if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
     if (filters.bin_id && row.bin_id !== filters.bin_id) return false;
     if (filters.category && getCategoryLabel(row) !== filters.category) return false;
-    if (!normalizedSearch) return true;
-
-    return [
-      row.material_code,
-      row.item_name,
-      row.bin_code,
-      row.bay_code,
-      row.shelf_code,
-      row.storage_unit_code,
-    ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
+    return matchesCountRowSearch(row, normalizedSearch);
   });
   const filteredRows = reviewRepeats
     ? baseFilteredRows.filter((row) => repeatReview.rowMatchesById.has(row.bin_item_id))
@@ -1328,7 +1379,7 @@ function InventoryCountIntakePanel({ permissions }) {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Material, bin, shelf, bay, or unit"
+              placeholder="Material, C111, bin, shelf, bay, or unit"
             />
           </label>
           <label>
