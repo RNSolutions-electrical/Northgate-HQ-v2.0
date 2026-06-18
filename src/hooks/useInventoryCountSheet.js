@@ -62,7 +62,7 @@ export function useInventoryCountSheet({ enabled }) {
             .limit(1000),
           client
             .from('items')
-            .select('id,material_code,name,broad_category,sub_category,sub_category_2,sub_category_3,sub_category_4,unit_of_measure,division,price_per_unit,default_min_qty,is_active,is_archived')
+            .select('*')
             .eq('is_active', true)
             .eq('is_archived', false)
             .order('material_code', { ascending: true })
@@ -132,6 +132,22 @@ export function useInventoryCountSheet({ enabled }) {
             sub_category_2: item.sub_category_2 ?? null,
             sub_category_3: item.sub_category_3 ?? null,
             sub_category_4: item.sub_category_4 ?? null,
+            manufacturer: item.manufacturer ?? null,
+            manufacturer_sub: item.manufacturer_sub ?? null,
+            manufacturer_part_number:
+              item.manufacturer_part_number ??
+              item.manufacturer_part_no ??
+              item.mfr_part_number ??
+              item.mpn ??
+              null,
+            vendor_part_number:
+              item.vendor_part_number ??
+              item.vendor_part_no ??
+              item.vendor_part ??
+              item.vendor_sku ??
+              item.vpn ??
+              null,
+            description: item.description ?? null,
             bay_id: bay.id ?? null,
             bay_code: bay.bay_code ?? '',
             bay_label: bay.label ?? '',

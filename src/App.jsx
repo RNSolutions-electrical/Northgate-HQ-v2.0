@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
@@ -36,6 +36,20 @@ const COUNT_REASON_OPTIONS = [
   { value: 'correction', label: 'Correction' },
   { value: 'custom', label: 'Custom note' },
 ];
+const REPEAT_REVIEW_FIELDS = [
+  { key: 'material_code', label: 'Material code', getValue: (row) => row.material_code },
+  { key: 'item_name', label: 'Material name', getValue: (row) => row.item_name },
+  { key: 'bin_code', label: 'Bin', getValue: (row) => row.bin_code },
+  { key: 'storage_unit_code', label: 'Unit', getValue: (row) => row.storage_unit_code },
+  { key: 'shelf_code', label: 'Shelf', getValue: (row) => row.shelf_code },
+  { key: 'bay_code', label: 'Bay', getValue: (row) => row.bay_code },
+  { key: 'storage_path', label: 'Storage path', getValue: (row) => buildStoragePath(row) },
+  { key: 'manufacturer_part_number', label: 'Manufacturer part', getValue: (row) => row.manufacturer_part_number },
+  { key: 'vendor_part_number', label: 'Vendor part', getValue: (row) => row.vendor_part_number },
+  { key: 'manufacturer', label: 'Manufacturer', getValue: (row) => row.manufacturer },
+  { key: 'manufacturer_sub', label: 'Manufacturer detail', getValue: (row) => row.manufacturer_sub },
+  { key: 'description', label: 'Description', getValue: (row) => row.description },
+];
 
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
@@ -47,6 +61,85 @@ function normalizeDestinationType(destinationType) {
 
 function isDeveloperOrAdminRole(role) {
   return ['Developer', 'Administrator', 'Admin'].includes(role);
+}
+
+function buildStoragePath(row) {
+  return [row.storage_unit_code, row.shelf_code, row.bay_code, row.bin_code].filter(Boolean).join(' / ');
+}
+
+function normalizeRepeatValue(value) {
+  const normalized = String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!normalized || normalized === '-' || normalized === 'n/a' || normalized === 'none') {
+    return '';
+  }
+  return normalized;
+}
+
+function buildRepeatReview(rows) {
+  const groupsByKey = new Map();
+
+  rows.forEach((row) => {
+    REPEAT_REVIEW_FIELDS.forEach((field) => {
+      const displayValue = String(field.getValue(row) ?? '').trim().replace(/\s+/g, ' ');
+      const normalizedValue = normalizeRepeatValue(displayValue);
+      if (!normalizedValue) return;
+
+      const key = `${field.key}:${normalizedValue}`;
+      const group = groupsByKey.get(key) ?? {
+        key,
+        fieldKey: field.key,
+        fieldLabel: field.label,
+        value: displayValue,
+        rows: [],
+      };
+
+      group.rows.push(row);
+      groupsByKey.set(key, group);
+    });
+  });
+
+  const groups = Array.from(groupsByKey.values())
+    .filter((group) => new Set(group.rows.map((row) => row.bin_item_id)).size > 1)
+    .map((group) => ({
+      ...group,
+      rowIds: new Set(group.rows.map((row) => row.bin_item_id)),
+    }))
+    .sort((first, second) => second.rowIds.size - first.rowIds.size || first.fieldLabel.localeCompare(second.fieldLabel));
+
+  const rowMatchesById = new Map();
+  groups.forEach((group) => {
+    group.rowIds.forEach((rowId) => {
+      const matches = rowMatchesById.get(rowId) ?? [];
+      matches.push(group);
+      rowMatchesById.set(rowId, matches);
+    });
+  });
+
+  return {
+    groups,
+    rowMatchesById,
+    repeatedRowCount: rowMatchesById.size,
+  };
+}
+
+function RepeatMatchChips({ matches }) {
+  if (!matches?.length) {
+    return null;
+  }
+
+  const visibleMatches = matches.slice(0, 4);
+  const hiddenCount = matches.length - visibleMatches.length;
+
+  return (
+    <div className="repeat-chip-list" title={matches.map((match) => `${match.fieldLabel}: ${match.value}`).join('\n')}>
+      {visibleMatches.map((match) => (
+        <span className="repeat-chip" key={match.key}>
+          {match.fieldLabel}: {match.value}
+        </span>
+      ))}
+      {hiddenCount > 0 ? <span className="repeat-chip">+{hiddenCount} more</span> : null}
+    </div>
+  );
 }
 
 function CountCard({ label, value }) {
@@ -505,6 +598,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
     bin_id: '',
     category: '',
   });
+  const [reviewRepeats, setReviewRepeats] = useState(false);
   const [countDrafts, setCountDrafts] = useState({});
   const [selectedHistoryBinItemId, setSelectedHistoryBinItemId] = useState('');
   const normalizedSearch = search.trim().toLowerCase();
@@ -525,7 +619,8 @@ function InventoryCountCorrectionPanel({ permissions }) {
   const shelfOptions = buildCountFilterOptions(countSheet.rows, 'shelf_id', (row) => row.shelf_code);
   const bayOptions = buildCountFilterOptions(countSheet.rows, 'bay_id', (row) => row.bay_code);
   const binOptions = buildCountFilterOptions(countSheet.rows, 'bin_id', (row) => row.bin_code);
-  const filteredRows = countSheet.rows.filter((row) => {
+  const repeatReview = useMemo(() => buildRepeatReview(countSheet.rows), [countSheet.rows]);
+  const baseFilteredRows = countSheet.rows.filter((row) => {
     if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
     if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
     if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
@@ -542,6 +637,12 @@ function InventoryCountCorrectionPanel({ permissions }) {
       row.storage_unit_code,
     ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch));
   });
+  const filteredRows = reviewRepeats
+    ? baseFilteredRows.filter((row) => repeatReview.rowMatchesById.has(row.bin_item_id))
+    : baseFilteredRows;
+  const visibleRepeatGroups = reviewRepeats
+    ? repeatReview.groups.filter((group) => group.rows.some((row) => filteredRows.some((visibleRow) => visibleRow.bin_item_id === row.bin_item_id)))
+    : [];
   const selectedHistoryRow = countSheet.rows.find((row) => row.bin_item_id === selectedHistoryBinItemId) ?? null;
 
   function getCountDraft(row) {
@@ -645,6 +746,14 @@ function InventoryCountCorrectionPanel({ permissions }) {
               {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
+          <label className="count-toggle">
+            <input
+              type="checkbox"
+              checked={reviewRepeats}
+              onChange={(event) => setReviewRepeats(event.target.checked)}
+            />
+            <span>Review Repeats</span>
+          </label>
           <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
           <button type="button" className="secondary-button" onClick={printCountSheet}>Print / Export</button>
         </div>
@@ -655,9 +764,29 @@ function InventoryCountCorrectionPanel({ permissions }) {
         <div className="cart-facts count-summary">
           <span>Loaded rows: {countSheet.rows.length}</span>
           <span>Visible rows: {filteredRows.length}</span>
+          {reviewRepeats ? <span>Repeat rows: {filteredRows.length} / {repeatReview.repeatedRowCount}</span> : null}
           <span>Correction writes: Deferred</span>
           <span>Last loaded: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
         </div>
+
+        {reviewRepeats ? (
+          <div className="repeat-review-panel">
+            <div>
+              <strong>Review Repeats</strong>
+              <span>{visibleRepeatGroups.length} repeated field groups in the current view.</span>
+            </div>
+            {visibleRepeatGroups.length ? (
+              <div className="repeat-chip-list repeat-chip-list--summary">
+                {visibleRepeatGroups.slice(0, 10).map((group) => (
+                  <span className="repeat-chip" key={group.key}>
+                    {group.fieldLabel}: {group.value} ({group.rowIds.size})
+                  </span>
+                ))}
+                {visibleRepeatGroups.length > 10 ? <span className="repeat-chip">+{visibleRepeatGroups.length - 10} more</span> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {filteredRows.length ? (
           <>
@@ -687,6 +816,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
                           <strong>{row.item_name}</strong>
                           <span>{row.material_code}</span>
                           <span>{getCategoryLabel(row)}</span>
+                          {reviewRepeats ? <RepeatMatchChips matches={repeatReview.rowMatchesById.get(row.bin_item_id)} /> : null}
                         </td>
                         <td>
                           <strong>{row.bin_code}</strong>
@@ -736,6 +866,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
                       <span>Variance: {variance === null ? '—' : variance.toFixed(2)}</span>
                       <span>{getCategoryLabel(row)}</span>
                     </div>
+                    {reviewRepeats ? <RepeatMatchChips matches={repeatReview.rowMatchesById.get(row.bin_item_id)} /> : null}
                     <label>
                       Counted Quantity
                       <input
@@ -1212,8 +1343,28 @@ function InventoryCountIntakePanel({ permissions }) {
           <span>Loaded bin/material rows: {countSheet.rows.length}</span>
           <span>Visible rows: {filteredRows.length}</span>
           <span>Selected bin rows: {rowsForSelectedBin.length}</span>
+          {reviewRepeats ? <span>Repeat rows: {filteredRows.length} / {repeatReview.repeatedRowCount}</span> : null}
           <span>Last loaded: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
         </div>
+
+        {reviewRepeats ? (
+          <div className="repeat-review-panel">
+            <div>
+              <strong>Review Repeats</strong>
+              <span>{visibleRepeatGroups.length} repeated field groups in the current view.</span>
+            </div>
+            {visibleRepeatGroups.length ? (
+              <div className="repeat-chip-list repeat-chip-list--summary">
+                {visibleRepeatGroups.slice(0, 10).map((group) => (
+                  <span className="repeat-chip" key={group.key}>
+                    {group.fieldLabel}: {group.value} ({group.rowIds.size})
+                  </span>
+                ))}
+                {visibleRepeatGroups.length > 10 ? <span className="repeat-chip">+{visibleRepeatGroups.length - 10} more</span> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <section className="count-intake-card">
           <div>
@@ -1325,6 +1476,7 @@ function InventoryCountIntakePanel({ permissions }) {
                             <strong>{row.item_name}</strong>
                             <span>{row.material_code}</span>
                             <span>{getCategoryLabel(row)}</span>
+                            {reviewRepeats ? <RepeatMatchChips matches={repeatReview.rowMatchesById.get(row.bin_item_id)} /> : null}
                           </td>
                           <td>
                             <strong>{row.bin_code}</strong>
@@ -1442,6 +1594,7 @@ function InventoryCountIntakePanel({ permissions }) {
                       <span>Variance: {variance === null ? '-' : variance.toFixed(2)}</span>
                       <span>{getCategoryLabel(row)}</span>
                     </div>
+                    {reviewRepeats ? <RepeatMatchChips matches={repeatReview.rowMatchesById.get(row.bin_item_id)} /> : null}
                     <label>
                       Counted Quantity
                       <input

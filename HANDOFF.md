@@ -3229,3 +3229,94 @@ reconciliation and re-baselines all collaborators.
 ### Routing Verdict
 No Claude review needed — alignment/sync record within locked decisions
 (ARCHITECTURE v2.13, HANDOFF Entry 044).
+
+---
+
+## Entry 045 - Review Repeats UI toggle built
+
+**Date:** 2026-06-18
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Count Intake usability / review tooling
+**Session type:** implementation
+
+### Context
+Ryan requested a UI-only "Review Repeats" toggle on the Inventory Count / Count Intake
+surface. The requested behavior was read/filter/display-only: identify rows where
+meaningful identifying fields repeat, while excluding quantity and category fields and
+without modifying records, schema, RPCs, permissions, ledger behavior, count correction
+behavior, bin_item retirement behavior, transaction history, or inventory balances.
+
+### What Was Completed
+- Added a local React repeat-review index for loaded count-sheet rows.
+- Added a "Review Repeats" checkbox toggle to the Inventory Count & Correction and
+  Inventory Count Intake toolbars.
+- When enabled, the count views filter to rows that have at least one repeated meaningful
+  identifying value.
+- Added repeat summary chips showing repeated field groups and match counts.
+- Added per-row repeat chips so operators can see why a row appears in repeat review.
+- Repeat detection covers material code, material name, bin code, storage unit, shelf,
+  bay, full storage path, manufacturer part number fields when present, vendor part
+  number fields when present, manufacturer / manufacturer detail, and description.
+- Quantity and category fields remain excluded from repeat detection.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, ledger row,
+  transaction history row, bin_item retirement rule, count correction behavior, or
+  inventory balance behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added repeat-review field definitions and local grouping/filtering helpers;
+  - added Review Repeats toggle state to both count surfaces;
+  - added repeat summary and per-row repeat chips for desktop and mobile count views.
+- Updated `src/hooks/useInventoryCountSheet.js`:
+  - expanded the read-only item load to carry existing item metadata needed for repeat
+    review, including manufacturer, manufacturer_sub, description, and optional part
+    number field aliases when present.
+- Updated `src/styles.css`:
+  - added styles for the Review Repeats toggle, summary panel, and repeat chips.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Review Repeats is UI-only and computed from already loaded count-sheet data.
+- It is not a dedupe, merge, archive, retire, correction, or cleanup workflow.
+- Do not add write behavior to this toggle.
+- The repeat index intentionally excludes quantity and category fields.
+- Part-number repeat detection uses optional item-field aliases if those columns exist;
+  the locked Phase 1 item schema already includes manufacturer, manufacturer_sub, and
+  description.
+
+### What Claude Needs to Know
+- This was a display/filter usability tool only and did not change architecture,
+  schema, permissions, inventory movement, count correction, transaction history, or
+  balances.
+- No new cleanup or deduplication workflow was introduced.
+- No Claude review was needed because the work stayed within UI-only display behavior.
+
+### Next Steps (in order)
+1. Ryan visually verifies the Review Repeats toggle in the deployed app after the code is
+   pushed/deployed.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- In-app Browser verification could not run in Codex because the browser runtime failed
+  with `CreateProcessAsUserW failed: 5`.
+- A local dev-server launch attempt also failed to produce a listening endpoint during
+  this session, but `npm.cmd run build` passed.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 045).

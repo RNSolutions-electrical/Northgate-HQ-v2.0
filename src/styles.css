@@ -104,6 +104,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .count-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .6rem; align-items: end; margin-bottom: .9rem; }
 .count-toolbar label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
 .count-toolbar input, .count-toolbar select, .count-table input, .count-table select, .count-mobile-item input, .count-mobile-item select, .count-intake-form input, .count-intake-form select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; width: 100%; }
+.count-toggle { display: flex !important; align-items: center; justify-content: center; gap: .55rem !important; min-height: 44px; border: 1px solid rgba(148,163,184,.24); border-radius: .85rem; background: rgba(15,23,42,.58); padding: .6rem .7rem; color: #e5edf8 !important; cursor: pointer; }
+.count-toggle input { width: auto !important; min-width: 1rem; accent-color: #93c5fd; }
 .count-summary { margin-bottom: 1rem; }
 .count-table { min-width: 980px; }
 .count-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
@@ -121,6 +123,12 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .count-row-message { border: 1px solid rgba(148,163,184,.2); border-radius: .85rem; padding: .7rem .8rem; font-weight: 700; }
 .count-row-message--success { border-color: rgba(34,197,94,.35); color: #bbf7d0; background: rgba(22,101,52,.22); }
 .count-row-message--error { border-color: rgba(245,158,11,.42); color: #fde68a; background: rgba(120,53,15,.24); }
+.repeat-review-panel { display: grid; gap: .65rem; border: 1px solid rgba(96,165,250,.28); border-radius: 1rem; background: rgba(30,64,175,.18); padding: .85rem; margin: 0 0 1rem; }
+.repeat-review-panel strong, .repeat-review-panel span { display: block; }
+.repeat-review-panel > div:first-child span { margin-top: .2rem; color: #bfdbfe; font-size: .84rem; }
+.repeat-chip-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; }
+.repeat-chip-list--summary { margin-top: 0; }
+.repeat-chip { display: inline-flex !important; align-items: center; max-width: 100%; border: 1px solid rgba(147,197,253,.28); border-radius: 999px; background: rgba(15,23,42,.64); color: #dbeafe !important; padding: .24rem .5rem; font-size: .72rem !important; font-weight: 800; overflow-wrap: anywhere; }
 .variance-neutral { color: #cbd5e1; }
 .variance-positive { color: #bbf7d0; font-weight: 800; }
 .variance-negative { color: #fecaca; font-weight: 800; }
