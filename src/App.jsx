@@ -51,6 +51,14 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 
+const COUNT_INTAKE_HELP_ITEMS = [
+  'Choose Unit, Shelf, Bay, and Bin to narrow the physical area before recording counts.',
+  'Search accepts location shortcuts: C, C1, C11, and C111 map to Unit, Shelf, Bay, and Bin.',
+  'A recorded counted quantity becomes an official physical count correction. Zero is valid.',
+  'Use Reason or Custom note to describe why the count is being recorded.',
+  'Mistaken bin/material rows must be counted to zero first, then retired. Retire archives only and does not change quantity or write a ledger transaction.',
+];
+
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
 }
@@ -1418,6 +1426,18 @@ function InventoryCountIntakePanel({ permissions }) {
           <strong>Official count workflow</strong>
           <span>Recorded quantities create physical count corrections through the existing intake path. Zero is valid. Catalog items must already exist.</span>
         </div>
+
+        <section className="count-help-panel" aria-label="How to use this count intake screen">
+          <div>
+            <p className="eyebrow">How to use this screen</p>
+            <h3>Field-use notes</h3>
+          </div>
+          <ul>
+            {COUNT_INTAKE_HELP_ITEMS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
 
         <div className="cart-facts count-summary">
           <span>Loaded bin/material rows: {countSheet.rows.length}</span>

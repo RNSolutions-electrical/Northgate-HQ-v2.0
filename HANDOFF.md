@@ -4078,3 +4078,108 @@ silently repairing coordination-document order.
 
 ### Routing Verdict
 No Claude review needed - static asset / metadata polish only.
+
+---
+
+## Entry 054 - Milestone 4T Count Intake field-use QA notes
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4T Count Intake field-use clarity
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4T to improve field-use clarity around Inventory Count / Count
+Intake after production auth recovery and Count Intake QA polish. Required first actions
+were completed before implementation: `git pull --ff-only origin main` returned already
+up to date; local `main` matched `origin/main` at `8cef094`; `docs/ARCHITECTURE.md` was
+confirmed as v2.13; HANDOFF numbering was confirmed to contain Entries 001 through 053
+with no missing numbers or duplicate entry numbers; and the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale coordination docs. The
+pre-existing file-order drift remains from prior work because Entry 052 appears before
+Entry 051 in the file; this entry was appended normally as Entry 054 without silently
+repairing coordination-document order.
+
+### What Was Completed
+- Added a compact "How to use this screen" help block to the Inventory Count Intake UI.
+- The help block explains:
+  - Unit / Shelf / Bay / Bin path narrowing;
+  - `C`, `C1`, `C11`, and `C111` search shortcuts;
+  - counted quantity as an official physical count correction;
+  - zero as a valid count;
+  - Reason / Custom note use;
+  - zero-first, then-retire handling for mistaken bin/material rows;
+  - Retire as archive-only with no quantity change and no ledger transaction.
+- Added presentation-only CSS for the new help block, including mobile stacking.
+- Added `docs/COUNT_INTAKE_FIELD_GUIDE.md` as a practical operator-facing guide and QA
+  checklist. It does not create a new architecture rule.
+
+### Verification
+- `npm.cmd run build` passed.
+- Static scan confirmed no migration files were added or changed.
+- Static scan of the diff found no Supabase RPC/function definition changes.
+- Static scan of the diff found no direct `inventory_balances`, `transaction_items`, or
+  `inventory_transactions` write-path changes.
+- Static review confirmed Count Intake still uses the existing `intake.recordCount`
+  calls in `src/App.jsx` and the existing `intake_inventory_count` RPC inside
+  `src/hooks/useInventoryCountIntake.js`.
+- Static review confirmed Retire remains isolated to the existing
+  `useBinItemRetirement()` hook and existing `retire_bin_item` RPC.
+- Browser verification was not performed or claimed because browser automation was not
+  available in this Codex session.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC signature/body, RLS policy,
+  permission model, Clerk/Supabase JWT behavior, `user_permissions` logic, ledger
+  behavior, transaction item meaning, inventory balance behavior, count correction
+  behavior, bin_item retirement rule, checkout/finalization behavior, destination
+  semantics, transaction history visibility, division-scoped read rule, or reserved
+  feature was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added static Count Intake field-use help text;
+  - rendered a compact help block in the Count Intake surface.
+- Updated `src/styles.css`:
+  - added presentation-only styles for the help block and responsive stacking.
+- Added `docs/COUNT_INTAKE_FIELD_GUIDE.md`:
+  - operator-facing field guide and quick QA checklist for Count Intake.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This milestone was UI/documentation-only.
+- Count Intake behavior, hook usage, and approved RPC path were not changed.
+- Review Repeats remains display/filter-only.
+- Retire remains Developer/Admin + `can_archive_records` gated and archive-only through
+  the existing hook/RPC.
+- Count-to-zero remains valid.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, ledger behavior, balance behavior, count
+  correction behavior, bin_item retirement semantics, destination semantics, transaction
+  history visibility, division-scoped read rules, or reserved feature work was done.
+
+### Next Steps (in order)
+1. Let Netlify deploy the pushed UI/documentation-only change.
+2. Ryan can verify the Count Intake help block on desktop and mobile widths in production
+   on the `rnsolutions.net` custom domain.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Authenticated browser verification was not available in this Codex session, so visual
+  rendering checks are carried forward for Ryan/manual production QA.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - UI/documentation-only within locked Count Intake and bin_item retirement rules.
