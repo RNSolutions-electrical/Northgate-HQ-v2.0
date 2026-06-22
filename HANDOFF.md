@@ -3998,3 +3998,83 @@ were used rather than stale local coordination docs.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
+
+---
+
+## Entry 053 - Milestone 4S site favicon / app icon polish
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4S static site icon polish
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4S to update the production site favicon for Northgate HQ using
+the supplied `R-N Solutions.png` source image. Required first actions were completed
+before implementation: `git pull --ff-only origin main` returned already up to date;
+local `main` matched `origin/main`; `docs/ARCHITECTURE.md` was confirmed as v2.13; the
+repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale local
+coordination docs; and HANDOFF numbering was confirmed to contain Entries 001 through
+052. Note: pre-existing file-order drift remains from prior work because Entry 052 appears
+before Entry 051 in the file; this entry was appended normally as Entry 053 without
+silently repairing coordination-document order.
+
+### What Was Completed
+- Generated browser-safe static icon assets from Ryan's supplied R-N Solutions source
+  image:
+  - `public/favicon.ico`;
+  - `public/favicon-32x32.png`;
+  - `public/apple-touch-icon.png`;
+  - `public/app-icon-512.png`.
+- Cropped around the bright logo mark before resizing so the favicon remains more legible
+  at small browser-tab sizes.
+- Updated `index.html` with favicon, PNG icon, Apple touch icon, and theme-color metadata.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, RLS policy, permission logic,
+  Clerk/Supabase config, ledger behavior, transaction history visibility, inventory
+  balance behavior, Count Intake behavior, checkout/finalization behavior, or reserved
+  feature was changed.
+
+### Code / File Changes
+- Added static icon assets under `public/`.
+- Updated `index.html` metadata only.
+- No React app logic, state, hooks, Supabase client code, Clerk config, schema, migration,
+  RPC, permission, inventory, ledger, checkout, transaction history, or reserved feature
+  files were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This milestone is static asset / HTML metadata polish only.
+- The favicon should cache-bust naturally with the next Netlify deployment because the
+  committed public assets and `index.html` changed.
+- Browser verification was not claimed unless performed in a later session.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, Clerk/Supabase auth behavior, inventory
+  behavior, ledger behavior, transaction history visibility, Count Intake behavior,
+  checkout/finalization, or reserved feature work was done.
+
+### Next Steps (in order)
+1. Let Netlify deploy the pushed static asset / metadata change.
+2. Ryan can hard-refresh production on the `rnsolutions.net` custom domain and confirm the
+   browser tab / pinned icon uses the new R-N Solutions mark.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- None blocking for this static asset milestone.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - static asset / metadata polish only.
