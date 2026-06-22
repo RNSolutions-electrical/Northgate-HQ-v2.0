@@ -3810,6 +3810,96 @@ No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF E
 
 ---
 
+## Entry 051 - Production Auth Recovery / Permission Verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Production auth recovery verification
+**Session type:** review
+
+### Context
+Ryan requested Entry 051 as a documentation-only verification entry after manually
+completing production Clerk / Netlify / DNS / JWT configuration recovery. Required first
+actions were completed before this entry was appended: `git pull --ff-only origin main`
+returned already up to date; local `main` and `origin/main` both resolved to commit
+`4b0afe9`; `docs/ARCHITECTURE.md` was confirmed as v2.13; `HANDOFF.md` was confirmed
+gapless through Entry 050; and the repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md`
+were used rather than stale local coordination docs.
+
+### Review Findings
+- Ryan verified the production app loads from the `rnsolutions.net` custom domain.
+- Ryan verified Clerk production login works.
+- Ryan verified server permissions are restored.
+- Ryan verified the app gets past "Waiting on server permissions."
+- Ryan verified the permissions source shows `server`.
+- Ryan verified Developer/Admin access is restored.
+- Ryan verified Inventory Count loads.
+- Ryan reported the production smoke check appears in order.
+- The resolved production configuration issue is recorded as:
+  - Netlify production Clerk key was moved to production key usage;
+  - the app must be opened from the `rnsolutions.net` custom domain, not
+    `northgate-hq-v2.netlify.app`;
+  - Clerk production JWT template / signing configuration was corrected so Supabase can
+    decode the token;
+  - Supabase permission RPC no longer returns `PGRST301` / `401`;
+  - current production Clerk user permissions are restored.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, RLS policy, permission logic,
+  ledger behavior, transaction history visibility, inventory balance behavior, count
+  correction behavior, bin_item retirement behavior, checkout/finalization behavior, or
+  reserved feature was changed.
+
+### Code / File Changes
+- None.
+- No app code changed.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Production auth recovery was completed manually by Ryan outside Codex.
+- Use the `rnsolutions.net` custom domain for production auth validation, not the Netlify
+  subdomain.
+- Server-authoritative permissions are restored in production according to Ryan's manual
+  verification.
+- Do not change Clerk JWT templates, permission RPCs, `user_permissions`, RLS, or
+  inventory behavior from this entry.
+
+### What Claude Needs to Know
+- This was documentation-only verification of production auth recovery.
+- No architecture-sensitive code, schema, permissions logic, ledger behavior, inventory
+  behavior, or deferred feature work was changed.
+- The production domain / Clerk production key / Clerk JWT template / Supabase permission
+  decode path has been restored according to Ryan's manual verification.
+
+### Next Steps (in order)
+1. Continue using the `rnsolutions.net` custom domain for production QA.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- None blocking for this production auth recovery record.
+- Future production auth checks should explicitly use the custom domain because Clerk
+  production domain settings matter.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
+
+---
+
 ## Entry 052 - Milestone 4R Count Intake QA polish
 
 **Date:** 2026-06-22
@@ -3908,96 +3998,6 @@ and Entry 051 was confirmed to document production auth recovery.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 052).
-
----
-
-## Entry 051 - Production Auth Recovery / Permission Verification
-
-**Date:** 2026-06-22
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Production auth recovery verification
-**Session type:** review
-
-### Context
-Ryan requested Entry 051 as a documentation-only verification entry after manually
-completing production Clerk / Netlify / DNS / JWT configuration recovery. Required first
-actions were completed before this entry was appended: `git pull --ff-only origin main`
-returned already up to date; local `main` and `origin/main` both resolved to commit
-`4b0afe9`; `docs/ARCHITECTURE.md` was confirmed as v2.13; `HANDOFF.md` was confirmed
-gapless through Entry 050; and the repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md`
-were used rather than stale local coordination docs.
-
-### Review Findings
-- Ryan verified the production app loads from the `rnsolutions.net` custom domain.
-- Ryan verified Clerk production login works.
-- Ryan verified server permissions are restored.
-- Ryan verified the app gets past "Waiting on server permissions."
-- Ryan verified the permissions source shows `server`.
-- Ryan verified Developer/Admin access is restored.
-- Ryan verified Inventory Count loads.
-- Ryan reported the production smoke check appears in order.
-- The resolved production configuration issue is recorded as:
-  - Netlify production Clerk key was moved to production key usage;
-  - the app must be opened from the `rnsolutions.net` custom domain, not
-    `northgate-hq-v2.netlify.app`;
-  - Clerk production JWT template / signing configuration was corrected so Supabase can
-    decode the token;
-  - Supabase permission RPC no longer returns `PGRST301` / `401`;
-  - current production Clerk user permissions are restored.
-
-### Schema Changes
-- None.
-- No migration was added.
-- No database table, column, constraint, function, RPC, RLS policy, permission logic,
-  ledger behavior, transaction history visibility, inventory balance behavior, count
-  correction behavior, bin_item retirement behavior, checkout/finalization behavior, or
-  reserved feature was changed.
-
-### Code / File Changes
-- None.
-- No app code changed.
-- Only this HANDOFF entry was appended.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.13.
-
-### What Codex Needs to Know
-- Production auth recovery was completed manually by Ryan outside Codex.
-- Use the `rnsolutions.net` custom domain for production auth validation, not the Netlify
-  subdomain.
-- Server-authoritative permissions are restored in production according to Ryan's manual
-  verification.
-- Do not change Clerk JWT templates, permission RPCs, `user_permissions`, RLS, or
-  inventory behavior from this entry.
-
-### What Claude Needs to Know
-- This was documentation-only verification of production auth recovery.
-- No architecture-sensitive code, schema, permissions logic, ledger behavior, inventory
-  behavior, or deferred feature work was changed.
-- The production domain / Clerk production key / Clerk JWT template / Supabase permission
-  decode path has been restored according to Ryan's manual verification.
-
-### Next Steps (in order)
-1. Continue using the `rnsolutions.net` custom domain for production QA.
-2. Keep transaction history Developer-only until the division-scoped read rule is designed
-   and locked.
-3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
-   Manager Override, reorder/min-max, structured count-type field, and catalog creation
-   from count UI reserved until their own milestones.
-
-### Open Questions / Concerns
-- None blocking for this production auth recovery record.
-- Future production auth checks should explicitly use the custom domain because Clerk
-  production domain settings matter.
-
-### Architecture Drift Warnings
-- OPEN: division-scoped read rule; history remains Developer-only.
-- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
-  Manager Override, reorder/min-max, structured count-type field.
-
-### Routing Verdict
-No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
 
 ---
 
@@ -4305,3 +4305,139 @@ repairing coordination-document order.
 
 ### Routing Verdict
 No Claude review needed - verification/documentation-only within locked ARCHITECTURE v2.13.
+
+---
+
+## Entry 056 - Milestone 5 Prep v2.14 lock docs and HANDOFF repair
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5 Prep lock-document update
+**Session type:** documentation / Rule 20 repair
+
+### Context
+Ryan requested Milestone 5 Prep to apply the Rule 20-cleared v2.14 lock-document deltas
+and repair HANDOFF Entry 051 / Entry 052 physical order only. This was documentation-only:
+no Milestone 5A implementation, app code, migrations, Supabase changes, Netlify changes,
+Clerk changes, or production configuration changes were authorized or performed.
+
+Required first actions were completed before editing: `git pull --ff-only origin main`
+returned already up to date; local `main` matched `origin/main` at `a255b67`;
+`docs/ARCHITECTURE.md` was confirmed as v2.13 before editing; HANDOFF numbering was
+confirmed gapless through Entry 055; Entry 051 was confirmed to physically appear after
+Entry 052 before repair; and the repo clone copies of `docs/ARCHITECTURE.md` and
+`HANDOFF.md` were used rather than stale coordination docs, OneDrive-synced stale copies,
+or GitHub web UI uploads.
+
+Claude produced the Milestone 5 lock-document delta proposal. ChatGPT cleared the v2.14
+package under Rule 20. Codex applied the cleared documentation package for Ryan so the
+coordination docs were not manually mis-edited.
+
+### What Was Completed
+- Updated `docs/ARCHITECTURE.md` from v2.13 to v2.14.
+- Locked the Inventory module-completion milestone scope.
+- Added Section 10 QR payload and web scanner scope:
+  - location QR payloads use `https://<app-domain>/scan/location/<location_uuid>`;
+  - UUID is the stable structural identifier, not human-readable codes such as `A111`;
+  - typed route format is `/scan/<entity_type>/<uuid>`;
+  - QR generation remains locations-only for now;
+  - the web scanner is in scope now and is not blocked by the reserved React Native
+    companion app;
+  - scanner behavior is navigation/read-resolution only and is not a permission bypass.
+- Updated Section 17 with `can_view_all_divisions` and clarified division visibility:
+  - Developer role defaults to cross-division read;
+  - Admin division defaults to cross-division read through effective permission;
+  - Administrator role outside Admin division remains own-division unless individually
+    granted `can_view_all_divisions`;
+  - `can_view_financials` governs job/project OH&P and margin, not inventory cost.
+- Added new Section 17a, Division-Scoped Read Rule:
+  - cross-division read via `can_view_all_divisions`;
+  - own-division full read for Administrator, Project Manager, Estimator, and Field
+    Supervisor;
+  - self-scoped read for Field Tech / User own carts and transactions within division;
+  - reuse of the existing division anchor from the `202606120001` scoped reference views;
+  - server-authoritative reads only, with no client-side row filtering as the source of
+    truth;
+  - inventory cost open within authorized inventory scope;
+  - `can_view_financials` not used as an inventory cost gate;
+  - full-division history gated by `can_manage_inventory`;
+  - self-scoped my-transactions surface gated by `can_inventory_transactions`;
+  - the division-scoped-read drift warning closed for Inventory;
+  - same pattern carried forward as the template for future tools, vehicles, and jobs
+    read access.
+- Replaced Section 25 with Label Template Designer scope:
+  - Avery 5164 for unit/shelf/bay placards;
+  - Avery 8160 for bin labels;
+  - data-driven geometry;
+  - per-field include/exclude toggles;
+  - optional QR per template;
+  - per-field styling for color, alignment, bold, underline, and opacity;
+  - live preview;
+  - individual and unit/shelf/bay/bin printing;
+  - QR content from Section 10 payloads;
+  - print-to-PDF via `react-pdf` with exact sheet positioning;
+  - saved/named reusable templates;
+  - locked `label_templates` schema block.
+- Applied the light-touch Section 29 build-sequence wording edits without renumbering.
+- Repaired HANDOFF physical order so Entry 051 now appears before Entry 052.
+- Appended this Entry 056 at the end of HANDOFF.
+
+### Schema Changes
+- None applied.
+- No migration was added.
+- No Supabase schema, RPC, permission, RLS, ledger, inventory balance, count correction,
+  bin_item retirement, destination semantics, transaction history, checkout/finalization,
+  Netlify, Clerk, or production configuration change was made.
+- ARCHITECTURE v2.14 now locks the future `label_templates` table shape, but no database
+  implementation was created in this milestone.
+
+### Code / File Changes
+- Updated `docs/ARCHITECTURE.md` only for v2.14 lock-document text.
+- Updated `HANDOFF.md` only for Entry 051 / Entry 052 physical-order repair and Entry 056.
+- No app code, package files, Netlify files, Supabase files, migrations, screenshots,
+  pasted brief files, or scratch files were changed or staged.
+
+### Lock Document Changes
+- ARCHITECTURE updated from v2.13 to v2.14.
+- HANDOFF repaired so Entry 051 physically appears before Entry 052.
+- HANDOFF remains gapless through Entry 056.
+
+### What Codex Needs to Know
+- Milestone 5A has not started.
+- The next implementation step is ChatGPT/Codex 5A staged implementation, using
+  ARCHITECTURE v2.14 and HANDOFF Entry 056 as the source of truth.
+- Division-scoped reads must be server-authoritative and use the locked Section 17a tiers.
+- Inventory cost is visible within authorized inventory scope; `can_view_financials` is not
+  the inventory cost gate.
+- QR payload identity is UUID-based, with `/scan/<entity_type>/<uuid>` typed routes.
+- Label Template Designer is locked conceptually, including the `label_templates` table
+  shape, but is not implemented yet.
+
+### What Claude Needs to Know
+- Codex applied only the Rule 20-cleared documentation deltas and HANDOFF presentation
+  repair.
+- No implementation, schema, migration, RPC, permission, ledger, balance, count-correction,
+  bin_item retirement, destination semantics, transaction history, or reserved-feature work
+  was performed.
+- Entry 051 / Entry 052 content was not edited; only physical order was repaired.
+
+### Next Steps (in order)
+1. Proceed to ChatGPT/Codex Milestone 5A staged implementation only after confirming
+   ARCHITECTURE v2.14 and HANDOFF Entry 056 are present in the repo.
+2. Keep implementation scoped to the v2.14 locked sequence.
+3. Route to Claude before any change that touches schema, RPCs, permissions, ledger,
+   balances, destination semantics, transaction history visibility, or reserved features
+   beyond the cleared v2.14 scope.
+
+### Open Questions / Concerns
+- None blocking for the documentation update.
+- Milestone 5A implementation remains intentionally unstarted.
+
+### Architecture Drift Warnings
+- RESOLVED for Inventory: division-scoped-read rule is now locked in Section 17a.
+- RESERVED: Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field, catalog creation from
+  count UI.
+
+### Routing Verdict
+No Claude review needed - architecture deltas and HANDOFF reorder required and received ChatGPT Rule 20 cross-clearance before Ryan/Codex commit.
