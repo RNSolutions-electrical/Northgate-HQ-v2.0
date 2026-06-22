@@ -4441,3 +4441,131 @@ coordination docs were not manually mis-edited.
 
 ### Routing Verdict
 No Claude review needed - architecture deltas and HANDOFF reorder required and received ChatGPT Rule 20 cross-clearance before Ryan/Codex commit.
+
+---
+
+## Entry 057 - Milestone 5A v2.14 Read-Rule Foundation
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5A read-rule foundation
+**Session type:** implementation / migration / static verification
+
+### Context
+Ryan requested Milestone 5A to implement the ARCHITECTURE v2.14 Division-Scoped Read
+Rule foundation. Required first actions were completed before implementation:
+`git pull --ff-only origin main` returned already up to date; local `main` matched
+`origin/main`; `docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was confirmed
+gapless through Entry 056; Entry 051 was confirmed to physically appear before Entry
+052; and the repo clone copies of the coordination docs were used, not stale attachment
+or external coordination copies.
+
+### What Was Completed
+- Added the read-only `can_view_all_divisions` capability to the canonical permission
+  surface.
+- Updated role defaults so only the Developer role receives `can_view_all_divisions`
+  by role default.
+- Added `public.effective_permissions_for_user(...)` so Admin-division users receive
+  `can_view_all_divisions` through division-aware effective permission resolution where
+  division is known, rather than by fudging the Administrator role seed.
+- Preserved override-last behavior: explicit per-user overrides are applied after role
+  defaults and Admin-division effective defaults.
+- Updated `public.get_or_create_user_permissions()` to return effective permissions.
+- Updated existing scoped reference views to use the same caller division anchor from
+  the 202606120001 scoped reference view pattern:
+  - `inventory_cart_candidates_view`;
+  - `inventory_destination_users_view`;
+  - `inventory_destination_vehicles_view`.
+- Updated `public.read_inventory_transaction_history(...)` to follow Section 17a:
+  - cross-division read for effective `can_view_all_divisions`;
+  - own-division full read for Administrator, Project Manager, Estimator, and Field
+    Supervisor with `can_manage_inventory`;
+  - self-scoped own transaction read for users with `can_inventory_transactions`.
+- Kept filtering server-authoritative in the RPC/view layer. No client-side-only row
+  filtering was introduced as a source of truth.
+- Updated the transaction history UI gate so authorized non-Developer users can request
+  the server-authoritative history RPC when their server permissions allow it.
+- Added client permission mapping for `can_view_all_divisions`.
+
+### Schema Changes
+- Added migration `supabase/migrations/20260622200351_v214_read_rule_foundation.sql`.
+- No table schema was changed.
+- No direct `inventory_balances` write path was added.
+- No checkout/finalization, count correction, count intake, bin_item retirement,
+  destination semantics, ledger behavior, transaction history meaning, QR/scanner
+  behavior, label-template behavior, or reserved feature implementation was changed.
+
+### Code / File Changes
+- Updated `src/hooks/usePermissions.js` to include `can_view_all_divisions` in the deny
+  defaults and camel-case permission mapping.
+- Updated `src/App.jsx` transaction history read gating and empty/locked copy to align
+  with the server-side division read rule.
+- Inventory cost fields remain visible within allowed row scope; `unit_cost_at_time`
+  remains returned by the history RPC and rendered in the UI.
+- `can_view_financials` was not wired to inventory cost visibility.
+
+### Verification
+- `npm.cmd run build` passed.
+- Static scan confirmed no direct `inventory_balances` insert/update/delete path was
+  added.
+- Static scan confirmed no checkout/finalization functions were changed in the new
+  migration.
+- Static scan confirmed `can_view_financials` was not introduced as an inventory cost
+  gate.
+- Static scan confirmed QR/scanner and label-template features were not implemented.
+- Local Supabase migration application was attempted with `npx.cmd supabase db reset
+  --local --no-seed`, but could not run because Docker Desktop/local engine access was
+  unavailable in this Codex environment.
+- No live migration was applied; live application requires Ryan approval.
+- Browser verification was not available in this Codex session and is not claimed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 057.
+
+### What Codex Needs to Know
+- Admin-division cross-division visibility is an effective-permission layer, not an
+  Administrator role default.
+- A non-Developer Administrator, Project Manager, Estimator, or Field Supervisor outside
+  the Admin division remains own-division unless explicitly granted
+  `can_view_all_divisions`.
+- Field Tech/User transaction history access is self-scoped to their own transactions
+  within their division when `can_inventory_transactions` is true.
+- Fake, missing, or unauthorized subjects should fail closed through the server-side RPC.
+- Inventory costs are visible within authorized inventory row scope and are not governed
+  by `can_view_financials`.
+
+### What Claude Needs to Know
+- The implementation reused the existing 202606120001 division anchor pattern.
+- Developer role default and Admin-division default were kept separate.
+- No schema tables, ledger behavior, balances, checkout/finalization behavior, count
+  correction behavior, count intake behavior, bin_item retirement semantics, destination
+  semantics, QR/scanner behavior, label-template behavior, or reserved features were
+  changed.
+- Local migration execution remains unverified only because Docker/local Supabase was
+  unavailable in this environment.
+
+### Next Steps (in order)
+1. Ryan should approve and perform live migration application or provide a local Docker
+   Supabase environment so the migration can be applied and tested against a database.
+2. After deployment, verify transaction history as Developer, Admin-division user,
+   non-Admin-division Administrator/Project Manager/Estimator/Field Supervisor, and
+   Field Tech/User self-scoped access.
+3. Continue to later v2.14 milestones only after confirming the read-rule foundation is
+   deployed and behaving as expected.
+
+### Open Questions / Concerns
+- Local database reset/apply was blocked by missing Docker Desktop/local engine access.
+- Authenticated browser verification was not available from this Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Inventory division-scoped read-rule foundation is implemented
+  according to ARCHITECTURE v2.14 Section 17a.
+- RESERVED: QR generator/scanner, Label Template Designer, Grand Master UI surface,
+  accounting export, location management UI, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override, reorder/min-max,
+  structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 056).

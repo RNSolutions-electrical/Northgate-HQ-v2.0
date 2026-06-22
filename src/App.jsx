@@ -436,18 +436,22 @@ function formatHistoryActor(row) {
 }
 
 function TransactionHistoryPanel({ permissions }) {
-  const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
+  const canReadHistory = permissions.permissionSource === 'server' && (
+    permissions.canViewAllDivisions ||
+    permissions.canManageInventory ||
+    permissions.canInventoryTransactions
+  );
   const [search, setSearch] = useState('');
   const [transactionType, setTransactionType] = useState('');
   const [limit, setLimit] = useState(50);
   const history = useInventoryTransactionHistory({
-    enabled: isDeveloper,
+    enabled: canReadHistory,
     limit,
     transactionType,
     search,
   });
 
-  if (!isDeveloper) {
+  if (!canReadHistory) {
     return (
       <section className="cart-panel cart-panel--locked">
         <div className="card__header">
@@ -455,10 +459,10 @@ function TransactionHistoryPanel({ permissions }) {
             <p className="eyebrow">Read-only review</p>
             <h3>Recent Inventory Transactions</h3>
           </div>
-          <span className="status-pill status-pill--warn">Developer only</span>
+          <span className="status-pill status-pill--warn">Inventory read access required</span>
         </div>
         <p>
-          Transaction history is locked to Developer role while division-scoped history visibility is still undefined.
+          Transaction history follows the server-side division read rule for cross-division, own-division, or self-scoped inventory access.
         </p>
       </section>
     );
@@ -504,7 +508,7 @@ function TransactionHistoryPanel({ permissions }) {
       </div>
 
       {history.error ? (
-        <div className="alert">Transaction history failed to load. Confirm Developer role and deployed RPC.</div>
+        <div className="alert">Transaction history failed to load. Confirm server permissions and deployed read-rule RPC.</div>
       ) : null}
       {history.isLoading ? <p className="muted">Loading transaction history...</p> : null}
 
