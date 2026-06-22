@@ -3482,3 +3482,111 @@ duplicated, renamed, or refactored. Verification result:
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 047).
+
+---
+
+## Entry 048 - Milestone 4O Count Intake production verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4O Count Intake production verification
+**Session type:** review
+
+### Context
+Ryan requested Milestone 4O: production verification and UI-only polish for the Inventory
+Count / Count Intake surfaces. Required first actions were completed before any review:
+`git pull --ff-only origin main` returned already up to date; local `main` and
+`origin/main` both resolved to commit `ebcc863`; `docs/ARCHITECTURE.md` was confirmed as
+v2.13; `HANDOFF.md` was confirmed gapless through Entry 047; Entry 047 was confirmed
+committed and pushed in the current history.
+
+Production browser automation was not available in this Codex session. The previously
+advertised in-app Browser skill file was absent from the local plugin cache and no
+browser-client surface was exposed. Therefore, no authenticated visual verification is
+claimed in this entry.
+
+### Review Findings
+- Production deploy inclusion was verified non-visually by fetching
+  `https://northgate-hq-v2.netlify.app/` and its current Vite bundle
+  `assets/index-DttO_ovG.js`; the deployed bundle contains the Entry 047 search placeholder
+  `Material, C111, bin, shelf, bay, or unit`, the `Review Repeats` UI marker, and the
+  `Storage path` repeat-review marker.
+- Compact location hierarchy behavior was statically verified in `src/App.jsx`:
+  - `buildCompactLocationCode()` derives unit/shelf/bay/bin compact codes from loaded row
+    fields;
+  - `matchesCountRowSearch()` treats `^[a-z]\d{0,3}$` searches as hierarchy searches;
+  - `C`, `C1`, `C11`, and `C111` therefore map to unit, shelf, bay, and bin prefixes.
+- Ordinary location text search was statically verified against visible location fields:
+  storage unit code/name, shelf code/label, bay code/label, bin code/label, and full
+  storage path.
+- Existing material search remains present for non-hierarchy searches through
+  `getCountRowSearchValues()`, which includes material code and item name.
+- Review Repeats was not rebuilt, duplicated, renamed, or refactored. Static review
+  confirmed the existing feature still uses local loaded-row data, excludes quantity and
+  category-only repeat fields, and includes material/location/part/description fields when
+  available.
+- Archived/retired `bin_items` remain hidden from active count/intake views because
+  `useInventoryCountSheet()` still reads rows from `inventory_cart_candidates_view`, and
+  the active retirement migration defines that view with `bi.archived_at IS NULL`.
+- The Retire action remains gated in `src/App.jsx` by Developer/Admin role plus
+  `permissions.canArchiveRecords`, and the write path remains the existing
+  `useBinItemRetirement()` hook calling the existing `retire_bin_item` RPC.
+- Searching/filtering/reviewing rows introduce no writes. Static scan found no new
+  insert/update/delete/RPC/schema/ledger/balance references in the relevant UI files for
+  this milestone.
+- `npm.cmd run build` passed.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, ledger row,
+  transaction history row, checkout/finalization behavior, count correction behavior,
+  bin_item retirement behavior, office destination semantics, or inventory balance behavior
+  was changed.
+
+### Code / File Changes
+- None.
+- No app code or CSS was changed in this milestone.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Milestone 4O was verification-only because the deployed bundle and static source review
+  showed Entry 047 code is present and aligned.
+- Do not claim authenticated visual production verification from this session.
+- Browser/runtime limitation remains active for Codex visual QA in this environment.
+- No UI polish was applied because no clear safe UI-only bug was found from static review.
+
+### What Claude Needs to Know
+- This milestone did not change architecture, schema, permissions, ledger behavior,
+  count correction behavior, bin_item retirement behavior, transaction history visibility,
+  checkout/finalization, or any deferred feature.
+- The only limitation is that visual production verification remains carried forward due
+  unavailable browser automation.
+
+### Next Steps (in order)
+1. Ryan performs manual production visual verification of Count Intake searches `C`, `C1`,
+   `C11`, `C111`, ordinary location text, material search, Review Repeats, and Retire
+   visibility.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- Authenticated production browser verification could not be completed in Codex because
+  browser automation was unavailable in this session.
+- Clerk development-key and duplicate GoTrue client console warnings remain separate
+  deployment/config cleanup items.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 048).
