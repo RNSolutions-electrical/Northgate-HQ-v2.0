@@ -4569,3 +4569,133 @@ or external coordination copies.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 056).
+
+---
+
+## Entry 058 - Milestone 5A.1 v2.14 Read-Rule Live Apply Verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5A.1 live migration apply / verification
+**Session type:** live Supabase migration apply / static and database verification
+
+### Context
+Ryan requested Milestone 5A.1 to apply and verify the v2.14 read-rule foundation
+migration from Entry 057 against live Supabase project `keogysnoukbendfkfjcn`.
+Required first actions were completed before live apply: `git pull --ff-only origin main`
+returned already up to date; local `main` matched `origin/main` at `b8fc14b`; HEAD was
+confirmed as commit `b8fc14b`; `docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF
+was confirmed gapless through Entry 057; and the repo clone files were used rather than
+stale coordination docs or attachment copies.
+
+The repo was not linked to Supabase through local CLI config, and the local Supabase CLI
+was not authenticated. The Supabase connector was used instead after confirming the live
+project list included `keogysnoukbendfkfjcn` as `northgate-hq-v2.0`.
+
+### What Was Completed
+- Identified the pending 5A migration:
+  `supabase/migrations/20260622200351_v214_read_rule_foundation.sql`.
+- Validated the migration before apply:
+  - it implements the v2.14 read-rule foundation only;
+  - it keeps Developer role default and Admin-division effective default separate;
+  - it does not grant cross-division visibility to Administrator role outside Admin
+    division by role default;
+  - it reuses the existing 202606120001 scoped reference view division-anchor pattern;
+  - it keeps inventory cost visible within allowed row scope;
+  - it does not use `can_view_financials` as an inventory cost gate;
+  - it does not introduce direct `inventory_balances` writes;
+  - it does not change checkout/finalization, count correction, count intake,
+    bin_item retirement, destination semantics, QR/scanner behavior, label-template
+    behavior, or Financials/job-cost behavior.
+- Applied the committed 5A SQL to live Supabase using the Supabase migration connector.
+- Confirmed live migration history now includes `20260622204514 v214_read_rule_foundation`.
+  The connector assigned the live migration version timestamp; the applied SQL corresponds
+  to the committed local file `20260622200351_v214_read_rule_foundation.sql`.
+
+### Post-Apply Verification
+- Migration history confirmed `v214_read_rule_foundation` is applied live.
+- Permission-layer SQL checks confirmed:
+  - Developer role default has `can_view_all_divisions = true`;
+  - Administrator role default has `can_view_all_divisions = false`;
+  - Administrator in Admin division receives effective `can_view_all_divisions = true`;
+  - Administrator in Electrical division remains effective `can_view_all_divisions = false`;
+  - explicit Admin-division false override wins over the Admin-division default.
+- Transaction-history function source check confirmed:
+  - `can_view_financials` is not used by `read_inventory_transaction_history`;
+  - `unit_cost_at_time` remains returned;
+  - `can_view_all_divisions` is used for cross-division read scope;
+  - the self-scoped predicate `tx.user_id = jwt_subject` remains present.
+- Developer-context live RPC smoke check completed successfully and returned transaction
+  history rows.
+- No-JWT live RPC smoke check failed closed with `authenticated Clerk JWT is required`.
+- `npm.cmd run build` passed after live apply.
+- Static scan remained clean for prohibited deletes, table drops/alters/creates, direct
+  `inventory_balances` writes, checkout/finalization, count correction, count intake,
+  bin_item retirement, QR/scanner, and label-template changes.
+
+### Schema Changes
+- Live Supabase now has the v2.14 read-rule foundation migration applied.
+- No schema tables were changed.
+- No ad-hoc SQL outside the committed 5A migration SQL was used for implementation.
+- No production Clerk, Netlify, or environment variables were modified.
+
+### Code / File Changes
+- No app code changed in this milestone.
+- HANDOFF was updated with this Entry 058 only.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 058.
+
+### What Codex Needs to Know
+- Live Supabase migration history records the applied migration as
+  `20260622204514 v214_read_rule_foundation` because the Supabase connector assigned the
+  live migration version.
+- The committed local migration file remains
+  `20260622200351_v214_read_rule_foundation.sql`; its SQL is what was applied live.
+- Future migration-history work should be aware of that version/name difference before
+  running CLI migration repair or push operations.
+- Authenticated browser verification was not available in this Codex session and is not
+  claimed here.
+
+### What Claude Needs to Know
+- The live apply matched the locked 5A implementation and post-apply database checks.
+- Developer role default and Admin-division effective default remain separate.
+- `can_view_financials` was not introduced as an inventory cost gate.
+- No ledger, balance, checkout/finalization, count correction, count intake, bin_item
+  retirement, destination semantics, QR/scanner, label-template, or Financials/job-cost
+  behavior was changed.
+- The only caution is migration-history version bookkeeping due to connector-assigned
+  live version `20260622204514` versus committed local file version `20260622200351`.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the `rnsolutions.net`
+   custom domain:
+   - login works;
+   - Source shows server;
+   - Developer/Admin access works;
+   - Inventory Count loads;
+   - Transaction History loads for Developer;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Before the next Supabase CLI migration push/repair, account for the live connector
+   migration version `20260622204514 v214_read_rule_foundation`.
+3. Proceed to the next v2.14 milestone only after Ryan is satisfied with production
+   browser smoke results.
+
+### Open Questions / Concerns
+- Authenticated browser verification was not available from this Codex session.
+- Migration history version bookkeeping should be handled intentionally in a later
+  coordination step if the CLI expects the committed local timestamp exactly.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: the v2.14 read-rule foundation has been applied and verified
+  live at the database level.
+- RESERVED: QR generator/scanner, Label Template Designer, Grand Master UI surface,
+  accounting export, location management UI, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override, reorder/min-max,
+  structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - live migration/apply verification only for locked implementation (ARCHITECTURE v2.14, HANDOFF Entry 057).
