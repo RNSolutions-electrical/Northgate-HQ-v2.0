@@ -1,5 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
-import { Database, LayoutDashboard, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
@@ -9,6 +9,7 @@ import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from './hooks/usePermissions.js';
+import { buildLocationQrSvg, buildLocationQrUrl, getAppOrigin } from './lib/locationQr.js';
 
 const DESTINATION_OPTIONS = [
   { value: 'job', label: 'Job' },
@@ -75,6 +76,15 @@ function buildStoragePath(row) {
   return [row.storage_unit_code, row.shelf_code, row.bay_code, row.bin_code].filter(Boolean).join(' / ');
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function normalizeSearchText(value) {
   return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -128,6 +138,91 @@ function getCountRowSearchValues(row) {
     row.description,
     ...getLocationSearchValues(row),
   ];
+}
+
+function buildLocationRecords(storageUnits, shelves, bays, bins) {
+  const unitById = new Map(storageUnits.map((unit) => [unit.id, unit]));
+  const shelfById = new Map(shelves.map((shelf) => [shelf.id, shelf]));
+  const bayById = new Map(bays.map((bay) => [bay.id, bay]));
+
+  const unitRecords = storageUnits.map((unit) => ({
+    id: unit.id,
+    type: 'unit',
+    typeLabel: 'Unit',
+    code: unit.unit_code,
+    label: unit.name,
+    division: unit.division,
+    path: unit.unit_code,
+    parentLabel: 'Top level',
+    depth: 1,
+  }));
+
+  const shelfRecords = shelves.map((shelf) => {
+    const unit = unitById.get(shelf.unit_id) ?? {};
+    return {
+      id: shelf.id,
+      type: 'shelf',
+      typeLabel: 'Shelf',
+      code: shelf.shelf_code,
+      label: shelf.label,
+      division: unit.division,
+      path: [unit.unit_code, shelf.shelf_code].filter(Boolean).join(' / '),
+      parentLabel: unit.unit_code || shelf.unit_id,
+      depth: 2,
+    };
+  });
+
+  const bayRecords = bays.map((bay) => {
+    const shelf = shelfById.get(bay.shelf_id) ?? {};
+    const unit = unitById.get(shelf.unit_id) ?? {};
+    return {
+      id: bay.id,
+      type: 'bay',
+      typeLabel: 'Bay',
+      code: bay.bay_code,
+      label: bay.label,
+      division: unit.division,
+      path: [unit.unit_code, shelf.shelf_code, bay.bay_code].filter(Boolean).join(' / '),
+      parentLabel: [unit.unit_code, shelf.shelf_code].filter(Boolean).join(' / ') || bay.shelf_id,
+      depth: 3,
+    };
+  });
+
+  const binRecords = bins.map((bin) => {
+    const bay = bayById.get(bin.bay_id) ?? {};
+    const shelf = shelfById.get(bay.shelf_id) ?? {};
+    const unit = unitById.get(shelf.unit_id) ?? {};
+    return {
+      id: bin.id,
+      type: 'bin',
+      typeLabel: 'Bin',
+      code: bin.bin_code,
+      label: bin.label,
+      division: unit.division,
+      path: [unit.unit_code, shelf.shelf_code, bay.bay_code, bin.bin_code].filter(Boolean).join(' / '),
+      parentLabel: [unit.unit_code, shelf.shelf_code, bay.bay_code].filter(Boolean).join(' / ') || bin.bay_id,
+      depth: 4,
+    };
+  });
+
+  return [...unitRecords, ...shelfRecords, ...bayRecords, ...binRecords]
+    .filter((record) => record.id)
+    .sort((first, second) => first.path.localeCompare(second.path) || first.typeLabel.localeCompare(second.typeLabel));
+}
+
+function matchesLocationSearch(record, searchText) {
+  const normalizedSearch = normalizeSearchText(searchText);
+  if (!normalizedSearch) return true;
+
+  return [
+    record.typeLabel,
+    record.code,
+    record.label,
+    record.path,
+    record.parentLabel,
+    record.division,
+    record.id,
+  ].some((value) => normalizeSearchText(value).includes(normalizedSearch));
 }
 
 function matchesCountRowSearch(row, searchText) {
@@ -398,6 +493,252 @@ function StoragePreview({ storageUnits, bins }) {
         )}
       </section>
     </div>
+  );
+}
+
+function LocationManagementPanel({ permissions }) {
+  const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const appOrigin = getAppOrigin();
+  const locationRecords = useMemo(
+    () => buildLocationRecords(
+      locationSheet.storageUnits,
+      locationSheet.shelves,
+      locationSheet.bays,
+      locationSheet.bins,
+    ),
+    [locationSheet.storageUnits, locationSheet.shelves, locationSheet.bays, locationSheet.bins],
+  );
+  const filteredLocations = locationRecords.filter((record) => {
+    if (typeFilter && record.type !== typeFilter) return false;
+    return matchesLocationSearch(record, search);
+  });
+  const selectedLocation =
+    filteredLocations.find((record) => record.id === selectedLocationId) ??
+    filteredLocations[0] ??
+    null;
+  const qrUrl = selectedLocation ? buildLocationQrUrl(selectedLocation.id, appOrigin) : '';
+  const qrSvg = selectedLocation ? buildLocationQrSvg(selectedLocation.id, appOrigin) : '';
+
+  useEffect(() => {
+    if (!locationRecords.length) {
+      if (selectedLocationId) setSelectedLocationId('');
+      return;
+    }
+
+    if (!selectedLocationId || !locationRecords.some((record) => record.id === selectedLocationId)) {
+      setSelectedLocationId(locationRecords[0].id);
+    }
+  }, [locationRecords, selectedLocationId]);
+
+  function selectLocation(record) {
+    setSelectedLocationId(record.id);
+  }
+
+  function downloadSelectedQr() {
+    if (!selectedLocation || !qrSvg) return;
+
+    const blob = new Blob([qrSvg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const fileCode = String(selectedLocation.code || selectedLocation.id).replace(/[^a-z0-9_-]+/gi, '-');
+    link.href = url;
+    link.download = `northgate-location-${selectedLocation.type}-${fileCode}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function printSelectedQr() {
+    if (!selectedLocation || !qrSvg) return;
+
+    const printWindow = window.open('', '_blank', 'width=420,height=560');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Northgate Location QR</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 32px; color: #111827; }
+            .sheet { display: grid; gap: 16px; max-width: 360px; }
+            .qr { width: 260px; height: 260px; }
+            h1 { margin: 0; font-size: 28px; }
+            p { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+            .meta { color: #4b5563; }
+          </style>
+        </head>
+        <body>
+          <main class="sheet">
+            <div class="qr">${qrSvg}</div>
+            <h1>${escapeHtml(selectedLocation.code || selectedLocation.typeLabel)}</h1>
+            <p>${escapeHtml(selectedLocation.typeLabel)} - ${escapeHtml(selectedLocation.path)}</p>
+            <p class="meta">${escapeHtml(selectedLocation.label || 'No label')}</p>
+            <p class="meta">${escapeHtml(qrUrl)}</p>
+          </main>
+          <script>window.print(); window.close();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  if (!canReadLocations) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Location Management</p>
+            <h3>Storage Location QR Generator</h3>
+          </div>
+          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+        </div>
+        <p>Location management and QR generation use the existing inventory management permission gate.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel location-manager">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Location Management</p>
+          <h3>Storage Location QR Generator</h3>
+          <p>
+            Read-only foundation for Unit, Shelf, Bay, and Bin records. QR codes point to stable location UUIDs, so renaming display codes later should not invalidate printed labels.
+          </p>
+        </div>
+        <span className="status-pill status-pill--good">Locations only</span>
+      </div>
+
+      <div className="location-note">
+        <MapPin aria-hidden="true" />
+        <span>
+          QR payloads use <strong>/scan/location/&lt;location_uuid&gt;</strong>. Human-readable codes stay visible for operators but are not encoded as identity.
+        </span>
+      </div>
+
+      <div className="count-toolbar location-toolbar">
+        <label>
+          Search locations
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Unit, shelf, bay, bin, path, label, or UUID"
+          />
+        </label>
+        <label>
+          Type
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            <option value="">All location types</option>
+            <option value="unit">Units</option>
+            <option value="shelf">Shelves</option>
+            <option value="bay">Bays</option>
+            <option value="bin">Bins</option>
+          </select>
+        </label>
+        <button type="button" className="secondary-button" onClick={locationSheet.reload} disabled={locationSheet.isLoading}>
+          {locationSheet.isLoading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      {locationSheet.error ? (
+        <div className="alert">Location hierarchy failed to load. Confirm server permissions and existing storage-location table access.</div>
+      ) : null}
+      {locationSheet.isLoading ? <p className="muted">Loading storage location hierarchy...</p> : null}
+
+      <div className="cart-facts count-summary">
+        <span>Units: {locationSheet.storageUnits.length}</span>
+        <span>Shelves: {locationSheet.shelves.length}</span>
+        <span>Bays: {locationSheet.bays.length}</span>
+        <span>Bins: {locationSheet.bins.length}</span>
+        <span>Visible locations: {filteredLocations.length}</span>
+        <span>App origin: {appOrigin}</span>
+      </div>
+
+      <div className="location-layout">
+        <section className="location-list-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Hierarchy</p>
+              <h3>Existing location records</h3>
+            </div>
+            <span>{filteredLocations.length} visible</span>
+          </div>
+
+          {filteredLocations.length ? (
+            <div className="location-record-list">
+              {filteredLocations.map((record) => (
+                <button
+                  type="button"
+                  className="location-record"
+                  aria-pressed={selectedLocation?.id === record.id}
+                  key={`${record.type}:${record.id}`}
+                  onClick={() => selectLocation(record)}
+                >
+                  <span className="location-record__type">{record.typeLabel}</span>
+                  <strong>{record.code || record.id}</strong>
+                  <span>{record.path || record.parentLabel}</span>
+                  <small>{record.label || record.division || 'No display label'}</small>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No locations match">
+              No Unit, Shelf, Bay, or Bin records match the current location filters.
+            </EmptyState>
+          )}
+        </section>
+
+        <section className="location-qr-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">QR payload</p>
+              <h3>{selectedLocation ? selectedLocation.code || selectedLocation.typeLabel : 'Select a location'}</h3>
+            </div>
+            <QrCode aria-hidden="true" />
+          </div>
+
+          {selectedLocation ? (
+            <>
+              <div className="location-qr-card">
+                <div className="location-qr-preview" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+                <div className="location-qr-meta">
+                  <strong>{selectedLocation.typeLabel}: {selectedLocation.code || selectedLocation.id}</strong>
+                  <span>{selectedLocation.path}</span>
+                  <span>{selectedLocation.label || 'No display label'}</span>
+                  <code>{qrUrl}</code>
+                </div>
+              </div>
+              <div className="cart-actions">
+                <button type="button" className="secondary-button" onClick={downloadSelectedQr}>
+                  <Download aria-hidden="true" /> Download SVG
+                </button>
+                <button type="button" className="secondary-button" onClick={printSelectedQr}>
+                  <Printer aria-hidden="true" /> Print QR
+                </button>
+              </div>
+            </>
+          ) : (
+            <EmptyState title="No QR available">
+              Load or select a storage location before generating a location QR.
+            </EmptyState>
+          )}
+
+          <div className="location-note location-note--muted">
+            <span>
+              Create, rename, and archive controls are intentionally deferred here. This milestone did not add client-side location writes or new server APIs.
+            </span>
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -2484,6 +2825,9 @@ function InventoryReadOnlyPanel({ permissions }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'storage'} onClick={() => setActiveTab('storage')}>
           Storage Browser
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'locations'} onClick={() => setActiveTab('locations')}>
+          Locations & QR
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
           Cart Checkout
         </button>
@@ -2498,6 +2842,7 @@ function InventoryReadOnlyPanel({ permissions }) {
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
+      {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
       {activeTab === 'cart' ? (
         <CartScaffold
           permissions={permissions}
