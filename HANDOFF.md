@@ -4183,3 +4183,125 @@ repairing coordination-document order.
 
 ### Routing Verdict
 No Claude review needed - UI/documentation-only within locked Count Intake and bin_item retirement rules.
+
+---
+
+## Entry 055 - Milestone 4U Production Inventory Smoke Test Closeout
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4U production smoke closeout
+**Session type:** verification / documentation
+
+### Context
+Ryan requested Milestone 4U as a production inventory smoke-test closeout after production
+auth recovery and recent Count Intake / UI polish work. Required first actions were
+completed before this entry was appended: `git pull --ff-only origin main` returned
+already up to date; local `main` matched `origin/main` at `77f354c`; `docs/ARCHITECTURE.md`
+was confirmed as v2.13; HANDOFF numbering was confirmed to contain Entries 001 through
+054 with no missing numbers or duplicate entry numbers; and the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale coordination docs. The
+pre-existing file-order drift remains from prior work because Entry 052 appears before
+Entry 051 in the file; this entry was appended normally as Entry 055 without silently
+repairing coordination-document order.
+
+### Ryan-Reported Production Status
+- Ryan reports everything appears to be in order so far after production auth recovery and
+  recent Count Intake / UI polish work.
+- Ryan previously verified production auth recovery on the `rnsolutions.net` custom
+  domain, Clerk production login, server permission recovery, Developer/Admin access, and
+  Inventory Count loading.
+- In this Codex session, authenticated browser automation / browser-console inspection was
+  not available, so the following production checklist items were not independently
+  browser-verified by Codex:
+  - Clerk production login;
+  - app getting past "Waiting on server permissions";
+  - permission source showing `server`;
+  - Ryan's user showing Developer/Admin access;
+  - Inventory Count authenticated loading;
+  - Count Intake searches `C`, `C1`, `C11`, and `C111`;
+  - ordinary location text search;
+  - material search;
+  - Review Repeats interaction;
+  - Retire action visibility gating;
+  - Retire archive-only behavior in the live UI;
+  - browser console absence of Clerk development-key warnings, Clerk production-domain
+    origin errors, Supabase `PGRST301` / JWT decode errors, or Supabase `401` permission
+    failures.
+- Duplicate GoTrue warning status could not be determined by Codex in this session because
+  browser-console verification was unavailable. Ryan did not report observing the warning
+  in this milestone prompt.
+
+### Codex Verification Completed
+- `npm.cmd run build` passed.
+- Public production HTTP check for `https://rnsolutions.net/` returned HTTP `200`.
+- The production HTML returned the expected `Northgate HQ v2.0` title.
+- The production HTML included favicon metadata.
+- Deployed-bundle text checks found the recent Count Intake / UI markers:
+  - `How to use this screen`;
+  - `C111`;
+  - `Review Repeats`;
+  - Retire help text;
+  - `count-help-panel` CSS.
+- Static scan confirmed no migration files were added or changed before this HANDOFF-only
+  entry.
+- Static review confirmed Count Intake still uses the existing `intake.recordCount`
+  calls in `src/App.jsx` and the existing `intake_inventory_count` RPC inside
+  `src/hooks/useInventoryCountIntake.js`.
+- Static review confirmed Retire remains isolated to the existing
+  `useBinItemRetirement()` hook and existing `retire_bin_item` RPC.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC signature/body, RLS policy,
+  permission model, Clerk/Supabase JWT behavior, `user_permissions` logic, ledger
+  behavior, transaction item meaning, inventory balance behavior, count correction
+  behavior, bin_item retirement rule, checkout/finalization behavior, destination
+  semantics, transaction history visibility, division-scoped read rule, or reserved
+  feature was changed.
+
+### Code / File Changes
+- None.
+- No app behavior changed.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This was verification/documentation-only.
+- Do not claim authenticated browser or console verification from this session.
+- Public production HTTP/deployed-bundle checks passed, but authenticated UI and console
+  checks remain Ryan/manual unless a browser-control session is available later.
+- Count Intake and Retire write paths were not changed.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, ledger behavior, balance behavior, count
+  correction behavior, bin_item retirement semantics, destination semantics, transaction
+  history visibility, division-scoped read rules, or reserved feature work was done.
+
+### Next Steps (in order)
+1. Ryan may complete or repeat authenticated production browser QA on the `rnsolutions.net`
+   custom domain, including console review for Clerk, Supabase, and duplicate GoTrue
+   warnings.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- Authenticated browser verification and browser-console verification were not available
+  in this Codex session.
+- Duplicate GoTrue warning status remains unverified by Codex for this closeout.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - verification/documentation-only within locked ARCHITECTURE v2.13.
