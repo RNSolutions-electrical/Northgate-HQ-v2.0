@@ -3807,3 +3807,93 @@ browser or authenticated console verification is claimed in this entry.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
+
+---
+
+## Entry 051 - Production Auth Recovery / Permission Verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Production auth recovery verification
+**Session type:** review
+
+### Context
+Ryan requested Entry 051 as a documentation-only verification entry after manually
+completing production Clerk / Netlify / DNS / JWT configuration recovery. Required first
+actions were completed before this entry was appended: `git pull --ff-only origin main`
+returned already up to date; local `main` and `origin/main` both resolved to commit
+`4b0afe9`; `docs/ARCHITECTURE.md` was confirmed as v2.13; `HANDOFF.md` was confirmed
+gapless through Entry 050; and the repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md`
+were used rather than stale local coordination docs.
+
+### Review Findings
+- Ryan verified the production app loads from the `rnsolutions.net` custom domain.
+- Ryan verified Clerk production login works.
+- Ryan verified server permissions are restored.
+- Ryan verified the app gets past "Waiting on server permissions."
+- Ryan verified the permissions source shows `server`.
+- Ryan verified Developer/Admin access is restored.
+- Ryan verified Inventory Count loads.
+- Ryan reported the production smoke check appears in order.
+- The resolved production configuration issue is recorded as:
+  - Netlify production Clerk key was moved to production key usage;
+  - the app must be opened from the `rnsolutions.net` custom domain, not
+    `northgate-hq-v2.netlify.app`;
+  - Clerk production JWT template / signing configuration was corrected so Supabase can
+    decode the token;
+  - Supabase permission RPC no longer returns `PGRST301` / `401`;
+  - current production Clerk user permissions are restored.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, RLS policy, permission logic,
+  ledger behavior, transaction history visibility, inventory balance behavior, count
+  correction behavior, bin_item retirement behavior, checkout/finalization behavior, or
+  reserved feature was changed.
+
+### Code / File Changes
+- None.
+- No app code changed.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Production auth recovery was completed manually by Ryan outside Codex.
+- Use the `rnsolutions.net` custom domain for production auth validation, not the Netlify
+  subdomain.
+- Server-authoritative permissions are restored in production according to Ryan's manual
+  verification.
+- Do not change Clerk JWT templates, permission RPCs, `user_permissions`, RLS, or
+  inventory behavior from this entry.
+
+### What Claude Needs to Know
+- This was documentation-only verification of production auth recovery.
+- No architecture-sensitive code, schema, permissions logic, ledger behavior, inventory
+  behavior, or deferred feature work was changed.
+- The production domain / Clerk production key / Clerk JWT template / Supabase permission
+  decode path has been restored according to Ryan's manual verification.
+
+### Next Steps (in order)
+1. Continue using the `rnsolutions.net` custom domain for production QA.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- None blocking for this production auth recovery record.
+- Future production auth checks should explicitly use the custom domain because Clerk
+  production domain settings matter.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
