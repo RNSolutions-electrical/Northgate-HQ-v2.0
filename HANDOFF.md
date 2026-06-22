@@ -3810,6 +3810,107 @@ No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF E
 
 ---
 
+## Entry 052 - Milestone 4R Count Intake QA polish
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4R Count Intake QA polish
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4R: Count Intake usability and QA-confidence polish after
+production auth recovery. Required first actions were completed before implementation:
+`git pull --ff-only origin main` returned already up to date; local `main` and
+`origin/main` both resolved to commit `4bc7374`; `docs/ARCHITECTURE.md` was confirmed as
+v2.13; `HANDOFF.md` was confirmed gapless through Entry 051; the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale local coordination docs;
+and Entry 051 was confirmed to document production auth recovery.
+
+### What Was Completed
+- Added selected-path breadcrumb chips to Count Intake so Unit / Shelf / Bay / Bin context
+  is easier to scan.
+- Added a small Count Intake guard panel stating that recorded quantities create official
+  count corrections through the existing intake path, zero is valid, and catalog items
+  must already exist.
+- Improved search label/helper text while preserving the existing compact location search
+  behavior for `C`, `C1`, `C11`, and `C111`.
+- Clarified that selected-bin catalog-item intake is separate from existing stocked rows.
+- Added a form note under selected-bin catalog intake stating that the action records an
+  official count correction for the selected bin/material pair.
+- Added an "Existing bin/material rows" section header with visible row count and a
+  Review Repeats-aware title.
+- Improved the no-results empty state to mention search, path, category, and repeat
+  filters.
+- Added responsive CSS for the new guard panel and section header.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC signature/body, RLS policy,
+  permission model, Clerk/Supabase JWT behavior, `user_permissions` logic, ledger behavior,
+  transaction item meaning, inventory balance behavior, count correction behavior, bin_item
+  retirement behavior, checkout/finalization behavior, destination semantics, transaction
+  history visibility, or reserved feature was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added selected-path segment display values;
+  - added Count Intake guard text;
+  - improved selected path display and selected-bin intake copy;
+  - added an existing-row section header and clearer empty state.
+- Updated `src/styles.css`:
+  - added styles for field hints, the guard panel, breadcrumb chips, form note, and the
+    existing-row section header;
+  - added responsive handling for the new Count Intake polish elements.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This was UI-only Count Intake polish.
+- Count Intake hierarchy search behavior (`C`, `C1`, `C11`, `C111`) remains implemented
+  through the existing search matcher and was not rewritten.
+- Review Repeats remains display/filter-only.
+- Retire action visibility remains controlled by existing Developer/Admin +
+  `can_archive_records` UI gating and the existing `retire_bin_item` hook/RPC.
+- Count-to-zero remains valid because `isDraftReady()` still accepts counted quantities
+  greater than or equal to zero.
+- Intake still uses the existing `useInventoryCountIntake()` hook and `intake.recordCount`
+  calls only.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, ledger behavior, inventory balances, count
+  correction behavior, bin_item retirement semantics, checkout/finalization, destination
+  semantics, transaction history visibility, division-scoped read rule, or reserved feature
+  work was done.
+
+### Next Steps (in order)
+1. Ryan manually verifies the Count Intake polish in production on the `rnsolutions.net`
+   custom domain.
+2. Verify in production that Count Intake searches `C`, `C1`, `C11`, and `C111` still
+   behave correctly, Review Repeats still works, Retire visibility remains gated, and no
+   Clerk production-domain / Supabase `401` / `PGRST301` errors appear.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Authenticated browser verification could not be completed in Codex because browser
+  automation was unavailable in this session.
+- The first `npm.cmd run build` attempt hit a transient Vite/Rolldown path-emission error;
+  a clean standalone rerun passed successfully.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 052).
+
+---
+
 ## Entry 051 - Production Auth Recovery / Permission Verification
 
 **Date:** 2026-06-22

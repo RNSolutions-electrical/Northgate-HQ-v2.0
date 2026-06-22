@@ -996,6 +996,13 @@ function InventoryCountIntakePanel({ permissions }) {
   const selectedShelf = countSheet.shelves.find((shelf) => shelf.id === filters.shelf_id) ?? null;
   const selectedBay = countSheet.bays.find((bay) => bay.id === filters.bay_id) ?? null;
   const selectedBin = countSheet.bins.find((bin) => bin.id === filters.bin_id) ?? null;
+  const selectedPathSegments = [
+    selectedUnit ? { label: 'Unit', value: selectedUnit.unit_code, detail: selectedUnit.name } : null,
+    selectedShelf ? { label: 'Shelf', value: selectedShelf.shelf_code, detail: selectedShelf.label } : null,
+    selectedBay ? { label: 'Bay', value: selectedBay.bay_code, detail: selectedBay.label } : null,
+    selectedBin ? { label: 'Bin', value: selectedBin.bin_code, detail: selectedBin.label } : null,
+  ].filter(Boolean);
+  const selectedPathLabel = selectedPathSegments.map((segment) => segment.value).join(' / ');
   const shelvesForUnit = filters.storage_unit_id
     ? countSheet.shelves.filter((shelf) => shelf.unit_id === filters.storage_unit_id)
     : [];
@@ -1374,13 +1381,14 @@ function InventoryCountIntakePanel({ permissions }) {
 
         <div className="count-toolbar">
           <label>
-            Search loaded rows
+            Search rows
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Material, C111, bin, shelf, bay, or unit"
             />
+            <span className="field-hint">Compact paths filter by unit, shelf, bay, and bin.</span>
           </label>
           <label>
             Category
@@ -1405,6 +1413,11 @@ function InventoryCountIntakePanel({ permissions }) {
         {intake.error ? <div className="alert">Inventory count intake failed. Confirm Developer/Admin role and deployed RPC.</div> : null}
         {retirement.error ? <div className="alert">Bin item retirement failed. Confirm Developer/Admin role, can_archive_records, zero balance, and deployed RPC.</div> : null}
         {countSheet.isLoading ? <p className="muted">Loading count sheet...</p> : null}
+
+        <div className="count-guard-panel">
+          <strong>Official count workflow</strong>
+          <span>Recorded quantities create physical count corrections through the existing intake path. Zero is valid. Catalog items must already exist.</span>
+        </div>
 
         <div className="cart-facts count-summary">
           <span>Loaded bin/material rows: {countSheet.rows.length}</span>
@@ -1436,12 +1449,19 @@ function InventoryCountIntakePanel({ permissions }) {
         <section className="count-intake-card">
           <div>
             <p className="eyebrow">Selected path</p>
-            <h3>
-              {[selectedUnit?.unit_code, selectedShelf?.shelf_code, selectedBay?.bay_code, selectedBin?.bin_code].filter(Boolean).join(' / ') || 'Choose a bin'}
-            </h3>
+            <h3>{selectedPathLabel || 'Choose a bin'}</h3>
+            {selectedPathSegments.length ? (
+              <div className="count-path-crumbs">
+                {selectedPathSegments.map((segment) => (
+                  <span key={segment.label}>
+                    {segment.label}: {segment.value}{segment.detail ? ` / ${segment.detail}` : ''}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
           <p className="muted">
-            Counts use existing catalog items only. Missing materials must be added through the catalog workflow before they can be counted.
+            Selected-bin catalog intake is separate from existing stocked rows below.
           </p>
 
           {selectedBin ? (
@@ -1492,10 +1512,13 @@ function InventoryCountIntakePanel({ permissions }) {
               >
                 {intake.isRecording ? 'Recording...' : 'Record Count'}
               </button>
+              <p className="count-form-note">
+                This records an official count correction for the selected bin/material pair.
+              </p>
             </div>
           ) : (
             <EmptyState title="Select a bin">
-              Choose a storage unit, shelf, bay, and bin before recording a count for a catalog item.
+              Choose a storage unit, shelf, bay, and bin before counting an existing catalog item into a bin.
             </EmptyState>
           )}
           {rowMessages.new ? (
@@ -1513,6 +1536,13 @@ function InventoryCountIntakePanel({ permissions }) {
 
         {filteredRows.length ? (
           <>
+            <div className="count-section-header">
+              <div>
+                <p className="eyebrow">Existing bin/material rows</p>
+                <h3>{reviewRepeats ? 'Repeated values review' : 'Count loaded stock'}</h3>
+              </div>
+              <span>{filteredRows.length} visible</span>
+            </div>
             <div className="table-wrap count-table-wrap">
               <table className="data-table count-table">
                 <thead>
@@ -1743,7 +1773,7 @@ function InventoryCountIntakePanel({ permissions }) {
           </>
         ) : (
           <EmptyState title="No count rows">
-            No physical bin/material rows match the current count filters.
+            No active bin/material rows match the current search, path, category, and repeat filters.
           </EmptyState>
         )}
       </section>
