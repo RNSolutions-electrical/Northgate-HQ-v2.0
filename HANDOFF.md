@@ -3590,3 +3590,114 @@ claimed in this entry.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 048).
+
+---
+
+## Entry 049 - Production config warning cleanup / duplicate client diagnostic
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4P production config warning cleanup
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4P: diagnostic-first cleanup for two production console warnings
+carried forward from Entry 048: Clerk development-key warning and duplicate Supabase
+GoTrue client warning. Required first actions were completed before code changes:
+`git pull --ff-only origin main` returned already up to date; local `main` and
+`origin/main` both resolved to commit `bfec081`; `docs/ARCHITECTURE.md` was confirmed as
+v2.13; `HANDOFF.md` was confirmed gapless through Entry 048; and the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale local coordination docs.
+
+### What Was Completed
+- Diagnosed the Clerk development-key warning:
+  - production bundle inspection found one embedded `pk_test_` Clerk publishable key token
+    and no `pk_live_` Clerk publishable key token;
+  - no key value was printed or committed;
+  - code inspection confirmed the app reads `VITE_CLERK_PUBLISHABLE_KEY` from Vite env and
+    does not hardcode a Clerk key.
+- Determined the Clerk warning requires environment/dashboard cleanup outside Codex:
+  - Ryan should check Netlify project environment variable `VITE_CLERK_PUBLISHABLE_KEY`,
+    especially the production context;
+  - Ryan should use the Clerk production publishable key from the correct Clerk production
+    instance, not a development `pk_test_` key;
+  - no production environment variable was changed in Codex.
+- Diagnosed the duplicate GoTrue client warning:
+  - the repo had two Supabase client modules: `src/services/supabaseClient.js` and
+    `src/lib/supabaseClient.js`;
+  - app code was using the services path, while the lib path separately initialized a
+    Supabase client if imported later;
+  - `createSupabaseClient()` was also creating Clerk-token Supabase clients with default
+    Supabase auth persistence, which can create multiple GoTrue clients under the same
+    browser storage key.
+- Cleaned up Supabase client initialization safely:
+  - disabled Supabase JS internal auth persistence/session URL detection for
+    `createSupabaseClient()`;
+  - kept Clerk JWT authorization behavior unchanged by preserving the explicit
+    `Authorization: Bearer <token>` global header;
+  - changed `src/lib/supabaseClient.js` to re-export the existing services client path so
+    future imports do not create a second independent Supabase client.
+- Ran `npm.cmd run build` successfully.
+- Static scan confirmed only one direct `createClient()` call remains in `src`.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, user_permissions
+  behavior, Clerk JWT template, ledger behavior, transaction history visibility,
+  inventory balance behavior, count correction behavior, bin_item retirement behavior,
+  checkout/finalization behavior, or deferred feature was changed.
+
+### Code / File Changes
+- Updated `src/services/supabaseClient.js`:
+  - added Supabase auth options `persistSession: false`, `autoRefreshToken: false`, and
+    `detectSessionInUrl: false`;
+  - preserved existing URL/key validation and Clerk token global header behavior.
+- Updated `src/lib/supabaseClient.js`:
+  - replaced the duplicate direct Supabase client initialization with a re-export from
+    `../services/supabaseClient.js`.
+- Updated `HANDOFF.md` with this Entry 049.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- The Clerk development-key warning is not fixed in code because the deployed bundle is
+  receiving a development Clerk publishable key from configuration.
+- Do not hardcode or fabricate a Clerk production key.
+- The safe code cleanup addressed only duplicate Supabase client initialization and
+  GoTrue session persistence behavior.
+- Clerk JWT permission logic and server-authoritative permission behavior were not changed.
+
+### What Claude Needs to Know
+- No architecture-sensitive inventory behavior changed.
+- No schema, migration, RPC, permission model, ledger, history visibility, balance,
+  count-correction, retirement, checkout/finalization, or deferred feature work was done.
+- No Claude review was required because the code change was limited to client initialization
+  cleanup and did not alter auth/permission semantics.
+
+### Next Steps (in order)
+1. Ryan updates/checks Netlify production env variable `VITE_CLERK_PUBLISHABLE_KEY` to use
+   the Clerk production publishable key (`pk_live_...`) from the correct Clerk production
+   instance, then triggers/reviews a production deploy.
+2. Ryan verifies the production console no longer shows the Clerk development-key warning
+   after the environment variable is corrected and redeployed.
+3. Ryan verifies the duplicate GoTrue client warning no longer appears after this client
+   cleanup deploys.
+4. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Actual Netlify/Clerk environment variable values were not read, printed, changed, or
+  committed by Codex.
+- Production browser automation remains unavailable in this Codex session, so console
+  verification after deploy remains manual.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 049).
