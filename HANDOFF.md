@@ -3701,3 +3701,109 @@ v2.13; `HANDOFF.md` was confirmed gapless through Entry 048; and the repo copies
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 049).
+
+---
+
+## Entry 050 - Milestone 4Q production console verification closeout
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4Q production console verification
+**Session type:** review
+
+### Context
+Ryan requested Milestone 4Q: production console verification and manual QA closeout after
+Entry 049. Required first actions were completed before review: `git pull --ff-only origin
+main` returned already up to date; local `main` and `origin/main` both resolved to commit
+`3542085`; `docs/ARCHITECTURE.md` was confirmed as v2.13; `HANDOFF.md` was confirmed
+gapless through Entry 049; and the repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md`
+were used rather than stale local coordination docs.
+
+Authenticated production browser verification was not available in this Codex session.
+The in-app Browser client/skill was absent from the local plugin cache, so no visual
+browser or authenticated console verification is claimed in this entry.
+
+### Review Findings
+- Production deploy inclusion for Entry 049 was verified non-visually by fetching
+  `https://northgate-hq-v2.netlify.app/` and the current production Vite bundle
+  `assets/index-Bjdtwx30.js`.
+- The production bundle includes the Entry 049 Supabase client cleanup markers:
+  `persistSession`, `autoRefreshToken`, and `detectSessionInUrl` are present in the
+  deployed bundle.
+- Static scan confirmed only one direct Supabase `createClient()` call remains in `src`:
+  `src/services/supabaseClient.js`.
+- `src/lib/supabaseClient.js` re-exports `createSupabaseClient` and `supabase` from
+  `../services/supabaseClient.js` and no longer creates a second client.
+- `src/services/supabaseClient.js` uses:
+  - `persistSession: false`;
+  - `autoRefreshToken: false`;
+  - `detectSessionInUrl: false`.
+- No Clerk key is hardcoded in source. Static scan found only
+  `VITE_CLERK_PUBLISHABLE_KEY` usage in `src/main.jsx`.
+- No secrets were printed or committed.
+- The production bundle still contains one `pk_test_` Clerk publishable key token and no
+  `pk_live_` Clerk publishable key token. This means the Clerk development-key warning is
+  still expected until Ryan updates Netlify production `VITE_CLERK_PUBLISHABLE_KEY` to the
+  correct Clerk production publishable key and redeploys.
+- The production bundle still includes the Count Intake `C111` placeholder and
+  `Review Repeats` marker, confirming the prior Count Intake UI code remains deployed.
+- `npm.cmd run build` passed.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, Clerk JWT template
+  behavior, `user_permissions` behavior, ledger behavior, transaction history visibility,
+  inventory balance behavior, count correction behavior, bin_item retirement behavior,
+  checkout/finalization behavior, or deferred feature was changed.
+
+### Code / File Changes
+- None.
+- No app code or CSS changed in this milestone.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Milestone 4Q was verification-only.
+- Do not claim authenticated production console/browser verification from this session.
+- Entry 049 code is deployed, but the Clerk development-key warning cannot be closed until
+  Netlify production `VITE_CLERK_PUBLISHABLE_KEY` is changed to a Clerk `pk_live_...`
+  publishable key outside Codex.
+- No secrets were exposed or committed.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migration, RPC, permission model, Clerk JWT template, `user_permissions`,
+  ledger, history visibility, balance, count-correction, retirement, checkout/finalization,
+  or deferred feature work was done.
+
+### Next Steps (in order)
+1. Ryan updates Netlify production `VITE_CLERK_PUBLISHABLE_KEY` to the correct Clerk
+   production publishable key (`pk_live_...`) and redeploys.
+2. Ryan manually verifies the production console after redeploy:
+   - Clerk development-key warning is gone;
+   - duplicate GoTrue client warning is gone;
+   - sign-in works;
+   - permission source remains server;
+   - Inventory Count loads;
+   - Count Intake hierarchy search still works for `C`, `C1`, `C11`, and `C111`;
+   - Review Repeats still works;
+   - Retire action remains gated to Developer/Admin with `can_archive_records`.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Authenticated production browser verification could not be completed in Codex because
+  browser automation was unavailable in this session.
+- The deployed Clerk key is still a development publishable key as of this verification.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
