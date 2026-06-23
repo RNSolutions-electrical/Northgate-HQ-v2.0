@@ -6018,3 +6018,133 @@ check confirmed `public.label_templates` exists in project
 
 ### Routing Verdict
 No Claude review needed - Label Designer polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 066).
+
+---
+
+## Entry 068 - Milestone 5E.0 Label Designer React Render Hotfix
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5E.0 production render hotfix
+**Session type:** Narrow UI bugfix / static verification / documentation
+
+### Context
+Ryan reported a production crash after Milestone 5E: React minified error #31,
+`object with keys {width, height}`. The report also noted recurring Supabase
+GoTrue multiple-client warnings, but those were not assumed to be the immediate
+crash. First-action checks confirmed local `main` was pulled and already up to
+date; local `HEAD` matched `origin/main` at `1f86b26`; `docs/ARCHITECTURE.md`
+was confirmed as v2.15; Section 10a and Section 25 remain present; HANDOFF was
+confirmed gapless through Entry 067, which also confirms gaplessness through
+Entry 066; and Entries 065/066 document Milestone 5D and 5D.1 completion. No
+stale coordination docs were used.
+
+### Root Cause
+- Confirmed the React error was caused by raw object rendering in the Label
+  Designer Avery template UI.
+- `AVERY_LABEL_TEMPLATES` used the property name `label` twice per template:
+  - first as the human-readable display name;
+  - then as the geometry object `{ width, height }`.
+- JavaScript kept the second `label` property, so JSX rendered
+  `{template.label}` / `{AVERY_LABEL_TEMPLATES[draft.avery_template]?.label}`
+  as the raw geometry object.
+- That matches React error #31: object with keys `{width, height}`.
+
+### What Was Completed
+- Renamed the human-readable Avery template name to `displayName`.
+- Preserved `label` as the geometry object used for label dimensions.
+- Added safe formatting helpers for Avery template display text:
+  - `formatLabelMeasurement`;
+  - `formatLabelSize`;
+  - `formatAveryTemplateLabel`.
+- Updated the Avery sheet `<select>` to render a formatted string instead of a
+  geometry object.
+- Updated the Label Designer `Sheet:` fact to render a formatted string instead
+  of a geometry object.
+- Preserved existing preview, print, save, archive, and template management
+  behavior.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Narrow render hotfix only.
+- No `src/styles.css` change.
+- No migration, Supabase file, hook/service, package file, or architecture doc
+  change.
+
+### Verification
+- `npm.cmd run build` passed.
+- Static search confirmed no `template.label` JSX render path remains.
+- Static search confirmed Avery geometry object usage remains limited to numeric
+  sizing/print calculations or formatted text helpers.
+- Static review confirmed Avery 5164 and 8160 geometry now displays as readable
+  text, for example `Avery 5164 Placard / 4 in x 3.33 in`.
+- Static diff scan confirmed no migration files were added.
+- Static diff scan confirmed no Supabase/hooks/services/package files changed.
+- Static diff scan confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff scan confirmed no checkout/finalization, scan action,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, or inventory-changing behavior was changed.
+
+### Browser Verification
+- Local browser verification was blocked by missing local `VITE_SUPABASE_URL`.
+- Production browser access reached the `rnsolutions.net` sign-in screen, but
+  authenticated Label Designer verification was not available in this Codex
+  session.
+- Therefore Codex does not claim authenticated browser verification.
+- The reported GoTrue warning was not addressed in this hotfix and should remain
+  a separate follow-up diagnostic unless Ryan still observes it after this
+  render fix deploys.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 068.
+
+### What Codex Needs to Know
+- The 5E production crash was a Label Designer render bug, not a schema or
+  Supabase migration issue.
+- The `label` property in `AVERY_LABEL_TEMPLATES` is now geometry-only.
+- The human-readable Avery template name is `displayName`.
+- Any future JSX display should use `formatAveryTemplateLabel(...)` or
+  `displayName`, not the raw geometry object.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, permission, QR payload, scan destination,
+  ledger, balance, checkout/finalization, Count Intake,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, or reserved feature behavior was changed.
+- GoTrue duplicate-client warnings were not investigated or changed in this
+  hotfix.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open `rnsolutions.net`;
+   - Source shows server;
+   - open Label Designer;
+   - select Avery 5164 and 8160;
+   - confirm no React error #31;
+   - confirm Avery sizes render as readable text;
+   - confirm preview still renders;
+   - note whether the GoTrue duplicate-client warning still appears.
+2. If the GoTrue warning remains noisy, handle it in a separate diagnostic
+   milestone rather than this render hotfix.
+
+### Open Questions / Concerns
+- Authenticated production Label Designer verification was unavailable from this
+  Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: narrow Label Designer raw-object render hotfix.
+- RESERVED: schema changes, `label_templates` schema changes, Supabase client
+  refactors, GoTrue duplicate-client cleanup, QR payload changes, scan action
+  changes, ledger changes, balance changes, checkout/finalization changes,
+  count correction changes, bin_item retirement semantic changes,
+  transaction-history visibility changes, destination semantic changes,
+  permission model changes, `can_view_financials` changes, inventory cost
+  visibility changes, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - narrow React render hotfix within locked Label Designer behavior (ARCHITECTURE v2.15, HANDOFF Entry 066).

@@ -63,7 +63,7 @@ const COUNT_INTAKE_HELP_ITEMS = [
 const AVERY_LABEL_TEMPLATES = {
   '5164': {
     key: '5164',
-    label: 'Avery 5164 Placard',
+    displayName: 'Avery 5164 Placard',
     scopeHint: 'Unit, Shelf, Bay',
     sheet: { width: 8.5, height: 11, unit: 'in' },
     label: { width: 4, height: 3.33 },
@@ -74,7 +74,7 @@ const AVERY_LABEL_TEMPLATES = {
   },
   '8160': {
     key: '8160',
-    label: 'Avery 8160 Bin Label',
+    displayName: 'Avery 8160 Bin Label',
     scopeHint: 'Bin',
     sheet: { width: 8.5, height: 11, unit: 'in' },
     label: { width: 2.63, height: 1 },
@@ -168,6 +168,23 @@ function createDefaultLabelLayout(averyTemplate = '5164') {
     geometry,
     fields: JSON.parse(JSON.stringify(DEFAULT_LABEL_FIELDS)),
   };
+}
+
+function formatLabelMeasurement(value, unit = 'in') {
+  const numericValue = Number(value ?? 0);
+  const text = Number.isInteger(numericValue)
+    ? String(numericValue)
+    : numericValue.toFixed(2).replace(/\.?0+$/, '');
+  return `${text} ${unit}`;
+}
+
+function formatLabelSize(size, unit = 'in') {
+  return `${formatLabelMeasurement(size?.width, unit)} x ${formatLabelMeasurement(size?.height, unit)}`;
+}
+
+function formatAveryTemplateLabel(template) {
+  if (!template) return 'Unknown Avery template';
+  return `${template.displayName} / ${formatLabelSize(template.label, template.sheet?.unit ?? 'in')}`;
 }
 
 function escapeHtml(value) {
@@ -1747,7 +1764,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
               Avery sheet
               <select value={draft.avery_template} onChange={(event) => updateAveryTemplate(event.target.value)}>
                 {Object.values(AVERY_LABEL_TEMPLATES).map((template) => (
-                  <option key={template.key} value={template.key}>{template.label}</option>
+                  <option key={template.key} value={template.key}>{formatAveryTemplateLabel(template)}</option>
                 ))}
               </select>
             </label>
@@ -1856,7 +1873,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
           </div>
           <LabelPreview draft={draft} locationRecord={selectedLocation} summary={selectedSummary} />
           <div className="cart-facts">
-            <span>Sheet: {AVERY_LABEL_TEMPLATES[draft.avery_template]?.label}</span>
+            <span>Sheet: {formatAveryTemplateLabel(AVERY_LABEL_TEMPLATES[draft.avery_template])}</span>
             <span>Scope: {draft.scope_level || 'Any level'}</span>
             <span>Printable labels: {scopedLocationRecords.length}</span>
             <span>Fields: {LABEL_FIELD_OPTIONS.filter((field) => draft.layout.fields[field.key]?.enabled).length}</span>
