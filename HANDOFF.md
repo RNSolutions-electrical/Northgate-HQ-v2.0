@@ -5109,3 +5109,128 @@ repo clone files were used rather than stale coordination docs or attachment cop
 
 ### Routing Verdict
 No Claude review needed - Chrome-compatible scanner fallback within locked scan behavior (ARCHITECTURE v2.14, HANDOFF Entry 060).
+
+---
+
+## Entry 062 - Milestone 5C.3 Prep v2.15 Scan Destination Behavior Lock
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.3 Prep lock-document update
+**Session type:** Documentation-only architecture lock update
+
+### Context
+Ryan requested Milestone 5C.3 Prep to apply the Rule 20-cleared v2.15 Scan
+Destination Behavior lock-document delta before running the planned Milestone
+5C.2 implementation. This session intentionally did not implement 5C.2.
+Required first actions were completed before editing: `git pull --ff-only origin
+main` returned already up to date; local `main` matched `origin/main` at
+`5948537`; `docs/ARCHITECTURE.md` was confirmed as v2.14 before editing;
+HANDOFF was confirmed gapless through Entry 061; no stale coordination docs
+were used; and work was performed only from the git clone.
+
+### What Was Completed
+- Updated `docs/ARCHITECTURE.md` to v2.15.
+- Added new Section 10a: Scan Destination Behavior.
+- Locked scan destination pages as division-scoped, location-scoped views and
+  action entry points.
+- Locked that scan destination pages dispatch into the existing cart/checkout
+  and `physical_count_correction` engines.
+- Locked that scan pages must not reimplement cart, transaction, or balance
+  logic.
+- Locked that scan pages introduce no new transaction type and change no balance
+  derivation.
+- Locked authentication before contents.
+- Locked server-resolved, fail-closed behavior under Rule 4.
+- Locked that unauthorized scans do not confirm whether a location exists.
+- Locked bin pages as the action level.
+- Locked unit, shelf, and bay pages as read + navigation surfaces where actions
+  occur at bin level.
+- Locked that no generic ambiguous +/- controls are allowed.
+- Locked that scan pages initiate no location-to-location/bin-to-bin movement
+  and do not surface Transfer Location.
+- Locked multi-bin batch cart actions from hierarchy levels as RESERVED.
+- Locked that current contents/balances reads are broader than
+  transaction-history self-scope, which still governs history reads only.
+- Locked that label layout may vary by level through
+  `label_templates.scope_level`, while QR payload remains unchanged.
+- Preserved the v2.14 summary as prior/history text.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics,
+  transaction-history, Clerk, Netlify, or app behavior was changed.
+
+### Code / File Changes
+- Updated `docs/ARCHITECTURE.md`.
+- Updated `HANDOFF.md`.
+- No app code was changed.
+- No package, Netlify, Supabase, migration, screenshot, attachment, scratch, or
+  proposal file was committed.
+
+### Verification
+- Confirmed `docs/ARCHITECTURE.md` now says v2.15.
+- Confirmed Section 10a exists after Section 10 and before Section 11.
+- Confirmed HANDOFF is gapless through Entry 062.
+- Confirmed Entry 062 appears only once.
+- Confirmed only `docs/ARCHITECTURE.md` and `HANDOFF.md` were staged.
+- Confirmed the Claude proposal/brief attachment was not staged.
+- Confirmed no app implementation work was performed.
+- Confirmed Milestone 5C.2 was not implemented as part of this prep milestone.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.14 to v2.15.
+- New Section 10a locks Scan Destination Behavior.
+- HANDOFF remains gapless through Entry 062.
+
+### What Codex Needs to Know
+- Milestone 5C.2 remains queued for implementation after this documentation
+  commit.
+- Scan destination behavior is now canonical in ARCHITECTURE v2.15 Section 10a.
+- First build sequence is read-before-write: location-scoped
+  contents/navigation first, then action bindings to existing engines.
+- Scan pages are not a permission bypass and must fail closed generically.
+- Bin pages are the action level; unit/shelf/bay pages are read + navigation
+  only.
+- QR payload remains `/scan/location/<uuid>` and identity remains the UUID.
+
+### What Claude Needs to Know
+- This was a Rule 20-cleared documentation application only.
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
+  count correction, count intake, bin_item retirement, destination semantics,
+  transaction history read-rule, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost, label-template mechanism,
+  non-location QR entity, or Financials/job-cost behavior was changed.
+- Scan destination pages must use existing cart/checkout and
+  `physical_count_correction` engines rather than reimplementing transaction,
+  cart, or balance logic.
+
+### Next Steps (in order)
+1. Proceed to the planned Milestone 5C.2 implementation only after this v2.15
+   lock-document commit is in place.
+2. Build the read-first location-scoped contents/navigation view before adding
+   action bindings.
+3. Route to Claude before any implementation touches schema, RPCs, RLS,
+   permissions, ledger behavior, balance derivation, transaction-history scope,
+   destination semantics, or reserved features.
+
+### Open Questions / Concerns
+- None for this documentation-only milestone.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: v2.15 Scan Destination Behavior is now locked in
+  Section 10a.
+- RESERVED: Milestone 5C.2 implementation, scan page write/action bindings,
+  multi-bin batch cart actions, non-location QR entities, React Native companion
+  app, Label Template Designer implementation, `label_templates`, Avery
+  5164/8160 designer implementation, Grand Master UI surface, accounting export,
+  location create/rename/archive, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count
+  UI.
+
+### Routing Verdict
+No Claude review needed - Rule 20-cleared documentation update applied as instructed (ARCHITECTURE v2.15, HANDOFF Entry 062).
