@@ -429,6 +429,113 @@ function getRowsForScanScope(model, rows) {
   return getRowsForLocation(model.locationRecord, rows);
 }
 
+function buildManualLocationLookupRecords(storageUnits, shelves, bays, bins) {
+  const unitById = new Map(storageUnits.map((unit) => [unit.id, unit]));
+  const shelfById = new Map(shelves.map((shelf) => [shelf.id, shelf]));
+  const bayById = new Map(bays.map((bay) => [bay.id, bay]));
+
+  const unitRecords = storageUnits.map((unit) => {
+    const compactCode = getLocationSegment(unit.unit_code);
+    return {
+      id: unit.id,
+      type: 'unit',
+      typeLabel: 'Unit',
+      code: unit.unit_code,
+      label: unit.name,
+      path: unit.unit_code,
+      lookupCodes: [unit.unit_code, compactCode],
+    };
+  });
+
+  const shelfRecords = shelves.map((shelf) => {
+    const unit = unitById.get(shelf.unit_id) ?? {};
+    const unitCode = getLocationSegment(unit.unit_code);
+    const shelfCode = getLocationSegment(shelf.shelf_code, unitCode);
+    const compactCode = `${unitCode}${shelfCode}`;
+    return {
+      id: shelf.id,
+      type: 'shelf',
+      typeLabel: 'Shelf',
+      code: shelf.shelf_code,
+      label: shelf.label,
+      path: [unit.unit_code, shelf.shelf_code].filter(Boolean).join(' / '),
+      lookupCodes: [shelf.shelf_code, compactCode],
+    };
+  });
+
+  const bayRecords = bays.map((bay) => {
+    const shelf = shelfById.get(bay.shelf_id) ?? {};
+    const unit = unitById.get(shelf.unit_id) ?? {};
+    const unitCode = getLocationSegment(unit.unit_code);
+    const shelfCode = getLocationSegment(shelf.shelf_code, unitCode);
+    const bayCode = getLocationSegment(bay.bay_code, `${unitCode}${shelfCode}`);
+    const compactCode = `${unitCode}${shelfCode}${bayCode}`;
+    return {
+      id: bay.id,
+      type: 'bay',
+      typeLabel: 'Bay',
+      code: bay.bay_code,
+      label: bay.label,
+      path: [unit.unit_code, shelf.shelf_code, bay.bay_code].filter(Boolean).join(' / '),
+      lookupCodes: [bay.bay_code, compactCode],
+    };
+  });
+
+  const binRecords = bins.map((bin) => {
+    const bay = bayById.get(bin.bay_id) ?? {};
+    const shelf = shelfById.get(bay.shelf_id) ?? {};
+    const unit = unitById.get(shelf.unit_id) ?? {};
+    const unitCode = getLocationSegment(unit.unit_code);
+    const shelfCode = getLocationSegment(shelf.shelf_code, unitCode);
+    const bayCode = getLocationSegment(bay.bay_code, `${unitCode}${shelfCode}`);
+    const binCode = getLocationSegment(bin.bin_code, `${unitCode}${shelfCode}${bayCode}`);
+    const compactCode = `${unitCode}${shelfCode}${bayCode}${binCode}`;
+    return {
+      id: bin.id,
+      type: 'bin',
+      typeLabel: 'Bin',
+      code: bin.bin_code,
+      label: bin.label,
+      path: [unit.unit_code, shelf.shelf_code, bay.bay_code, bin.bin_code].filter(Boolean).join(' / '),
+      lookupCodes: [bin.bin_code, compactCode],
+    };
+  });
+
+  return [...unitRecords, ...shelfRecords, ...bayRecords, ...binRecords];
+}
+
+function isManualLocationCodeInput(value) {
+  const rawValue = String(value ?? '').trim();
+  if (!rawValue || /[/:?#]/.test(rawValue) || /\s/.test(rawValue)) return false;
+  return /^[a-z0-9-]+$/i.test(rawValue);
+}
+
+function getManualLocationCodeMatches(value, locationSheet) {
+  if (!isManualLocationCodeInput(value)) return [];
+
+  const normalizedValue = normalizeLocationSegment(value);
+  if (!normalizedValue) return [];
+
+  const records = buildManualLocationLookupRecords(
+    locationSheet.storageUnits,
+    locationSheet.shelves,
+    locationSheet.bays,
+    locationSheet.bins,
+  );
+  const matches = records.filter((record) =>
+    record.lookupCodes.some((code) => normalizeLocationSegment(code) === normalizedValue),
+  );
+  const uniqueMatches = new Map();
+  matches.forEach((match) => uniqueMatches.set(match.id, match));
+
+  const typeOrder = { unit: 1, shelf: 2, bay: 3, bin: 4 };
+  return Array.from(uniqueMatches.values())
+    .sort((first, second) =>
+      (typeOrder[first.type] ?? 99) - (typeOrder[second.type] ?? 99)
+      || String(first.path ?? '').localeCompare(String(second.path ?? '')),
+    );
+}
+
 function matchesCountRowSearch(row, searchText) {
   const normalizedSearch = normalizeSearchText(searchText);
   if (!normalizedSearch) return true;
@@ -1400,11 +1507,13 @@ function decodeQrFromVideoFrame(video, canvasRef) {
 
 function LocationScannerPanel({ permissions, navigateTo }) {
   const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const frameRef = useRef(null);
   const [manualPayload, setManualPayload] = useState('');
+  const [manualLocationMatches, setManualLocationMatches] = useState([]);
   const [scannerMessage, setScannerMessage] = useState('');
   const [cameraStatus, setCameraStatus] = useState('idle');
   const [scannerMode, setScannerMode] = useState('idle');
@@ -1415,10 +1524,45 @@ function LocationScannerPanel({ permissions, navigateTo }) {
     if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
   }, []);
 
-  function handlePayload(payload) {
+  function openMatchedLocation(record) {
+    if (!record?.id) return;
+    setManualLocationMatches([]);
+    setScannerMessage('');
+    navigateTo(buildLocationScanPath(record.id));
+  }
+
+  function handlePayload(payload, { allowCodeLookup = false } = {}) {
     setLastPayload(payload);
+    setManualLocationMatches([]);
     const parsed = parseLocationScanPayload(payload);
     if (!parsed.ok) {
+      if (allowCodeLookup && isManualLocationCodeInput(payload)) {
+        if (locationSheet.isLoading || !locationSheet.lastLoadedAt) {
+          setScannerMessage('Location hierarchy is still loading. Try again in a moment.');
+          return false;
+        }
+
+        if (locationSheet.error) {
+          setScannerMessage('Location unavailable. The scan target could not be resolved through the current server read path.');
+          return false;
+        }
+
+        const matches = getManualLocationCodeMatches(payload, locationSheet);
+        if (matches.length === 1) {
+          openMatchedLocation(matches[0]);
+          return true;
+        }
+
+        if (matches.length > 1) {
+          setManualLocationMatches(matches);
+          setScannerMessage('Multiple matching locations found. Choose the correct location.');
+          return false;
+        }
+
+        setScannerMessage('No matching location found.');
+        return false;
+      }
+
       setScannerMessage(parsed.error);
       return false;
     }
@@ -1528,7 +1672,7 @@ function LocationScannerPanel({ permissions, navigateTo }) {
 
   function submitManualPayload(event) {
     event.preventDefault();
-    handlePayload(manualPayload);
+    handlePayload(manualPayload, { allowCodeLookup: true });
   }
 
   if (!canReadLocations) {
@@ -1560,7 +1704,7 @@ function LocationScannerPanel({ permissions, navigateTo }) {
       <div className="location-note">
         <QrCode aria-hidden="true" />
         <span>
-          Accepted payloads: <strong>https://&lt;app-domain&gt;/scan/location/&lt;uuid&gt;</strong>, <strong>/scan/location/&lt;uuid&gt;</strong>, or a location UUID.
+          Scan a Northgate HQ location QR, paste a QR link, or enter a location code like <strong>C211</strong>.
         </span>
       </div>
       {cameraStatus === 'scanning' ? (
@@ -1598,13 +1742,30 @@ function LocationScannerPanel({ permissions, navigateTo }) {
               Manual scan payload
               <textarea
                 value={manualPayload}
-                onChange={(event) => setManualPayload(event.target.value)}
-                placeholder="Paste /scan/location/<uuid>, a full QR URL, or a location UUID"
+                onChange={(event) => {
+                  setManualPayload(event.target.value);
+                  setManualLocationMatches([]);
+                }}
+                placeholder="Paste /scan/location/<uuid>, a full QR URL, or enter C211"
                 rows={5}
               />
             </label>
             <button type="submit" className="primary-button">Open Scan Result</button>
           </form>
+          {manualLocationMatches.length ? (
+            <div className="scan-disambiguation">
+              <strong>Choose a matching location</strong>
+              <div className="scan-nav-grid">
+                {manualLocationMatches.map((match) => (
+                  <button type="button" className="scan-nav-button" key={match.id} onClick={() => openMatchedLocation(match)}>
+                    <span>{match.typeLabel}</span>
+                    <strong>{getLocationDisplayCode(match)}</strong>
+                    <small>{match.path || match.label || 'Matching location'}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {scannerMessage ? <div className="alert">{scannerMessage}</div> : null}
           {lastPayload ? (
             <p className="muted">Last scanned payload: {lastPayload}</p>
