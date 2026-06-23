@@ -4978,3 +4978,134 @@ attachment copies.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 059).
+
+---
+
+## Entry 061 - Milestone 5C.1 Chrome-Compatible QR Scanner Fallback
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.1 Chrome scanner fallback
+**Session type:** UI implementation / dependency addition / static verification
+
+### Context
+Ryan requested Milestone 5C.1 after Chrome showed the scanner message:
+`This browser does not support native QR detection. Use manual entry.` Required first
+actions were completed before implementation: `git pull --ff-only origin main` returned
+already up to date; local `main` matched `origin/main` at `203911f`;
+`docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was confirmed gapless through
+Entry 060; Entry 060 was confirmed to document the location-only scanner route; and the
+repo clone files were used rather than stale coordination docs or attachment copies.
+
+### What Was Completed
+- Added a Chrome-compatible camera decoding fallback for location QR scanning.
+- Preserved the native `BarcodeDetector` path when the browser supports QR detection.
+- Added QR support detection using `BarcodeDetector.getSupportedFormats()` when available.
+- Changed the previous native-unsupported terminal branch into an automatic compatibility
+  camera scanner path.
+- Added scanner mode display while the camera is active:
+  - Native scanner;
+  - Compatibility scanner;
+  - manual entry remains available.
+- Preserved manual scan payload entry as a fallback, not the only Chrome path.
+- Preserved route handling through `/scan/location/<location_uuid>`.
+
+### Payload Handling
+- Accepted payload formats remain:
+  - `https://<app-domain>/scan/location/<location_uuid>`;
+  - `/scan/location/<location_uuid>`;
+  - bare `<location_uuid>` for manual entry.
+- Unsupported payloads are rejected through the existing parser.
+- Non-location entity types remain unsupported.
+- Human-readable location codes remain display labels only and are not accepted as scan
+  identity.
+- Scan result routing still resolves by stable location UUID.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count correction,
+  count intake, bin_item retirement, destination semantics, or transaction-history
+  behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added the `jsqr` import;
+  - added native QR detector support checks;
+  - added video-frame QR decoding fallback for browsers without native QR support;
+  - kept scanner behavior read-only and location-only.
+- Updated `package.json`:
+  - added `jsqr`.
+- Added `package-lock.json`.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no Supabase hooks/services were changed.
+- Static scan confirmed no docs or architecture files were changed.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed no checkout/finalization function was changed.
+- Static review confirmed no scan result write action was added.
+- Authenticated browser/camera verification was not available in this Codex session and is
+  not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 061.
+
+### What Codex Needs to Know
+- Chrome no longer has to rely on manual entry solely because native `BarcodeDetector`
+  support is unavailable.
+- The camera scanner now chooses native QR detection first, then falls back to `jsqr`.
+- Manual entry remains present for HTTPS, permission, camera, or scan-quality issues.
+- Scanner and scan result views remain read-only and are not a permission bypass.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics, transaction
+  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
+  label-template, non-location QR entity, or Financials/job-cost behavior was changed.
+- Non-location QR entities remain unbuilt.
+- Location create/rename/archive remains unbuilt.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated Chrome/camera smoke verification on the
+   `rnsolutions.net` custom domain:
+   - Source shows server;
+   - `Scan QR` tab loads;
+   - Start Camera opens a camera stream;
+   - Chrome displays Compatibility scanner when native QR detection is unavailable;
+   - a 5B location QR routes to `/scan/location/<uuid>`;
+   - manual entry of a location QR URL still routes correctly;
+   - unsupported payloads are rejected without crashing;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Keep Label Template Designer, Grand Master UI, accounting export, and non-location QR
+   entity support reserved for their own milestones.
+3. Route to Claude before any scan result action becomes write-capable or before adding
+   new schema/RPC/RLS/permission behavior.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this Codex
+  session.
+- Real-device scan performance should be confirmed in Chrome against printed and
+  screen-displayed location QR codes.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Chrome-compatible camera fallback for location QR scanning.
+- RESERVED: non-location QR entities, React Native companion app, Label Template
+  Designer, `label_templates`, Avery 5164/8160 designer, Grand Master UI surface,
+  accounting export, location create/rename/archive, Return-to-Inventory, Buyout, Tools
+  locations, vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - Chrome-compatible scanner fallback within locked scan behavior (ARCHITECTURE v2.14, HANDOFF Entry 060).

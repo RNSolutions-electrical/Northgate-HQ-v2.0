@@ -1,4 +1,5 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
+import jsQR from 'jsqr';
 import { Camera, CameraOff, Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
@@ -912,14 +913,60 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
   );
 }
 
+async function createNativeQrDetector() {
+  if (typeof window === 'undefined' || !('BarcodeDetector' in window)) {
+    return null;
+  }
+
+  const BarcodeDetector = window.BarcodeDetector;
+
+  if (typeof BarcodeDetector.getSupportedFormats === 'function') {
+    try {
+      const supportedFormats = await BarcodeDetector.getSupportedFormats();
+      if (Array.isArray(supportedFormats) && !supportedFormats.includes('qr_code')) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    return new BarcodeDetector({ formats: ['qr_code'] });
+  } catch {
+    return null;
+  }
+}
+
+function decodeQrFromVideoFrame(video, canvasRef) {
+  if (!video?.videoWidth || !video?.videoHeight) {
+    return '';
+  }
+
+  const canvas = canvasRef.current ?? document.createElement('canvas');
+  canvasRef.current = canvas;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return '';
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const result = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+  return result?.data ?? '';
+}
+
 function LocationScannerPanel({ permissions, navigateTo }) {
   const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const frameRef = useRef(null);
   const [manualPayload, setManualPayload] = useState('');
   const [scannerMessage, setScannerMessage] = useState('');
   const [cameraStatus, setCameraStatus] = useState('idle');
+  const [scannerMode, setScannerMode] = useState('idle');
   const [lastPayload, setLastPayload] = useState('');
 
   useEffect(() => () => {
@@ -956,6 +1003,7 @@ function LocationScannerPanel({ permissions, navigateTo }) {
     }
 
     setCameraStatus('idle');
+    setScannerMode('idle');
   }
 
   async function startCamera() {
@@ -974,40 +1022,56 @@ function LocationScannerPanel({ permissions, navigateTo }) {
       return;
     }
 
-    if (!('BarcodeDetector' in window)) {
-      setScannerMessage('This browser does not support native QR detection. Use manual entry.');
-      return;
-    }
-
     try {
       setScannerMessage('');
       setCameraStatus('starting');
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      let detector = await createNativeQrDetector();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       });
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      if (!videoRef.current) {
+        throw new Error('Scanner video element is unavailable.');
       }
 
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+
+      const initialMode = detector ? 'native' : 'compatibility';
+      setScannerMode(initialMode);
+      if (initialMode === 'compatibility') {
+        setScannerMessage('Native QR scanning is unavailable in this browser. Using the compatibility camera scanner.');
+      }
       setCameraStatus('scanning');
 
       async function detectFrame() {
         if (!videoRef.current || !streamRef.current) return;
 
         try {
-          const codes = await detector.detect(videoRef.current);
-          const rawValue = codes.find((code) => code.rawValue)?.rawValue;
+          let rawValue = '';
+          if (detector) {
+            try {
+              const codes = await detector.detect(videoRef.current);
+              rawValue = codes.find((code) => code.rawValue)?.rawValue ?? '';
+            } catch {
+              detector = null;
+              setScannerMode('compatibility');
+              setScannerMessage('Native QR scanning stopped responding. Using the compatibility camera scanner.');
+            }
+          }
+
+          if (!rawValue) {
+            rawValue = decodeQrFromVideoFrame(videoRef.current, canvasRef);
+          }
+
           if (rawValue && handlePayload(rawValue)) {
             stopCamera();
             return;
           }
         } catch {
-          setScannerMessage('Camera frame could not be decoded. Try manual entry if scanning does not continue.');
+          setScannerMessage('Camera frame could not be decoded. Manual entry is still available.');
         }
 
         frameRef.current = requestAnimationFrame(detectFrame);
@@ -1058,6 +1122,13 @@ function LocationScannerPanel({ permissions, navigateTo }) {
           Accepted payloads: <strong>https://&lt;app-domain&gt;/scan/location/&lt;uuid&gt;</strong>, <strong>/scan/location/&lt;uuid&gt;</strong>, or a location UUID.
         </span>
       </div>
+      {cameraStatus === 'scanning' ? (
+        <div className="cart-facts">
+          <span>Camera mode: {scannerMode === 'native' ? 'Native scanner' : 'Compatibility scanner'}</span>
+          <span>Manual entry: available</span>
+          <span>Scan route: /scan/location/&lt;uuid&gt;</span>
+        </div>
+      ) : null}
 
       <div className="scanner-layout">
         <section className="scanner-camera">
