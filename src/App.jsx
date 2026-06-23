@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
-import { Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Camera, CameraOff, Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
@@ -9,7 +9,7 @@ import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from './hooks/usePermissions.js';
-import { buildLocationQrSvg, buildLocationQrUrl, getAppOrigin } from './lib/locationQr.js';
+import { buildLocationQrSvg, buildLocationQrUrl, parseLocationScanPayload, getAppOrigin } from './lib/locationQr.js';
 
 const DESTINATION_OPTIONS = [
   { value: 'job', label: 'Job' },
@@ -59,6 +59,32 @@ const COUNT_INTAKE_HELP_ITEMS = [
   'Use Reason or Custom note to describe why the count is being recorded.',
   'Mistaken bin/material rows must be counted to zero first, then retired. Retire archives only and does not change quantity or write a ledger transaction.',
 ];
+
+function getBrowserPath() {
+  if (typeof window === 'undefined') return '/';
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function useBrowserPath() {
+  const [path, setPath] = useState(getBrowserPath);
+
+  useEffect(() => {
+    function syncPath() {
+      setPath(getBrowserPath());
+    }
+
+    window.addEventListener('popstate', syncPath);
+    return () => window.removeEventListener('popstate', syncPath);
+  }, []);
+
+  function navigateTo(nextPath) {
+    if (typeof window === 'undefined' || !nextPath) return;
+    window.history.pushState({}, '', nextPath);
+    setPath(getBrowserPath());
+  }
+
+  return [path, navigateTo];
+}
 
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
@@ -223,6 +249,21 @@ function matchesLocationSearch(record, searchText) {
     record.division,
     record.id,
   ].some((value) => normalizeSearchText(value).includes(normalizedSearch));
+}
+
+function getRowsForLocation(record, rows) {
+  if (!record) return [];
+
+  const keyByType = {
+    unit: 'storage_unit_id',
+    shelf: 'shelf_id',
+    bay: 'bay_id',
+    bin: 'bin_id',
+  };
+  const rowKey = keyByType[record.type];
+
+  if (!rowKey) return [];
+  return rows.filter((row) => row[rowKey] === record.id);
 }
 
 function matchesCountRowSearch(row, searchText) {
@@ -736,6 +777,326 @@ function LocationManagementPanel({ permissions }) {
               Create, rename, and archive controls are intentionally deferred here. This milestone did not add client-side location writes or new server APIs.
             </span>
           </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function LocationScanResult({ permissions, locationId, navigateTo }) {
+  const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
+  const locationRecords = useMemo(
+    () => buildLocationRecords(
+      locationSheet.storageUnits,
+      locationSheet.shelves,
+      locationSheet.bays,
+      locationSheet.bins,
+    ),
+    [locationSheet.storageUnits, locationSheet.shelves, locationSheet.bays, locationSheet.bins],
+  );
+  const locationRecord = locationRecords.find((record) => record.id === locationId) ?? null;
+  const locationRows = getRowsForLocation(locationRecord, locationSheet.rows);
+
+  if (!canReadLocations) {
+    return (
+      <article className="card card--wide scan-result">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Scan Result</p>
+            <h2>Location unavailable</h2>
+          </div>
+          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+        </div>
+        <p>Scanning a QR code does not grant access. Sign in with server permissions that can read inventory locations.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="card card--wide scan-result">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Scan Result</p>
+          <h2>{locationRecord ? locationRecord.path || locationRecord.code : 'Resolving location'}</h2>
+          <p>Read-only location resolution from the scanned UUID.</p>
+        </div>
+        <button type="button" className="secondary-button" onClick={() => navigateTo('/')}>
+          Back to Dashboard
+        </button>
+      </div>
+
+      {locationSheet.error ? (
+        <div className="alert">Location lookup failed. Confirm server permissions and storage-location table access.</div>
+      ) : null}
+      {locationSheet.isLoading ? <p className="muted">Resolving scanned location...</p> : null}
+
+      {!locationSheet.isLoading && !locationSheet.error && !locationRecord ? (
+        <EmptyState title="Location not found or unavailable">
+          This UUID did not resolve to a Unit, Shelf, Bay, or Bin through the current read path.
+        </EmptyState>
+      ) : null}
+
+      {locationRecord ? (
+        <>
+          <div className="scan-location-summary">
+            <span>Level: {locationRecord.typeLabel}</span>
+            <span>Code: {locationRecord.code || 'No display code'}</span>
+            <span>Path: {locationRecord.path || 'No path available'}</span>
+            <span>UUID: {locationRecord.id}</span>
+          </div>
+
+          <section className="cart-panel scan-contents-panel">
+            <div className="count-section-header">
+              <div>
+                <p className="eyebrow">Current Contents</p>
+                <h3>{locationRows.length ? `${locationRows.length} bin/material rows` : 'No contents returned'}</h3>
+              </div>
+              <span>Read only</span>
+            </div>
+
+            {locationRows.length ? (
+              <>
+                <div className="table-wrap">
+                  <table className="data-table scan-contents-table">
+                    <thead>
+                      <tr>
+                        <th>Material</th>
+                        <th>Location</th>
+                        <th>Quantity</th>
+                        <th>Division</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {locationRows.map((row) => (
+                        <tr key={row.bin_item_id}>
+                          <td>
+                            <strong>{row.item_name}</strong>
+                            <span>{row.material_code}</span>
+                          </td>
+                          <td>
+                            <strong>{row.bin_code}</strong>
+                            <span>{buildStoragePath(row)}</span>
+                          </td>
+                          <td>{Number(row.quantity_on_hand ?? row.system_quantity ?? 0).toFixed(2)} {row.unit_of_measure ?? ''}</td>
+                          <td>{row.division ?? locationRecord.division ?? 'Unassigned'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mobile-list scan-mobile-list">
+                  {locationRows.map((row) => (
+                    <article className="mobile-item" key={row.bin_item_id}>
+                      <strong>{row.item_name}</strong>
+                      <div className="meta-grid">
+                        <span>Code: {row.material_code}</span>
+                        <span>Bin: {row.bin_code}</span>
+                        <span>Path: {buildStoragePath(row)}</span>
+                        <span>Qty: {Number(row.quantity_on_hand ?? row.system_quantity ?? 0).toFixed(2)} {row.unit_of_measure ?? ''}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <EmptyState title="No stocked rows">
+                The scanned location resolved, but the existing read path returned no active bin/material rows inside it.
+              </EmptyState>
+            )}
+          </section>
+        </>
+      ) : null}
+    </article>
+  );
+}
+
+function LocationScannerPanel({ permissions, navigateTo }) {
+  const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const frameRef = useRef(null);
+  const [manualPayload, setManualPayload] = useState('');
+  const [scannerMessage, setScannerMessage] = useState('');
+  const [cameraStatus, setCameraStatus] = useState('idle');
+  const [lastPayload, setLastPayload] = useState('');
+
+  useEffect(() => () => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  function handlePayload(payload) {
+    setLastPayload(payload);
+    const parsed = parseLocationScanPayload(payload);
+    if (!parsed.ok) {
+      setScannerMessage(parsed.error);
+      return false;
+    }
+
+    setScannerMessage('');
+    navigateTo(parsed.path);
+    return true;
+  }
+
+  function stopCamera() {
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setCameraStatus('idle');
+  }
+
+  async function startCamera() {
+    if (!canReadLocations) {
+      setScannerMessage('Server inventory read access is required before scanning.');
+      return;
+    }
+
+    if (typeof window === 'undefined' || !window.isSecureContext) {
+      setScannerMessage('Camera scanning requires HTTPS. Use manual entry in this context.');
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScannerMessage('This browser does not expose camera access. Use manual entry.');
+      return;
+    }
+
+    if (!('BarcodeDetector' in window)) {
+      setScannerMessage('This browser does not support native QR detection. Use manual entry.');
+      return;
+    }
+
+    try {
+      setScannerMessage('');
+      setCameraStatus('starting');
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      setCameraStatus('scanning');
+
+      async function detectFrame() {
+        if (!videoRef.current || !streamRef.current) return;
+
+        try {
+          const codes = await detector.detect(videoRef.current);
+          const rawValue = codes.find((code) => code.rawValue)?.rawValue;
+          if (rawValue && handlePayload(rawValue)) {
+            stopCamera();
+            return;
+          }
+        } catch {
+          setScannerMessage('Camera frame could not be decoded. Try manual entry if scanning does not continue.');
+        }
+
+        frameRef.current = requestAnimationFrame(detectFrame);
+      }
+
+      frameRef.current = requestAnimationFrame(detectFrame);
+    } catch (error) {
+      console.error('QR scanner camera failed', error);
+      stopCamera();
+      setScannerMessage('Camera permission was denied or the camera is unavailable. Use manual entry.');
+    }
+  }
+
+  function submitManualPayload(event) {
+    event.preventDefault();
+    handlePayload(manualPayload);
+  }
+
+  if (!canReadLocations) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Location Scanner</p>
+            <h3>Scan Location QR</h3>
+          </div>
+          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+        </div>
+        <p>Scanner access uses the existing inventory read permission gate. QR codes do not bypass server permissions.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel scanner-panel">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Location Scanner</p>
+          <h3>Scan Location QR</h3>
+          <p>Use Northgate HQ location QR codes only. Unsupported QR codes are ignored, and scanning never creates or modifies inventory.</p>
+        </div>
+        <span className="status-pill status-pill--good">Read only</span>
+      </div>
+
+      <div className="location-note">
+        <QrCode aria-hidden="true" />
+        <span>
+          Accepted payloads: <strong>https://&lt;app-domain&gt;/scan/location/&lt;uuid&gt;</strong>, <strong>/scan/location/&lt;uuid&gt;</strong>, or a location UUID.
+        </span>
+      </div>
+
+      <div className="scanner-layout">
+        <section className="scanner-camera">
+          <div className="scanner-video-frame">
+            <video ref={videoRef} muted playsInline />
+            {cameraStatus !== 'scanning' ? (
+              <div className="scanner-placeholder">
+                <Camera aria-hidden="true" />
+                <span>Camera scanner starts on request.</span>
+              </div>
+            ) : null}
+          </div>
+          <div className="cart-actions">
+            <button type="button" className="secondary-button" onClick={startCamera} disabled={cameraStatus === 'starting' || cameraStatus === 'scanning'}>
+              <Camera aria-hidden="true" /> {cameraStatus === 'starting' ? 'Starting...' : 'Start Camera'}
+            </button>
+            <button type="button" className="secondary-button" onClick={stopCamera} disabled={cameraStatus !== 'scanning'}>
+              <CameraOff aria-hidden="true" /> Stop Camera
+            </button>
+          </div>
+        </section>
+
+        <section className="scanner-manual">
+          <form className="scanner-manual-form" onSubmit={submitManualPayload}>
+            <label>
+              Manual scan payload
+              <textarea
+                value={manualPayload}
+                onChange={(event) => setManualPayload(event.target.value)}
+                placeholder="Paste /scan/location/<uuid>, a full QR URL, or a location UUID"
+                rows={5}
+              />
+            </label>
+            <button type="submit" className="primary-button">Open Scan Result</button>
+          </form>
+          {scannerMessage ? <div className="alert">{scannerMessage}</div> : null}
+          {lastPayload ? (
+            <p className="muted">Last scanned payload: {lastPayload}</p>
+          ) : null}
         </section>
       </div>
     </section>
@@ -2781,7 +3142,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   );
 }
 
-function InventoryReadOnlyPanel({ permissions }) {
+function InventoryReadOnlyPanel({ permissions, navigateTo }) {
   const [activeTab, setActiveTab] = useState('catalog');
   const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
   const counts = inventory.model.counts;
@@ -2828,6 +3189,9 @@ function InventoryReadOnlyPanel({ permissions }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'locations'} onClick={() => setActiveTab('locations')}>
           Locations & QR
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'scan'} onClick={() => setActiveTab('scan')}>
+          Scan QR
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
           Cart Checkout
         </button>
@@ -2843,6 +3207,7 @@ function InventoryReadOnlyPanel({ permissions }) {
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
       {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
+      {activeTab === 'scan' ? <LocationScannerPanel permissions={permissions} navigateTo={navigateTo} /> : null}
       {activeTab === 'cart' ? (
         <CartScaffold
           permissions={permissions}
@@ -2866,6 +3231,8 @@ function InventoryReadOnlyPanel({ permissions }) {
 function Dashboard() {
   const { user } = useUser();
   const permissions = usePermissions();
+  const [browserPath, navigateTo] = useBrowserPath();
+  const scanRoute = parseLocationScanPayload(browserPath);
 
   return (
     <main className="app-shell">
@@ -2880,6 +3247,15 @@ function Dashboard() {
         </div>
       </header>
 
+      {scanRoute.ok ? (
+        <section className="app-main">
+          <LocationScanResult
+            permissions={permissions}
+            locationId={scanRoute.locationId}
+            navigateTo={navigateTo}
+          />
+        </section>
+      ) : (
       <section className="app-main dashboard-grid">
         <article className="card">
           <LayoutDashboard className="card__icon" />
@@ -2917,8 +3293,9 @@ function Dashboard() {
           </div>
         </article>
 
-        <InventoryReadOnlyPanel permissions={permissions} />
+        <InventoryReadOnlyPanel permissions={permissions} navigateTo={navigateTo} />
       </section>
+      )}
     </main>
   );
 }

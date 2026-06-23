@@ -4842,3 +4842,139 @@ stale coordination docs or attachment copies.
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 058).
+
+---
+
+## Entry 060 - Milestone 5C Web QR Scanner + Scan Route
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C web QR scanner / scan route
+**Session type:** UI implementation / route handling / static verification
+
+### Context
+Ryan requested Milestone 5C to add the web QR scanner and scan route for location QR
+payloads only. Required first actions were completed before implementation:
+`git pull --ff-only origin main` returned already up to date; local `main` matched
+`origin/main` at `1b9cb41`; `docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was
+confirmed gapless through Entry 059; Entry 059 was confirmed to document the 5B Location
+QR foundation; and the repo clone files were used rather than stale coordination docs or
+attachment copies.
+
+### What Was Completed
+- Added in-app route handling for `/scan/location/<location_uuid>`.
+- Added a read-only scan result view for location QR payloads.
+- Added a `Scan QR` tab under Inventory.
+- Added a web camera scanner UI that uses the browser-native `BarcodeDetector` API when
+  available.
+- Added clean fallback messaging for:
+  - unsupported native QR detection;
+  - missing camera API;
+  - non-secure HTTP contexts;
+  - denied or unavailable camera permission.
+- Added manual-entry fallback for pasted scan payloads.
+- Added scan-result contents display using the existing inventory location/count read path.
+- Kept scan result display read-only with no inventory create, update, checkout, count,
+  transfer, return, retirement, or destination actions.
+
+### Payload Handling
+- Accepted payload formats:
+  - `https://<app-domain>/scan/location/<location_uuid>`;
+  - `/scan/location/<location_uuid>`;
+  - bare `<location_uuid>` for manual entry.
+- Unsupported payloads are rejected gracefully with user-facing scanner copy.
+- Non-location entity types remain unsupported.
+- A111-style compact codes and human-readable location codes are not accepted as identity.
+- Location resolution uses the stable UUID from the typed payload.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No new dependency was added.
+
+### Code / File Changes
+- Updated `src/lib/locationQr.js`:
+  - added scan path generation;
+  - added payload parsing/validation for location QR payloads.
+- Updated `src/App.jsx`:
+  - added lightweight browser path handling;
+  - added `/scan/location/<uuid>` result rendering;
+  - added `LocationScannerPanel`;
+  - added `LocationScanResult`;
+  - added the `Scan QR` Inventory tab.
+- Updated `src/styles.css`:
+  - added responsive scanner, manual-entry, and scan-result styles.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no package/dependency file was changed.
+- Static scan confirmed no Supabase hooks/services were changed.
+- Static scan confirmed no 5A read-rule, transaction-history, permission, or
+  `can_view_all_divisions` behavior was changed.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed no checkout/finalization function was changed.
+- Static review confirmed scan result resolves by location UUID, not human-readable code.
+- Authenticated browser/camera verification was not available in this Codex session and is
+  not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 060.
+
+### What Codex Needs to Know
+- The web scanner is browser-native: no scanner dependency was added.
+- Camera scanning requires HTTPS and browser support for `BarcodeDetector`.
+- Manual scan payload entry is always available as the fallback.
+- The scan result view uses the existing storage hierarchy/count read path and requires
+  server permission source plus `can_manage_inventory`.
+- Scanner and scan result views are read-only and are not a permission bypass.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics, transaction
+  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
+  label-template, non-location QR entity, or Financials/job-cost behavior was changed.
+- Non-location QR entities remain unbuilt.
+- Location create/rename/archive remains unbuilt.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser/camera smoke verification on the
+   `rnsolutions.net` custom domain:
+   - Source shows server;
+   - `Scan QR` tab loads;
+   - camera permission prompt appears on supported browsers;
+   - manual entry of a 5B location QR URL routes to `/scan/location/<uuid>`;
+   - scan result displays the correct human-readable location path;
+   - unsupported payloads are rejected without crashing;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Keep Label Template Designer, Grand Master UI, accounting export, and non-location QR
+   entity support reserved for their own milestones.
+3. Route to Claude before any scan result action becomes write-capable or before adding
+   new schema/RPC/RLS/permission behavior.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this Codex session.
+- Native camera scanning depends on browser `BarcodeDetector` support; manual entry remains
+  the fallback where unsupported.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: camera-based web scanner and `/scan/location/<uuid>` route
+  are implemented for location payloads only.
+- RESERVED: non-location QR entities, React Native companion app, Label Template
+  Designer, `label_templates`, Avery 5164/8160 designer, Grand Master UI surface,
+  accounting export, location create/rename/archive, Return-to-Inventory, Buyout, Tools
+  locations, vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 059).
