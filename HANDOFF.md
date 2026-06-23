@@ -5393,3 +5393,149 @@ stale coordination docs were used.
 
 ### Routing Verdict
 No Claude review needed - read-first scan destination hierarchy within locked behavior (ARCHITECTURE v2.15, HANDOFF Entry 062).
+
+---
+
+## Entry 064 - Milestone 5C.2a Manual Location Code Entry Closeout
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.2a manual scan fallback closeout
+**Session type:** Verification / documentation closeout
+
+### Context
+Ryan requested Milestone 5C.2a to close out the manual-entry refinement after
+Milestone 5C.2 read-first scan destination hierarchy pages. First-action checks
+confirmed a sequencing mismatch: the manual-entry refinement had already been
+committed and pushed as `d96e73e` (`Refine scan manual location lookup`) before
+this closeout request. Local `main` matched `origin/main` at `d96e73e`;
+`docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a remains present;
+HANDOFF was confirmed gapless through Entry 063; and no stale coordination docs
+were used.
+
+### What Was Completed
+- Verified the manual-entry fallback now accepts location codes as lookup
+  shortcuts.
+- Verified manual-entry lookup supports human-readable examples such as:
+  - Unit code: `C`;
+  - Shelf code: `C2`;
+  - Bay code: `C21`;
+  - Bin code: `C211`.
+- Verified manual-entry lookup resolves through the existing loaded
+  Unit/Shelf/Bay/Bin hierarchy.
+- Verified exact single manual-code matches route to
+  `/scan/location/<resolved_location_uuid>`.
+- Verified no-match manual entry shows `No matching location found.`
+- Verified ambiguous manual entry shows a disambiguation list rather than
+  guessing.
+- Verified the UI copy now says: `Scan a Northgate HQ location QR, paste a QR
+  link, or enter a location code like C211.`
+
+### Identity / Scanner Behavior
+- QR identity remains UUID-only.
+- Human-readable location codes are convenience lookup shortcuts only.
+- Human-readable codes are not encoded or treated as permanent scan identity.
+- Camera QR parsing remains strict and location-only.
+- Unsupported non-location QR payloads remain rejected gracefully by the existing
+  scan payload parser.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
+  correction, Count Intake, `physical_count_correction`, bin_item retirement,
+  destination semantics, transaction-history read-rule,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost, Location QR
+  payload generation, Clerk, Netlify, or Financials/job-cost behavior was
+  changed.
+
+### Code / File Changes
+- Manual-entry refinement code was already committed in `d96e73e`:
+  - `src/App.jsx`;
+  - `src/styles.css`.
+- This closeout commit updates `HANDOFF.md`.
+- No Supabase files, migrations, hooks/services, package files, architecture
+  docs, or scan parser files were changed in this closeout.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes
+    correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected by strict QR parsing;
+  - `C211` is rejected by strict QR parsing and remains manual UI lookup only.
+- Static scan confirmed `allowCodeLookup` is used only for manual submit.
+- Static scan confirmed camera-decoded QR payloads still call strict
+  `handlePayload(rawValue)` without manual code lookup enabled.
+- Static scan confirmed no Supabase/hooks/services/package/architecture/scan
+  parser files changed.
+- Static diff review confirmed no write paths or inventory-changing controls
+  were added.
+- Static review confirmed scan result pages remain read-first and do not expose
+  cart/count/transfer/retire/checkout buttons.
+- Authenticated browser/camera verification was not available in this Codex
+  session and is not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 064.
+
+### What Codex Needs to Know
+- Manual entry can resolve human-readable location codes as lookup shortcuts, but
+  scan identity remains UUID-only.
+- Camera QR parsing remains strict and location-only.
+- Manual lookup routing still lands on `/scan/location/<resolved_uuid>`.
+- No scan-page write actions were added.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
+  count correction, Count Intake, `physical_count_correction`, bin_item
+  retirement, destination semantics, transaction-history read-rule,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost, QR payload
+  generation, label-template mechanism, non-location QR entity, or
+  Financials/job-cost behavior was changed.
+- Human-readable codes remain lookup shortcuts only, not QR identity.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the
+   `rnsolutions.net` custom domain:
+   - manual entry of `/scan/location/<uuid>` routes correctly;
+   - manual entry of a full same-domain scan URL routes correctly;
+   - manual entry of a bare UUID routes correctly;
+   - manual entry of `C`, `C2`, `C21`, and `C211` resolves when exactly one
+     matching visible location exists;
+   - no-match manual entry shows `No matching location found.`;
+   - ambiguous manual entry shows a disambiguation list;
+   - unsupported non-location QR payloads are rejected gracefully;
+   - camera QR scanning remains strict and location-only;
+   - scan result pages remain read-first with no inventory-changing buttons.
+2. Keep bin-level cart/count action bindings deferred until a later milestone.
+3. Route to Claude before treating human-readable codes as QR identity, loosening
+   camera QR parsing, adding schema/RPC/RLS/permission behavior, adding
+   inventory-changing actions, or touching ledger/balance/checkout/count,
+   bin_item retirement, destination, transaction-history, `can_view_financials`,
+   or inventory cost behavior.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this
+  Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: manual location code entry lookup closeout.
+- RESERVED: human-readable codes as QR identity, non-location QR entities,
+  scan-page write/action bindings, cart staging from scan pages, count
+  correction from scan pages, multi-bin batch cart actions, Transfer Location
+  surfacing from scan pages, React Native companion app, Label Template Designer
+  implementation, `label_templates`, Avery 5164/8160 designer implementation,
+  Grand Master UI surface, accounting export, location create/rename/archive,
+  Return-to-Inventory, Buyout, Tools locations, vehicle bins, van-stock
+  onboarding, Express Checkout, Manager Override, reorder/min-max, structured
+  count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - manual-entry lookup refinement within locked scan behavior (ARCHITECTURE v2.15, HANDOFF Entry 063).
