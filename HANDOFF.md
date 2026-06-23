@@ -5700,3 +5700,145 @@ committed and pushed before this work began.
 
 ### Routing Verdict
 No Claude review needed - Label Template Designer foundation and display-only hierarchy summaries within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 065).
+
+---
+
+## Entry 066 - Milestone 5D.1 Apply and Verify Label Templates Migration
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5D.1 live migration verification
+**Session type:** Live Supabase migration apply / verification / documentation
+
+### Context
+Ryan requested Milestone 5D.1 to apply and verify only the committed
+`label_templates` foundation migration from Milestone 5D. First-action checks
+confirmed local `main` was pulled and already up to date; local `HEAD` matched
+`origin/main` at `6fb56b1`; `docs/ARCHITECTURE.md` was confirmed as v2.15;
+Section 10a and Section 25 remain present; HANDOFF was confirmed gapless through
+Entry 065; and no stale coordination docs were used. The target Supabase project
+was confirmed as `keogysnoukbendfkfjcn` / `northgate-hq-v2.0`.
+
+### What Was Completed
+- Identified the committed but unapplied migration:
+  `supabase/migrations/202606230001_label_templates_foundation.sql`.
+- Verified the migration matches ARCHITECTURE v2.14/v2.15 Section 25.
+- Confirmed the migration creates only `public.label_templates`.
+- Confirmed the migration preserves archive-over-delete behavior.
+- Confirmed the migration does not create or modify unrelated tables.
+- Applied only the `label_templates` foundation migration to live Supabase.
+- Confirmed live migration history now includes:
+  - version `20260623174852`;
+  - name `label_templates_foundation`.
+
+### Table / Column Verification
+- Confirmed `public.label_templates` exists.
+- Confirmed columns:
+  - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`;
+  - `name TEXT NOT NULL`;
+  - `avery_template TEXT NOT NULL`;
+  - `scope_level TEXT`;
+  - `include_qr BOOLEAN NOT NULL DEFAULT true`;
+  - `layout JSONB NOT NULL`;
+  - `created_by TEXT NOT NULL`;
+  - `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
+  - `archived_at TIMESTAMPTZ`.
+- Confirmed `scope_level` is nullable, so `NULL` remains valid for any location
+  level.
+- Confirmed `label_templates_scope_level_check` allows `unit`, `shelf`, `bay`,
+  and `bin`.
+- Confirmed `archived_at` exists and is nullable.
+- Confirmed the active-template index exists:
+  `idx_label_templates_active_scope` on `(scope_level, avery_template, name)`
+  where `archived_at IS NULL`.
+
+### RLS / Grants / Archive Verification
+- Confirmed RLS is enabled on `public.label_templates`.
+- Confirmed policies exist for:
+  - inventory template SELECT;
+  - Developer/Admin template INSERT;
+  - Developer/Admin template UPDATE.
+- Confirmed authenticated role grants are limited to `SELECT`, `INSERT`, and
+  `UPDATE`.
+- Confirmed no authenticated/anon DELETE grant exists.
+- Confirmed no DELETE policy exists.
+- Supabase changelog review noted the 2026-04-28 breaking change that new tables
+  may not be automatically exposed to the Data API; this migration already
+  includes explicit authenticated grants with RLS.
+
+### Test Template Verification
+- Inserted one safe verification template with `scope_level = NULL`.
+- Confirmed the insert accepted `NULL` scope level.
+- Archived the verification template by setting `archived_at`.
+- Confirmed active verification rows: `0`.
+- Confirmed archived verification rows: `1`.
+- No hard-delete cleanup was performed.
+
+### App / Static Verification
+- `npm.cmd run build` passed.
+- Static scan confirmed Label Designer code still references `label_templates`
+  through the existing app client path.
+- Static scan confirmed QR payload behavior remains `/scan/location/<uuid>`.
+- Static scan confirmed human-readable code/path remains display text only.
+- Static scan confirmed no scan-page cart/count/transfer/checkout action was
+  introduced by this milestone.
+- No app code, migration file, schema file, RPC, hook/service, package file, or
+  production environment variable was changed in this milestone.
+
+### Browser Verification
+- Authenticated browser verification was not performed in this Codex session and
+  is not claimed here.
+- Because the table now exists live, the prior table-missing condition for saved
+  label templates should be resolved; Ryan should still perform production UI
+  smoke verification from the `rnsolutions.net` custom domain.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 066.
+
+### What Codex Needs to Know
+- `label_templates_foundation` is now applied live in Supabase project
+  `keogysnoukbendfkfjcn`.
+- The test verification row remains archived, not deleted.
+- Saved template operations now have the required live table path.
+- Browser verification of the Label Designer UI remains a Ryan/manual follow-up.
+
+### What Claude Needs to Know
+- No schema changes beyond the locked `label_templates` migration were applied.
+- No ad-hoc database changes outside the committed migration were made, except
+  the safe archived verification row.
+- No Clerk, Netlify, environment variable, scan behavior, QR identity, ledger,
+  balance, checkout, count correction, bin_item retirement, destination
+  semantics, `can_view_financials`, inventory cost visibility, transaction
+  history, or reserved feature behavior was changed.
+
+### Next Steps (in order)
+1. Ryan may smoke test production from the `rnsolutions.net` custom domain:
+   - Source shows server;
+   - Label Designer loads without table-missing errors;
+   - Avery 5164 and 8160 options appear;
+   - Developer/Admin with `can_manage_inventory` can save, reload, and archive a
+     test template;
+   - no Supabase 401/PGRST301 and no Clerk production-domain error.
+2. Continue future label work only within Section 25 unless a new architecture
+   decision is routed to Claude first.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: live application and verification of the locked
+  `label_templates` foundation migration.
+- RESERVED: final print/PDF exact positioning, scan-page write/action bindings,
+  non-location QR entities, Grand Master UI surface, accounting export, location
+  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
+  bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, catalog creation from count UI,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, transaction-history
+  visibility changes, destination semantic changes, permission model changes,
+  and inventory cost visibility changes.
+
+### Routing Verdict
+No Claude review needed - live migration/apply verification only for locked Label Template Designer foundation (ARCHITECTURE v2.15, HANDOFF Entry 065).
