@@ -67,8 +67,9 @@ const AVERY_LABEL_TEMPLATES = {
     scopeHint: 'Unit, Shelf, Bay',
     sheet: { width: 8.5, height: 11, unit: 'in' },
     label: { width: 4, height: 3.33 },
-    margins: { top: 0.5, left: 0.19 },
-    gutters: { row: 0, column: 0.13 },
+    margins: { top: 0.5, left: 0.15625 },
+    pitch: { horizontal: 4.1875, vertical: 3.33 },
+    gutters: { row: 0, column: 0.1875 },
     rows: 3,
     columns: 2,
   },
@@ -77,9 +78,10 @@ const AVERY_LABEL_TEMPLATES = {
     displayName: 'Avery 8160 Bin Label',
     scopeHint: 'Bin',
     sheet: { width: 8.5, height: 11, unit: 'in' },
-    label: { width: 2.63, height: 1 },
-    margins: { top: 0.5, left: 0.19 },
-    gutters: { row: 0, column: 0.13 },
+    label: { width: 2.625, height: 1 },
+    margins: { top: 0.5, left: 0.1875 },
+    pitch: { horizontal: 2.75, vertical: 1 },
+    gutters: { row: 0, column: 0.125 },
     rows: 10,
     columns: 3,
   },
@@ -187,6 +189,12 @@ function formatAveryTemplateLabel(template) {
   return `${template.displayName} / ${formatLabelSize(template.label, template.sheet?.unit ?? 'in')}`;
 }
 
+function formatAveryGeometryDetails(template) {
+  if (!template) return '';
+  const unit = template.sheet?.unit ?? 'in';
+  return `Sheet ${formatLabelSize(template.sheet, unit)} / Label ${formatLabelSize(template.label, unit)} / Pitch ${formatLabelSize({ width: template.pitch?.horizontal, height: template.pitch?.vertical }, unit)} / ${template.columns} x ${template.rows}`;
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -273,8 +281,10 @@ function getLabelPrintDocument({ draft, locations, locationSheet, title }) {
     const labels = pageLocations.map((locationRecord, pageIndex) => {
       const row = Math.floor(pageIndex / geometry.columns);
       const column = pageIndex % geometry.columns;
-      const left = geometry.margins.left + column * (geometry.label.width + geometry.gutters.column);
-      const top = geometry.margins.top + row * (geometry.label.height + geometry.gutters.row);
+      const horizontalPitch = geometry.pitch?.horizontal ?? geometry.label.width + (geometry.gutters?.column ?? 0);
+      const verticalPitch = geometry.pitch?.vertical ?? geometry.label.height + (geometry.gutters?.row ?? 0);
+      const left = geometry.margins.left + column * horizontalPitch;
+      const top = geometry.margins.top + row * verticalPitch;
       const summary = locationRecord ? getHierarchySummary(locationRecord, locationSheet) : '';
       return `
         <div class="label-print-cell" style="left:${left}in;top:${top}in;width:${geometry.label.width}in;height:${geometry.label.height}in;">
@@ -703,6 +713,48 @@ function pluralize(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function getMaterialDisplayName(row) {
+  return String(row?.item_name || row?.material_name || row?.description || row?.material_code || '').trim().replace(/\s+/g, ' ');
+}
+
+function joinMaterialNames(names) {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+function getMaterialContentsSummary(rows, recordType) {
+  const namesByKey = new Map();
+
+  rows.forEach((row) => {
+    const name = getMaterialDisplayName(row);
+    if (!name) return;
+    const key = normalizeSearchText(name);
+    const existing = namesByKey.get(key) ?? {
+      name,
+      quantity: 0,
+      rows: 0,
+    };
+    existing.quantity += Number(row.quantity_on_hand ?? row.system_quantity ?? 0);
+    existing.rows += 1;
+    namesByKey.set(key, existing);
+  });
+
+  const materials = Array.from(namesByKey.values())
+    .sort((first, second) => second.quantity - first.quantity || first.name.localeCompare(second.name));
+
+  if (!materials.length) return '';
+
+  if (recordType === 'bin') {
+    if (materials.length === 1) return materials[0].name;
+    if (materials.length <= 3) return joinMaterialNames(materials.map((material) => material.name));
+    return `${materials.slice(0, 2).map((material) => material.name).join(', ')} + ${materials.length - 2} more`;
+  }
+
+  if (materials.length <= 2) return joinMaterialNames(materials.map((material) => material.name));
+  return `${materials.slice(0, 2).map((material) => material.name).join(', ')} + ${materials.length - 2} more`;
+}
+
 function getHierarchySummary(record, locationSheet) {
   if (!record) return '';
 
@@ -711,6 +763,7 @@ function getHierarchySummary(record, locationSheet) {
   const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0), 0);
   const stockedItemCount = new Set(rows.map((row) => row.item_id ?? row.material_code ?? row.bin_item_id)).size;
   const piecesText = `${formatQuantitySummary(totalQuantity)} total pieces`;
+  const materialSummary = getMaterialContentsSummary(rows, record.type);
 
   const parts = [];
 
@@ -734,6 +787,7 @@ function getHierarchySummary(record, locationSheet) {
   }
 
   if (rowCount) {
+    if (materialSummary) parts.push(materialSummary);
     parts.push(pluralize(stockedItemCount || rowCount, 'stocked item'));
     parts.push(piecesText);
   } else {
@@ -1434,6 +1488,7 @@ function LabelPreview({ draft, locationRecord, summary }) {
       </div>
       <div className="label-preview-meta">
         <span>{geometry.label.width}in x {geometry.label.height}in / {geometry.rows} rows / {geometry.columns} columns</span>
+        <span>{formatAveryGeometryDetails(geometry)}</span>
         <span>QR payload: {locationRecord ? buildLocationQrUrl(locationRecord.id) : '/scan/location/<uuid>'}</span>
       </div>
     </div>
@@ -1847,6 +1902,29 @@ function LabelTemplateDesignerPanel({ permissions }) {
             </label>
           </div>
 
+          <div className="label-layout-panel">
+            <div>
+              <strong>QR layout</strong>
+              <p className="muted">Position and size are saved in the template layout. Values are percentages of the label.</p>
+            </div>
+            <label>
+              X
+              <input type="number" min="0" max="100" step="1" value={draft.layout.fields.qr?.x ?? 6} onChange={(event) => updateField('qr', { x: Number(event.target.value) })} />
+            </label>
+            <label>
+              Y
+              <input type="number" min="0" max="100" step="1" value={draft.layout.fields.qr?.y ?? 8} onChange={(event) => updateField('qr', { y: Number(event.target.value) })} />
+            </label>
+            <label>
+              Width
+              <input type="number" min="8" max="90" step="1" value={draft.layout.fields.qr?.width ?? 28} onChange={(event) => updateField('qr', { width: Number(event.target.value) })} />
+            </label>
+            <label>
+              Height
+              <input type="number" min="8" max="90" step="1" value={draft.layout.fields.qr?.height ?? 28} onChange={(event) => updateField('qr', { height: Number(event.target.value) })} />
+            </label>
+          </div>
+
           {canManageTemplates ? (
             <div className="cart-actions">
               <button type="button" className="secondary-button" onClick={startNewTemplate} disabled={isSavingTemplate}>New Template</button>
@@ -1887,7 +1965,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
               <Printer aria-hidden="true" /> Print Scoped Sheet
             </button>
           </div>
-          <p className="muted">Browser print output uses Avery geometry from the template data. Use actual label stock printer settings with scaling set to 100%.</p>
+          <p className="muted">Browser print output uses Avery sheet, margin, label, and pitch geometry from the template data. Use 100% scale, no fit-to-page, and the printer margin setting that preserves actual Avery stock alignment.</p>
         </section>
       </div>
     </section>

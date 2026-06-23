@@ -6148,3 +6148,156 @@ stale coordination docs were used.
 
 ### Routing Verdict
 No Claude review needed - narrow React render hotfix within locked Label Designer behavior (ARCHITECTURE v2.15, HANDOFF Entry 066).
+
+---
+
+## Entry 069 - Milestone 5E.1 Label Designer Layout + Contents Summary Polish
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5E.1 label designer polish
+**Session type:** UI implementation / static verification / documentation
+
+### Context
+Ryan requested Milestone 5E.1 to improve Label Designer contents summaries, QR
+layout controls, and print geometry reliability after the 5E.0 render hotfix.
+First-action checks confirmed local `main` was pulled and already up to date;
+local `HEAD` matched `origin/main` at `25f1281`; `docs/ARCHITECTURE.md` was
+confirmed as v2.15; Section 10a and Section 25 remain present; HANDOFF was
+confirmed gapless through Entry 068; the 5E.0 render hotfix was committed and
+pushed; and live Supabase project `keogysnoukbendfkfjcn` still has
+`public.label_templates`. No stale coordination docs were used.
+
+### What Was Completed
+- Improved hierarchy and label contents summaries to include material names from
+  existing readable inventory rows.
+- Added deterministic material-name summary helpers:
+  - one bin material shows the actual material name;
+  - two or three bin materials are listed cleanly;
+  - larger material sets show the first two names plus a `+ N more` count;
+  - bay/shelf/unit summaries use the same conservative list-first behavior
+    rather than invented category guesses.
+- Added QR layout controls for:
+  - X position;
+  - Y position;
+  - width;
+  - height.
+- QR layout controls update `layout.fields.qr`, preserving the existing
+  `label_templates.layout` JSONB shape.
+- Existing templates without explicit QR position/size continue to receive safe
+  defaults from `DEFAULT_LABEL_FIELDS.qr`.
+- Updated print guidance to call out 100% scale, no fit-to-page, and printer
+  margin settings.
+
+### Print Geometry Polish
+- Audited Avery 5164 and 8160 geometry definitions.
+- Kept sheet geometry centralized in `AVERY_LABEL_TEMPLATES`.
+- Added explicit `pitch` values to the centralized geometry:
+  - Avery 5164: whole sheet, label size, margins, columns, rows, horizontal
+    pitch, and vertical pitch are defined centrally.
+  - Avery 8160: whole sheet, label size, margins, columns, rows, horizontal
+    pitch, and vertical pitch are defined centrally.
+- Browser print placement now uses explicit pitch values instead of deriving
+  placement from label size plus gutters at the print callsite.
+- Exact PDF / `react-pdf` output remains deferred.
+
+### QR / Identity Behavior
+- QR payload remains `/scan/location/<uuid>`.
+- QR identity remains the stable location UUID.
+- Human-readable code/path remains display text only.
+- No human-readable code was encoded into QR payloads.
+- No non-location QR entity behavior was added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added material-name summary helpers.
+  - Added explicit Avery pitch values and geometry detail formatting.
+  - Updated print placement to use centralized pitch.
+  - Added QR position/size controls that write to `layout.fields.qr`.
+- `src/styles.css`
+  - Added responsive styling for the QR layout control panel.
+- No migrations were added.
+- No Supabase files, hooks/services, package files, or architecture docs were
+  changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed `label_templates` schema was not changed.
+- Static scan confirmed no Supabase/hooks/services/package files changed.
+- Static diff scan confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff scan confirmed no checkout/finalization functions were changed.
+- Static diff scan confirmed no scan-page inventory-changing actions were added.
+- Static review confirmed QR payload still uses `/scan/location/<uuid>`.
+- Static review confirmed human-readable location code/path remains display text
+  only.
+- Static review confirmed QR size and position update `layout.fields.qr`.
+- Static review confirmed templates missing QR size/position render with safe
+  defaults.
+- Static review confirmed contents summaries include material names where data
+  exists and do not invent category language.
+- Static review confirmed Avery 5164 and 8160 geometry definitions include whole
+  sheet geometry and explicit pitch values.
+- Static review confirmed preview does not render raw geometry objects as React
+  children.
+
+### Browser Verification
+- Authenticated browser verification was not performed in this Codex session and
+  is not claimed here.
+- Production smoke verification remains a Ryan/manual follow-up.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 069.
+
+### What Codex Needs to Know
+- Label summaries now prefer material names from the already loaded inventory
+  rows.
+- QR placement/size lives in `layout.fields.qr`, not in a new schema column.
+- Avery print placement now uses explicit centralized pitch values.
+- Browser print remains the current print path; exact PDF remains deferred.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, permission, QR payload, scan destination,
+  ledger, balance, checkout/finalization, Count Intake,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, or reserved feature behavior was changed.
+- No new summary backend, RPC, view, table, or permission flag was added.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open `rnsolutions.net`;
+   - Source shows server;
+   - open Label Designer;
+   - select Avery 5164 and 8160;
+   - change QR X/Y/width/height;
+   - save/load a template and confirm QR layout persists;
+   - preview a stocked bin and confirm material names appear in the contents
+     summary;
+   - test browser print preview for obvious sheet skew;
+   - confirm no Supabase 401/PGRST301 and no Clerk production-domain error.
+2. Defer exact PDF output until browser print alignment is checked against real
+   Avery stock.
+
+### Open Questions / Concerns
+- Authenticated production Label Designer verification was unavailable from this
+  Codex session.
+- Browser print alignment still needs real printer/stock validation.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Label Designer contents summary, QR layout, and
+  print geometry polish.
+- RESERVED: schema changes, `label_templates` schema changes, new summary
+  backend/RPC/view, new permission flags, QR payload changes, scan action
+  changes, ledger changes, balance changes, checkout/finalization changes,
+  count correction changes, bin_item retirement semantic changes,
+  transaction-history visibility changes, destination semantic changes,
+  permission model changes, `can_view_financials` changes, inventory cost
+  visibility changes, exact PDF output, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - Label Designer layout and summary polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 068).
