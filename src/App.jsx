@@ -1,8 +1,8 @@
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
 import { Camera, CameraOff, Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from './services/supabaseClient.js';
+import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
@@ -60,6 +60,115 @@ const COUNT_INTAKE_HELP_ITEMS = [
   'Use Reason or Custom note to describe why the count is being recorded.',
   'Mistaken bin/material rows must be counted to zero first, then retired. Retire archives only and does not change quantity or write a ledger transaction.',
 ];
+const AVERY_LABEL_TEMPLATES = {
+  '5164': {
+    key: '5164',
+    label: 'Avery 5164 Placard',
+    scopeHint: 'Unit, Shelf, Bay',
+    sheet: { width: 8.5, height: 11, unit: 'in' },
+    label: { width: 4, height: 3.33 },
+    margins: { top: 0.5, left: 0.19 },
+    gutters: { row: 0, column: 0.13 },
+    rows: 3,
+    columns: 2,
+  },
+  '8160': {
+    key: '8160',
+    label: 'Avery 8160 Bin Label',
+    scopeHint: 'Bin',
+    sheet: { width: 8.5, height: 11, unit: 'in' },
+    label: { width: 2.63, height: 1 },
+    margins: { top: 0.5, left: 0.19 },
+    gutters: { row: 0, column: 0.13 },
+    rows: 10,
+    columns: 3,
+  },
+};
+const LABEL_SCOPE_OPTIONS = [
+  { value: '', label: 'Any location level' },
+  { value: 'unit', label: 'Unit' },
+  { value: 'shelf', label: 'Shelf' },
+  { value: 'bay', label: 'Bay' },
+  { value: 'bin', label: 'Bin' },
+];
+const LABEL_FIELD_OPTIONS = [
+  { key: 'qr', label: 'QR code' },
+  { key: 'code', label: 'Location code' },
+  { key: 'path', label: 'Location path' },
+  { key: 'label', label: 'Display label' },
+  { key: 'summary', label: 'Contents summary' },
+];
+const DEFAULT_LABEL_FIELDS = {
+  qr: {
+    enabled: true,
+    x: 6,
+    y: 8,
+    width: 28,
+    height: 28,
+    color: '#111827',
+    align: 'center',
+    bold: false,
+    underline: false,
+    opacity: 1,
+  },
+  code: {
+    enabled: true,
+    x: 38,
+    y: 12,
+    width: 56,
+    height: 16,
+    color: '#111827',
+    align: 'left',
+    bold: true,
+    underline: false,
+    opacity: 1,
+  },
+  path: {
+    enabled: true,
+    x: 38,
+    y: 34,
+    width: 56,
+    height: 13,
+    color: '#334155',
+    align: 'left',
+    bold: false,
+    underline: false,
+    opacity: 0.9,
+  },
+  label: {
+    enabled: true,
+    x: 38,
+    y: 52,
+    width: 56,
+    height: 12,
+    color: '#475569',
+    align: 'left',
+    bold: false,
+    underline: false,
+    opacity: 0.85,
+  },
+  summary: {
+    enabled: true,
+    x: 6,
+    y: 74,
+    width: 88,
+    height: 14,
+    color: '#0f766e',
+    align: 'left',
+    bold: true,
+    underline: false,
+    opacity: 1,
+  },
+};
+
+function createDefaultLabelLayout(averyTemplate = '5164') {
+  const geometry = AVERY_LABEL_TEMPLATES[averyTemplate] ?? AVERY_LABEL_TEMPLATES['5164'];
+  return {
+    version: 1,
+    geometry,
+    fields: JSON.parse(JSON.stringify(DEFAULT_LABEL_FIELDS)),
+  };
+}
 
 function getBrowserPath() {
   if (typeof window === 'undefined') return '/';
@@ -427,6 +536,56 @@ function getScanRowsForBin(bin, rows) {
 function getRowsForScanScope(model, rows) {
   if (!model?.locationRecord) return [];
   return getRowsForLocation(model.locationRecord, rows);
+}
+
+function formatQuantitySummary(value) {
+  const numericValue = Number(value ?? 0);
+  if (Number.isInteger(numericValue)) return String(numericValue);
+  return numericValue.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function pluralize(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function getHierarchySummary(record, locationSheet) {
+  if (!record) return '';
+
+  const rows = getRowsForLocation(record, locationSheet.rows);
+  const rowCount = rows.length;
+  const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0), 0);
+  const stockedItemCount = new Set(rows.map((row) => row.item_id ?? row.material_code ?? row.bin_item_id)).size;
+  const piecesText = `${formatQuantitySummary(totalQuantity)} total pieces`;
+
+  const parts = [];
+
+  if (record.type === 'unit') {
+    const shelves = locationSheet.shelves.filter((shelf) => shelf.unit_id === record.id);
+    const shelfIds = new Set(shelves.map((shelf) => shelf.id));
+    const bays = locationSheet.bays.filter((bay) => shelfIds.has(bay.shelf_id));
+    const bayIds = new Set(bays.map((bay) => bay.id));
+    const bins = locationSheet.bins.filter((bin) => bayIds.has(bin.bay_id));
+    parts.push(pluralize(shelves.length, 'shelf', 'shelves'));
+    parts.push(pluralize(bins.length, 'bin'));
+  } else if (record.type === 'shelf') {
+    const bays = locationSheet.bays.filter((bay) => bay.shelf_id === record.id);
+    const bayIds = new Set(bays.map((bay) => bay.id));
+    const bins = locationSheet.bins.filter((bin) => bayIds.has(bin.bay_id));
+    parts.push(pluralize(bays.length, 'bay', 'bays'));
+    parts.push(pluralize(bins.length, 'bin'));
+  } else if (record.type === 'bay') {
+    const bins = locationSheet.bins.filter((bin) => bin.bay_id === record.id);
+    parts.push(pluralize(bins.length, 'bin'));
+  }
+
+  if (rowCount) {
+    parts.push(pluralize(stockedItemCount || rowCount, 'stocked item'));
+    parts.push(piecesText);
+  } else {
+    parts.push(record.type === 'bin' ? 'Empty' : 'No stocked material');
+  }
+
+  return parts.join(' / ');
 }
 
 function buildManualLocationLookupRecords(storageUnits, shelves, bays, bins) {
@@ -996,7 +1155,7 @@ function LocationManagementPanel({ permissions }) {
                   <span className="location-record__type">{record.typeLabel}</span>
                   <strong>{record.code || record.id}</strong>
                   <span>{record.path || record.parentLabel}</span>
-                  <small>{record.label || record.division || 'No display label'}</small>
+                  <small>{record.label || record.division || 'No display label'} / {getHierarchySummary(record, locationSheet)}</small>
                 </button>
               ))}
             </div>
@@ -1046,6 +1205,459 @@ function LocationManagementPanel({ permissions }) {
             <span>
               Create, rename, and archive controls are intentionally deferred here. This milestone did not add client-side location writes or new server APIs.
             </span>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function getLabelDraftFromTemplate(template) {
+  const averyTemplate = template?.avery_template || '5164';
+  return {
+    id: template?.id ?? '',
+    name: template?.name ?? 'New Location Label Template',
+    avery_template: averyTemplate,
+    scope_level: template?.scope_level ?? '',
+    include_qr: template?.include_qr ?? true,
+    layout: {
+      ...createDefaultLabelLayout(averyTemplate),
+      ...(template?.layout ?? {}),
+      geometry: AVERY_LABEL_TEMPLATES[averyTemplate] ?? AVERY_LABEL_TEMPLATES['5164'],
+      fields: {
+        ...createDefaultLabelLayout(averyTemplate).fields,
+        ...(template?.layout?.fields ?? {}),
+      },
+    },
+  };
+}
+
+function LabelPreview({ draft, locationRecord, summary }) {
+  const geometry = AVERY_LABEL_TEMPLATES[draft.avery_template] ?? AVERY_LABEL_TEMPLATES['5164'];
+  const fields = draft.layout?.fields ?? DEFAULT_LABEL_FIELDS;
+  const qrSvg = locationRecord && draft.include_qr && fields.qr?.enabled
+    ? buildLocationQrSvg(locationRecord.id)
+    : '';
+  const values = {
+    code: locationRecord?.code || 'C211',
+    path: locationRecord?.path || 'Unit C / Shelf 2 / Bay 1 / Bin 1',
+    label: locationRecord?.label || `${locationRecord?.typeLabel ?? 'Bin'} label preview`,
+    summary: summary || '3 stocked items / 27 total pieces',
+  };
+
+  function fieldStyle(field) {
+    return {
+      left: `${field.x ?? 0}%`,
+      top: `${field.y ?? 0}%`,
+      width: `${field.width ?? 20}%`,
+      height: `${field.height ?? 12}%`,
+      color: field.color ?? '#111827',
+      textAlign: field.align ?? 'left',
+      fontWeight: field.bold ? 800 : 500,
+      textDecoration: field.underline ? 'underline' : 'none',
+      opacity: field.opacity ?? 1,
+    };
+  }
+
+  return (
+    <div className="label-preview-shell">
+      <div
+        className="label-preview-surface"
+        style={{ aspectRatio: `${geometry.label.width} / ${geometry.label.height}` }}
+      >
+        {qrSvg ? (
+          <div
+            className="label-preview-qr"
+            style={fieldStyle(fields.qr)}
+            dangerouslySetInnerHTML={{ __html: qrSvg }}
+          />
+        ) : null}
+        {LABEL_FIELD_OPTIONS.filter((field) => field.key !== 'qr').map((fieldOption) => {
+          const field = fields[fieldOption.key];
+          if (!field?.enabled) return null;
+          return (
+            <div className="label-preview-field" key={fieldOption.key} style={fieldStyle(field)}>
+              {values[fieldOption.key]}
+            </div>
+          );
+        })}
+      </div>
+      <div className="label-preview-meta">
+        <span>{geometry.label.width}in x {geometry.label.height}in / {geometry.rows} rows / {geometry.columns} columns</span>
+        <span>QR payload: {locationRecord ? buildLocationQrUrl(locationRecord.id) : '/scan/location/<uuid>'}</span>
+      </div>
+    </div>
+  );
+}
+
+function LabelTemplateDesignerPanel({ permissions }) {
+  const canReadLabels = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const canManageTemplates = canReadLabels && isDeveloperOrAdminRole(permissions.role);
+  const { getToken } = useAuth();
+  const locationSheet = useInventoryCountSheet({ enabled: canReadLabels });
+  const [templates, setTemplates] = useState([]);
+  const [templatesError, setTemplatesError] = useState(null);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectedFieldKey, setSelectedFieldKey] = useState('code');
+  const [selectedLocationId, setSelectedLocationId] = useState('');
+  const [draft, setDraft] = useState(() => getLabelDraftFromTemplate(null));
+  const locationRecords = useMemo(
+    () => buildLocationRecords(
+      locationSheet.storageUnits,
+      locationSheet.shelves,
+      locationSheet.bays,
+      locationSheet.bins,
+    ),
+    [locationSheet.storageUnits, locationSheet.shelves, locationSheet.bays, locationSheet.bins],
+  );
+  const scopedLocationRecords = locationRecords.filter((record) => !draft.scope_level || record.type === draft.scope_level);
+  const selectedLocation =
+    scopedLocationRecords.find((record) => record.id === selectedLocationId) ??
+    scopedLocationRecords[0] ??
+    null;
+  const selectedField = draft.layout.fields[selectedFieldKey] ?? draft.layout.fields.code;
+  const selectedSummary = selectedLocation ? getHierarchySummary(selectedLocation, locationSheet) : '';
+
+  async function loadTemplates() {
+    if (!canReadLabels) return;
+
+    setIsLoadingTemplates(true);
+    setTemplatesError(null);
+    setTemplateMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('label_templates')
+        .select('id,name,avery_template,scope_level,include_qr,layout,created_by,created_at,archived_at')
+        .is('archived_at', null)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setTemplates(data ?? []);
+    } catch (error) {
+      console.warn('Label templates unavailable', error);
+      setTemplates([]);
+      setTemplatesError(error);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTemplates();
+  }, [canReadLabels, getToken]);
+
+  useEffect(() => {
+    if (!scopedLocationRecords.length) {
+      if (selectedLocationId) setSelectedLocationId('');
+      return;
+    }
+
+    if (!selectedLocationId || !scopedLocationRecords.some((record) => record.id === selectedLocationId)) {
+      setSelectedLocationId(scopedLocationRecords[0].id);
+    }
+  }, [scopedLocationRecords, selectedLocationId]);
+
+  function updateDraft(updates) {
+    setDraft((current) => ({
+      ...current,
+      ...updates,
+      layout: updates.avery_template
+        ? {
+            ...current.layout,
+            geometry: AVERY_LABEL_TEMPLATES[updates.avery_template] ?? current.layout.geometry,
+          }
+        : current.layout,
+    }));
+  }
+
+  function updateField(fieldKey, updates) {
+    setDraft((current) => ({
+      ...current,
+      layout: {
+        ...current.layout,
+        fields: {
+          ...current.layout.fields,
+          [fieldKey]: {
+            ...current.layout.fields[fieldKey],
+            ...updates,
+          },
+        },
+      },
+    }));
+  }
+
+  function selectTemplate(templateId) {
+    setSelectedTemplateId(templateId);
+    const template = templates.find((row) => row.id === templateId);
+    setDraft(getLabelDraftFromTemplate(template));
+    setTemplateMessage('');
+  }
+
+  function startNewTemplate() {
+    setSelectedTemplateId('');
+    setDraft(getLabelDraftFromTemplate(null));
+    setTemplateMessage('');
+  }
+
+  async function saveTemplate() {
+    if (!canManageTemplates) return;
+    const name = draft.name.trim();
+    if (!name) {
+      setTemplateMessage('Template name is required.');
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    setTemplateMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const payload = {
+        name,
+        avery_template: draft.avery_template,
+        scope_level: draft.scope_level || null,
+        include_qr: draft.include_qr,
+        layout: {
+          ...draft.layout,
+          geometry: AVERY_LABEL_TEMPLATES[draft.avery_template] ?? AVERY_LABEL_TEMPLATES['5164'],
+        },
+      };
+
+      if (selectedTemplateId) {
+        const { error } = await client
+          .from('label_templates')
+          .update(payload)
+          .eq('id', selectedTemplateId);
+        if (error) throw error;
+        setTemplateMessage('Template saved.');
+      } else {
+        const { data, error } = await client
+          .from('label_templates')
+          .insert({ ...payload, created_by: permissions.userId })
+          .select('id')
+          .single();
+        if (error) throw error;
+        setSelectedTemplateId(data?.id ?? '');
+        setTemplateMessage('Template created.');
+      }
+
+      await loadTemplates();
+    } catch (error) {
+      console.error('Failed to save label template', error);
+      setTemplateMessage('Template save failed. Confirm the label_templates migration is applied and permissions allow template management.');
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }
+
+  async function archiveTemplate() {
+    if (!canManageTemplates || !selectedTemplateId) return;
+
+    setIsSavingTemplate(true);
+    setTemplateMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('label_templates')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', selectedTemplateId);
+      if (error) throw error;
+
+      startNewTemplate();
+      await loadTemplates();
+      setTemplateMessage('Template archived.');
+    } catch (error) {
+      console.error('Failed to archive label template', error);
+      setTemplateMessage('Template archive failed. Confirm permissions and migration status.');
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }
+
+  if (!canReadLabels) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Label Templates</p>
+            <h3>Label Template Designer</h3>
+          </div>
+          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+        </div>
+        <p>Label preview and template controls use the existing inventory read permission gate.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel label-designer">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Label Templates</p>
+          <h3>Label Template Designer</h3>
+          <p>
+            Foundation for reusable Unit, Shelf, Bay, and Bin label templates. QR content stays on the Section 10 `/scan/location/&lt;uuid&gt;` payload.
+          </p>
+        </div>
+        <span className="status-pill status-pill--good">Preview + save foundation</span>
+      </div>
+
+      <div className="location-note">
+        <QrCode aria-hidden="true" />
+        <span>
+          Avery 5164 supports Unit/Shelf/Bay placards. Avery 8160 supports Bin labels. Print-to-PDF exact positioning is deferred; this milestone adds data-driven preview and saved template foundation.
+        </span>
+      </div>
+
+      {templatesError ? (
+        <div className="alert">Saved templates are unavailable until the `label_templates` migration is applied. Preview controls still work.</div>
+      ) : null}
+      {locationSheet.error ? <div className="alert">Location data failed to load. Label preview cannot resolve live QR payloads.</div> : null}
+
+      <div className="label-designer-layout">
+        <section className="label-control-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Template</p>
+              <h3>Reusable layout</h3>
+            </div>
+            <span>{canManageTemplates ? 'Developer/Admin' : 'Preview only'}</span>
+          </div>
+
+          <div className="label-form-grid">
+            <label>
+              Saved templates
+              <select value={selectedTemplateId} onChange={(event) => selectTemplate(event.target.value)} disabled={isLoadingTemplates || !templates.length}>
+                <option value="">New unsaved template</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>{template.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Template name
+              <input value={draft.name} onChange={(event) => updateDraft({ name: event.target.value })} />
+            </label>
+            <label>
+              Avery sheet
+              <select value={draft.avery_template} onChange={(event) => updateDraft({ avery_template: event.target.value })}>
+                {Object.values(AVERY_LABEL_TEMPLATES).map((template) => (
+                  <option key={template.key} value={template.key}>{template.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Scope level
+              <select value={draft.scope_level} onChange={(event) => updateDraft({ scope_level: event.target.value })}>
+                {LABEL_SCOPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Preview location
+              <select value={selectedLocation?.id ?? ''} onChange={(event) => setSelectedLocationId(event.target.value)} disabled={!scopedLocationRecords.length}>
+                {scopedLocationRecords.map((record) => (
+                  <option key={record.id} value={record.id}>{record.typeLabel}: {record.path || record.code}</option>
+                ))}
+              </select>
+            </label>
+            <label className="count-toggle">
+              <input type="checkbox" checked={draft.include_qr} onChange={(event) => updateDraft({ include_qr: event.target.checked })} />
+              QR enabled
+            </label>
+          </div>
+
+          <div className="label-fields-panel">
+            <strong>Fields</strong>
+            <div className="label-field-toggles">
+              {LABEL_FIELD_OPTIONS.map((field) => (
+                <label className="count-toggle" key={field.key}>
+                  <input
+                    type="checkbox"
+                    checked={draft.layout.fields[field.key]?.enabled ?? false}
+                    onChange={(event) => updateField(field.key, { enabled: event.target.checked })}
+                  />
+                  {field.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="label-style-panel">
+            <label>
+              Style field
+              <select value={selectedFieldKey} onChange={(event) => setSelectedFieldKey(event.target.value)}>
+                {LABEL_FIELD_OPTIONS.map((field) => (
+                  <option key={field.key} value={field.key}>{field.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Color
+              <input type="color" value={selectedField.color ?? '#111827'} onChange={(event) => updateField(selectedFieldKey, { color: event.target.value })} />
+            </label>
+            <label>
+              Alignment
+              <select value={selectedField.align ?? 'left'} onChange={(event) => updateField(selectedFieldKey, { align: event.target.value })}>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+            <label>
+              Opacity
+              <input type="range" min="0.2" max="1" step="0.05" value={selectedField.opacity ?? 1} onChange={(event) => updateField(selectedFieldKey, { opacity: Number(event.target.value) })} />
+            </label>
+            <label className="count-toggle">
+              <input type="checkbox" checked={Boolean(selectedField.bold)} onChange={(event) => updateField(selectedFieldKey, { bold: event.target.checked })} />
+              Bold
+            </label>
+            <label className="count-toggle">
+              <input type="checkbox" checked={Boolean(selectedField.underline)} onChange={(event) => updateField(selectedFieldKey, { underline: event.target.checked })} />
+              Underline
+            </label>
+          </div>
+
+          {canManageTemplates ? (
+            <div className="cart-actions">
+              <button type="button" className="secondary-button" onClick={startNewTemplate} disabled={isSavingTemplate}>New Template</button>
+              <button type="button" className="secondary-button" onClick={saveTemplate} disabled={isSavingTemplate || Boolean(templatesError)}>
+                {isSavingTemplate ? 'Saving...' : 'Save Template'}
+              </button>
+              <button type="button" className="secondary-button secondary-button--danger" onClick={archiveTemplate} disabled={isSavingTemplate || !selectedTemplateId}>
+                Archive Template
+              </button>
+            </div>
+          ) : (
+            <p className="muted">Template create/update/archive controls require Developer/Admin role with can_manage_inventory.</p>
+          )}
+          {templateMessage ? <div className="alert">{templateMessage}</div> : null}
+        </section>
+
+        <section className="label-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Live Preview</p>
+              <h3>{selectedLocation ? `${selectedLocation.typeLabel}: ${selectedLocation.code}` : 'Preview location'}</h3>
+            </div>
+            <span>{AVERY_LABEL_TEMPLATES[draft.avery_template]?.scopeHint}</span>
+          </div>
+          <LabelPreview draft={draft} locationRecord={selectedLocation} summary={selectedSummary} />
+          <div className="cart-facts">
+            <span>Sheet: {AVERY_LABEL_TEMPLATES[draft.avery_template]?.label}</span>
+            <span>Scope: {draft.scope_level || 'Any level'}</span>
+            <span>Fields: {LABEL_FIELD_OPTIONS.filter((field) => draft.layout.fields[field.key]?.enabled).length}</span>
+            <span>QR identity: location UUID</span>
           </div>
         </section>
       </div>
@@ -1237,7 +1849,7 @@ function ScanShelfGroup({ shelf, bays, bins, rows, navigateTo }) {
   );
 }
 
-function ScanHierarchyNavigation({ model, navigateTo }) {
+function ScanHierarchyNavigation({ model, locationSheet, navigateTo }) {
   const upRecords = model.ancestors.filter((record) => record.id !== model.locationRecord?.id);
   const downRecords = [
     ...(model.scopeType === 'unit' ? model.shelves.map((shelf) => ({
@@ -1279,7 +1891,7 @@ function ScanHierarchyNavigation({ model, navigateTo }) {
           <div className="scan-nav-grid">
             {upRecords.map((record) => (
               <ScanNavigationButton key={record.id} record={record} navigateTo={navigateTo}>
-                {record.path || record.label || 'Parent location'}
+                {getHierarchySummary(record, locationSheet)}
               </ScanNavigationButton>
             ))}
           </div>
@@ -1294,7 +1906,7 @@ function ScanHierarchyNavigation({ model, navigateTo }) {
           <div className="scan-nav-grid">
             {downRecords.map((record) => (
               <ScanNavigationButton key={`${record.type}:${record.id}`} record={record} navigateTo={navigateTo}>
-                {record.label || 'Child location'}
+                {getHierarchySummary(record, locationSheet)}
               </ScanNavigationButton>
             ))}
           </div>
@@ -1436,7 +2048,7 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
             <span>Total quantity in scope: {totalQuantity.toFixed(2)}</span>
           </div>
 
-          <ScanHierarchyNavigation model={scanModel} navigateTo={navigateTo} />
+          <ScanHierarchyNavigation model={scanModel} locationSheet={locationSheet} navigateTo={navigateTo} />
 
           <section className="cart-panel scan-contents-panel">
             <div className="count-section-header">
@@ -3865,6 +4477,9 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'scan'} onClick={() => setActiveTab('scan')}>
           Scan QR
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'labels'} onClick={() => setActiveTab('labels')}>
+          Label Designer
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
           Cart Checkout
         </button>
@@ -3881,6 +4496,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
       {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
       {activeTab === 'scan' ? <LocationScannerPanel permissions={permissions} navigateTo={navigateTo} /> : null}
+      {activeTab === 'labels' ? <LabelTemplateDesignerPanel permissions={permissions} /> : null}
       {activeTab === 'cart' ? (
         <CartScaffold
           permissions={permissions}

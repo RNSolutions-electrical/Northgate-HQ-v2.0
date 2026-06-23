@@ -5539,3 +5539,164 @@ were used.
 
 ### Routing Verdict
 No Claude review needed - manual-entry lookup refinement within locked scan behavior (ARCHITECTURE v2.15, HANDOFF Entry 063).
+
+---
+
+## Entry 065 - Milestone 5D Label Template Designer Foundation + Hierarchy Summary Polish
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5D label template foundation
+**Session type:** Implementation / static verification
+
+### Context
+Ryan requested Milestone 5D to add the Label Template Designer foundation and
+hierarchy summary polish under ARCHITECTURE v2.15. First-action checks confirmed
+local `main` was pulled and matched `origin/main`; `docs/ARCHITECTURE.md` is
+v2.15; Section 10a remains present; HANDOFF was gapless through Entry 064; and
+no stale coordination docs were used. Milestones 5C.2 and 5C.2a were already
+committed and pushed before this work began.
+
+### What Was Completed
+- Added the `label_templates` foundation migration file.
+- Added a Label Designer tab under the Inventory surface.
+- Added a reusable template editor foundation for:
+  - Avery 5164 Unit/Shelf/Bay placards;
+  - Avery 8160 Bin labels;
+  - optional QR field;
+  - include/exclude toggles for QR, location code, location path, display label,
+    and contents summary;
+  - per-field color, alignment, opacity, bold, and underline controls.
+- Added live preview using the existing Section 10 scan payload format:
+  `/scan/location/<uuid>`.
+- Added saved-template read/create/update/archive UI using the new
+  `label_templates` table path.
+- Added archive-over-delete behavior for saved templates.
+- Added display-only hierarchy summaries to Location Management and scan
+  hierarchy navigation cards.
+
+### Schema / Migration Notes
+- Added `supabase/migrations/202606230001_label_templates_foundation.sql`.
+- The migration creates `public.label_templates` with:
+  - `id`;
+  - `name`;
+  - `avery_template`;
+  - `scope_level`;
+  - `include_qr`;
+  - `layout`;
+  - `created_by`;
+  - `created_at`;
+  - `archived_at`.
+- RLS is enabled.
+- Active templates are selectable by authenticated users with
+  `can_manage_inventory`.
+- Insert/update/archive is limited to Developer/Admin users with
+  `can_manage_inventory`.
+- No DELETE policy or DELETE grant was added.
+- No live Supabase migration was applied by Codex; Ryan/Supabase must apply the
+  migration through the approved deployment path.
+
+### QR / Scan Identity Behavior
+- QR payload generation remains UUID-only.
+- Label preview uses `/scan/location/<uuid>`.
+- Human-readable location codes remain lookup shortcuts only.
+- No non-location QR entity behavior was added.
+- No scan-page cart/count/transfer/retire/checkout action bindings were added.
+
+### Hierarchy Summary Polish
+- Location Management rows now show display-only child/location contents
+  summaries from already loaded Unit/Shelf/Bay/Bin and inventory count sheet
+  data.
+- Scan hierarchy up/down navigation cards now show display-only summaries from
+  existing readable data.
+- No new read RPC was added for hierarchy summaries.
+- No inventory write path was added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added data-driven Avery template geometry constants.
+  - Added label template draft/preview/editor UI.
+  - Added label template read/save/archive calls through the existing Supabase
+    client path.
+  - Added hierarchy summary helpers using existing loaded location/count data.
+- `src/styles.css`
+  - Added responsive Label Designer and preview styling.
+- `supabase/migrations/202606230001_label_templates_foundation.sql`
+  - Added the `label_templates` table, RLS policies, index, comments, and grants.
+- `HANDOFF.md`
+  - Added this Entry 065.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Static scan confirmed no new direct `inventory_balances` write path was added.
+- Static review confirmed no checkout/finalization, ledger, count correction,
+  transaction history, bin_item retirement, destination semantics, or inventory
+  balance behavior was changed.
+- Static review confirmed the label preview keeps `/scan/location/<uuid>` as
+  the QR payload.
+- Static review confirmed template archival updates `archived_at` and does not
+  delete rows.
+- Static review confirmed no live Supabase migration was applied.
+- Browser verification was not available in this Codex session and is not
+  claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 065.
+
+### What Codex Needs to Know
+- Label Template Designer is a foundation surface, not a final print/PDF engine.
+- Avery geometry is data-driven for 5164 and 8160.
+- Saved templates require the new `label_templates` migration to be applied in
+  Supabase before production save/archive operations work.
+- QR identity remains the stable location UUID.
+- The hierarchy summaries are display-only and use existing loaded data.
+
+### What Claude Needs to Know
+- This milestone added one schema migration for `label_templates`, as requested
+  by the locked Milestone 5D scope.
+- No live database migration was applied from Codex.
+- No schema/RPC/RLS behavior outside `label_templates` was changed.
+- No ledger, balance, checkout/finalization, count correction, bin_item
+  retirement, transaction-history, destination semantics, permission model,
+  Clerk/Supabase JWT, `can_view_financials`, inventory cost, or reserved feature
+  behavior was changed.
+
+### Next Steps (in order)
+1. Ryan should apply the `label_templates` migration through the approved
+   Supabase deployment path before relying on saved label templates in
+   production.
+2. Ryan may perform authenticated production smoke verification:
+   - Label Designer tab appears for inventory users;
+   - Developer/Admin with `can_manage_inventory` can create/update/archive label
+     templates after migration application;
+   - non-Developer/Admin inventory users can preview/read but cannot manage
+     templates;
+   - QR preview routes to `/scan/location/<uuid>`;
+   - Location Management and scan hierarchy summaries render cleanly.
+3. Future label milestones may add print/PDF exact positioning and batch
+   selection after the foundation is verified.
+
+### Open Questions / Concerns
+- Production save/archive behavior is expected to fail gracefully until the
+  `label_templates` migration is applied.
+- Browser and authenticated production verification were not available from this
+  Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Label Template Designer foundation and display-only
+  hierarchy summary polish.
+- RESERVED: final print/PDF exact positioning, scan-page write/action bindings,
+  non-location QR entities, Grand Master UI surface, accounting export, location
+  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
+  bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, catalog creation from count UI,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, transaction-history
+  visibility changes, destination semantic changes, and permission model
+  changes.
+
+### Routing Verdict
+No Claude review needed - Label Template Designer foundation and display-only hierarchy summaries within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 065).
