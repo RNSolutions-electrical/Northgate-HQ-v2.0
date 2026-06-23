@@ -86,6 +86,21 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .scan-contents-table { min-width: 760px; }
 .scan-contents-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .scan-mobile-list { display: none; }
+.scan-navigation-panel { display: grid; gap: .8rem; }
+.scan-nav-section { display: grid; gap: .55rem; }
+.scan-nav-section > strong { color: #dbeafe; }
+.scan-nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: .55rem; }
+.scan-nav-button { min-height: 0; display: grid; gap: .18rem; justify-items: start; border: 1px solid rgba(125,211,252,.22); border-radius: .85rem; background: rgba(12,74,110,.22); color: #e5edf8; padding: .65rem; text-align: left; cursor: pointer; }
+.scan-nav-button span { color: #93c5fd; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.scan-nav-button strong, .scan-nav-button small { overflow-wrap: anywhere; }
+.scan-nav-button small { color: #94a3b8; font-size: .76rem; }
+.scan-shelf-groups, .scan-bay-groups, .scan-bin-groups { display: grid; gap: .75rem; }
+.scan-hierarchy-group { display: grid; gap: .75rem; border: 1px solid rgba(148,163,184,.14); border-radius: 1rem; background: rgba(15,23,42,.42); padding: .85rem; }
+.scan-hierarchy-group--shelf { border-color: rgba(96,165,250,.22); }
+.scan-hierarchy-group--bay { border-color: rgba(56,189,248,.2); background: rgba(8,47,73,.16); }
+.scan-group-header { display: flex; align-items: start; justify-content: space-between; gap: .75rem; }
+.scan-group-header h4 { margin: .12rem 0 .2rem; font-size: 1rem; }
+.scan-group-header span { color: #94a3b8; font-size: .82rem; overflow-wrap: anywhere; }
 .table-wrap { overflow-x: auto; border: 1px solid rgba(148,163,184,.16); border-radius: 1rem; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 680px; }
 .data-table th, .data-table td { padding: .78rem; border-bottom: 1px solid rgba(148,163,184,.12); text-align: left; vertical-align: top; }
@@ -226,6 +241,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .count-mobile-list { display: grid; }
   .scan-mobile-list { display: grid; }
   .scan-location-summary { grid-template-columns: 1fr; }
+  .scan-group-header { align-items: stretch; flex-direction: column; }
   .cart-candidate { align-items: stretch; flex-direction: column; }
   .cart-candidate__actions, .cart-panel__toolbar, .cart-panel__toolbar-actions { align-items: stretch; flex-direction: column; }
   .cart-picker-summary { grid-template-columns: 1fr; }

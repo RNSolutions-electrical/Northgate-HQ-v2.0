@@ -5234,3 +5234,162 @@ were used; and work was performed only from the git clone.
 
 ### Routing Verdict
 No Claude review needed - Rule 20-cleared documentation update applied as instructed (ARCHITECTURE v2.15, HANDOFF Entry 062).
+
+---
+
+## Entry 063 - Milestone 5C.2 v2.15 Scan Destination Read-First Hierarchy Pages
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.2 read-first scan destination pages
+**Session type:** UI implementation / read-path reuse / static verification
+
+### Context
+Ryan requested Milestone 5C.2 after v2.15 Section 10a was locked by Entry 062.
+Required first actions were completed before implementation: `git pull --ff-only
+origin main` returned already up to date; local `main` matched `origin/main` at
+`c9ad6a4`; `docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a Scan
+Destination Behavior was confirmed present; HANDOFF was confirmed gapless
+through Entry 062; the Milestone 5C scanner route was confirmed present; the
+Milestone 5C.1 Chrome-compatible scanner fallback was confirmed present; and no
+stale coordination docs were used.
+
+### What Was Completed
+- Implemented read-first scan destination pages for location QR scans.
+- Added level-aware scan destination resolution for:
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin.
+- Preserved UUID-based scan identity and `/scan/location/<location_uuid>` route
+  behavior.
+- Added scoped human-readable location code/path display.
+- Added hierarchy navigation:
+  - Bin pages navigate up to Bay, Shelf, and Unit;
+  - Bay pages navigate up to Shelf/Unit and down to Bins;
+  - Shelf pages navigate up to Unit and down to Bays/Bins;
+  - Unit pages navigate down to Shelves/Bays/Bins.
+- Added grouped read displays:
+  - Bin scan shows current material rows in that bin;
+  - Bay scan shows bins under the bay and material rows grouped by bin;
+  - Shelf scan shows bay/bin/material contents grouped by bay/bin;
+  - Unit scan shows shelf/bay/bin/material contents grouped by shelf/bay/bin.
+- Added read-first UI copy:
+  - "Scan result actions are read-first in this version."
+  - "Cart staging and count correction will be wired to existing engines in a
+    later milestone."
+- Added clearer empty states for unavailable scan targets, no bins, no shelves,
+  no material rows under scope, and no contents in a bin.
+- Kept scan destination components isolated so bin-level action bindings can be
+  added later without rewriting the read view.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics,
+  transaction-history read-rule, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost, Location QR payload, scanner payload,
+  Clerk, Netlify, or Financials/job-cost behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added scan destination hierarchy model helpers;
+  - replaced the flat scan result contents table with level-aware read-first
+    scan destination components;
+  - reused existing `useInventoryCountSheet` read path and existing
+    `/scan/location/<uuid>` route helper.
+- Updated `src/styles.css`:
+  - added responsive hierarchy navigation and grouped contents styling.
+- No hooks, services, Supabase files, migrations, package files, architecture
+  docs, or scan parser files were changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes
+    correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no Supabase hooks/services were changed.
+- Static scan confirmed no package files were changed.
+- Static scan confirmed no architecture docs were changed.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed no checkout/finalization function was changed.
+- Diff review confirmed newly added scan-page buttons are navigation-only and
+  route through `buildLocationScanPath()`.
+- Diff review confirmed no scan-page cart staging, count correction, transfer,
+  retire, checkout, quantity adjustment, plus/minus, note/reason form, or other
+  inventory-changing action was added.
+- Authenticated browser/camera verification was not available in this Codex
+  session and is not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 063.
+
+### What Codex Needs to Know
+- Scan destination pages now implement the read-before-write step from v2.15
+  Section 10a.
+- Unit/Shelf/Bay/Bin scan pages are level-aware and use existing server-backed
+  read paths.
+- Bin-level cart/count action bindings remain deferred to a later milestone.
+- Hierarchy navigation is read/navigation only and continues to route by UUID.
+- Human-readable location codes and paths remain display text only.
+- Unsupported scan payload behavior from 5C/5C.1 is unchanged.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
+  count correction, count intake, bin_item retirement, destination semantics,
+  transaction history read-rule, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost, label-template mechanism,
+  non-location QR entity, or Financials/job-cost behavior was changed.
+- No new read-only RPC/view was required.
+- No scan page write/action binding was added.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the
+   `rnsolutions.net` custom domain:
+   - Source shows server;
+   - manual entry or scan of valid Unit/Shelf/Bay/Bin QR opens the correct
+     scoped page;
+   - human-readable path displays;
+   - hierarchy navigation works up/down;
+   - contents display correctly where data exists;
+   - scan pages remain read-first with no inventory-changing buttons;
+   - unsupported payloads are rejected gracefully;
+   - Chrome scanner fallback still works;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Keep bin-level cart/count action bindings deferred until a later milestone.
+3. Route to Claude before adding scan-page write actions, new RPCs/views,
+   non-location QR entities, human-code scan identity, transaction-history
+   changes, ledger/balance/checkout/count changes, permission changes, or any
+   reserved feature.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this
+  Codex session.
+- Real production data should be used to visually confirm Unit/Shelf/Bay/Bin
+  grouping and empty states.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: read-first scan destination hierarchy pages for
+  Unit/Shelf/Bay/Bin.
+- RESERVED: bin-level action bindings, cart staging from scan pages, count
+  correction from scan pages, multi-bin batch cart actions, Transfer Location
+  surfacing from scan pages, non-location QR entities, React Native companion
+  app, Label Template Designer implementation, `label_templates`, Avery
+  5164/8160 designer implementation, Grand Master UI surface, accounting export,
+  location create/rename/archive, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count
+  UI.
+
+### Routing Verdict
+No Claude review needed - read-first scan destination hierarchy within locked behavior (ARCHITECTURE v2.15, HANDOFF Entry 062).

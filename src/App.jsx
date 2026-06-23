@@ -10,7 +10,7 @@ import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from './hooks/usePermissions.js';
-import { buildLocationQrSvg, buildLocationQrUrl, parseLocationScanPayload, getAppOrigin } from './lib/locationQr.js';
+import { buildLocationQrSvg, buildLocationQrUrl, buildLocationScanPath, parseLocationScanPayload, getAppOrigin } from './lib/locationQr.js';
 
 const DESTINATION_OPTIONS = [
   { value: 'job', label: 'Job' },
@@ -265,6 +265,168 @@ function getRowsForLocation(record, rows) {
 
   if (!rowKey) return [];
   return rows.filter((row) => row[rowKey] === record.id);
+}
+
+function getLocationDisplayCode(record) {
+  if (!record) return '';
+  return record.code || record.label || record.id;
+}
+
+function getLocationRecordTitle(record) {
+  if (!record) return 'Unknown location';
+  const displayCode = getLocationDisplayCode(record);
+  return `${record.typeLabel}: ${displayCode}`;
+}
+
+function sortByPositionThenCode(first, second, codeKey) {
+  return Number(first.position ?? 0) - Number(second.position ?? 0)
+    || String(first[codeKey] ?? '').localeCompare(String(second[codeKey] ?? ''));
+}
+
+function buildScanDestinationModel(locationId, locationSheet) {
+  const unitById = new Map(locationSheet.storageUnits.map((unit) => [unit.id, unit]));
+  const shelfById = new Map(locationSheet.shelves.map((shelf) => [shelf.id, shelf]));
+  const bayById = new Map(locationSheet.bays.map((bay) => [bay.id, bay]));
+  const binById = new Map(locationSheet.bins.map((bin) => [bin.id, bin]));
+
+  const shelvesByUnitId = new Map();
+  locationSheet.shelves.forEach((shelf) => {
+    const shelves = shelvesByUnitId.get(shelf.unit_id) ?? [];
+    shelves.push(shelf);
+    shelvesByUnitId.set(shelf.unit_id, shelves);
+  });
+
+  const baysByShelfId = new Map();
+  locationSheet.bays.forEach((bay) => {
+    const bays = baysByShelfId.get(bay.shelf_id) ?? [];
+    bays.push(bay);
+    baysByShelfId.set(bay.shelf_id, bays);
+  });
+
+  const binsByBayId = new Map();
+  locationSheet.bins.forEach((bin) => {
+    const bins = binsByBayId.get(bin.bay_id) ?? [];
+    bins.push(bin);
+    binsByBayId.set(bin.bay_id, bins);
+  });
+
+  const getSortedShelves = (unitId) =>
+    [...(shelvesByUnitId.get(unitId) ?? [])].sort((first, second) => sortByPositionThenCode(first, second, 'shelf_code'));
+  const getSortedBays = (shelfId) =>
+    [...(baysByShelfId.get(shelfId) ?? [])].sort((first, second) => sortByPositionThenCode(first, second, 'bay_code'));
+  const getSortedBins = (bayId) =>
+    [...(binsByBayId.get(bayId) ?? [])].sort((first, second) => sortByPositionThenCode(first, second, 'bin_code'));
+
+  let scopeType = '';
+  let unit = null;
+  let shelf = null;
+  let bay = null;
+  let bin = null;
+
+  if (unitById.has(locationId)) {
+    scopeType = 'unit';
+    unit = unitById.get(locationId);
+  } else if (shelfById.has(locationId)) {
+    scopeType = 'shelf';
+    shelf = shelfById.get(locationId);
+    unit = unitById.get(shelf.unit_id) ?? null;
+  } else if (bayById.has(locationId)) {
+    scopeType = 'bay';
+    bay = bayById.get(locationId);
+    shelf = shelfById.get(bay.shelf_id) ?? null;
+    unit = shelf ? unitById.get(shelf.unit_id) ?? null : null;
+  } else if (binById.has(locationId)) {
+    scopeType = 'bin';
+    bin = binById.get(locationId);
+    bay = bayById.get(bin.bay_id) ?? null;
+    shelf = bay ? shelfById.get(bay.shelf_id) ?? null : null;
+    unit = shelf ? unitById.get(shelf.unit_id) ?? null : null;
+  }
+
+  if (!scopeType) return null;
+
+  const locationRecord = buildLocationRecords(
+    unit ? [unit] : [],
+    shelf ? [shelf] : [],
+    bay ? [bay] : [],
+    bin ? [bin] : [],
+  ).find((record) => record.id === locationId) ?? null;
+
+  const shelves = scopeType === 'unit'
+    ? getSortedShelves(unit.id)
+    : shelf
+      ? [shelf]
+      : [];
+
+  const bays = scopeType === 'unit' || scopeType === 'shelf'
+    ? shelves.flatMap((shelfRecord) => getSortedBays(shelfRecord.id))
+    : bay
+      ? [bay]
+      : [];
+
+  const bins = scopeType === 'unit' || scopeType === 'shelf' || scopeType === 'bay'
+    ? bays.flatMap((bayRecord) => getSortedBins(bayRecord.id))
+    : bin
+      ? [bin]
+      : [];
+
+  const ancestors = [
+    unit ? {
+      id: unit.id,
+      type: 'unit',
+      typeLabel: 'Unit',
+      code: unit.unit_code,
+      label: unit.name,
+      path: unit.unit_code,
+    } : null,
+    shelf ? {
+      id: shelf.id,
+      type: 'shelf',
+      typeLabel: 'Shelf',
+      code: shelf.shelf_code,
+      label: shelf.label,
+      path: [unit?.unit_code, shelf.shelf_code].filter(Boolean).join(' / '),
+    } : null,
+    bay ? {
+      id: bay.id,
+      type: 'bay',
+      typeLabel: 'Bay',
+      code: bay.bay_code,
+      label: bay.label,
+      path: [unit?.unit_code, shelf?.shelf_code, bay.bay_code].filter(Boolean).join(' / '),
+    } : null,
+    bin ? {
+      id: bin.id,
+      type: 'bin',
+      typeLabel: 'Bin',
+      code: bin.bin_code,
+      label: bin.label,
+      path: [unit?.unit_code, shelf?.shelf_code, bay?.bay_code, bin.bin_code].filter(Boolean).join(' / '),
+    } : null,
+  ].filter(Boolean);
+
+  return {
+    scopeType,
+    locationRecord,
+    unit,
+    shelf,
+    bay,
+    bin,
+    shelves,
+    bays,
+    bins,
+    ancestors,
+  };
+}
+
+function getScanRowsForBin(bin, rows) {
+  if (!bin) return [];
+  return rows.filter((row) => row.bin_id === bin.id);
+}
+
+function getRowsForScanScope(model, rows) {
+  if (!model?.locationRecord) return [];
+  return getRowsForLocation(model.locationRecord, rows);
 }
 
 function matchesCountRowSearch(row, searchText) {
@@ -784,20 +946,331 @@ function LocationManagementPanel({ permissions }) {
   );
 }
 
+function ScanNavigationButton({ record, navigateTo, children }) {
+  if (!record?.id) return null;
+
+  return (
+    <button type="button" className="scan-nav-button" onClick={() => navigateTo(buildLocationScanPath(record.id))}>
+      <span>{record.typeLabel}</span>
+      <strong>{getLocationDisplayCode(record)}</strong>
+      {children ? <small>{children}</small> : null}
+    </button>
+  );
+}
+
+function ScanMaterialRows({ rows, emptyTitle, emptyText }) {
+  if (!rows.length) {
+    return (
+      <EmptyState title={emptyTitle}>
+        {emptyText}
+      </EmptyState>
+    );
+  }
+
+  return (
+    <>
+      <div className="table-wrap">
+        <table className="data-table scan-contents-table">
+          <thead>
+            <tr>
+              <th>Material</th>
+              <th>Location</th>
+              <th>Quantity</th>
+              <th>Division</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.bin_item_id}>
+                <td>
+                  <strong>{row.item_name}</strong>
+                  <span>{row.material_code}</span>
+                </td>
+                <td>
+                  <strong>{row.bin_code}</strong>
+                  <span>{buildStoragePath(row)}</span>
+                </td>
+                <td>{Number(row.quantity_on_hand ?? row.system_quantity ?? 0).toFixed(2)} {row.unit_of_measure ?? ''}</td>
+                <td>{row.division ?? row.storage_unit_division ?? 'Unassigned'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mobile-list scan-mobile-list">
+        {rows.map((row) => (
+          <article className="mobile-item" key={row.bin_item_id}>
+            <strong>{row.item_name}</strong>
+            <div className="meta-grid">
+              <span>Code: {row.material_code}</span>
+              <span>Bin: {row.bin_code}</span>
+              <span>Path: {buildStoragePath(row)}</span>
+              <span>Qty: {Number(row.quantity_on_hand ?? row.system_quantity ?? 0).toFixed(2)} {row.unit_of_measure ?? ''}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ScanBinGroup({ bin, rows, navigateTo }) {
+  const binRecord = {
+    id: bin.id,
+    type: 'bin',
+    typeLabel: 'Bin',
+    code: bin.bin_code,
+    label: bin.label,
+  };
+
+  return (
+    <section className="scan-hierarchy-group">
+      <div className="scan-group-header">
+        <div>
+          <p className="eyebrow">Bin</p>
+          <h4>{bin.bin_code || bin.id}</h4>
+          <span>{bin.label || 'No bin label'}</span>
+        </div>
+        <ScanNavigationButton record={binRecord} navigateTo={navigateTo}>
+          Open bin
+        </ScanNavigationButton>
+      </div>
+      <ScanMaterialRows
+        rows={rows}
+        emptyTitle="No contents in this bin"
+        emptyText="This bin is available in the scanned scope, but the existing read path returned no active material rows for it."
+      />
+    </section>
+  );
+}
+
+function ScanBayGroup({ bay, bins, rows, navigateTo }) {
+  const bayRecord = {
+    id: bay.id,
+    type: 'bay',
+    typeLabel: 'Bay',
+    code: bay.bay_code,
+    label: bay.label,
+  };
+
+  return (
+    <section className="scan-hierarchy-group scan-hierarchy-group--bay">
+      <div className="scan-group-header">
+        <div>
+          <p className="eyebrow">Bay</p>
+          <h4>{bay.bay_code || bay.id}</h4>
+          <span>{bay.label || 'No bay label'}</span>
+        </div>
+        <ScanNavigationButton record={bayRecord} navigateTo={navigateTo}>
+          Open bay
+        </ScanNavigationButton>
+      </div>
+
+      {bins.length ? (
+        <div className="scan-bin-groups">
+          {bins.map((bin) => (
+            <ScanBinGroup
+              key={bin.id}
+              bin={bin}
+              rows={rows.filter((row) => row.bin_id === bin.id)}
+              navigateTo={navigateTo}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No bins under this bay">
+          The scanned bay resolved, but the existing hierarchy read returned no bins under it.
+        </EmptyState>
+      )}
+    </section>
+  );
+}
+
+function ScanShelfGroup({ shelf, bays, bins, rows, navigateTo }) {
+  const shelfRecord = {
+    id: shelf.id,
+    type: 'shelf',
+    typeLabel: 'Shelf',
+    code: shelf.shelf_code,
+    label: shelf.label,
+  };
+
+  return (
+    <section className="scan-hierarchy-group scan-hierarchy-group--shelf">
+      <div className="scan-group-header">
+        <div>
+          <p className="eyebrow">Shelf</p>
+          <h4>{shelf.shelf_code || shelf.id}</h4>
+          <span>{shelf.label || 'No shelf label'}</span>
+        </div>
+        <ScanNavigationButton record={shelfRecord} navigateTo={navigateTo}>
+          Open shelf
+        </ScanNavigationButton>
+      </div>
+
+      {bays.length ? (
+        <div className="scan-bay-groups">
+          {bays.map((bay) => (
+            <ScanBayGroup
+              key={bay.id}
+              bay={bay}
+              bins={bins.filter((bin) => bin.bay_id === bay.id)}
+              rows={rows.filter((row) => row.bay_id === bay.id)}
+              navigateTo={navigateTo}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="No bays under this shelf">
+          The scanned shelf resolved, but the existing hierarchy read returned no bays under it.
+        </EmptyState>
+      )}
+    </section>
+  );
+}
+
+function ScanHierarchyNavigation({ model, navigateTo }) {
+  const upRecords = model.ancestors.filter((record) => record.id !== model.locationRecord?.id);
+  const downRecords = [
+    ...(model.scopeType === 'unit' ? model.shelves.map((shelf) => ({
+      id: shelf.id,
+      type: 'shelf',
+      typeLabel: 'Shelf',
+      code: shelf.shelf_code,
+      label: shelf.label,
+    })) : []),
+    ...(['unit', 'shelf'].includes(model.scopeType) ? model.bays.map((bay) => ({
+      id: bay.id,
+      type: 'bay',
+      typeLabel: 'Bay',
+      code: bay.bay_code,
+      label: bay.label,
+    })) : []),
+    ...(['unit', 'shelf', 'bay'].includes(model.scopeType) ? model.bins.map((bin) => ({
+      id: bin.id,
+      type: 'bin',
+      typeLabel: 'Bin',
+      code: bin.bin_code,
+      label: bin.label,
+    })) : []),
+  ];
+
+  return (
+    <section className="cart-panel scan-navigation-panel">
+      <div className="count-section-header">
+        <div>
+          <p className="eyebrow">Hierarchy Navigation</p>
+          <h3>Move within scanned location scope</h3>
+        </div>
+        <span>Read + navigation</span>
+      </div>
+
+      <div className="scan-nav-section">
+        <strong>Up</strong>
+        {upRecords.length ? (
+          <div className="scan-nav-grid">
+            {upRecords.map((record) => (
+              <ScanNavigationButton key={record.id} record={record} navigateTo={navigateTo}>
+                {record.path || record.label || 'Parent location'}
+              </ScanNavigationButton>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">This is the top level for the scanned scope.</p>
+        )}
+      </div>
+
+      <div className="scan-nav-section">
+        <strong>Down</strong>
+        {downRecords.length ? (
+          <div className="scan-nav-grid">
+            {downRecords.map((record) => (
+              <ScanNavigationButton key={`${record.type}:${record.id}`} record={record} navigateTo={navigateTo}>
+                {record.label || 'Child location'}
+              </ScanNavigationButton>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Bin pages are the action level; no lower location level is available.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ScanScopedContents({ model, rows, navigateTo }) {
+  if (model.scopeType === 'bin') {
+    const binRows = getScanRowsForBin(model.bin, rows);
+    return (
+      <ScanMaterialRows
+        rows={binRows}
+        emptyTitle="No contents in this bin"
+        emptyText="The scanned bin resolved, but the existing read path returned no active material rows in this bin."
+      />
+    );
+  }
+
+  if (model.scopeType === 'bay') {
+    return (
+      <ScanBayGroup
+        bay={model.bay}
+        bins={model.bins}
+        rows={rows}
+        navigateTo={navigateTo}
+      />
+    );
+  }
+
+  if (model.scopeType === 'shelf') {
+    return (
+      <ScanShelfGroup
+        shelf={model.shelf}
+        bays={model.bays}
+        bins={model.bins}
+        rows={rows}
+        navigateTo={navigateTo}
+      />
+    );
+  }
+
+  return (
+    <div className="scan-shelf-groups">
+      {model.shelves.length ? (
+        model.shelves.map((shelf) => (
+          <ScanShelfGroup
+            key={shelf.id}
+            shelf={shelf}
+            bays={model.bays.filter((bay) => bay.shelf_id === shelf.id)}
+            bins={model.bins}
+            rows={rows.filter((row) => row.shelf_id === shelf.id)}
+            navigateTo={navigateTo}
+          />
+        ))
+      ) : (
+        <EmptyState title="No shelves under this unit">
+          The scanned unit resolved, but the existing hierarchy read returned no shelves under it.
+        </EmptyState>
+      )}
+    </div>
+  );
+}
+
 function LocationScanResult({ permissions, locationId, navigateTo }) {
   const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
   const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
-  const locationRecords = useMemo(
-    () => buildLocationRecords(
+  const scanModel = useMemo(
+    () => buildScanDestinationModel(locationId, locationSheet),
+    [
+      locationId,
       locationSheet.storageUnits,
       locationSheet.shelves,
       locationSheet.bays,
       locationSheet.bins,
-    ),
-    [locationSheet.storageUnits, locationSheet.shelves, locationSheet.bays, locationSheet.bins],
+    ],
   );
-  const locationRecord = locationRecords.find((record) => record.id === locationId) ?? null;
-  const locationRows = getRowsForLocation(locationRecord, locationSheet.rows);
+  const locationRows = getRowsForScanScope(scanModel, locationSheet.rows);
+  const totalQuantity = locationRows.reduce((sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0), 0);
 
   if (!canReadLocations) {
     return (
@@ -807,7 +1280,7 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
             <p className="eyebrow">Scan Result</p>
             <h2>Location unavailable</h2>
           </div>
-          <span className="status-pill status-pill--warn">can_manage_inventory required</span>
+          <span className="status-pill status-pill--warn">Access unavailable</span>
         </div>
         <p>Scanning a QR code does not grant access. Sign in with server permissions that can read inventory locations.</p>
       </article>
@@ -819,93 +1292,61 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
       <div className="card__header">
         <div>
           <p className="eyebrow">Scan Result</p>
-          <h2>{locationRecord ? locationRecord.path || locationRecord.code : 'Resolving location'}</h2>
-          <p>Read-only location resolution from the scanned UUID.</p>
+          <h2>{scanModel?.locationRecord ? scanModel.locationRecord.path || scanModel.locationRecord.code : 'Resolving location'}</h2>
+          <p>Read-first location page from the scanned UUID. Human-readable codes are display text only.</p>
         </div>
         <button type="button" className="secondary-button" onClick={() => navigateTo('/')}>
           Back to Dashboard
         </button>
       </div>
 
+      <div className="location-note">
+        <MapPin aria-hidden="true" />
+        <span>
+          Scan result actions are read-first in this version. Cart staging and count correction will be wired to existing engines in a later milestone.
+        </span>
+      </div>
+
       {locationSheet.error ? (
-        <div className="alert">Location lookup failed. Confirm server permissions and storage-location table access.</div>
+        <div className="alert">Location unavailable. The scan target could not be resolved through the current server read path.</div>
       ) : null}
       {locationSheet.isLoading ? <p className="muted">Resolving scanned location...</p> : null}
 
-      {!locationSheet.isLoading && !locationSheet.error && !locationRecord ? (
+      {!locationSheet.isLoading && !locationSheet.error && !scanModel?.locationRecord ? (
         <EmptyState title="Location not found or unavailable">
-          This UUID did not resolve to a Unit, Shelf, Bay, or Bin through the current read path.
+          This scan target is not available through the current server read path.
         </EmptyState>
       ) : null}
 
-      {locationRecord ? (
+      {scanModel?.locationRecord ? (
         <>
           <div className="scan-location-summary">
-            <span>Level: {locationRecord.typeLabel}</span>
-            <span>Code: {locationRecord.code || 'No display code'}</span>
-            <span>Path: {locationRecord.path || 'No path available'}</span>
-            <span>UUID: {locationRecord.id}</span>
+            <span>Level: {scanModel.locationRecord.typeLabel}</span>
+            <span>Code: {scanModel.locationRecord.code || 'No display code'}</span>
+            <span>Path: {scanModel.locationRecord.path || 'No path available'}</span>
+            <span>UUID: {scanModel.locationRecord.id}</span>
+            <span>Material rows in scope: {locationRows.length}</span>
+            <span>Total quantity in scope: {totalQuantity.toFixed(2)}</span>
           </div>
+
+          <ScanHierarchyNavigation model={scanModel} navigateTo={navigateTo} />
 
           <section className="cart-panel scan-contents-panel">
             <div className="count-section-header">
               <div>
                 <p className="eyebrow">Current Contents</p>
-                <h3>{locationRows.length ? `${locationRows.length} bin/material rows` : 'No contents returned'}</h3>
+                <h3>{getLocationRecordTitle(scanModel.locationRecord)}</h3>
               </div>
               <span>Read only</span>
             </div>
 
-            {locationRows.length ? (
-              <>
-                <div className="table-wrap">
-                  <table className="data-table scan-contents-table">
-                    <thead>
-                      <tr>
-                        <th>Material</th>
-                        <th>Location</th>
-                        <th>Quantity</th>
-                        <th>Division</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {locationRows.map((row) => (
-                        <tr key={row.bin_item_id}>
-                          <td>
-                            <strong>{row.item_name}</strong>
-                            <span>{row.material_code}</span>
-                          </td>
-                          <td>
-                            <strong>{row.bin_code}</strong>
-                            <span>{buildStoragePath(row)}</span>
-                          </td>
-                          <td>{Number(row.quantity_on_hand ?? row.system_quantity ?? 0).toFixed(2)} {row.unit_of_measure ?? ''}</td>
-                          <td>{row.division ?? locationRecord.division ?? 'Unassigned'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="mobile-list scan-mobile-list">
-                  {locationRows.map((row) => (
-                    <article className="mobile-item" key={row.bin_item_id}>
-                      <strong>{row.item_name}</strong>
-                      <div className="meta-grid">
-                        <span>Code: {row.material_code}</span>
-                        <span>Bin: {row.bin_code}</span>
-                        <span>Path: {buildStoragePath(row)}</span>
-                        <span>Qty: {Number(row.quantity_on_hand ?? row.system_quantity ?? 0).toFixed(2)} {row.unit_of_measure ?? ''}</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <EmptyState title="No stocked rows">
-                The scanned location resolved, but the existing read path returned no active bin/material rows inside it.
+            {!locationRows.length && scanModel.scopeType !== 'bin' ? (
+              <EmptyState title="No material rows under this scope">
+                The scanned location resolved, but the existing read path returned no active material rows under this scope.
               </EmptyState>
-            )}
+            ) : null}
+
+            <ScanScopedContents model={scanModel} rows={locationRows} navigateTo={navigateTo} />
           </section>
         </>
       ) : null}
