@@ -6300,4 +6300,175 @@ pushed; and live Supabase project `keogysnoukbendfkfjcn` still has
   visibility changes, exact PDF output, and all reserved features.
 
 ### Routing Verdict
-No Claude review needed - Label Designer layout and summary polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 068).
+No Claude review needed - Label Designer layout and summary polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 069).
+
+---
+
+## Entry 070 - Milestone 5F Grand Master UI Surface
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5F Grand Master UI surface
+**Session type:** UI implementation / static verification / documentation
+
+### Context
+Ryan requested Milestone 5F to add a read-only Grand Master / Inventory
+Overview surface using existing readable inventory data only. First-action
+checks confirmed local `main` was pulled and already up to date; local `HEAD`
+matched `origin/main` at `815c51c`; `docs/ARCHITECTURE.md` was confirmed as
+v2.15; HANDOFF was confirmed gapless through Entry 069; Milestone 5E.1 was
+committed and pushed; and no stale coordination docs were used. Entry 069 also
+had the exact current-entry routing-verdict typo Ryan warned about, so Codex
+repaired only `HANDOFF Entry 068` to `HANDOFF Entry 069` before appending this
+entry.
+
+### What Was Completed
+- Added a new `Grand Master` tab as the first Inventory module surface.
+- Added a read-only `GrandMasterOverviewPanel` backed by the existing
+  `useInventoryCountSheet` read path.
+- Displayed consolidated authorized inventory rows with:
+  - material name and material code;
+  - category;
+  - quantity on hand;
+  - unit cost and extended value when already present in the authorized read
+    row;
+  - division from the existing visible row/location data;
+  - Unit / Shelf / Bay / Bin path and location labels;
+  - stocked vs empty status.
+- Added empty-location display rows for bins that have no active bin/material
+  rows returned by the existing read path.
+- Added summary cards for:
+  - stocked locations;
+  - empty locations;
+  - total stocked rows;
+  - total quantity;
+  - known stored value;
+  - visible rows after filters.
+- Added read-only filters/search for:
+  - material/code/location text;
+  - compact location shortcuts such as `C111`;
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - category;
+  - visible division;
+  - stocked vs empty.
+- Added a manual Refresh button that only reloads the existing read hook.
+
+### Sync / Last-Updated Behavior
+- Implemented last-updated/client-refresh status using the existing
+  `lastLoadedAt` value from `useInventoryCountSheet`.
+- Deeper backend sync-health was not invented because no existing backend
+  mechanism was available or needed for this milestone.
+- The UI states this explicitly as `Sync health: client last-loaded only`.
+
+### Read-Only / Scope Notes
+- The Grand Master surface uses existing server-side read rules and the data
+  already returned to the signed-in user.
+- No client-side-only permission override was added.
+- Inventory cost is displayed within the authorized inventory row scope when
+  cost data is already returned.
+- `can_view_financials` was not used as an inventory-cost gate.
+- No write buttons, inventory-changing controls, checkout controls, count
+  correction controls, scan actions, retirement controls, or export generation
+  were added to the Grand Master surface.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Grand Master row-building/search helpers.
+  - Added the `GrandMasterOverviewPanel`.
+  - Added the `Grand Master` tab and made it the first Inventory module tab.
+- `src/styles.css`
+  - Added table/mobile responsive styling for the Grand Master surface.
+- `HANDOFF.md`
+  - Repaired the Entry 069 routing-verdict typo specifically called out by
+    Ryan.
+  - Appended this Entry 070.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- HANDOFF was rechecked as gapless through Entry 069 before this append.
+- Static scan confirmed only `HANDOFF.md`, `src/App.jsx`, and `src/styles.css`
+  changed.
+- Static diff confirmed no migration files were added.
+- Static diff confirmed no schema/Supabase/RLS/grants files were changed.
+- Static diff confirmed no new RPC/view was added.
+- Static diff confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff confirmed no checkout/finalization functions were changed.
+- Static diff confirmed no inventory-changing controls were added.
+- Static scan confirmed `can_view_financials` was not added as an
+  inventory-cost gate.
+- Static review confirmed QR/scan/label behavior was not changed.
+
+### Browser Verification
+- Authenticated production browser verification was not performed in this Codex
+  session and is not claimed here.
+- Ryan/manual production verification remains needed after deploy:
+  - open `rnsolutions.net`;
+  - Source shows server;
+  - open the Grand Master tab;
+  - confirm rows load;
+  - confirm filters/search work;
+  - confirm location paths display;
+  - confirm summary cards display;
+  - confirm no write controls are present;
+  - confirm no Supabase 401/PGRST301;
+  - confirm no Clerk production-domain error.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains append-only aside from the Ryan-specified current-entry typo
+  repair in Entry 069.
+
+### What Codex Needs to Know
+- Grand Master is a UI-only overview surface.
+- It derives its rows from the existing count sheet/read path; there is no new
+  backend, RPC, view, table, or permission flag.
+- Sync-health is intentionally limited to client last-loaded/refresh state.
+- Empty locations are derived from already readable Bin records and returned
+  bin/material rows.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- No accounting export, scan-page cart staging, scan-page count correction
+  action binding, checkout from scan pages, plus/minus scan controls,
+  multi-bin batch cart actions, Transfer Location surfacing, non-location QR
+  generation, native companion app, location create/rename/archive,
+  Return-to-Inventory, Buyout, Tools locations, vehicle bins, van-stock
+  onboarding, Express Checkout, Manager Override, reorder/min-max,
+  low-stock thresholds, structured count-type fields, or catalog creation from
+  count UI was built.
+
+### Next Steps (in order)
+1. Ryan may verify the Grand Master tab in production after deploy.
+2. If production data reveals missing fields in the existing read path, route
+   any new read-only RPC/view/schema request to Claude before implementation.
+3. Proceed to accounting export only as a separate milestone.
+
+### Open Questions / Concerns
+- Authenticated production verification was unavailable from this Codex session.
+- Backend sync-health remains deferred because this milestone did not add a new
+  backend mechanism.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: read-only Grand Master UI surface.
+- RESERVED: accounting export generation, new read-only RPC/view, schema/RLS/
+  permission changes, inventory-changing actions, ledger changes, balance
+  changes, checkout/finalization changes, count correction changes, bin_item
+  retirement semantic changes, destination semantic changes, transaction-history
+  behavior changes, QR payload behavior changes, scan action behavior changes,
+  Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - read-only Grand Master UI surface within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 070).

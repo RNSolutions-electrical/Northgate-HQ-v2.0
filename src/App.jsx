@@ -1175,6 +1175,269 @@ function StoragePreview({ storageUnits, bins }) {
   );
 }
 
+function GrandMasterOverviewPanel({ permissions }) {
+  const canReadOverview = permissions.permissionSource === 'server';
+  const countSheet = useInventoryCountSheet({ enabled: canReadOverview });
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    storage_unit_id: '',
+    shelf_id: '',
+    bay_id: '',
+    bin_id: '',
+    category: '',
+    division: '',
+    stockStatus: '',
+  });
+  const grandMaster = useMemo(() => buildGrandMasterRows(countSheet), [countSheet]);
+  const rows = grandMaster.rows;
+  const categoryOptions = rows
+    .reduce((options, row) => {
+      if (!row.categoryLabel || options.some((option) => option.value === row.categoryLabel)) return options;
+      return [...options, { value: row.categoryLabel, label: row.categoryLabel }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const divisionOptions = rows
+    .reduce((options, row) => {
+      const value = row.division || 'Unassigned';
+      if (options.some((option) => option.value === value)) return options;
+      return [...options, { value, label: value }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const storageUnitOptions = countSheet.storageUnits
+    .map((unit) => ({
+      value: unit.id,
+      label: `${unit.unit_code}${unit.name ? ` / ${unit.name}` : ''}`,
+    }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const shelfOptions = countSheet.shelves
+    .map((shelf) => ({ value: shelf.id, label: shelf.shelf_code || shelf.label || shelf.id }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const bayOptions = countSheet.bays
+    .map((bay) => ({ value: bay.id, label: bay.bay_code || bay.label || bay.id }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const binOptions = countSheet.bins
+    .map((bin) => ({ value: bin.id, label: bin.bin_code || bin.label || bin.id }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const filteredRows = rows.filter((row) => {
+    if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
+    if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
+    if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
+    if (filters.bin_id && row.bin_id !== filters.bin_id) return false;
+    if (filters.category && row.categoryLabel !== filters.category) return false;
+    if (filters.division && (row.division || 'Unassigned') !== filters.division) return false;
+    if (filters.stockStatus && row.stockStatus !== filters.stockStatus) return false;
+    return matchesGrandMasterSearch(row, search);
+  });
+  const totalQuantity = rows
+    .filter((row) => row.rowType === 'item' && row.quantity > 0)
+    .reduce((sum, row) => sum + row.quantity, 0);
+  const knownStoredValue = rows
+    .filter((row) => row.rowType === 'item' && row.extendedValue !== null && row.quantity > 0)
+    .reduce((sum, row) => sum + row.extendedValue, 0);
+  const knownValueRows = rows.filter((row) => row.rowType === 'item' && row.extendedValue !== null).length;
+  const stockedRows = rows.filter((row) => row.rowType === 'item' && row.quantity > 0).length;
+  const emptyLocations = Math.max(countSheet.bins.length - grandMaster.positiveBinIds.size, 0);
+
+  function clearFilters() {
+    setSearch('');
+    setFilters({
+      storage_unit_id: '',
+      shelf_id: '',
+      bay_id: '',
+      bin_id: '',
+      category: '',
+      division: '',
+      stockStatus: '',
+    });
+  }
+
+  if (!canReadOverview) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Grand Master</p>
+            <h3>Inventory Overview</h3>
+          </div>
+          <span className="status-pill status-pill--warn">Server permissions required</span>
+        </div>
+        <p>Grand Master inventory uses the existing server-authorized inventory read path.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel grand-master-panel">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Grand Master</p>
+          <h3>Inventory Overview</h3>
+          <p>
+            Read-only operational view from the existing inventory count/read path. Search and filters only change this display.
+          </p>
+        </div>
+        <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
+          {countSheet.isLoading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      {countSheet.error ? (
+        <div className="alert">Grand Master inventory failed to load through the existing authorized read path.</div>
+      ) : null}
+      {countSheet.isLoading ? <p className="muted">Loading Grand Master inventory...</p> : null}
+
+      <div className="count-grid grand-master-summary">
+        <CountCard label="Stocked locations" value={grandMaster.positiveBinIds.size} />
+        <CountCard label="Empty locations" value={emptyLocations} />
+        <CountCard label="Total stocked rows" value={stockedRows} />
+        <CountCard label="Total quantity" value={formatQuantitySummary(totalQuantity)} />
+        <CountCard label="Known stored value" value={formatMoney(knownValueRows ? knownStoredValue : null)} />
+        <CountCard label="Visible rows" value={filteredRows.length} />
+      </div>
+
+      <div className="count-toolbar grand-master-toolbar">
+        <label>
+          Search
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Material, code, C111, bin, path, part number, or description"
+          />
+        </label>
+        <label>
+          Unit
+          <select value={filters.storage_unit_id} onChange={(event) => setFilters((current) => ({ ...current, storage_unit_id: event.target.value }))}>
+            <option value="">All units</option>
+            {storageUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Shelf
+          <select value={filters.shelf_id} onChange={(event) => setFilters((current) => ({ ...current, shelf_id: event.target.value }))}>
+            <option value="">All shelves</option>
+            {shelfOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Bay
+          <select value={filters.bay_id} onChange={(event) => setFilters((current) => ({ ...current, bay_id: event.target.value }))}>
+            <option value="">All bays</option>
+            {bayOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Bin
+          <select value={filters.bin_id} onChange={(event) => setFilters((current) => ({ ...current, bin_id: event.target.value }))}>
+            <option value="">All bins</option>
+            {binOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Category
+          <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
+            <option value="">All categories</option>
+            {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Division
+          <select value={filters.division} onChange={(event) => setFilters((current) => ({ ...current, division: event.target.value }))}>
+            <option value="">All visible divisions</option>
+            {divisionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Stock status
+          <select value={filters.stockStatus} onChange={(event) => setFilters((current) => ({ ...current, stockStatus: event.target.value }))}>
+            <option value="">Stocked and empty</option>
+            <option value="stocked">Stocked only</option>
+            <option value="empty">Empty / zero only</option>
+          </select>
+        </label>
+        <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
+      </div>
+
+      <div className="cart-facts count-summary">
+        <span>Loaded bin/material rows: {countSheet.rows.length}</span>
+        <span>Loaded bins: {countSheet.bins.length}</span>
+        <span>Last updated: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
+        <span>Sync health: client last-loaded only</span>
+        <span>Cost visibility: authorized inventory row scope</span>
+        <span>Writes from this view: none</span>
+      </div>
+
+      {filteredRows.length ? (
+        <>
+          <div className="table-wrap grand-master-table-wrap">
+            <table className="data-table grand-master-table">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th>Location</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Ext. Value</th>
+                  <th>Division</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <strong>{row.item_name}</strong>
+                      <span>{row.material_code || 'No material code'}</span>
+                      {row.description ? <span>{row.description}</span> : null}
+                    </td>
+                    <td>
+                      <strong>{row.bin_code || 'No bin code'}</strong>
+                      <span>{row.locationPath || buildStoragePath(row) || 'No location path'}</span>
+                      <span>{[row.storage_unit_name, row.shelf_label, row.bay_label, row.bin_label].filter(Boolean).join(' / ') || 'No location label'}</span>
+                    </td>
+                    <td>{row.categoryLabel || '-'}</td>
+                    <td>{row.rowType === 'item' ? `${row.quantity.toFixed(2)} ${row.unit_of_measure ?? ''}` : '-'}</td>
+                    <td>{formatMoney(row.unitCost)}</td>
+                    <td>{formatMoney(row.extendedValue)}</td>
+                    <td>{row.division || 'Unassigned'}</td>
+                    <td>
+                      <span className={row.stockStatus === 'stocked' ? 'status-pill status-pill--good' : 'status-pill'}>
+                        {row.stockStatus === 'stocked' ? 'Stocked' : 'Empty'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-list grand-master-mobile-list">
+            {filteredRows.map((row) => (
+              <article className="mobile-item" key={row.id}>
+                <strong>{row.item_name}</strong>
+                <span>{row.material_code || 'No material code'} / {row.stockStatus === 'stocked' ? 'Stocked' : 'Empty'}</span>
+                <div className="meta-grid">
+                  <span>Path: {row.locationPath || buildStoragePath(row) || 'No location path'}</span>
+                  <span>Qty: {row.rowType === 'item' ? `${row.quantity.toFixed(2)} ${row.unit_of_measure ?? ''}` : '-'}</span>
+                  <span>Unit cost: {formatMoney(row.unitCost)}</span>
+                  <span>Value: {formatMoney(row.extendedValue)}</span>
+                  <span>Category: {row.categoryLabel || '-'}</span>
+                  <span>Division: {row.division || 'Unassigned'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <EmptyState title="No Grand Master rows match">
+          No authorized inventory rows or empty bins match the current overview filters.
+        </EmptyState>
+      )}
+    </section>
+  );
+}
+
 function LocationManagementPanel({ permissions }) {
   const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
   const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
@@ -2898,6 +3161,133 @@ function getCategoryLabel(row) {
     row.sub_category_3,
     row.sub_category_4,
   ].filter(Boolean).join(' / ') || 'Uncategorized';
+}
+
+function formatMoney(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return '-';
+  return `$${numericValue.toFixed(2)}`;
+}
+
+function buildGrandMasterLocationContext(countSheet) {
+  const unitById = new Map(countSheet.storageUnits.map((unit) => [unit.id, unit]));
+  const shelfById = new Map(countSheet.shelves.map((shelf) => [shelf.id, shelf]));
+  const bayById = new Map(countSheet.bays.map((bay) => [bay.id, bay]));
+
+  return new Map(countSheet.bins.map((bin) => {
+    const bay = bayById.get(bin.bay_id) ?? {};
+    const shelf = shelfById.get(bay.shelf_id) ?? {};
+    const unit = unitById.get(shelf.unit_id) ?? {};
+
+    return [bin.id, {
+      bin_id: bin.id,
+      bin_code: bin.bin_code ?? '',
+      bin_label: bin.label ?? '',
+      bay_id: bay.id ?? '',
+      bay_code: bay.bay_code ?? '',
+      bay_label: bay.label ?? '',
+      shelf_id: shelf.id ?? '',
+      shelf_code: shelf.shelf_code ?? '',
+      shelf_label: shelf.label ?? '',
+      storage_unit_id: unit.id ?? '',
+      storage_unit_code: unit.unit_code ?? '',
+      storage_unit_name: unit.name ?? '',
+      division: unit.division ?? '',
+      locationPath: [unit.unit_code, shelf.shelf_code, bay.bay_code, bin.bin_code].filter(Boolean).join(' / '),
+    }];
+  }));
+}
+
+function buildGrandMasterRows(countSheet) {
+  const locationByBinId = buildGrandMasterLocationContext(countSheet);
+  const rowCountByBinId = new Map();
+  const positiveQuantityByBinId = new Map();
+
+  countSheet.rows.forEach((row) => {
+    const quantity = Number(row.quantity_on_hand ?? row.system_quantity ?? 0);
+    rowCountByBinId.set(row.bin_id, (rowCountByBinId.get(row.bin_id) ?? 0) + 1);
+    if (quantity > 0) {
+      positiveQuantityByBinId.set(row.bin_id, (positiveQuantityByBinId.get(row.bin_id) ?? 0) + quantity);
+    }
+  });
+
+  const itemRows = countSheet.rows.map((row) => {
+    const quantity = Number(row.quantity_on_hand ?? row.system_quantity ?? 0);
+    const unitCost = row.price_per_unit === null || row.price_per_unit === undefined || row.price_per_unit === ''
+      ? null
+      : Number(row.price_per_unit);
+    const location = locationByBinId.get(row.bin_id) ?? {};
+    const effectiveUnitCost = Number.isFinite(unitCost) ? unitCost : null;
+
+    return {
+      id: row.bin_item_id,
+      rowType: 'item',
+      stockStatus: quantity > 0 ? 'stocked' : 'empty',
+      material_code: row.material_code ?? '',
+      item_name: row.item_name ?? '',
+      unit_of_measure: row.unit_of_measure ?? '',
+      categoryLabel: getCategoryLabel(row),
+      broad_category: row.broad_category ?? '',
+      description: row.description ?? '',
+      manufacturer_part_number: row.manufacturer_part_number ?? '',
+      vendor_part_number: row.vendor_part_number ?? '',
+      quantity,
+      unitCost: effectiveUnitCost,
+      extendedValue: effectiveUnitCost === null ? null : effectiveUnitCost * quantity,
+      division: row.division ?? row.storage_unit_division ?? location.division ?? '',
+      ...location,
+    };
+  });
+
+  const emptyLocationRows = Array.from(locationByBinId.values())
+    .filter((location) => !rowCountByBinId.has(location.bin_id))
+    .map((location) => ({
+      id: `empty-${location.bin_id}`,
+      rowType: 'empty-location',
+      stockStatus: 'empty',
+      material_code: '',
+      item_name: 'No stocked material',
+      unit_of_measure: '',
+      categoryLabel: '',
+      broad_category: '',
+      description: '',
+      manufacturer_part_number: '',
+      vendor_part_number: '',
+      quantity: 0,
+      unitCost: null,
+      extendedValue: null,
+      division: location.division ?? '',
+      ...location,
+    }));
+
+  return {
+    rows: [...itemRows, ...emptyLocationRows],
+    positiveBinIds: new Set(positiveQuantityByBinId.keys()),
+  };
+}
+
+function matchesGrandMasterSearch(row, searchText) {
+  const normalizedSearch = normalizeSearchText(searchText);
+  if (!normalizedSearch) return true;
+
+  const compactSearch = normalizeLocationSegment(searchText);
+  const compactLocationCode = buildCompactLocationCode(row);
+  const searchableValues = [
+    row.material_code,
+    row.item_name,
+    row.categoryLabel,
+    row.description,
+    row.manufacturer_part_number,
+    row.vendor_part_number,
+    row.unit_of_measure,
+    row.division,
+    ...getLocationSearchValues(row),
+  ];
+  const plainMatch = searchableValues.some((value) => normalizeSearchText(value).includes(normalizedSearch));
+  const compactLocationMatch = compactSearch ? compactLocationCode.startsWith(compactSearch) : false;
+
+  return plainMatch || compactLocationMatch;
 }
 
 function CountHistoryForItem({ row, permissions }) {
@@ -4735,7 +5125,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 }
 
 function InventoryReadOnlyPanel({ permissions, navigateTo }) {
-  const [activeTab, setActiveTab] = useState('catalog');
+  const [activeTab, setActiveTab] = useState('grand-master');
   const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
   const counts = inventory.model.counts;
 
@@ -4772,6 +5162,9 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
       </div>
 
       <div className="module-tabs" role="tablist" aria-label="Inventory read-only views">
+        <button className="module-tab" type="button" aria-selected={activeTab === 'grand-master'} onClick={() => setActiveTab('grand-master')}>
+          Grand Master
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')}>
           Catalog Preview
         </button>
@@ -4799,6 +5192,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
       </div>
 
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
+      {activeTab === 'grand-master' ? <GrandMasterOverviewPanel permissions={permissions} /> : null}
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
       {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
