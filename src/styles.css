@@ -77,6 +77,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .label-form-grid label, .label-style-panel label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
 .label-form-grid input, .label-form-grid select, .label-style-panel input, .label-style-panel select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; width: 100%; }
 .label-style-panel input[type="color"] { min-height: 44px; padding: .25rem; }
+.label-template-status { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin: .75rem 0 0; color: #94a3b8; font-size: .78rem; }
+.label-template-status > span:not(.status-pill) { border: 1px solid rgba(148,163,184,.16); border-radius: 999px; background: rgba(15,23,42,.5); padding: .3rem .55rem; }
 .label-fields-panel { display: grid; gap: .55rem; margin: .85rem 0; }
 .label-field-toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .45rem; }
 .label-preview-shell { display: grid; gap: .75rem; }
@@ -84,6 +86,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .label-preview-field, .label-preview-qr { position: absolute; display: grid; align-items: center; overflow: hidden; padding: .2rem; line-height: 1.15; font-size: clamp(.7rem, 2.4vw, 1rem); }
 .label-preview-qr svg { width: 100%; height: 100%; display: block; }
 .label-preview-meta { display: grid; gap: .3rem; color: #94a3b8; font-size: .78rem; overflow-wrap: anywhere; }
+.label-print-actions .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+.label-print-actions svg { width: 1rem; height: 1rem; }
 .scanner-panel, .scan-result { display: grid; gap: 1rem; }
 .scanner-layout { display: grid; grid-template-columns: minmax(18rem, .95fr) minmax(0, 1.05fr); gap: 1rem; align-items: start; }
 .scanner-camera, .scanner-manual { display: grid; gap: .85rem; min-width: 0; }

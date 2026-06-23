@@ -5842,3 +5842,179 @@ was confirmed as `keogysnoukbendfkfjcn` / `northgate-hq-v2.0`.
 
 ### Routing Verdict
 No Claude review needed - live migration/apply verification only for locked Label Template Designer foundation (ARCHITECTURE v2.15, HANDOFF Entry 065).
+
+---
+
+## Entry 067 - Milestone 5E Label Designer Print/PDF + Template Management Polish
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5E label designer polish
+**Session type:** UI implementation / static verification / documentation
+
+### Context
+Ryan requested Milestone 5E to make the Label Template Designer more usable for
+template management, live preview, and printable output while staying within the
+existing `label_templates` schema. First-action checks confirmed local `main`
+was pulled and already up to date; local `HEAD` matched `origin/main` at
+`d9197d7`; `docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a and
+Section 25 remain present; HANDOFF was confirmed gapless through Entry 066; and
+Entry 066 documents the live `label_templates` migration apply. A live Supabase
+check confirmed `public.label_templates` exists in project
+`keogysnoukbendfkfjcn`.
+
+### What Was Completed
+- Improved active template list handling.
+- Added a `Show archived` template view/filter.
+- Kept archived templates hidden from the active list by default.
+- Made archived templates preview-only in the UI.
+- Kept archive behavior as `archived_at` update only.
+- Improved save/create/update messaging so success messages survive template
+  reloads.
+- Improved Avery selection behavior:
+  - choosing Avery 8160 moves the draft to Bin scope;
+  - choosing Avery 5164 clears Bin scope if needed;
+  - scope mismatch warnings are displayed instead of silently changing locked
+    behavior.
+- Added browser print output for:
+  - the selected preview label;
+  - the current scoped set of locations.
+- Browser print output uses the centralized Avery geometry from
+  `AVERY_LABEL_TEMPLATES`.
+- Live preview continues to reflect field toggles and styling choices.
+
+### Print / PDF Notes
+- No new dependency was added.
+- Exact `react-pdf` output remains deferred.
+- This milestone implemented browser print output with documented limitations.
+- Print output uses:
+  - `avery_template` for geometry key;
+  - `layout.fields` for field include/style/position values;
+  - `include_qr` for QR visibility;
+  - selected/scoped location records from already loaded hierarchy data.
+- Avery 5164 and 8160 geometry remains centralized and data-driven.
+- 8160 output uses smaller print font sizes and clipped label cells to fit the
+  smaller label stock.
+
+### QR / Identity Behavior
+- QR payload remains `/scan/location/<uuid>`.
+- Label print output calls the existing QR helper and encodes the location UUID.
+- Human-readable location code/path remains printed display text only.
+- Human-readable codes were not encoded or treated as permanent QR identity.
+- No non-location QR entity behavior was added.
+
+### Permissions / Template Persistence
+- Label viewing/printing remains gated by the existing inventory read gate.
+- Template create/update/archive controls remain visible only for
+  Developer/Admin users with `can_manage_inventory`.
+- No new permission flag was added.
+- Template persistence still uses the existing `label_templates` columns:
+  - `name`;
+  - `avery_template`;
+  - `scope_level`;
+  - `include_qr`;
+  - `layout`;
+  - `created_by`;
+  - `archived_at`.
+- No hard-delete UI or code path was added.
+
+### Hierarchy Summaries
+- No new hierarchy summary data source was added.
+- The existing display-only hierarchy summary helper remains in use for preview
+  and print output.
+- No schema, migration, RPC, RLS, or new Supabase read behavior was added for
+  summaries.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added label print document/window helpers.
+  - Added shared label value/render helpers.
+  - Added active/archived template filter state.
+  - Added print-selected and print-scoped label actions.
+  - Improved Avery/scope handling and template management messaging.
+- `src/styles.css`
+  - Added compact status chips and print action styling for the Label Designer.
+- No migrations were added.
+- No package/dependency files were changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Static scan confirmed no migration files were added.
+- Static diff scan confirmed no `label_templates` schema changes were made.
+- Static diff scan confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff scan confirmed no checkout/finalization functions were changed.
+- Static diff scan confirmed no scan-page inventory-changing actions were added.
+- Static review confirmed QR payload still uses `/scan/location/<uuid>`.
+- Static review confirmed human-readable code/path remains display text only.
+- Static review confirmed template archive uses `archived_at` and not hard
+  delete.
+- Static review confirmed unauthorized users do not receive template management
+  controls.
+- Static review confirmed 5164 and 8160 use data-driven geometry.
+- Static review confirmed browser print output was implemented without adding a
+  dependency.
+
+### Browser Verification
+- Authenticated browser verification was not performed in this Codex session and
+  is not claimed here.
+- Production smoke verification remains a Ryan/manual follow-up.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 067.
+
+### What Codex Needs to Know
+- Label Designer now has active/archived template filtering, preview-only
+  archived templates, and browser print output.
+- Exact PDF/react-pdf output is still deferred.
+- Label print output depends on browser print settings; use 100% scale for Avery
+  stock.
+- No package dependency was added.
+
+### What Claude Needs to Know
+- No schema change was made.
+- No new permission flag was added.
+- No scan behavior, QR identity rule, ledger, balance, checkout/finalization,
+  count correction, bin_item retirement, destination semantics,
+  `can_view_financials`, inventory cost visibility, transaction-history, or
+  Financials/job-cost behavior was changed.
+- Scan actions, Grand Master UI, accounting export, and non-location QR entities
+  remain unbuilt.
+
+### Next Steps (in order)
+1. Ryan may smoke test production from the `rnsolutions.net` custom domain:
+   - Source shows server;
+   - Label Designer loads;
+   - Avery 5164 and 8160 can be selected;
+   - a template can be saved, loaded, updated, and archived;
+   - archived templates disappear from the active list;
+   - archived templates appear in the archived view;
+   - preview updates when toggles/styling change;
+   - QR preview and print output point to `/scan/location/<uuid>`;
+   - browser print opens for selected label and scoped sheet;
+   - no Supabase 401/PGRST301 and no Clerk production-domain error.
+2. Defer exact `react-pdf` sheet positioning until the browser-print workflow is
+   verified with real Avery stock.
+
+### Open Questions / Concerns
+- Browser print was not visually verified in this Codex session.
+- Exact PDF output remains deferred.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Label Designer template management polish and
+  browser print output.
+- RESERVED: exact react-pdf output, scan-page write/action bindings,
+  non-location QR entities, Grand Master UI surface, accounting export, location
+  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
+  bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, catalog creation from count UI,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, transaction-history
+  visibility changes, destination semantic changes, permission model changes,
+  and inventory cost visibility changes.
+
+### Routing Verdict
+No Claude review needed - Label Designer polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 066).

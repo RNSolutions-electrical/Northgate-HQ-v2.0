@@ -170,6 +170,153 @@ function createDefaultLabelLayout(averyTemplate = '5164') {
   };
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getLabelValues(locationRecord, summary) {
+  return {
+    code: locationRecord?.code || 'C211',
+    path: locationRecord?.path || 'Unit C / Shelf 2 / Bay 1 / Bin 1',
+    label: locationRecord?.label || `${locationRecord?.typeLabel ?? 'Bin'} label preview`,
+    summary: summary || '3 stocked items / 27 total pieces',
+  };
+}
+
+function getLabelPrintFontSize(geometry, fieldKey) {
+  if (geometry.key === '8160') {
+    if (fieldKey === 'code') return '8pt';
+    if (fieldKey === 'summary') return '6.5pt';
+    return '6pt';
+  }
+
+  if (fieldKey === 'code') return '18pt';
+  if (fieldKey === 'summary') return '11pt';
+  return '10pt';
+}
+
+function getLabelFieldCss(field, geometry, fieldKey) {
+  const justifyContent = field.align === 'right' ? 'flex-end' : field.align === 'center' ? 'center' : 'flex-start';
+  return [
+    'position:absolute',
+    `left:${field.x ?? 0}%`,
+    `top:${field.y ?? 0}%`,
+    `width:${field.width ?? 20}%`,
+    `height:${field.height ?? 12}%`,
+    'display:flex',
+    'align-items:center',
+    `justify-content:${justifyContent}`,
+    'overflow:hidden',
+    'padding:0.03in',
+    'line-height:1.12',
+    'white-space:normal',
+    'word-break:break-word',
+    `color:${field.color ?? '#111827'}`,
+    `text-align:${field.align ?? 'left'}`,
+    `font-weight:${field.bold ? 800 : 500}`,
+    `text-decoration:${field.underline ? 'underline' : 'none'}`,
+    `opacity:${field.opacity ?? 1}`,
+    `font-size:${getLabelPrintFontSize(geometry, fieldKey)}`,
+  ].join(';');
+}
+
+function getLabelMarkup(draft, locationRecord, summary) {
+  const geometry = AVERY_LABEL_TEMPLATES[draft.avery_template] ?? AVERY_LABEL_TEMPLATES['5164'];
+  const fields = draft.layout?.fields ?? DEFAULT_LABEL_FIELDS;
+  const values = getLabelValues(locationRecord, summary);
+  const qrSvg = locationRecord && draft.include_qr && fields.qr?.enabled
+    ? buildLocationQrSvg(locationRecord.id)
+    : '';
+  const textMarkup = LABEL_FIELD_OPTIONS.filter((field) => field.key !== 'qr').map((fieldOption) => {
+    const field = fields[fieldOption.key];
+    if (!field?.enabled) return '';
+    return `<div style="${getLabelFieldCss(field, geometry, fieldOption.key)}">${escapeHtml(values[fieldOption.key])}</div>`;
+  }).join('');
+  const qrMarkup = qrSvg
+    ? `<div style="${getLabelFieldCss(fields.qr, geometry, 'qr')}">${qrSvg}</div>`
+    : '';
+
+  return `${qrMarkup}${textMarkup}`;
+}
+
+function getLabelPrintDocument({ draft, locations, locationSheet, title }) {
+  const geometry = AVERY_LABEL_TEMPLATES[draft.avery_template] ?? AVERY_LABEL_TEMPLATES['5164'];
+  const perPage = geometry.rows * geometry.columns;
+  const pages = [];
+  for (let index = 0; index < locations.length; index += perPage) {
+    pages.push(locations.slice(index, index + perPage));
+  }
+
+  const pageMarkup = pages.map((pageLocations) => {
+    const labels = pageLocations.map((locationRecord, pageIndex) => {
+      const row = Math.floor(pageIndex / geometry.columns);
+      const column = pageIndex % geometry.columns;
+      const left = geometry.margins.left + column * (geometry.label.width + geometry.gutters.column);
+      const top = geometry.margins.top + row * (geometry.label.height + geometry.gutters.row);
+      const summary = locationRecord ? getHierarchySummary(locationRecord, locationSheet) : '';
+      return `
+        <div class="label-print-cell" style="left:${left}in;top:${top}in;width:${geometry.label.width}in;height:${geometry.label.height}in;">
+          ${getLabelMarkup(draft, locationRecord, summary)}
+        </div>
+      `;
+    }).join('');
+
+    return `<section class="label-print-page">${labels}</section>`;
+  }).join('');
+
+  return `<!doctype html>
+<html>
+  <head>
+    <title>${escapeHtml(title)}</title>
+    <style>
+      @page { size: ${geometry.sheet.width}in ${geometry.sheet.height}in; margin: 0; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #fff; color: #111827; font-family: Arial, Helvetica, sans-serif; }
+      .label-print-page { position: relative; width: ${geometry.sheet.width}in; height: ${geometry.sheet.height}in; page-break-after: always; overflow: hidden; }
+      .label-print-page:last-child { page-break-after: auto; }
+      .label-print-cell { position: absolute; overflow: hidden; background: #fff; border: 0.01in solid rgba(148, 163, 184, 0.35); }
+      .label-print-cell svg { width: 100%; height: 100%; display: block; }
+      @media print {
+        .label-print-cell { border-color: transparent; }
+      }
+    </style>
+  </head>
+  <body>
+    ${pageMarkup || '<section class="label-print-page"></section>'}
+    <script>
+      window.addEventListener('load', () => {
+        window.focus();
+        window.print();
+      });
+    </script>
+  </body>
+</html>`;
+}
+
+function openLabelPrintWindow({ draft, locations, locationSheet, title }) {
+  if (!locations.length) return false;
+  const printWindow = window.open('', '_blank', 'width=900,height=1100');
+  if (!printWindow) return false;
+  printWindow.document.write(getLabelPrintDocument({ draft, locations, locationSheet, title }));
+  printWindow.document.close();
+  return true;
+}
+
+function getScopeWarning(draft) {
+  if (draft.avery_template === '8160' && draft.scope_level && draft.scope_level !== 'bin') {
+    return 'Avery 8160 is intended for Bin labels.';
+  }
+  if (draft.avery_template === '5164' && draft.scope_level === 'bin') {
+    return 'Avery 5164 is intended for Unit, Shelf, and Bay placards.';
+  }
+  return '';
+}
+
 function getBrowserPath() {
   if (typeof window === 'undefined') return '/';
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -210,15 +357,6 @@ function isDeveloperOrAdminRole(role) {
 
 function buildStoragePath(row) {
   return [row.storage_unit_code, row.shelf_code, row.bay_code, row.bin_code].filter(Boolean).join(' / ');
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
 }
 
 function normalizeSearchText(value) {
@@ -1238,12 +1376,7 @@ function LabelPreview({ draft, locationRecord, summary }) {
   const qrSvg = locationRecord && draft.include_qr && fields.qr?.enabled
     ? buildLocationQrSvg(locationRecord.id)
     : '';
-  const values = {
-    code: locationRecord?.code || 'C211',
-    path: locationRecord?.path || 'Unit C / Shelf 2 / Bay 1 / Bin 1',
-    label: locationRecord?.label || `${locationRecord?.typeLabel ?? 'Bin'} label preview`,
-    summary: summary || '3 stocked items / 27 total pieces',
-  };
+  const values = getLabelValues(locationRecord, summary);
 
   function fieldStyle(field) {
     return {
@@ -1300,6 +1433,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateMessage, setTemplateMessage] = useState('');
+  const [showArchivedTemplates, setShowArchivedTemplates] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedFieldKey, setSelectedFieldKey] = useState('code');
   const [selectedLocationId, setSelectedLocationId] = useState('');
@@ -1318,24 +1452,28 @@ function LabelTemplateDesignerPanel({ permissions }) {
     scopedLocationRecords.find((record) => record.id === selectedLocationId) ??
     scopedLocationRecords[0] ??
     null;
+  const selectedTemplate = templates.find((row) => row.id === selectedTemplateId) ?? null;
+  const selectedTemplateIsArchived = Boolean(selectedTemplate?.archived_at);
   const selectedField = draft.layout.fields[selectedFieldKey] ?? draft.layout.fields.code;
   const selectedSummary = selectedLocation ? getHierarchySummary(selectedLocation, locationSheet) : '';
+  const scopeWarning = getScopeWarning(draft);
 
-  async function loadTemplates() {
+  async function loadTemplates({ preserveMessage = false, archived = showArchivedTemplates } = {}) {
     if (!canReadLabels) return;
 
     setIsLoadingTemplates(true);
     setTemplatesError(null);
-    setTemplateMessage('');
+    if (!preserveMessage) setTemplateMessage('');
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { data, error } = await client
+      let query = client
         .from('label_templates')
         .select('id,name,avery_template,scope_level,include_qr,layout,created_by,created_at,archived_at')
-        .is('archived_at', null)
         .order('name', { ascending: true });
+      query = archived ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
+      const { data, error } = await query;
 
       if (error) throw error;
       setTemplates(data ?? []);
@@ -1350,7 +1488,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
 
   useEffect(() => {
     loadTemplates();
-  }, [canReadLabels, getToken]);
+  }, [canReadLabels, getToken, showArchivedTemplates]);
 
   useEffect(() => {
     if (!scopedLocationRecords.length) {
@@ -1400,9 +1538,30 @@ function LabelTemplateDesignerPanel({ permissions }) {
   }
 
   function startNewTemplate() {
+    setShowArchivedTemplates(false);
     setSelectedTemplateId('');
     setDraft(getLabelDraftFromTemplate(null));
     setTemplateMessage('');
+  }
+
+  function updateAveryTemplate(averyTemplate) {
+    setDraft((current) => {
+      const nextScope =
+        averyTemplate === '8160'
+          ? 'bin'
+          : current.scope_level === 'bin'
+            ? ''
+            : current.scope_level;
+      return {
+        ...current,
+        avery_template: averyTemplate,
+        scope_level: nextScope,
+        layout: {
+          ...current.layout,
+          geometry: AVERY_LABEL_TEMPLATES[averyTemplate] ?? current.layout.geometry,
+        },
+      };
+    });
   }
 
   async function saveTemplate() {
@@ -1436,6 +1595,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
           .update(payload)
           .eq('id', selectedTemplateId);
         if (error) throw error;
+        await loadTemplates({ preserveMessage: true, archived: showArchivedTemplates });
         setTemplateMessage('Template saved.');
       } else {
         const { data, error } = await client
@@ -1445,10 +1605,10 @@ function LabelTemplateDesignerPanel({ permissions }) {
           .single();
         if (error) throw error;
         setSelectedTemplateId(data?.id ?? '');
+        setShowArchivedTemplates(false);
+        await loadTemplates({ preserveMessage: true, archived: false });
         setTemplateMessage('Template created.');
       }
-
-      await loadTemplates();
     } catch (error) {
       console.error('Failed to save label template', error);
       setTemplateMessage('Template save failed. Confirm the label_templates migration is applied and permissions allow template management.');
@@ -1473,7 +1633,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
       if (error) throw error;
 
       startNewTemplate();
-      await loadTemplates();
+      await loadTemplates({ preserveMessage: true, archived: false });
       setTemplateMessage('Template archived.');
     } catch (error) {
       console.error('Failed to archive label template', error);
@@ -1481,6 +1641,29 @@ function LabelTemplateDesignerPanel({ permissions }) {
     } finally {
       setIsSavingTemplate(false);
     }
+  }
+
+  function printSelectedLabel() {
+    if (!selectedLocation) return;
+    const ok = openLabelPrintWindow({
+      draft,
+      locations: [selectedLocation],
+      locationSheet,
+      title: `${draft.name || 'Location Label'} - ${selectedLocation.code}`,
+    });
+    setTemplateMessage(ok ? 'Print window opened for the selected label.' : 'Print window was blocked by the browser.');
+  }
+
+  function printScopedLabels() {
+    const records = scopedLocationRecords;
+    if (!records.length) return;
+    const ok = openLabelPrintWindow({
+      draft,
+      locations: records,
+      locationSheet,
+      title: `${draft.name || 'Location Labels'} - ${draft.scope_level || 'all locations'}`,
+    });
+    setTemplateMessage(ok ? `Print window opened for ${records.length} label${records.length === 1 ? '' : 's'}.` : 'Print window was blocked by the browser.');
   }
 
   if (!canReadLabels) {
@@ -1514,7 +1697,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
       <div className="location-note">
         <QrCode aria-hidden="true" />
         <span>
-          Avery 5164 supports Unit/Shelf/Bay placards. Avery 8160 supports Bin labels. Print-to-PDF exact positioning is deferred; this milestone adds data-driven preview and saved template foundation.
+          Avery 5164 supports Unit/Shelf/Bay placards. Avery 8160 supports Bin labels. Browser print uses the saved, data-driven template geometry; exact react-pdf output remains deferred.
         </span>
       </div>
 
@@ -1530,18 +1713,31 @@ function LabelTemplateDesignerPanel({ permissions }) {
               <p className="eyebrow">Template</p>
               <h3>Reusable layout</h3>
             </div>
-            <span>{canManageTemplates ? 'Developer/Admin' : 'Preview only'}</span>
+            <span>{showArchivedTemplates ? 'Archived view' : canManageTemplates ? 'Developer/Admin' : 'Preview only'}</span>
           </div>
 
           <div className="label-form-grid">
             <label>
-              Saved templates
+              {showArchivedTemplates ? 'Archived templates' : 'Active templates'}
               <select value={selectedTemplateId} onChange={(event) => selectTemplate(event.target.value)} disabled={isLoadingTemplates || !templates.length}>
                 <option value="">New unsaved template</option>
                 {templates.map((template) => (
-                  <option key={template.id} value={template.id}>{template.name}</option>
+                  <option key={template.id} value={template.id}>{template.name}{template.archived_at ? ' (archived)' : ''}</option>
                 ))}
               </select>
+            </label>
+            <label className="count-toggle">
+              <input
+                type="checkbox"
+                checked={showArchivedTemplates}
+                onChange={(event) => {
+                  setShowArchivedTemplates(event.target.checked);
+                  setSelectedTemplateId('');
+                  setDraft(getLabelDraftFromTemplate(null));
+                  setTemplateMessage('');
+                }}
+              />
+              Show archived
             </label>
             <label>
               Template name
@@ -1549,7 +1745,7 @@ function LabelTemplateDesignerPanel({ permissions }) {
             </label>
             <label>
               Avery sheet
-              <select value={draft.avery_template} onChange={(event) => updateDraft({ avery_template: event.target.value })}>
+              <select value={draft.avery_template} onChange={(event) => updateAveryTemplate(event.target.value)}>
                 {Object.values(AVERY_LABEL_TEMPLATES).map((template) => (
                   <option key={template.key} value={template.key}>{template.label}</option>
                 ))}
@@ -1575,6 +1771,12 @@ function LabelTemplateDesignerPanel({ permissions }) {
               <input type="checkbox" checked={draft.include_qr} onChange={(event) => updateDraft({ include_qr: event.target.checked })} />
               QR enabled
             </label>
+          </div>
+          <div className="label-template-status">
+            <span>{templates.length} {showArchivedTemplates ? 'archived' : 'active'} template{templates.length === 1 ? '' : 's'}</span>
+            <span>{AVERY_LABEL_TEMPLATES[draft.avery_template]?.scopeHint}</span>
+            {scopeWarning ? <span className="status-pill status-pill--warn">{scopeWarning}</span> : null}
+            {selectedTemplateIsArchived ? <span className="status-pill status-pill--warn">Archived templates are preview-only.</span> : null}
           </div>
 
           <div className="label-fields-panel">
@@ -1631,10 +1833,10 @@ function LabelTemplateDesignerPanel({ permissions }) {
           {canManageTemplates ? (
             <div className="cart-actions">
               <button type="button" className="secondary-button" onClick={startNewTemplate} disabled={isSavingTemplate}>New Template</button>
-              <button type="button" className="secondary-button" onClick={saveTemplate} disabled={isSavingTemplate || Boolean(templatesError)}>
+              <button type="button" className="secondary-button" onClick={saveTemplate} disabled={isSavingTemplate || Boolean(templatesError) || selectedTemplateIsArchived}>
                 {isSavingTemplate ? 'Saving...' : 'Save Template'}
               </button>
-              <button type="button" className="secondary-button secondary-button--danger" onClick={archiveTemplate} disabled={isSavingTemplate || !selectedTemplateId}>
+              <button type="button" className="secondary-button secondary-button--danger" onClick={archiveTemplate} disabled={isSavingTemplate || !selectedTemplateId || selectedTemplateIsArchived}>
                 Archive Template
               </button>
             </div>
@@ -1656,9 +1858,19 @@ function LabelTemplateDesignerPanel({ permissions }) {
           <div className="cart-facts">
             <span>Sheet: {AVERY_LABEL_TEMPLATES[draft.avery_template]?.label}</span>
             <span>Scope: {draft.scope_level || 'Any level'}</span>
+            <span>Printable labels: {scopedLocationRecords.length}</span>
             <span>Fields: {LABEL_FIELD_OPTIONS.filter((field) => draft.layout.fields[field.key]?.enabled).length}</span>
             <span>QR identity: location UUID</span>
           </div>
+          <div className="cart-actions label-print-actions">
+            <button type="button" className="secondary-button" onClick={printSelectedLabel} disabled={!selectedLocation}>
+              <Printer aria-hidden="true" /> Print Selected Label
+            </button>
+            <button type="button" className="secondary-button" onClick={printScopedLabels} disabled={!scopedLocationRecords.length}>
+              <Printer aria-hidden="true" /> Print Scoped Sheet
+            </button>
+          </div>
+          <p className="muted">Browser print output uses Avery geometry from the template data. Use actual label stock printer settings with scaling set to 100%.</p>
         </section>
       </div>
     </section>
