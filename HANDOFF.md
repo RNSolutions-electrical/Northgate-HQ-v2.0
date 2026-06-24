@@ -6866,3 +6866,152 @@ The development card is hardcoded and UI-only. It displays:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).
+
+---
+
+## Entry 074 - Milestone 5G.2 Accounting Export Usability + CSV Verification
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G.2 accounting export usability
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5G.2 to harden the Accounting Export Preview as a
+clearer accounting review/export surface while keeping the work UI/client-side
+only. First-action checks were completed: `git pull origin main` reported
+already up to date; local `main` matched `origin/main` at
+`8aadafa567e48e2842c007e96ede32bbc7d46391`; `docs/ARCHITECTURE.md` was
+confirmed as Version 2.15; `HANDOFF.md` was confirmed gapless through Entry
+073; the working tree was clean before changes; and code inspection confirmed
+the Accounting Export tab plus Development Status card existed from the prior
+milestone.
+
+### What Was Completed
+- Improved the Accounting Export Preview summary cards:
+  - visible rows;
+  - stocked rows;
+  - empty / zero-quantity rows;
+  - total quantity;
+  - known inventory value where unit cost is present;
+  - rows missing cost.
+- Updated the Accounting Export Preview explanatory copy to clearly state:
+  `Development preview — generated from currently authorized inventory rows.
+  Not a finalized accounting integration.`
+- Added the 5G.2 build marker to the export preview facts:
+  `Accounting export usability build: 2026-06-24.2`.
+- Added a visible `Print export: deferred` fact so the old Count print button is
+  not confused with Accounting Export.
+- Improved table structure by splitting location into separate accounting review
+  columns:
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - Storage Path / Compact Location.
+- Added safe display fallback handling for missing export table values.
+- Preserved existing tokenized search/filter behavior over authorized loaded
+  rows.
+- Updated the client-side CSV export filename to:
+  `northgate-inventory-accounting-export-preview-YYYY-MM-DD.csv`.
+- Kept CSV export client-side only and scoped to currently visible/filtered
+  authorized preview rows.
+- Updated the Development Status card to:
+  - Most recent change: `Milestone 5G.2 - Accounting Export usability / CSV
+    verification`;
+  - Related HANDOFF: `Entry 074`;
+  - Architecture: `v2.15`;
+  - Current step: `Accounting Export preview hardening`;
+  - Build marker: `Accounting export usability build: 2026-06-24.2`.
+
+### Print Behavior
+- No Accounting Export print button was added in this pass.
+- Clean print styling was intentionally deferred because the current print CSS
+  is count-sheet oriented, and CSV remains the safe export mechanism for this
+  milestone.
+- The old Inventory Count / Count Intake `Print / Export` controls remain
+  separate and were not reused for Accounting Export.
+
+### CSV Behavior
+- CSV export remains generated entirely in the browser.
+- CSV includes headers.
+- CSV exports only the currently visible/filtered Accounting Export Preview
+  rows that were already returned through the authorized inventory read path.
+- Currency and numeric columns export as plain numeric cell values where data is
+  available; missing cost/value fields export blank.
+- No hidden unauthorized data is exported.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, or database indexes
+  were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated `DEVELOPMENT_STATUS` to Entry 074 / Milestone 5G.2.
+  - Added export display helpers for missing values and quantity formatting.
+  - Updated Accounting Export summary metrics.
+  - Updated Accounting Export preview copy, facts, table columns, and CSV
+    filename.
+- `src/styles.css`
+  - Adjusted Accounting Export table width for the expanded review columns.
+- `HANDOFF.md`
+  - Appended this Entry 074.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Accounting Export Preview remains UI/client-side only.
+- CSV is the only Accounting Export output mechanism in 5G.2.
+- Accounting Export print remains intentionally deferred until a clean,
+  scoped print layout is worth adding.
+- Development Status now points to Entry 074 and the 5G.2 build marker.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history permissions, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost visibility, Financials/job-cost, or
+  reserved feature behavior was changed.
+- This was a UI-only accounting export usability and CSV verification pass over
+  already-authorized inventory rows.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - confirm the Development Status card shows Entry 074 and
+     `Accounting export usability build: 2026-06-24.2`;
+   - open Inventory -> Accounting Export;
+   - confirm the heading says `Accounting Export Preview`;
+   - confirm the note says the preview is generated from currently authorized
+     inventory rows and is not a finalized accounting integration;
+   - confirm summary cards include rows missing cost;
+   - filter/search visible rows and download CSV;
+   - confirm the CSV filename includes
+     `northgate-inventory-accounting-export-preview`;
+   - confirm the old Count print/export button remains separate.
+2. Add a scoped Accounting Export print layout only in a future milestone if
+   Ryan wants a print-ready accounting review page.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session and
+  is not claimed.
+- Print export remains deferred by design for this pass.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Accounting Export usability and CSV verification.
+- RESERVED: finalized accounting integration, backend export jobs, storage
+  export files, schema/RLS/permission changes, inventory-changing actions,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Financials/job-cost behavior, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 073).

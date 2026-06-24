@@ -194,7 +194,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .grand-master-mobile-list { display: none; }
 .accounting-export-panel { display: grid; gap: 1rem; }
 .accounting-export-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
-.accounting-export-table { min-width: 1320px; }
+.accounting-export-table { min-width: 1480px; }
 .accounting-export-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .accounting-export-table .status-pill { justify-content: center; min-width: 5.5rem; }
 .accounting-export-mobile-list { display: none; }

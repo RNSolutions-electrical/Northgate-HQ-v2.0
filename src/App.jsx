@@ -53,12 +53,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5G.1 follow-up - Accounting Export visibility / Development Status card',
-  relatedHandoff: 'Entry 073',
+  mostRecentChange: 'Milestone 5G.2 - Accounting Export usability / CSV verification',
+  relatedHandoff: 'Entry 074',
   architectureVersion: 'v2.15',
-  currentStep: 'Accounting Export Foundation verification and UI reachability',
-  buildMarker: 'Accounting export visibility build: 2026-06-24.1',
-  deploymentNote: 'Netlify production was checked before this patch and was serving 72736a2; if this card is visible, production has caught the follow-up UI.',
+  currentStep: 'Accounting Export preview hardening',
+  buildMarker: 'Accounting export usability build: 2026-06-24.2',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5G.2 UI code is present in the loaded build.',
 };
 
 const COUNT_INTAKE_HELP_ITEMS = [
@@ -3249,6 +3249,14 @@ function formatMoney(value) {
   return `$${numericValue.toFixed(2)}`;
 }
 
+function formatAccountingCell(value) {
+  return value === null || value === undefined || value === '' ? '-' : value;
+}
+
+function formatExportQuantity(row) {
+  return row.rowType === 'item' ? row.quantity.toFixed(2) : '0.00';
+}
+
 function formatCsvCell(value) {
   const rawValue = String(value ?? '');
   const safeValue = /^[=+\-@]/.test(rawValue) ? `'${rawValue}` : rawValue;
@@ -3402,7 +3410,7 @@ function getAccountingExportColumns() {
     { label: 'Material code', getValue: (row) => row.material_code },
     { label: 'Material name', getValue: (row) => row.item_name },
     { label: 'Category', getValue: (row) => row.categoryLabel },
-    { label: 'Quantity on hand', getValue: (row) => row.rowType === 'item' ? row.quantity.toFixed(2) : '0.00' },
+    { label: 'Quantity on hand', getValue: (row) => formatExportQuantity(row) },
     { label: 'Unit of measure', getValue: (row) => row.unit_of_measure },
     { label: 'Unit cost', getValue: (row) => row.unitCost === null ? '' : row.unitCost.toFixed(2) },
     { label: 'Extended value', getValue: (row) => row.extendedValue === null ? '' : row.extendedValue.toFixed(2) },
@@ -3472,11 +3480,12 @@ function AccountingExportPreviewPanel({ permissions }) {
     return matchesGrandMasterSearch(row, search);
   });
   const visibleStockedRows = filteredRows.filter((row) => row.rowType === 'item' && row.quantity > 0).length;
-  const visibleEmptyLocations = filteredRows.filter((row) => row.rowType === 'empty-location').length;
+  const visibleEmptyOrZeroRows = filteredRows.filter((row) => row.rowType === 'empty-location' || (row.rowType === 'item' && row.quantity <= 0)).length;
   const visibleQuantity = filteredRows
     .filter((row) => row.rowType === 'item' && row.quantity > 0)
     .reduce((sum, row) => sum + row.quantity, 0);
   const visibleValueRows = filteredRows.filter((row) => row.rowType === 'item' && row.extendedValue !== null).length;
+  const visibleMissingCostRows = filteredRows.filter((row) => row.rowType === 'item' && row.unitCost === null).length;
   const visibleKnownValue = filteredRows
     .filter((row) => row.rowType === 'item' && row.extendedValue !== null)
     .reduce((sum, row) => sum + row.extendedValue, 0);
@@ -3503,7 +3512,7 @@ function AccountingExportPreviewPanel({ permissions }) {
     }
 
     const dateStamp = new Date().toISOString().slice(0, 10);
-    const didDownload = downloadCsvFile(`northgate-inventory-export-preview-${dateStamp}.csv`, exportColumns, filteredRows);
+    const didDownload = downloadCsvFile(`northgate-inventory-accounting-export-preview-${dateStamp}.csv`, exportColumns, filteredRows);
     setCsvMessage(didDownload
       ? `Downloaded ${filteredRows.length} visible authorized preview row${filteredRows.length === 1 ? '' : 's'}.`
       : 'CSV download is unavailable in this browser context.');
@@ -3531,7 +3540,7 @@ function AccountingExportPreviewPanel({ permissions }) {
           <p className="eyebrow">Accounting Export</p>
           <h3>Accounting Export Preview</h3>
           <p>
-            Read-only accounting review foundation from already-authorized inventory rows. This is not a finalized accounting integration.
+            Development preview — generated from currently authorized inventory rows. Not a finalized accounting integration.
           </p>
         </div>
         <div className="accounting-export-actions">
@@ -3552,16 +3561,17 @@ function AccountingExportPreviewPanel({ permissions }) {
 
       <div className="location-note">
         <span>
-          Export Preview is a client-side review surface. It filters and downloads only the rows already returned to this signed-in user; it does not create backend export jobs, storage files, ledger entries, or accounting approvals.
+          Export Preview is a client-side review surface. It filters and downloads only the rows already returned to this signed-in user; it does not create backend export jobs, storage files, ledger entries, accounting approvals, or print exports.
         </span>
       </div>
 
       <div className="count-grid grand-master-summary">
         <CountCard label="Visible rows" value={filteredRows.length} />
         <CountCard label="Stocked rows" value={visibleStockedRows} />
-        <CountCard label="Empty locations" value={visibleEmptyLocations} />
+        <CountCard label="Empty / zero rows" value={visibleEmptyOrZeroRows} />
         <CountCard label="Total quantity" value={formatQuantitySummary(visibleQuantity)} />
-        <CountCard label="Known export value" value={formatMoney(visibleValueRows ? visibleKnownValue : null)} />
+        <CountCard label="Known inventory value" value={formatMoney(visibleValueRows ? visibleKnownValue : null)} />
+        <CountCard label="Rows missing cost" value={visibleMissingCostRows} />
       </div>
 
       <div className="count-toolbar grand-master-toolbar">
@@ -3632,6 +3642,8 @@ function AccountingExportPreviewPanel({ permissions }) {
         <span>Preview rows: {rows.length}</span>
         <span>Last updated: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
         <span>CSV source: current visible preview rows only</span>
+        <span>Build marker: {DEVELOPMENT_STATUS.buildMarker}</span>
+        <span>Print export: deferred</span>
         <span>Cost visibility: authorized inventory row scope</span>
         <span>Backend export jobs: none</span>
       </div>
@@ -3649,22 +3661,28 @@ function AccountingExportPreviewPanel({ permissions }) {
                   <th>Unit Cost</th>
                   <th>Ext. Value</th>
                   <th>Division</th>
-                  <th>Unit / Shelf / Bay / Bin</th>
-                  <th>Location Code / Path</th>
+                  <th>Unit</th>
+                  <th>Shelf</th>
+                  <th>Bay</th>
+                  <th>Bin</th>
+                  <th>Storage Path / Compact Location</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.material_code || '-'}</td>
-                    <td>{row.item_name}</td>
-                    <td>{row.categoryLabel || '-'}</td>
+                    <td>{formatAccountingCell(row.material_code)}</td>
+                    <td>{formatAccountingCell(row.item_name)}</td>
+                    <td>{formatAccountingCell(row.categoryLabel)}</td>
                     <td>{row.rowType === 'item' ? `${row.quantity.toFixed(2)} ${row.unit_of_measure ?? ''}` : '0.00'}</td>
                     <td>{formatMoney(row.unitCost)}</td>
                     <td>{formatMoney(row.extendedValue)}</td>
                     <td>{row.division || 'Unassigned'}</td>
-                    <td>{[row.storage_unit_code, row.shelf_code, row.bay_code, row.bin_code].filter(Boolean).join(' / ') || '-'}</td>
+                    <td>{formatAccountingCell(row.storage_unit_code)}</td>
+                    <td>{formatAccountingCell(row.shelf_code)}</td>
+                    <td>{formatAccountingCell(row.bay_code)}</td>
+                    <td>{formatAccountingCell(row.bin_code)}</td>
                     <td>
                       <strong>{buildCompactLocationCode(row) || '-'}</strong>
                       <span>{row.locationPath || buildStoragePath(row) || '-'}</span>
@@ -3691,6 +3709,10 @@ function AccountingExportPreviewPanel({ permissions }) {
                   <span>Unit cost: {formatMoney(row.unitCost)}</span>
                   <span>Value: {formatMoney(row.extendedValue)}</span>
                   <span>Division: {row.division || 'Unassigned'}</span>
+                  <span>Unit: {formatAccountingCell(row.storage_unit_code)}</span>
+                  <span>Shelf: {formatAccountingCell(row.shelf_code)}</span>
+                  <span>Bay: {formatAccountingCell(row.bay_code)}</span>
+                  <span>Bin: {formatAccountingCell(row.bin_code)}</span>
                   <span>Location: {buildCompactLocationCode(row) || row.locationPath || '-'}</span>
                 </div>
               </article>
