@@ -241,6 +241,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .count-mobile-list { display: none; }
 .count-mobile-item { display: grid; gap: .65rem; }
 .count-mobile-item label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
+.count-print-sheet { display: none; }
 .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border: 1px solid rgba(148,163,184,.26); border-radius: .85rem; background: rgba(15,23,42,.75); color: #e5edf8; padding: .65rem .8rem; font-weight: 700; }
 .secondary-button svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
 .secondary-button--danger { border-color: rgba(248,113,113,.38); color: #fecaca; background: rgba(127,29,29,.24); }
@@ -294,11 +295,27 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 }
 
 @media print {
+  @page { size: landscape; margin: .35in; }
   body { background: #fff; color: #111827; }
-  .app-header, .dashboard-grid > .card:not(.card--wide), .module-tabs, .cart-panel:not(.count-workspace__main), .count-toolbar button, .count-table th:nth-child(6), .count-table td:nth-child(6) { display: none !important; }
+  .app-header, .dashboard-grid > .card:not(.card--wide), .module-tabs, .cart-panel:not(.count-workspace__main), .count-toolbar button, .count-table th:nth-child(6), .count-table td:nth-child(6), .count-workspace__main, .count-history-panel { display: none !important; }
   .app-main, .card, .cart-panel { width: 100%; border: 0; box-shadow: none; background: #fff; color: #111827; padding: 0; }
   .table-wrap { display: block; border: 0; }
   .count-table { min-width: 0; color: #111827; }
   .count-table th, .count-table td { border-color: #d1d5db; color: #111827; }
   .count-table input { border: 1px solid #9ca3af; color: #111827; background: #fff; }
+  .count-print-sheet { display: block !important; color: #111827; background: #fff; font-size: 9px; }
+  .count-print-header { display: grid; gap: .08in; margin-bottom: .15in; }
+  .count-print-header h1 { margin: 0; font-size: 16px; line-height: 1.1; }
+  .count-print-header div { display: flex; gap: .25in; font-size: 9px; }
+  .count-print-header p { margin: 0; color: #374151; font-size: 9px; }
+  .count-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .count-print-table thead { display: table-header-group; }
+  .count-print-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .count-print-table th, .count-print-table td { border: 1px solid #9ca3af; padding: .045in .055in; color: #111827; text-align: left; vertical-align: top; line-height: 1.2; overflow-wrap: anywhere; }
+  .count-print-table th { background: #e5e7eb; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+  .count-print-table td strong, .count-print-table td span { display: block; }
+  .count-print-table th:nth-child(1), .count-print-table th:nth-child(2), .count-print-table th:nth-child(3), .count-print-table th:nth-child(4) { width: .55in; }
+  .count-print-table th:nth-child(5) { width: .9in; }
+  .count-print-table th:nth-child(7), .count-print-table th:nth-child(8), .count-print-table th:nth-child(9) { width: .7in; }
+  .count-print-table th:nth-child(10) { width: 1.1in; }
 }

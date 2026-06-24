@@ -7015,3 +7015,130 @@ milestone.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 073).
+
+---
+
+## Entry 075 - Inventory Count Print Sheet Patch
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Inventory Count print patch
+**Session type:** implementation
+
+### Context
+Ryan reported that the Inventory Count & Correction `Print / Export` button was
+printing the whole app/webpage layout instead of a useful count sheet. The goal
+was to replace the webpage-style print behavior with a basic formatted count
+table, staying UI/client-side only.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `43f7112f42520708e98a8e2a3154689c523ea144`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 074.
+- The working tree was clean before changes.
+- The current count print buttons and print CSS were inspected.
+
+### What Was Completed
+- Added a dedicated print-only `CountPrintSheet` component.
+- Replaced the old count-button label `Print / Export` with `Print Count Sheet`
+  on both existing count surfaces:
+  - Inventory Count & Correction;
+  - Inventory Count Intake.
+- The print-only count sheet uses the existing filtered/visible authorized rows
+  and existing local counted-quantity draft state.
+- Printed output now includes:
+  - `Northgate HQ - Inventory Count Sheet`;
+  - print timestamp;
+  - row count;
+  - selected client-side filter/search summary where available;
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - Material Code;
+  - Material Name / Description;
+  - System Qty;
+  - Counted Qty;
+  - Variance;
+  - Notes / Initials.
+- Added print-specific CSS that hides app chrome, tabs, filters, buttons,
+  cards, side panels, and the interactive count table during print.
+- Added compact, black/white, landscape-friendly print table styling with
+  repeating table headers.
+
+### Print Behavior
+- The old whole-webpage print behavior was replaced/scoped for count printing.
+- Clicking `Print Count Sheet` still uses browser print, but the print stylesheet
+  now displays the dedicated formatted count table instead of the app screen.
+- Authenticated browser print-preview verification was unavailable from this
+  Codex session and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend print/export services, or database
+  indexes were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added `CountPrintSheet`.
+  - Added count print filter summaries for the existing count screens.
+  - Updated count print button labels to `Print Count Sheet`.
+- `src/styles.css`
+  - Added hidden-on-screen count print sheet styles.
+  - Added print CSS for the dedicated count sheet table.
+- `HANDOFF.md`
+  - Appended this Entry 075.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Inventory Count printing is now handled by a dedicated print-only table, not
+  the interactive app/webpage layout.
+- The count print table is read-only/client-side and reflects currently visible
+  filtered rows plus local counted quantity draft values.
+- No count recording, count correction, retirement, balance, ledger, checkout,
+  transaction history, scan, Accounting Export, or Financials behavior changed.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history permissions, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost visibility, Accounting Export,
+  Financials/job-cost, or reserved feature behavior was changed.
+- This was a UI-only print formatting patch for Inventory Count.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open Inventory -> Inventory Count & Correction;
+   - set any desired filters/search;
+   - enter sample counted quantities if desired;
+   - click `Print Count Sheet`;
+   - confirm print preview shows only the formatted count table, not the full
+     webpage/dashboard.
+2. If further polish is needed, tune only print CSS/table columns in a follow-up
+   UI-only patch.
+
+### Open Questions / Concerns
+- Authenticated browser print-preview verification was unavailable from this
+  Codex session and is not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Inventory Count print sheet patch.
+- RESERVED: backend export/print services, schema/RLS/permission changes,
+  inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, count correction changes, bin_item retirement
+  semantic changes, destination semantic changes, transaction-history behavior
+  changes, QR payload behavior changes, scan action behavior changes,
+  Accounting Export behavior, Financials/job-cost behavior, and all reserved
+  features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 074).

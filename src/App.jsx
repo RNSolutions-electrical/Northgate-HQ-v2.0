@@ -3728,6 +3728,69 @@ function AccountingExportPreviewPanel({ permissions }) {
   );
 }
 
+function CountPrintSheet({ rows, countDrafts, filterSummary = [] }) {
+  return (
+    <section className="count-print-sheet" aria-label="Printable inventory count sheet">
+      <div className="count-print-header">
+        <h1>Northgate HQ - Inventory Count Sheet</h1>
+        <div>
+          <span>Printed: {new Date().toLocaleString()}</span>
+          <span>Rows: {rows.length}</span>
+        </div>
+        {filterSummary.length ? (
+          <p>{filterSummary.join(' | ')}</p>
+        ) : (
+          <p>Filters: All visible count rows</p>
+        )}
+      </div>
+
+      <table className="count-print-table">
+        <thead>
+          <tr>
+            <th>Unit</th>
+            <th>Shelf</th>
+            <th>Bay</th>
+            <th>Bin</th>
+            <th>Material Code</th>
+            <th>Material Name / Description</th>
+            <th>System Qty</th>
+            <th>Counted Qty</th>
+            <th>Variance</th>
+            <th>Notes / Initials</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const draft = countDrafts[row.bin_item_id] ?? { countedQuantity: '' };
+            const countedQuantity = Number(draft.countedQuantity);
+            const hasCount = draft.countedQuantity !== '' && Number.isFinite(countedQuantity);
+            const systemQuantity = Number(row.system_quantity ?? 0);
+            const variance = hasCount ? countedQuantity - systemQuantity : null;
+
+            return (
+              <tr key={row.bin_item_id}>
+                <td>{row.storage_unit_code || '-'}</td>
+                <td>{row.shelf_code || '-'}</td>
+                <td>{row.bay_code || '-'}</td>
+                <td>{row.bin_code || '-'}</td>
+                <td>{row.material_code || '-'}</td>
+                <td>
+                  <strong>{row.item_name || '-'}</strong>
+                  <span>{getCategoryLabel(row)}</span>
+                </td>
+                <td>{systemQuantity.toFixed(2)} {row.unit_of_measure ?? ''}</td>
+                <td>{hasCount ? countedQuantity.toFixed(2) : ''}</td>
+                <td>{variance === null ? '' : variance.toFixed(2)}</td>
+                <td />
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function CountHistoryForItem({ row, permissions }) {
   const isDeveloper = permissions.permissionSource === 'server' && permissions.role === 'Developer';
   const history = useInventoryTransactionHistory({
@@ -3838,6 +3901,15 @@ function InventoryCountCorrectionPanel({ permissions }) {
     ? repeatReview.groups.filter((group) => group.rows.some((row) => filteredRows.some((visibleRow) => visibleRow.bin_item_id === row.bin_item_id)))
     : [];
   const selectedHistoryRow = countSheet.rows.find((row) => row.bin_item_id === selectedHistoryBinItemId) ?? null;
+  const countPrintFilterSummary = [
+    search.trim() ? `Search: ${search.trim()}` : null,
+    filters.storage_unit_id ? `Unit: ${storageUnitOptions.find((option) => option.value === filters.storage_unit_id)?.label ?? filters.storage_unit_id}` : null,
+    filters.shelf_id ? `Shelf: ${shelfOptions.find((option) => option.value === filters.shelf_id)?.label ?? filters.shelf_id}` : null,
+    filters.bay_id ? `Bay: ${bayOptions.find((option) => option.value === filters.bay_id)?.label ?? filters.bay_id}` : null,
+    filters.bin_id ? `Bin: ${binOptions.find((option) => option.value === filters.bin_id)?.label ?? filters.bin_id}` : null,
+    filters.category ? `Category: ${filters.category}` : null,
+    reviewRepeats ? 'Review Repeats: on' : null,
+  ].filter(Boolean);
 
   function getCountDraft(row) {
     return countDrafts[row.bin_item_id] ?? { countedQuantity: '' };
@@ -3949,7 +4021,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
             <span>Review Repeats</span>
           </label>
           <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
-          <button type="button" className="secondary-button" onClick={printCountSheet}>Print / Export</button>
+          <button type="button" className="secondary-button" onClick={printCountSheet}>Print Count Sheet</button>
         </div>
 
         {countSheet.error ? <div className="alert">Inventory count list failed to load. Confirm can_manage_inventory and existing inventory read access.</div> : null}
@@ -4090,6 +4162,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
       </section>
 
       <CountHistoryForItem row={selectedHistoryRow} permissions={permissions} />
+      <CountPrintSheet rows={filteredRows} countDrafts={countDrafts} filterSummary={countPrintFilterSummary} />
     </div>
   );
 }
@@ -4171,6 +4244,12 @@ function InventoryCountIntakePanel({ permissions }) {
   const rowsForSelectedBin = filters.bin_id
     ? countSheet.rows.filter((row) => row.bin_id === filters.bin_id)
     : [];
+  const countPrintFilterSummary = [
+    selectedPathLabel ? `Selected path: ${selectedPathLabel}` : null,
+    search.trim() ? `Search: ${search.trim()}` : null,
+    filters.category ? `Category: ${filters.category}` : null,
+    reviewRepeats ? 'Review Repeats: on' : null,
+  ].filter(Boolean);
   const existingItemIdsInSelectedBin = new Set(rowsForSelectedBin.map((row) => row.item_id));
   const catalogOptions = countSheet.catalogItems
     .filter((item) => !existingItemIdsInSelectedBin.has(item.id))
@@ -4540,7 +4619,7 @@ function InventoryCountIntakePanel({ permissions }) {
             <span>Review Repeats</span>
           </label>
           <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
-          <button type="button" className="secondary-button" onClick={printCountSheet}>Print / Export</button>
+          <button type="button" className="secondary-button" onClick={printCountSheet}>Print Count Sheet</button>
         </div>
 
         {countSheet.error ? <div className="alert">Inventory count list failed to load. Confirm can_manage_inventory and existing inventory read access.</div> : null}
@@ -4925,6 +5004,7 @@ function InventoryCountIntakePanel({ permissions }) {
       </section>
 
       <CountHistoryForItem row={selectedHistoryRow} permissions={permissions} />
+      <CountPrintSheet rows={filteredRows} countDrafts={countDrafts} filterSummary={countPrintFilterSummary} />
     </div>
   );
 }
