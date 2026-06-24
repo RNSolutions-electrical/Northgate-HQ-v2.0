@@ -6472,3 +6472,397 @@ entry.
 
 ### Routing Verdict
 No Claude review needed - read-only Grand Master UI surface within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 070).
+
+---
+
+## Entry 071 - Milestone 5G Inventory Search Refinement
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G search refinement
+**Session type:** implementation
+
+### Context
+Ryan requested inventory search refinement so Grand Master / Inventory Overview
+search no longer requires exact word order and handles common material-search
+format differences such as inch marks, case, spacing, punctuation, and simple
+plural/singular variants. Scope was explicitly client-side only if the
+authorized inventory data is already loaded, with no schema, migration, RPC,
+RLS, backend search index, balance, ledger, checkout, count correction, or
+permission changes.
+
+### What Was Completed
+- Added deterministic tokenized client-side search helpers in `src/App.jsx`.
+- Search now normalizes:
+  - case;
+  - extra spaces;
+  - straight/curly quote and inch marks;
+  - common hyphen/dash/underscore separators;
+  - practical slash spacing while preserving fraction tokens such as `1/2`.
+- Search now expands simple plural/singular tokens such as:
+  - `connector` / `connectors`;
+  - `coupling` / `couplings`.
+- Grand Master search now matches rows when every query token appears somewhere
+  in the searchable row text, regardless of word order.
+- Compact location code text remains searchable, so combined searches such as
+  `C211 connector` can match rows when the compact location and material token
+  are both present.
+- The shared count-sheet row matcher now uses the same tokenized search model
+  for existing authorized inventory rows.
+- Searchable row values include already-loaded row fields such as material code,
+  material name, category label, category tiers, unit of measure, description,
+  manufacturer/vendor part numbers, division, storage path, visible location
+  labels/codes, and compact location code.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, RLS changes, grants, RPCs, backend search
+  functions, or database indexes were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Expanded `normalizeSearchText`.
+  - Added tokenization, simple singular/plural expansion, searchable token-set,
+    and all-token match helpers.
+  - Updated Grand Master and shared count-row search to use all-token matching
+    while preserving compact-location matching.
+- `HANDOFF.md`
+  - Appended this Entry 071.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Inventory search remains client-side and filters only rows already returned by
+  the existing authorized read path.
+- Accounting Export is still not implemented as a separate surface in the
+  current app; no export generation was added.
+- If Accounting Export later shares this row matcher, it will inherit the
+  tokenized search behavior.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- Search filtering remains a read-only UI refinement over already-authorized
+  loaded rows.
+
+### Next Steps (in order)
+1. Ryan may verify the Grand Master tab in production after deploy with:
+   - `1/2 emt connectors`;
+   - `connector emt 1/2`;
+   - `emt set screw`;
+   - `C211 connector`.
+2. When Accounting Export is built as a separate milestone, reuse the same
+   search helper if it filters the same authorized inventory row model.
+
+### Open Questions / Concerns
+- Authenticated production verification was unavailable from this Codex session.
+- Accounting Export is not yet built, so Codex could only confirm that no
+  separate Accounting Export filter exists to update in this milestone.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: client-side read-only inventory search refinement.
+- RESERVED: accounting export generation, backend search/RPC/view/index work,
+  schema/RLS/permission changes, inventory-changing actions, ledger changes,
+  balance changes, checkout/finalization changes, count correction changes,
+  bin_item retirement semantic changes, destination semantic changes,
+  transaction-history behavior changes, QR payload behavior changes, scan action
+  behavior changes, Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - client-side read-only search refinement within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 071).
+
+---
+
+## Entry 072 - Milestone 5G.1 Accounting Export Foundation
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G.1 accounting export foundation
+**Session type:** implementation
+
+### Context
+Ryan requested the first Accounting Export Foundation surface for inventory /
+accounting review without changing backend, schema, RLS, permissions, or any
+locked inventory invariant. First-action checks were completed: `git pull
+origin main` reported already up to date; local `main` and `origin/main`
+matched at commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`;
+`docs/ARCHITECTURE.md` was confirmed as Version 2.15; `HANDOFF.md` was
+confirmed gapless through Entry 071; and only the canonical repo
+`HANDOFF.md` and `docs/ARCHITECTURE.md` were used for coordination.
+
+Entry 071 state was confirmed before implementation:
+- Grand Master UI surface exists.
+- Inventory Search Refinement is implemented client-side.
+- Accounting Export was not yet implemented as a separate surface.
+- Existing search helpers may be reused when filtering the same authorized
+  inventory row model.
+
+The working tree already contained the local Entry 071 changes in `src/App.jsx`
+and `HANDOFF.md`, so this milestone was built on top of that active local state
+without discarding it.
+
+### What Was Completed
+- Added a new `Accounting Export` Inventory tab.
+- Added a read-only `AccountingExportPreviewPanel`.
+- Reused the existing `useInventoryCountSheet` authorized read path.
+- Reused `buildGrandMasterRows` so the export preview uses the same loaded row
+  model as Grand Master / Inventory Overview.
+- Reused the Milestone 5G tokenized `matchesGrandMasterSearch` behavior for
+  export-preview search.
+- Added export-preview filters for:
+  - search;
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - category;
+  - visible division;
+  - stocked vs empty.
+- Added export-ready preview columns for:
+  - material code;
+  - material name;
+  - category;
+  - quantity on hand;
+  - unit cost where already present in authorized rows;
+  - extended value where computable from loaded quantity and unit cost;
+  - division;
+  - Unit / Shelf / Bay / Bin;
+  - compact location code and storage path;
+  - stocked vs empty status.
+- Added summary cards for:
+  - visible rows;
+  - stocked rows;
+  - empty locations;
+  - total quantity;
+  - known export value.
+- Added a clear on-screen note that this is a client-side export preview /
+  accounting review foundation, not a finalized accounting integration.
+- Added a purely client-side CSV download for the currently visible authorized
+  preview rows.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, or database indexes
+  were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added client-side CSV formatting/download helpers.
+  - Added export-preview column definitions.
+  - Added `AccountingExportPreviewPanel`.
+  - Added the `Accounting Export` Inventory tab and render branch.
+- `src/styles.css`
+  - Added scoped Accounting Export preview table/action/mobile styles.
+- `HANDOFF.md`
+  - Appended this Entry 072.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Accounting Export now has a foundation preview surface inside Inventory.
+- It is read-only and client-side over already-authorized loaded rows.
+- The CSV button creates a local browser download from the currently visible
+  preview rows only; it does not create backend export files or jobs.
+- This is not a Financials/job-cost approval workflow and does not change
+  accounting semantics.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- Accounting Export Foundation is a read-only UI preview over already-authorized
+  inventory rows, plus an optional client-side CSV download from visible rows.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open `rnsolutions.net`;
+   - Source shows server;
+   - open Inventory -> Accounting Export;
+   - confirm preview rows load;
+   - confirm filters/search match Grand Master behavior;
+   - confirm summary cards update from visible rows;
+   - optionally download CSV and confirm it contains only currently visible
+     preview rows;
+   - confirm no write controls or accounting-approval workflow are present.
+2. If future Accounting Export requires backend jobs, scheduled exports,
+   storage buckets, new accounting fields, Financials/job-cost approval, or new
+   permission gates, route to Claude before implementation.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session and
+  is not claimed.
+- The CSV is intentionally basic and client-side only; finalized accounting
+  integration remains future work.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: read-only Accounting Export Foundation preview.
+- RESERVED: finalized accounting integration, backend export jobs, storage
+  export files, schema/RLS/permission changes, inventory-changing actions,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Financials/job-cost behavior, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).
+
+---
+
+## Entry 073 - Milestone 5G.1 Follow-Up Accounting Export Visibility + Development Status Card
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G.1 follow-up
+**Session type:** implementation
+
+### Context
+Ryan reported that production still showed only the old Inventory Count &
+Correction `Print / Export` button and did not show the new Accounting Export
+tab/surface. Codex was instructed not to assume 5G.1 was visually verified and
+to add a development-only status card so Ryan can quickly tell whether
+production has caught up to the latest milestone.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 072 before this append.
+- Netlify production project `northgate-hq-v2` was queried through the Netlify
+  connector.
+- Netlify production deploy `6a3bbccbba108e41830bd18b` was ready and serving
+  commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`.
+
+### What Was Completed
+- Diagnosed the production visibility issue:
+  - the production commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5` does not
+    contain `Accounting Export`, `AccountingExportPreviewPanel`, or the new
+    development status card;
+  - that same production commit only contains the older Inventory Count &
+    Correction `Print / Export` buttons;
+  - therefore Ryan's production observation matches a deploy/commit mismatch,
+    not successful visual verification of 5G.1.
+- Confirmed the local working tree does include the Accounting Export tab in
+  the same Inventory `module-tabs` group Ryan uses.
+- Confirmed the local Accounting Export surface is rendered by the
+  `activeTab === 'accounting-export'` branch.
+- Confirmed the new CSV/download control is inside `AccountingExportPreviewPanel`
+  only and is now labeled `Download Preview CSV`.
+- Confirmed the old `Print / Export` buttons remain separate Count / Count
+  Intake controls and are not the Accounting Export preview.
+- Confirmed normal screen/mobile CSS does not hide `.module-tabs`; the only
+  `.module-tabs` hide rule is inside `@media print`.
+- Renamed the Accounting Export panel heading to `Accounting Export Preview`
+  so the surface identifies itself clearly.
+- Added a development-only `DevelopmentStatusCard` near the top dashboard card
+  group.
+- Updated the header build marker to the same current static marker.
+
+### Development Status Card
+The development card is hardcoded and UI-only. It displays:
+- Most recent change:
+  `Milestone 5G.1 follow-up - Accounting Export visibility / Development Status card`
+- Related HANDOFF:
+  `Entry 073`
+- Architecture:
+  `v2.15`
+- Current step:
+  `Accounting Export Foundation verification and UI reachability`
+- Build marker:
+  `Accounting export visibility build: 2026-06-24.1`
+- Deployment note:
+  production was checked before this patch and was serving `72736a2`; if the
+  card is visible, production has caught the follow-up UI.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, or database indexes
+  were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added `DEVELOPMENT_STATUS`.
+  - Added `DevelopmentStatusCard`.
+  - Updated the app header build note to the current build marker.
+  - Updated Accounting Export headings to `Accounting Export Preview`.
+  - Renamed the Accounting Export CSV button to `Download Preview CSV`.
+- `src/styles.css`
+  - Added scoped development status card styles.
+  - Adjusted the dashboard grid to fit four top status cards on desktop.
+- `HANDOFF.md`
+  - Appended this Entry 073.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Production deploy status confirmed the live site was still serving commit
+  `72736a2`, which predates the local Accounting Export tab and Entry 073
+  development status card.
+- The Accounting Export tab is locally reachable in the Inventory tab list
+  immediately after Grand Master.
+- If Ryan still cannot see Accounting Export after deployment, first check for
+  whether the development status card/build marker is visible.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- This was a UI-only deploy/visibility diagnostic and development status marker
+  patch.
+
+### Next Steps (in order)
+1. Deploy/push the current local UI changes so production moves beyond commit
+   `72736a2`.
+2. Ryan may verify production after deploy:
+   - confirm the top development status card is visible;
+   - confirm the header build note says
+     `Accounting export visibility build: 2026-06-24.1`;
+   - open Inventory and confirm the `Accounting Export` tab appears immediately
+     after `Grand Master`;
+   - open the tab and confirm the heading says `Accounting Export Preview`;
+   - confirm the button says `Download Preview CSV`;
+   - confirm the old Inventory Count & Correction `Print / Export` button
+     remains separate.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session and
+  is not claimed.
+- Production will not show Entry 073 until the current local changes are pushed
+  and deployed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Accounting Export visibility follow-up and
+  development status card.
+- RESERVED: finalized accounting integration, backend export jobs, storage
+  export files, schema/RLS/permission changes, inventory-changing actions,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Financials/job-cost behavior, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).

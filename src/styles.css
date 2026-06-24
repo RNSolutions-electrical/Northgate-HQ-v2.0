@@ -30,7 +30,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .app-title { margin: .3rem 0 0; font-size: clamp(1.65rem, 5vw, 2.6rem); line-height: 1.05; }
 .build-note { margin: .55rem 0 0; color: #64748b; font-size: .78rem; }
 .app-main { width: min(1180px, 100%); margin: 0 auto; padding: 1rem; }
-.dashboard-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .card { border: 1px solid rgba(148,163,184,.18); border-radius: 1.25rem; background: rgba(15,23,42,.88); box-shadow: 0 16px 48px rgba(2,6,23,.28); padding: 1.1rem; }
 .card--wide { grid-column: 1 / -1; }
 .card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
@@ -192,6 +192,12 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .grand-master-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .grand-master-table .status-pill { justify-content: center; min-width: 5.5rem; }
 .grand-master-mobile-list { display: none; }
+.accounting-export-panel { display: grid; gap: 1rem; }
+.accounting-export-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+.accounting-export-table { min-width: 1320px; }
+.accounting-export-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.accounting-export-table .status-pill { justify-content: center; min-width: 5.5rem; }
+.accounting-export-mobile-list { display: none; }
 .count-path-toolbar { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 .count-guard-panel { display: flex; align-items: center; justify-content: space-between; gap: .8rem; border: 1px solid rgba(34,197,94,.22); border-radius: 1rem; background: rgba(20,83,45,.18); padding: .75rem .85rem; margin-bottom: .9rem; color: #d1fae5; }
 .count-guard-panel strong { flex: 0 0 auto; }
@@ -249,6 +255,9 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .landing { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
 .landing-card { width: min(34rem, 100%); border: 1px solid rgba(148,163,184,.18); border-radius: 1.5rem; background: rgba(15,23,42,.9); padding: clamp(1.25rem, 5vw, 2rem); text-align: center; box-shadow: 0 24px 64px rgba(2,6,23,.42); }
 .primary-button { border: 0; border-radius: .9rem; background: #e2e8f0; color: #020617; padding: .8rem 1.05rem; font-weight: 800; cursor: pointer; }
+.development-status-card { border-color: rgba(125,211,252,.28); background: rgba(8,47,73,.24); }
+.development-status-grid { display: grid; gap: .42rem; margin-top: .8rem; color: #cbd5e1; font-size: .84rem; line-height: 1.45; }
+.development-status-grid span { overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
   .dashboard-grid, .inventory-layout, .location-layout, .label-designer-layout, .scanner-layout, .cart-scaffold__summary, .cart-scaffold__body, .cart-apply-all, .count-correction-form, .history-toolbar, .count-workspace, .count-toolbar, .count-intake-form, .count-retire-panel { grid-template-columns: 1fr; }
@@ -270,6 +279,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .history-mobile-list { display: grid; }
   .count-mobile-list { display: grid; }
   .grand-master-mobile-list { display: grid; }
+  .accounting-export-mobile-list { display: grid; }
   .scan-mobile-list { display: grid; }
   .scan-location-summary { grid-template-columns: 1fr; }
   .scan-group-header { align-items: stretch; flex-direction: column; }

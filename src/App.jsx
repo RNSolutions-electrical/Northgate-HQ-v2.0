@@ -52,6 +52,14 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'manufacturer_sub', label: 'Manufacturer detail', getValue: (row) => row.manufacturer_sub },
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
+const DEVELOPMENT_STATUS = {
+  mostRecentChange: 'Milestone 5G.1 follow-up - Accounting Export visibility / Development Status card',
+  relatedHandoff: 'Entry 073',
+  architectureVersion: 'v2.15',
+  currentStep: 'Accounting Export Foundation verification and UI reachability',
+  buildMarker: 'Accounting export visibility build: 2026-06-24.1',
+  deploymentNote: 'Netlify production was checked before this patch and was serving 72736a2; if this card is visible, production has caught the follow-up UI.',
+};
 
 const COUNT_INTAKE_HELP_ITEMS = [
   'Choose Unit, Shelf, Bay, and Bin to narrow the physical area before recording counts.',
@@ -387,7 +395,16 @@ function buildStoragePath(row) {
 }
 
 function normalizeSearchText(value) {
-  return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[“”„‟]/g, '"')
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/["'`´′″]/g, '')
+    .replace(/[‐‑‒–—_]+/g, ' ')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/[^a-z0-9/.\s]/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
 function normalizeLocationSegment(value) {
@@ -414,6 +431,59 @@ function buildCompactLocationCode(row) {
   return `${unit}${shelf}${bay}${bin}`;
 }
 
+function getSimpleSingularSearchToken(token) {
+  if (token.length > 4 && token.endsWith('ies')) {
+    return `${token.slice(0, -3)}y`;
+  }
+  if (token.length > 4 && /(ches|shes|xes|zes|ses)$/.test(token)) {
+    return token.slice(0, -2);
+  }
+  if (token.length > 3 && token.endsWith('s') && !token.endsWith('ss')) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
+function tokenizeSearchText(value) {
+  const normalizedText = normalizeSearchText(value);
+  if (!normalizedText) return [];
+
+  return normalizedText
+    .split(/\s+/)
+    .flatMap((token) => {
+      if (token.includes('/') && !/^\d+\/\d+$/.test(token)) {
+        return [token, ...token.split('/').filter(Boolean)];
+      }
+      return [token];
+    })
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function getSearchTokenVariants(token) {
+  const singularToken = getSimpleSingularSearchToken(token);
+  return Array.from(new Set([token, singularToken].filter(Boolean)));
+}
+
+function buildSearchableTokenSet(values) {
+  const tokens = tokenizeSearchText(values.filter(Boolean).join(' '));
+  const tokenSet = new Set();
+  tokens.forEach((token) => {
+    getSearchTokenVariants(token).forEach((variant) => tokenSet.add(variant));
+  });
+  return tokenSet;
+}
+
+function matchesTokenizedSearch(values, searchText) {
+  const queryTokens = tokenizeSearchText(searchText);
+  if (!queryTokens.length) return true;
+
+  const rowTokenSet = buildSearchableTokenSet(values);
+  return queryTokens.every((token) =>
+    getSearchTokenVariants(token).some((variant) => rowTokenSet.has(variant)),
+  );
+}
+
 function getLocationSearchValues(row) {
   return [
     row.bin_code,
@@ -432,11 +502,20 @@ function getCountRowSearchValues(row) {
   return [
     row.material_code,
     row.item_name,
+    row.unit_of_measure,
+    getCategoryLabel(row),
+    row.broad_category,
+    row.sub_category,
+    row.sub_category_2,
+    row.sub_category_3,
+    row.sub_category_4,
     row.manufacturer,
     row.manufacturer_sub,
     row.manufacturer_part_number,
     row.vendor_part_number,
     row.description,
+    row.division,
+    row.storage_unit_division,
     ...getLocationSearchValues(row),
   ];
 }
@@ -515,7 +594,7 @@ function matchesLocationSearch(record, searchText) {
   const normalizedSearch = normalizeSearchText(searchText);
   if (!normalizedSearch) return true;
 
-  return [
+  return matchesTokenizedSearch([
     record.typeLabel,
     record.code,
     record.label,
@@ -523,7 +602,7 @@ function matchesLocationSearch(record, searchText) {
     record.parentLabel,
     record.division,
     record.id,
-  ].some((value) => normalizeSearchText(value).includes(normalizedSearch));
+  ], searchText);
 }
 
 function getRowsForLocation(record, rows) {
@@ -905,17 +984,17 @@ function getManualLocationCodeMatches(value, locationSheet) {
 }
 
 function matchesCountRowSearch(row, searchText) {
-  const normalizedSearch = normalizeSearchText(searchText);
-  if (!normalizedSearch) return true;
+  const queryTokens = tokenizeSearchText(searchText);
+  if (!queryTokens.length) return true;
 
   const compactSearch = normalizeLocationSegment(searchText);
   const compactLocationCode = buildCompactLocationCode(row);
   const isHierarchySearch = /^[a-z]\d{0,3}$/.test(compactSearch);
   const searchableValues = isHierarchySearch ? getLocationSearchValues(row) : getCountRowSearchValues(row);
-  const plainMatch = searchableValues.some((value) => normalizeSearchText(value).includes(normalizedSearch));
+  const tokenMatch = matchesTokenizedSearch([...searchableValues, compactLocationCode], searchText);
   const compactLocationMatch = compactSearch ? compactLocationCode.startsWith(compactSearch) : false;
 
-  return plainMatch || compactLocationMatch;
+  return tokenMatch || compactLocationMatch;
 }
 
 function normalizeRepeatValue(value) {
@@ -3170,6 +3249,31 @@ function formatMoney(value) {
   return `$${numericValue.toFixed(2)}`;
 }
 
+function formatCsvCell(value) {
+  const rawValue = String(value ?? '');
+  const safeValue = /^[=+\-@]/.test(rawValue) ? `'${rawValue}` : rawValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+}
+
+function downloadCsvFile(filename, columns, rows) {
+  if (typeof window === 'undefined') return false;
+
+  const csvRows = [
+    columns.map((column) => formatCsvCell(column.label)).join(','),
+    ...rows.map((row) => columns.map((column) => formatCsvCell(column.getValue(row))).join(',')),
+  ];
+  const csvBlob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const csvUrl = window.URL.createObjectURL(csvBlob);
+  const link = window.document.createElement('a');
+  link.href = csvUrl;
+  link.download = filename;
+  window.document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(csvUrl);
+  return true;
+}
+
 function buildGrandMasterLocationContext(countSheet) {
   const unitById = new Map(countSheet.storageUnits.map((unit) => [unit.id, unit]));
   const shelfById = new Map(countSheet.shelves.map((shelf) => [shelf.id, shelf]));
@@ -3227,6 +3331,7 @@ function buildGrandMasterRows(countSheet) {
       material_code: row.material_code ?? '',
       item_name: row.item_name ?? '',
       unit_of_measure: row.unit_of_measure ?? '',
+      size: row.size ?? row.sub_category_4 ?? '',
       categoryLabel: getCategoryLabel(row),
       broad_category: row.broad_category ?? '',
       description: row.description ?? '',
@@ -3268,8 +3373,8 @@ function buildGrandMasterRows(countSheet) {
 }
 
 function matchesGrandMasterSearch(row, searchText) {
-  const normalizedSearch = normalizeSearchText(searchText);
-  if (!normalizedSearch) return true;
+  const queryTokens = tokenizeSearchText(searchText);
+  if (!queryTokens.length) return true;
 
   const compactSearch = normalizeLocationSegment(searchText);
   const compactLocationCode = buildCompactLocationCode(row);
@@ -3281,13 +3386,324 @@ function matchesGrandMasterSearch(row, searchText) {
     row.manufacturer_part_number,
     row.vendor_part_number,
     row.unit_of_measure,
+    row.size,
     row.division,
+    compactLocationCode,
     ...getLocationSearchValues(row),
   ];
-  const plainMatch = searchableValues.some((value) => normalizeSearchText(value).includes(normalizedSearch));
+  const tokenMatch = matchesTokenizedSearch(searchableValues, searchText);
   const compactLocationMatch = compactSearch ? compactLocationCode.startsWith(compactSearch) : false;
 
-  return plainMatch || compactLocationMatch;
+  return tokenMatch || compactLocationMatch;
+}
+
+function getAccountingExportColumns() {
+  return [
+    { label: 'Material code', getValue: (row) => row.material_code },
+    { label: 'Material name', getValue: (row) => row.item_name },
+    { label: 'Category', getValue: (row) => row.categoryLabel },
+    { label: 'Quantity on hand', getValue: (row) => row.rowType === 'item' ? row.quantity.toFixed(2) : '0.00' },
+    { label: 'Unit of measure', getValue: (row) => row.unit_of_measure },
+    { label: 'Unit cost', getValue: (row) => row.unitCost === null ? '' : row.unitCost.toFixed(2) },
+    { label: 'Extended value', getValue: (row) => row.extendedValue === null ? '' : row.extendedValue.toFixed(2) },
+    { label: 'Division', getValue: (row) => row.division || 'Unassigned' },
+    { label: 'Unit', getValue: (row) => row.storage_unit_code },
+    { label: 'Shelf', getValue: (row) => row.shelf_code },
+    { label: 'Bay', getValue: (row) => row.bay_code },
+    { label: 'Bin', getValue: (row) => row.bin_code },
+    { label: 'Compact location code', getValue: (row) => buildCompactLocationCode(row) },
+    { label: 'Storage path', getValue: (row) => row.locationPath || buildStoragePath(row) },
+    { label: 'Stock status', getValue: (row) => row.stockStatus },
+  ];
+}
+
+function AccountingExportPreviewPanel({ permissions }) {
+  const canReadExportPreview = permissions.permissionSource === 'server';
+  const countSheet = useInventoryCountSheet({ enabled: canReadExportPreview });
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({
+    storage_unit_id: '',
+    shelf_id: '',
+    bay_id: '',
+    bin_id: '',
+    category: '',
+    division: '',
+    stockStatus: '',
+  });
+  const [csvMessage, setCsvMessage] = useState('');
+  const exportModel = useMemo(() => buildGrandMasterRows(countSheet), [countSheet]);
+  const rows = exportModel.rows;
+  const categoryOptions = rows
+    .reduce((options, row) => {
+      if (!row.categoryLabel || options.some((option) => option.value === row.categoryLabel)) return options;
+      return [...options, { value: row.categoryLabel, label: row.categoryLabel }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const divisionOptions = rows
+    .reduce((options, row) => {
+      const value = row.division || 'Unassigned';
+      if (options.some((option) => option.value === value)) return options;
+      return [...options, { value, label: value }];
+    }, [])
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const storageUnitOptions = countSheet.storageUnits
+    .map((unit) => ({
+      value: unit.id,
+      label: `${unit.unit_code}${unit.name ? ` / ${unit.name}` : ''}`,
+    }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const shelfOptions = countSheet.shelves
+    .map((shelf) => ({ value: shelf.id, label: shelf.shelf_code || shelf.label || shelf.id }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const bayOptions = countSheet.bays
+    .map((bay) => ({ value: bay.id, label: bay.bay_code || bay.label || bay.id }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const binOptions = countSheet.bins
+    .map((bin) => ({ value: bin.id, label: bin.bin_code || bin.label || bin.id }))
+    .sort((first, second) => first.label.localeCompare(second.label));
+  const filteredRows = rows.filter((row) => {
+    if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
+    if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
+    if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
+    if (filters.bin_id && row.bin_id !== filters.bin_id) return false;
+    if (filters.category && row.categoryLabel !== filters.category) return false;
+    if (filters.division && (row.division || 'Unassigned') !== filters.division) return false;
+    if (filters.stockStatus && row.stockStatus !== filters.stockStatus) return false;
+    return matchesGrandMasterSearch(row, search);
+  });
+  const visibleStockedRows = filteredRows.filter((row) => row.rowType === 'item' && row.quantity > 0).length;
+  const visibleEmptyLocations = filteredRows.filter((row) => row.rowType === 'empty-location').length;
+  const visibleQuantity = filteredRows
+    .filter((row) => row.rowType === 'item' && row.quantity > 0)
+    .reduce((sum, row) => sum + row.quantity, 0);
+  const visibleValueRows = filteredRows.filter((row) => row.rowType === 'item' && row.extendedValue !== null).length;
+  const visibleKnownValue = filteredRows
+    .filter((row) => row.rowType === 'item' && row.extendedValue !== null)
+    .reduce((sum, row) => sum + row.extendedValue, 0);
+  const exportColumns = getAccountingExportColumns();
+
+  function clearFilters() {
+    setSearch('');
+    setFilters({
+      storage_unit_id: '',
+      shelf_id: '',
+      bay_id: '',
+      bin_id: '',
+      category: '',
+      division: '',
+      stockStatus: '',
+    });
+    setCsvMessage('');
+  }
+
+  function downloadVisibleCsv() {
+    if (!filteredRows.length) {
+      setCsvMessage('No visible authorized preview rows are available to download.');
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    const didDownload = downloadCsvFile(`northgate-inventory-export-preview-${dateStamp}.csv`, exportColumns, filteredRows);
+    setCsvMessage(didDownload
+      ? `Downloaded ${filteredRows.length} visible authorized preview row${filteredRows.length === 1 ? '' : 's'}.`
+      : 'CSV download is unavailable in this browser context.');
+  }
+
+  if (!canReadExportPreview) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Accounting Export</p>
+            <h3>Accounting Export Preview</h3>
+          </div>
+          <span className="status-pill status-pill--warn">Server permissions required</span>
+        </div>
+        <p>Accounting export preview uses the existing server-authorized inventory read path.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel accounting-export-panel">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Accounting Export</p>
+          <h3>Accounting Export Preview</h3>
+          <p>
+            Read-only accounting review foundation from already-authorized inventory rows. This is not a finalized accounting integration.
+          </p>
+        </div>
+        <div className="accounting-export-actions">
+          <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
+            {countSheet.isLoading ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button type="button" className="secondary-button" onClick={downloadVisibleCsv} disabled={!filteredRows.length}>
+            Download Preview CSV
+          </button>
+        </div>
+      </div>
+
+      {countSheet.error ? (
+        <div className="alert">Accounting export preview failed to load through the existing authorized read path.</div>
+      ) : null}
+      {countSheet.isLoading ? <p className="muted">Loading accounting export preview...</p> : null}
+      {csvMessage ? <p className="muted">{csvMessage}</p> : null}
+
+      <div className="location-note">
+        <span>
+          Export Preview is a client-side review surface. It filters and downloads only the rows already returned to this signed-in user; it does not create backend export jobs, storage files, ledger entries, or accounting approvals.
+        </span>
+      </div>
+
+      <div className="count-grid grand-master-summary">
+        <CountCard label="Visible rows" value={filteredRows.length} />
+        <CountCard label="Stocked rows" value={visibleStockedRows} />
+        <CountCard label="Empty locations" value={visibleEmptyLocations} />
+        <CountCard label="Total quantity" value={formatQuantitySummary(visibleQuantity)} />
+        <CountCard label="Known export value" value={formatMoney(visibleValueRows ? visibleKnownValue : null)} />
+      </div>
+
+      <div className="count-toolbar grand-master-toolbar">
+        <label>
+          Search
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Material, code, C211, bin, category, or description"
+          />
+        </label>
+        <label>
+          Unit
+          <select value={filters.storage_unit_id} onChange={(event) => setFilters((current) => ({ ...current, storage_unit_id: event.target.value }))}>
+            <option value="">All units</option>
+            {storageUnitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Shelf
+          <select value={filters.shelf_id} onChange={(event) => setFilters((current) => ({ ...current, shelf_id: event.target.value }))}>
+            <option value="">All shelves</option>
+            {shelfOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Bay
+          <select value={filters.bay_id} onChange={(event) => setFilters((current) => ({ ...current, bay_id: event.target.value }))}>
+            <option value="">All bays</option>
+            {bayOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Bin
+          <select value={filters.bin_id} onChange={(event) => setFilters((current) => ({ ...current, bin_id: event.target.value }))}>
+            <option value="">All bins</option>
+            {binOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Category
+          <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
+            <option value="">All categories</option>
+            {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Division
+          <select value={filters.division} onChange={(event) => setFilters((current) => ({ ...current, division: event.target.value }))}>
+            <option value="">All visible divisions</option>
+            {divisionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Stock status
+          <select value={filters.stockStatus} onChange={(event) => setFilters((current) => ({ ...current, stockStatus: event.target.value }))}>
+            <option value="">Stocked and empty</option>
+            <option value="stocked">Stocked only</option>
+            <option value="empty">Empty / zero only</option>
+          </select>
+        </label>
+        <button type="button" className="secondary-button" onClick={clearFilters}>Clear Filters</button>
+      </div>
+
+      <div className="cart-facts count-summary">
+        <span>Authorized source rows: {countSheet.rows.length}</span>
+        <span>Preview rows: {rows.length}</span>
+        <span>Last updated: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
+        <span>CSV source: current visible preview rows only</span>
+        <span>Cost visibility: authorized inventory row scope</span>
+        <span>Backend export jobs: none</span>
+      </div>
+
+      {filteredRows.length ? (
+        <>
+          <div className="table-wrap accounting-export-table-wrap">
+            <table className="data-table accounting-export-table">
+              <thead>
+                <tr>
+                  <th>Material Code</th>
+                  <th>Material Name</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Unit Cost</th>
+                  <th>Ext. Value</th>
+                  <th>Division</th>
+                  <th>Unit / Shelf / Bay / Bin</th>
+                  <th>Location Code / Path</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.material_code || '-'}</td>
+                    <td>{row.item_name}</td>
+                    <td>{row.categoryLabel || '-'}</td>
+                    <td>{row.rowType === 'item' ? `${row.quantity.toFixed(2)} ${row.unit_of_measure ?? ''}` : '0.00'}</td>
+                    <td>{formatMoney(row.unitCost)}</td>
+                    <td>{formatMoney(row.extendedValue)}</td>
+                    <td>{row.division || 'Unassigned'}</td>
+                    <td>{[row.storage_unit_code, row.shelf_code, row.bay_code, row.bin_code].filter(Boolean).join(' / ') || '-'}</td>
+                    <td>
+                      <strong>{buildCompactLocationCode(row) || '-'}</strong>
+                      <span>{row.locationPath || buildStoragePath(row) || '-'}</span>
+                    </td>
+                    <td>
+                      <span className={row.stockStatus === 'stocked' ? 'status-pill status-pill--good' : 'status-pill'}>
+                        {row.stockStatus === 'stocked' ? 'Stocked' : 'Empty'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-list accounting-export-mobile-list">
+            {filteredRows.map((row) => (
+              <article className="mobile-item" key={row.id}>
+                <strong>{row.item_name}</strong>
+                <span>{row.material_code || 'No material code'} / {row.stockStatus === 'stocked' ? 'Stocked' : 'Empty'}</span>
+                <div className="meta-grid">
+                  <span>Category: {row.categoryLabel || '-'}</span>
+                  <span>Qty: {row.rowType === 'item' ? `${row.quantity.toFixed(2)} ${row.unit_of_measure ?? ''}` : '0.00'}</span>
+                  <span>Unit cost: {formatMoney(row.unitCost)}</span>
+                  <span>Value: {formatMoney(row.extendedValue)}</span>
+                  <span>Division: {row.division || 'Unassigned'}</span>
+                  <span>Location: {buildCompactLocationCode(row) || row.locationPath || '-'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <EmptyState title="No export preview rows match">
+          No authorized inventory rows or empty locations match the current export preview filters.
+        </EmptyState>
+      )}
+    </section>
+  );
 }
 
 function CountHistoryForItem({ row, permissions }) {
@@ -5165,6 +5581,9 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
         <button className="module-tab" type="button" aria-selected={activeTab === 'grand-master'} onClick={() => setActiveTab('grand-master')}>
           Grand Master
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'accounting-export'} onClick={() => setActiveTab('accounting-export')}>
+          Accounting Export
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')}>
           Catalog Preview
         </button>
@@ -5193,6 +5612,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
 
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
       {activeTab === 'grand-master' ? <GrandMasterOverviewPanel permissions={permissions} /> : null}
+      {activeTab === 'accounting-export' ? <AccountingExportPreviewPanel permissions={permissions} /> : null}
       {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
       {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
       {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
@@ -5218,6 +5638,23 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
   );
 }
 
+function DevelopmentStatusCard() {
+  return (
+    <article className="card development-status-card">
+      <p className="eyebrow">Development Status</p>
+      <h2>Latest Build Marker</h2>
+      <div className="development-status-grid">
+        <span>Most recent change: {DEVELOPMENT_STATUS.mostRecentChange}</span>
+        <span>Related HANDOFF: {DEVELOPMENT_STATUS.relatedHandoff}</span>
+        <span>Architecture: {DEVELOPMENT_STATUS.architectureVersion}</span>
+        <span>Current step: {DEVELOPMENT_STATUS.currentStep}</span>
+        <span>Build marker: {DEVELOPMENT_STATUS.buildMarker}</span>
+        <span>Deployment note: {DEVELOPMENT_STATUS.deploymentNote}</span>
+      </div>
+    </article>
+  );
+}
+
 function Dashboard() {
   const { user } = useUser();
   const permissions = usePermissions();
@@ -5231,7 +5668,7 @@ function Dashboard() {
           <div>
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">Inventory candidate picker build: 2026-06-11.6</p>
+            <p className="build-note">{DEVELOPMENT_STATUS.buildMarker}</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -5269,6 +5706,8 @@ function Dashboard() {
           <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
           <p className="muted">Cart opening, add-to-cart, remove-line, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
         </article>
+
+        <DevelopmentStatusCard />
 
         <article className="card card--wide">
           <div className="card__header">
