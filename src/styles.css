@@ -194,9 +194,11 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .grand-master-mobile-list { display: none; }
 .accounting-export-panel { display: grid; gap: 1rem; }
 .accounting-export-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+.accounting-export-panel .location-note { align-items: flex-start; flex-direction: column; }
 .accounting-export-table { min-width: 1480px; }
 .accounting-export-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .accounting-export-table .status-pill { justify-content: center; min-width: 5.5rem; }
+.accounting-export-group-table { min-width: 860px; }
 .accounting-export-mobile-list { display: none; }
 .count-path-toolbar { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
 .count-guard-panel { display: flex; align-items: center; justify-content: space-between; gap: .8rem; border: 1px solid rgba(34,197,94,.22); border-radius: 1rem; background: rgba(20,83,45,.18); padding: .75rem .85rem; margin-bottom: .9rem; color: #d1fae5; }
@@ -242,6 +244,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .count-mobile-item { display: grid; gap: .65rem; }
 .count-mobile-item label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
 .count-print-sheet { display: none; }
+.accounting-export-print-sheet { display: none; }
 .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border: 1px solid rgba(148,163,184,.26); border-radius: .85rem; background: rgba(15,23,42,.75); color: #e5edf8; padding: .65rem .8rem; font-weight: 700; }
 .secondary-button svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
 .secondary-button--danger { border-color: rgba(248,113,113,.38); color: #fecaca; background: rgba(127,29,29,.24); }
@@ -297,8 +300,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 @media print {
   @page { size: landscape; margin: .35in; }
   body { background: #fff; color: #111827; }
-  .app-header, .dashboard-grid > .card:not(.card--wide), .module-tabs, .cart-panel:not(.count-workspace__main), .count-toolbar button, .count-table th:nth-child(6), .count-table td:nth-child(6), .count-workspace__main, .count-history-panel { display: none !important; }
-  .app-main, .card, .cart-panel { width: 100%; border: 0; box-shadow: none; background: #fff; color: #111827; padding: 0; }
+  .app-header, .dashboard-grid > .card:not(.card--wide), .development-status-card, .module-tabs, .cart-panel:not(.count-workspace__main):not(.accounting-export-panel), .count-toolbar button, .count-table th:nth-child(6), .count-table td:nth-child(6), .count-workspace__main, .count-history-panel { display: none !important; }
+  .app-main, .card, .cart-panel { width: 100%; min-height: 0 !important; border: 0; box-shadow: none; background: #fff !important; color: #111827; padding: 0; }
   .table-wrap { display: block; border: 0; }
   .count-table { min-width: 0; color: #111827; }
   .count-table th, .count-table td { border-color: #d1d5db; color: #111827; }
@@ -318,4 +321,19 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .count-print-table th:nth-child(5) { width: .9in; }
   .count-print-table th:nth-child(7), .count-print-table th:nth-child(8), .count-print-table th:nth-child(9) { width: .7in; }
   .count-print-table th:nth-child(10) { width: 1.1in; }
+  .accounting-export-panel > :not(.accounting-export-print-sheet) { display: none !important; }
+  .accounting-export-print-sheet { display: block !important; color: #111827; background: #fff; font-size: 9px; }
+  .accounting-export-print-header { display: grid; gap: .08in; margin-bottom: .15in; }
+  .accounting-export-print-header h1 { margin: 0; font-size: 16px; line-height: 1.1; }
+  .accounting-export-print-header div { display: flex; flex-wrap: wrap; gap: .25in; font-size: 9px; }
+  .accounting-export-print-header p { margin: 0; color: #374151; font-size: 9px; }
+  .accounting-export-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .accounting-export-print-table thead { display: table-header-group; }
+  .accounting-export-print-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .accounting-export-print-table th, .accounting-export-print-table td { border: 1px solid #9ca3af; padding: .045in .055in; color: #111827; text-align: left; vertical-align: top; line-height: 1.2; overflow-wrap: anywhere; }
+  .accounting-export-print-table th { background: #e5e7eb; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+  .accounting-export-print-table td strong, .accounting-export-print-table td span { display: block; }
+  .accounting-export-print-table th:nth-child(1) { width: .9in; }
+  .accounting-export-print-table th:nth-child(4), .accounting-export-print-table th:nth-child(5), .accounting-export-print-table th:nth-child(6), .accounting-export-print-table th:nth-child(9) { width: .7in; }
+  .accounting-export-print-table--grouped th:nth-child(1) { width: 2.4in; }
 }

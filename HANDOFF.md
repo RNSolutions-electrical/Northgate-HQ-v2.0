@@ -1,4 +1,4 @@
-# Northgate HQ v2.0 — Handoff Log
+﻿# Northgate HQ v2.0 — Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
@@ -7142,3 +7142,146 @@ First-action checks were completed:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 074).
+
+---
+
+## Entry 076 - 2026-06-24 - Milestone 5G.3 Accounting Export Grouping, Totals, and Print/Export Polish
+
+**Phase:** Inventory (Stage 1) - Accounting Export Foundation polish
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5G.3 polish for the Accounting Export Preview surface:
+grouped review modes, grouped totals, current-view CSV behavior, scoped print
+polish, removal of the large dark print/export filler area, and a refreshed
+development status marker.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `029e39515bea0aba4d6c8b3130a8b5e92a396eec`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 075.
+- The working tree was clean before changes.
+
+### What Was Completed
+- Added Accounting Export review modes:
+  - Detail rows;
+  - By category;
+  - By location;
+  - By stocked status;
+  - By division.
+- Added grouped summary rows calculated client-side from the currently filtered,
+  already-authorized Accounting Export preview rows.
+- Grouped summary rows include:
+  - group label;
+  - row count;
+  - stocked row count;
+  - empty / zero row count;
+  - total quantity;
+  - known inventory value where cost exists;
+  - rows missing cost.
+- Updated CSV download behavior so it exports the current Accounting Export
+  view:
+  - detail mode downloads detail rows;
+  - grouped modes download grouped summary rows;
+  - filenames include the view token and date, such as
+    `northgate-inventory-accounting-detail-YYYY-MM-DD.csv` and
+    `northgate-inventory-accounting-by-category-YYYY-MM-DD.csv`.
+- Added scoped Accounting Export print support:
+  - `Print Export Preview` prints a dedicated Accounting Export preview sheet;
+  - print output includes `Northgate HQ - Accounting Export Preview`;
+  - print output includes printed date/time, current view, and row/group count;
+  - print output uses the active detail or grouped view;
+  - app chrome, buttons, tabs, development status card, backgrounds, and the
+    large dark filler/footer area are hidden for Accounting Export print output.
+- Kept the development-preview warning:
+  - `Development preview - generated from currently authorized inventory rows. Not a finalized accounting integration.`
+- Added the grouping explanation:
+  - `Grouping and totals are calculated client-side from the currently authorized inventory rows.`
+- Updated the Development Status card to:
+  - Most recent change:
+    `Milestone 5G.3 - Accounting Export grouping / totals / print polish`;
+  - Related HANDOFF: `Entry 076`;
+  - Architecture: `v2.15`;
+  - Current step: `Accounting Export review modes`;
+  - Build marker: `Accounting export grouping build: 2026-06-24.3`.
+
+### Verification
+- `npm run build` passed.
+- Static implementation review confirmed the change uses the existing
+  client-side Accounting Export / Grand Master inventory row model and
+  reuses the already-authorized rows returned to the signed-in user.
+- Authenticated browser and print-preview verification were unavailable from
+  this Codex session and are not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, backend print
+  services, or database indexes were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Accounting Export review-mode options and grouped summary helpers.
+  - Added current-view CSV export behavior.
+  - Added `AccountingExportPrintSheet`.
+  - Updated Accounting Export visible facts and development status marker.
+- `src/styles.css`
+  - Added grouped Accounting Export table styling.
+  - Added scoped Accounting Export print styles.
+  - Hid nonessential chrome/dev/status/background UI for Accounting Export
+    print output.
+- `HANDOFF.md`
+  - Appended this Entry 076.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Accounting Export Preview now has detail and grouped review modes.
+- Grouping, totals, CSV generation, and print output are all client-side and
+  operate only on currently authorized preview rows.
+- Accounting Export CSV and print behavior are scoped to the active Accounting
+  Export view and remain separate from the Inventory Count print sheet.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, backend export job,
+  backend print service, storage, QR payload, scan destination, ledger, balance,
+  checkout/finalization, Count Intake write path, `physical_count_correction`,
+  bin_item retirement, destination semantics, transaction-history permissions,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost visibility,
+  Financials/job-cost, or reserved feature behavior was changed.
+- This was a UI/client-side Accounting Export polish milestone.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - open Inventory -> Accounting Export;
+   - switch between Detail rows, By category, By location, By stocked status,
+     and By division;
+   - confirm grouped totals reflect the visible filtered rows;
+   - download CSV from detail and grouped views and confirm filenames/content;
+   - use `Print Export Preview` and confirm only the Accounting Export preview
+     sheet prints.
+2. If print layout needs additional column tuning, keep follow-up changes
+   UI/client-side only.
+
+### Open Questions / Concerns
+- Authenticated browser and print-preview verification were unavailable from
+  this Codex session and are not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Accounting Export grouped review modes, totals,
+  current-view CSV behavior, and scoped print polish.
+- RESERVED: backend export jobs, backend print services, schema/RLS/permission
+  changes, inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, count correction changes, bin_item retirement
+  semantic changes, destination semantic changes, transaction-history behavior
+  changes, QR payload behavior changes, scan action behavior changes,
+  Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 075).

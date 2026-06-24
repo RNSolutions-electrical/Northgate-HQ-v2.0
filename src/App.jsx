@@ -53,12 +53,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5G.2 - Accounting Export usability / CSV verification',
-  relatedHandoff: 'Entry 074',
+  mostRecentChange: 'Milestone 5G.3 - Accounting Export grouping / totals / print polish',
+  relatedHandoff: 'Entry 076',
   architectureVersion: 'v2.15',
-  currentStep: 'Accounting Export preview hardening',
-  buildMarker: 'Accounting export usability build: 2026-06-24.2',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5G.2 UI code is present in the loaded build.',
+  currentStep: 'Accounting Export review modes',
+  buildMarker: 'Accounting export grouping build: 2026-06-24.3',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5G.3 UI code is present in the loaded build.',
 };
 
 const COUNT_INTAKE_HELP_ITEMS = [
@@ -3425,10 +3425,92 @@ function getAccountingExportColumns() {
   ];
 }
 
+const ACCOUNTING_EXPORT_VIEW_OPTIONS = [
+  { value: 'detail', label: 'Detail rows', fileToken: 'detail' },
+  { value: 'category', label: 'By category', fileToken: 'by-category' },
+  { value: 'location', label: 'By location', fileToken: 'by-location' },
+  { value: 'stockStatus', label: 'By stocked status', fileToken: 'by-stocked-status' },
+  { value: 'division', label: 'By division', fileToken: 'by-division' },
+];
+
+function getAccountingExportViewOption(viewMode) {
+  return ACCOUNTING_EXPORT_VIEW_OPTIONS.find((option) => option.value === viewMode) ?? ACCOUNTING_EXPORT_VIEW_OPTIONS[0];
+}
+
+function getAccountingExportGroupLabel(row, viewMode) {
+  if (viewMode === 'category') return row.categoryLabel || 'Uncategorized';
+  if (viewMode === 'stockStatus') return row.stockStatus === 'stocked' ? 'Stocked' : 'Empty / zero quantity';
+  if (viewMode === 'division') return row.division || 'Unassigned';
+  if (viewMode === 'location') {
+    const compactLocation = buildCompactLocationCode(row);
+    const storagePath = row.locationPath || buildStoragePath(row);
+    if (compactLocation && storagePath && compactLocation !== storagePath) return `${compactLocation} / ${storagePath}`;
+    return compactLocation || storagePath || 'Unassigned location';
+  }
+  return 'Detail rows';
+}
+
+function buildAccountingExportGroups(rows, viewMode) {
+  if (viewMode === 'detail') return [];
+
+  const groupMap = new Map();
+  rows.forEach((row) => {
+    const groupLabel = getAccountingExportGroupLabel(row, viewMode);
+    if (!groupMap.has(groupLabel)) {
+      groupMap.set(groupLabel, {
+        id: `${viewMode}-${groupLabel}`,
+        groupLabel,
+        rowCount: 0,
+        stockedRowCount: 0,
+        emptyZeroRowCount: 0,
+        totalQuantity: 0,
+        knownInventoryValue: 0,
+        valueRowCount: 0,
+        rowsMissingCost: 0,
+      });
+    }
+
+    const group = groupMap.get(groupLabel);
+    const isItem = row.rowType === 'item';
+    const quantity = isItem ? Number(row.quantity ?? 0) : 0;
+    const isStocked = isItem && quantity > 0;
+
+    group.rowCount += 1;
+    if (isStocked) {
+      group.stockedRowCount += 1;
+      group.totalQuantity += quantity;
+    } else {
+      group.emptyZeroRowCount += 1;
+    }
+
+    if (isItem && row.unitCost === null) group.rowsMissingCost += 1;
+    if (isItem && row.extendedValue !== null) {
+      group.knownInventoryValue += Number(row.extendedValue ?? 0);
+      group.valueRowCount += 1;
+    }
+  });
+
+  return Array.from(groupMap.values())
+    .sort((first, second) => first.groupLabel.localeCompare(second.groupLabel, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function getAccountingExportGroupColumns() {
+  return [
+    { label: 'Group label', getValue: (group) => group.groupLabel },
+    { label: 'Row count', getValue: (group) => group.rowCount },
+    { label: 'Stocked row count', getValue: (group) => group.stockedRowCount },
+    { label: 'Empty / zero row count', getValue: (group) => group.emptyZeroRowCount },
+    { label: 'Total quantity', getValue: (group) => group.totalQuantity.toFixed(2) },
+    { label: 'Known inventory value', getValue: (group) => group.valueRowCount ? group.knownInventoryValue.toFixed(2) : '' },
+    { label: 'Rows missing cost', getValue: (group) => group.rowsMissingCost },
+  ];
+}
+
 function AccountingExportPreviewPanel({ permissions }) {
   const canReadExportPreview = permissions.permissionSource === 'server';
   const countSheet = useInventoryCountSheet({ enabled: canReadExportPreview });
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('detail');
   const [filters, setFilters] = useState({
     storage_unit_id: '',
     shelf_id: '',
@@ -3489,7 +3571,13 @@ function AccountingExportPreviewPanel({ permissions }) {
   const visibleKnownValue = filteredRows
     .filter((row) => row.rowType === 'item' && row.extendedValue !== null)
     .reduce((sum, row) => sum + row.extendedValue, 0);
+  const groupedRows = buildAccountingExportGroups(filteredRows, viewMode);
+  const activeView = getAccountingExportViewOption(viewMode);
   const exportColumns = getAccountingExportColumns();
+  const groupColumns = getAccountingExportGroupColumns();
+  const currentCsvRows = viewMode === 'detail' ? filteredRows : groupedRows;
+  const currentCsvColumns = viewMode === 'detail' ? exportColumns : groupColumns;
+  const currentCsvUnitLabel = viewMode === 'detail' ? 'row' : 'group';
 
   function clearFilters() {
     setSearch('');
@@ -3506,16 +3594,20 @@ function AccountingExportPreviewPanel({ permissions }) {
   }
 
   function downloadVisibleCsv() {
-    if (!filteredRows.length) {
-      setCsvMessage('No visible authorized preview rows are available to download.');
+    if (!currentCsvRows.length) {
+      setCsvMessage(`No visible authorized preview ${currentCsvUnitLabel}s are available to download.`);
       return;
     }
 
     const dateStamp = new Date().toISOString().slice(0, 10);
-    const didDownload = downloadCsvFile(`northgate-inventory-accounting-export-preview-${dateStamp}.csv`, exportColumns, filteredRows);
+    const didDownload = downloadCsvFile(`northgate-inventory-accounting-${activeView.fileToken}-${dateStamp}.csv`, currentCsvColumns, currentCsvRows);
     setCsvMessage(didDownload
-      ? `Downloaded ${filteredRows.length} visible authorized preview row${filteredRows.length === 1 ? '' : 's'}.`
+      ? `Downloaded ${currentCsvRows.length} visible authorized preview ${currentCsvUnitLabel}${currentCsvRows.length === 1 ? '' : 's'} from ${activeView.label}.`
       : 'CSV download is unavailable in this browser context.');
+  }
+
+  function printExportPreview() {
+    window.print();
   }
 
   if (!canReadExportPreview) {
@@ -3547,8 +3639,11 @@ function AccountingExportPreviewPanel({ permissions }) {
           <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
             {countSheet.isLoading ? 'Refreshing...' : 'Refresh'}
           </button>
-          <button type="button" className="secondary-button" onClick={downloadVisibleCsv} disabled={!filteredRows.length}>
-            Download Preview CSV
+          <button type="button" className="secondary-button" onClick={printExportPreview} disabled={!currentCsvRows.length}>
+            Print Export Preview
+          </button>
+          <button type="button" className="secondary-button" onClick={downloadVisibleCsv} disabled={!currentCsvRows.length}>
+            Download Current View CSV
           </button>
         </div>
       </div>
@@ -3561,7 +3656,10 @@ function AccountingExportPreviewPanel({ permissions }) {
 
       <div className="location-note">
         <span>
-          Export Preview is a client-side review surface. It filters and downloads only the rows already returned to this signed-in user; it does not create backend export jobs, storage files, ledger entries, accounting approvals, or print exports.
+          Export Preview is a client-side review surface. It filters and downloads only the rows already returned to this signed-in user; it does not create backend export jobs, storage files, ledger entries, accounting approvals, or backend print exports.
+        </span>
+        <span>
+          Grouping and totals are calculated client-side from the currently authorized inventory rows.
         </span>
       </div>
 
@@ -3575,6 +3673,12 @@ function AccountingExportPreviewPanel({ permissions }) {
       </div>
 
       <div className="count-toolbar grand-master-toolbar">
+        <label>
+          Review mode
+          <select value={viewMode} onChange={(event) => setViewMode(event.target.value)}>
+            {ACCOUNTING_EXPORT_VIEW_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
         <label>
           Search
           <input
@@ -3640,16 +3744,19 @@ function AccountingExportPreviewPanel({ permissions }) {
       <div className="cart-facts count-summary">
         <span>Authorized source rows: {countSheet.rows.length}</span>
         <span>Preview rows: {rows.length}</span>
+        <span>Current view: {activeView.label}</span>
+        <span>{viewMode === 'detail' ? 'Visible detail rows' : 'Visible groups'}: {currentCsvRows.length}</span>
         <span>Last updated: {countSheet.lastLoadedAt ? new Date(countSheet.lastLoadedAt).toLocaleString() : 'not loaded yet'}</span>
-        <span>CSV source: current visible preview rows only</span>
+        <span>CSV source: current visible {viewMode === 'detail' ? 'preview rows' : 'grouped summary rows'} only</span>
         <span>Build marker: {DEVELOPMENT_STATUS.buildMarker}</span>
-        <span>Print export: deferred</span>
+        <span>Print export: current Accounting Export view only</span>
         <span>Cost visibility: authorized inventory row scope</span>
         <span>Backend export jobs: none</span>
       </div>
 
-      {filteredRows.length ? (
-        <>
+      {currentCsvRows.length ? (
+        viewMode === 'detail' ? (
+          <>
           <div className="table-wrap accounting-export-table-wrap">
             <table className="data-table accounting-export-table">
               <thead>
@@ -3718,11 +3825,146 @@ function AccountingExportPreviewPanel({ permissions }) {
               </article>
             ))}
           </div>
-        </>
+          </>
+        ) : (
+          <>
+            <div className="table-wrap accounting-export-table-wrap">
+              <table className="data-table accounting-export-group-table">
+                <thead>
+                  <tr>
+                    <th>Group</th>
+                    <th>Rows</th>
+                    <th>Stocked Rows</th>
+                    <th>Empty / Zero Rows</th>
+                    <th>Total Quantity</th>
+                    <th>Known Inventory Value</th>
+                    <th>Rows Missing Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupedRows.map((group) => (
+                    <tr key={group.id}>
+                      <td>{group.groupLabel}</td>
+                      <td>{group.rowCount}</td>
+                      <td>{group.stockedRowCount}</td>
+                      <td>{group.emptyZeroRowCount}</td>
+                      <td>{formatQuantitySummary(group.totalQuantity)}</td>
+                      <td>{formatMoney(group.valueRowCount ? group.knownInventoryValue : null)}</td>
+                      <td>{group.rowsMissingCost}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list accounting-export-mobile-list">
+              {groupedRows.map((group) => (
+                <article className="mobile-item" key={group.id}>
+                  <strong>{group.groupLabel}</strong>
+                  <span>{group.rowCount} row{group.rowCount === 1 ? '' : 's'} / {group.stockedRowCount} stocked</span>
+                  <div className="meta-grid">
+                    <span>Empty / zero: {group.emptyZeroRowCount}</span>
+                    <span>Total quantity: {formatQuantitySummary(group.totalQuantity)}</span>
+                    <span>Known value: {formatMoney(group.valueRowCount ? group.knownInventoryValue : null)}</span>
+                    <span>Missing cost: {group.rowsMissingCost}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )
       ) : (
         <EmptyState title="No export preview rows match">
-          No authorized inventory rows or empty locations match the current export preview filters.
+          No authorized inventory rows, empty locations, or grouped summary rows match the current export preview filters.
         </EmptyState>
+      )}
+      <AccountingExportPrintSheet
+        viewLabel={activeView.label}
+        viewMode={viewMode}
+        detailRows={filteredRows}
+        groupedRows={groupedRows}
+      />
+    </section>
+  );
+}
+
+function AccountingExportPrintSheet({ viewLabel, viewMode, detailRows, groupedRows }) {
+  const rows = viewMode === 'detail' ? detailRows : groupedRows;
+  const unitLabel = viewMode === 'detail' ? 'detail row' : 'group';
+
+  return (
+    <section className="accounting-export-print-sheet" aria-label="Printable accounting export preview">
+      <div className="accounting-export-print-header">
+        <h1>Northgate HQ - Accounting Export Preview</h1>
+        <div>
+          <span>Printed: {new Date().toLocaleString()}</span>
+          <span>Current view: {viewLabel}</span>
+          <span>{rows.length} {unitLabel}{rows.length === 1 ? '' : 's'}</span>
+        </div>
+        <p>Development preview - generated from currently authorized inventory rows. Not a finalized accounting integration.</p>
+      </div>
+
+      {viewMode === 'detail' ? (
+        <table className="accounting-export-print-table">
+          <thead>
+            <tr>
+              <th>Material Code</th>
+              <th>Material Name</th>
+              <th>Category</th>
+              <th>Qty</th>
+              <th>Unit Cost</th>
+              <th>Ext. Value</th>
+              <th>Division</th>
+              <th>Location</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detailRows.map((row) => (
+              <tr key={row.id}>
+                <td>{formatAccountingCell(row.material_code)}</td>
+                <td>{formatAccountingCell(row.item_name)}</td>
+                <td>{formatAccountingCell(row.categoryLabel)}</td>
+                <td>{row.rowType === 'item' ? `${row.quantity.toFixed(2)} ${row.unit_of_measure ?? ''}` : '0.00'}</td>
+                <td>{formatMoney(row.unitCost)}</td>
+                <td>{formatMoney(row.extendedValue)}</td>
+                <td>{row.division || 'Unassigned'}</td>
+                <td>
+                  <strong>{buildCompactLocationCode(row) || '-'}</strong>
+                  <span>{row.locationPath || buildStoragePath(row) || '-'}</span>
+                </td>
+                <td>{row.stockStatus === 'stocked' ? 'Stocked' : 'Empty'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <table className="accounting-export-print-table accounting-export-print-table--grouped">
+          <thead>
+            <tr>
+              <th>Group</th>
+              <th>Rows</th>
+              <th>Stocked Rows</th>
+              <th>Empty / Zero Rows</th>
+              <th>Total Qty</th>
+              <th>Known Value</th>
+              <th>Rows Missing Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupedRows.map((group) => (
+              <tr key={group.id}>
+                <td>{group.groupLabel}</td>
+                <td>{group.rowCount}</td>
+                <td>{group.stockedRowCount}</td>
+                <td>{group.emptyZeroRowCount}</td>
+                <td>{formatQuantitySummary(group.totalQuantity)}</td>
+                <td>{formatMoney(group.valueRowCount ? group.knownInventoryValue : null)}</td>
+                <td>{group.rowsMissingCost}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </section>
   );
