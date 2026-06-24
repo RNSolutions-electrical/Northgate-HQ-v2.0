@@ -7285,3 +7285,119 @@ First-action checks were completed:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 075).
+
+---
+
+## Entry 077 - 2026-06-24 - Targeted Accounting Export Print Parent Card CSS Fix
+
+**Phase:** Inventory (Stage 1) - Accounting Export print polish
+**Session type:** implementation
+
+### Context
+Ryan reported that Accounting Export print/export output still showed a large
+dark blue box after the printable table/content. The inspect-only finding
+identified the likely source as the Inventory parent wrapper:
+`<article className="card card--wide">` in `InventoryReadOnlyPanel`.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `80731162dfab9dc3023ccea43e8e4639b9fb403b`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 076.
+- The working tree was clean before changes.
+- The relevant Accounting Export print CSS and Inventory wrapper path were
+  inspected before editing.
+
+### What Was Completed
+- Added a targeted `@media print` CSS fix scoped to Accounting Export print
+  output.
+- The fix uses the mounted Accounting Export panel as the selector hook:
+  - `.dashboard-grid:has(.accounting-export-panel)`;
+  - `.card.card--wide:has(.accounting-export-panel)`;
+  - `.card.card--wide:has(.accounting-export-panel) > :not(.accounting-export-panel)`.
+- The parent `.card.card--wide` / Inventory wrapper chrome is neutralized for
+  Accounting Export print output only.
+- Non-print siblings inside the Inventory parent card are hidden for Accounting
+  Export print output, while `.accounting-export-print-sheet` remains visible.
+- The Accounting Export print panel/sheet are forced to white background,
+  no border, no shadow, no filler min-height, and zero print padding.
+- Blank page space after printable content is intentional.
+
+### Verification
+- `npm run build` passed.
+- `git diff --check` passed.
+- Changed files were limited to `src/styles.css` before this HANDOFF append.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no inventory balance, ledger, checkout/finalization,
+  Count Intake write path, count correction, bin_item retirement, QR/scan,
+  transaction history permission, destination semantic, Accounting Export
+  authorization, or Financials/job-cost behavior changed.
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, backend print
+  services, or database indexes were added.
+
+### Code / File Changes
+- `src/styles.css`
+  - Added targeted Accounting Export print CSS to hide/neutralize the wide
+    Inventory parent card chrome and non-print children.
+- `HANDOFF.md`
+  - Appended this Entry 077.
+- No app data logic, CSV logic, grouping logic, filters, row calculations,
+  authorization, backend files, hooks/services, package files, schema, RLS,
+  grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- The dark-blue Accounting Export print box was a print-layout artifact from
+  the parent `.card.card--wide` Inventory wrapper remaining visible around the
+  Accounting Export print sheet.
+- The fix is CSS-only and print-scoped to the Accounting Export mounted panel.
+- Inventory Count print behavior was not intentionally changed.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, backend export job,
+  backend print service, storage, QR payload, scan destination, ledger, balance,
+  checkout/finalization, Count Intake write path, `physical_count_correction`,
+  bin_item retirement, destination semantics, transaction-history permissions,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost visibility,
+  Accounting Export authorization, Financials/job-cost, or reserved feature
+  behavior was changed.
+- This was a targeted UI/CSS print fix.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - open Inventory -> Accounting Export;
+   - click `Print Export Preview`;
+   - confirm print output shows only the Accounting Export printable sheet/table;
+   - confirm the large dark-blue parent card/filler box is gone;
+   - confirm blank page space after content is white/empty.
+2. If further print polish is needed, keep follow-up changes UI/CSS-only.
+
+### Open Questions / Concerns
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: targeted Accounting Export print parent-card CSS
+  bugfix.
+- RESERVED: backend export jobs, backend print services, schema/RLS/permission
+  changes, inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, count correction changes, bin_item retirement
+  semantic changes, destination semantic changes, transaction-history behavior
+  changes, QR payload behavior changes, scan action behavior changes,
+  Accounting Export authorization changes, Financials/job-cost behavior, and
+  all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 076).
