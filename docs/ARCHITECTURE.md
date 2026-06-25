@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.16 — Standard Codex Operating Instructions adopted (new Section 35): reusable task classification buckets (Safe UI/CSS, Existing-flow binding with positive confirmation gate, Architecture-sensitive); protected-scope rules with cross-location transfer and multi-bin batch action lock references (Section 10a, v2.15); explicit RLS-bypass prohibition in UI/client-side rule; explicit inventory_balances direct-write check in verification procedure; standard start procedure, HANDOFF requirement, routing verdict, and short-prompt footer. Rule 20 cross-cleared. (Entry 081). Prior: v2.15 — Scan Destination Behavior locked in new Section 10a: resolving a location QR opens a division-scoped, location-scoped view and action entry point; scan pages dispatch into existing cart/checkout and `physical_count_correction` engines and must not reimplement cart, transaction, or balance logic; authentication is required before contents; resolution is server-resolved and fail-closed generically; inventory cost is open within authorized inventory scope; bin pages allow cart add/remove through the existing cart flow and count correction through `physical_count_correction`; unit/shelf/bay pages are read + navigation and actions occur at bin level; no generic ambiguous +/- controls; scan pages initiate no location-to-location movement and do not surface Transfer Location; multi-bin batch cart actions are reserved; label layout may vary by level through `label_templates.scope_level`; QR payload is unchanged; no new transaction type or balance-derivation change (Entry 062). Prior: v2.14 — Inventory module-completion milestone locked: Division-Scoped Read Rule added in new Section 17a; `can_view_all_divisions` added for read-only cross-division scope; cross-division access comes from Developer role default and Admin division default/effective permission, while Administrator role outside Admin division remains own-division unless individually granted; own-division-full and self-scoped read tiers locked; inventory cost is open within authorized inventory scope and `can_view_financials` is not used for inventory cost; QR payload and web scanner scope locked in Section 10; Label Template Designer and `label_templates` table locked in Section 25; Section 29 inventory build sequence updated for QR scanner and label designer; HANDOFF Entry 051/052 presentation order repaired under Rule 20 (Entry 056). Prior: v2.13 — bin_item retirement locked (Section 23): a mistakenly added material is archived (Rule 13 / Section 18), never hard-deleted; archival is a structural action (no ledger row, no quantity change) gated on a zero ledger-derived balance — a non-zero balance must first be zeroed via `physical_count_correction`; one Developer/Admin-only RPC (`can_archive_records`) records `archived_at` / `archived_by` / `archive_reason`; archived `bin_items` are hidden from active count/intake views but preserved in transaction history (Entry 042). Prior: v2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.17 — Tool Catalogue Foundation locked (new Section 36): new tools table, division-scoped via division_id FK; condition and status as CHECK-constrained text columns with starting value sets; tool_number and serial_number unique-when-non-null via partial indexes; archived_by as text (Clerk user ID); purchase_price and vendor deferred; home_location, current_location, and assigned_to as plain text placeholders until linkage is architecture-cleared; soft-archive per Section 18; read gated on division scope / can_view_all_divisions; write gated on can_manage_inventory; no new permission flags; no audit table; no attachments; UI title "Tool Catalogue" with locked helper copy; checkout, assignment history, QR labels, vehicle/bin linkage, job linkage, tracking history, audit table, tool-specific permission flags, and purchase accounting all reserved. Rule 20 cross-cleared. (Entry 083). Prior: v2.16 — Standard Codex Operating Instructions adopted (new Section 35): reusable task classification buckets (Safe UI/CSS, Existing-flow binding with positive confirmation gate, Architecture-sensitive); protected-scope rules with cross-location transfer and multi-bin batch action lock references (Section 10a, v2.15); explicit RLS-bypass prohibition in UI/client-side rule; explicit inventory_balances direct-write check in verification procedure; standard start procedure, HANDOFF requirement, routing verdict, and short-prompt footer. Rule 20 cross-cleared. (Entry 081). Prior: v2.15 — Scan Destination Behavior locked in new Section 10a: resolving a location QR opens a division-scoped, location-scoped view and action entry point; scan pages dispatch into existing cart/checkout and `physical_count_correction` engines and must not reimplement cart, transaction, or balance logic; authentication is required before contents; resolution is server-resolved and fail-closed generically; inventory cost is open within authorized inventory scope; bin pages allow cart add/remove through the existing cart flow and count correction through `physical_count_correction`; unit/shelf/bay pages are read + navigation and actions occur at bin level; no generic ambiguous +/- controls; scan pages initiate no location-to-location movement and do not surface Transfer Location; multi-bin batch cart actions are reserved; label layout may vary by level through `label_templates.scope_level`; QR payload is unchanged; no new transaction type or balance-derivation change (Entry 062). Prior: v2.14 — Inventory module-completion milestone locked: Division-Scoped Read Rule added in new Section 17a; `can_view_all_divisions` added for read-only cross-division scope; cross-division access comes from Developer role default and Admin division default/effective permission, while Administrator role outside Admin division remains own-division unless individually granted; own-division-full and self-scoped read tiers locked; inventory cost is open within authorized inventory scope and `can_view_financials` is not used for inventory cost; QR payload and web scanner scope locked in Section 10; Label Template Designer and `label_templates` table locked in Section 25; Section 29 inventory build sequence updated for QR scanner and label designer; HANDOFF Entry 051/052 presentation order repaired under Rule 20 (Entry 056). Prior: v2.13 — bin_item retirement locked (Section 23): a mistakenly added material is archived (Rule 13 / Section 18), never hard-deleted; archival is a structural action (no ledger row, no quantity change) gated on a zero ledger-derived balance — a non-zero balance must first be zeroed via `physical_count_correction`; one Developer/Admin-only RPC (`can_archive_records`) records `archived_at` / `archived_by` / `archive_reason`; archived `bin_items` are hidden from active count/intake views but preserved in transaction history (Entry 042). Prior: v2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -2195,3 +2195,147 @@ Verify with the Section 35e checklist.
 Append HANDOFF using Section 34/35f.
 End with the required Section 35g routing verdict.
 ```
+
+---
+
+## 36. Tool Catalogue (locked v2.17 — Entry 083)
+
+This section locks the foundation for logging company tools.
+
+The locked feature term is **Tool Catalogue**, not Tool Inventory. This phase is
+a catalogue/logging surface only. It is not a tool tracking, checkout, custody,
+transfer, vehicle-storage, QR-label, or history-ledger system.
+
+Because Tool Catalogue introduces a new Supabase table and RLS in a future
+implementation, it is Architecture-sensitive under Section 35. This section
+approves the shape; implementation must still follow the verification and
+inspection requirements below.
+
+### 36a. Schema Foundation
+
+The first implementation migration must create `public.tools` with this locked
+foundation:
+
+- `division_id uuid not null references divisions(id)`
+- `created_at timestamptz not null default now()`
+- `updated_at timestamptz not null default now()`
+- `archived_at timestamptz null`
+- `archived_by text null`
+- `archive_reason text null`
+- `tool_number text null`
+- `name text not null`
+- `category text null`
+- `brand text null`
+- `model text null`
+- `serial_number text null`
+- `description text null`
+- `condition text null check (condition is null or condition in ('good', 'fair', 'poor', 'damaged', 'unknown'))`
+- `status text not null default 'active' check (status in ('active', 'inactive', 'retired', 'missing'))`
+- `home_location text null`
+- `current_location text null`
+- `assigned_to text null`
+- `purchase_date date null`
+- `notes text null`
+
+The first implementation migration must not add `purchase_price` or `vendor`.
+Those fields are deferred until future architecture clearance.
+
+The first implementation migration must add these indexes:
+
+- `tools_tool_number_unique` as a partial unique index on `tool_number` where
+  `tool_number is not null`.
+- `tools_serial_number_unique` as a partial unique index on `serial_number`
+  where `serial_number is not null`.
+
+Before writing the implementation migration, Codex must inspect the live repo
+migrations and confirm the existing `updated_at` trigger function name. The
+Tool Catalogue implementation must reuse the established project pattern for
+`updated_at`; Codex must not invent a parallel trigger function name.
+
+### 36b. RLS And Permissions
+
+RLS must be enabled on `public.tools`.
+
+Read access is locked to own-division rows or users with
+`can_view_all_divisions`.
+
+Write/create/edit/archive access is locked to `can_manage_inventory` within the
+user's authorized division scope.
+
+Hard delete is never allowed through the application.
+
+No new permission flags are introduced in this phase. Do not add
+`can_manage_tools`, `can_checkout_tools`, or any other tool-specific permission
+flag without future architecture clearance.
+
+`can_view_financials` is not a gate on Tool Catalogue fields, including
+`purchase_date`.
+
+Future implementation must inspect and match the existing user profile/RLS
+patterns, Clerk auth helper/function pattern, and `divisions` table shape before
+writing the migration.
+
+### 36c. Permitted First UI
+
+The first Tool Catalogue UI may include only:
+
+- a Tool Catalogue section/page;
+- search;
+- filters for category, status, and condition;
+- table/list view;
+- add tool form;
+- edit tool form;
+- archive action using soft archive only;
+- empty state;
+- optional table/card view toggle if it reuses existing UI patterns.
+
+The locked section title is:
+
+`Tool Catalogue`
+
+The locked helper note is:
+
+`Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle storage, and tracking history are reserved for future milestones.`
+
+### 36d. Deferred And Reserved Features
+
+The following features are reserved and require future architecture clearance:
+
+- tool checkout/check-in;
+- tool assignment history;
+- tool custody chain;
+- tool QR labels and scan pages;
+- tool transfers;
+- vehicle-bin tool storage;
+- employee-linked tool assignments;
+- job/project-linked tool assignments;
+- tool maintenance/inspection/calibration logs;
+- tool repair history;
+- purchase accounting/depreciation;
+- attachments/photos/receipts;
+- import/export as canonical accounting data;
+- tool-specific permission flags such as `can_manage_tools` or
+  `can_checkout_tools`;
+- tool transaction/history ledger;
+- tool audit table.
+
+Plain text placeholders `home_location`, `current_location`, and `assigned_to`
+are permitted in the foundation table only as catalogue notes. They do not
+create custody, transfer, checkout, employee assignment, vehicle/bin storage, or
+tracking-history behavior.
+
+### 36e. Implementation Sequence
+
+Future Tool Catalogue implementation must be completed in two steps:
+
+1. Migration first.
+2. UI second.
+
+The migration step must confirm the existing `updated_at` trigger function,
+user profile/RLS patterns, Clerk auth function, and `divisions` table shape
+before writing SQL.
+
+The UI step must consume the approved Tool Catalogue schema and must not add
+checkout, assignment history, QR labels, vehicle/bin linkage, job linkage,
+tracking history, audit table, tool-specific permission flags, purchase
+accounting, attachments, or canonical accounting import/export behavior.

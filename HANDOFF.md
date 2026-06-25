@@ -8103,3 +8103,124 @@ not require backend, schema, RLS, permission, or write-path changes.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.16, HANDOFF Entry 082).
+
+---
+
+## Entry 083 - Tool Catalogue Foundation locked (ARCHITECTURE v2.17, new Section 36)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Documentation / Tool Catalogue architecture doctrine
+**Session type:** implementation
+
+### Context
+Ryan requested a foundation for logging company tool inventory.
+
+The locked feature term is `Tool Catalogue`, not `Tool Inventory`. This phase
+is a catalogue/logging surface only, not a tracking/check-out system.
+
+Because this future feature introduces a new Supabase table and RLS, it is
+Architecture-sensitive under Section 35. Claude reviewed and approved the Tool
+Catalogue Foundation with edits. ChatGPT Rule 20 cross-cleared the adoption
+with corrected numbering, and Ryan authorized this adoption pass.
+
+Corrected numbering: Claude's draft referred to the Tool Catalogue entry as
+Entry 082, but Entry 082 already exists for the Selected Path count
+material-code search fix. Tool Catalogue adoption is Entry 083.
+
+### What Was Completed
+- Advanced ARCHITECTURE from v2.16 to v2.17.
+- Added new `## 36. Tool Catalogue (locked v2.17 — Entry 083)`.
+- Locked Tool Catalogue as a catalogue/logging foundation, not a checkout,
+  tracking, custody, transfer, QR-label, vehicle-storage, or history-ledger
+  system.
+- Locked the future `public.tools` schema foundation, including:
+  - `division_id` FK to `divisions(id)`;
+  - soft-archive columns;
+  - nullable `tool_number` and `serial_number`;
+  - required `name`;
+  - CHECK-constrained `condition` and `status`;
+  - plain text placeholder fields for `home_location`, `current_location`, and
+    `assigned_to`;
+  - deferred `purchase_price` and `vendor`.
+- Locked partial unique indexes for non-null `tool_number` and `serial_number`.
+- Locked future RLS/permission doctrine:
+  - read by own division or `can_view_all_divisions`;
+  - write/create/edit/archive by `can_manage_inventory` within division scope;
+  - hard delete never;
+  - no new permission flags in this phase;
+  - `can_view_financials` is not a Tool Catalogue field gate.
+- Locked the first permitted UI surface and helper copy.
+- Reserved checkout/check-in, assignment history, custody chain, QR labels,
+  scan pages, transfers, vehicle-bin tool storage, employee/job linked
+  assignments, maintenance/inspection/calibration logs, repair history,
+  purchase accounting/depreciation, attachments/photos/receipts, canonical
+  accounting import/export, tool-specific permission flags, tool ledger, and
+  tool audit table for future architecture clearance.
+- Appended this HANDOFF Entry 083.
+
+### Schema Changes
+- None in this pass.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.16 to v2.17.
+  - Added new Section 36 after Section 35.
+- `HANDOFF.md`
+  - Appended this Entry 083.
+- No app-code, migration, schema, RLS, permission, ledger, balance,
+  transaction, auth, or UI behavior changed in this docs-only pass.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.16 to v2.17.
+- Section 36 now canonically locks the Tool Catalogue Foundation.
+- HANDOFF remains gapless through Entry 083.
+
+### What Codex Needs to Know
+- Future Tool Catalogue implementation must be built in two steps:
+  1. Migration first.
+  2. UI second.
+- Before writing the migration, Codex must confirm:
+  - the existing `updated_at` trigger function name from live repo migrations;
+  - user profile/RLS patterns;
+  - Clerk auth helper/function pattern;
+  - `divisions` table shape.
+- Do not add `purchase_price` or `vendor` in the first Tool Catalogue
+  migration.
+- Do not add tool-specific permission flags, audit tables, tool ledgers,
+  attachments, checkout/check-in, QR labels, vehicle/bin linkage, job linkage,
+  assignment history, tracking history, custody chain, transfers, or purchase
+  accounting behavior without future architecture clearance.
+
+### What Claude Needs to Know
+- Claude reviewed and approved the Tool Catalogue Foundation with edits.
+- ChatGPT Rule 20 cross-cleared adoption with corrected numbering.
+- Entry 083 was used because Entry 082 was already consumed by the Selected
+  Path count material-code search fix.
+- No implementation, migration, RLS, permission, or runtime behavior was
+  changed in this pass.
+
+### Next Steps (in order)
+1. Future Codex implementation prompt should start with migration inspection:
+   updated_at trigger function, user profile/RLS pattern, Clerk auth helper, and
+   `divisions` table shape.
+2. Implement the locked Tool Catalogue migration.
+3. Implement the locked first Tool Catalogue UI surface only after the migration
+   shape is verified.
+
+### Open Questions / Concerns
+- None.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Tool Catalogue Foundation adoption.
+- No app-code, migration, schema, backend, RLS, permission, transaction, ledger,
+  balance, checkout, Count Intake, QR/scan, Accounting Export,
+  Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock, Express
+  Checkout, Manager Override, Tool Catalogue runtime behavior, cross-location
+  transfer, or multi-bin batch action behavior changed.
+
+### Routing Verdict
+No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.17, HANDOFF Entry 083).
