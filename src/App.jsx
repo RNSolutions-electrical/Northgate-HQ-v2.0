@@ -1060,9 +1060,7 @@ function matchesCountRowSearch(row, searchText) {
 
   const compactSearch = normalizeLocationSegment(searchText);
   const compactLocationCode = buildCompactLocationCode(row);
-  const isHierarchySearch = /^[a-z]\d{0,3}$/.test(compactSearch);
-  const searchableValues = isHierarchySearch ? getLocationSearchValues(row) : getCountRowSearchValues(row);
-  const tokenMatch = matchesTokenizedSearch([...searchableValues, compactLocationCode], searchText);
+  const tokenMatch = matchesTokenizedSearch([...getCountRowSearchValues(row), compactLocationCode], searchText);
   const compactLocationMatch = compactSearch ? compactLocationCode.startsWith(compactSearch) : false;
 
   return tokenMatch || compactLocationMatch;

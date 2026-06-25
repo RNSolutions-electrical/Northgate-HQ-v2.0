@@ -7916,3 +7916,190 @@ First-action checks were completed:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 080).
+
+---
+
+## Entry 081 - Standard Codex Operating Instructions adopted (ARCHITECTURE v2.16, new Section 35)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Documentation / coordination doctrine
+**Session type:** implementation
+
+### Context
+Ryan identified Codex prompt length and usage burn as a coordination problem.
+Claude reviewed the proposed Standard Codex Operating Instructions and applied
+five tightening edits. ChatGPT then Rule 20 cross-cleared the adoption, and Ryan
+authorized this adoption pass.
+
+This was a documentation / lock-document adoption task only. No app-code,
+schema, backend, RLS, permission, auth, transaction, ledger, inventory balance,
+checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, or Manager
+Override behavior was changed.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `435e259c66256eeda4efa8779d3f32bcc21a9469`.
+- The working tree was clean before changes, aside from the existing local
+  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15 before changes.
+- Section 34 was confirmed as the last ARCHITECTURE section before changes.
+- `HANDOFF.md` was confirmed gapless through Entry 080 before this append.
+- Standard Codex Operating Instructions were confirmed not already present in
+  ARCHITECTURE or HANDOFF before changes.
+
+### What Was Completed
+- Adopted Standard Codex Operating Instructions as standing operating doctrine.
+- Advanced ARCHITECTURE from v2.15 to v2.16.
+- Added new `## 35. Standard Codex Operating Instructions (locked v2.16 — Entry 081)`.
+- Added the v2.16 version-line clause describing:
+  - reusable task classification buckets;
+  - the Bucket 2 positive confirmation gate;
+  - protected-scope rules with Section 10a / v2.15 references for
+    cross-location transfers and multi-bin batch actions;
+  - explicit RLS-bypass prohibition;
+  - explicit direct `inventory_balances` write-path verification;
+  - standard start procedure;
+  - HANDOFF requirement;
+  - routing verdict;
+  - short-prompt footer.
+- Preserved the prior v2.15 version history text in the ARCHITECTURE version
+  line.
+- Added Section 35H as the canonical short footer future Codex prompts may use.
+- Appended this HANDOFF Entry 081.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.15 to v2.16.
+  - Added new Section 35 after Section 34.
+- `HANDOFF.md`
+  - Appended this Entry 081.
+- No `src/` files, migrations, Supabase files, package files, Clerk/auth files,
+  backend/RPC files, or app behavior files were changed.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.15 to v2.16.
+- New Section 35 is now locked as canonical Standard Codex Operating
+  Instructions.
+
+### What Codex Needs to Know
+- Future Codex prompts may use the Section 35H short footer instead of
+  restating the full operating instructions.
+- Codex must classify future tasks using Section 35B before coding.
+- Bucket 2 Existing-Flow Binding tasks require positive confirmation that the
+  existing flow accepts the new context without modification.
+- Protected scope is listed in Section 35C and must not be touched without an
+  existing lock or Claude routing.
+- Section 35E verification and Section 35G routing verdicts are now canonical.
+
+### What Claude Needs to Know
+- ChatGPT Rule 20 cross-cleared the v2.16 / Section 35 adoption before this
+  pass.
+- Ryan authorized adoption.
+- No source behavior or protected implementation scope changed.
+- This entry documents the adoption of coordination doctrine only.
+
+### Next Steps (in order)
+1. Future Codex prompts may reference the Section 35H short footer.
+2. Continue feature work under ARCHITECTURE v2.16 and HANDOFF Entry 081.
+3. Route any protected-scope or architecture-sensitive task through Claude per
+   Sections 30 and 35.
+
+### Open Questions / Concerns
+- None.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Standard Codex Operating Instructions adoption.
+- No app-code, schema, backend, RLS, permission, transaction, ledger, balance,
+  checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, cross-location transfer, or multi-bin batch action behavior changed.
+
+### Routing Verdict
+No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.16, HANDOFF Entry 081).
+
+---
+
+## Entry 082 - Selected Path count material-code search fixed
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory Count Intake / Selected Path search
+**Session type:** implementation
+
+### Context
+Ryan reported that Count Loaded Stock search finds material code `C222` as
+`3/4" EMT Compression Couplings`, while the Selected Path count tool returns no
+results for `C222`. Ryan clarified that searching by the actual material code
+also does not return the item in Selected Path count.
+
+Section 35 classification: Bucket 1 — Safe UI/client-side search/filter bugfix.
+The task was limited to already-loaded, already-authorized count rows and did
+not require backend, schema, RLS, permission, or write-path changes.
+
+### What Was Completed
+- Compared Count Loaded Stock / Grand Master search behavior against Selected
+  Path count search behavior.
+- Found that `matchesCountRowSearch` treated short hierarchy-looking search
+  values such as `C222` as location-only searches.
+- Updated the Selected Path count row matcher so count rows always include
+  material fields, including `material_code`, while preserving compact
+  location-code matching.
+- Preserved selected-path filters for storage unit, shelf, bay, bin, scan-bin
+  context, category, and Review Repeats.
+- Preserved Count Intake submission and write behavior.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added or changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated `matchesCountRowSearch` so token matching always searches
+    `getCountRowSearchValues(row)`, which includes `row.material_code`.
+  - Retained `compactLocationCode` and `compactLocationMatch` for selected-path
+    hierarchy searches.
+- `HANDOFF.md`
+  - Appended this Entry 082.
+
+### Verification
+- Confirmed `getCountRowSearchValues(row)` includes `row.material_code`.
+- Confirmed the Selected Path filters still run before the row search result is
+  returned.
+- Confirmed no broader fetch was added; `useInventoryCountSheet` was unchanged.
+- Confirmed no Count Intake submission/write hook changed.
+- Confirmed no Supabase, migration, backend, schema, RLS, permission, or
+  `inventory_balances` direct-write path changed.
+- `git diff -- src\hooks\useInventoryCountSheet.js src\hooks\useInventoryCountIntake.js src\hooks\useInventoryCountCorrection.js supabase`
+  returned no changes.
+- `npm.cmd run build` passed.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+- PowerShell blocked `npm run build` through `npm.ps1` because local script
+  execution is disabled; `npm.cmd run build` was used successfully instead.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Selected Path count material-code search bugfix.
+- No protected scope changed: schema, RLS, grants, permissions, backend/RPC,
+  Clerk/auth/login, inventory balance mutation logic, ledger behavior,
+  transaction tables, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin item retirement, QR payload, scan route
+  structure, transaction-history permissions, destination semantics, Accounting
+  Export, Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock,
+  Express Checkout, Manager Override, cross-location transfer behavior, and
+  multi-bin batch actions were untouched.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.16, HANDOFF Entry 082).

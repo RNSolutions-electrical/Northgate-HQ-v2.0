@@ -1,5 +1,5 @@
 # Northgate HQ v2 — Architecture Lock Document
-### Version 2.15 — Scan Destination Behavior locked in new Section 10a: resolving a location QR opens a division-scoped, location-scoped view and action entry point; scan pages dispatch into existing cart/checkout and `physical_count_correction` engines and must not reimplement cart, transaction, or balance logic; authentication is required before contents; resolution is server-resolved and fail-closed generically; inventory cost is open within authorized inventory scope; bin pages allow cart add/remove through the existing cart flow and count correction through `physical_count_correction`; unit/shelf/bay pages are read + navigation and actions occur at bin level; no generic ambiguous +/- controls; scan pages initiate no location-to-location movement and do not surface Transfer Location; multi-bin batch cart actions are reserved; label layout may vary by level through `label_templates.scope_level`; QR payload is unchanged; no new transaction type or balance-derivation change (Entry 062). Prior: v2.14 — Inventory module-completion milestone locked: Division-Scoped Read Rule added in new Section 17a; `can_view_all_divisions` added for read-only cross-division scope; cross-division access comes from Developer role default and Admin division default/effective permission, while Administrator role outside Admin division remains own-division unless individually granted; own-division-full and self-scoped read tiers locked; inventory cost is open within authorized inventory scope and `can_view_financials` is not used for inventory cost; QR payload and web scanner scope locked in Section 10; Label Template Designer and `label_templates` table locked in Section 25; Section 29 inventory build sequence updated for QR scanner and label designer; HANDOFF Entry 051/052 presentation order repaired under Rule 20 (Entry 056). Prior: v2.13 — bin_item retirement locked (Section 23): a mistakenly added material is archived (Rule 13 / Section 18), never hard-deleted; archival is a structural action (no ledger row, no quantity change) gated on a zero ledger-derived balance — a non-zero balance must first be zeroed via `physical_count_correction`; one Developer/Admin-only RPC (`can_archive_records`) records `archived_at` / `archived_by` / `archive_reason`; archived `bin_items` are hidden from active count/intake views but preserved in transaction history (Entry 042). Prior: v2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
+### Version 2.16 — Standard Codex Operating Instructions adopted (new Section 35): reusable task classification buckets (Safe UI/CSS, Existing-flow binding with positive confirmation gate, Architecture-sensitive); protected-scope rules with cross-location transfer and multi-bin batch action lock references (Section 10a, v2.15); explicit RLS-bypass prohibition in UI/client-side rule; explicit inventory_balances direct-write check in verification procedure; standard start procedure, HANDOFF requirement, routing verdict, and short-prompt footer. Rule 20 cross-cleared. (Entry 081). Prior: v2.15 — Scan Destination Behavior locked in new Section 10a: resolving a location QR opens a division-scoped, location-scoped view and action entry point; scan pages dispatch into existing cart/checkout and `physical_count_correction` engines and must not reimplement cart, transaction, or balance logic; authentication is required before contents; resolution is server-resolved and fail-closed generically; inventory cost is open within authorized inventory scope; bin pages allow cart add/remove through the existing cart flow and count correction through `physical_count_correction`; unit/shelf/bay pages are read + navigation and actions occur at bin level; no generic ambiguous +/- controls; scan pages initiate no location-to-location movement and do not surface Transfer Location; multi-bin batch cart actions are reserved; label layout may vary by level through `label_templates.scope_level`; QR payload is unchanged; no new transaction type or balance-derivation change (Entry 062). Prior: v2.14 — Inventory module-completion milestone locked: Division-Scoped Read Rule added in new Section 17a; `can_view_all_divisions` added for read-only cross-division scope; cross-division access comes from Developer role default and Admin division default/effective permission, while Administrator role outside Admin division remains own-division unless individually granted; own-division-full and self-scoped read tiers locked; inventory cost is open within authorized inventory scope and `can_view_financials` is not used for inventory cost; QR payload and web scanner scope locked in Section 10; Label Template Designer and `label_templates` table locked in Section 25; Section 29 inventory build sequence updated for QR scanner and label designer; HANDOFF Entry 051/052 presentation order repaired under Rule 20 (Entry 056). Prior: v2.13 — bin_item retirement locked (Section 23): a mistakenly added material is archived (Rule 13 / Section 18), never hard-deleted; archival is a structural action (no ledger row, no quantity change) gated on a zero ledger-derived balance — a non-zero balance must first be zeroed via `physical_count_correction`; one Developer/Admin-only RPC (`can_archive_records`) records `archived_at` / `archived_by` / `archive_reason`; archived `bin_items` are hidden from active count/intake views but preserved in transaction history (Entry 042). Prior: v2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: `'office'` is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release `'office'` correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
 ---
@@ -2003,3 +2003,195 @@ only if it is genuinely empty.
 
 The same template is mirrored at the top of `HANDOFF.md` so it is visible where
 entries are written. If the two ever disagree, this section governs.
+
+---
+
+## 35. Standard Codex Operating Instructions (locked v2.16 — Entry 081)
+
+This section defines the reusable operating doctrine for future Codex prompts.
+It exists to reduce prompt length, reduce repeated coordination cost, and keep
+Codex work aligned with this lock document.
+
+These instructions do not loosen any architectural rule. They summarize how
+Codex must classify routine work, when it may proceed, what scope is protected,
+what verification is required, and what routing verdict must be emitted.
+
+### 35a. Standard Start Procedure
+
+At the start of every Codex task in this repo, Codex must:
+
+1. Pull from `origin/main`.
+2. Confirm local `main` matches `origin/main`.
+3. Confirm the working tree is clean before changes.
+4. Confirm `docs/ARCHITECTURE.md` version and relevant locked sections.
+5. Confirm `HANDOFF.md` is gapless through the latest entry.
+6. Inspect the existing implementation before coding.
+7. Classify the task into one of the buckets in Section 35b.
+
+If any start-procedure check fails, Codex must stop and report the blocker
+instead of proceeding silently.
+
+### 35b. Task Classification Buckets
+
+Codex must classify each task before implementation.
+
+**Bucket 1 — Safe UI/CSS Task**
+
+Examples:
+
+- visual polish;
+- copy changes;
+- responsive layout fixes;
+- print CSS;
+- button labels;
+- client-side display improvements;
+- styling that does not change data access, permissions, or behavior.
+
+Codex may proceed without Claude when the task is limited to UI/CSS behavior and
+does not touch any protected scope in Section 35c.
+
+**Bucket 2 — Existing-Flow Binding Task**
+
+Examples:
+
+- adding a new entry point into an existing approved workflow;
+- passing context into an existing UI flow;
+- narrowing already-authorized rows client-side;
+- routing from a scan page into an already-built cart or count screen.
+
+Positive confirmation gate:
+
+Before Codex self-classifies a task as Bucket 2, Codex must confirm that the
+existing flow accepts the new entry point's context without modifying the
+approved flow, backend path, schema, RPC, permission model, transaction engine,
+ledger behavior, or balance behavior.
+
+If this cannot be confirmed, the task is not Bucket 2. Ambiguous cases default
+to Bucket 3.
+
+**Bucket 3 — Architecture-Sensitive Task**
+
+Any task that touches or arguably touches protected scope in Section 35c is
+Architecture-sensitive.
+
+Codex must route Bucket 3 work to Claude before implementation unless the exact
+decision has already been locked in this document and Codex is only implementing
+the already-approved shape without changing protected behavior.
+
+### 35c. Standard Protected-Scope Rules
+
+The following areas are protected scope. Codex must not change them unless the
+change is already locked or has been routed through Claude under Section 30:
+
+- Supabase schema;
+- migrations;
+- RLS policies;
+- grants;
+- permissions;
+- backend/RPC behavior;
+- Clerk/auth/login behavior;
+- inventory balance mutation logic;
+- ledger behavior;
+- `inventory_transactions`;
+- `transaction_items`;
+- checkout/finalization behavior;
+- Count Intake write path;
+- `physical_count_correction` RPC behavior;
+- bin item retirement behavior;
+- QR payload format;
+- scan route structure;
+- transaction history permissions;
+- destination semantics;
+- Accounting Export data authorization;
+- Financials/job-cost behavior;
+- Return-to-Inventory behavior;
+- buyout behavior;
+- vehicle-bin stock behavior;
+- Express Checkout behavior;
+- Manager Override behavior;
+- cross-location transfer behavior, including the Section 10a / v2.15 lock that
+  scan pages do not initiate location-to-location movement or surface Transfer
+  Location;
+- multi-bin batch action behavior, including the Section 10a / v2.15 lock that
+  multi-bin batch cart actions from hierarchy levels are reserved.
+
+Protected scope includes direct changes and indirect changes. A client-side
+shortcut that changes the practical behavior of a protected workflow is still a
+protected-scope change.
+
+### 35d. Standard UI/Client-Side Rule
+
+UI/client-side changes are allowed only when they operate on data and authority
+the user already has through the approved server-authoritative paths.
+
+Client-side filtering of already-loaded authorized rows is permitted.
+
+Fetching a broader set and filtering down client-side to simulate row-level
+access control is prohibited. That is an RLS bypass pattern and must not be used.
+
+Client-side state may carry workflow context, such as a scanned bin ID, only
+when the receiving flow already validates permissions and behavior through the
+approved server path.
+
+### 35e. Standard Verification Procedure
+
+For every implementation task, Codex must verify:
+
+1. `npm run build` passes when app code changed.
+2. `git diff --check` passes.
+3. Changed files are limited to the expected scope.
+4. No migration files were added unless explicitly authorized.
+5. No Supabase/RLS/grant/permission/backend behavior changed unless explicitly
+   authorized.
+6. No direct `inventory_balances` write path was added.
+7. No protected-scope behavior in Section 35c changed unless explicitly
+   authorized.
+8. If authenticated browser verification is unavailable, Codex must say so and
+   must not claim it.
+
+For documentation-only tasks, `npm run build` may be skipped, but Codex must
+state clearly that it was skipped because no app-code files changed.
+
+### 35f. Standard HANDOFF Requirement
+
+Every meaningful completed task must append exactly one new HANDOFF entry unless
+Ryan explicitly says the task is exploratory only and no project state changed.
+
+The HANDOFF entry must:
+
+- use the required Entry Format Standard from Section 34;
+- be appended only;
+- increment the previous entry number by one;
+- state task classification when relevant;
+- list files changed;
+- state verification results;
+- state whether Claude review was needed;
+- state whether any protected scope was touched;
+- carry forward or close architecture drift warnings honestly.
+
+### 35g. Standard Routing Verdict
+
+Every Codex final summary for project work must end with one routing verdict:
+
+- `No Claude review needed — within locked decisions (ARCHITECTURE v__, HANDOFF Entry __).`
+- `No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v__, HANDOFF Entry __).`
+- `Claude review required before proceeding — [trigger].`
+
+The verdict must use the current architecture version and the current latest
+HANDOFF entry after the task is logged.
+
+### 35h. Standard Short Footer for Future Codex Prompts
+
+Future Codex prompts may use this short footer instead of repeating the full
+operating instructions:
+
+```
+Use ARCHITECTURE.md Section 35 Standard Codex Operating Instructions.
+Classify the task before coding.
+Stay out of protected scope unless explicitly authorized and routed.
+For Bucket 2, confirm the existing flow accepts the new context without
+modification before proceeding.
+Verify with the Section 35e checklist.
+Append HANDOFF using Section 34/35f.
+End with the required Section 35g routing verdict.
+```
