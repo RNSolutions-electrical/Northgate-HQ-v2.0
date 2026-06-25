@@ -7722,3 +7722,197 @@ First-action checks were completed:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 078).
+
+---
+
+## Entry 080 - Milestone 5H.2 Bin Scan Count Correction Entry Point
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Scan destination action bindings
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5H.2: add a safe Count Correction entry point on
+bin-level scan destination pages so a field user who scans a bin can begin a
+count correction using the existing Inventory Count & Correction / Count Intake
+flow. The milestone was explicitly UI/client-side binding only and prohibited
+new schema, RPCs, permission changes, transaction engines, balance paths, count
+correction backend paths, QR payload changes, scan route structure changes, and
+all reserved workflows.
+
+The prior session summary referenced HANDOFF Entry 078 in its routing verdict
+even though Entry 079 had been appended. Before coding, HANDOFF was checked:
+Entry 079 is present and the file is gapless through Entry 079. The Entry
+078/079 mismatch was treated as a routing-reference typo, and this entry uses
+the correct latest handoff number after append.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `83d237056b79d2e655ef68068838c572ed82fed9`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 079 before this append.
+- The working tree was clean before changes, aside from the existing local
+  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- Architecture Sections 10, 10a, 11, 12, 17a, 23, 24, and 30 were checked for
+  QR, scan destination behavior, Count Intake, physical count correction,
+  transaction/balance, permission, and routing constraints.
+- The scan destination page, scan route parser, existing Inventory Count Intake
+  UI, `useInventoryCountIntake`, and existing count submission path were
+  inspected before coding.
+
+### What Was Completed
+- Added a bin-level scan page Count Correction action that appears only when
+  the resolved scan destination is a bin.
+- The action button text is:
+  `Correct count for this bin`.
+- The helper text states:
+  `Uses the existing Inventory Count & Correction flow. Inventory is not changed until the count correction is submitted through the approved path.`
+- The scan page action does not call any Supabase write RPC directly. It routes
+  to the existing dashboard Inventory Count tab with scanned-bin context in the
+  dashboard query string:
+  `/?inventoryTab=count&scanBinId=<bin_uuid>&scanBinCode=<display_code>`.
+- Extended the 5H.1 dashboard query parser so scanned-bin context is routed to
+  the Cart tab only for `inventoryTab=cart` and to the Count tab only for
+  `inventoryTab=count`.
+- Added `buildScanCountPath()` alongside the existing scan cart path helper.
+- Updated `InventoryCountIntakePanel` to accept scanned-bin context.
+- When opened from a scanned bin, the Count Intake screen:
+  - shows a scanned-bin context panel;
+  - preselects the scanned bin path when hierarchy data is loaded;
+  - narrows existing authorized count rows to the scanned `bin_id`;
+  - preserves existing search/category/repeat filters within that scanned-bin
+    context;
+  - provides `Show all count rows` to clear the scanned-bin context and return
+    to the normal count view.
+- Existing count submission behavior is reused unchanged:
+  - existing bin/material count rows still use the current `Record` /
+    `Record Count` controls;
+  - new catalog-item count intake still uses the selected bin in the existing
+    Count Intake form;
+  - submissions still go through `useInventoryCountIntake().recordCount()`;
+  - `useInventoryCountIntake().recordCount()` still calls the existing
+    `intake_inventory_count` RPC.
+- Added the required scanned-bin empty state:
+  `No authorized material rows were found for this scanned bin.`
+- Non-bin scan destinations do not show the bin-specific Count Correction
+  action.
+- Updated the scan page note to state that bin cart staging and count correction
+  use existing approved flows and do not change inventory until those workflows
+  are completed.
+- Updated the Development Status card:
+  - Most recent change:
+    `Milestone 5H.2 — Bin scan Count Correction entry point`;
+  - Related HANDOFF: `Entry 080`;
+  - Architecture: `v2.15`;
+  - Current step: `Scan destination action bindings`;
+  - Build marker: `Scan Count Correction build: 83d23705`.
+
+### Verification
+- `cmd /c npm run build` passed. Vite reported only the existing chunk-size
+  warning. An initial build attempt hit a transient Vite/Rolldown HTML emit path
+  error for `index.html`; an immediate rerun passed with no code changes.
+- `git diff --check` passed.
+- Changed source files before this HANDOFF append were limited to:
+  - `src/App.jsx`;
+  - `src/styles.css`.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no new Count Intake backend path,
+  `physical_count_correction` RPC behavior change, transaction engine, balance
+  mutation, cart checkout behavior, bin_item retirement, QR payload, scan route
+  structure, transaction-history permission, destination semantic, Accounting
+  Export behavior, or Financials/job-cost behavior changed.
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Imported `ClipboardCheck` for the Count Correction action button.
+  - Updated Development Status values for Milestone 5H.2.
+  - Added scanned-bin count route context parsing.
+  - Added `buildScanCountPath()`.
+  - Added `getCountPathFiltersForBin()`.
+  - Added `ScanBinCountEntry`.
+  - Rendered the bin-only Count Correction action on scan pages.
+  - Passed scanned-bin count context into `InventoryReadOnlyPanel` and
+    `InventoryCountIntakePanel`.
+  - Added scanned-bin filtering, path preselection, context panel, and
+    clear-context behavior to the existing Count Intake UI.
+- `src/styles.css`
+  - Added responsive styling for the scan Count Correction entry panel and the
+    scanned-bin count context panel.
+- `HANDOFF.md`
+  - Appended this Entry 080.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Bin-level scan pages now provide both:
+  - Add-to-Cart entry point from 5H.1;
+  - Count Correction entry point from 5H.2.
+- The Count Correction scan action is client-side navigation into the existing
+  Inventory Count tab with scanned-bin context. It does not submit counts from
+  the scan page.
+- All count writes remain in the pre-existing Count Intake UI and existing
+  `useInventoryCountIntake` / `intake_inventory_count` path.
+- The prior Entry 078/079 routing mismatch was a summary/reference typo; the
+  actual HANDOFF file is gapless and now continues through Entry 080.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase table, new RPC, RLS, grant, permission flag,
+  backend handler, backend action service, Clerk/auth, QR payload, scan route
+  structure, ledger, balance, cart checkout, Count Intake backend path,
+  `physical_count_correction` RPC behavior, bin_item retirement, destination
+  semantic, transaction-history permission, Accounting Export, Financials/job-
+  cost, Express Checkout, Manager Override, transfer, Return-to-Inventory,
+  buyout, or reserved feature behavior was changed.
+- This was a UI/client-side binding from the bin scan page into the already
+  approved Inventory Count & Correction / Count Intake workflow.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - scan or manually open a bin QR route;
+   - confirm only bin-level scan pages show
+     `Correct count for this bin`;
+   - click the action and confirm the dashboard opens Inventory -> Inventory
+     Count & Correction with the scanned-bin context panel visible;
+   - confirm the visible count rows are narrowed to the scanned bin;
+   - submit a count only through the existing Count Intake controls if desired;
+   - confirm non-bin scan pages do not show the bin-specific Count Correction
+     action.
+2. Keep any follow-up scan action work within the existing cart/checkout or
+   Count Intake / physical count correction engines unless Claude review is
+   triggered.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+- The Count tab still depends on the existing authorized count rows loaded
+  through `useInventoryCountSheet`; if a scanned bin has no authorized material
+  rows, the required empty state is shown and no workaround is attempted.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: bin-level scan Count Correction entry point.
+- RESERVED: schema/RLS/permission changes, new Count Intake backend paths,
+  physical count correction RPC changes, new transaction engines, direct
+  balance writes, cart checkout changes, bin_item retirement semantic changes,
+  QR payload changes, scan route structure changes, transaction-history
+  permission changes, destination semantic changes, Accounting Export behavior,
+  Financials/job-cost behavior, location-to-location transfers, multi-bin batch
+  actions, vehicle-bin stock onboarding, Return-to-Inventory, buyout, Express
+  Checkout, Manager Override, backend handlers, backend action services, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 080).

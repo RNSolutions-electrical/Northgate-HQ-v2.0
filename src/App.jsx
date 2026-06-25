@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Camera, CameraOff, Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { Camera, CameraOff, ClipboardCheck, Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
@@ -65,12 +65,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5H.1 — Bin scan Add-to-Cart entry point',
-  relatedHandoff: 'Entry 079',
+  mostRecentChange: 'Milestone 5H.2 — Bin scan Count Correction entry point',
+  relatedHandoff: 'Entry 080',
   architectureVersion: 'v2.15',
   currentStep: 'Scan destination action bindings',
-  buildMarker: 'Scan Add-to-Cart build: 2491ff28',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5H.1 UI code is present in the loaded build.',
+  buildMarker: 'Scan Count Correction build: 83d23705',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5H.2 UI code is present in the loaded build.',
 };
 
 const COUNT_INTAKE_HELP_ITEMS = [
@@ -396,20 +396,23 @@ function getDashboardInventoryRouteContext(path) {
     const requestedTab = url.searchParams.get('inventoryTab') ?? '';
     const binId = url.searchParams.get('scanBinId') ?? '';
     const binCode = url.searchParams.get('scanBinCode') ?? '';
+    const scanBinContext = binId
+      ? {
+        binId,
+        binCode,
+      }
+      : null;
 
     return {
       requestedInventoryTab: INVENTORY_TABS.has(requestedTab) ? requestedTab : '',
-      scanCartContext: binId
-        ? {
-          binId,
-          binCode,
-        }
-        : null,
+      scanCartContext: requestedTab === 'cart' ? scanBinContext : null,
+      scanCountContext: requestedTab === 'count' ? scanBinContext : null,
     };
   } catch {
     return {
       requestedInventoryTab: '',
       scanCartContext: null,
+      scanCountContext: null,
     };
   }
 }
@@ -675,6 +678,14 @@ function buildScanCartPath(record) {
   return `/?${params.toString()}`;
 }
 
+function buildScanCountPath(record) {
+  const params = new URLSearchParams({ inventoryTab: 'count' });
+  if (record?.id) params.set('scanBinId', record.id);
+  const displayCode = getLocationDisplayCode(record);
+  if (displayCode) params.set('scanBinCode', displayCode);
+  return `/?${params.toString()}`;
+}
+
 function sortByPositionThenCode(first, second, codeKey) {
   return Number(first.position ?? 0) - Number(second.position ?? 0)
     || String(first[codeKey] ?? '').localeCompare(String(second[codeKey] ?? ''));
@@ -824,6 +835,22 @@ function getScanRowsForBin(bin, rows) {
 function getRowsForScanScope(model, rows) {
   if (!model?.locationRecord) return [];
   return getRowsForLocation(model.locationRecord, rows);
+}
+
+function getCountPathFiltersForBin(binId, countSheet) {
+  const bin = countSheet.bins.find((record) => record.id === binId);
+  if (!bin) return null;
+
+  const bay = countSheet.bays.find((record) => record.id === bin.bay_id) ?? null;
+  const shelf = bay ? countSheet.shelves.find((record) => record.id === bay.shelf_id) ?? null : null;
+  const storageUnit = shelf ? countSheet.storageUnits.find((record) => record.id === shelf.unit_id) ?? null : null;
+
+  return {
+    storage_unit_id: storageUnit?.id ?? '',
+    shelf_id: shelf?.id ?? '',
+    bay_id: bay?.id ?? '',
+    bin_id: bin.id,
+  };
 }
 
 function formatQuantitySummary(value) {
@@ -2465,6 +2492,43 @@ function ScanBinCartEntry({ model, rows, permissions, navigateTo }) {
   );
 }
 
+function ScanBinCountEntry({ model, rows, permissions, navigateTo }) {
+  if (model?.scopeType !== 'bin') return null;
+
+  const binRows = getScanRowsForBin(model.bin, rows);
+  const canUseCountCorrection = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const scannedBinLabel = model.locationRecord?.path || getLocationDisplayCode(model.locationRecord);
+
+  return (
+    <section className="cart-panel scan-count-entry-panel">
+      <div className="scan-cart-entry-copy">
+        <p className="eyebrow">Count action</p>
+        <h3>{scannedBinLabel || 'Scanned bin'}</h3>
+        <p>Uses the existing Inventory Count & Correction flow. Inventory is not changed until the count correction is submitted through the approved path.</p>
+      </div>
+
+      {binRows.length ? (
+        <div className="scan-cart-entry-actions">
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!canUseCountCorrection}
+            onClick={() => navigateTo(buildScanCountPath(model.locationRecord))}
+          >
+            <ClipboardCheck aria-hidden="true" />
+            Correct count for this bin
+          </button>
+          {!canUseCountCorrection ? <span className="muted">can_manage_inventory is required for count correction.</span> : null}
+        </div>
+      ) : (
+        <EmptyState title="No material rows">
+          No authorized material rows were found for this scanned bin.
+        </EmptyState>
+      )}
+    </section>
+  );
+}
+
 function ScanBinGroup({ bin, rows, navigateTo }) {
   const binRecord = {
     id: bin.id,
@@ -2753,7 +2817,7 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
       <div className="location-note">
         <MapPin aria-hidden="true" />
         <span>
-          Scan pages dispatch into existing inventory workflows. Bin cart staging uses the existing cart checkout flow and does not change inventory until checkout is completed.
+          Scan pages dispatch into existing inventory workflows. Bin cart staging and count correction use the existing approved flows and do not change inventory until those workflows are completed.
         </span>
       </div>
 
@@ -2780,6 +2844,13 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
           </div>
 
           <ScanBinCartEntry
+            model={scanModel}
+            rows={locationRows}
+            permissions={permissions}
+            navigateTo={navigateTo}
+          />
+
+          <ScanBinCountEntry
             model={scanModel}
             rows={locationRows}
             permissions={permissions}
@@ -4498,7 +4569,7 @@ function InventoryCountCorrectionPanel({ permissions }) {
   );
 }
 
-function InventoryCountIntakePanel({ permissions }) {
+function InventoryCountIntakePanel({ permissions, scanCountContext = null }) {
   const canReadCounts = permissions.permissionSource === 'server' && permissions.canManageInventory;
   const canWriteCounts = canReadCounts && isDeveloperOrAdminRole(permissions.role);
   const canRetireBinItems = canReadCounts && isDeveloperOrAdminRole(permissions.role) && permissions.canArchiveRecords;
@@ -4528,6 +4599,7 @@ function InventoryCountIntakePanel({ permissions }) {
     reason: 'initial shelf count',
     customReason: '',
   });
+  const [scanBinFilter, setScanBinFilter] = useState(scanCountContext?.binId ? scanCountContext : null);
   const normalizedSearch = normalizeSearchText(search);
   const normalizedNewItemSearch = newItemSearch.trim().toLowerCase();
   const selectedUnit = countSheet.storageUnits.find((unit) => unit.id === filters.storage_unit_id) ?? null;
@@ -4559,6 +4631,7 @@ function InventoryCountIntakePanel({ permissions }) {
     .sort((first, second) => first.label.localeCompare(second.label));
   const repeatReview = useMemo(() => buildRepeatReview(countSheet.rows), [countSheet.rows]);
   const baseFilteredRows = countSheet.rows.filter((row) => {
+    if (scanBinFilter?.binId && row.bin_id !== scanBinFilter.binId) return false;
     if (filters.storage_unit_id && row.storage_unit_id !== filters.storage_unit_id) return false;
     if (filters.shelf_id && row.shelf_id !== filters.shelf_id) return false;
     if (filters.bay_id && row.bay_id !== filters.bay_id) return false;
@@ -4576,6 +4649,7 @@ function InventoryCountIntakePanel({ permissions }) {
     ? countSheet.rows.filter((row) => row.bin_id === filters.bin_id)
     : [];
   const countPrintFilterSummary = [
+    scanBinFilter ? `Scanned bin: ${scanBinFilter.binCode || scanBinFilter.binId}` : null,
     selectedPathLabel ? `Selected path: ${selectedPathLabel}` : null,
     search.trim() ? `Search: ${search.trim()}` : null,
     filters.category ? `Category: ${filters.category}` : null,
@@ -4595,6 +4669,31 @@ function InventoryCountIntakePanel({ permissions }) {
     })
     .slice(0, 80);
   const selectedHistoryRow = countSheet.rows.find((row) => row.bin_item_id === selectedHistoryBinItemId) ?? null;
+
+  useEffect(() => {
+    if (scanCountContext?.binId) {
+      setScanBinFilter(scanCountContext);
+      setSearch('');
+      setNewItemSearch('');
+    }
+  }, [scanCountContext?.binId, scanCountContext?.binCode]);
+
+  useEffect(() => {
+    if (!scanBinFilter?.binId) {
+      return;
+    }
+
+    const nextPath = getCountPathFiltersForBin(scanBinFilter.binId, countSheet);
+    if (!nextPath) {
+      return;
+    }
+
+    setFilters((current) => ({
+      ...current,
+      ...nextPath,
+      category: '',
+    }));
+  }, [scanBinFilter?.binId, countSheet.bins, countSheet.bays, countSheet.shelves, countSheet.storageUnits]);
 
   function getCountDraft(row) {
     return countDrafts[row.bin_item_id] ?? {
@@ -4655,6 +4754,11 @@ function InventoryCountIntakePanel({ permissions }) {
       bin_id: '',
       category: '',
     });
+  }
+
+  function clearScanBinFilter() {
+    setScanBinFilter(null);
+    clearFilters();
   }
 
   function printCountSheet() {
@@ -4865,6 +4969,19 @@ function InventoryCountIntakePanel({ permissions }) {
             {canWriteCounts ? 'Developer/Admin intake' : 'Read only'}
           </span>
         </div>
+
+        {scanBinFilter ? (
+          <div className="scan-count-context-panel">
+            <div>
+              <p className="eyebrow">Scanned bin</p>
+              <h3>{selectedPathLabel || scanBinFilter.binCode || scanBinFilter.binId}</h3>
+              <p>Uses the existing Inventory Count & Correction flow. Inventory is not changed until the count correction is submitted through the approved path.</p>
+            </div>
+            <button type="button" className="secondary-button" onClick={clearScanBinFilter}>
+              Show all count rows
+            </button>
+          </div>
+        ) : null}
 
         <div className="count-toolbar count-path-toolbar">
           <label>
@@ -5329,7 +5446,9 @@ function InventoryCountIntakePanel({ permissions }) {
           </>
         ) : (
           <EmptyState title="No count rows">
-            No active bin/material rows match the current search, path, category, and repeat filters.
+            {scanBinFilter && !countSheet.rows.some((row) => row.bin_id === scanBinFilter.binId)
+              ? 'No authorized material rows were found for this scanned bin.'
+              : 'No active bin/material rows match the current search, path, category, and repeat filters.'}
           </EmptyState>
         )}
       </section>
@@ -6005,7 +6124,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   );
 }
 
-function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', scanCartContext = null }) {
+function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', scanCartContext = null, scanCountContext = null }) {
   const [activeTab, setActiveTab] = useState(INVENTORY_TABS.has(requestedTab) ? requestedTab : 'grand-master');
   const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
   const counts = inventory.model.counts;
@@ -6099,7 +6218,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
         />
       ) : null}
       {activeTab === 'count' ? (
-        <InventoryCountIntakePanel permissions={permissions} />
+        <InventoryCountIntakePanel permissions={permissions} scanCountContext={scanCountContext} />
       ) : null}
       {activeTab === 'transactions' ? <TransactionHistoryPanel permissions={permissions} /> : null}
 
@@ -6203,6 +6322,7 @@ function Dashboard() {
           navigateTo={navigateTo}
           requestedTab={dashboardRouteContext.requestedInventoryTab}
           scanCartContext={dashboardRouteContext.scanCartContext}
+          scanCountContext={dashboardRouteContext.scanCountContext}
         />
       </section>
       )}
