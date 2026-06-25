@@ -32,6 +32,18 @@ const TRANSACTION_TYPE_FILTER_OPTIONS = [
   { value: 'physical_count_correction', label: 'Physical Count Correction' },
   { value: 'add_stock', label: 'Add Stock' },
 ];
+const INVENTORY_TABS = new Set([
+  'grand-master',
+  'accounting-export',
+  'catalog',
+  'storage',
+  'locations',
+  'scan',
+  'labels',
+  'cart',
+  'count',
+  'transactions',
+]);
 const COUNT_REASON_OPTIONS = [
   { value: 'initial shelf count', label: 'Initial shelf count' },
   { value: 'cycle count', label: 'Cycle count' },
@@ -53,12 +65,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5G.3 - Accounting Export grouping / totals / print polish',
-  relatedHandoff: 'Entry 076',
+  mostRecentChange: 'Milestone 5H.1 — Bin scan Add-to-Cart entry point',
+  relatedHandoff: 'Entry 079',
   architectureVersion: 'v2.15',
-  currentStep: 'Accounting Export review modes',
-  buildMarker: 'Accounting export grouping build: 2026-06-24.3',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5G.3 UI code is present in the loaded build.',
+  currentStep: 'Scan destination action bindings',
+  buildMarker: 'Scan Add-to-Cart build: 2491ff28',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5H.1 UI code is present in the loaded build.',
 };
 
 const COUNT_INTAKE_HELP_ITEMS = [
@@ -378,6 +390,30 @@ function useBrowserPath() {
   return [path, navigateTo];
 }
 
+function getDashboardInventoryRouteContext(path) {
+  try {
+    const url = new URL(path || '/', 'https://northgate.local');
+    const requestedTab = url.searchParams.get('inventoryTab') ?? '';
+    const binId = url.searchParams.get('scanBinId') ?? '';
+    const binCode = url.searchParams.get('scanBinCode') ?? '';
+
+    return {
+      requestedInventoryTab: INVENTORY_TABS.has(requestedTab) ? requestedTab : '',
+      scanCartContext: binId
+        ? {
+          binId,
+          binCode,
+        }
+        : null,
+    };
+  } catch {
+    return {
+      requestedInventoryTab: '',
+      scanCartContext: null,
+    };
+  }
+}
+
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
 }
@@ -629,6 +665,14 @@ function getLocationRecordTitle(record) {
   if (!record) return 'Unknown location';
   const displayCode = getLocationDisplayCode(record);
   return `${record.typeLabel}: ${displayCode}`;
+}
+
+function buildScanCartPath(record) {
+  const params = new URLSearchParams({ inventoryTab: 'cart' });
+  if (record?.id) params.set('scanBinId', record.id);
+  const displayCode = getLocationDisplayCode(record);
+  if (displayCode) params.set('scanBinCode', displayCode);
+  return `/?${params.toString()}`;
 }
 
 function sortByPositionThenCode(first, second, codeKey) {
@@ -2383,6 +2427,44 @@ function ScanMaterialRows({ rows, emptyTitle, emptyText }) {
   );
 }
 
+function ScanBinCartEntry({ model, rows, permissions, navigateTo }) {
+  if (model?.scopeType !== 'bin') return null;
+
+  const binRows = getScanRowsForBin(model.bin, rows)
+    .filter((row) => Number(row.quantity_on_hand ?? row.system_quantity ?? 0) > DEFAULT_CANDIDATE_QUANTITY);
+  const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
+  const scannedBinLabel = model.locationRecord?.path || getLocationDisplayCode(model.locationRecord);
+
+  return (
+    <section className="cart-panel scan-cart-entry-panel">
+      <div className="scan-cart-entry-copy">
+        <p className="eyebrow">Bin action</p>
+        <h3>{scannedBinLabel || 'Scanned bin'}</h3>
+        <p>Uses the existing cart checkout flow. Inventory is not changed until checkout is completed.</p>
+      </div>
+
+      {binRows.length ? (
+        <div className="scan-cart-entry-actions">
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!canUseCart}
+            onClick={() => navigateTo(buildScanCartPath(model.locationRecord))}
+          >
+            <ShoppingCart aria-hidden="true" />
+            Add material from this bin to cart
+          </button>
+          {!canUseCart ? <span className="muted">can_inventory_transactions is required for cart staging.</span> : null}
+        </div>
+      ) : (
+        <EmptyState title="No stocked material">
+          No authorized stocked material was found for this scanned bin.
+        </EmptyState>
+      )}
+    </section>
+  );
+}
+
 function ScanBinGroup({ bin, rows, navigateTo }) {
   const binRecord = {
     id: bin.id,
@@ -2574,7 +2656,7 @@ function ScanScopedContents({ model, rows, navigateTo }) {
       <ScanMaterialRows
         rows={binRows}
         emptyTitle="No contents in this bin"
-        emptyText="The scanned bin resolved, but the existing read path returned no active material rows in this bin."
+        emptyText="No authorized stocked material was found for this scanned bin."
       />
     );
   }
@@ -2671,7 +2753,7 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
       <div className="location-note">
         <MapPin aria-hidden="true" />
         <span>
-          Scan result actions are read-first in this version. Cart staging and count correction will be wired to existing engines in a later milestone.
+          Scan pages dispatch into existing inventory workflows. Bin cart staging uses the existing cart checkout flow and does not change inventory until checkout is completed.
         </span>
       </div>
 
@@ -2696,6 +2778,13 @@ function LocationScanResult({ permissions, locationId, navigateTo }) {
             <span>Material rows in scope: {locationRows.length}</span>
             <span>Total quantity in scope: {totalQuantity.toFixed(2)}</span>
           </div>
+
+          <ScanBinCartEntry
+            model={scanModel}
+            rows={locationRows}
+            permissions={permissions}
+            navigateTo={navigateTo}
+          />
 
           <ScanHierarchyNavigation model={scanModel} locationSheet={locationSheet} navigateTo={navigateTo} />
 
@@ -5251,7 +5340,7 @@ function InventoryCountIntakePanel({ permissions }) {
   );
 }
 
-function CartScaffold({ permissions, cartCandidates, destinationReferences, onInventoryReload }) {
+function CartScaffold({ permissions, cartCandidates, destinationReferences, onInventoryReload, scanCartContext = null }) {
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
   const [applyAllDestination, setApplyAllDestination] = useState({
@@ -5265,14 +5354,20 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   const [candidateRowMessages, setCandidateRowMessages] = useState({});
   const [addAllProgress, setAddAllProgress] = useState(null);
   const [isAddingAllCandidates, setIsAddingAllCandidates] = useState(false);
+  const [scanBinFilter, setScanBinFilter] = useState(scanCartContext?.binId ? scanCartContext : null);
   const canUseCart = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const cart = cartState.cart;
   const cartDraftKey = getCartDestinationDraftKey(cart?.cart_id);
   const cartIsActive = cart?.status === 'active';
   const cartIsCheckedOut = cart?.status === 'checked_out' || cartState.checkoutResult?.status === 'checked_out';
   const normalizedCandidateSearch = candidateSearch.trim().toLowerCase();
-  const candidateItems = cartCandidates
-    .filter((candidate) => Number(candidate.quantity_on_hand ?? 0) > DEFAULT_CANDIDATE_QUANTITY)
+  const hasScanBinFilter = Boolean(scanBinFilter?.binId);
+  const stockedCandidateItems = cartCandidates
+    .filter((candidate) => Number(candidate.quantity_on_hand ?? 0) > DEFAULT_CANDIDATE_QUANTITY);
+  const scanFilteredCandidateItems = hasScanBinFilter
+    ? stockedCandidateItems.filter((candidate) => candidate.bin_id === scanBinFilter.binId)
+    : stockedCandidateItems;
+  const candidateItems = scanFilteredCandidateItems
     .filter((candidate) => {
       if (!normalizedCandidateSearch) {
         return true;
@@ -5284,6 +5379,13 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         candidate.bin_code,
       ].some((value) => String(value ?? '').toLowerCase().includes(normalizedCandidateSearch));
     });
+
+  useEffect(() => {
+    if (scanCartContext?.binId) {
+      setScanBinFilter(scanCartContext);
+      setCandidateSearch('');
+    }
+  }, [scanCartContext?.binId, scanCartContext?.binCode]);
 
   useEffect(() => {
     if (!cartDraftKey) {
@@ -5500,6 +5602,11 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     setAddAllProgress(null);
   }
 
+  function clearScanBinFilter() {
+    setScanBinFilter(null);
+    setCandidateQuantityMessage('Showing all stocked bin candidates.');
+  }
+
   async function handleAddAllCandidates() {
     if (!cart?.cart_id || !cartIsActive) {
       return;
@@ -5677,7 +5784,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
       <div className="cart-scaffold__body">
         <section className="cart-panel">
           <div className="cart-panel__toolbar">
-            <h3>Stocked Bin Candidates</h3>
+            <h3>{hasScanBinFilter ? 'Scanned Bin Candidates' : 'Stocked Bin Candidates'}</h3>
             <div className="cart-panel__toolbar-actions">
               <label className="cart-search">
                 <span>Search</span>
@@ -5710,6 +5817,18 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
               </button>
             </div>
           </div>
+          {hasScanBinFilter ? (
+            <div className="scan-cart-context-panel">
+              <div>
+                <p className="eyebrow">Scanned bin</p>
+                <h3>{scanBinFilter.binCode || scanBinFilter.binId}</h3>
+                <p>Uses the existing cart checkout flow. Inventory is not changed until checkout is completed.</p>
+              </div>
+              <button type="button" className="secondary-button" onClick={clearScanBinFilter}>
+                Show all stocked bins
+              </button>
+            </div>
+          ) : null}
           {selectedCandidateCount === 0 ? (
             <p className="muted">Enter quantities greater than 0 to enable Add All.</p>
           ) : null}
@@ -5755,8 +5874,10 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
               })}
             </div>
           ) : (
-            <EmptyState title="No stocked candidates">
-              No stocked bin items match the current picker filters.
+            <EmptyState title={hasScanBinFilter && !scanFilteredCandidateItems.length ? 'No stocked material' : 'No stocked candidates'}>
+              {hasScanBinFilter && !scanFilteredCandidateItems.length
+                ? 'No authorized stocked material was found for this scanned bin.'
+                : 'No stocked bin items match the current picker filters.'}
             </EmptyState>
           )}
           {candidateQuantityMessage ? <p className="muted">{candidateQuantityMessage}</p> : null}
@@ -5884,10 +6005,16 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   );
 }
 
-function InventoryReadOnlyPanel({ permissions, navigateTo }) {
-  const [activeTab, setActiveTab] = useState('grand-master');
+function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', scanCartContext = null }) {
+  const [activeTab, setActiveTab] = useState(INVENTORY_TABS.has(requestedTab) ? requestedTab : 'grand-master');
   const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
   const counts = inventory.model.counts;
+
+  useEffect(() => {
+    if (INVENTORY_TABS.has(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
 
   return (
     <article className="card card--wide">
@@ -5968,6 +6095,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo }) {
           cartCandidates={inventory.model.cartCandidates}
           destinationReferences={inventory.model.destinationReferences}
           onInventoryReload={inventory.reload}
+          scanCartContext={scanCartContext}
         />
       ) : null}
       {activeTab === 'count' ? (
@@ -6004,6 +6132,10 @@ function Dashboard() {
   const permissions = usePermissions();
   const [browserPath, navigateTo] = useBrowserPath();
   const scanRoute = parseLocationScanPayload(browserPath);
+  const dashboardRouteContext = useMemo(
+    () => getDashboardInventoryRouteContext(browserPath),
+    [browserPath],
+  );
 
   return (
     <main className="app-shell">
@@ -6066,7 +6198,12 @@ function Dashboard() {
           </div>
         </article>
 
-        <InventoryReadOnlyPanel permissions={permissions} navigateTo={navigateTo} />
+        <InventoryReadOnlyPanel
+          permissions={permissions}
+          navigateTo={navigateTo}
+          requestedTab={dashboardRouteContext.requestedInventoryTab}
+          scanCartContext={dashboardRouteContext.scanCartContext}
+        />
       </section>
       )}
     </main>

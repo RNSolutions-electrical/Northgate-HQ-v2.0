@@ -7535,3 +7535,190 @@ First-action checks were completed:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 077).
+
+---
+
+## Entry 079 - Milestone 5H.1 Bin Scan Add-to-Cart Entry Point
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Scan destination action bindings
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5H.1: add a safe Add-to-Cart entry point on
+bin-level scan destination pages so a field user who scans a bin can begin
+adding material from that scanned bin through the existing cart/checkout flow.
+The milestone was explicitly UI/client-side binding only and prohibited new
+schema, RPC, permission, transaction, checkout, balance, QR payload, route
+structure, transfer, return, buyout, Express Checkout, or Manager Override
+behavior.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `2491ff28841e856072f4050c0616287a57303641`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 078.
+- The working tree was clean before changes, aside from the existing local
+  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- Architecture Sections 10, 10a, 11, 17a, 23, 24, and 30 were checked for QR,
+  scan destination behavior, cart/checkout, transaction/balance, permission,
+  count-correction, and routing constraints.
+- The scan destination page, scan route parser, existing cart candidate picker,
+  `useInventoryCart`, and the approved cart RPC path were inspected before
+  coding.
+
+### What Was Completed
+- Added a bin-level scan page action card that appears only when the resolved
+  scan destination is a bin.
+- The action button text is:
+  `Add material from this bin to cart`.
+- The helper text states:
+  `Uses the existing cart checkout flow. Inventory is not changed until checkout is completed.`
+- The scan page action does not call any Supabase write RPC directly. It routes
+  to the existing dashboard Inventory Cart tab with scanned-bin context in the
+  dashboard query string:
+  `/?inventoryTab=cart&scanBinId=<bin_uuid>&scanBinCode=<display_code>`.
+- Added dashboard query parsing so `inventoryTab=cart` opens the existing Cart
+  Checkout tab and passes scanned-bin context into the already-built
+  `CartScaffold`.
+- Updated `CartScaffold` to use scanned-bin context as a client-side candidate
+  filter by existing `bin_id`.
+- The existing cart/add-to-cart flow is reused unchanged:
+  - users still open a cart through the existing `open_inventory_cart` RPC;
+  - users still enter quantities in the existing stocked-bin candidate picker;
+  - adding still calls `useInventoryCart().addItem()`;
+  - `useInventoryCart().addItem()` still calls the existing
+    `add_inventory_cart_item` RPC;
+  - checkout/finalization remains in the existing Cart Destinations area and
+    existing `finalize_inventory_cart` path.
+- Added a scanned-bin context panel inside the Cart tab so the user can see the
+  scanned bin, understand that checkout is unchanged, and clear the scanned-bin
+  filter to show all stocked candidates.
+- Added the required empty state for scanned bins with no authorized stocked
+  rows:
+  `No authorized stocked material was found for this scanned bin.`
+- Non-bin scan destinations do not show the bin-specific Add-to-Cart action.
+- Updated the scan page note to state that scan pages dispatch into existing
+  inventory workflows and that bin cart staging does not change inventory until
+  checkout.
+- Increased the existing authorized cart candidate read window in the frontend
+  read hook from 50 to 1000 rows so a scanned-bin filter is not accidentally
+  starved by the prior preview limit. This still reads from the existing
+  `inventory_cart_candidates_view` and does not change authorization.
+- Updated the Development Status card:
+  - Most recent change:
+    `Milestone 5H.1 — Bin scan Add-to-Cart entry point`;
+  - Related HANDOFF: `Entry 079`;
+  - Architecture: `v2.15`;
+  - Current step: `Scan destination action bindings`;
+  - Build marker: `Scan Add-to-Cart build: 2491ff28`.
+
+### Verification
+- `cmd /c npm run build` passed. Vite reported only the existing chunk-size
+  warning.
+- `git diff --check` passed. Git emitted a line-ending normalization warning
+  for `src/hooks/useInventoryReadModel.js`; the actual diff in that file is one
+  query-limit line.
+- Changed source files before this HANDOFF append were limited to:
+  - `src/App.jsx`;
+  - `src/hooks/useInventoryReadModel.js`;
+  - `src/styles.css`.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no cart engine, transaction engine, balance mutation,
+  checkout/finalization, Count Intake write path, physical count correction,
+  bin_item retirement, QR payload, scan route structure, transaction-history
+  permission, destination semantic, Accounting Export authorization, or
+  Financials/job-cost behavior changed.
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added dashboard inventory query parsing for cart tab/scanned-bin context.
+  - Added `buildScanCartPath()`.
+  - Added `ScanBinCartEntry`.
+  - Added bin-only scan action rendering.
+  - Passed scanned-bin context into `InventoryReadOnlyPanel` and `CartScaffold`.
+  - Added scanned-bin filtering and clear-filter behavior inside the existing
+    cart candidate picker.
+  - Updated Development Status card values for Milestone 5H.1.
+- `src/hooks/useInventoryReadModel.js`
+  - Increased the existing authorized cart candidate read limit from 50 to
+    1000 rows.
+- `src/styles.css`
+  - Added responsive styling for the scan Add-to-Cart entry panel and scanned
+    cart context panel.
+- `HANDOFF.md`
+  - Appended this Entry 079.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Bin-level scan pages now provide a UI entry point into the existing cart flow.
+- The scan page itself does not stage a cart line, create a transaction, mutate
+  inventory balances, or finalize checkout.
+- The handoff from scan page to cart is client-side navigation to the dashboard
+  cart tab with scanned-bin context. The Cart tab then filters the existing
+  authorized cart candidate list by `bin_id`.
+- All cart writes remain through the pre-existing `useInventoryCart` hook and
+  existing cart RPCs.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase table, new RPC, RLS, grant, permission flag,
+  backend handler, backend action service, Clerk/auth, QR payload, scan route
+  structure, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantic,
+  transaction-history permission, Accounting Export authorization,
+  Financials/job-cost, Express Checkout, Manager Override, transfer,
+  Return-to-Inventory, buyout, or reserved feature behavior was changed.
+- This was a UI/client-side binding from the bin scan page into the already
+  approved cart/add-to-cart workflow.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - scan or manually open a bin QR route;
+   - confirm only bin-level scan pages show
+     `Add material from this bin to cart`;
+   - click the action and confirm the dashboard opens Inventory -> Cart
+     Checkout with the scanned bin context panel visible;
+   - open a cart through the existing cart button;
+   - enter quantity on an authorized stocked material from that bin;
+   - confirm Add uses the existing cart line workflow and inventory is not
+     changed until checkout;
+   - confirm non-bin scan pages do not show the bin-specific action.
+2. Keep any follow-up scan action work within the existing cart/checkout or
+   count-correction engines unless Claude review is triggered.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+- The Cart tab still depends on the existing authorized
+  `inventory_cart_candidates_view`; if a scanned bin has no authorized stocked
+  row in that view, the empty state is shown and no workaround is attempted.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: bin-level scan Add-to-Cart entry point.
+- RESERVED: schema/RLS/permission changes, new cart engines, new transaction
+  engines, direct balance writes, checkout/finalization changes, Count Intake
+  write path changes, physical count correction changes, bin_item retirement
+  semantic changes, QR payload changes, scan route structure changes,
+  transaction-history permission changes, destination semantic changes,
+  Accounting Export authorization changes, Financials/job-cost behavior,
+  location-to-location transfers, multi-bin batch actions, vehicle-bin stock
+  onboarding, Return-to-Inventory, buyout, Express Checkout, Manager Override,
+  backend handlers, backend action services, and all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 078).

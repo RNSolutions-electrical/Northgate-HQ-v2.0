@@ -105,6 +105,13 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .scan-location-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; color: #cbd5e1; }
 .scan-location-summary span { border: 1px solid rgba(148,163,184,.14); border-radius: .8rem; background: rgba(15,23,42,.48); padding: .65rem; overflow-wrap: anywhere; }
 .scan-contents-panel { background: rgba(15,23,42,.38); }
+.scan-cart-entry-panel, .scan-cart-context-panel { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid rgba(34,197,94,.28); border-radius: 1rem; background: rgba(20,83,45,.18); padding: .85rem; }
+.scan-cart-entry-copy, .scan-cart-context-panel > div { display: grid; gap: .25rem; min-width: 0; }
+.scan-cart-entry-copy h3, .scan-cart-context-panel h3 { margin: 0; overflow-wrap: anywhere; }
+.scan-cart-entry-copy p, .scan-cart-context-panel p { margin: 0; color: #bbf7d0; }
+.scan-cart-entry-actions { display: grid; gap: .45rem; justify-items: end; flex: 0 0 auto; }
+.scan-cart-entry-actions .primary-button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+.scan-cart-entry-actions .primary-button svg { width: 1rem; height: 1rem; flex: 0 0 auto; }
 .scan-contents-table { min-width: 760px; }
 .scan-contents-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .scan-mobile-list { display: none; }
@@ -288,7 +295,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .scan-location-summary { grid-template-columns: 1fr; }
   .scan-group-header { align-items: stretch; flex-direction: column; }
   .cart-candidate { align-items: stretch; flex-direction: column; }
-  .cart-candidate__actions, .cart-panel__toolbar, .cart-panel__toolbar-actions { align-items: stretch; flex-direction: column; }
+  .cart-candidate__actions, .cart-panel__toolbar, .cart-panel__toolbar-actions, .scan-cart-entry-panel, .scan-cart-context-panel { align-items: stretch; flex-direction: column; }
+  .scan-cart-entry-actions { justify-items: stretch; }
   .cart-picker-summary { grid-template-columns: 1fr; }
   .cart-search input, .quantity-field input { width: 100%; }
   .cart-actions { flex-direction: column; }
