@@ -306,7 +306,14 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .count-table { min-width: 0; color: #111827; }
   .count-table th, .count-table td { border-color: #d1d5db; color: #111827; }
   .count-table input { border: 1px solid #9ca3af; color: #111827; background: #fff; }
-  .count-print-sheet { display: block !important; color: #111827; background: #fff; font-size: 9px; }
+  .dashboard-grid:has(.count-print-sheet) { display: block !important; gap: 0 !important; min-height: 0 !important; background: #fff !important; padding: 0 !important; }
+  .dashboard-grid:has(.count-print-sheet) > .card:not(:has(.count-print-sheet)) { display: none !important; }
+  .card.card--wide:has(.count-print-sheet) { display: block !important; gap: 0 !important; min-height: 0 !important; border: 0 !important; box-shadow: none !important; background: #fff !important; padding: 0 !important; }
+  .card.card--wide:has(.count-print-sheet) > :not(.count-workspace) { display: none !important; }
+  .count-workspace > :not(.count-print-sheet) { display: none !important; }
+  .count-workspace,
+  .count-print-sheet { display: block !important; min-height: 0 !important; border: 0 !important; box-shadow: none !important; background: #fff !important; padding: 0 !important; }
+  .count-print-sheet { color: #111827; font-size: 9px; }
   .count-print-header { display: grid; gap: .08in; margin-bottom: .15in; }
   .count-print-header h1 { margin: 0; font-size: 16px; line-height: 1.1; }
   .count-print-header div { display: flex; gap: .25in; font-size: 9px; }

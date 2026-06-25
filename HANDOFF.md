@@ -7401,3 +7401,137 @@ First-action checks were completed:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 076).
+
+---
+
+## Entry 078 - Targeted Inventory Count Print Parent Card CSS Fix
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Inventory Count print polish
+**Session type:** implementation
+
+### Context
+Ryan reported that Inventory Count & Correction print/export output still
+showed the same large dark-blue parent-card/filler box after the count
+sheet/table content. Accounting Export print had already been fixed with a
+targeted parent-card print CSS selector, and the request was to apply the same
+principle to Inventory Count while preserving normal screen layout.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `d45d5310dfa6d0c2fbe44d968b2aeb4865fb8f8a`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 077.
+- The working tree was clean before changes, aside from a local git-ignore
+  permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- The recent Accounting Export print CSS fix was inspected before editing.
+- The Inventory Count print button, `.count-print-sheet`, `.count-workspace`,
+  and parent Inventory wrapper path were inspected before editing.
+
+### What Was Completed
+- Identified the actual Inventory Count print parent/wrapper source as
+  `InventoryReadOnlyPanel`'s `<article className="card card--wide">`, with the
+  active count tab mounting `.count-workspace` and `.count-print-sheet` inside
+  that parent card.
+- Added a targeted `@media print` CSS fix scoped to Inventory Count print
+  output using the mounted count print sheet as the selector hook:
+  - `.dashboard-grid:has(.count-print-sheet)`;
+  - `.dashboard-grid:has(.count-print-sheet) > .card:not(:has(.count-print-sheet))`;
+  - `.card.card--wide:has(.count-print-sheet)`;
+  - `.card.card--wide:has(.count-print-sheet) > :not(.count-workspace)`;
+  - `.count-workspace > :not(.count-print-sheet)`.
+- The Inventory parent `.card.card--wide` chrome/background is now neutralized
+  for Inventory Count print output only.
+- Non-print dashboard cards, parent-card children, controls, history panel,
+  app chrome, card backgrounds, shadows, filler spacing, and count workspace
+  siblings are hidden/neutralized for Inventory Count print output.
+- The dedicated Inventory Count printable sheet remains visible with white
+  background, no border, no shadow, zero print padding, and no filler
+  min-height.
+- The existing Accounting Export print fix was preserved and not changed.
+- Blank page space after printable content remains intentional.
+
+### Verification
+- `npm.cmd run build` passed. A direct `npm run build` invocation was blocked
+  by local PowerShell script execution policy before the build started, so the
+  Windows npm command shim was used.
+- `git diff --check` passed.
+- Changed source files were limited to `src/styles.css` before this HANDOFF
+  append.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no inventory balance, ledger, checkout/finalization,
+  Count Intake write path, count correction, bin_item retirement, QR/scan,
+  transaction-history permission, destination semantic, Accounting Export
+  authorization, or Financials/job-cost behavior changed.
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, backend print
+  services, or database indexes were added.
+
+### Code / File Changes
+- `src/styles.css`
+  - Added targeted Inventory Count print CSS to hide/neutralize the wide
+    Inventory parent card chrome, sibling dashboard cards, and non-print count
+    workspace children.
+- `HANDOFF.md`
+  - Appended this Entry 078.
+- No app data logic, count write logic, Accounting Export behavior, backend
+  files, hooks/services, package files, schema, RLS, grants, or RPC definitions
+  were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- The dark-blue Inventory Count print box was a print-layout artifact from the
+  parent `.card.card--wide` Inventory wrapper and surrounding dashboard/card
+  chrome remaining in the print layout around `.count-print-sheet`.
+- The fix is CSS-only and print-scoped to the mounted Inventory Count print
+  sheet.
+- Accounting Export print behavior was preserved.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, backend export job,
+  backend print service, storage, QR payload, scan destination, ledger, balance,
+  checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history permissions, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost visibility, Accounting Export
+  authorization, Financials/job-cost, or reserved feature behavior was changed.
+- This was a targeted UI/CSS print fix for Inventory Count.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - open Inventory -> Inventory Count & Correction;
+   - click `Print Count Sheet`;
+   - confirm print output shows only the Inventory Count printable sheet/table;
+   - confirm the large dark-blue parent card/filler box is gone;
+   - confirm blank page space after content is white/empty.
+2. If further print polish is needed, keep follow-up changes UI/CSS-only.
+
+### Open Questions / Concerns
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: targeted Inventory Count print parent-card CSS
+  bugfix.
+- RESERVED: backend export jobs, backend print services, schema/RLS/permission
+  changes, inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, Count Intake write path changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Accounting Export authorization
+  changes, Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 077).
