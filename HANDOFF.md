@@ -8331,3 +8331,129 @@ pass.
 
 ### Routing Verdict
 No Claude review needed — Rule 20 cross-cleared correction applied (ARCHITECTURE v2.18, HANDOFF Entry 084).
+
+---
+
+## Entry 085 - Tool Catalogue Migration Foundation (Milestone 5I.1)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Tool Catalogue / migration foundation
+**Session type:** implementation
+
+### Context
+Milestone 5I.1 is the first runtime implementation step for Tool Catalogue.
+ARCHITECTURE v2.18 Section 36 locks the corrected migration foundation:
+migration first, UI second, `public.tools` with `division text not null`, and
+no divisions table / UUID division normalization.
+
+Classification: Architecture-sensitive implementation of an already-cleared
+Section 36 design.
+
+Before writing SQL, Codex confirmed the existing repo conventions:
+- updated_at trigger function: `touch_user_permissions_updated_at()`;
+- Clerk convention: `auth.jwt() ->> 'sub'`;
+- user ID column: `user_permissions.clerk_user_id`;
+- division column: `user_permissions.division`;
+- permission function: `public.effective_permissions_for_user(up.role, up.division, up.permission_overrides)`;
+- permission flags: `can_view_all_divisions`, `can_manage_inventory`.
+
+### What Was Completed
+- Added migration `supabase/migrations/202606250001_tool_catalogue_foundation.sql`.
+- Created the canonical `public.tools` table foundation.
+- Used `division text not null`; no `division_id` field and no `divisions`
+  table were introduced.
+- Added `condition` CHECK constraint with allowed values `good`, `fair`,
+  `poor`, `damaged`, `unknown`, or null.
+- Added `status` CHECK constraint with allowed values `active`, `inactive`,
+  `retired`, and `missing`, defaulting to `active`.
+- Added partial unique indexes:
+  - `tools_tool_number_unique` on `tool_number` where non-null;
+  - `tools_serial_number_unique` on `serial_number` where non-null.
+- Added `trg_touch_tools_updated_at` using the existing
+  `touch_user_permissions_updated_at()` trigger function.
+- Enabled RLS on `public.tools`.
+- Added RLS policies:
+  - `tools_division_select` for own-division reads or
+    `can_view_all_divisions`;
+  - `tools_inventory_manager_insert` for `can_manage_inventory` within the
+    user's own division;
+  - `tools_inventory_manager_update` for `can_manage_inventory` within the
+    user's own division.
+- Granted only `SELECT`, `INSERT`, and `UPDATE` on `public.tools` to
+  authenticated users.
+- Did not create a DELETE policy or DELETE grant.
+- No UI was built.
+- No reserved tool-tracking features were added.
+
+### Schema Changes
+- Added new table `public.tools`.
+- Added two partial unique indexes on `public.tools`.
+- Added one `updated_at` trigger on `public.tools`.
+- Enabled RLS and added new RLS policies only for `public.tools`.
+- No existing tables, existing RLS policies, grants, permissions, RPCs,
+  inventory balances, ledger behavior, transaction behavior, checkout behavior,
+  Count Intake behavior, QR/scan behavior, Accounting Export behavior,
+  Financials/job-cost behavior, Return-to-Inventory, buyout, vehicle-bin stock,
+  Express Checkout, Manager Override, or existing Inventory behavior changed.
+
+### Code / File Changes
+- `supabase/migrations/202606250001_tool_catalogue_foundation.sql`
+  - New migration for the Tool Catalogue foundation.
+- `HANDOFF.md`
+  - Appended this Entry 085.
+- No `src/` files, package files, existing migrations, hooks, services,
+  routes, tabs, forms, or UI files were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 085.
+
+### What Codex Needs to Know
+- Tool Catalogue migration foundation now exists.
+- The next implementation step is the Tool Catalogue UI.
+- UI work must consume the approved `public.tools` schema and must not add
+  checkout/check-in, assignment history, custody chain, QR labels, scan pages,
+  transfers, vehicle/bin linkage, job linkage, maintenance logs, repair
+  history, purchase accounting/depreciation, attachments/photos/receipts,
+  canonical accounting import/export, tool-specific permission flags, a tool
+  ledger, a tool audit table, `division_id`, or a `divisions` table.
+
+### What Claude Needs to Know
+- This pass implemented the already-cleared v2.18 Section 36 migration
+  foundation.
+- No UI or reserved Tool Catalogue runtime behavior was built.
+- No existing schema/RLS/permission behavior changed.
+- Supabase CLI was unavailable in this local environment, so local/live
+  migration application was not performed and is not claimed.
+
+### Next Steps (in order)
+1. Apply or verify the new migration in the target Supabase environment.
+2. Build the locked Tool Catalogue UI surface.
+3. Keep reserved Tool Catalogue features out of the UI until future
+   architecture clearance.
+
+### Open Questions / Concerns
+- Supabase local/live migration verification was not completed because the
+  `supabase` CLI was not available in this environment.
+- `npm run build` was blocked by PowerShell script execution policy, so
+  `npm.cmd run build` was used successfully.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Tool Catalogue migration foundation.
+- RESERVED: UI, checkout/check-in, assignment history, custody chain, QR labels,
+  scan pages, transfers, vehicle-bin tool storage, employee-linked
+  assignments, job/project-linked assignments, maintenance/inspection/
+  calibration logs, repair history, purchase accounting/depreciation,
+  attachments/photos/receipts, canonical accounting import/export,
+  tool-specific permission flags, tool ledger, tool audit table, divisions
+  table, and UUID-based division normalization.
+- No protected inventory behavior changed: inventory balances, ledger,
+  transaction behavior, checkout/finalization, Count Intake, QR/scan behavior,
+  Accounting Export, Financials/job-cost, Return-to-Inventory, buyout,
+  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
+  behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — implementing locked Tool Catalogue Foundation (ARCHITECTURE v2.18, HANDOFF Entry 085).
