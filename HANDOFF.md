@@ -8224,3 +8224,110 @@ material-code search fix. Tool Catalogue adoption is Entry 083.
 
 ### Routing Verdict
 No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.17, HANDOFF Entry 083).
+
+---
+
+## Entry 084 - Section 36 Tool Catalogue division correction (ARCHITECTURE v2.18)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Documentation / Tool Catalogue architecture correction
+**Session type:** implementation
+
+### Context
+Codex correctly stopped during Tool Catalogue migration preflight for Milestone
+5I.1 before writing a migration.
+
+The blocker was that Section 36 required
+`division_id uuid not null references divisions(id)`, but the current repo
+migration chain does not define `public.divisions` or a UUID division
+convention.
+
+Existing app convention uses `division text`, including
+`user_permissions.division` and `items.division`.
+
+Claude reviewed and approved correcting Section 36. ChatGPT Rule 20
+cross-cleared the correction, and Ryan authorized this docs-only correction
+pass.
+
+### What Was Completed
+- Advanced ARCHITECTURE from v2.17 to v2.18.
+- Corrected Section 36 so the Tool Catalogue first migration uses
+  `division text not null`.
+- Replaced the stale `division_id uuid not null references divisions(id)`
+  requirement for the Tool Catalogue first migration.
+- Clarified that Tool Catalogue RLS must use the existing text-division
+  convention:
+  - `user_permissions.division`;
+  - `items.division`;
+  - `auth.jwt() ->> 'sub'`;
+  - `user_permissions.clerk_user_id`;
+  - `effective_permissions_for_user(...)`;
+  - `can_view_all_divisions`;
+  - `can_manage_inventory`.
+- Added `divisions` table / UUID-based division normalization to the reserved
+  future architecture list.
+- Preserved the rest of the Tool Catalogue foundation: single `public.tools`
+  table, text CHECK constraints for `condition` and `status`, partial unique
+  indexes, soft archive, no new permission flags, no audit table, no
+  attachments, and reserved tracking/checkout features.
+- Appended this HANDOFF Entry 084.
+
+### Schema Changes
+- None in this pass.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.17 to v2.18.
+  - Corrected Section 36 to use `division text not null`.
+  - Reserved divisions table / UUID-based division normalization for a future
+    architecture-cleared milestone.
+- `HANDOFF.md`
+  - Appended this Entry 084.
+- No app-code, migration, schema, RLS, permission, ledger, balance,
+  transaction, auth, or UI behavior changed in this docs-only correction.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.17 to v2.18.
+- Section 36 now matches the current app schema convention for division scope.
+- HANDOFF remains gapless through Entry 084.
+
+### What Codex Needs to Know
+- Next step is Milestone 5I.1 Tool Catalogue Migration Foundation using the
+  corrected Section 36 schema.
+- The first Tool Catalogue migration must use `division text not null`, not
+  `division_id uuid references divisions(id)`.
+- Do not introduce a `divisions` table or UUID-based division normalization as
+  part of Tool Catalogue. That is reserved for a dedicated
+  architecture-cleared milestone.
+- Future Tool Catalogue RLS must follow the existing text-division convention
+  and Clerk/user-permissions pattern.
+
+### What Claude Needs to Know
+- The v2.17 Section 36 division FK assumption was corrected through Rule 20.
+- ChatGPT cross-cleared the correction.
+- No implementation, migration, RLS, permission, or runtime behavior changed in
+  this pass.
+
+### Next Steps (in order)
+1. Resume Milestone 5I.1 Tool Catalogue Migration Foundation.
+2. Inspect existing migrations for the `updated_at` trigger function and
+   text-division RLS conventions.
+3. Create the Tool Catalogue migration using `division text not null`.
+
+### Open Questions / Concerns
+- None.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Section 36 Tool Catalogue division correction.
+- No app-code, migration, schema, backend, RLS, permission, transaction, ledger,
+  balance, checkout, Count Intake, QR/scan, Accounting Export,
+  Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock, Express
+  Checkout, Manager Override, Tool Catalogue runtime behavior, cross-location
+  transfer, or multi-bin batch action behavior changed.
+
+### Routing Verdict
+No Claude review needed — Rule 20 cross-cleared correction applied (ARCHITECTURE v2.18, HANDOFF Entry 084).
