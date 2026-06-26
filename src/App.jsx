@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Archive, Camera, CameraOff, ClipboardCheck, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, ShieldCheck, ShoppingCart, Wrench } from 'lucide-react';
+import { Archive, Camera, CameraOff, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
@@ -66,13 +66,25 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5I.3 - Dashboard width / layout usability pass',
-  relatedHandoff: 'Entry 087',
+  mostRecentChange: 'Milestone 5I.4 - Dev-only Layout Tuner',
+  relatedHandoff: 'Entry 088',
   architectureVersion: 'v2.18',
-  currentStep: 'Layout usability',
-  buildMarker: '3f85fe7',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5I.3 layout code is present in the loaded build.',
+  currentStep: 'Dev-only layout tuner',
+  buildMarker: '07a2f44',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5I.4 layout tuner code is present in the loaded build.',
 };
+
+const LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
+const LAYOUT_TUNER_FIELDS = [
+  { key: 'appContentMax', cssName: '--app-content-max', label: 'Content max', min: 1200, max: 2600, step: 20, unit: 'px', defaultValue: 1600 },
+  { key: 'appContentVw', cssName: '--app-content-vw', label: 'Content viewport width', min: 88, max: 98, step: 1, unit: 'vw', defaultValue: 96 },
+  { key: 'appPageGutter', cssName: '--app-page-gutter', label: 'Page gutter', min: 12, max: 56, step: 2, unit: 'px', defaultValue: 16 },
+  { key: 'dashboardCardGap', cssName: '--dashboard-card-gap', label: 'Dashboard card gap', min: 8, max: 32, step: 1, unit: 'px', defaultValue: 16 },
+  { key: 'dashboardCardPadding', cssName: '--dashboard-card-padding', label: 'Dashboard card padding', min: 12, max: 32, step: 1, unit: 'px', defaultValue: 18 },
+  { key: 'denseTableFontSize', cssName: '--dense-table-font-size', label: 'Dense table font size', min: 0.78, max: 1, step: 0.01, unit: 'rem', defaultValue: 1 },
+  { key: 'denseTableCellPaddingY', cssName: '--dense-table-cell-padding-y', label: 'Table cell padding Y', min: 4, max: 12, step: 1, unit: 'px', defaultValue: 12 },
+  { key: 'denseTableCellPaddingX', cssName: '--dense-table-cell-padding-x', label: 'Table cell padding X', min: 6, max: 16, step: 1, unit: 'px', defaultValue: 12 },
+];
 
 const TOOL_CATALOGUE_HELPER_COPY = 'Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle storage, and tracking history are reserved for future milestones.';
 const TOOL_CATALOGUE_EMPTY_NOTE = 'Add tools here as a catalogue only. Checkout, assignments, QR labels, and tracking history are reserved for future milestones.';
@@ -487,6 +499,61 @@ function getDashboardInventoryRouteContext(path) {
       scanCountContext: null,
     };
   }
+}
+
+function hasLayoutTunerFlag(path) {
+  try {
+    const url = new URL(path || '/', 'https://northgate.local');
+    return url.searchParams.get('layoutTuner') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function getLayoutTunerDefaults() {
+  return Object.fromEntries(LAYOUT_TUNER_FIELDS.map((field) => [field.key, field.defaultValue]));
+}
+
+function normalizeLayoutTunerValues(values) {
+  const defaults = getLayoutTunerDefaults();
+  return LAYOUT_TUNER_FIELDS.reduce((next, field) => {
+    const numericValue = Number(values?.[field.key]);
+    const fallback = defaults[field.key];
+    const boundedValue = Number.isFinite(numericValue)
+      ? Math.min(field.max, Math.max(field.min, numericValue))
+      : fallback;
+    next[field.key] = boundedValue;
+    return next;
+  }, {});
+}
+
+function readLayoutTunerValues() {
+  if (typeof window === 'undefined') return getLayoutTunerDefaults();
+  try {
+    const stored = window.localStorage.getItem(LAYOUT_TUNER_STORAGE_KEY);
+    return normalizeLayoutTunerValues(stored ? JSON.parse(stored) : null);
+  } catch {
+    return getLayoutTunerDefaults();
+  }
+}
+
+function applyLayoutTunerValues(values) {
+  if (typeof document === 'undefined') return;
+  LAYOUT_TUNER_FIELDS.forEach((field) => {
+    document.documentElement.style.setProperty(field.cssName, `${values[field.key]}${field.unit}`);
+  });
+}
+
+function clearLayoutTunerInlineValues() {
+  if (typeof document === 'undefined') return;
+  LAYOUT_TUNER_FIELDS.forEach((field) => {
+    document.documentElement.style.removeProperty(field.cssName);
+  });
+}
+
+function buildLayoutTunerCss(values) {
+  const lines = LAYOUT_TUNER_FIELDS.map((field) => `  ${field.cssName}: ${values[field.key]}${field.unit};`);
+  return [':root {', ...lines, '}'].join('\n');
 }
 
 function getCartDestinationDraftKey(cartId) {
@@ -6798,6 +6865,136 @@ function DevelopmentStatusCard() {
   );
 }
 
+function LayoutTuner() {
+  const [values, setValues] = useState(() => readLayoutTunerValues());
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [copyMessage, setCopyMessage] = useState('');
+
+  useEffect(() => {
+    applyLayoutTunerValues(values);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const defaults = getLayoutTunerDefaults();
+        const isDefault = LAYOUT_TUNER_FIELDS.every((field) => Number(values[field.key]) === Number(defaults[field.key]));
+        if (isDefault) {
+          window.localStorage.removeItem(LAYOUT_TUNER_STORAGE_KEY);
+        } else {
+          window.localStorage.setItem(LAYOUT_TUNER_STORAGE_KEY, JSON.stringify(values));
+        }
+      } catch (error) {
+        console.warn('Layout tuner storage unavailable', error);
+      }
+    }
+
+    return () => {
+      clearLayoutTunerInlineValues();
+    };
+  }, [values]);
+
+  function updateValue(field, value) {
+    const numericValue = Number(value);
+    const nextValue = Number.isFinite(numericValue)
+      ? Math.min(field.max, Math.max(field.min, numericValue))
+      : field.defaultValue;
+    setValues((current) => ({ ...current, [field.key]: nextValue }));
+    setCopyMessage('');
+  }
+
+  function resetValues() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(LAYOUT_TUNER_STORAGE_KEY);
+    }
+    setValues(getLayoutTunerDefaults());
+    setIsCollapsed(false);
+    setCopyMessage('Defaults restored.');
+  }
+
+  async function copyCss() {
+    const cssSnippet = buildLayoutTunerCss(values);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(cssSnippet);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = cssSnippet;
+        textArea.setAttribute('readonly', '');
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopyMessage('CSS copied.');
+    } catch (error) {
+      console.warn('Layout tuner copy failed', error);
+      setCopyMessage('Copy failed. Select the CSS preview manually.');
+    }
+  }
+
+  return (
+    <aside className={`layout-tuner${isCollapsed ? ' layout-tuner--collapsed' : ''}`} aria-label="Layout Tuner">
+      <div className="layout-tuner__header">
+        <div>
+          <p className="eyebrow">Dev Tool</p>
+          <h2>Layout Tuner</h2>
+        </div>
+        <button type="button" className="secondary-button" onClick={() => setIsCollapsed((current) => !current)}>
+          <SlidersHorizontal aria-hidden="true" /> {isCollapsed ? 'Open' : 'Collapse'}
+        </button>
+      </div>
+
+      {!isCollapsed ? (
+        <>
+          <p className="layout-tuner__note">
+            Local preview only. Values are saved in this browser and do not change production defaults until committed.
+          </p>
+
+          <div className="layout-tuner__controls">
+            {LAYOUT_TUNER_FIELDS.map((field) => (
+              <label className="layout-tuner__field" key={field.key}>
+                <span>
+                  {field.label}
+                  <strong>{values[field.key]}{field.unit}</strong>
+                </span>
+                <input
+                  type="range"
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                  value={values[field.key]}
+                  onChange={(event) => updateValue(field, event.target.value)}
+                />
+                <input
+                  type="number"
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                  value={values[field.key]}
+                  onChange={(event) => updateValue(field, event.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+
+          <pre className="layout-tuner__css">{buildLayoutTunerCss(values)}</pre>
+
+          <div className="layout-tuner__actions">
+            <button type="button" className="secondary-button" onClick={copyCss}>
+              <Copy aria-hidden="true" /> Copy CSS
+            </button>
+            <button type="button" className="secondary-button" onClick={resetValues}>
+              <RotateCcw aria-hidden="true" /> Reset
+            </button>
+          </div>
+          {copyMessage ? <p className="layout-tuner__message">{copyMessage}</p> : null}
+        </>
+      ) : null}
+    </aside>
+  );
+}
+
 function Dashboard() {
   const { user } = useUser();
   const permissions = usePermissions();
@@ -6807,6 +7004,7 @@ function Dashboard() {
     () => getDashboardInventoryRouteContext(browserPath),
     [browserPath],
   );
+  const layoutTunerEnabled = hasLayoutTunerFlag(browserPath);
 
   return (
     <main className="app-shell">
@@ -6878,6 +7076,7 @@ function Dashboard() {
         />
       </section>
       )}
+      {layoutTunerEnabled ? <LayoutTuner /> : null}
     </main>
   );
 }

@@ -1,7 +1,15 @@
 :root {
   color: #e5edf8;
   background: #020617;
-  --app-content-width: min(96vw, 1600px);
+  --app-content-max: 1600px;
+  --app-content-vw: 96vw;
+  --app-page-gutter: 16px;
+  --dashboard-card-gap: 16px;
+  --dashboard-card-padding: 18px;
+  --dense-table-font-size: 1rem;
+  --dense-table-cell-padding-y: 12px;
+  --dense-table-cell-padding-x: 12px;
+  --app-content-width: min(var(--app-content-vw), var(--app-content-max));
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -26,13 +34,13 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 
 .app-shell { min-height: 100vh; color: #e5edf8; }
 .app-header { border-bottom: 1px solid rgba(148,163,184,.18); background: rgba(15,23,42,.86); }
-.app-header__inner { width: var(--app-content-width); margin: 0 auto; padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.app-header__inner { width: var(--app-content-width); margin: 0 auto; padding: var(--app-page-gutter); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .eyebrow { margin: 0; color: #94a3b8; font-size: .75rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; }
 .app-title { margin: .3rem 0 0; font-size: clamp(1.65rem, 5vw, 2.6rem); line-height: 1.05; }
 .build-note { margin: .55rem 0 0; color: #64748b; font-size: .78rem; }
-.app-main { width: var(--app-content-width); margin: 0 auto; padding: 1rem; }
-.dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
-.card { border: 1px solid rgba(148,163,184,.18); border-radius: 1.25rem; background: rgba(15,23,42,.88); box-shadow: 0 16px 48px rgba(2,6,23,.28); padding: 1.1rem; }
+.app-main { width: var(--app-content-width); margin: 0 auto; padding: var(--app-page-gutter); }
+.dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--dashboard-card-gap); }
+.card { border: 1px solid rgba(148,163,184,.18); border-radius: 1.25rem; background: rgba(15,23,42,.88); box-shadow: 0 16px 48px rgba(2,6,23,.28); padding: var(--dashboard-card-padding); }
 .card--wide { grid-column: 1 / -1; }
 .card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
 .card h2, .card h3 { margin: 0; }
@@ -148,8 +156,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .scan-group-header h4 { margin: .12rem 0 .2rem; font-size: 1rem; }
 .scan-group-header span { color: #94a3b8; font-size: .82rem; overflow-wrap: anywhere; }
 .table-wrap { overflow-x: auto; border: 1px solid rgba(148,163,184,.16); border-radius: 1rem; }
-.data-table { width: 100%; border-collapse: collapse; min-width: 680px; }
-.data-table th, .data-table td { padding: .78rem; border-bottom: 1px solid rgba(148,163,184,.12); text-align: left; vertical-align: top; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 680px; font-size: var(--dense-table-font-size); }
+.data-table th, .data-table td { padding: var(--dense-table-cell-padding-y) var(--dense-table-cell-padding-x); border-bottom: 1px solid rgba(148,163,184,.12); text-align: left; vertical-align: top; }
 .data-table th { color: #93c5fd; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; background: rgba(15,23,42,.75); }
 .data-table tr:last-child td { border-bottom: 0; }
 .mobile-list { display: none; gap: .75rem; }
@@ -286,6 +294,20 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .development-status-card { border-color: rgba(125,211,252,.28); background: rgba(8,47,73,.24); }
 .development-status-grid { display: grid; gap: .42rem; margin-top: .8rem; color: #cbd5e1; font-size: .84rem; line-height: 1.45; }
 .development-status-grid span { overflow-wrap: anywhere; }
+.layout-tuner { position: fixed; right: 1rem; bottom: 1rem; z-index: 40; width: min(25rem, calc(100vw - 2rem)); max-height: min(44rem, calc(100vh - 2rem)); overflow: auto; border: 1px solid rgba(125,211,252,.35); border-radius: 1rem; background: rgba(2,6,23,.96); box-shadow: 0 24px 72px rgba(0,0,0,.45); padding: 1rem; }
+.layout-tuner--collapsed { width: min(18rem, calc(100vw - 2rem)); }
+.layout-tuner__header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.layout-tuner__header h2 { margin: .15rem 0 0; font-size: 1.05rem; }
+.layout-tuner__note { margin: .8rem 0; color: #cbd5e1; font-size: .86rem; line-height: 1.45; }
+.layout-tuner__controls { display: grid; gap: .75rem; }
+.layout-tuner__field { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem .6rem; align-items: center; color: #94a3b8; font-size: .78rem; font-weight: 700; }
+.layout-tuner__field span { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.layout-tuner__field strong { color: #dbeafe; font-size: .78rem; white-space: nowrap; }
+.layout-tuner__field input[type="range"] { width: 100%; accent-color: #7dd3fc; }
+.layout-tuner__field input[type="number"] { min-width: 0; border: 1px solid rgba(148,163,184,.24); border-radius: .65rem; background: rgba(15,23,42,.72); color: #e5edf8; padding: .45rem .5rem; }
+.layout-tuner__css { max-height: 10rem; overflow: auto; border: 1px solid rgba(148,163,184,.18); border-radius: .75rem; background: rgba(15,23,42,.7); color: #bfdbfe; padding: .75rem; font-size: .74rem; line-height: 1.45; white-space: pre-wrap; }
+.layout-tuner__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.layout-tuner__message { margin: .65rem 0 0; color: #bbf7d0; font-size: .82rem; font-weight: 800; }
 
 @media (max-width: 900px) {
   .dashboard-grid, .inventory-layout, .location-layout, .label-designer-layout, .tool-catalogue__layout, .tool-toolbar, .scanner-layout, .cart-scaffold__summary, .cart-scaffold__body, .cart-apply-all, .count-correction-form, .history-toolbar, .count-workspace, .count-toolbar, .count-intake-form, .count-retire-panel { grid-template-columns: 1fr; }
@@ -318,6 +340,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .cart-search input, .quantity-field input { width: 100%; }
   .cart-actions { flex-direction: column; }
   .secondary-button { width: 100%; }
+  .layout-tuner { right: .5rem; bottom: .5rem; width: calc(100vw - 1rem); max-height: calc(100vh - 1rem); }
+  .layout-tuner__header, .layout-tuner__actions { align-items: stretch; flex-direction: column; }
   .location-record { grid-template-columns: 1fr; }
   .location-record small { grid-column: 1; }
 }

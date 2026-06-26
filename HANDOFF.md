@@ -8699,3 +8699,141 @@ Classification: Safe UI/CSS task.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/CSS layout pass (ARCHITECTURE v2.18, HANDOFF Entry 087).
+
+---
+
+## Entry 088 - Dev-only Layout Tuner (Milestone 5I.4)
+
+**Date:** 2026-06-26
+**Updated by:** Codex
+**Phase:** Dashboard layout tuning dev tool
+**Session type:** implementation
+
+### Context
+Milestone 5I.4 is a Safe UI/client-side dev tooling task under ARCHITECTURE
+v2.18 and Section 35. Entry 087 widened the dashboard shell; this pass adds a
+URL-gated local layout tuner so Ryan can visually tune layout variables without
+repeated CSS adjustment passes.
+
+Classification: Safe UI/client-side dev tooling task.
+
+### What Was Completed
+- Added a dev-only Layout Tuner panel gated behind `layoutTuner=1`.
+- The tuner is not added to normal navigation and does not render when the URL
+  flag is absent.
+- Added localStorage-only persistence under `northgate.layoutTuner.v1`.
+- Added live CSS-variable application through `document.documentElement`.
+- Added Reset behavior that clears the localStorage key, restores defaults,
+  and keeps the panel open.
+- Added Copy CSS behavior that copies a `:root { ... }` variable snippet for a
+  later commit.
+- Added a collapsible floating panel with sliders and numeric inputs.
+- Updated layout CSS variables so the tuner can adjust app width, page gutter,
+  dashboard card gap, dashboard card padding, and table density.
+- Updated the Development Status card to Milestone 5I.4 / Entry 088 /
+  ARCHITECTURE v2.18 / Dev-only layout tuner / build marker `07a2f44`.
+
+### CSS Variables Exposed
+- `--app-content-max`
+- `--app-content-vw`
+- `--app-page-gutter`
+- `--dashboard-card-gap`
+- `--dashboard-card-padding`
+- `--dense-table-font-size`
+- `--dense-table-cell-padding-y`
+- `--dense-table-cell-padding-x`
+
+### Selectors Affected
+- `.app-header__inner`
+- `.app-main`
+- `.dashboard-grid`
+- `.card`
+- `.data-table`
+- `.data-table th`
+- `.data-table td`
+- `.layout-tuner` and child Layout Tuner controls
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase, schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Layout Tuner field definitions, URL flag detection, localStorage
+    helpers, live CSS-variable application, Copy CSS, Reset, and the gated
+    floating panel.
+  - Updated Development Status values.
+- `src/styles.css`
+  - Added default layout CSS variables.
+  - Rewired the existing shared layout/table/card selectors to use those
+    variables.
+  - Added Layout Tuner panel styles.
+- `HANDOFF.md`
+  - Appended this Entry 088.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 088.
+
+### What Codex Needs to Know
+- Layout Tuner is a local/dev convenience only.
+- It appears only when the current URL contains `layoutTuner=1`.
+- It uses browser localStorage only and must not become a production settings
+  system.
+- Normal app usage without `layoutTuner=1` uses the committed CSS defaults.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side dev tooling pass only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
+  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no route/data/write behavior changed.
+- Confirmed no Tool Catalogue CRUD/archive behavior changed.
+- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
+  behavior changed.
+- Confirmed tuner render is gated by `layoutTuner=1` in the current URL.
+
+### Manual Verification Notes For Ryan
+- Open the app normally and confirm Layout Tuner is not visible.
+- Open the app with `?layoutTuner=1` and confirm the panel appears.
+- Adjust content width and confirm the dashboard changes live.
+- Refresh and confirm localStorage keeps the tuned values.
+- Click Reset and confirm defaults return.
+- Click Copy CSS and confirm the variable snippet copies.
+- Confirm no app data behavior changes.
+
+### Next Steps (in order)
+1. Use `?layoutTuner=1` on desktop to dial in preferred layout values.
+2. Copy the CSS snippet after choosing values.
+3. Send the snippet back for a small follow-up commit that updates defaults.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: dev-only layout tuner.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, routes, inventory balances, ledger, transaction
+  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
+  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side dev layout tuner (ARCHITECTURE v2.18, HANDOFF Entry 088).
