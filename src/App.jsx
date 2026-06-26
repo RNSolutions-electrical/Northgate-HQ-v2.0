@@ -66,12 +66,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5I.2 - Tool Catalogue UI',
-  relatedHandoff: 'Entry 086',
+  mostRecentChange: 'Milestone 5I.3 - Dashboard width / layout usability pass',
+  relatedHandoff: 'Entry 087',
   architectureVersion: 'v2.18',
-  currentStep: 'Tool Catalogue',
-  buildMarker: '092da08',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5I.2 UI code is present in the loaded build.',
+  currentStep: 'Layout usability',
+  buildMarker: '3f85fe7',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5I.3 layout code is present in the loaded build.',
 };
 
 const TOOL_CATALOGUE_HELPER_COPY = 'Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle storage, and tracking history are reserved for future milestones.';

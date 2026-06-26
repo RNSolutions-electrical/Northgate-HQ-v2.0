@@ -8585,3 +8585,117 @@ Tool Catalogue UI surface.
 
 ### Routing Verdict
 No Claude review needed — implementing locked Tool Catalogue UI (ARCHITECTURE v2.18, HANDOFF Entry 086).
+
+---
+
+## Entry 087 - Dashboard Width / Layout Usability Pass (Milestone 5I.3)
+
+**Date:** 2026-06-26
+**Updated by:** Codex
+**Phase:** Dashboard layout usability
+**Session type:** implementation
+
+### Context
+Milestone 5I.3 is a Safe UI/CSS layout pass under ARCHITECTURE v2.18 and
+Section 35. Ryan visually verified the Tool Catalogue UI from Entry 086 and
+identified the next usability issue: the desktop dashboard/app content was too
+narrow, causing excessive vertical stacking and avoidable horizontal scrolling
+inside content areas.
+
+Classification: Safe UI/CSS task.
+
+### What Was Completed
+- Widened the shared desktop app content container.
+- Added a shared `--app-content-width` CSS variable with a desktop cap of
+  `1600px` and viewport-based width behavior.
+- Updated `.app-header__inner` to use the shared app content width.
+- Updated `.app-main` to use the shared app content width.
+- Preserved the existing centered layout and balanced left/right margins.
+- Preserved existing dashboard grid, card, table wrapper, mobile list, and
+  responsive stacking behavior.
+- Reduced artificial horizontal scrolling pressure for Inventory, Accounting
+  Export, Count Intake, Tool Catalogue, and other wide table views by widening
+  their parent shell.
+- Updated the Development Status card to Milestone 5I.3 / Entry 087 /
+  ARCHITECTURE v2.18 / Layout usability / build marker `3f85fe7`.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No schema, RLS, grants, permission flags, RPCs, backend functions, storage,
+  indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/styles.css`
+  - Added `--app-content-width: min(96vw, 1600px)`.
+  - Changed `.app-header__inner` from the old 1180px cap to the shared width.
+  - Changed `.app-main` from the old 1180px cap to the shared width.
+- `src/App.jsx`
+  - Updated the Development Status card values only.
+- `HANDOFF.md`
+  - Appended this Entry 087.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 087.
+
+### What Codex Needs to Know
+- The desktop dashboard shell is intentionally wider after this pass.
+- The change is shared at the app container level rather than one-off table or
+  Tool Catalogue styling.
+- Existing table horizontal scrolling remains available where the table is
+  genuinely wider than the viewport.
+- Mobile/tablet breakpoint rules were not changed.
+
+### What Claude Needs to Know
+- This was a Safe UI/CSS layout pass only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
+  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/styles.css` and
+  `src/App.jsx`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no new routes or data behavior changed.
+- Confirmed no Tool Catalogue CRUD/archive behavior changed.
+- Confirmed no existing Inventory/Cart/Checkout/Count Intake/QR/Accounting
+  Export behavior changed.
+
+### Manual Verification Notes For Ryan
+- Open the app on desktop.
+- Confirm main content is wider and centered.
+- Confirm margins are roughly even left/right.
+- Confirm Inventory and Tool Catalogue views require less horizontal scrolling.
+- Confirm mobile/tablet layout still works.
+
+### Next Steps (in order)
+1. Visually verify the widened dashboard on a desktop browser.
+2. Check Tool Catalogue and Inventory wide-table views for reduced horizontal
+   scrolling.
+3. Check one tablet/mobile viewport to confirm the existing stacking still
+   feels good.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: desktop dashboard width/layout usability pass.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, routes, inventory balances, ledger, transaction
+  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
+  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/CSS layout pass (ARCHITECTURE v2.18, HANDOFF Entry 087).
