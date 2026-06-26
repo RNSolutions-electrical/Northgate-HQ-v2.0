@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Camera, CameraOff, ClipboardCheck, Database, Download, LayoutDashboard, MapPin, Printer, QrCode, ShieldCheck, ShoppingCart } from 'lucide-react';
+import { Archive, Camera, CameraOff, ClipboardCheck, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, ShieldCheck, ShoppingCart, Wrench } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
@@ -40,6 +40,7 @@ const INVENTORY_TABS = new Set([
   'locations',
   'scan',
   'labels',
+  'tools',
   'cart',
   'count',
   'transactions',
@@ -65,13 +66,84 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5H.2 — Bin scan Count Correction entry point',
-  relatedHandoff: 'Entry 080',
-  architectureVersion: 'v2.15',
-  currentStep: 'Scan destination action bindings',
-  buildMarker: 'Scan Count Correction build: 83d23705',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5H.2 UI code is present in the loaded build.',
+  mostRecentChange: 'Milestone 5I.2 - Tool Catalogue UI',
+  relatedHandoff: 'Entry 086',
+  architectureVersion: 'v2.18',
+  currentStep: 'Tool Catalogue',
+  buildMarker: '092da08',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5I.2 UI code is present in the loaded build.',
 };
+
+const TOOL_CATALOGUE_HELPER_COPY = 'Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle storage, and tracking history are reserved for future milestones.';
+const TOOL_CATALOGUE_EMPTY_NOTE = 'Add tools here as a catalogue only. Checkout, assignments, QR labels, and tracking history are reserved for future milestones.';
+const TOOL_STATUS_OPTIONS = ['active', 'inactive', 'retired', 'missing'];
+const TOOL_CONDITION_OPTIONS = ['', 'good', 'fair', 'poor', 'damaged', 'unknown'];
+const TOOL_CATALOGUE_SELECT_FIELDS = [
+  'id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'tool_number',
+  'name',
+  'category',
+  'brand',
+  'model',
+  'serial_number',
+  'description',
+  'condition',
+  'status',
+  'home_location',
+  'current_location',
+  'assigned_to',
+  'purchase_date',
+  'notes',
+].join(',');
+const TOOL_SEARCH_FIELDS = [
+  'tool_number',
+  'name',
+  'category',
+  'brand',
+  'model',
+  'serial_number',
+  'description',
+  'home_location',
+  'current_location',
+  'assigned_to',
+  'notes',
+];
+const TOOL_TEXT_FORM_FIELDS = [
+  { key: 'tool_number', label: 'Tool #' },
+  { key: 'category', label: 'Category' },
+  { key: 'brand', label: 'Brand' },
+  { key: 'model', label: 'Model' },
+  { key: 'serial_number', label: 'Serial #' },
+  { key: 'home_location', label: 'Home Location' },
+  { key: 'current_location', label: 'Current Location' },
+  { key: 'assigned_to', label: 'Assigned To' },
+];
+const TOOL_TEXTAREA_FORM_FIELDS = [
+  { key: 'description', label: 'Description' },
+  { key: 'notes', label: 'Notes' },
+];
+const EMPTY_TOOL_DRAFT = Object.freeze({
+  name: '',
+  tool_number: '',
+  category: '',
+  brand: '',
+  model: '',
+  serial_number: '',
+  description: '',
+  condition: '',
+  status: 'active',
+  home_location: '',
+  current_location: '',
+  assigned_to: '',
+  purchase_date: '',
+  notes: '',
+});
 
 const COUNT_INTAKE_HELP_ITEMS = [
   'Choose Unit, Shelf, Bay, and Bin to narrow the physical area before recording counts.',
@@ -1903,6 +1975,484 @@ function LabelPreview({ draft, locationRecord, summary }) {
         <span>QR payload: {locationRecord ? buildLocationQrUrl(locationRecord.id) : '/scan/location/<uuid>'}</span>
       </div>
     </div>
+  );
+}
+
+function createToolDraft(row = null) {
+  if (!row) return { ...EMPTY_TOOL_DRAFT };
+  return {
+    name: row.name ?? '',
+    tool_number: row.tool_number ?? '',
+    category: row.category ?? '',
+    brand: row.brand ?? '',
+    model: row.model ?? '',
+    serial_number: row.serial_number ?? '',
+    description: row.description ?? '',
+    condition: row.condition ?? '',
+    status: row.status ?? 'active',
+    home_location: row.home_location ?? '',
+    current_location: row.current_location ?? '',
+    assigned_to: row.assigned_to ?? '',
+    purchase_date: row.purchase_date ?? '',
+    notes: row.notes ?? '',
+  };
+}
+
+function cleanToolText(value) {
+  const text = String(value ?? '').trim();
+  return text || null;
+}
+
+function buildToolMutationPayload(draft) {
+  return {
+    name: String(draft.name ?? '').trim(),
+    tool_number: cleanToolText(draft.tool_number),
+    category: cleanToolText(draft.category),
+    brand: cleanToolText(draft.brand),
+    model: cleanToolText(draft.model),
+    serial_number: cleanToolText(draft.serial_number),
+    description: cleanToolText(draft.description),
+    condition: draft.condition || null,
+    status: TOOL_STATUS_OPTIONS.includes(draft.status) ? draft.status : 'active',
+    home_location: cleanToolText(draft.home_location),
+    current_location: cleanToolText(draft.current_location),
+    assigned_to: cleanToolText(draft.assigned_to),
+    purchase_date: draft.purchase_date || null,
+    notes: cleanToolText(draft.notes),
+  };
+}
+
+function formatToolValue(value) {
+  return value || '-';
+}
+
+function formatToolDate(value) {
+  if (!value) return '-';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString();
+}
+
+function filterToolRows(rows, filters) {
+  const search = filters.search.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filters.category && (row.category || '') !== filters.category) return false;
+    if (filters.status && (row.status || '') !== filters.status) return false;
+    if (filters.condition && (row.condition || '') !== filters.condition) return false;
+    if (!search) return true;
+    return TOOL_SEARCH_FIELDS.some((field) => String(row[field] ?? '').toLowerCase().includes(search));
+  });
+}
+
+function getToolFilterOptions(rows, key) {
+  return [...new Set(rows.map((row) => row[key]).filter(Boolean))]
+    .sort((first, second) => String(first).localeCompare(String(second)));
+}
+
+function ToolCataloguePanel({ permissions }) {
+  const { getToken } = useAuth();
+  const canReadTools = permissions.permissionSource === 'server';
+  const canWriteTools = canReadTools && permissions.canManageInventory;
+  const hasWritableDivision = Boolean(permissions.division);
+  const [tools, setTools] = useState([]);
+  const [isLoadingTools, setIsLoadingTools] = useState(false);
+  const [isSavingTool, setIsSavingTool] = useState(false);
+  const [toolsError, setToolsError] = useState(null);
+  const [toolMessage, setToolMessage] = useState('');
+  const [showArchivedTools, setShowArchivedTools] = useState(false);
+  const [selectedToolId, setSelectedToolId] = useState('');
+  const [draft, setDraft] = useState(() => createToolDraft());
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    status: '',
+    condition: '',
+  });
+  const selectedTool = tools.find((row) => row.id === selectedToolId) ?? null;
+  const categoryOptions = useMemo(() => getToolFilterOptions(tools, 'category'), [tools]);
+  const filteredTools = useMemo(() => filterToolRows(tools, filters), [tools, filters]);
+
+  async function loadTools({ preserveMessage = false } = {}) {
+    if (!canReadTools) return;
+
+    setIsLoadingTools(true);
+    setToolsError(null);
+    if (!preserveMessage) setToolMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      let query = client
+        .from('tools')
+        .select(TOOL_CATALOGUE_SELECT_FIELDS)
+        .order('name', { ascending: true });
+      if (!showArchivedTools) query = query.is('archived_at', null);
+      const { data, error } = await query;
+      if (error) throw error;
+      setTools(data ?? []);
+    } catch (error) {
+      console.error('Tool Catalogue load failed', error);
+      setTools([]);
+      setToolsError(error);
+    } finally {
+      setIsLoadingTools(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTools();
+  }, [canReadTools, getToken, showArchivedTools]);
+
+  useEffect(() => {
+    if (selectedToolId && !tools.some((row) => row.id === selectedToolId)) {
+      setSelectedToolId('');
+      setDraft(createToolDraft());
+    }
+  }, [selectedToolId, tools]);
+
+  function updateDraft(key, value) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function startNewTool() {
+    setSelectedToolId('');
+    setDraft(createToolDraft());
+    setToolMessage('');
+  }
+
+  function startEditTool(row) {
+    if (!canWriteTools || row.division !== permissions.division) {
+      setToolMessage('Tool edit is limited to the current user division.');
+      return;
+    }
+    setSelectedToolId(row.id);
+    setDraft(createToolDraft(row));
+    setToolMessage('');
+  }
+
+  async function saveTool(event) {
+    event.preventDefault();
+    if (!canWriteTools || isSavingTool) return;
+    if (!hasWritableDivision) {
+      setToolMessage('Tool save blocked because the current user division could not be determined from server permissions.');
+      return;
+    }
+    if (selectedTool && selectedTool.division !== permissions.division) {
+      setToolMessage('Tool save blocked because this row is outside the current user division.');
+      return;
+    }
+
+    const payload = buildToolMutationPayload(draft);
+    if (!payload.name) {
+      setToolMessage('Tool name is required.');
+      return;
+    }
+
+    setIsSavingTool(true);
+    setToolMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      if (selectedToolId) {
+        const { error } = await client
+          .from('tools')
+          .update(payload)
+          .eq('id', selectedToolId);
+        if (error) throw error;
+        await loadTools({ preserveMessage: true });
+        setToolMessage('Tool saved.');
+      } else {
+        const { data, error } = await client
+          .from('tools')
+          .insert({ division: permissions.division, ...payload })
+          .select('id')
+          .single();
+        if (error) throw error;
+        setSelectedToolId(data?.id ?? '');
+        setDraft(createToolDraft());
+        await loadTools({ preserveMessage: true });
+        setToolMessage('Tool added.');
+      }
+    } catch (error) {
+      console.error('Tool Catalogue save failed', error);
+      setToolMessage('Tool save failed. Confirm permissions, division scope, and the Tool Catalogue migration.');
+    } finally {
+      setIsSavingTool(false);
+    }
+  }
+
+  async function archiveTool(row) {
+    if (!canWriteTools || isSavingTool || !row?.id || row.archived_at) return;
+    if (row.division !== permissions.division) {
+      setToolMessage('Tool archive is limited to the current user division.');
+      return;
+    }
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingTool(true);
+    setToolMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('tools')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanToolText(reason),
+          status: 'retired',
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      if (selectedToolId === row.id) startNewTool();
+      await loadTools({ preserveMessage: true });
+      setToolMessage('Tool archived.');
+    } catch (error) {
+      console.error('Tool Catalogue archive failed', error);
+      setToolMessage('Tool archive failed. Confirm permissions and division scope.');
+    } finally {
+      setIsSavingTool(false);
+    }
+  }
+
+  if (!canReadTools) {
+    return (
+      <section className="cart-panel cart-panel--locked">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Tool Catalogue</p>
+            <h3>Tool Catalogue</h3>
+          </div>
+          <span className="status-pill status-pill--warn">Server permissions required</span>
+        </div>
+        <p>{TOOL_CATALOGUE_HELPER_COPY}</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="cart-panel tool-catalogue">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Tool Catalogue</p>
+          <h3>Tool Catalogue</h3>
+          <p>{TOOL_CATALOGUE_HELPER_COPY}</p>
+        </div>
+        <Wrench className="card__icon" aria-hidden="true" />
+      </div>
+
+      <div className="location-note tool-catalogue__note">
+        <Wrench aria-hidden="true" />
+        <span>{TOOL_CATALOGUE_HELPER_COPY}</span>
+      </div>
+
+      {toolsError ? <div className="alert">Tool Catalogue failed to load. Confirm server permissions and the `public.tools` migration.</div> : null}
+      {!hasWritableDivision ? <div className="alert">Tool create/edit is blocked because the current user division could not be determined from server permissions.</div> : null}
+      {toolMessage ? <div className="alert">{toolMessage}</div> : null}
+
+      <div className="tool-catalogue__layout">
+        <section className="tool-catalogue__list-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Catalogue</p>
+              <h3>{showArchivedTools ? 'Visible tools' : 'Active tools'}</h3>
+            </div>
+            <span>{filteredTools.length} row{filteredTools.length === 1 ? '' : 's'}</span>
+          </div>
+
+          <div className="tool-toolbar">
+            <label>
+              Search
+              <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} />
+            </label>
+            <label>
+              Category
+              <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
+                <option value="">All categories</option>
+                {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>
+              Status
+              <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
+                <option value="">All statuses</option>
+                {TOOL_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <label>
+              Condition
+              <select value={filters.condition} onChange={(event) => setFilters((current) => ({ ...current, condition: event.target.value }))}>
+                <option value="">All conditions</option>
+                {TOOL_CONDITION_OPTIONS.filter(Boolean).map((condition) => <option key={condition} value={condition}>{condition}</option>)}
+              </select>
+            </label>
+            <label className="count-toggle">
+              <input type="checkbox" checked={showArchivedTools} onChange={(event) => setShowArchivedTools(event.target.checked)} />
+              Show archived
+            </label>
+            <button type="button" className="secondary-button" onClick={() => loadTools()} disabled={isLoadingTools}>
+              <RefreshCw aria-hidden="true" /> Refresh
+            </button>
+          </div>
+
+          {isLoadingTools ? <p className="muted">Loading Tool Catalogue...</p> : null}
+          {!isLoadingTools && !filteredTools.length ? (
+            <div className="empty-state">
+              <strong>No tools have been added yet.</strong>
+              <p>{TOOL_CATALOGUE_EMPTY_NOTE}</p>
+            </div>
+          ) : null}
+
+          {filteredTools.length ? (
+            <>
+              <div className="table-wrap">
+                <table className="data-table tool-table">
+                  <thead>
+                    <tr>
+                      <th>Tool #</th>
+                      <th>Name</th>
+                      <th>Category</th>
+                      <th>Brand</th>
+                      <th>Model</th>
+                      <th>Serial #</th>
+                      <th>Condition</th>
+                      <th>Status</th>
+                      <th>Home Location</th>
+                      <th>Current Location</th>
+                      <th>Assigned To</th>
+                      <th>Purchase Date</th>
+                      <th>Notes</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTools.map((row) => (
+                      <tr key={row.id} className={row.archived_at ? 'tool-row--archived' : ''}>
+                        <td>{formatToolValue(row.tool_number)}</td>
+                        <td>
+                          <strong>{row.name}</strong>
+                          {row.description ? <span>{row.description}</span> : null}
+                        </td>
+                        <td>{formatToolValue(row.category)}</td>
+                        <td>{formatToolValue(row.brand)}</td>
+                        <td>{formatToolValue(row.model)}</td>
+                        <td>{formatToolValue(row.serial_number)}</td>
+                        <td>{formatToolValue(row.condition)}</td>
+                        <td><span className="status-pill">{row.status}</span></td>
+                        <td>{formatToolValue(row.home_location)}</td>
+                        <td>{formatToolValue(row.current_location)}</td>
+                        <td>{formatToolValue(row.assigned_to)}</td>
+                        <td>{formatToolDate(row.purchase_date)}</td>
+                        <td>{formatToolValue(row.notes)}</td>
+                        <td>
+                          <div className="count-action-stack">
+                            <button type="button" className="secondary-button" onClick={() => startEditTool(row)} disabled={!canWriteTools || isSavingTool || row.division !== permissions.division}>
+                              <Pencil aria-hidden="true" /> Edit
+                            </button>
+                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveTool(row)} disabled={!canWriteTools || isSavingTool || row.division !== permissions.division || Boolean(row.archived_at)}>
+                              <Archive aria-hidden="true" /> Archive
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mobile-list tool-mobile-list">
+                {filteredTools.map((row) => (
+                  <article className="mobile-item" key={row.id}>
+                    <strong>{row.name}</strong>
+                    <div className="meta-grid">
+                      <span>Tool #: {formatToolValue(row.tool_number)}</span>
+                      <span>Category: {formatToolValue(row.category)}</span>
+                      <span>Brand: {formatToolValue(row.brand)}</span>
+                      <span>Model: {formatToolValue(row.model)}</span>
+                      <span>Serial #: {formatToolValue(row.serial_number)}</span>
+                      <span>Condition: {formatToolValue(row.condition)}</span>
+                      <span>Status: {formatToolValue(row.status)}</span>
+                      <span>Home: {formatToolValue(row.home_location)}</span>
+                      <span>Current: {formatToolValue(row.current_location)}</span>
+                      <span>Assigned: {formatToolValue(row.assigned_to)}</span>
+                      <span>Purchase: {formatToolDate(row.purchase_date)}</span>
+                      <span>Notes: {formatToolValue(row.notes)}</span>
+                    </div>
+                    <div className="cart-actions">
+                      <button type="button" className="secondary-button" onClick={() => startEditTool(row)} disabled={!canWriteTools || isSavingTool || row.division !== permissions.division}>
+                        <Pencil aria-hidden="true" /> Edit
+                      </button>
+                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveTool(row)} disabled={!canWriteTools || isSavingTool || row.division !== permissions.division || Boolean(row.archived_at)}>
+                        <Archive aria-hidden="true" /> Archive
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </section>
+
+        <section className="tool-catalogue__form-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">{selectedTool ? 'Edit Tool' : 'Add Tool'}</p>
+              <h3>{selectedTool ? selectedTool.name : 'Add tool'}</h3>
+            </div>
+            <span>{canWriteTools ? `Division: ${permissions.division ?? 'Unassigned'}` : 'can_manage_inventory required'}</span>
+          </div>
+
+          <form className="tool-form" onSubmit={saveTool}>
+            <label className="tool-form__wide">
+              Name
+              <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!canWriteTools || isSavingTool} />
+            </label>
+            {TOOL_TEXT_FORM_FIELDS.map((field) => (
+              <label key={field.key}>
+                {field.label}
+                <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!canWriteTools || isSavingTool} />
+              </label>
+            ))}
+            <label>
+              Condition
+              <select value={draft.condition} onChange={(event) => updateDraft('condition', event.target.value)} disabled={!canWriteTools || isSavingTool}>
+                {TOOL_CONDITION_OPTIONS.map((condition) => (
+                  <option key={condition || 'blank'} value={condition}>{condition || 'blank'}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Status
+              <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!canWriteTools || isSavingTool}>
+                {TOOL_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <label>
+              Purchase Date
+              <input type="date" value={draft.purchase_date} onChange={(event) => updateDraft('purchase_date', event.target.value)} disabled={!canWriteTools || isSavingTool} />
+            </label>
+            {TOOL_TEXTAREA_FORM_FIELDS.map((field) => (
+              <label className="tool-form__wide" key={field.key}>
+                {field.label}
+                <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!canWriteTools || isSavingTool} />
+              </label>
+            ))}
+            <div className="cart-actions tool-form__wide">
+              <button type="submit" className="secondary-button" disabled={!canWriteTools || !hasWritableDivision || isSavingTool}>
+                <Plus aria-hidden="true" /> {isSavingTool ? 'Saving...' : selectedTool ? 'Save Tool' : 'Add Tool'}
+              </button>
+              <button type="button" className="secondary-button" onClick={startNewTool} disabled={isSavingTool}>
+                New Tool
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -6187,6 +6737,9 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
         <button className="module-tab" type="button" aria-selected={activeTab === 'labels'} onClick={() => setActiveTab('labels')}>
           Label Designer
         </button>
+        <button className="module-tab" type="button" aria-selected={activeTab === 'tools'} onClick={() => setActiveTab('tools')}>
+          Tool Catalogue
+        </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'cart'} onClick={() => setActiveTab('cart')}>
           Cart Checkout
         </button>
@@ -6206,6 +6759,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
       {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
       {activeTab === 'scan' ? <LocationScannerPanel permissions={permissions} navigateTo={navigateTo} /> : null}
       {activeTab === 'labels' ? <LabelTemplateDesignerPanel permissions={permissions} /> : null}
+      {activeTab === 'tools' ? <ToolCataloguePanel permissions={permissions} /> : null}
       {activeTab === 'cart' ? (
         <CartScaffold
           permissions={permissions}

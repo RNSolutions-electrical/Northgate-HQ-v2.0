@@ -8457,3 +8457,131 @@ Before writing SQL, Codex confirmed the existing repo conventions:
 
 ### Routing Verdict
 No Claude review needed — implementing locked Tool Catalogue Foundation (ARCHITECTURE v2.18, HANDOFF Entry 085).
+
+---
+
+## Entry 086 - Tool Catalogue UI (Milestone 5I.2)
+
+**Date:** 2026-06-26
+**Updated by:** Codex
+**Phase:** Tool Catalogue / first UI
+**Session type:** implementation
+
+### Context
+Milestone 5I.2 is the second Tool Catalogue implementation step under
+ARCHITECTURE v2.18 Section 36. The migration foundation from Entry 085 is
+already present, and this pass adds the first Supabase-backed Tool Catalogue
+UI only.
+
+Classification: Architecture-sensitive implementation of an already-locked
+Tool Catalogue UI surface.
+
+### What Was Completed
+- Added a Tool Catalogue tab inside the existing inventory module shell.
+- Added the locked Tool Catalogue title and helper copy:
+  "Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle
+  storage, and tracking history are reserved for future milestones."
+- Added live Supabase reads from `public.tools` using only the approved
+  Section 36 columns.
+- Added search across tool number, name, category, brand, model, serial
+  number, description, home location, current location, assigned-to text, and
+  notes.
+- Added category, status, condition, and Show archived filters.
+- Added active/default table and mobile list views with the first recommended
+  Tool Catalogue columns.
+- Added the required empty state text:
+  "No tools have been added yet."
+- Added an add/edit form for approved editable fields only.
+- Create uses the existing current-user `permissions.division` convention and
+  inserts `division` into `public.tools`.
+- Edit updates approved editable fields only and does not change `division`.
+- Added soft archive behavior that updates `archived_at`, `archived_by`,
+  optional `archive_reason`, and `status = 'retired'`.
+- No hard delete behavior was added.
+- Updated the Development Status card to Milestone 5I.2 / Entry 086 /
+  ARCHITECTURE v2.18 / Tool Catalogue / build marker `092da08`.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No schema, RLS, grants, permission flags, RPCs, backend functions, storage,
+  indexes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Tool Catalogue constants, filters, add/edit form, table/mobile list,
+    Supabase read/create/update/soft-archive behavior, tab registration, and
+    Development Status updates.
+- `src/styles.css`
+  - Added Tool Catalogue layout, toolbar, form, responsive table/mobile, and
+    archived-row styling.
+- `HANDOFF.md`
+  - Appended this Entry 086.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 086.
+
+### What Codex Needs to Know
+- Tool Catalogue UI now exists as a catalogue-only foundation.
+- It intentionally uses the existing `can_manage_inventory` write gate and
+  current-user `division` value from `usePermissions`.
+- Cross-division visible rows remain read-only in the UI; writes are limited to
+  the current user division and remain server-enforced by RLS.
+- The UI does not expose archive metadata in the normal edit form.
+
+### What Claude Needs to Know
+- This pass implemented the already-locked Tool Catalogue UI.
+- No migration, schema, RLS, permission, backend, inventory balance, ledger,
+  checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing Inventory behavior changed.
+- Browser verification was attempted against `http://127.0.0.1:5173/`, but
+  the local app failed before render because `VITE_SUPABASE_URL` was not set in
+  the dev-server environment. Authenticated Tool Catalogue verification was not
+  completed in this Codex session.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed no migrations were added or edited in this pass.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no new permission flags were added.
+- Confirmed no DELETE behavior was added.
+- Confirmed no checkout/check-in, QR labels, assignment history, tracking
+  ledger, vehicle/bin linkage, accounting behavior, or reserved Tool Catalogue
+  features were added.
+- Confirmed no direct `inventory_balances` write path was added.
+- Browser verification was attempted but blocked by missing local
+  `VITE_SUPABASE_URL`; no authenticated visual verification is claimed.
+
+### Next Steps (in order)
+1. Perform authenticated browser verification with a user whose server
+   permissions include a division and `can_manage_inventory`.
+2. Begin logging company tools in Tool Catalogue.
+3. Reserve checkout/check-in, QR labels, assignments, vehicle storage, and
+   tracking history for future architecture-cleared milestones.
+
+### Open Questions / Concerns
+- Browser/authenticated verification was blocked by missing local
+  `VITE_SUPABASE_URL` in the dev-server environment.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: first Tool Catalogue UI.
+- RESERVED: checkout/check-in, assignment history, custody chain, QR labels,
+  scan pages, transfers, vehicle-bin tool storage, employee-linked
+  assignments, job/project-linked assignments, maintenance/inspection/
+  calibration logs, repair history, purchase accounting/depreciation,
+  attachments/photos/receipts, canonical accounting import/export,
+  tool-specific permission flags, tool ledger, tool audit table, divisions
+  table, and UUID-based division normalization.
+- No protected inventory behavior changed: inventory balances, ledger,
+  transaction behavior, checkout/finalization, Count Intake, QR/scan behavior,
+  Accounting Export, Financials/job-cost, Return-to-Inventory, buyout,
+  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
+  behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — implementing locked Tool Catalogue UI (ARCHITECTURE v2.18, HANDOFF Entry 086).
