@@ -15,7 +15,8 @@
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest"
+    "lucide-react": "latest",
+    "jsqr": "^1.4.0"
   },
   "devDependencies": {}
 }

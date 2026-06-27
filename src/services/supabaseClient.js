@@ -13,6 +13,11 @@ if (!supabaseAnonKey) {
 
 export function createSupabaseClient(accessToken) {
   return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
     global: {
       headers: accessToken
         ? {

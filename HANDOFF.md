@@ -1,4 +1,4 @@
-# Northgate HQ v2.0 — Handoff Log
+﻿# Northgate HQ v2.0 — Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
@@ -3482,3 +3482,5358 @@ duplicated, renamed, or refactored. Verification result:
 
 ### Routing Verdict
 No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 047).
+
+---
+
+## Entry 048 - Milestone 4O Count Intake production verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4O Count Intake production verification
+**Session type:** review
+
+### Context
+Ryan requested Milestone 4O: production verification and UI-only polish for the Inventory
+Count / Count Intake surfaces. Required first actions were completed before any review:
+`git pull --ff-only origin main` returned already up to date; local `main` and
+`origin/main` both resolved to commit `ebcc863`; `docs/ARCHITECTURE.md` was confirmed as
+v2.13; `HANDOFF.md` was confirmed gapless through Entry 047; Entry 047 was confirmed
+committed and pushed in the current history.
+
+Production browser automation was not available in this Codex session. The previously
+advertised in-app Browser skill file was absent from the local plugin cache and no
+browser-client surface was exposed. Therefore, no authenticated visual verification is
+claimed in this entry.
+
+### Review Findings
+- Production deploy inclusion was verified non-visually by fetching
+  `https://northgate-hq-v2.netlify.app/` and its current Vite bundle
+  `assets/index-DttO_ovG.js`; the deployed bundle contains the Entry 047 search placeholder
+  `Material, C111, bin, shelf, bay, or unit`, the `Review Repeats` UI marker, and the
+  `Storage path` repeat-review marker.
+- Compact location hierarchy behavior was statically verified in `src/App.jsx`:
+  - `buildCompactLocationCode()` derives unit/shelf/bay/bin compact codes from loaded row
+    fields;
+  - `matchesCountRowSearch()` treats `^[a-z]\d{0,3}$` searches as hierarchy searches;
+  - `C`, `C1`, `C11`, and `C111` therefore map to unit, shelf, bay, and bin prefixes.
+- Ordinary location text search was statically verified against visible location fields:
+  storage unit code/name, shelf code/label, bay code/label, bin code/label, and full
+  storage path.
+- Existing material search remains present for non-hierarchy searches through
+  `getCountRowSearchValues()`, which includes material code and item name.
+- Review Repeats was not rebuilt, duplicated, renamed, or refactored. Static review
+  confirmed the existing feature still uses local loaded-row data, excludes quantity and
+  category-only repeat fields, and includes material/location/part/description fields when
+  available.
+- Archived/retired `bin_items` remain hidden from active count/intake views because
+  `useInventoryCountSheet()` still reads rows from `inventory_cart_candidates_view`, and
+  the active retirement migration defines that view with `bi.archived_at IS NULL`.
+- The Retire action remains gated in `src/App.jsx` by Developer/Admin role plus
+  `permissions.canArchiveRecords`, and the write path remains the existing
+  `useBinItemRetirement()` hook calling the existing `retire_bin_item` RPC.
+- Searching/filtering/reviewing rows introduce no writes. Static scan found no new
+  insert/update/delete/RPC/schema/ledger/balance references in the relevant UI files for
+  this milestone.
+- `npm.cmd run build` passed.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, ledger row,
+  transaction history row, checkout/finalization behavior, count correction behavior,
+  bin_item retirement behavior, office destination semantics, or inventory balance behavior
+  was changed.
+
+### Code / File Changes
+- None.
+- No app code or CSS was changed in this milestone.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Milestone 4O was verification-only because the deployed bundle and static source review
+  showed Entry 047 code is present and aligned.
+- Do not claim authenticated visual production verification from this session.
+- Browser/runtime limitation remains active for Codex visual QA in this environment.
+- No UI polish was applied because no clear safe UI-only bug was found from static review.
+
+### What Claude Needs to Know
+- This milestone did not change architecture, schema, permissions, ledger behavior,
+  count correction behavior, bin_item retirement behavior, transaction history visibility,
+  checkout/finalization, or any deferred feature.
+- The only limitation is that visual production verification remains carried forward due
+  unavailable browser automation.
+
+### Next Steps (in order)
+1. Ryan performs manual production visual verification of Count Intake searches `C`, `C1`,
+   `C11`, `C111`, ordinary location text, material search, Review Repeats, and Retire
+   visibility.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- Authenticated production browser verification could not be completed in Codex because
+  browser automation was unavailable in this session.
+- Clerk development-key and duplicate GoTrue client console warnings remain separate
+  deployment/config cleanup items.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 048).
+
+---
+
+## Entry 049 - Production config warning cleanup / duplicate client diagnostic
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4P production config warning cleanup
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4P: diagnostic-first cleanup for two production console warnings
+carried forward from Entry 048: Clerk development-key warning and duplicate Supabase
+GoTrue client warning. Required first actions were completed before code changes:
+`git pull --ff-only origin main` returned already up to date; local `main` and
+`origin/main` both resolved to commit `bfec081`; `docs/ARCHITECTURE.md` was confirmed as
+v2.13; `HANDOFF.md` was confirmed gapless through Entry 048; and the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale local coordination docs.
+
+### What Was Completed
+- Diagnosed the Clerk development-key warning:
+  - production bundle inspection found one embedded `pk_test_` Clerk publishable key token
+    and no `pk_live_` Clerk publishable key token;
+  - no key value was printed or committed;
+  - code inspection confirmed the app reads `VITE_CLERK_PUBLISHABLE_KEY` from Vite env and
+    does not hardcode a Clerk key.
+- Determined the Clerk warning requires environment/dashboard cleanup outside Codex:
+  - Ryan should check Netlify project environment variable `VITE_CLERK_PUBLISHABLE_KEY`,
+    especially the production context;
+  - Ryan should use the Clerk production publishable key from the correct Clerk production
+    instance, not a development `pk_test_` key;
+  - no production environment variable was changed in Codex.
+- Diagnosed the duplicate GoTrue client warning:
+  - the repo had two Supabase client modules: `src/services/supabaseClient.js` and
+    `src/lib/supabaseClient.js`;
+  - app code was using the services path, while the lib path separately initialized a
+    Supabase client if imported later;
+  - `createSupabaseClient()` was also creating Clerk-token Supabase clients with default
+    Supabase auth persistence, which can create multiple GoTrue clients under the same
+    browser storage key.
+- Cleaned up Supabase client initialization safely:
+  - disabled Supabase JS internal auth persistence/session URL detection for
+    `createSupabaseClient()`;
+  - kept Clerk JWT authorization behavior unchanged by preserving the explicit
+    `Authorization: Bearer <token>` global header;
+  - changed `src/lib/supabaseClient.js` to re-export the existing services client path so
+    future imports do not create a second independent Supabase client.
+- Ran `npm.cmd run build` successfully.
+- Static scan confirmed only one direct `createClient()` call remains in `src`.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, user_permissions
+  behavior, Clerk JWT template, ledger behavior, transaction history visibility,
+  inventory balance behavior, count correction behavior, bin_item retirement behavior,
+  checkout/finalization behavior, or deferred feature was changed.
+
+### Code / File Changes
+- Updated `src/services/supabaseClient.js`:
+  - added Supabase auth options `persistSession: false`, `autoRefreshToken: false`, and
+    `detectSessionInUrl: false`;
+  - preserved existing URL/key validation and Clerk token global header behavior.
+- Updated `src/lib/supabaseClient.js`:
+  - replaced the duplicate direct Supabase client initialization with a re-export from
+    `../services/supabaseClient.js`.
+- Updated `HANDOFF.md` with this Entry 049.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- The Clerk development-key warning is not fixed in code because the deployed bundle is
+  receiving a development Clerk publishable key from configuration.
+- Do not hardcode or fabricate a Clerk production key.
+- The safe code cleanup addressed only duplicate Supabase client initialization and
+  GoTrue session persistence behavior.
+- Clerk JWT permission logic and server-authoritative permission behavior were not changed.
+
+### What Claude Needs to Know
+- No architecture-sensitive inventory behavior changed.
+- No schema, migration, RPC, permission model, ledger, history visibility, balance,
+  count-correction, retirement, checkout/finalization, or deferred feature work was done.
+- No Claude review was required because the code change was limited to client initialization
+  cleanup and did not alter auth/permission semantics.
+
+### Next Steps (in order)
+1. Ryan updates/checks Netlify production env variable `VITE_CLERK_PUBLISHABLE_KEY` to use
+   the Clerk production publishable key (`pk_live_...`) from the correct Clerk production
+   instance, then triggers/reviews a production deploy.
+2. Ryan verifies the production console no longer shows the Clerk development-key warning
+   after the environment variable is corrected and redeployed.
+3. Ryan verifies the duplicate GoTrue client warning no longer appears after this client
+   cleanup deploys.
+4. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Actual Netlify/Clerk environment variable values were not read, printed, changed, or
+  committed by Codex.
+- Production browser automation remains unavailable in this Codex session, so console
+  verification after deploy remains manual.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 049).
+
+---
+
+## Entry 050 - Milestone 4Q production console verification closeout
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4Q production console verification
+**Session type:** review
+
+### Context
+Ryan requested Milestone 4Q: production console verification and manual QA closeout after
+Entry 049. Required first actions were completed before review: `git pull --ff-only origin
+main` returned already up to date; local `main` and `origin/main` both resolved to commit
+`3542085`; `docs/ARCHITECTURE.md` was confirmed as v2.13; `HANDOFF.md` was confirmed
+gapless through Entry 049; and the repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md`
+were used rather than stale local coordination docs.
+
+Authenticated production browser verification was not available in this Codex session.
+The in-app Browser client/skill was absent from the local plugin cache, so no visual
+browser or authenticated console verification is claimed in this entry.
+
+### Review Findings
+- Production deploy inclusion for Entry 049 was verified non-visually by fetching
+  `https://northgate-hq-v2.netlify.app/` and the current production Vite bundle
+  `assets/index-Bjdtwx30.js`.
+- The production bundle includes the Entry 049 Supabase client cleanup markers:
+  `persistSession`, `autoRefreshToken`, and `detectSessionInUrl` are present in the
+  deployed bundle.
+- Static scan confirmed only one direct Supabase `createClient()` call remains in `src`:
+  `src/services/supabaseClient.js`.
+- `src/lib/supabaseClient.js` re-exports `createSupabaseClient` and `supabase` from
+  `../services/supabaseClient.js` and no longer creates a second client.
+- `src/services/supabaseClient.js` uses:
+  - `persistSession: false`;
+  - `autoRefreshToken: false`;
+  - `detectSessionInUrl: false`.
+- No Clerk key is hardcoded in source. Static scan found only
+  `VITE_CLERK_PUBLISHABLE_KEY` usage in `src/main.jsx`.
+- No secrets were printed or committed.
+- The production bundle still contains one `pk_test_` Clerk publishable key token and no
+  `pk_live_` Clerk publishable key token. This means the Clerk development-key warning is
+  still expected until Ryan updates Netlify production `VITE_CLERK_PUBLISHABLE_KEY` to the
+  correct Clerk production publishable key and redeploys.
+- The production bundle still includes the Count Intake `C111` placeholder and
+  `Review Repeats` marker, confirming the prior Count Intake UI code remains deployed.
+- `npm.cmd run build` passed.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, permission, Clerk JWT template
+  behavior, `user_permissions` behavior, ledger behavior, transaction history visibility,
+  inventory balance behavior, count correction behavior, bin_item retirement behavior,
+  checkout/finalization behavior, or deferred feature was changed.
+
+### Code / File Changes
+- None.
+- No app code or CSS changed in this milestone.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Milestone 4Q was verification-only.
+- Do not claim authenticated production console/browser verification from this session.
+- Entry 049 code is deployed, but the Clerk development-key warning cannot be closed until
+  Netlify production `VITE_CLERK_PUBLISHABLE_KEY` is changed to a Clerk `pk_live_...`
+  publishable key outside Codex.
+- No secrets were exposed or committed.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migration, RPC, permission model, Clerk JWT template, `user_permissions`,
+  ledger, history visibility, balance, count-correction, retirement, checkout/finalization,
+  or deferred feature work was done.
+
+### Next Steps (in order)
+1. Ryan updates Netlify production `VITE_CLERK_PUBLISHABLE_KEY` to the correct Clerk
+   production publishable key (`pk_live_...`) and redeploys.
+2. Ryan manually verifies the production console after redeploy:
+   - Clerk development-key warning is gone;
+   - duplicate GoTrue client warning is gone;
+   - sign-in works;
+   - permission source remains server;
+   - Inventory Count loads;
+   - Count Intake hierarchy search still works for `C`, `C1`, `C11`, and `C111`;
+   - Review Repeats still works;
+   - Retire action remains gated to Developer/Admin with `can_archive_records`.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Authenticated production browser verification could not be completed in Codex because
+  browser automation was unavailable in this session.
+- The deployed Clerk key is still a development publishable key as of this verification.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
+
+---
+
+## Entry 051 - Production Auth Recovery / Permission Verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Production auth recovery verification
+**Session type:** review
+
+### Context
+Ryan requested Entry 051 as a documentation-only verification entry after manually
+completing production Clerk / Netlify / DNS / JWT configuration recovery. Required first
+actions were completed before this entry was appended: `git pull --ff-only origin main`
+returned already up to date; local `main` and `origin/main` both resolved to commit
+`4b0afe9`; `docs/ARCHITECTURE.md` was confirmed as v2.13; `HANDOFF.md` was confirmed
+gapless through Entry 050; and the repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md`
+were used rather than stale local coordination docs.
+
+### Review Findings
+- Ryan verified the production app loads from the `rnsolutions.net` custom domain.
+- Ryan verified Clerk production login works.
+- Ryan verified server permissions are restored.
+- Ryan verified the app gets past "Waiting on server permissions."
+- Ryan verified the permissions source shows `server`.
+- Ryan verified Developer/Admin access is restored.
+- Ryan verified Inventory Count loads.
+- Ryan reported the production smoke check appears in order.
+- The resolved production configuration issue is recorded as:
+  - Netlify production Clerk key was moved to production key usage;
+  - the app must be opened from the `rnsolutions.net` custom domain, not
+    `northgate-hq-v2.netlify.app`;
+  - Clerk production JWT template / signing configuration was corrected so Supabase can
+    decode the token;
+  - Supabase permission RPC no longer returns `PGRST301` / `401`;
+  - current production Clerk user permissions are restored.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, RLS policy, permission logic,
+  ledger behavior, transaction history visibility, inventory balance behavior, count
+  correction behavior, bin_item retirement behavior, checkout/finalization behavior, or
+  reserved feature was changed.
+
+### Code / File Changes
+- None.
+- No app code changed.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- Production auth recovery was completed manually by Ryan outside Codex.
+- Use the `rnsolutions.net` custom domain for production auth validation, not the Netlify
+  subdomain.
+- Server-authoritative permissions are restored in production according to Ryan's manual
+  verification.
+- Do not change Clerk JWT templates, permission RPCs, `user_permissions`, RLS, or
+  inventory behavior from this entry.
+
+### What Claude Needs to Know
+- This was documentation-only verification of production auth recovery.
+- No architecture-sensitive code, schema, permissions logic, ledger behavior, inventory
+  behavior, or deferred feature work was changed.
+- The production domain / Clerk production key / Clerk JWT template / Supabase permission
+  decode path has been restored according to Ryan's manual verification.
+
+### Next Steps (in order)
+1. Continue using the `rnsolutions.net` custom domain for production QA.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- None blocking for this production auth recovery record.
+- Future production auth checks should explicitly use the custom domain because Clerk
+  production domain settings matter.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 050).
+
+---
+
+## Entry 052 - Milestone 4R Count Intake QA polish
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4R Count Intake QA polish
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4R: Count Intake usability and QA-confidence polish after
+production auth recovery. Required first actions were completed before implementation:
+`git pull --ff-only origin main` returned already up to date; local `main` and
+`origin/main` both resolved to commit `4bc7374`; `docs/ARCHITECTURE.md` was confirmed as
+v2.13; `HANDOFF.md` was confirmed gapless through Entry 051; the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale local coordination docs;
+and Entry 051 was confirmed to document production auth recovery.
+
+### What Was Completed
+- Added selected-path breadcrumb chips to Count Intake so Unit / Shelf / Bay / Bin context
+  is easier to scan.
+- Added a small Count Intake guard panel stating that recorded quantities create official
+  count corrections through the existing intake path, zero is valid, and catalog items
+  must already exist.
+- Improved search label/helper text while preserving the existing compact location search
+  behavior for `C`, `C1`, `C11`, and `C111`.
+- Clarified that selected-bin catalog-item intake is separate from existing stocked rows.
+- Added a form note under selected-bin catalog intake stating that the action records an
+  official count correction for the selected bin/material pair.
+- Added an "Existing bin/material rows" section header with visible row count and a
+  Review Repeats-aware title.
+- Improved the no-results empty state to mention search, path, category, and repeat
+  filters.
+- Added responsive CSS for the new guard panel and section header.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC signature/body, RLS policy,
+  permission model, Clerk/Supabase JWT behavior, `user_permissions` logic, ledger behavior,
+  transaction item meaning, inventory balance behavior, count correction behavior, bin_item
+  retirement behavior, checkout/finalization behavior, destination semantics, transaction
+  history visibility, or reserved feature was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added selected-path segment display values;
+  - added Count Intake guard text;
+  - improved selected path display and selected-bin intake copy;
+  - added an existing-row section header and clearer empty state.
+- Updated `src/styles.css`:
+  - added styles for field hints, the guard panel, breadcrumb chips, form note, and the
+    existing-row section header;
+  - added responsive handling for the new Count Intake polish elements.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This was UI-only Count Intake polish.
+- Count Intake hierarchy search behavior (`C`, `C1`, `C11`, `C111`) remains implemented
+  through the existing search matcher and was not rewritten.
+- Review Repeats remains display/filter-only.
+- Retire action visibility remains controlled by existing Developer/Admin +
+  `can_archive_records` UI gating and the existing `retire_bin_item` hook/RPC.
+- Count-to-zero remains valid because `isDraftReady()` still accepts counted quantities
+  greater than or equal to zero.
+- Intake still uses the existing `useInventoryCountIntake()` hook and `intake.recordCount`
+  calls only.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, ledger behavior, inventory balances, count
+  correction behavior, bin_item retirement semantics, checkout/finalization, destination
+  semantics, transaction history visibility, division-scoped read rule, or reserved feature
+  work was done.
+
+### Next Steps (in order)
+1. Ryan manually verifies the Count Intake polish in production on the `rnsolutions.net`
+   custom domain.
+2. Verify in production that Count Intake searches `C`, `C1`, `C11`, and `C111` still
+   behave correctly, Review Repeats still works, Retire visibility remains gated, and no
+   Clerk production-domain / Supabase `401` / `PGRST301` errors appear.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Authenticated browser verification could not be completed in Codex because browser
+  automation was unavailable in this session.
+- The first `npm.cmd run build` attempt hit a transient Vite/Rolldown path-emission error;
+  a clean standalone rerun passed successfully.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.13, HANDOFF Entry 052).
+
+---
+
+## Entry 053 - Milestone 4S site favicon / app icon polish
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4S static site icon polish
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4S to update the production site favicon for Northgate HQ using
+the supplied `R-N Solutions.png` source image. Required first actions were completed
+before implementation: `git pull --ff-only origin main` returned already up to date;
+local `main` matched `origin/main`; `docs/ARCHITECTURE.md` was confirmed as v2.13; the
+repo copies of `docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale local
+coordination docs; and HANDOFF numbering was confirmed to contain Entries 001 through
+052. Note: pre-existing file-order drift remains from prior work because Entry 052 appears
+before Entry 051 in the file; this entry was appended normally as Entry 053 without
+silently repairing coordination-document order.
+
+### What Was Completed
+- Generated browser-safe static icon assets from Ryan's supplied R-N Solutions source
+  image:
+  - `public/favicon.ico`;
+  - `public/favicon-32x32.png`;
+  - `public/apple-touch-icon.png`;
+  - `public/app-icon-512.png`.
+- Cropped around the bright logo mark before resizing so the favicon remains more legible
+  at small browser-tab sizes.
+- Updated `index.html` with favicon, PNG icon, Apple touch icon, and theme-color metadata.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC, RLS policy, permission logic,
+  Clerk/Supabase config, ledger behavior, transaction history visibility, inventory
+  balance behavior, Count Intake behavior, checkout/finalization behavior, or reserved
+  feature was changed.
+
+### Code / File Changes
+- Added static icon assets under `public/`.
+- Updated `index.html` metadata only.
+- No React app logic, state, hooks, Supabase client code, Clerk config, schema, migration,
+  RPC, permission, inventory, ledger, checkout, transaction history, or reserved feature
+  files were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This milestone is static asset / HTML metadata polish only.
+- The favicon should cache-bust naturally with the next Netlify deployment because the
+  committed public assets and `index.html` changed.
+- Browser verification was not claimed unless performed in a later session.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, Clerk/Supabase auth behavior, inventory
+  behavior, ledger behavior, transaction history visibility, Count Intake behavior,
+  checkout/finalization, or reserved feature work was done.
+
+### Next Steps (in order)
+1. Let Netlify deploy the pushed static asset / metadata change.
+2. Ryan can hard-refresh production on the `rnsolutions.net` custom domain and confirm the
+   browser tab / pinned icon uses the new R-N Solutions mark.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- None blocking for this static asset milestone.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - static asset / metadata polish only.
+
+---
+
+## Entry 054 - Milestone 4T Count Intake field-use QA notes
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4T Count Intake field-use clarity
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 4T to improve field-use clarity around Inventory Count / Count
+Intake after production auth recovery and Count Intake QA polish. Required first actions
+were completed before implementation: `git pull --ff-only origin main` returned already
+up to date; local `main` matched `origin/main` at `8cef094`; `docs/ARCHITECTURE.md` was
+confirmed as v2.13; HANDOFF numbering was confirmed to contain Entries 001 through 053
+with no missing numbers or duplicate entry numbers; and the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale coordination docs. The
+pre-existing file-order drift remains from prior work because Entry 052 appears before
+Entry 051 in the file; this entry was appended normally as Entry 054 without silently
+repairing coordination-document order.
+
+### What Was Completed
+- Added a compact "How to use this screen" help block to the Inventory Count Intake UI.
+- The help block explains:
+  - Unit / Shelf / Bay / Bin path narrowing;
+  - `C`, `C1`, `C11`, and `C111` search shortcuts;
+  - counted quantity as an official physical count correction;
+  - zero as a valid count;
+  - Reason / Custom note use;
+  - zero-first, then-retire handling for mistaken bin/material rows;
+  - Retire as archive-only with no quantity change and no ledger transaction.
+- Added presentation-only CSS for the new help block, including mobile stacking.
+- Added `docs/COUNT_INTAKE_FIELD_GUIDE.md` as a practical operator-facing guide and QA
+  checklist. It does not create a new architecture rule.
+
+### Verification
+- `npm.cmd run build` passed.
+- Static scan confirmed no migration files were added or changed.
+- Static scan of the diff found no Supabase RPC/function definition changes.
+- Static scan of the diff found no direct `inventory_balances`, `transaction_items`, or
+  `inventory_transactions` write-path changes.
+- Static review confirmed Count Intake still uses the existing `intake.recordCount`
+  calls in `src/App.jsx` and the existing `intake_inventory_count` RPC inside
+  `src/hooks/useInventoryCountIntake.js`.
+- Static review confirmed Retire remains isolated to the existing
+  `useBinItemRetirement()` hook and existing `retire_bin_item` RPC.
+- Browser verification was not performed or claimed because browser automation was not
+  available in this Codex session.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC signature/body, RLS policy,
+  permission model, Clerk/Supabase JWT behavior, `user_permissions` logic, ledger
+  behavior, transaction item meaning, inventory balance behavior, count correction
+  behavior, bin_item retirement rule, checkout/finalization behavior, destination
+  semantics, transaction history visibility, division-scoped read rule, or reserved
+  feature was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added static Count Intake field-use help text;
+  - rendered a compact help block in the Count Intake surface.
+- Updated `src/styles.css`:
+  - added presentation-only styles for the help block and responsive stacking.
+- Added `docs/COUNT_INTAKE_FIELD_GUIDE.md`:
+  - operator-facing field guide and quick QA checklist for Count Intake.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This milestone was UI/documentation-only.
+- Count Intake behavior, hook usage, and approved RPC path were not changed.
+- Review Repeats remains display/filter-only.
+- Retire remains Developer/Admin + `can_archive_records` gated and archive-only through
+  the existing hook/RPC.
+- Count-to-zero remains valid.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, ledger behavior, balance behavior, count
+  correction behavior, bin_item retirement semantics, destination semantics, transaction
+  history visibility, division-scoped read rules, or reserved feature work was done.
+
+### Next Steps (in order)
+1. Let Netlify deploy the pushed UI/documentation-only change.
+2. Ryan can verify the Count Intake help block on desktop and mobile widths in production
+   on the `rnsolutions.net` custom domain.
+3. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+
+### Open Questions / Concerns
+- Authenticated browser verification was not available in this Codex session, so visual
+  rendering checks are carried forward for Ryan/manual production QA.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - UI/documentation-only within locked Count Intake and bin_item retirement rules.
+
+---
+
+## Entry 055 - Milestone 4U Production Inventory Smoke Test Closeout
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 4U production smoke closeout
+**Session type:** verification / documentation
+
+### Context
+Ryan requested Milestone 4U as a production inventory smoke-test closeout after production
+auth recovery and recent Count Intake / UI polish work. Required first actions were
+completed before this entry was appended: `git pull --ff-only origin main` returned
+already up to date; local `main` matched `origin/main` at `77f354c`; `docs/ARCHITECTURE.md`
+was confirmed as v2.13; HANDOFF numbering was confirmed to contain Entries 001 through
+054 with no missing numbers or duplicate entry numbers; and the repo copies of
+`docs/ARCHITECTURE.md` / `HANDOFF.md` were used rather than stale coordination docs. The
+pre-existing file-order drift remains from prior work because Entry 052 appears before
+Entry 051 in the file; this entry was appended normally as Entry 055 without silently
+repairing coordination-document order.
+
+### Ryan-Reported Production Status
+- Ryan reports everything appears to be in order so far after production auth recovery and
+  recent Count Intake / UI polish work.
+- Ryan previously verified production auth recovery on the `rnsolutions.net` custom
+  domain, Clerk production login, server permission recovery, Developer/Admin access, and
+  Inventory Count loading.
+- In this Codex session, authenticated browser automation / browser-console inspection was
+  not available, so the following production checklist items were not independently
+  browser-verified by Codex:
+  - Clerk production login;
+  - app getting past "Waiting on server permissions";
+  - permission source showing `server`;
+  - Ryan's user showing Developer/Admin access;
+  - Inventory Count authenticated loading;
+  - Count Intake searches `C`, `C1`, `C11`, and `C111`;
+  - ordinary location text search;
+  - material search;
+  - Review Repeats interaction;
+  - Retire action visibility gating;
+  - Retire archive-only behavior in the live UI;
+  - browser console absence of Clerk development-key warnings, Clerk production-domain
+    origin errors, Supabase `PGRST301` / JWT decode errors, or Supabase `401` permission
+    failures.
+- Duplicate GoTrue warning status could not be determined by Codex in this session because
+  browser-console verification was unavailable. Ryan did not report observing the warning
+  in this milestone prompt.
+
+### Codex Verification Completed
+- `npm.cmd run build` passed.
+- Public production HTTP check for `https://rnsolutions.net/` returned HTTP `200`.
+- The production HTML returned the expected `Northgate HQ v2.0` title.
+- The production HTML included favicon metadata.
+- Deployed-bundle text checks found the recent Count Intake / UI markers:
+  - `How to use this screen`;
+  - `C111`;
+  - `Review Repeats`;
+  - Retire help text;
+  - `count-help-panel` CSS.
+- Static scan confirmed no migration files were added or changed before this HANDOFF-only
+  entry.
+- Static review confirmed Count Intake still uses the existing `intake.recordCount`
+  calls in `src/App.jsx` and the existing `intake_inventory_count` RPC inside
+  `src/hooks/useInventoryCountIntake.js`.
+- Static review confirmed Retire remains isolated to the existing
+  `useBinItemRetirement()` hook and existing `retire_bin_item` RPC.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No database table, column, constraint, function, RPC signature/body, RLS policy,
+  permission model, Clerk/Supabase JWT behavior, `user_permissions` logic, ledger
+  behavior, transaction item meaning, inventory balance behavior, count correction
+  behavior, bin_item retirement rule, checkout/finalization behavior, destination
+  semantics, transaction history visibility, division-scoped read rule, or reserved
+  feature was changed.
+
+### Code / File Changes
+- None.
+- No app behavior changed.
+- Only this HANDOFF entry was appended.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.13.
+
+### What Codex Needs to Know
+- This was verification/documentation-only.
+- Do not claim authenticated browser or console verification from this session.
+- Public production HTTP/deployed-bundle checks passed, but authenticated UI and console
+  checks remain Ryan/manual unless a browser-control session is available later.
+- Count Intake and Retire write paths were not changed.
+
+### What Claude Needs to Know
+- No architecture-sensitive behavior changed.
+- No schema, migrations, RPCs, permissions, ledger behavior, balance behavior, count
+  correction behavior, bin_item retirement semantics, destination semantics, transaction
+  history visibility, division-scoped read rules, or reserved feature work was done.
+
+### Next Steps (in order)
+1. Ryan may complete or repeat authenticated production browser QA on the `rnsolutions.net`
+   custom domain, including console review for Clerk, Supabase, and duplicate GoTrue
+   warnings.
+2. Keep transaction history Developer-only until the division-scoped read rule is designed
+   and locked.
+3. Keep Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+   Manager Override, reorder/min-max, structured count-type field, and catalog creation
+   from count UI reserved until their own milestones.
+
+### Open Questions / Concerns
+- Authenticated browser verification and browser-console verification were not available
+  in this Codex session.
+- Duplicate GoTrue warning status remains unverified by Codex for this closeout.
+
+### Architecture Drift Warnings
+- OPEN: division-scoped read rule; history remains Developer-only.
+- RESERVED: Return-to-Inventory, Buyout, Tools, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field.
+
+### Routing Verdict
+No Claude review needed - verification/documentation-only within locked ARCHITECTURE v2.13.
+
+---
+
+## Entry 056 - Milestone 5 Prep v2.14 lock docs and HANDOFF repair
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5 Prep lock-document update
+**Session type:** documentation / Rule 20 repair
+
+### Context
+Ryan requested Milestone 5 Prep to apply the Rule 20-cleared v2.14 lock-document deltas
+and repair HANDOFF Entry 051 / Entry 052 physical order only. This was documentation-only:
+no Milestone 5A implementation, app code, migrations, Supabase changes, Netlify changes,
+Clerk changes, or production configuration changes were authorized or performed.
+
+Required first actions were completed before editing: `git pull --ff-only origin main`
+returned already up to date; local `main` matched `origin/main` at `a255b67`;
+`docs/ARCHITECTURE.md` was confirmed as v2.13 before editing; HANDOFF numbering was
+confirmed gapless through Entry 055; Entry 051 was confirmed to physically appear after
+Entry 052 before repair; and the repo clone copies of `docs/ARCHITECTURE.md` and
+`HANDOFF.md` were used rather than stale coordination docs, OneDrive-synced stale copies,
+or GitHub web UI uploads.
+
+Claude produced the Milestone 5 lock-document delta proposal. ChatGPT cleared the v2.14
+package under Rule 20. Codex applied the cleared documentation package for Ryan so the
+coordination docs were not manually mis-edited.
+
+### What Was Completed
+- Updated `docs/ARCHITECTURE.md` from v2.13 to v2.14.
+- Locked the Inventory module-completion milestone scope.
+- Added Section 10 QR payload and web scanner scope:
+  - location QR payloads use `https://<app-domain>/scan/location/<location_uuid>`;
+  - UUID is the stable structural identifier, not human-readable codes such as `A111`;
+  - typed route format is `/scan/<entity_type>/<uuid>`;
+  - QR generation remains locations-only for now;
+  - the web scanner is in scope now and is not blocked by the reserved React Native
+    companion app;
+  - scanner behavior is navigation/read-resolution only and is not a permission bypass.
+- Updated Section 17 with `can_view_all_divisions` and clarified division visibility:
+  - Developer role defaults to cross-division read;
+  - Admin division defaults to cross-division read through effective permission;
+  - Administrator role outside Admin division remains own-division unless individually
+    granted `can_view_all_divisions`;
+  - `can_view_financials` governs job/project OH&P and margin, not inventory cost.
+- Added new Section 17a, Division-Scoped Read Rule:
+  - cross-division read via `can_view_all_divisions`;
+  - own-division full read for Administrator, Project Manager, Estimator, and Field
+    Supervisor;
+  - self-scoped read for Field Tech / User own carts and transactions within division;
+  - reuse of the existing division anchor from the `202606120001` scoped reference views;
+  - server-authoritative reads only, with no client-side row filtering as the source of
+    truth;
+  - inventory cost open within authorized inventory scope;
+  - `can_view_financials` not used as an inventory cost gate;
+  - full-division history gated by `can_manage_inventory`;
+  - self-scoped my-transactions surface gated by `can_inventory_transactions`;
+  - the division-scoped-read drift warning closed for Inventory;
+  - same pattern carried forward as the template for future tools, vehicles, and jobs
+    read access.
+- Replaced Section 25 with Label Template Designer scope:
+  - Avery 5164 for unit/shelf/bay placards;
+  - Avery 8160 for bin labels;
+  - data-driven geometry;
+  - per-field include/exclude toggles;
+  - optional QR per template;
+  - per-field styling for color, alignment, bold, underline, and opacity;
+  - live preview;
+  - individual and unit/shelf/bay/bin printing;
+  - QR content from Section 10 payloads;
+  - print-to-PDF via `react-pdf` with exact sheet positioning;
+  - saved/named reusable templates;
+  - locked `label_templates` schema block.
+- Applied the light-touch Section 29 build-sequence wording edits without renumbering.
+- Repaired HANDOFF physical order so Entry 051 now appears before Entry 052.
+- Appended this Entry 056 at the end of HANDOFF.
+
+### Schema Changes
+- None applied.
+- No migration was added.
+- No Supabase schema, RPC, permission, RLS, ledger, inventory balance, count correction,
+  bin_item retirement, destination semantics, transaction history, checkout/finalization,
+  Netlify, Clerk, or production configuration change was made.
+- ARCHITECTURE v2.14 now locks the future `label_templates` table shape, but no database
+  implementation was created in this milestone.
+
+### Code / File Changes
+- Updated `docs/ARCHITECTURE.md` only for v2.14 lock-document text.
+- Updated `HANDOFF.md` only for Entry 051 / Entry 052 physical-order repair and Entry 056.
+- No app code, package files, Netlify files, Supabase files, migrations, screenshots,
+  pasted brief files, or scratch files were changed or staged.
+
+### Lock Document Changes
+- ARCHITECTURE updated from v2.13 to v2.14.
+- HANDOFF repaired so Entry 051 physically appears before Entry 052.
+- HANDOFF remains gapless through Entry 056.
+
+### What Codex Needs to Know
+- Milestone 5A has not started.
+- The next implementation step is ChatGPT/Codex 5A staged implementation, using
+  ARCHITECTURE v2.14 and HANDOFF Entry 056 as the source of truth.
+- Division-scoped reads must be server-authoritative and use the locked Section 17a tiers.
+- Inventory cost is visible within authorized inventory scope; `can_view_financials` is not
+  the inventory cost gate.
+- QR payload identity is UUID-based, with `/scan/<entity_type>/<uuid>` typed routes.
+- Label Template Designer is locked conceptually, including the `label_templates` table
+  shape, but is not implemented yet.
+
+### What Claude Needs to Know
+- Codex applied only the Rule 20-cleared documentation deltas and HANDOFF presentation
+  repair.
+- No implementation, schema, migration, RPC, permission, ledger, balance, count-correction,
+  bin_item retirement, destination semantics, transaction history, or reserved-feature work
+  was performed.
+- Entry 051 / Entry 052 content was not edited; only physical order was repaired.
+
+### Next Steps (in order)
+1. Proceed to ChatGPT/Codex Milestone 5A staged implementation only after confirming
+   ARCHITECTURE v2.14 and HANDOFF Entry 056 are present in the repo.
+2. Keep implementation scoped to the v2.14 locked sequence.
+3. Route to Claude before any change that touches schema, RPCs, permissions, ledger,
+   balances, destination semantics, transaction history visibility, or reserved features
+   beyond the cleared v2.14 scope.
+
+### Open Questions / Concerns
+- None blocking for the documentation update.
+- Milestone 5A implementation remains intentionally unstarted.
+
+### Architecture Drift Warnings
+- RESOLVED for Inventory: division-scoped-read rule is now locked in Section 17a.
+- RESERVED: Return-to-Inventory, Buyout, Tools locations, vehicle bins, Express Checkout,
+  Manager Override, reorder/min-max, structured count-type field, catalog creation from
+  count UI.
+
+### Routing Verdict
+No Claude review needed - architecture deltas and HANDOFF reorder required and received ChatGPT Rule 20 cross-clearance before Ryan/Codex commit.
+
+---
+
+## Entry 057 - Milestone 5A v2.14 Read-Rule Foundation
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5A read-rule foundation
+**Session type:** implementation / migration / static verification
+
+### Context
+Ryan requested Milestone 5A to implement the ARCHITECTURE v2.14 Division-Scoped Read
+Rule foundation. Required first actions were completed before implementation:
+`git pull --ff-only origin main` returned already up to date; local `main` matched
+`origin/main`; `docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was confirmed
+gapless through Entry 056; Entry 051 was confirmed to physically appear before Entry
+052; and the repo clone copies of the coordination docs were used, not stale attachment
+or external coordination copies.
+
+### What Was Completed
+- Added the read-only `can_view_all_divisions` capability to the canonical permission
+  surface.
+- Updated role defaults so only the Developer role receives `can_view_all_divisions`
+  by role default.
+- Added `public.effective_permissions_for_user(...)` so Admin-division users receive
+  `can_view_all_divisions` through division-aware effective permission resolution where
+  division is known, rather than by fudging the Administrator role seed.
+- Preserved override-last behavior: explicit per-user overrides are applied after role
+  defaults and Admin-division effective defaults.
+- Updated `public.get_or_create_user_permissions()` to return effective permissions.
+- Updated existing scoped reference views to use the same caller division anchor from
+  the 202606120001 scoped reference view pattern:
+  - `inventory_cart_candidates_view`;
+  - `inventory_destination_users_view`;
+  - `inventory_destination_vehicles_view`.
+- Updated `public.read_inventory_transaction_history(...)` to follow Section 17a:
+  - cross-division read for effective `can_view_all_divisions`;
+  - own-division full read for Administrator, Project Manager, Estimator, and Field
+    Supervisor with `can_manage_inventory`;
+  - self-scoped own transaction read for users with `can_inventory_transactions`.
+- Kept filtering server-authoritative in the RPC/view layer. No client-side-only row
+  filtering was introduced as a source of truth.
+- Updated the transaction history UI gate so authorized non-Developer users can request
+  the server-authoritative history RPC when their server permissions allow it.
+- Added client permission mapping for `can_view_all_divisions`.
+
+### Schema Changes
+- Added migration `supabase/migrations/20260622200351_v214_read_rule_foundation.sql`.
+- No table schema was changed.
+- No direct `inventory_balances` write path was added.
+- No checkout/finalization, count correction, count intake, bin_item retirement,
+  destination semantics, ledger behavior, transaction history meaning, QR/scanner
+  behavior, label-template behavior, or reserved feature implementation was changed.
+
+### Code / File Changes
+- Updated `src/hooks/usePermissions.js` to include `can_view_all_divisions` in the deny
+  defaults and camel-case permission mapping.
+- Updated `src/App.jsx` transaction history read gating and empty/locked copy to align
+  with the server-side division read rule.
+- Inventory cost fields remain visible within allowed row scope; `unit_cost_at_time`
+  remains returned by the history RPC and rendered in the UI.
+- `can_view_financials` was not wired to inventory cost visibility.
+
+### Verification
+- `npm.cmd run build` passed.
+- Static scan confirmed no direct `inventory_balances` insert/update/delete path was
+  added.
+- Static scan confirmed no checkout/finalization functions were changed in the new
+  migration.
+- Static scan confirmed `can_view_financials` was not introduced as an inventory cost
+  gate.
+- Static scan confirmed QR/scanner and label-template features were not implemented.
+- Local Supabase migration application was attempted with `npx.cmd supabase db reset
+  --local --no-seed`, but could not run because Docker Desktop/local engine access was
+  unavailable in this Codex environment.
+- No live migration was applied; live application requires Ryan approval.
+- Browser verification was not available in this Codex session and is not claimed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 057.
+
+### What Codex Needs to Know
+- Admin-division cross-division visibility is an effective-permission layer, not an
+  Administrator role default.
+- A non-Developer Administrator, Project Manager, Estimator, or Field Supervisor outside
+  the Admin division remains own-division unless explicitly granted
+  `can_view_all_divisions`.
+- Field Tech/User transaction history access is self-scoped to their own transactions
+  within their division when `can_inventory_transactions` is true.
+- Fake, missing, or unauthorized subjects should fail closed through the server-side RPC.
+- Inventory costs are visible within authorized inventory row scope and are not governed
+  by `can_view_financials`.
+
+### What Claude Needs to Know
+- The implementation reused the existing 202606120001 division anchor pattern.
+- Developer role default and Admin-division default were kept separate.
+- No schema tables, ledger behavior, balances, checkout/finalization behavior, count
+  correction behavior, count intake behavior, bin_item retirement semantics, destination
+  semantics, QR/scanner behavior, label-template behavior, or reserved features were
+  changed.
+- Local migration execution remains unverified only because Docker/local Supabase was
+  unavailable in this environment.
+
+### Next Steps (in order)
+1. Ryan should approve and perform live migration application or provide a local Docker
+   Supabase environment so the migration can be applied and tested against a database.
+2. After deployment, verify transaction history as Developer, Admin-division user,
+   non-Admin-division Administrator/Project Manager/Estimator/Field Supervisor, and
+   Field Tech/User self-scoped access.
+3. Continue to later v2.14 milestones only after confirming the read-rule foundation is
+   deployed and behaving as expected.
+
+### Open Questions / Concerns
+- Local database reset/apply was blocked by missing Docker Desktop/local engine access.
+- Authenticated browser verification was not available from this Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Inventory division-scoped read-rule foundation is implemented
+  according to ARCHITECTURE v2.14 Section 17a.
+- RESERVED: QR generator/scanner, Label Template Designer, Grand Master UI surface,
+  accounting export, location management UI, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override, reorder/min-max,
+  structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 056).
+
+---
+
+## Entry 058 - Milestone 5A.1 v2.14 Read-Rule Live Apply Verification
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5A.1 live migration apply / verification
+**Session type:** live Supabase migration apply / static and database verification
+
+### Context
+Ryan requested Milestone 5A.1 to apply and verify the v2.14 read-rule foundation
+migration from Entry 057 against live Supabase project `keogysnoukbendfkfjcn`.
+Required first actions were completed before live apply: `git pull --ff-only origin main`
+returned already up to date; local `main` matched `origin/main` at `b8fc14b`; HEAD was
+confirmed as commit `b8fc14b`; `docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF
+was confirmed gapless through Entry 057; and the repo clone files were used rather than
+stale coordination docs or attachment copies.
+
+The repo was not linked to Supabase through local CLI config, and the local Supabase CLI
+was not authenticated. The Supabase connector was used instead after confirming the live
+project list included `keogysnoukbendfkfjcn` as `northgate-hq-v2.0`.
+
+### What Was Completed
+- Identified the pending 5A migration:
+  `supabase/migrations/20260622200351_v214_read_rule_foundation.sql`.
+- Validated the migration before apply:
+  - it implements the v2.14 read-rule foundation only;
+  - it keeps Developer role default and Admin-division effective default separate;
+  - it does not grant cross-division visibility to Administrator role outside Admin
+    division by role default;
+  - it reuses the existing 202606120001 scoped reference view division-anchor pattern;
+  - it keeps inventory cost visible within allowed row scope;
+  - it does not use `can_view_financials` as an inventory cost gate;
+  - it does not introduce direct `inventory_balances` writes;
+  - it does not change checkout/finalization, count correction, count intake,
+    bin_item retirement, destination semantics, QR/scanner behavior, label-template
+    behavior, or Financials/job-cost behavior.
+- Applied the committed 5A SQL to live Supabase using the Supabase migration connector.
+- Confirmed live migration history now includes `20260622204514 v214_read_rule_foundation`.
+  The connector assigned the live migration version timestamp; the applied SQL corresponds
+  to the committed local file `20260622200351_v214_read_rule_foundation.sql`.
+
+### Post-Apply Verification
+- Migration history confirmed `v214_read_rule_foundation` is applied live.
+- Permission-layer SQL checks confirmed:
+  - Developer role default has `can_view_all_divisions = true`;
+  - Administrator role default has `can_view_all_divisions = false`;
+  - Administrator in Admin division receives effective `can_view_all_divisions = true`;
+  - Administrator in Electrical division remains effective `can_view_all_divisions = false`;
+  - explicit Admin-division false override wins over the Admin-division default.
+- Transaction-history function source check confirmed:
+  - `can_view_financials` is not used by `read_inventory_transaction_history`;
+  - `unit_cost_at_time` remains returned;
+  - `can_view_all_divisions` is used for cross-division read scope;
+  - the self-scoped predicate `tx.user_id = jwt_subject` remains present.
+- Developer-context live RPC smoke check completed successfully and returned transaction
+  history rows.
+- No-JWT live RPC smoke check failed closed with `authenticated Clerk JWT is required`.
+- `npm.cmd run build` passed after live apply.
+- Static scan remained clean for prohibited deletes, table drops/alters/creates, direct
+  `inventory_balances` writes, checkout/finalization, count correction, count intake,
+  bin_item retirement, QR/scanner, and label-template changes.
+
+### Schema Changes
+- Live Supabase now has the v2.14 read-rule foundation migration applied.
+- No schema tables were changed.
+- No ad-hoc SQL outside the committed 5A migration SQL was used for implementation.
+- No production Clerk, Netlify, or environment variables were modified.
+
+### Code / File Changes
+- No app code changed in this milestone.
+- HANDOFF was updated with this Entry 058 only.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 058.
+
+### What Codex Needs to Know
+- Live Supabase migration history records the applied migration as
+  `20260622204514 v214_read_rule_foundation` because the Supabase connector assigned the
+  live migration version.
+- The committed local migration file remains
+  `20260622200351_v214_read_rule_foundation.sql`; its SQL is what was applied live.
+- Future migration-history work should be aware of that version/name difference before
+  running CLI migration repair or push operations.
+- Authenticated browser verification was not available in this Codex session and is not
+  claimed here.
+
+### What Claude Needs to Know
+- The live apply matched the locked 5A implementation and post-apply database checks.
+- Developer role default and Admin-division effective default remain separate.
+- `can_view_financials` was not introduced as an inventory cost gate.
+- No ledger, balance, checkout/finalization, count correction, count intake, bin_item
+  retirement, destination semantics, QR/scanner, label-template, or Financials/job-cost
+  behavior was changed.
+- The only caution is migration-history version bookkeeping due to connector-assigned
+  live version `20260622204514` versus committed local file version `20260622200351`.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the `rnsolutions.net`
+   custom domain:
+   - login works;
+   - Source shows server;
+   - Developer/Admin access works;
+   - Inventory Count loads;
+   - Transaction History loads for Developer;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Before the next Supabase CLI migration push/repair, account for the live connector
+   migration version `20260622204514 v214_read_rule_foundation`.
+3. Proceed to the next v2.14 milestone only after Ryan is satisfied with production
+   browser smoke results.
+
+### Open Questions / Concerns
+- Authenticated browser verification was not available from this Codex session.
+- Migration history version bookkeeping should be handled intentionally in a later
+  coordination step if the CLI expects the committed local timestamp exactly.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: the v2.14 read-rule foundation has been applied and verified
+  live at the database level.
+- RESERVED: QR generator/scanner, Label Template Designer, Grand Master UI surface,
+  accounting export, location management UI, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override, reorder/min-max,
+  structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - live migration/apply verification only for locked implementation (ARCHITECTURE v2.14, HANDOFF Entry 057).
+
+---
+
+## Entry 059 - Milestone 5B Location Management UI + QR Generator Foundation
+
+**Date:** 2026-06-22
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5B location management / QR foundation
+**Session type:** UI implementation / static verification / read-only database check
+
+### Context
+Ryan requested Milestone 5B to add a safe Location Management UI foundation and QR
+generator for existing storage locations only. Required first actions were completed
+before implementation: `git pull --ff-only origin main` returned already up to date;
+local `main` matched `origin/main` at `1bdd182`; `docs/ARCHITECTURE.md` was confirmed
+as v2.14; HANDOFF was confirmed gapless through Entry 058; Entry 058 was confirmed to
+document the 5A.1 live migration apply; and the repo clone files were used rather than
+stale coordination docs or attachment copies.
+
+### What Was Completed
+- Added a new Inventory tab: `Locations & QR`.
+- Added a read-only Location Management panel for the existing storage hierarchy:
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin.
+- Reused the existing `useInventoryCountSheet` read path for `storage_units`, `shelves`,
+  `bays`, and `bins`; no new Supabase table, view, RPC, RLS, or permission behavior was
+  introduced.
+- Built hierarchy records from existing stable UUID primary keys and displayed:
+  - type;
+  - human-readable code;
+  - label/name;
+  - parent path;
+  - division where available.
+- Added location search and type filtering for the hierarchy.
+- Added QR URL generation for existing location rows only.
+- Added QR SVG rendering, SVG download, and print support for the selected location.
+- Added UI copy explaining that QR identity is the stable UUID and that renaming display
+  codes should not invalidate printed labels.
+- Deferred create, rename, and archive controls because no locked safe server-side
+  location write APIs were surfaced in this milestone.
+
+### QR Payload Details
+- QR URLs are generated by `src/lib/locationQr.js`.
+- Runtime app origin uses `window.location.origin` so production opened from
+  `rnsolutions.net` emits that domain.
+- Optional future app-origin override points are isolated in the helper:
+  `VITE_APP_ORIGIN` or `VITE_APP_URL`.
+- Payload format is:
+  `https://<app-domain>/scan/location/<location_uuid>`.
+- The encoded identity is the stable location UUID only.
+- Human-readable codes such as `A111` are displayed beside the QR for operator clarity
+  but are not encoded as identity.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No Supabase live schema change was made.
+- A read-only live database check confirmed the existing storage hierarchy counts and
+  UUID presence:
+  - `storage_units`: 2;
+  - `shelves`: 2;
+  - `bays`: 3;
+  - `bins`: 9;
+  - each location table has UUID primary key values available.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added hierarchy record construction;
+  - added `LocationManagementPanel`;
+  - added the `Locations & QR` inventory tab;
+  - added read-only QR download/print actions.
+- Updated `src/styles.css` for the location hierarchy and QR layout.
+- Added `src/lib/locationQr.js` for deterministic app-origin and location QR URL helpers.
+- Added `src/lib/qrCode.js` for browser-safe SVG QR generation without a new dependency.
+
+### Verification
+- `npm.cmd run build` passed.
+- Local QR helper smoke test generated an SVG for
+  `https://rnsolutions.net/scan/location/<uuid>`.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no changes to Supabase hooks/services, transaction history hooks,
+  permissions hooks, or 5A read-rule migration files.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed QR payload helper uses `/scan/location/<uuid>`.
+- Static review confirmed QR payload generation uses selected location `id`, not
+  human-readable location code, material code, bin_item id, catalog item id, transaction
+  id, or compact path.
+- Authenticated browser verification was not available in this Codex session and is not
+  claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 059.
+
+### What Codex Needs to Know
+- Location Management is read-only in this milestone.
+- QR generation is locations-only and limited to existing Unit/Shelf/Bay/Bin rows.
+- QR download/print support is basic SVG output, not the future Label Template Designer.
+- The camera-based scanner, scan target contents page, Avery templates, and
+  `label_templates` work remain unbuilt.
+- Future scan targets must still resolve server-side and respect read rules; QR is not a
+  permission bypass.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics, transaction
+  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
+  QR scanner, label-template, or Financials/job-cost behavior was changed.
+- Create/rename/archive location writes were intentionally deferred rather than invented
+  client-side.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the `rnsolutions.net`
+   custom domain:
+   - Source shows server;
+   - `Locations & QR` loads;
+   - Unit/Shelf/Bay/Bin hierarchy displays;
+   - selected QR URL matches `/scan/location/<location_uuid>`;
+   - displayed code remains visible beside the QR;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Route to Claude before adding location create, rename, or archive if new schema, RPCs,
+   RLS, or permission behavior are required.
+3. Keep scanner, Label Template Designer, Grand Master UI, and accounting export reserved
+   for their own milestones.
+
+### Open Questions / Concerns
+- Authenticated browser verification was not available from this Codex session.
+- Location write APIs were not identified as locked/safe in this milestone, so write
+  controls remain deferred.
+
+### Architecture Drift Warnings
+- OPEN for later milestones: camera-based web scanner and scan target contents page.
+- RESERVED: Label Template Designer, `label_templates`, Avery 5164/8160 designer, Grand
+  Master UI surface, accounting export, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override, reorder/min-max,
+  structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 058).
+
+---
+
+## Entry 060 - Milestone 5C Web QR Scanner + Scan Route
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C web QR scanner / scan route
+**Session type:** UI implementation / route handling / static verification
+
+### Context
+Ryan requested Milestone 5C to add the web QR scanner and scan route for location QR
+payloads only. Required first actions were completed before implementation:
+`git pull --ff-only origin main` returned already up to date; local `main` matched
+`origin/main` at `1b9cb41`; `docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was
+confirmed gapless through Entry 059; Entry 059 was confirmed to document the 5B Location
+QR foundation; and the repo clone files were used rather than stale coordination docs or
+attachment copies.
+
+### What Was Completed
+- Added in-app route handling for `/scan/location/<location_uuid>`.
+- Added a read-only scan result view for location QR payloads.
+- Added a `Scan QR` tab under Inventory.
+- Added a web camera scanner UI that uses the browser-native `BarcodeDetector` API when
+  available.
+- Added clean fallback messaging for:
+  - unsupported native QR detection;
+  - missing camera API;
+  - non-secure HTTP contexts;
+  - denied or unavailable camera permission.
+- Added manual-entry fallback for pasted scan payloads.
+- Added scan-result contents display using the existing inventory location/count read path.
+- Kept scan result display read-only with no inventory create, update, checkout, count,
+  transfer, return, retirement, or destination actions.
+
+### Payload Handling
+- Accepted payload formats:
+  - `https://<app-domain>/scan/location/<location_uuid>`;
+  - `/scan/location/<location_uuid>`;
+  - bare `<location_uuid>` for manual entry.
+- Unsupported payloads are rejected gracefully with user-facing scanner copy.
+- Non-location entity types remain unsupported.
+- A111-style compact codes and human-readable location codes are not accepted as identity.
+- Location resolution uses the stable UUID from the typed payload.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No new dependency was added.
+
+### Code / File Changes
+- Updated `src/lib/locationQr.js`:
+  - added scan path generation;
+  - added payload parsing/validation for location QR payloads.
+- Updated `src/App.jsx`:
+  - added lightweight browser path handling;
+  - added `/scan/location/<uuid>` result rendering;
+  - added `LocationScannerPanel`;
+  - added `LocationScanResult`;
+  - added the `Scan QR` Inventory tab.
+- Updated `src/styles.css`:
+  - added responsive scanner, manual-entry, and scan-result styles.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no package/dependency file was changed.
+- Static scan confirmed no Supabase hooks/services were changed.
+- Static scan confirmed no 5A read-rule, transaction-history, permission, or
+  `can_view_all_divisions` behavior was changed.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed no checkout/finalization function was changed.
+- Static review confirmed scan result resolves by location UUID, not human-readable code.
+- Authenticated browser/camera verification was not available in this Codex session and is
+  not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 060.
+
+### What Codex Needs to Know
+- The web scanner is browser-native: no scanner dependency was added.
+- Camera scanning requires HTTPS and browser support for `BarcodeDetector`.
+- Manual scan payload entry is always available as the fallback.
+- The scan result view uses the existing storage hierarchy/count read path and requires
+  server permission source plus `can_manage_inventory`.
+- Scanner and scan result views are read-only and are not a permission bypass.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics, transaction
+  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
+  label-template, non-location QR entity, or Financials/job-cost behavior was changed.
+- Non-location QR entities remain unbuilt.
+- Location create/rename/archive remains unbuilt.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser/camera smoke verification on the
+   `rnsolutions.net` custom domain:
+   - Source shows server;
+   - `Scan QR` tab loads;
+   - camera permission prompt appears on supported browsers;
+   - manual entry of a 5B location QR URL routes to `/scan/location/<uuid>`;
+   - scan result displays the correct human-readable location path;
+   - unsupported payloads are rejected without crashing;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Keep Label Template Designer, Grand Master UI, accounting export, and non-location QR
+   entity support reserved for their own milestones.
+3. Route to Claude before any scan result action becomes write-capable or before adding
+   new schema/RPC/RLS/permission behavior.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this Codex session.
+- Native camera scanning depends on browser `BarcodeDetector` support; manual entry remains
+  the fallback where unsupported.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: camera-based web scanner and `/scan/location/<uuid>` route
+  are implemented for location payloads only.
+- RESERVED: non-location QR entities, React Native companion app, Label Template
+  Designer, `label_templates`, Avery 5164/8160 designer, Grand Master UI surface,
+  accounting export, location create/rename/archive, Return-to-Inventory, Buyout, Tools
+  locations, vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 059).
+
+---
+
+## Entry 061 - Milestone 5C.1 Chrome-Compatible QR Scanner Fallback
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.1 Chrome scanner fallback
+**Session type:** UI implementation / dependency addition / static verification
+
+### Context
+Ryan requested Milestone 5C.1 after Chrome showed the scanner message:
+`This browser does not support native QR detection. Use manual entry.` Required first
+actions were completed before implementation: `git pull --ff-only origin main` returned
+already up to date; local `main` matched `origin/main` at `203911f`;
+`docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was confirmed gapless through
+Entry 060; Entry 060 was confirmed to document the location-only scanner route; and the
+repo clone files were used rather than stale coordination docs or attachment copies.
+
+### What Was Completed
+- Added a Chrome-compatible camera decoding fallback for location QR scanning.
+- Preserved the native `BarcodeDetector` path when the browser supports QR detection.
+- Added QR support detection using `BarcodeDetector.getSupportedFormats()` when available.
+- Changed the previous native-unsupported terminal branch into an automatic compatibility
+  camera scanner path.
+- Added scanner mode display while the camera is active:
+  - Native scanner;
+  - Compatibility scanner;
+  - manual entry remains available.
+- Preserved manual scan payload entry as a fallback, not the only Chrome path.
+- Preserved route handling through `/scan/location/<location_uuid>`.
+
+### Payload Handling
+- Accepted payload formats remain:
+  - `https://<app-domain>/scan/location/<location_uuid>`;
+  - `/scan/location/<location_uuid>`;
+  - bare `<location_uuid>` for manual entry.
+- Unsupported payloads are rejected through the existing parser.
+- Non-location entity types remain unsupported.
+- Human-readable location codes remain display labels only and are not accepted as scan
+  identity.
+- Scan result routing still resolves by stable location UUID.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count correction,
+  count intake, bin_item retirement, destination semantics, or transaction-history
+  behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added the `jsqr` import;
+  - added native QR detector support checks;
+  - added video-frame QR decoding fallback for browsers without native QR support;
+  - kept scanner behavior read-only and location-only.
+- Updated `package.json`:
+  - added `jsqr`.
+- Added `package-lock.json`.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no Supabase hooks/services were changed.
+- Static scan confirmed no docs or architecture files were changed.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed no checkout/finalization function was changed.
+- Static review confirmed no scan result write action was added.
+- Authenticated browser/camera verification was not available in this Codex session and is
+  not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.14.
+- HANDOFF remains gapless through Entry 061.
+
+### What Codex Needs to Know
+- Chrome no longer has to rely on manual entry solely because native `BarcodeDetector`
+  support is unavailable.
+- The camera scanner now chooses native QR detection first, then falls back to `jsqr`.
+- Manual entry remains present for HTTPS, permission, camera, or scan-quality issues.
+- Scanner and scan result views remain read-only and are not a permission bypass.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics, transaction
+  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
+  label-template, non-location QR entity, or Financials/job-cost behavior was changed.
+- Non-location QR entities remain unbuilt.
+- Location create/rename/archive remains unbuilt.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated Chrome/camera smoke verification on the
+   `rnsolutions.net` custom domain:
+   - Source shows server;
+   - `Scan QR` tab loads;
+   - Start Camera opens a camera stream;
+   - Chrome displays Compatibility scanner when native QR detection is unavailable;
+   - a 5B location QR routes to `/scan/location/<uuid>`;
+   - manual entry of a location QR URL still routes correctly;
+   - unsupported payloads are rejected without crashing;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Keep Label Template Designer, Grand Master UI, accounting export, and non-location QR
+   entity support reserved for their own milestones.
+3. Route to Claude before any scan result action becomes write-capable or before adding
+   new schema/RPC/RLS/permission behavior.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this Codex
+  session.
+- Real-device scan performance should be confirmed in Chrome against printed and
+  screen-displayed location QR codes.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Chrome-compatible camera fallback for location QR scanning.
+- RESERVED: non-location QR entities, React Native companion app, Label Template
+  Designer, `label_templates`, Avery 5164/8160 designer, Grand Master UI surface,
+  accounting export, location create/rename/archive, Return-to-Inventory, Buyout, Tools
+  locations, vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - Chrome-compatible scanner fallback within locked scan behavior (ARCHITECTURE v2.14, HANDOFF Entry 060).
+
+---
+
+## Entry 062 - Milestone 5C.3 Prep v2.15 Scan Destination Behavior Lock
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.3 Prep lock-document update
+**Session type:** Documentation-only architecture lock update
+
+### Context
+Ryan requested Milestone 5C.3 Prep to apply the Rule 20-cleared v2.15 Scan
+Destination Behavior lock-document delta before running the planned Milestone
+5C.2 implementation. This session intentionally did not implement 5C.2.
+Required first actions were completed before editing: `git pull --ff-only origin
+main` returned already up to date; local `main` matched `origin/main` at
+`5948537`; `docs/ARCHITECTURE.md` was confirmed as v2.14 before editing;
+HANDOFF was confirmed gapless through Entry 061; no stale coordination docs
+were used; and work was performed only from the git clone.
+
+### What Was Completed
+- Updated `docs/ARCHITECTURE.md` to v2.15.
+- Added new Section 10a: Scan Destination Behavior.
+- Locked scan destination pages as division-scoped, location-scoped views and
+  action entry points.
+- Locked that scan destination pages dispatch into the existing cart/checkout
+  and `physical_count_correction` engines.
+- Locked that scan pages must not reimplement cart, transaction, or balance
+  logic.
+- Locked that scan pages introduce no new transaction type and change no balance
+  derivation.
+- Locked authentication before contents.
+- Locked server-resolved, fail-closed behavior under Rule 4.
+- Locked that unauthorized scans do not confirm whether a location exists.
+- Locked bin pages as the action level.
+- Locked unit, shelf, and bay pages as read + navigation surfaces where actions
+  occur at bin level.
+- Locked that no generic ambiguous +/- controls are allowed.
+- Locked that scan pages initiate no location-to-location/bin-to-bin movement
+  and do not surface Transfer Location.
+- Locked multi-bin batch cart actions from hierarchy levels as RESERVED.
+- Locked that current contents/balances reads are broader than
+  transaction-history self-scope, which still governs history reads only.
+- Locked that label layout may vary by level through
+  `label_templates.scope_level`, while QR payload remains unchanged.
+- Preserved the v2.14 summary as prior/history text.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics,
+  transaction-history, Clerk, Netlify, or app behavior was changed.
+
+### Code / File Changes
+- Updated `docs/ARCHITECTURE.md`.
+- Updated `HANDOFF.md`.
+- No app code was changed.
+- No package, Netlify, Supabase, migration, screenshot, attachment, scratch, or
+  proposal file was committed.
+
+### Verification
+- Confirmed `docs/ARCHITECTURE.md` now says v2.15.
+- Confirmed Section 10a exists after Section 10 and before Section 11.
+- Confirmed HANDOFF is gapless through Entry 062.
+- Confirmed Entry 062 appears only once.
+- Confirmed only `docs/ARCHITECTURE.md` and `HANDOFF.md` were staged.
+- Confirmed the Claude proposal/brief attachment was not staged.
+- Confirmed no app implementation work was performed.
+- Confirmed Milestone 5C.2 was not implemented as part of this prep milestone.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.14 to v2.15.
+- New Section 10a locks Scan Destination Behavior.
+- HANDOFF remains gapless through Entry 062.
+
+### What Codex Needs to Know
+- Milestone 5C.2 remains queued for implementation after this documentation
+  commit.
+- Scan destination behavior is now canonical in ARCHITECTURE v2.15 Section 10a.
+- First build sequence is read-before-write: location-scoped
+  contents/navigation first, then action bindings to existing engines.
+- Scan pages are not a permission bypass and must fail closed generically.
+- Bin pages are the action level; unit/shelf/bay pages are read + navigation
+  only.
+- QR payload remains `/scan/location/<uuid>` and identity remains the UUID.
+
+### What Claude Needs to Know
+- This was a Rule 20-cleared documentation application only.
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
+  count correction, count intake, bin_item retirement, destination semantics,
+  transaction history read-rule, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost, label-template mechanism,
+  non-location QR entity, or Financials/job-cost behavior was changed.
+- Scan destination pages must use existing cart/checkout and
+  `physical_count_correction` engines rather than reimplementing transaction,
+  cart, or balance logic.
+
+### Next Steps (in order)
+1. Proceed to the planned Milestone 5C.2 implementation only after this v2.15
+   lock-document commit is in place.
+2. Build the read-first location-scoped contents/navigation view before adding
+   action bindings.
+3. Route to Claude before any implementation touches schema, RPCs, RLS,
+   permissions, ledger behavior, balance derivation, transaction-history scope,
+   destination semantics, or reserved features.
+
+### Open Questions / Concerns
+- None for this documentation-only milestone.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: v2.15 Scan Destination Behavior is now locked in
+  Section 10a.
+- RESERVED: Milestone 5C.2 implementation, scan page write/action bindings,
+  multi-bin batch cart actions, non-location QR entities, React Native companion
+  app, Label Template Designer implementation, `label_templates`, Avery
+  5164/8160 designer implementation, Grand Master UI surface, accounting export,
+  location create/rename/archive, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count
+  UI.
+
+### Routing Verdict
+No Claude review needed - Rule 20-cleared documentation update applied as instructed (ARCHITECTURE v2.15, HANDOFF Entry 062).
+
+---
+
+## Entry 063 - Milestone 5C.2 v2.15 Scan Destination Read-First Hierarchy Pages
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.2 read-first scan destination pages
+**Session type:** UI implementation / read-path reuse / static verification
+
+### Context
+Ryan requested Milestone 5C.2 after v2.15 Section 10a was locked by Entry 062.
+Required first actions were completed before implementation: `git pull --ff-only
+origin main` returned already up to date; local `main` matched `origin/main` at
+`c9ad6a4`; `docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a Scan
+Destination Behavior was confirmed present; HANDOFF was confirmed gapless
+through Entry 062; the Milestone 5C scanner route was confirmed present; the
+Milestone 5C.1 Chrome-compatible scanner fallback was confirmed present; and no
+stale coordination docs were used.
+
+### What Was Completed
+- Implemented read-first scan destination pages for location QR scans.
+- Added level-aware scan destination resolution for:
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin.
+- Preserved UUID-based scan identity and `/scan/location/<location_uuid>` route
+  behavior.
+- Added scoped human-readable location code/path display.
+- Added hierarchy navigation:
+  - Bin pages navigate up to Bay, Shelf, and Unit;
+  - Bay pages navigate up to Shelf/Unit and down to Bins;
+  - Shelf pages navigate up to Unit and down to Bays/Bins;
+  - Unit pages navigate down to Shelves/Bays/Bins.
+- Added grouped read displays:
+  - Bin scan shows current material rows in that bin;
+  - Bay scan shows bins under the bay and material rows grouped by bin;
+  - Shelf scan shows bay/bin/material contents grouped by bay/bin;
+  - Unit scan shows shelf/bay/bin/material contents grouped by shelf/bay/bin.
+- Added read-first UI copy:
+  - "Scan result actions are read-first in this version."
+  - "Cart staging and count correction will be wired to existing engines in a
+    later milestone."
+- Added clearer empty states for unavailable scan targets, no bins, no shelves,
+  no material rows under scope, and no contents in a bin.
+- Kept scan destination components isolated so bin-level action bindings can be
+  added later without rewriting the read view.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
+  correction, count intake, bin_item retirement, destination semantics,
+  transaction-history read-rule, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost, Location QR payload, scanner payload,
+  Clerk, Netlify, or Financials/job-cost behavior was changed.
+
+### Code / File Changes
+- Updated `src/App.jsx`:
+  - added scan destination hierarchy model helpers;
+  - replaced the flat scan result contents table with level-aware read-first
+    scan destination components;
+  - reused existing `useInventoryCountSheet` read path and existing
+    `/scan/location/<uuid>` route helper.
+- Updated `src/styles.css`:
+  - added responsive hierarchy navigation and grouped contents styling.
+- No hooks, services, Supabase files, migrations, package files, architecture
+  docs, or scan parser files were changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes
+    correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected.
+- Static scan confirmed no migration files were added or changed.
+- Static scan confirmed no Supabase hooks/services were changed.
+- Static scan confirmed no package files were changed.
+- Static scan confirmed no architecture docs were changed.
+- Static scan confirmed no direct `inventory_balances` write path was added.
+- Static scan confirmed no checkout/finalization function was changed.
+- Diff review confirmed newly added scan-page buttons are navigation-only and
+  route through `buildLocationScanPath()`.
+- Diff review confirmed no scan-page cart staging, count correction, transfer,
+  retire, checkout, quantity adjustment, plus/minus, note/reason form, or other
+  inventory-changing action was added.
+- Authenticated browser/camera verification was not available in this Codex
+  session and is not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 063.
+
+### What Codex Needs to Know
+- Scan destination pages now implement the read-before-write step from v2.15
+  Section 10a.
+- Unit/Shelf/Bay/Bin scan pages are level-aware and use existing server-backed
+  read paths.
+- Bin-level cart/count action bindings remain deferred to a later milestone.
+- Hierarchy navigation is read/navigation only and continues to route by UUID.
+- Human-readable location codes and paths remain display text only.
+- Unsupported scan payload behavior from 5C/5C.1 is unchanged.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
+  count correction, count intake, bin_item retirement, destination semantics,
+  transaction history read-rule, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost, label-template mechanism,
+  non-location QR entity, or Financials/job-cost behavior was changed.
+- No new read-only RPC/view was required.
+- No scan page write/action binding was added.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the
+   `rnsolutions.net` custom domain:
+   - Source shows server;
+   - manual entry or scan of valid Unit/Shelf/Bay/Bin QR opens the correct
+     scoped page;
+   - human-readable path displays;
+   - hierarchy navigation works up/down;
+   - contents display correctly where data exists;
+   - scan pages remain read-first with no inventory-changing buttons;
+   - unsupported payloads are rejected gracefully;
+   - Chrome scanner fallback still works;
+   - no Supabase 401 / PGRST301;
+   - no Clerk production-domain error.
+2. Keep bin-level cart/count action bindings deferred until a later milestone.
+3. Route to Claude before adding scan-page write actions, new RPCs/views,
+   non-location QR entities, human-code scan identity, transaction-history
+   changes, ledger/balance/checkout/count changes, permission changes, or any
+   reserved feature.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this
+  Codex session.
+- Real production data should be used to visually confirm Unit/Shelf/Bay/Bin
+  grouping and empty states.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: read-first scan destination hierarchy pages for
+  Unit/Shelf/Bay/Bin.
+- RESERVED: bin-level action bindings, cart staging from scan pages, count
+  correction from scan pages, multi-bin batch cart actions, Transfer Location
+  surfacing from scan pages, non-location QR entities, React Native companion
+  app, Label Template Designer implementation, `label_templates`, Avery
+  5164/8160 designer implementation, Grand Master UI surface, accounting export,
+  location create/rename/archive, Return-to-Inventory, Buyout, Tools locations,
+  vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, and catalog creation from count
+  UI.
+
+### Routing Verdict
+No Claude review needed - read-first scan destination hierarchy within locked behavior (ARCHITECTURE v2.15, HANDOFF Entry 062).
+
+---
+
+## Entry 064 - Milestone 5C.2a Manual Location Code Entry Closeout
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5C.2a manual scan fallback closeout
+**Session type:** Verification / documentation closeout
+
+### Context
+Ryan requested Milestone 5C.2a to close out the manual-entry refinement after
+Milestone 5C.2 read-first scan destination hierarchy pages. First-action checks
+confirmed a sequencing mismatch: the manual-entry refinement had already been
+committed and pushed as `d96e73e` (`Refine scan manual location lookup`) before
+this closeout request. Local `main` matched `origin/main` at `d96e73e`;
+`docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a remains present;
+HANDOFF was confirmed gapless through Entry 063; and no stale coordination docs
+were used.
+
+### What Was Completed
+- Verified the manual-entry fallback now accepts location codes as lookup
+  shortcuts.
+- Verified manual-entry lookup supports human-readable examples such as:
+  - Unit code: `C`;
+  - Shelf code: `C2`;
+  - Bay code: `C21`;
+  - Bin code: `C211`.
+- Verified manual-entry lookup resolves through the existing loaded
+  Unit/Shelf/Bay/Bin hierarchy.
+- Verified exact single manual-code matches route to
+  `/scan/location/<resolved_location_uuid>`.
+- Verified no-match manual entry shows `No matching location found.`
+- Verified ambiguous manual entry shows a disambiguation list rather than
+  guessing.
+- Verified the UI copy now says: `Scan a Northgate HQ location QR, paste a QR
+  link, or enter a location code like C211.`
+
+### Identity / Scanner Behavior
+- QR identity remains UUID-only.
+- Human-readable location codes are convenience lookup shortcuts only.
+- Human-readable codes are not encoded or treated as permanent scan identity.
+- Camera QR parsing remains strict and location-only.
+- Unsupported non-location QR payloads remain rejected gracefully by the existing
+  scan payload parser.
+
+### Schema Changes
+- None.
+- No migration was added.
+- No live Supabase schema change was made.
+- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
+  correction, Count Intake, `physical_count_correction`, bin_item retirement,
+  destination semantics, transaction-history read-rule,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost, Location QR
+  payload generation, Clerk, Netlify, or Financials/job-cost behavior was
+  changed.
+
+### Code / File Changes
+- Manual-entry refinement code was already committed in `d96e73e`:
+  - `src/App.jsx`;
+  - `src/styles.css`.
+- This closeout commit updates `HANDOFF.md`.
+- No Supabase files, migrations, hooks/services, package files, architecture
+  docs, or scan parser files were changed in this closeout.
+
+### Verification
+- `npm.cmd run build` passed.
+- Parser smoke test confirmed:
+  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes
+    correctly;
+  - relative `/scan/location/<uuid>` payload routes correctly;
+  - bare UUID manual entry routes correctly;
+  - `/scan/material/<uuid>` is rejected;
+  - `A111` is rejected by strict QR parsing;
+  - `C211` is rejected by strict QR parsing and remains manual UI lookup only.
+- Static scan confirmed `allowCodeLookup` is used only for manual submit.
+- Static scan confirmed camera-decoded QR payloads still call strict
+  `handlePayload(rawValue)` without manual code lookup enabled.
+- Static scan confirmed no Supabase/hooks/services/package/architecture/scan
+  parser files changed.
+- Static diff review confirmed no write paths or inventory-changing controls
+  were added.
+- Static review confirmed scan result pages remain read-first and do not expose
+  cart/count/transfer/retire/checkout buttons.
+- Authenticated browser/camera verification was not available in this Codex
+  session and is not claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 064.
+
+### What Codex Needs to Know
+- Manual entry can resolve human-readable location codes as lookup shortcuts, but
+  scan identity remains UUID-only.
+- Camera QR parsing remains strict and location-only.
+- Manual lookup routing still lands on `/scan/location/<resolved_uuid>`.
+- No scan-page write actions were added.
+
+### What Claude Needs to Know
+- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
+  count correction, Count Intake, `physical_count_correction`, bin_item
+  retirement, destination semantics, transaction-history read-rule,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost, QR payload
+  generation, label-template mechanism, non-location QR entity, or
+  Financials/job-cost behavior was changed.
+- Human-readable codes remain lookup shortcuts only, not QR identity.
+
+### Next Steps (in order)
+1. Ryan may perform authenticated browser smoke verification on the
+   `rnsolutions.net` custom domain:
+   - manual entry of `/scan/location/<uuid>` routes correctly;
+   - manual entry of a full same-domain scan URL routes correctly;
+   - manual entry of a bare UUID routes correctly;
+   - manual entry of `C`, `C2`, `C21`, and `C211` resolves when exactly one
+     matching visible location exists;
+   - no-match manual entry shows `No matching location found.`;
+   - ambiguous manual entry shows a disambiguation list;
+   - unsupported non-location QR payloads are rejected gracefully;
+   - camera QR scanning remains strict and location-only;
+   - scan result pages remain read-first with no inventory-changing buttons.
+2. Keep bin-level cart/count action bindings deferred until a later milestone.
+3. Route to Claude before treating human-readable codes as QR identity, loosening
+   camera QR parsing, adding schema/RPC/RLS/permission behavior, adding
+   inventory-changing actions, or touching ledger/balance/checkout/count,
+   bin_item retirement, destination, transaction-history, `can_view_financials`,
+   or inventory cost behavior.
+
+### Open Questions / Concerns
+- Authenticated browser and camera verification were not available from this
+  Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: manual location code entry lookup closeout.
+- RESERVED: human-readable codes as QR identity, non-location QR entities,
+  scan-page write/action bindings, cart staging from scan pages, count
+  correction from scan pages, multi-bin batch cart actions, Transfer Location
+  surfacing from scan pages, React Native companion app, Label Template Designer
+  implementation, `label_templates`, Avery 5164/8160 designer implementation,
+  Grand Master UI surface, accounting export, location create/rename/archive,
+  Return-to-Inventory, Buyout, Tools locations, vehicle bins, van-stock
+  onboarding, Express Checkout, Manager Override, reorder/min-max, structured
+  count-type field, and catalog creation from count UI.
+
+### Routing Verdict
+No Claude review needed - manual-entry lookup refinement within locked scan behavior (ARCHITECTURE v2.15, HANDOFF Entry 063).
+
+---
+
+## Entry 065 - Milestone 5D Label Template Designer Foundation + Hierarchy Summary Polish
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5D label template foundation
+**Session type:** Implementation / static verification
+
+### Context
+Ryan requested Milestone 5D to add the Label Template Designer foundation and
+hierarchy summary polish under ARCHITECTURE v2.15. First-action checks confirmed
+local `main` was pulled and matched `origin/main`; `docs/ARCHITECTURE.md` is
+v2.15; Section 10a remains present; HANDOFF was gapless through Entry 064; and
+no stale coordination docs were used. Milestones 5C.2 and 5C.2a were already
+committed and pushed before this work began.
+
+### What Was Completed
+- Added the `label_templates` foundation migration file.
+- Added a Label Designer tab under the Inventory surface.
+- Added a reusable template editor foundation for:
+  - Avery 5164 Unit/Shelf/Bay placards;
+  - Avery 8160 Bin labels;
+  - optional QR field;
+  - include/exclude toggles for QR, location code, location path, display label,
+    and contents summary;
+  - per-field color, alignment, opacity, bold, and underline controls.
+- Added live preview using the existing Section 10 scan payload format:
+  `/scan/location/<uuid>`.
+- Added saved-template read/create/update/archive UI using the new
+  `label_templates` table path.
+- Added archive-over-delete behavior for saved templates.
+- Added display-only hierarchy summaries to Location Management and scan
+  hierarchy navigation cards.
+
+### Schema / Migration Notes
+- Added `supabase/migrations/202606230001_label_templates_foundation.sql`.
+- The migration creates `public.label_templates` with:
+  - `id`;
+  - `name`;
+  - `avery_template`;
+  - `scope_level`;
+  - `include_qr`;
+  - `layout`;
+  - `created_by`;
+  - `created_at`;
+  - `archived_at`.
+- RLS is enabled.
+- Active templates are selectable by authenticated users with
+  `can_manage_inventory`.
+- Insert/update/archive is limited to Developer/Admin users with
+  `can_manage_inventory`.
+- No DELETE policy or DELETE grant was added.
+- No live Supabase migration was applied by Codex; Ryan/Supabase must apply the
+  migration through the approved deployment path.
+
+### QR / Scan Identity Behavior
+- QR payload generation remains UUID-only.
+- Label preview uses `/scan/location/<uuid>`.
+- Human-readable location codes remain lookup shortcuts only.
+- No non-location QR entity behavior was added.
+- No scan-page cart/count/transfer/retire/checkout action bindings were added.
+
+### Hierarchy Summary Polish
+- Location Management rows now show display-only child/location contents
+  summaries from already loaded Unit/Shelf/Bay/Bin and inventory count sheet
+  data.
+- Scan hierarchy up/down navigation cards now show display-only summaries from
+  existing readable data.
+- No new read RPC was added for hierarchy summaries.
+- No inventory write path was added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added data-driven Avery template geometry constants.
+  - Added label template draft/preview/editor UI.
+  - Added label template read/save/archive calls through the existing Supabase
+    client path.
+  - Added hierarchy summary helpers using existing loaded location/count data.
+- `src/styles.css`
+  - Added responsive Label Designer and preview styling.
+- `supabase/migrations/202606230001_label_templates_foundation.sql`
+  - Added the `label_templates` table, RLS policies, index, comments, and grants.
+- `HANDOFF.md`
+  - Added this Entry 065.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Static scan confirmed no new direct `inventory_balances` write path was added.
+- Static review confirmed no checkout/finalization, ledger, count correction,
+  transaction history, bin_item retirement, destination semantics, or inventory
+  balance behavior was changed.
+- Static review confirmed the label preview keeps `/scan/location/<uuid>` as
+  the QR payload.
+- Static review confirmed template archival updates `archived_at` and does not
+  delete rows.
+- Static review confirmed no live Supabase migration was applied.
+- Browser verification was not available in this Codex session and is not
+  claimed here.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 065.
+
+### What Codex Needs to Know
+- Label Template Designer is a foundation surface, not a final print/PDF engine.
+- Avery geometry is data-driven for 5164 and 8160.
+- Saved templates require the new `label_templates` migration to be applied in
+  Supabase before production save/archive operations work.
+- QR identity remains the stable location UUID.
+- The hierarchy summaries are display-only and use existing loaded data.
+
+### What Claude Needs to Know
+- This milestone added one schema migration for `label_templates`, as requested
+  by the locked Milestone 5D scope.
+- No live database migration was applied from Codex.
+- No schema/RPC/RLS behavior outside `label_templates` was changed.
+- No ledger, balance, checkout/finalization, count correction, bin_item
+  retirement, transaction-history, destination semantics, permission model,
+  Clerk/Supabase JWT, `can_view_financials`, inventory cost, or reserved feature
+  behavior was changed.
+
+### Next Steps (in order)
+1. Ryan should apply the `label_templates` migration through the approved
+   Supabase deployment path before relying on saved label templates in
+   production.
+2. Ryan may perform authenticated production smoke verification:
+   - Label Designer tab appears for inventory users;
+   - Developer/Admin with `can_manage_inventory` can create/update/archive label
+     templates after migration application;
+   - non-Developer/Admin inventory users can preview/read but cannot manage
+     templates;
+   - QR preview routes to `/scan/location/<uuid>`;
+   - Location Management and scan hierarchy summaries render cleanly.
+3. Future label milestones may add print/PDF exact positioning and batch
+   selection after the foundation is verified.
+
+### Open Questions / Concerns
+- Production save/archive behavior is expected to fail gracefully until the
+  `label_templates` migration is applied.
+- Browser and authenticated production verification were not available from this
+  Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Label Template Designer foundation and display-only
+  hierarchy summary polish.
+- RESERVED: final print/PDF exact positioning, scan-page write/action bindings,
+  non-location QR entities, Grand Master UI surface, accounting export, location
+  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
+  bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, catalog creation from count UI,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, transaction-history
+  visibility changes, destination semantic changes, and permission model
+  changes.
+
+### Routing Verdict
+No Claude review needed - Label Template Designer foundation and display-only hierarchy summaries within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 065).
+
+---
+
+## Entry 066 - Milestone 5D.1 Apply and Verify Label Templates Migration
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5D.1 live migration verification
+**Session type:** Live Supabase migration apply / verification / documentation
+
+### Context
+Ryan requested Milestone 5D.1 to apply and verify only the committed
+`label_templates` foundation migration from Milestone 5D. First-action checks
+confirmed local `main` was pulled and already up to date; local `HEAD` matched
+`origin/main` at `6fb56b1`; `docs/ARCHITECTURE.md` was confirmed as v2.15;
+Section 10a and Section 25 remain present; HANDOFF was confirmed gapless through
+Entry 065; and no stale coordination docs were used. The target Supabase project
+was confirmed as `keogysnoukbendfkfjcn` / `northgate-hq-v2.0`.
+
+### What Was Completed
+- Identified the committed but unapplied migration:
+  `supabase/migrations/202606230001_label_templates_foundation.sql`.
+- Verified the migration matches ARCHITECTURE v2.14/v2.15 Section 25.
+- Confirmed the migration creates only `public.label_templates`.
+- Confirmed the migration preserves archive-over-delete behavior.
+- Confirmed the migration does not create or modify unrelated tables.
+- Applied only the `label_templates` foundation migration to live Supabase.
+- Confirmed live migration history now includes:
+  - version `20260623174852`;
+  - name `label_templates_foundation`.
+
+### Table / Column Verification
+- Confirmed `public.label_templates` exists.
+- Confirmed columns:
+  - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`;
+  - `name TEXT NOT NULL`;
+  - `avery_template TEXT NOT NULL`;
+  - `scope_level TEXT`;
+  - `include_qr BOOLEAN NOT NULL DEFAULT true`;
+  - `layout JSONB NOT NULL`;
+  - `created_by TEXT NOT NULL`;
+  - `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
+  - `archived_at TIMESTAMPTZ`.
+- Confirmed `scope_level` is nullable, so `NULL` remains valid for any location
+  level.
+- Confirmed `label_templates_scope_level_check` allows `unit`, `shelf`, `bay`,
+  and `bin`.
+- Confirmed `archived_at` exists and is nullable.
+- Confirmed the active-template index exists:
+  `idx_label_templates_active_scope` on `(scope_level, avery_template, name)`
+  where `archived_at IS NULL`.
+
+### RLS / Grants / Archive Verification
+- Confirmed RLS is enabled on `public.label_templates`.
+- Confirmed policies exist for:
+  - inventory template SELECT;
+  - Developer/Admin template INSERT;
+  - Developer/Admin template UPDATE.
+- Confirmed authenticated role grants are limited to `SELECT`, `INSERT`, and
+  `UPDATE`.
+- Confirmed no authenticated/anon DELETE grant exists.
+- Confirmed no DELETE policy exists.
+- Supabase changelog review noted the 2026-04-28 breaking change that new tables
+  may not be automatically exposed to the Data API; this migration already
+  includes explicit authenticated grants with RLS.
+
+### Test Template Verification
+- Inserted one safe verification template with `scope_level = NULL`.
+- Confirmed the insert accepted `NULL` scope level.
+- Archived the verification template by setting `archived_at`.
+- Confirmed active verification rows: `0`.
+- Confirmed archived verification rows: `1`.
+- No hard-delete cleanup was performed.
+
+### App / Static Verification
+- `npm.cmd run build` passed.
+- Static scan confirmed Label Designer code still references `label_templates`
+  through the existing app client path.
+- Static scan confirmed QR payload behavior remains `/scan/location/<uuid>`.
+- Static scan confirmed human-readable code/path remains display text only.
+- Static scan confirmed no scan-page cart/count/transfer/checkout action was
+  introduced by this milestone.
+- No app code, migration file, schema file, RPC, hook/service, package file, or
+  production environment variable was changed in this milestone.
+
+### Browser Verification
+- Authenticated browser verification was not performed in this Codex session and
+  is not claimed here.
+- Because the table now exists live, the prior table-missing condition for saved
+  label templates should be resolved; Ryan should still perform production UI
+  smoke verification from the `rnsolutions.net` custom domain.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 066.
+
+### What Codex Needs to Know
+- `label_templates_foundation` is now applied live in Supabase project
+  `keogysnoukbendfkfjcn`.
+- The test verification row remains archived, not deleted.
+- Saved template operations now have the required live table path.
+- Browser verification of the Label Designer UI remains a Ryan/manual follow-up.
+
+### What Claude Needs to Know
+- No schema changes beyond the locked `label_templates` migration were applied.
+- No ad-hoc database changes outside the committed migration were made, except
+  the safe archived verification row.
+- No Clerk, Netlify, environment variable, scan behavior, QR identity, ledger,
+  balance, checkout, count correction, bin_item retirement, destination
+  semantics, `can_view_financials`, inventory cost visibility, transaction
+  history, or reserved feature behavior was changed.
+
+### Next Steps (in order)
+1. Ryan may smoke test production from the `rnsolutions.net` custom domain:
+   - Source shows server;
+   - Label Designer loads without table-missing errors;
+   - Avery 5164 and 8160 options appear;
+   - Developer/Admin with `can_manage_inventory` can save, reload, and archive a
+     test template;
+   - no Supabase 401/PGRST301 and no Clerk production-domain error.
+2. Continue future label work only within Section 25 unless a new architecture
+   decision is routed to Claude first.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: live application and verification of the locked
+  `label_templates` foundation migration.
+- RESERVED: final print/PDF exact positioning, scan-page write/action bindings,
+  non-location QR entities, Grand Master UI surface, accounting export, location
+  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
+  bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, catalog creation from count UI,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, transaction-history
+  visibility changes, destination semantic changes, permission model changes,
+  and inventory cost visibility changes.
+
+### Routing Verdict
+No Claude review needed - live migration/apply verification only for locked Label Template Designer foundation (ARCHITECTURE v2.15, HANDOFF Entry 065).
+
+---
+
+## Entry 067 - Milestone 5E Label Designer Print/PDF + Template Management Polish
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5E label designer polish
+**Session type:** UI implementation / static verification / documentation
+
+### Context
+Ryan requested Milestone 5E to make the Label Template Designer more usable for
+template management, live preview, and printable output while staying within the
+existing `label_templates` schema. First-action checks confirmed local `main`
+was pulled and already up to date; local `HEAD` matched `origin/main` at
+`d9197d7`; `docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a and
+Section 25 remain present; HANDOFF was confirmed gapless through Entry 066; and
+Entry 066 documents the live `label_templates` migration apply. A live Supabase
+check confirmed `public.label_templates` exists in project
+`keogysnoukbendfkfjcn`.
+
+### What Was Completed
+- Improved active template list handling.
+- Added a `Show archived` template view/filter.
+- Kept archived templates hidden from the active list by default.
+- Made archived templates preview-only in the UI.
+- Kept archive behavior as `archived_at` update only.
+- Improved save/create/update messaging so success messages survive template
+  reloads.
+- Improved Avery selection behavior:
+  - choosing Avery 8160 moves the draft to Bin scope;
+  - choosing Avery 5164 clears Bin scope if needed;
+  - scope mismatch warnings are displayed instead of silently changing locked
+    behavior.
+- Added browser print output for:
+  - the selected preview label;
+  - the current scoped set of locations.
+- Browser print output uses the centralized Avery geometry from
+  `AVERY_LABEL_TEMPLATES`.
+- Live preview continues to reflect field toggles and styling choices.
+
+### Print / PDF Notes
+- No new dependency was added.
+- Exact `react-pdf` output remains deferred.
+- This milestone implemented browser print output with documented limitations.
+- Print output uses:
+  - `avery_template` for geometry key;
+  - `layout.fields` for field include/style/position values;
+  - `include_qr` for QR visibility;
+  - selected/scoped location records from already loaded hierarchy data.
+- Avery 5164 and 8160 geometry remains centralized and data-driven.
+- 8160 output uses smaller print font sizes and clipped label cells to fit the
+  smaller label stock.
+
+### QR / Identity Behavior
+- QR payload remains `/scan/location/<uuid>`.
+- Label print output calls the existing QR helper and encodes the location UUID.
+- Human-readable location code/path remains printed display text only.
+- Human-readable codes were not encoded or treated as permanent QR identity.
+- No non-location QR entity behavior was added.
+
+### Permissions / Template Persistence
+- Label viewing/printing remains gated by the existing inventory read gate.
+- Template create/update/archive controls remain visible only for
+  Developer/Admin users with `can_manage_inventory`.
+- No new permission flag was added.
+- Template persistence still uses the existing `label_templates` columns:
+  - `name`;
+  - `avery_template`;
+  - `scope_level`;
+  - `include_qr`;
+  - `layout`;
+  - `created_by`;
+  - `archived_at`.
+- No hard-delete UI or code path was added.
+
+### Hierarchy Summaries
+- No new hierarchy summary data source was added.
+- The existing display-only hierarchy summary helper remains in use for preview
+  and print output.
+- No schema, migration, RPC, RLS, or new Supabase read behavior was added for
+  summaries.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added label print document/window helpers.
+  - Added shared label value/render helpers.
+  - Added active/archived template filter state.
+  - Added print-selected and print-scoped label actions.
+  - Improved Avery/scope handling and template management messaging.
+- `src/styles.css`
+  - Added compact status chips and print action styling for the Label Designer.
+- No migrations were added.
+- No package/dependency files were changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Static scan confirmed no migration files were added.
+- Static diff scan confirmed no `label_templates` schema changes were made.
+- Static diff scan confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff scan confirmed no checkout/finalization functions were changed.
+- Static diff scan confirmed no scan-page inventory-changing actions were added.
+- Static review confirmed QR payload still uses `/scan/location/<uuid>`.
+- Static review confirmed human-readable code/path remains display text only.
+- Static review confirmed template archive uses `archived_at` and not hard
+  delete.
+- Static review confirmed unauthorized users do not receive template management
+  controls.
+- Static review confirmed 5164 and 8160 use data-driven geometry.
+- Static review confirmed browser print output was implemented without adding a
+  dependency.
+
+### Browser Verification
+- Authenticated browser verification was not performed in this Codex session and
+  is not claimed here.
+- Production smoke verification remains a Ryan/manual follow-up.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 067.
+
+### What Codex Needs to Know
+- Label Designer now has active/archived template filtering, preview-only
+  archived templates, and browser print output.
+- Exact PDF/react-pdf output is still deferred.
+- Label print output depends on browser print settings; use 100% scale for Avery
+  stock.
+- No package dependency was added.
+
+### What Claude Needs to Know
+- No schema change was made.
+- No new permission flag was added.
+- No scan behavior, QR identity rule, ledger, balance, checkout/finalization,
+  count correction, bin_item retirement, destination semantics,
+  `can_view_financials`, inventory cost visibility, transaction-history, or
+  Financials/job-cost behavior was changed.
+- Scan actions, Grand Master UI, accounting export, and non-location QR entities
+  remain unbuilt.
+
+### Next Steps (in order)
+1. Ryan may smoke test production from the `rnsolutions.net` custom domain:
+   - Source shows server;
+   - Label Designer loads;
+   - Avery 5164 and 8160 can be selected;
+   - a template can be saved, loaded, updated, and archived;
+   - archived templates disappear from the active list;
+   - archived templates appear in the archived view;
+   - preview updates when toggles/styling change;
+   - QR preview and print output point to `/scan/location/<uuid>`;
+   - browser print opens for selected label and scoped sheet;
+   - no Supabase 401/PGRST301 and no Clerk production-domain error.
+2. Defer exact `react-pdf` sheet positioning until the browser-print workflow is
+   verified with real Avery stock.
+
+### Open Questions / Concerns
+- Browser print was not visually verified in this Codex session.
+- Exact PDF output remains deferred.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Label Designer template management polish and
+  browser print output.
+- RESERVED: exact react-pdf output, scan-page write/action bindings,
+  non-location QR entities, Grand Master UI surface, accounting export, location
+  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
+  bins, van-stock onboarding, Express Checkout, Manager Override,
+  reorder/min-max, structured count-type field, catalog creation from count UI,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, transaction-history
+  visibility changes, destination semantic changes, permission model changes,
+  and inventory cost visibility changes.
+
+### Routing Verdict
+No Claude review needed - Label Designer polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 066).
+
+---
+
+## Entry 068 - Milestone 5E.0 Label Designer React Render Hotfix
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5E.0 production render hotfix
+**Session type:** Narrow UI bugfix / static verification / documentation
+
+### Context
+Ryan reported a production crash after Milestone 5E: React minified error #31,
+`object with keys {width, height}`. The report also noted recurring Supabase
+GoTrue multiple-client warnings, but those were not assumed to be the immediate
+crash. First-action checks confirmed local `main` was pulled and already up to
+date; local `HEAD` matched `origin/main` at `1f86b26`; `docs/ARCHITECTURE.md`
+was confirmed as v2.15; Section 10a and Section 25 remain present; HANDOFF was
+confirmed gapless through Entry 067, which also confirms gaplessness through
+Entry 066; and Entries 065/066 document Milestone 5D and 5D.1 completion. No
+stale coordination docs were used.
+
+### Root Cause
+- Confirmed the React error was caused by raw object rendering in the Label
+  Designer Avery template UI.
+- `AVERY_LABEL_TEMPLATES` used the property name `label` twice per template:
+  - first as the human-readable display name;
+  - then as the geometry object `{ width, height }`.
+- JavaScript kept the second `label` property, so JSX rendered
+  `{template.label}` / `{AVERY_LABEL_TEMPLATES[draft.avery_template]?.label}`
+  as the raw geometry object.
+- That matches React error #31: object with keys `{width, height}`.
+
+### What Was Completed
+- Renamed the human-readable Avery template name to `displayName`.
+- Preserved `label` as the geometry object used for label dimensions.
+- Added safe formatting helpers for Avery template display text:
+  - `formatLabelMeasurement`;
+  - `formatLabelSize`;
+  - `formatAveryTemplateLabel`.
+- Updated the Avery sheet `<select>` to render a formatted string instead of a
+  geometry object.
+- Updated the Label Designer `Sheet:` fact to render a formatted string instead
+  of a geometry object.
+- Preserved existing preview, print, save, archive, and template management
+  behavior.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Narrow render hotfix only.
+- No `src/styles.css` change.
+- No migration, Supabase file, hook/service, package file, or architecture doc
+  change.
+
+### Verification
+- `npm.cmd run build` passed.
+- Static search confirmed no `template.label` JSX render path remains.
+- Static search confirmed Avery geometry object usage remains limited to numeric
+  sizing/print calculations or formatted text helpers.
+- Static review confirmed Avery 5164 and 8160 geometry now displays as readable
+  text, for example `Avery 5164 Placard / 4 in x 3.33 in`.
+- Static diff scan confirmed no migration files were added.
+- Static diff scan confirmed no Supabase/hooks/services/package files changed.
+- Static diff scan confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff scan confirmed no checkout/finalization, scan action,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, or inventory-changing behavior was changed.
+
+### Browser Verification
+- Local browser verification was blocked by missing local `VITE_SUPABASE_URL`.
+- Production browser access reached the `rnsolutions.net` sign-in screen, but
+  authenticated Label Designer verification was not available in this Codex
+  session.
+- Therefore Codex does not claim authenticated browser verification.
+- The reported GoTrue warning was not addressed in this hotfix and should remain
+  a separate follow-up diagnostic unless Ryan still observes it after this
+  render fix deploys.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 068.
+
+### What Codex Needs to Know
+- The 5E production crash was a Label Designer render bug, not a schema or
+  Supabase migration issue.
+- The `label` property in `AVERY_LABEL_TEMPLATES` is now geometry-only.
+- The human-readable Avery template name is `displayName`.
+- Any future JSX display should use `formatAveryTemplateLabel(...)` or
+  `displayName`, not the raw geometry object.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, permission, QR payload, scan destination,
+  ledger, balance, checkout/finalization, Count Intake,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, or reserved feature behavior was changed.
+- GoTrue duplicate-client warnings were not investigated or changed in this
+  hotfix.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open `rnsolutions.net`;
+   - Source shows server;
+   - open Label Designer;
+   - select Avery 5164 and 8160;
+   - confirm no React error #31;
+   - confirm Avery sizes render as readable text;
+   - confirm preview still renders;
+   - note whether the GoTrue duplicate-client warning still appears.
+2. If the GoTrue warning remains noisy, handle it in a separate diagnostic
+   milestone rather than this render hotfix.
+
+### Open Questions / Concerns
+- Authenticated production Label Designer verification was unavailable from this
+  Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: narrow Label Designer raw-object render hotfix.
+- RESERVED: schema changes, `label_templates` schema changes, Supabase client
+  refactors, GoTrue duplicate-client cleanup, QR payload changes, scan action
+  changes, ledger changes, balance changes, checkout/finalization changes,
+  count correction changes, bin_item retirement semantic changes,
+  transaction-history visibility changes, destination semantic changes,
+  permission model changes, `can_view_financials` changes, inventory cost
+  visibility changes, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - narrow React render hotfix within locked Label Designer behavior (ARCHITECTURE v2.15, HANDOFF Entry 066).
+
+---
+
+## Entry 069 - Milestone 5E.1 Label Designer Layout + Contents Summary Polish
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5E.1 label designer polish
+**Session type:** UI implementation / static verification / documentation
+
+### Context
+Ryan requested Milestone 5E.1 to improve Label Designer contents summaries, QR
+layout controls, and print geometry reliability after the 5E.0 render hotfix.
+First-action checks confirmed local `main` was pulled and already up to date;
+local `HEAD` matched `origin/main` at `25f1281`; `docs/ARCHITECTURE.md` was
+confirmed as v2.15; Section 10a and Section 25 remain present; HANDOFF was
+confirmed gapless through Entry 068; the 5E.0 render hotfix was committed and
+pushed; and live Supabase project `keogysnoukbendfkfjcn` still has
+`public.label_templates`. No stale coordination docs were used.
+
+### What Was Completed
+- Improved hierarchy and label contents summaries to include material names from
+  existing readable inventory rows.
+- Added deterministic material-name summary helpers:
+  - one bin material shows the actual material name;
+  - two or three bin materials are listed cleanly;
+  - larger material sets show the first two names plus a `+ N more` count;
+  - bay/shelf/unit summaries use the same conservative list-first behavior
+    rather than invented category guesses.
+- Added QR layout controls for:
+  - X position;
+  - Y position;
+  - width;
+  - height.
+- QR layout controls update `layout.fields.qr`, preserving the existing
+  `label_templates.layout` JSONB shape.
+- Existing templates without explicit QR position/size continue to receive safe
+  defaults from `DEFAULT_LABEL_FIELDS.qr`.
+- Updated print guidance to call out 100% scale, no fit-to-page, and printer
+  margin settings.
+
+### Print Geometry Polish
+- Audited Avery 5164 and 8160 geometry definitions.
+- Kept sheet geometry centralized in `AVERY_LABEL_TEMPLATES`.
+- Added explicit `pitch` values to the centralized geometry:
+  - Avery 5164: whole sheet, label size, margins, columns, rows, horizontal
+    pitch, and vertical pitch are defined centrally.
+  - Avery 8160: whole sheet, label size, margins, columns, rows, horizontal
+    pitch, and vertical pitch are defined centrally.
+- Browser print placement now uses explicit pitch values instead of deriving
+  placement from label size plus gutters at the print callsite.
+- Exact PDF / `react-pdf` output remains deferred.
+
+### QR / Identity Behavior
+- QR payload remains `/scan/location/<uuid>`.
+- QR identity remains the stable location UUID.
+- Human-readable code/path remains display text only.
+- No human-readable code was encoded into QR payloads.
+- No non-location QR entity behavior was added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added material-name summary helpers.
+  - Added explicit Avery pitch values and geometry detail formatting.
+  - Updated print placement to use centralized pitch.
+  - Added QR position/size controls that write to `layout.fields.qr`.
+- `src/styles.css`
+  - Added responsive styling for the QR layout control panel.
+- No migrations were added.
+- No Supabase files, hooks/services, package files, or architecture docs were
+  changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed `label_templates` schema was not changed.
+- Static scan confirmed no Supabase/hooks/services/package files changed.
+- Static diff scan confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff scan confirmed no checkout/finalization functions were changed.
+- Static diff scan confirmed no scan-page inventory-changing actions were added.
+- Static review confirmed QR payload still uses `/scan/location/<uuid>`.
+- Static review confirmed human-readable location code/path remains display text
+  only.
+- Static review confirmed QR size and position update `layout.fields.qr`.
+- Static review confirmed templates missing QR size/position render with safe
+  defaults.
+- Static review confirmed contents summaries include material names where data
+  exists and do not invent category language.
+- Static review confirmed Avery 5164 and 8160 geometry definitions include whole
+  sheet geometry and explicit pitch values.
+- Static review confirmed preview does not render raw geometry objects as React
+  children.
+
+### Browser Verification
+- Authenticated browser verification was not performed in this Codex session and
+  is not claimed here.
+- Production smoke verification remains a Ryan/manual follow-up.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains gapless through Entry 069.
+
+### What Codex Needs to Know
+- Label summaries now prefer material names from the already loaded inventory
+  rows.
+- QR placement/size lives in `layout.fields.qr`, not in a new schema column.
+- Avery print placement now uses explicit centralized pitch values.
+- Browser print remains the current print path; exact PDF remains deferred.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, permission, QR payload, scan destination,
+  ledger, balance, checkout/finalization, Count Intake,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, or reserved feature behavior was changed.
+- No new summary backend, RPC, view, table, or permission flag was added.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open `rnsolutions.net`;
+   - Source shows server;
+   - open Label Designer;
+   - select Avery 5164 and 8160;
+   - change QR X/Y/width/height;
+   - save/load a template and confirm QR layout persists;
+   - preview a stocked bin and confirm material names appear in the contents
+     summary;
+   - test browser print preview for obvious sheet skew;
+   - confirm no Supabase 401/PGRST301 and no Clerk production-domain error.
+2. Defer exact PDF output until browser print alignment is checked against real
+   Avery stock.
+
+### Open Questions / Concerns
+- Authenticated production Label Designer verification was unavailable from this
+  Codex session.
+- Browser print alignment still needs real printer/stock validation.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Label Designer contents summary, QR layout, and
+  print geometry polish.
+- RESERVED: schema changes, `label_templates` schema changes, new summary
+  backend/RPC/view, new permission flags, QR payload changes, scan action
+  changes, ledger changes, balance changes, checkout/finalization changes,
+  count correction changes, bin_item retirement semantic changes,
+  transaction-history visibility changes, destination semantic changes,
+  permission model changes, `can_view_financials` changes, inventory cost
+  visibility changes, exact PDF output, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - Label Designer layout and summary polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 069).
+
+---
+
+## Entry 070 - Milestone 5F Grand Master UI Surface
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5F Grand Master UI surface
+**Session type:** UI implementation / static verification / documentation
+
+### Context
+Ryan requested Milestone 5F to add a read-only Grand Master / Inventory
+Overview surface using existing readable inventory data only. First-action
+checks confirmed local `main` was pulled and already up to date; local `HEAD`
+matched `origin/main` at `815c51c`; `docs/ARCHITECTURE.md` was confirmed as
+v2.15; HANDOFF was confirmed gapless through Entry 069; Milestone 5E.1 was
+committed and pushed; and no stale coordination docs were used. Entry 069 also
+had the exact current-entry routing-verdict typo Ryan warned about, so Codex
+repaired only `HANDOFF Entry 068` to `HANDOFF Entry 069` before appending this
+entry.
+
+### What Was Completed
+- Added a new `Grand Master` tab as the first Inventory module surface.
+- Added a read-only `GrandMasterOverviewPanel` backed by the existing
+  `useInventoryCountSheet` read path.
+- Displayed consolidated authorized inventory rows with:
+  - material name and material code;
+  - category;
+  - quantity on hand;
+  - unit cost and extended value when already present in the authorized read
+    row;
+  - division from the existing visible row/location data;
+  - Unit / Shelf / Bay / Bin path and location labels;
+  - stocked vs empty status.
+- Added empty-location display rows for bins that have no active bin/material
+  rows returned by the existing read path.
+- Added summary cards for:
+  - stocked locations;
+  - empty locations;
+  - total stocked rows;
+  - total quantity;
+  - known stored value;
+  - visible rows after filters.
+- Added read-only filters/search for:
+  - material/code/location text;
+  - compact location shortcuts such as `C111`;
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - category;
+  - visible division;
+  - stocked vs empty.
+- Added a manual Refresh button that only reloads the existing read hook.
+
+### Sync / Last-Updated Behavior
+- Implemented last-updated/client-refresh status using the existing
+  `lastLoadedAt` value from `useInventoryCountSheet`.
+- Deeper backend sync-health was not invented because no existing backend
+  mechanism was available or needed for this milestone.
+- The UI states this explicitly as `Sync health: client last-loaded only`.
+
+### Read-Only / Scope Notes
+- The Grand Master surface uses existing server-side read rules and the data
+  already returned to the signed-in user.
+- No client-side-only permission override was added.
+- Inventory cost is displayed within the authorized inventory row scope when
+  cost data is already returned.
+- `can_view_financials` was not used as an inventory-cost gate.
+- No write buttons, inventory-changing controls, checkout controls, count
+  correction controls, scan actions, retirement controls, or export generation
+  were added to the Grand Master surface.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Grand Master row-building/search helpers.
+  - Added the `GrandMasterOverviewPanel`.
+  - Added the `Grand Master` tab and made it the first Inventory module tab.
+- `src/styles.css`
+  - Added table/mobile responsive styling for the Grand Master surface.
+- `HANDOFF.md`
+  - Repaired the Entry 069 routing-verdict typo specifically called out by
+    Ryan.
+  - Appended this Entry 070.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Verification
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- HANDOFF was rechecked as gapless through Entry 069 before this append.
+- Static scan confirmed only `HANDOFF.md`, `src/App.jsx`, and `src/styles.css`
+  changed.
+- Static diff confirmed no migration files were added.
+- Static diff confirmed no schema/Supabase/RLS/grants files were changed.
+- Static diff confirmed no new RPC/view was added.
+- Static diff confirmed no direct `inventory_balances` write path was
+  introduced.
+- Static diff confirmed no checkout/finalization functions were changed.
+- Static diff confirmed no inventory-changing controls were added.
+- Static scan confirmed `can_view_financials` was not added as an
+  inventory-cost gate.
+- Static review confirmed QR/scan/label behavior was not changed.
+
+### Browser Verification
+- Authenticated production browser verification was not performed in this Codex
+  session and is not claimed here.
+- Ryan/manual production verification remains needed after deploy:
+  - open `rnsolutions.net`;
+  - Source shows server;
+  - open the Grand Master tab;
+  - confirm rows load;
+  - confirm filters/search work;
+  - confirm location paths display;
+  - confirm summary cards display;
+  - confirm no write controls are present;
+  - confirm no Supabase 401/PGRST301;
+  - confirm no Clerk production-domain error.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+- HANDOFF remains append-only aside from the Ryan-specified current-entry typo
+  repair in Entry 069.
+
+### What Codex Needs to Know
+- Grand Master is a UI-only overview surface.
+- It derives its rows from the existing count sheet/read path; there is no new
+  backend, RPC, view, table, or permission flag.
+- Sync-health is intentionally limited to client last-loaded/refresh state.
+- Empty locations are derived from already readable Bin records and returned
+  bin/material rows.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- No accounting export, scan-page cart staging, scan-page count correction
+  action binding, checkout from scan pages, plus/minus scan controls,
+  multi-bin batch cart actions, Transfer Location surfacing, non-location QR
+  generation, native companion app, location create/rename/archive,
+  Return-to-Inventory, Buyout, Tools locations, vehicle bins, van-stock
+  onboarding, Express Checkout, Manager Override, reorder/min-max,
+  low-stock thresholds, structured count-type fields, or catalog creation from
+  count UI was built.
+
+### Next Steps (in order)
+1. Ryan may verify the Grand Master tab in production after deploy.
+2. If production data reveals missing fields in the existing read path, route
+   any new read-only RPC/view/schema request to Claude before implementation.
+3. Proceed to accounting export only as a separate milestone.
+
+### Open Questions / Concerns
+- Authenticated production verification was unavailable from this Codex session.
+- Backend sync-health remains deferred because this milestone did not add a new
+  backend mechanism.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: read-only Grand Master UI surface.
+- RESERVED: accounting export generation, new read-only RPC/view, schema/RLS/
+  permission changes, inventory-changing actions, ledger changes, balance
+  changes, checkout/finalization changes, count correction changes, bin_item
+  retirement semantic changes, destination semantic changes, transaction-history
+  behavior changes, QR payload behavior changes, scan action behavior changes,
+  Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - read-only Grand Master UI surface within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 070).
+
+---
+
+## Entry 071 - Milestone 5G Inventory Search Refinement
+
+**Date:** 2026-06-23
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G search refinement
+**Session type:** implementation
+
+### Context
+Ryan requested inventory search refinement so Grand Master / Inventory Overview
+search no longer requires exact word order and handles common material-search
+format differences such as inch marks, case, spacing, punctuation, and simple
+plural/singular variants. Scope was explicitly client-side only if the
+authorized inventory data is already loaded, with no schema, migration, RPC,
+RLS, backend search index, balance, ledger, checkout, count correction, or
+permission changes.
+
+### What Was Completed
+- Added deterministic tokenized client-side search helpers in `src/App.jsx`.
+- Search now normalizes:
+  - case;
+  - extra spaces;
+  - straight/curly quote and inch marks;
+  - common hyphen/dash/underscore separators;
+  - practical slash spacing while preserving fraction tokens such as `1/2`.
+- Search now expands simple plural/singular tokens such as:
+  - `connector` / `connectors`;
+  - `coupling` / `couplings`.
+- Grand Master search now matches rows when every query token appears somewhere
+  in the searchable row text, regardless of word order.
+- Compact location code text remains searchable, so combined searches such as
+  `C211 connector` can match rows when the compact location and material token
+  are both present.
+- The shared count-sheet row matcher now uses the same tokenized search model
+  for existing authorized inventory rows.
+- Searchable row values include already-loaded row fields such as material code,
+  material name, category label, category tiers, unit of measure, description,
+  manufacturer/vendor part numbers, division, storage path, visible location
+  labels/codes, and compact location code.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, RLS changes, grants, RPCs, backend search
+  functions, or database indexes were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Expanded `normalizeSearchText`.
+  - Added tokenization, simple singular/plural expansion, searchable token-set,
+    and all-token match helpers.
+  - Updated Grand Master and shared count-row search to use all-token matching
+    while preserving compact-location matching.
+- `HANDOFF.md`
+  - Appended this Entry 071.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Inventory search remains client-side and filters only rows already returned by
+  the existing authorized read path.
+- Accounting Export is still not implemented as a separate surface in the
+  current app; no export generation was added.
+- If Accounting Export later shares this row matcher, it will inherit the
+  tokenized search behavior.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- Search filtering remains a read-only UI refinement over already-authorized
+  loaded rows.
+
+### Next Steps (in order)
+1. Ryan may verify the Grand Master tab in production after deploy with:
+   - `1/2 emt connectors`;
+   - `connector emt 1/2`;
+   - `emt set screw`;
+   - `C211 connector`.
+2. When Accounting Export is built as a separate milestone, reuse the same
+   search helper if it filters the same authorized inventory row model.
+
+### Open Questions / Concerns
+- Authenticated production verification was unavailable from this Codex session.
+- Accounting Export is not yet built, so Codex could only confirm that no
+  separate Accounting Export filter exists to update in this milestone.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: client-side read-only inventory search refinement.
+- RESERVED: accounting export generation, backend search/RPC/view/index work,
+  schema/RLS/permission changes, inventory-changing actions, ledger changes,
+  balance changes, checkout/finalization changes, count correction changes,
+  bin_item retirement semantic changes, destination semantic changes,
+  transaction-history behavior changes, QR payload behavior changes, scan action
+  behavior changes, Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed - client-side read-only search refinement within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 071).
+
+---
+
+## Entry 072 - Milestone 5G.1 Accounting Export Foundation
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G.1 accounting export foundation
+**Session type:** implementation
+
+### Context
+Ryan requested the first Accounting Export Foundation surface for inventory /
+accounting review without changing backend, schema, RLS, permissions, or any
+locked inventory invariant. First-action checks were completed: `git pull
+origin main` reported already up to date; local `main` and `origin/main`
+matched at commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`;
+`docs/ARCHITECTURE.md` was confirmed as Version 2.15; `HANDOFF.md` was
+confirmed gapless through Entry 071; and only the canonical repo
+`HANDOFF.md` and `docs/ARCHITECTURE.md` were used for coordination.
+
+Entry 071 state was confirmed before implementation:
+- Grand Master UI surface exists.
+- Inventory Search Refinement is implemented client-side.
+- Accounting Export was not yet implemented as a separate surface.
+- Existing search helpers may be reused when filtering the same authorized
+  inventory row model.
+
+The working tree already contained the local Entry 071 changes in `src/App.jsx`
+and `HANDOFF.md`, so this milestone was built on top of that active local state
+without discarding it.
+
+### What Was Completed
+- Added a new `Accounting Export` Inventory tab.
+- Added a read-only `AccountingExportPreviewPanel`.
+- Reused the existing `useInventoryCountSheet` authorized read path.
+- Reused `buildGrandMasterRows` so the export preview uses the same loaded row
+  model as Grand Master / Inventory Overview.
+- Reused the Milestone 5G tokenized `matchesGrandMasterSearch` behavior for
+  export-preview search.
+- Added export-preview filters for:
+  - search;
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - category;
+  - visible division;
+  - stocked vs empty.
+- Added export-ready preview columns for:
+  - material code;
+  - material name;
+  - category;
+  - quantity on hand;
+  - unit cost where already present in authorized rows;
+  - extended value where computable from loaded quantity and unit cost;
+  - division;
+  - Unit / Shelf / Bay / Bin;
+  - compact location code and storage path;
+  - stocked vs empty status.
+- Added summary cards for:
+  - visible rows;
+  - stocked rows;
+  - empty locations;
+  - total quantity;
+  - known export value.
+- Added a clear on-screen note that this is a client-side export preview /
+  accounting review foundation, not a finalized accounting integration.
+- Added a purely client-side CSV download for the currently visible authorized
+  preview rows.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, or database indexes
+  were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added client-side CSV formatting/download helpers.
+  - Added export-preview column definitions.
+  - Added `AccountingExportPreviewPanel`.
+  - Added the `Accounting Export` Inventory tab and render branch.
+- `src/styles.css`
+  - Added scoped Accounting Export preview table/action/mobile styles.
+- `HANDOFF.md`
+  - Appended this Entry 072.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Accounting Export now has a foundation preview surface inside Inventory.
+- It is read-only and client-side over already-authorized loaded rows.
+- The CSV button creates a local browser download from the currently visible
+  preview rows only; it does not create backend export files or jobs.
+- This is not a Financials/job-cost approval workflow and does not change
+  accounting semantics.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- Accounting Export Foundation is a read-only UI preview over already-authorized
+  inventory rows, plus an optional client-side CSV download from visible rows.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open `rnsolutions.net`;
+   - Source shows server;
+   - open Inventory -> Accounting Export;
+   - confirm preview rows load;
+   - confirm filters/search match Grand Master behavior;
+   - confirm summary cards update from visible rows;
+   - optionally download CSV and confirm it contains only currently visible
+     preview rows;
+   - confirm no write controls or accounting-approval workflow are present.
+2. If future Accounting Export requires backend jobs, scheduled exports,
+   storage buckets, new accounting fields, Financials/job-cost approval, or new
+   permission gates, route to Claude before implementation.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session and
+  is not claimed.
+- The CSV is intentionally basic and client-side only; finalized accounting
+  integration remains future work.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: read-only Accounting Export Foundation preview.
+- RESERVED: finalized accounting integration, backend export jobs, storage
+  export files, schema/RLS/permission changes, inventory-changing actions,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Financials/job-cost behavior, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed - within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).
+
+---
+
+## Entry 073 - Milestone 5G.1 Follow-Up Accounting Export Visibility + Development Status Card
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G.1 follow-up
+**Session type:** implementation
+
+### Context
+Ryan reported that production still showed only the old Inventory Count &
+Correction `Print / Export` button and did not show the new Accounting Export
+tab/surface. Codex was instructed not to assume 5G.1 was visually verified and
+to add a development-only status card so Ryan can quickly tell whether
+production has caught up to the latest milestone.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 072 before this append.
+- Netlify production project `northgate-hq-v2` was queried through the Netlify
+  connector.
+- Netlify production deploy `6a3bbccbba108e41830bd18b` was ready and serving
+  commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`.
+
+### What Was Completed
+- Diagnosed the production visibility issue:
+  - the production commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5` does not
+    contain `Accounting Export`, `AccountingExportPreviewPanel`, or the new
+    development status card;
+  - that same production commit only contains the older Inventory Count &
+    Correction `Print / Export` buttons;
+  - therefore Ryan's production observation matches a deploy/commit mismatch,
+    not successful visual verification of 5G.1.
+- Confirmed the local working tree does include the Accounting Export tab in
+  the same Inventory `module-tabs` group Ryan uses.
+- Confirmed the local Accounting Export surface is rendered by the
+  `activeTab === 'accounting-export'` branch.
+- Confirmed the new CSV/download control is inside `AccountingExportPreviewPanel`
+  only and is now labeled `Download Preview CSV`.
+- Confirmed the old `Print / Export` buttons remain separate Count / Count
+  Intake controls and are not the Accounting Export preview.
+- Confirmed normal screen/mobile CSS does not hide `.module-tabs`; the only
+  `.module-tabs` hide rule is inside `@media print`.
+- Renamed the Accounting Export panel heading to `Accounting Export Preview`
+  so the surface identifies itself clearly.
+- Added a development-only `DevelopmentStatusCard` near the top dashboard card
+  group.
+- Updated the header build marker to the same current static marker.
+
+### Development Status Card
+The development card is hardcoded and UI-only. It displays:
+- Most recent change:
+  `Milestone 5G.1 follow-up - Accounting Export visibility / Development Status card`
+- Related HANDOFF:
+  `Entry 073`
+- Architecture:
+  `v2.15`
+- Current step:
+  `Accounting Export Foundation verification and UI reachability`
+- Build marker:
+  `Accounting export visibility build: 2026-06-24.1`
+- Deployment note:
+  production was checked before this patch and was serving `72736a2`; if the
+  card is visible, production has caught the follow-up UI.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, or database indexes
+  were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added `DEVELOPMENT_STATUS`.
+  - Added `DevelopmentStatusCard`.
+  - Updated the app header build note to the current build marker.
+  - Updated Accounting Export headings to `Accounting Export Preview`.
+  - Renamed the Accounting Export CSV button to `Download Preview CSV`.
+- `src/styles.css`
+  - Added scoped development status card styles.
+  - Adjusted the dashboard grid to fit four top status cards on desktop.
+- `HANDOFF.md`
+  - Appended this Entry 073.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Production deploy status confirmed the live site was still serving commit
+  `72736a2`, which predates the local Accounting Export tab and Entry 073
+  development status card.
+- The Accounting Export tab is locally reachable in the Inventory tab list
+  immediately after Grand Master.
+- If Ryan still cannot see Accounting Export after deployment, first check for
+  whether the development status card/build marker is visible.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history, `can_view_all_divisions`, `can_view_financials`,
+  inventory cost visibility, Financials/job-cost, or reserved feature behavior
+  was changed.
+- This was a UI-only deploy/visibility diagnostic and development status marker
+  patch.
+
+### Next Steps (in order)
+1. Deploy/push the current local UI changes so production moves beyond commit
+   `72736a2`.
+2. Ryan may verify production after deploy:
+   - confirm the top development status card is visible;
+   - confirm the header build note says
+     `Accounting export visibility build: 2026-06-24.1`;
+   - open Inventory and confirm the `Accounting Export` tab appears immediately
+     after `Grand Master`;
+   - open the tab and confirm the heading says `Accounting Export Preview`;
+   - confirm the button says `Download Preview CSV`;
+   - confirm the old Inventory Count & Correction `Print / Export` button
+     remains separate.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session and
+  is not claimed.
+- Production will not show Entry 073 until the current local changes are pushed
+  and deployed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Accounting Export visibility follow-up and
+  development status card.
+- RESERVED: finalized accounting integration, backend export jobs, storage
+  export files, schema/RLS/permission changes, inventory-changing actions,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Financials/job-cost behavior, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).
+
+---
+
+## Entry 074 - Milestone 5G.2 Accounting Export Usability + CSV Verification
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Milestone 5G.2 accounting export usability
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5G.2 to harden the Accounting Export Preview as a
+clearer accounting review/export surface while keeping the work UI/client-side
+only. First-action checks were completed: `git pull origin main` reported
+already up to date; local `main` matched `origin/main` at
+`8aadafa567e48e2842c007e96ede32bbc7d46391`; `docs/ARCHITECTURE.md` was
+confirmed as Version 2.15; `HANDOFF.md` was confirmed gapless through Entry
+073; the working tree was clean before changes; and code inspection confirmed
+the Accounting Export tab plus Development Status card existed from the prior
+milestone.
+
+### What Was Completed
+- Improved the Accounting Export Preview summary cards:
+  - visible rows;
+  - stocked rows;
+  - empty / zero-quantity rows;
+  - total quantity;
+  - known inventory value where unit cost is present;
+  - rows missing cost.
+- Updated the Accounting Export Preview explanatory copy to clearly state:
+  `Development preview — generated from currently authorized inventory rows.
+  Not a finalized accounting integration.`
+- Added the 5G.2 build marker to the export preview facts:
+  `Accounting export usability build: 2026-06-24.2`.
+- Added a visible `Print export: deferred` fact so the old Count print button is
+  not confused with Accounting Export.
+- Improved table structure by splitting location into separate accounting review
+  columns:
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - Storage Path / Compact Location.
+- Added safe display fallback handling for missing export table values.
+- Preserved existing tokenized search/filter behavior over authorized loaded
+  rows.
+- Updated the client-side CSV export filename to:
+  `northgate-inventory-accounting-export-preview-YYYY-MM-DD.csv`.
+- Kept CSV export client-side only and scoped to currently visible/filtered
+  authorized preview rows.
+- Updated the Development Status card to:
+  - Most recent change: `Milestone 5G.2 - Accounting Export usability / CSV
+    verification`;
+  - Related HANDOFF: `Entry 074`;
+  - Architecture: `v2.15`;
+  - Current step: `Accounting Export preview hardening`;
+  - Build marker: `Accounting export usability build: 2026-06-24.2`.
+
+### Print Behavior
+- No Accounting Export print button was added in this pass.
+- Clean print styling was intentionally deferred because the current print CSS
+  is count-sheet oriented, and CSV remains the safe export mechanism for this
+  milestone.
+- The old Inventory Count / Count Intake `Print / Export` controls remain
+  separate and were not reused for Accounting Export.
+
+### CSV Behavior
+- CSV export remains generated entirely in the browser.
+- CSV includes headers.
+- CSV exports only the currently visible/filtered Accounting Export Preview
+  rows that were already returned through the authorized inventory read path.
+- Currency and numeric columns export as plain numeric cell values where data is
+  available; missing cost/value fields export blank.
+- No hidden unauthorized data is exported.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, or database indexes
+  were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated `DEVELOPMENT_STATUS` to Entry 074 / Milestone 5G.2.
+  - Added export display helpers for missing values and quantity formatting.
+  - Updated Accounting Export summary metrics.
+  - Updated Accounting Export preview copy, facts, table columns, and CSV
+    filename.
+- `src/styles.css`
+  - Adjusted Accounting Export table width for the expanded review columns.
+- `HANDOFF.md`
+  - Appended this Entry 074.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Accounting Export Preview remains UI/client-side only.
+- CSV is the only Accounting Export output mechanism in 5G.2.
+- Accounting Export print remains intentionally deferred until a clean,
+  scoped print layout is worth adding.
+- Development Status now points to Entry 074 and the 5G.2 build marker.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history permissions, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost visibility, Financials/job-cost, or
+  reserved feature behavior was changed.
+- This was a UI-only accounting export usability and CSV verification pass over
+  already-authorized inventory rows.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - confirm the Development Status card shows Entry 074 and
+     `Accounting export usability build: 2026-06-24.2`;
+   - open Inventory -> Accounting Export;
+   - confirm the heading says `Accounting Export Preview`;
+   - confirm the note says the preview is generated from currently authorized
+     inventory rows and is not a finalized accounting integration;
+   - confirm summary cards include rows missing cost;
+   - filter/search visible rows and download CSV;
+   - confirm the CSV filename includes
+     `northgate-inventory-accounting-export-preview`;
+   - confirm the old Count print/export button remains separate.
+2. Add a scoped Accounting Export print layout only in a future milestone if
+   Ryan wants a print-ready accounting review page.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session and
+  is not claimed.
+- Print export remains deferred by design for this pass.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Accounting Export usability and CSV verification.
+- RESERVED: finalized accounting integration, backend export jobs, storage
+  export files, schema/RLS/permission changes, inventory-changing actions,
+  ledger changes, balance changes, checkout/finalization changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Financials/job-cost behavior, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 073).
+
+---
+
+## Entry 075 - Inventory Count Print Sheet Patch
+
+**Date:** 2026-06-24
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Inventory Count print patch
+**Session type:** implementation
+
+### Context
+Ryan reported that the Inventory Count & Correction `Print / Export` button was
+printing the whole app/webpage layout instead of a useful count sheet. The goal
+was to replace the webpage-style print behavior with a basic formatted count
+table, staying UI/client-side only.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `43f7112f42520708e98a8e2a3154689c523ea144`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 074.
+- The working tree was clean before changes.
+- The current count print buttons and print CSS were inspected.
+
+### What Was Completed
+- Added a dedicated print-only `CountPrintSheet` component.
+- Replaced the old count-button label `Print / Export` with `Print Count Sheet`
+  on both existing count surfaces:
+  - Inventory Count & Correction;
+  - Inventory Count Intake.
+- The print-only count sheet uses the existing filtered/visible authorized rows
+  and existing local counted-quantity draft state.
+- Printed output now includes:
+  - `Northgate HQ - Inventory Count Sheet`;
+  - print timestamp;
+  - row count;
+  - selected client-side filter/search summary where available;
+  - Unit;
+  - Shelf;
+  - Bay;
+  - Bin;
+  - Material Code;
+  - Material Name / Description;
+  - System Qty;
+  - Counted Qty;
+  - Variance;
+  - Notes / Initials.
+- Added print-specific CSS that hides app chrome, tabs, filters, buttons,
+  cards, side panels, and the interactive count table during print.
+- Added compact, black/white, landscape-friendly print table styling with
+  repeating table headers.
+
+### Print Behavior
+- The old whole-webpage print behavior was replaced/scoped for count printing.
+- Clicking `Print Count Sheet` still uses browser print, but the print stylesheet
+  now displays the dedicated formatted count table instead of the app screen.
+- Authenticated browser print-preview verification was unavailable from this
+  Codex session and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend print/export services, or database
+  indexes were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added `CountPrintSheet`.
+  - Added count print filter summaries for the existing count screens.
+  - Updated count print button labels to `Print Count Sheet`.
+- `src/styles.css`
+  - Added hidden-on-screen count print sheet styles.
+  - Added print CSS for the dedicated count sheet table.
+- `HANDOFF.md`
+  - Appended this Entry 075.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Inventory Count printing is now handled by a dedicated print-only table, not
+  the interactive app/webpage layout.
+- The count print table is read-only/client-side and reflects currently visible
+  filtered rows plus local counted quantity draft values.
+- No count recording, count correction, retirement, balance, ledger, checkout,
+  transaction history, scan, Accounting Export, or Financials behavior changed.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
+  destination, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history permissions, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost visibility, Accounting Export,
+  Financials/job-cost, or reserved feature behavior was changed.
+- This was a UI-only print formatting patch for Inventory Count.
+
+### Next Steps (in order)
+1. Ryan may verify production after deploy:
+   - open Inventory -> Inventory Count & Correction;
+   - set any desired filters/search;
+   - enter sample counted quantities if desired;
+   - click `Print Count Sheet`;
+   - confirm print preview shows only the formatted count table, not the full
+     webpage/dashboard.
+2. If further polish is needed, tune only print CSS/table columns in a follow-up
+   UI-only patch.
+
+### Open Questions / Concerns
+- Authenticated browser print-preview verification was unavailable from this
+  Codex session and is not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Inventory Count print sheet patch.
+- RESERVED: backend export/print services, schema/RLS/permission changes,
+  inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, count correction changes, bin_item retirement
+  semantic changes, destination semantic changes, transaction-history behavior
+  changes, QR payload behavior changes, scan action behavior changes,
+  Accounting Export behavior, Financials/job-cost behavior, and all reserved
+  features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 074).
+
+---
+
+## Entry 076 - 2026-06-24 - Milestone 5G.3 Accounting Export Grouping, Totals, and Print/Export Polish
+
+**Phase:** Inventory (Stage 1) - Accounting Export Foundation polish
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5G.3 polish for the Accounting Export Preview surface:
+grouped review modes, grouped totals, current-view CSV behavior, scoped print
+polish, removal of the large dark print/export filler area, and a refreshed
+development status marker.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `029e39515bea0aba4d6c8b3130a8b5e92a396eec`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 075.
+- The working tree was clean before changes.
+
+### What Was Completed
+- Added Accounting Export review modes:
+  - Detail rows;
+  - By category;
+  - By location;
+  - By stocked status;
+  - By division.
+- Added grouped summary rows calculated client-side from the currently filtered,
+  already-authorized Accounting Export preview rows.
+- Grouped summary rows include:
+  - group label;
+  - row count;
+  - stocked row count;
+  - empty / zero row count;
+  - total quantity;
+  - known inventory value where cost exists;
+  - rows missing cost.
+- Updated CSV download behavior so it exports the current Accounting Export
+  view:
+  - detail mode downloads detail rows;
+  - grouped modes download grouped summary rows;
+  - filenames include the view token and date, such as
+    `northgate-inventory-accounting-detail-YYYY-MM-DD.csv` and
+    `northgate-inventory-accounting-by-category-YYYY-MM-DD.csv`.
+- Added scoped Accounting Export print support:
+  - `Print Export Preview` prints a dedicated Accounting Export preview sheet;
+  - print output includes `Northgate HQ - Accounting Export Preview`;
+  - print output includes printed date/time, current view, and row/group count;
+  - print output uses the active detail or grouped view;
+  - app chrome, buttons, tabs, development status card, backgrounds, and the
+    large dark filler/footer area are hidden for Accounting Export print output.
+- Kept the development-preview warning:
+  - `Development preview - generated from currently authorized inventory rows. Not a finalized accounting integration.`
+- Added the grouping explanation:
+  - `Grouping and totals are calculated client-side from the currently authorized inventory rows.`
+- Updated the Development Status card to:
+  - Most recent change:
+    `Milestone 5G.3 - Accounting Export grouping / totals / print polish`;
+  - Related HANDOFF: `Entry 076`;
+  - Architecture: `v2.15`;
+  - Current step: `Accounting Export review modes`;
+  - Build marker: `Accounting export grouping build: 2026-06-24.3`.
+
+### Verification
+- `npm run build` passed.
+- Static implementation review confirmed the change uses the existing
+  client-side Accounting Export / Grand Master inventory row model and
+  reuses the already-authorized rows returned to the signed-in user.
+- Authenticated browser and print-preview verification were unavailable from
+  this Codex session and are not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, backend print
+  services, or database indexes were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Accounting Export review-mode options and grouped summary helpers.
+  - Added current-view CSV export behavior.
+  - Added `AccountingExportPrintSheet`.
+  - Updated Accounting Export visible facts and development status marker.
+- `src/styles.css`
+  - Added grouped Accounting Export table styling.
+  - Added scoped Accounting Export print styles.
+  - Hid nonessential chrome/dev/status/background UI for Accounting Export
+    print output.
+- `HANDOFF.md`
+  - Appended this Entry 076.
+- No architecture docs, migrations, Supabase files, hooks/services, package
+  files, schema, RLS, grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Accounting Export Preview now has detail and grouped review modes.
+- Grouping, totals, CSV generation, and print output are all client-side and
+  operate only on currently authorized preview rows.
+- Accounting Export CSV and print behavior are scoped to the active Accounting
+  Export view and remain separate from the Inventory Count print sheet.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, backend export job,
+  backend print service, storage, QR payload, scan destination, ledger, balance,
+  checkout/finalization, Count Intake write path, `physical_count_correction`,
+  bin_item retirement, destination semantics, transaction-history permissions,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost visibility,
+  Financials/job-cost, or reserved feature behavior was changed.
+- This was a UI/client-side Accounting Export polish milestone.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - open Inventory -> Accounting Export;
+   - switch between Detail rows, By category, By location, By stocked status,
+     and By division;
+   - confirm grouped totals reflect the visible filtered rows;
+   - download CSV from detail and grouped views and confirm filenames/content;
+   - use `Print Export Preview` and confirm only the Accounting Export preview
+     sheet prints.
+2. If print layout needs additional column tuning, keep follow-up changes
+   UI/client-side only.
+
+### Open Questions / Concerns
+- Authenticated browser and print-preview verification were unavailable from
+  this Codex session and are not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Accounting Export grouped review modes, totals,
+  current-view CSV behavior, and scoped print polish.
+- RESERVED: backend export jobs, backend print services, schema/RLS/permission
+  changes, inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, count correction changes, bin_item retirement
+  semantic changes, destination semantic changes, transaction-history behavior
+  changes, QR payload behavior changes, scan action behavior changes,
+  Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 075).
+
+---
+
+## Entry 077 - 2026-06-24 - Targeted Accounting Export Print Parent Card CSS Fix
+
+**Phase:** Inventory (Stage 1) - Accounting Export print polish
+**Session type:** implementation
+
+### Context
+Ryan reported that Accounting Export print/export output still showed a large
+dark blue box after the printable table/content. The inspect-only finding
+identified the likely source as the Inventory parent wrapper:
+`<article className="card card--wide">` in `InventoryReadOnlyPanel`.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `80731162dfab9dc3023ccea43e8e4639b9fb403b`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 076.
+- The working tree was clean before changes.
+- The relevant Accounting Export print CSS and Inventory wrapper path were
+  inspected before editing.
+
+### What Was Completed
+- Added a targeted `@media print` CSS fix scoped to Accounting Export print
+  output.
+- The fix uses the mounted Accounting Export panel as the selector hook:
+  - `.dashboard-grid:has(.accounting-export-panel)`;
+  - `.card.card--wide:has(.accounting-export-panel)`;
+  - `.card.card--wide:has(.accounting-export-panel) > :not(.accounting-export-panel)`.
+- The parent `.card.card--wide` / Inventory wrapper chrome is neutralized for
+  Accounting Export print output only.
+- Non-print siblings inside the Inventory parent card are hidden for Accounting
+  Export print output, while `.accounting-export-print-sheet` remains visible.
+- The Accounting Export print panel/sheet are forced to white background,
+  no border, no shadow, no filler min-height, and zero print padding.
+- Blank page space after printable content is intentional.
+
+### Verification
+- `npm run build` passed.
+- `git diff --check` passed.
+- Changed files were limited to `src/styles.css` before this HANDOFF append.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no inventory balance, ledger, checkout/finalization,
+  Count Intake write path, count correction, bin_item retirement, QR/scan,
+  transaction history permission, destination semantic, Accounting Export
+  authorization, or Financials/job-cost behavior changed.
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, backend print
+  services, or database indexes were added.
+
+### Code / File Changes
+- `src/styles.css`
+  - Added targeted Accounting Export print CSS to hide/neutralize the wide
+    Inventory parent card chrome and non-print children.
+- `HANDOFF.md`
+  - Appended this Entry 077.
+- No app data logic, CSV logic, grouping logic, filters, row calculations,
+  authorization, backend files, hooks/services, package files, schema, RLS,
+  grants, or RPC definitions were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- The dark-blue Accounting Export print box was a print-layout artifact from
+  the parent `.card.card--wide` Inventory wrapper remaining visible around the
+  Accounting Export print sheet.
+- The fix is CSS-only and print-scoped to the Accounting Export mounted panel.
+- Inventory Count print behavior was not intentionally changed.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, backend export job,
+  backend print service, storage, QR payload, scan destination, ledger, balance,
+  checkout/finalization, Count Intake write path, `physical_count_correction`,
+  bin_item retirement, destination semantics, transaction-history permissions,
+  `can_view_all_divisions`, `can_view_financials`, inventory cost visibility,
+  Accounting Export authorization, Financials/job-cost, or reserved feature
+  behavior was changed.
+- This was a targeted UI/CSS print fix.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - open Inventory -> Accounting Export;
+   - click `Print Export Preview`;
+   - confirm print output shows only the Accounting Export printable sheet/table;
+   - confirm the large dark-blue parent card/filler box is gone;
+   - confirm blank page space after content is white/empty.
+2. If further print polish is needed, keep follow-up changes UI/CSS-only.
+
+### Open Questions / Concerns
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: targeted Accounting Export print parent-card CSS
+  bugfix.
+- RESERVED: backend export jobs, backend print services, schema/RLS/permission
+  changes, inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, count correction changes, bin_item retirement
+  semantic changes, destination semantic changes, transaction-history behavior
+  changes, QR payload behavior changes, scan action behavior changes,
+  Accounting Export authorization changes, Financials/job-cost behavior, and
+  all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 076).
+
+---
+
+## Entry 078 - Targeted Inventory Count Print Parent Card CSS Fix
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Inventory Count print polish
+**Session type:** implementation
+
+### Context
+Ryan reported that Inventory Count & Correction print/export output still
+showed the same large dark-blue parent-card/filler box after the count
+sheet/table content. Accounting Export print had already been fixed with a
+targeted parent-card print CSS selector, and the request was to apply the same
+principle to Inventory Count while preserving normal screen layout.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `d45d5310dfa6d0c2fbe44d968b2aeb4865fb8f8a`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 077.
+- The working tree was clean before changes, aside from a local git-ignore
+  permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- The recent Accounting Export print CSS fix was inspected before editing.
+- The Inventory Count print button, `.count-print-sheet`, `.count-workspace`,
+  and parent Inventory wrapper path were inspected before editing.
+
+### What Was Completed
+- Identified the actual Inventory Count print parent/wrapper source as
+  `InventoryReadOnlyPanel`'s `<article className="card card--wide">`, with the
+  active count tab mounting `.count-workspace` and `.count-print-sheet` inside
+  that parent card.
+- Added a targeted `@media print` CSS fix scoped to Inventory Count print
+  output using the mounted count print sheet as the selector hook:
+  - `.dashboard-grid:has(.count-print-sheet)`;
+  - `.dashboard-grid:has(.count-print-sheet) > .card:not(:has(.count-print-sheet))`;
+  - `.card.card--wide:has(.count-print-sheet)`;
+  - `.card.card--wide:has(.count-print-sheet) > :not(.count-workspace)`;
+  - `.count-workspace > :not(.count-print-sheet)`.
+- The Inventory parent `.card.card--wide` chrome/background is now neutralized
+  for Inventory Count print output only.
+- Non-print dashboard cards, parent-card children, controls, history panel,
+  app chrome, card backgrounds, shadows, filler spacing, and count workspace
+  siblings are hidden/neutralized for Inventory Count print output.
+- The dedicated Inventory Count printable sheet remains visible with white
+  background, no border, no shadow, zero print padding, and no filler
+  min-height.
+- The existing Accounting Export print fix was preserved and not changed.
+- Blank page space after printable content remains intentional.
+
+### Verification
+- `npm.cmd run build` passed. A direct `npm run build` invocation was blocked
+  by local PowerShell script execution policy before the build started, so the
+  Windows npm command shim was used.
+- `git diff --check` passed.
+- Changed source files were limited to `src/styles.css` before this HANDOFF
+  append.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no inventory balance, ledger, checkout/finalization,
+  Count Intake write path, count correction, bin_item retirement, QR/scan,
+  transaction-history permission, destination semantic, Accounting Export
+  authorization, or Financials/job-cost behavior changed.
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend export jobs, backend print
+  services, or database indexes were added.
+
+### Code / File Changes
+- `src/styles.css`
+  - Added targeted Inventory Count print CSS to hide/neutralize the wide
+    Inventory parent card chrome, sibling dashboard cards, and non-print count
+    workspace children.
+- `HANDOFF.md`
+  - Appended this Entry 078.
+- No app data logic, count write logic, Accounting Export behavior, backend
+  files, hooks/services, package files, schema, RLS, grants, or RPC definitions
+  were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- The dark-blue Inventory Count print box was a print-layout artifact from the
+  parent `.card.card--wide` Inventory wrapper and surrounding dashboard/card
+  chrome remaining in the print layout around `.count-print-sheet`.
+- The fix is CSS-only and print-scoped to the mounted Inventory Count print
+  sheet.
+- Accounting Export print behavior was preserved.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase, RLS, grant, permission, backend export job,
+  backend print service, storage, QR payload, scan destination, ledger, balance,
+  checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantics,
+  transaction-history permissions, `can_view_all_divisions`,
+  `can_view_financials`, inventory cost visibility, Accounting Export
+  authorization, Financials/job-cost, or reserved feature behavior was changed.
+- This was a targeted UI/CSS print fix for Inventory Count.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - open Inventory -> Inventory Count & Correction;
+   - click `Print Count Sheet`;
+   - confirm print output shows only the Inventory Count printable sheet/table;
+   - confirm the large dark-blue parent card/filler box is gone;
+   - confirm blank page space after content is white/empty.
+2. If further print polish is needed, keep follow-up changes UI/CSS-only.
+
+### Open Questions / Concerns
+- Authenticated print-preview verification was unavailable from this Codex
+  session and is not claimed.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: targeted Inventory Count print parent-card CSS
+  bugfix.
+- RESERVED: backend export jobs, backend print services, schema/RLS/permission
+  changes, inventory-changing actions, ledger changes, balance changes,
+  checkout/finalization changes, Count Intake write path changes, count
+  correction changes, bin_item retirement semantic changes, destination
+  semantic changes, transaction-history behavior changes, QR payload behavior
+  changes, scan action behavior changes, Accounting Export authorization
+  changes, Financials/job-cost behavior, and all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 077).
+
+---
+
+## Entry 079 - Milestone 5H.1 Bin Scan Add-to-Cart Entry Point
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Scan destination action bindings
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5H.1: add a safe Add-to-Cart entry point on
+bin-level scan destination pages so a field user who scans a bin can begin
+adding material from that scanned bin through the existing cart/checkout flow.
+The milestone was explicitly UI/client-side binding only and prohibited new
+schema, RPC, permission, transaction, checkout, balance, QR payload, route
+structure, transfer, return, buyout, Express Checkout, or Manager Override
+behavior.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `2491ff28841e856072f4050c0616287a57303641`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 078.
+- The working tree was clean before changes, aside from the existing local
+  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- Architecture Sections 10, 10a, 11, 17a, 23, 24, and 30 were checked for QR,
+  scan destination behavior, cart/checkout, transaction/balance, permission,
+  count-correction, and routing constraints.
+- The scan destination page, scan route parser, existing cart candidate picker,
+  `useInventoryCart`, and the approved cart RPC path were inspected before
+  coding.
+
+### What Was Completed
+- Added a bin-level scan page action card that appears only when the resolved
+  scan destination is a bin.
+- The action button text is:
+  `Add material from this bin to cart`.
+- The helper text states:
+  `Uses the existing cart checkout flow. Inventory is not changed until checkout is completed.`
+- The scan page action does not call any Supabase write RPC directly. It routes
+  to the existing dashboard Inventory Cart tab with scanned-bin context in the
+  dashboard query string:
+  `/?inventoryTab=cart&scanBinId=<bin_uuid>&scanBinCode=<display_code>`.
+- Added dashboard query parsing so `inventoryTab=cart` opens the existing Cart
+  Checkout tab and passes scanned-bin context into the already-built
+  `CartScaffold`.
+- Updated `CartScaffold` to use scanned-bin context as a client-side candidate
+  filter by existing `bin_id`.
+- The existing cart/add-to-cart flow is reused unchanged:
+  - users still open a cart through the existing `open_inventory_cart` RPC;
+  - users still enter quantities in the existing stocked-bin candidate picker;
+  - adding still calls `useInventoryCart().addItem()`;
+  - `useInventoryCart().addItem()` still calls the existing
+    `add_inventory_cart_item` RPC;
+  - checkout/finalization remains in the existing Cart Destinations area and
+    existing `finalize_inventory_cart` path.
+- Added a scanned-bin context panel inside the Cart tab so the user can see the
+  scanned bin, understand that checkout is unchanged, and clear the scanned-bin
+  filter to show all stocked candidates.
+- Added the required empty state for scanned bins with no authorized stocked
+  rows:
+  `No authorized stocked material was found for this scanned bin.`
+- Non-bin scan destinations do not show the bin-specific Add-to-Cart action.
+- Updated the scan page note to state that scan pages dispatch into existing
+  inventory workflows and that bin cart staging does not change inventory until
+  checkout.
+- Increased the existing authorized cart candidate read window in the frontend
+  read hook from 50 to 1000 rows so a scanned-bin filter is not accidentally
+  starved by the prior preview limit. This still reads from the existing
+  `inventory_cart_candidates_view` and does not change authorization.
+- Updated the Development Status card:
+  - Most recent change:
+    `Milestone 5H.1 — Bin scan Add-to-Cart entry point`;
+  - Related HANDOFF: `Entry 079`;
+  - Architecture: `v2.15`;
+  - Current step: `Scan destination action bindings`;
+  - Build marker: `Scan Add-to-Cart build: 2491ff28`.
+
+### Verification
+- `cmd /c npm run build` passed. Vite reported only the existing chunk-size
+  warning.
+- `git diff --check` passed. Git emitted a line-ending normalization warning
+  for `src/hooks/useInventoryReadModel.js`; the actual diff in that file is one
+  query-limit line.
+- Changed source files before this HANDOFF append were limited to:
+  - `src/App.jsx`;
+  - `src/hooks/useInventoryReadModel.js`;
+  - `src/styles.css`.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no cart engine, transaction engine, balance mutation,
+  checkout/finalization, Count Intake write path, physical count correction,
+  bin_item retirement, QR payload, scan route structure, transaction-history
+  permission, destination semantic, Accounting Export authorization, or
+  Financials/job-cost behavior changed.
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added dashboard inventory query parsing for cart tab/scanned-bin context.
+  - Added `buildScanCartPath()`.
+  - Added `ScanBinCartEntry`.
+  - Added bin-only scan action rendering.
+  - Passed scanned-bin context into `InventoryReadOnlyPanel` and `CartScaffold`.
+  - Added scanned-bin filtering and clear-filter behavior inside the existing
+    cart candidate picker.
+  - Updated Development Status card values for Milestone 5H.1.
+- `src/hooks/useInventoryReadModel.js`
+  - Increased the existing authorized cart candidate read limit from 50 to
+    1000 rows.
+- `src/styles.css`
+  - Added responsive styling for the scan Add-to-Cart entry panel and scanned
+    cart context panel.
+- `HANDOFF.md`
+  - Appended this Entry 079.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Bin-level scan pages now provide a UI entry point into the existing cart flow.
+- The scan page itself does not stage a cart line, create a transaction, mutate
+  inventory balances, or finalize checkout.
+- The handoff from scan page to cart is client-side navigation to the dashboard
+  cart tab with scanned-bin context. The Cart tab then filters the existing
+  authorized cart candidate list by `bin_id`.
+- All cart writes remain through the pre-existing `useInventoryCart` hook and
+  existing cart RPCs.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase table, new RPC, RLS, grant, permission flag,
+  backend handler, backend action service, Clerk/auth, QR payload, scan route
+  structure, ledger, balance, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin_item retirement, destination semantic,
+  transaction-history permission, Accounting Export authorization,
+  Financials/job-cost, Express Checkout, Manager Override, transfer,
+  Return-to-Inventory, buyout, or reserved feature behavior was changed.
+- This was a UI/client-side binding from the bin scan page into the already
+  approved cart/add-to-cart workflow.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - scan or manually open a bin QR route;
+   - confirm only bin-level scan pages show
+     `Add material from this bin to cart`;
+   - click the action and confirm the dashboard opens Inventory -> Cart
+     Checkout with the scanned bin context panel visible;
+   - open a cart through the existing cart button;
+   - enter quantity on an authorized stocked material from that bin;
+   - confirm Add uses the existing cart line workflow and inventory is not
+     changed until checkout;
+   - confirm non-bin scan pages do not show the bin-specific action.
+2. Keep any follow-up scan action work within the existing cart/checkout or
+   count-correction engines unless Claude review is triggered.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+- The Cart tab still depends on the existing authorized
+  `inventory_cart_candidates_view`; if a scanned bin has no authorized stocked
+  row in that view, the empty state is shown and no workaround is attempted.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: bin-level scan Add-to-Cart entry point.
+- RESERVED: schema/RLS/permission changes, new cart engines, new transaction
+  engines, direct balance writes, checkout/finalization changes, Count Intake
+  write path changes, physical count correction changes, bin_item retirement
+  semantic changes, QR payload changes, scan route structure changes,
+  transaction-history permission changes, destination semantic changes,
+  Accounting Export authorization changes, Financials/job-cost behavior,
+  location-to-location transfers, multi-bin batch actions, vehicle-bin stock
+  onboarding, Return-to-Inventory, buyout, Express Checkout, Manager Override,
+  backend handlers, backend action services, and all reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 078).
+
+---
+
+## Entry 080 - Milestone 5H.2 Bin Scan Count Correction Entry Point
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory (Stage 1) - Scan destination action bindings
+**Session type:** implementation
+
+### Context
+Ryan requested Milestone 5H.2: add a safe Count Correction entry point on
+bin-level scan destination pages so a field user who scans a bin can begin a
+count correction using the existing Inventory Count & Correction / Count Intake
+flow. The milestone was explicitly UI/client-side binding only and prohibited
+new schema, RPCs, permission changes, transaction engines, balance paths, count
+correction backend paths, QR payload changes, scan route structure changes, and
+all reserved workflows.
+
+The prior session summary referenced HANDOFF Entry 078 in its routing verdict
+even though Entry 079 had been appended. Before coding, HANDOFF was checked:
+Entry 079 is present and the file is gapless through Entry 079. The Entry
+078/079 mismatch was treated as a routing-reference typo, and this entry uses
+the correct latest handoff number after append.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `83d237056b79d2e655ef68068838c572ed82fed9`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
+- `HANDOFF.md` was confirmed gapless through Entry 079 before this append.
+- The working tree was clean before changes, aside from the existing local
+  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- Architecture Sections 10, 10a, 11, 12, 17a, 23, 24, and 30 were checked for
+  QR, scan destination behavior, Count Intake, physical count correction,
+  transaction/balance, permission, and routing constraints.
+- The scan destination page, scan route parser, existing Inventory Count Intake
+  UI, `useInventoryCountIntake`, and existing count submission path were
+  inspected before coding.
+
+### What Was Completed
+- Added a bin-level scan page Count Correction action that appears only when
+  the resolved scan destination is a bin.
+- The action button text is:
+  `Correct count for this bin`.
+- The helper text states:
+  `Uses the existing Inventory Count & Correction flow. Inventory is not changed until the count correction is submitted through the approved path.`
+- The scan page action does not call any Supabase write RPC directly. It routes
+  to the existing dashboard Inventory Count tab with scanned-bin context in the
+  dashboard query string:
+  `/?inventoryTab=count&scanBinId=<bin_uuid>&scanBinCode=<display_code>`.
+- Extended the 5H.1 dashboard query parser so scanned-bin context is routed to
+  the Cart tab only for `inventoryTab=cart` and to the Count tab only for
+  `inventoryTab=count`.
+- Added `buildScanCountPath()` alongside the existing scan cart path helper.
+- Updated `InventoryCountIntakePanel` to accept scanned-bin context.
+- When opened from a scanned bin, the Count Intake screen:
+  - shows a scanned-bin context panel;
+  - preselects the scanned bin path when hierarchy data is loaded;
+  - narrows existing authorized count rows to the scanned `bin_id`;
+  - preserves existing search/category/repeat filters within that scanned-bin
+    context;
+  - provides `Show all count rows` to clear the scanned-bin context and return
+    to the normal count view.
+- Existing count submission behavior is reused unchanged:
+  - existing bin/material count rows still use the current `Record` /
+    `Record Count` controls;
+  - new catalog-item count intake still uses the selected bin in the existing
+    Count Intake form;
+  - submissions still go through `useInventoryCountIntake().recordCount()`;
+  - `useInventoryCountIntake().recordCount()` still calls the existing
+    `intake_inventory_count` RPC.
+- Added the required scanned-bin empty state:
+  `No authorized material rows were found for this scanned bin.`
+- Non-bin scan destinations do not show the bin-specific Count Correction
+  action.
+- Updated the scan page note to state that bin cart staging and count correction
+  use existing approved flows and do not change inventory until those workflows
+  are completed.
+- Updated the Development Status card:
+  - Most recent change:
+    `Milestone 5H.2 — Bin scan Count Correction entry point`;
+  - Related HANDOFF: `Entry 080`;
+  - Architecture: `v2.15`;
+  - Current step: `Scan destination action bindings`;
+  - Build marker: `Scan Count Correction build: 83d23705`.
+
+### Verification
+- `cmd /c npm run build` passed. Vite reported only the existing chunk-size
+  warning. An initial build attempt hit a transient Vite/Rolldown HTML emit path
+  error for `index.html`; an immediate rerun passed with no code changes.
+- `git diff --check` passed.
+- Changed source files before this HANDOFF append were limited to:
+  - `src/App.jsx`;
+  - `src/styles.css`.
+- Static scan confirmed no migration files were added.
+- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
+  changed.
+- Static scan confirmed no new Count Intake backend path,
+  `physical_count_correction` RPC behavior change, transaction engine, balance
+  mutation, cart checkout behavior, bin_item retirement, QR payload, scan route
+  structure, transaction-history permission, destination semantic, Accounting
+  Export behavior, or Financials/job-cost behavior changed.
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Imported `ClipboardCheck` for the Count Correction action button.
+  - Updated Development Status values for Milestone 5H.2.
+  - Added scanned-bin count route context parsing.
+  - Added `buildScanCountPath()`.
+  - Added `getCountPathFiltersForBin()`.
+  - Added `ScanBinCountEntry`.
+  - Rendered the bin-only Count Correction action on scan pages.
+  - Passed scanned-bin count context into `InventoryReadOnlyPanel` and
+    `InventoryCountIntakePanel`.
+  - Added scanned-bin filtering, path preselection, context panel, and
+    clear-context behavior to the existing Count Intake UI.
+- `src/styles.css`
+  - Added responsive styling for the scan Count Correction entry panel and the
+    scanned-bin count context panel.
+- `HANDOFF.md`
+  - Appended this Entry 080.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.15.
+
+### What Codex Needs to Know
+- Bin-level scan pages now provide both:
+  - Add-to-Cart entry point from 5H.1;
+  - Count Correction entry point from 5H.2.
+- The Count Correction scan action is client-side navigation into the existing
+  Inventory Count tab with scanned-bin context. It does not submit counts from
+  the scan page.
+- All count writes remain in the pre-existing Count Intake UI and existing
+  `useInventoryCountIntake` / `intake_inventory_count` path.
+- The prior Entry 078/079 routing mismatch was a summary/reference typo; the
+  actual HANDOFF file is gapless and now continues through Entry 080.
+
+### What Claude Needs to Know
+- No schema, migration, Supabase table, new RPC, RLS, grant, permission flag,
+  backend handler, backend action service, Clerk/auth, QR payload, scan route
+  structure, ledger, balance, cart checkout, Count Intake backend path,
+  `physical_count_correction` RPC behavior, bin_item retirement, destination
+  semantic, transaction-history permission, Accounting Export, Financials/job-
+  cost, Express Checkout, Manager Override, transfer, Return-to-Inventory,
+  buyout, or reserved feature behavior was changed.
+- This was a UI/client-side binding from the bin scan page into the already
+  approved Inventory Count & Correction / Count Intake workflow.
+
+### Next Steps (in order)
+1. Ryan may verify production after push/deploy:
+   - scan or manually open a bin QR route;
+   - confirm only bin-level scan pages show
+     `Correct count for this bin`;
+   - click the action and confirm the dashboard opens Inventory -> Inventory
+     Count & Correction with the scanned-bin context panel visible;
+   - confirm the visible count rows are narrowed to the scanned bin;
+   - submit a count only through the existing Count Intake controls if desired;
+   - confirm non-bin scan pages do not show the bin-specific Count Correction
+     action.
+2. Keep any follow-up scan action work within the existing cart/checkout or
+   Count Intake / physical count correction engines unless Claude review is
+   triggered.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+- The Count tab still depends on the existing authorized count rows loaded
+  through `useInventoryCountSheet`; if a scanned bin has no authorized material
+  rows, the required empty state is shown and no workaround is attempted.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: bin-level scan Count Correction entry point.
+- RESERVED: schema/RLS/permission changes, new Count Intake backend paths,
+  physical count correction RPC changes, new transaction engines, direct
+  balance writes, cart checkout changes, bin_item retirement semantic changes,
+  QR payload changes, scan route structure changes, transaction-history
+  permission changes, destination semantic changes, Accounting Export behavior,
+  Financials/job-cost behavior, location-to-location transfers, multi-bin batch
+  actions, vehicle-bin stock onboarding, Return-to-Inventory, buyout, Express
+  Checkout, Manager Override, backend handlers, backend action services, and all
+  reserved features.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 080).
+
+---
+
+## Entry 081 - Standard Codex Operating Instructions adopted (ARCHITECTURE v2.16, new Section 35)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Documentation / coordination doctrine
+**Session type:** implementation
+
+### Context
+Ryan identified Codex prompt length and usage burn as a coordination problem.
+Claude reviewed the proposed Standard Codex Operating Instructions and applied
+five tightening edits. ChatGPT then Rule 20 cross-cleared the adoption, and Ryan
+authorized this adoption pass.
+
+This was a documentation / lock-document adoption task only. No app-code,
+schema, backend, RLS, permission, auth, transaction, ledger, inventory balance,
+checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, or Manager
+Override behavior was changed.
+
+First-action checks were completed:
+- `git pull origin main` reported already up to date.
+- Local `main` matched `origin/main` at
+  `435e259c66256eeda4efa8779d3f32bcc21a9469`.
+- The working tree was clean before changes, aside from the existing local
+  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
+- `docs/ARCHITECTURE.md` was confirmed as Version 2.15 before changes.
+- Section 34 was confirmed as the last ARCHITECTURE section before changes.
+- `HANDOFF.md` was confirmed gapless through Entry 080 before this append.
+- Standard Codex Operating Instructions were confirmed not already present in
+  ARCHITECTURE or HANDOFF before changes.
+
+### What Was Completed
+- Adopted Standard Codex Operating Instructions as standing operating doctrine.
+- Advanced ARCHITECTURE from v2.15 to v2.16.
+- Added new `## 35. Standard Codex Operating Instructions (locked v2.16 — Entry 081)`.
+- Added the v2.16 version-line clause describing:
+  - reusable task classification buckets;
+  - the Bucket 2 positive confirmation gate;
+  - protected-scope rules with Section 10a / v2.15 references for
+    cross-location transfers and multi-bin batch actions;
+  - explicit RLS-bypass prohibition;
+  - explicit direct `inventory_balances` write-path verification;
+  - standard start procedure;
+  - HANDOFF requirement;
+  - routing verdict;
+  - short-prompt footer.
+- Preserved the prior v2.15 version history text in the ARCHITECTURE version
+  line.
+- Added Section 35H as the canonical short footer future Codex prompts may use.
+- Appended this HANDOFF Entry 081.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.15 to v2.16.
+  - Added new Section 35 after Section 34.
+- `HANDOFF.md`
+  - Appended this Entry 081.
+- No `src/` files, migrations, Supabase files, package files, Clerk/auth files,
+  backend/RPC files, or app behavior files were changed.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.15 to v2.16.
+- New Section 35 is now locked as canonical Standard Codex Operating
+  Instructions.
+
+### What Codex Needs to Know
+- Future Codex prompts may use the Section 35H short footer instead of
+  restating the full operating instructions.
+- Codex must classify future tasks using Section 35B before coding.
+- Bucket 2 Existing-Flow Binding tasks require positive confirmation that the
+  existing flow accepts the new context without modification.
+- Protected scope is listed in Section 35C and must not be touched without an
+  existing lock or Claude routing.
+- Section 35E verification and Section 35G routing verdicts are now canonical.
+
+### What Claude Needs to Know
+- ChatGPT Rule 20 cross-cleared the v2.16 / Section 35 adoption before this
+  pass.
+- Ryan authorized adoption.
+- No source behavior or protected implementation scope changed.
+- This entry documents the adoption of coordination doctrine only.
+
+### Next Steps (in order)
+1. Future Codex prompts may reference the Section 35H short footer.
+2. Continue feature work under ARCHITECTURE v2.16 and HANDOFF Entry 081.
+3. Route any protected-scope or architecture-sensitive task through Claude per
+   Sections 30 and 35.
+
+### Open Questions / Concerns
+- None.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Standard Codex Operating Instructions adoption.
+- No app-code, schema, backend, RLS, permission, transaction, ledger, balance,
+  checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, cross-location transfer, or multi-bin batch action behavior changed.
+
+### Routing Verdict
+No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.16, HANDOFF Entry 081).
+
+---
+
+## Entry 082 - Selected Path count material-code search fixed
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Inventory Count Intake / Selected Path search
+**Session type:** implementation
+
+### Context
+Ryan reported that Count Loaded Stock search finds material code `C222` as
+`3/4" EMT Compression Couplings`, while the Selected Path count tool returns no
+results for `C222`. Ryan clarified that searching by the actual material code
+also does not return the item in Selected Path count.
+
+Section 35 classification: Bucket 1 — Safe UI/client-side search/filter bugfix.
+The task was limited to already-loaded, already-authorized count rows and did
+not require backend, schema, RLS, permission, or write-path changes.
+
+### What Was Completed
+- Compared Count Loaded Stock / Grand Master search behavior against Selected
+  Path count search behavior.
+- Found that `matchesCountRowSearch` treated short hierarchy-looking search
+  values such as `C222` as location-only searches.
+- Updated the Selected Path count row matcher so count rows always include
+  material fields, including `material_code`, while preserving compact
+  location-code matching.
+- Preserved selected-path filters for storage unit, shelf, bay, bin, scan-bin
+  context, category, and Review Repeats.
+- Preserved Count Intake submission and write behavior.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added or changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated `matchesCountRowSearch` so token matching always searches
+    `getCountRowSearchValues(row)`, which includes `row.material_code`.
+  - Retained `compactLocationCode` and `compactLocationMatch` for selected-path
+    hierarchy searches.
+- `HANDOFF.md`
+  - Appended this Entry 082.
+
+### Verification
+- Confirmed `getCountRowSearchValues(row)` includes `row.material_code`.
+- Confirmed the Selected Path filters still run before the row search result is
+  returned.
+- Confirmed no broader fetch was added; `useInventoryCountSheet` was unchanged.
+- Confirmed no Count Intake submission/write hook changed.
+- Confirmed no Supabase, migration, backend, schema, RLS, permission, or
+  `inventory_balances` direct-write path changed.
+- `git diff -- src\hooks\useInventoryCountSheet.js src\hooks\useInventoryCountIntake.js src\hooks\useInventoryCountCorrection.js supabase`
+  returned no changes.
+- `npm.cmd run build` passed.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable from this Codex session
+  and is not claimed.
+- PowerShell blocked `npm run build` through `npm.ps1` because local script
+  execution is disabled; `npm.cmd run build` was used successfully instead.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Selected Path count material-code search bugfix.
+- No protected scope changed: schema, RLS, grants, permissions, backend/RPC,
+  Clerk/auth/login, inventory balance mutation logic, ledger behavior,
+  transaction tables, checkout/finalization, Count Intake write path,
+  `physical_count_correction`, bin item retirement, QR payload, scan route
+  structure, transaction-history permissions, destination semantics, Accounting
+  Export, Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock,
+  Express Checkout, Manager Override, cross-location transfer behavior, and
+  multi-bin batch actions were untouched.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.16, HANDOFF Entry 082).
+
+---
+
+## Entry 083 - Tool Catalogue Foundation locked (ARCHITECTURE v2.17, new Section 36)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Documentation / Tool Catalogue architecture doctrine
+**Session type:** implementation
+
+### Context
+Ryan requested a foundation for logging company tool inventory.
+
+The locked feature term is `Tool Catalogue`, not `Tool Inventory`. This phase
+is a catalogue/logging surface only, not a tracking/check-out system.
+
+Because this future feature introduces a new Supabase table and RLS, it is
+Architecture-sensitive under Section 35. Claude reviewed and approved the Tool
+Catalogue Foundation with edits. ChatGPT Rule 20 cross-cleared the adoption
+with corrected numbering, and Ryan authorized this adoption pass.
+
+Corrected numbering: Claude's draft referred to the Tool Catalogue entry as
+Entry 082, but Entry 082 already exists for the Selected Path count
+material-code search fix. Tool Catalogue adoption is Entry 083.
+
+### What Was Completed
+- Advanced ARCHITECTURE from v2.16 to v2.17.
+- Added new `## 36. Tool Catalogue (locked v2.17 — Entry 083)`.
+- Locked Tool Catalogue as a catalogue/logging foundation, not a checkout,
+  tracking, custody, transfer, QR-label, vehicle-storage, or history-ledger
+  system.
+- Locked the future `public.tools` schema foundation, including:
+  - `division_id` FK to `divisions(id)`;
+  - soft-archive columns;
+  - nullable `tool_number` and `serial_number`;
+  - required `name`;
+  - CHECK-constrained `condition` and `status`;
+  - plain text placeholder fields for `home_location`, `current_location`, and
+    `assigned_to`;
+  - deferred `purchase_price` and `vendor`.
+- Locked partial unique indexes for non-null `tool_number` and `serial_number`.
+- Locked future RLS/permission doctrine:
+  - read by own division or `can_view_all_divisions`;
+  - write/create/edit/archive by `can_manage_inventory` within division scope;
+  - hard delete never;
+  - no new permission flags in this phase;
+  - `can_view_financials` is not a Tool Catalogue field gate.
+- Locked the first permitted UI surface and helper copy.
+- Reserved checkout/check-in, assignment history, custody chain, QR labels,
+  scan pages, transfers, vehicle-bin tool storage, employee/job linked
+  assignments, maintenance/inspection/calibration logs, repair history,
+  purchase accounting/depreciation, attachments/photos/receipts, canonical
+  accounting import/export, tool-specific permission flags, tool ledger, and
+  tool audit table for future architecture clearance.
+- Appended this HANDOFF Entry 083.
+
+### Schema Changes
+- None in this pass.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.16 to v2.17.
+  - Added new Section 36 after Section 35.
+- `HANDOFF.md`
+  - Appended this Entry 083.
+- No app-code, migration, schema, RLS, permission, ledger, balance,
+  transaction, auth, or UI behavior changed in this docs-only pass.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.16 to v2.17.
+- Section 36 now canonically locks the Tool Catalogue Foundation.
+- HANDOFF remains gapless through Entry 083.
+
+### What Codex Needs to Know
+- Future Tool Catalogue implementation must be built in two steps:
+  1. Migration first.
+  2. UI second.
+- Before writing the migration, Codex must confirm:
+  - the existing `updated_at` trigger function name from live repo migrations;
+  - user profile/RLS patterns;
+  - Clerk auth helper/function pattern;
+  - `divisions` table shape.
+- Do not add `purchase_price` or `vendor` in the first Tool Catalogue
+  migration.
+- Do not add tool-specific permission flags, audit tables, tool ledgers,
+  attachments, checkout/check-in, QR labels, vehicle/bin linkage, job linkage,
+  assignment history, tracking history, custody chain, transfers, or purchase
+  accounting behavior without future architecture clearance.
+
+### What Claude Needs to Know
+- Claude reviewed and approved the Tool Catalogue Foundation with edits.
+- ChatGPT Rule 20 cross-cleared adoption with corrected numbering.
+- Entry 083 was used because Entry 082 was already consumed by the Selected
+  Path count material-code search fix.
+- No implementation, migration, RLS, permission, or runtime behavior was
+  changed in this pass.
+
+### Next Steps (in order)
+1. Future Codex implementation prompt should start with migration inspection:
+   updated_at trigger function, user profile/RLS pattern, Clerk auth helper, and
+   `divisions` table shape.
+2. Implement the locked Tool Catalogue migration.
+3. Implement the locked first Tool Catalogue UI surface only after the migration
+   shape is verified.
+
+### Open Questions / Concerns
+- None.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Tool Catalogue Foundation adoption.
+- No app-code, migration, schema, backend, RLS, permission, transaction, ledger,
+  balance, checkout, Count Intake, QR/scan, Accounting Export,
+  Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock, Express
+  Checkout, Manager Override, Tool Catalogue runtime behavior, cross-location
+  transfer, or multi-bin batch action behavior changed.
+
+### Routing Verdict
+No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.17, HANDOFF Entry 083).
+
+---
+
+## Entry 084 - Section 36 Tool Catalogue division correction (ARCHITECTURE v2.18)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Documentation / Tool Catalogue architecture correction
+**Session type:** implementation
+
+### Context
+Codex correctly stopped during Tool Catalogue migration preflight for Milestone
+5I.1 before writing a migration.
+
+The blocker was that Section 36 required
+`division_id uuid not null references divisions(id)`, but the current repo
+migration chain does not define `public.divisions` or a UUID division
+convention.
+
+Existing app convention uses `division text`, including
+`user_permissions.division` and `items.division`.
+
+Claude reviewed and approved correcting Section 36. ChatGPT Rule 20
+cross-cleared the correction, and Ryan authorized this docs-only correction
+pass.
+
+### What Was Completed
+- Advanced ARCHITECTURE from v2.17 to v2.18.
+- Corrected Section 36 so the Tool Catalogue first migration uses
+  `division text not null`.
+- Replaced the stale `division_id uuid not null references divisions(id)`
+  requirement for the Tool Catalogue first migration.
+- Clarified that Tool Catalogue RLS must use the existing text-division
+  convention:
+  - `user_permissions.division`;
+  - `items.division`;
+  - `auth.jwt() ->> 'sub'`;
+  - `user_permissions.clerk_user_id`;
+  - `effective_permissions_for_user(...)`;
+  - `can_view_all_divisions`;
+  - `can_manage_inventory`.
+- Added `divisions` table / UUID-based division normalization to the reserved
+  future architecture list.
+- Preserved the rest of the Tool Catalogue foundation: single `public.tools`
+  table, text CHECK constraints for `condition` and `status`, partial unique
+  indexes, soft archive, no new permission flags, no audit table, no
+  attachments, and reserved tracking/checkout features.
+- Appended this HANDOFF Entry 084.
+
+### Schema Changes
+- None in this pass.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.17 to v2.18.
+  - Corrected Section 36 to use `division text not null`.
+  - Reserved divisions table / UUID-based division normalization for a future
+    architecture-cleared milestone.
+- `HANDOFF.md`
+  - Appended this Entry 084.
+- No app-code, migration, schema, RLS, permission, ledger, balance,
+  transaction, auth, or UI behavior changed in this docs-only correction.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.17 to v2.18.
+- Section 36 now matches the current app schema convention for division scope.
+- HANDOFF remains gapless through Entry 084.
+
+### What Codex Needs to Know
+- Next step is Milestone 5I.1 Tool Catalogue Migration Foundation using the
+  corrected Section 36 schema.
+- The first Tool Catalogue migration must use `division text not null`, not
+  `division_id uuid references divisions(id)`.
+- Do not introduce a `divisions` table or UUID-based division normalization as
+  part of Tool Catalogue. That is reserved for a dedicated
+  architecture-cleared milestone.
+- Future Tool Catalogue RLS must follow the existing text-division convention
+  and Clerk/user-permissions pattern.
+
+### What Claude Needs to Know
+- The v2.17 Section 36 division FK assumption was corrected through Rule 20.
+- ChatGPT cross-cleared the correction.
+- No implementation, migration, RLS, permission, or runtime behavior changed in
+  this pass.
+
+### Next Steps (in order)
+1. Resume Milestone 5I.1 Tool Catalogue Migration Foundation.
+2. Inspect existing migrations for the `updated_at` trigger function and
+   text-division RLS conventions.
+3. Create the Tool Catalogue migration using `division text not null`.
+
+### Open Questions / Concerns
+- None.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Section 36 Tool Catalogue division correction.
+- No app-code, migration, schema, backend, RLS, permission, transaction, ledger,
+  balance, checkout, Count Intake, QR/scan, Accounting Export,
+  Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock, Express
+  Checkout, Manager Override, Tool Catalogue runtime behavior, cross-location
+  transfer, or multi-bin batch action behavior changed.
+
+### Routing Verdict
+No Claude review needed — Rule 20 cross-cleared correction applied (ARCHITECTURE v2.18, HANDOFF Entry 084).
+
+---
+
+## Entry 085 - Tool Catalogue Migration Foundation (Milestone 5I.1)
+
+**Date:** 2026-06-25
+**Updated by:** Codex
+**Phase:** Tool Catalogue / migration foundation
+**Session type:** implementation
+
+### Context
+Milestone 5I.1 is the first runtime implementation step for Tool Catalogue.
+ARCHITECTURE v2.18 Section 36 locks the corrected migration foundation:
+migration first, UI second, `public.tools` with `division text not null`, and
+no divisions table / UUID division normalization.
+
+Classification: Architecture-sensitive implementation of an already-cleared
+Section 36 design.
+
+Before writing SQL, Codex confirmed the existing repo conventions:
+- updated_at trigger function: `touch_user_permissions_updated_at()`;
+- Clerk convention: `auth.jwt() ->> 'sub'`;
+- user ID column: `user_permissions.clerk_user_id`;
+- division column: `user_permissions.division`;
+- permission function: `public.effective_permissions_for_user(up.role, up.division, up.permission_overrides)`;
+- permission flags: `can_view_all_divisions`, `can_manage_inventory`.
+
+### What Was Completed
+- Added migration `supabase/migrations/202606250001_tool_catalogue_foundation.sql`.
+- Created the canonical `public.tools` table foundation.
+- Used `division text not null`; no `division_id` field and no `divisions`
+  table were introduced.
+- Added `condition` CHECK constraint with allowed values `good`, `fair`,
+  `poor`, `damaged`, `unknown`, or null.
+- Added `status` CHECK constraint with allowed values `active`, `inactive`,
+  `retired`, and `missing`, defaulting to `active`.
+- Added partial unique indexes:
+  - `tools_tool_number_unique` on `tool_number` where non-null;
+  - `tools_serial_number_unique` on `serial_number` where non-null.
+- Added `trg_touch_tools_updated_at` using the existing
+  `touch_user_permissions_updated_at()` trigger function.
+- Enabled RLS on `public.tools`.
+- Added RLS policies:
+  - `tools_division_select` for own-division reads or
+    `can_view_all_divisions`;
+  - `tools_inventory_manager_insert` for `can_manage_inventory` within the
+    user's own division;
+  - `tools_inventory_manager_update` for `can_manage_inventory` within the
+    user's own division.
+- Granted only `SELECT`, `INSERT`, and `UPDATE` on `public.tools` to
+  authenticated users.
+- Did not create a DELETE policy or DELETE grant.
+- No UI was built.
+- No reserved tool-tracking features were added.
+
+### Schema Changes
+- Added new table `public.tools`.
+- Added two partial unique indexes on `public.tools`.
+- Added one `updated_at` trigger on `public.tools`.
+- Enabled RLS and added new RLS policies only for `public.tools`.
+- No existing tables, existing RLS policies, grants, permissions, RPCs,
+  inventory balances, ledger behavior, transaction behavior, checkout behavior,
+  Count Intake behavior, QR/scan behavior, Accounting Export behavior,
+  Financials/job-cost behavior, Return-to-Inventory, buyout, vehicle-bin stock,
+  Express Checkout, Manager Override, or existing Inventory behavior changed.
+
+### Code / File Changes
+- `supabase/migrations/202606250001_tool_catalogue_foundation.sql`
+  - New migration for the Tool Catalogue foundation.
+- `HANDOFF.md`
+  - Appended this Entry 085.
+- No `src/` files, package files, existing migrations, hooks, services,
+  routes, tabs, forms, or UI files were changed.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 085.
+
+### What Codex Needs to Know
+- Tool Catalogue migration foundation now exists.
+- The next implementation step is the Tool Catalogue UI.
+- UI work must consume the approved `public.tools` schema and must not add
+  checkout/check-in, assignment history, custody chain, QR labels, scan pages,
+  transfers, vehicle/bin linkage, job linkage, maintenance logs, repair
+  history, purchase accounting/depreciation, attachments/photos/receipts,
+  canonical accounting import/export, tool-specific permission flags, a tool
+  ledger, a tool audit table, `division_id`, or a `divisions` table.
+
+### What Claude Needs to Know
+- This pass implemented the already-cleared v2.18 Section 36 migration
+  foundation.
+- No UI or reserved Tool Catalogue runtime behavior was built.
+- No existing schema/RLS/permission behavior changed.
+- Supabase CLI was unavailable in this local environment, so local/live
+  migration application was not performed and is not claimed.
+
+### Next Steps (in order)
+1. Apply or verify the new migration in the target Supabase environment.
+2. Build the locked Tool Catalogue UI surface.
+3. Keep reserved Tool Catalogue features out of the UI until future
+   architecture clearance.
+
+### Open Questions / Concerns
+- Supabase local/live migration verification was not completed because the
+  `supabase` CLI was not available in this environment.
+- `npm run build` was blocked by PowerShell script execution policy, so
+  `npm.cmd run build` was used successfully.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Tool Catalogue migration foundation.
+- RESERVED: UI, checkout/check-in, assignment history, custody chain, QR labels,
+  scan pages, transfers, vehicle-bin tool storage, employee-linked
+  assignments, job/project-linked assignments, maintenance/inspection/
+  calibration logs, repair history, purchase accounting/depreciation,
+  attachments/photos/receipts, canonical accounting import/export,
+  tool-specific permission flags, tool ledger, tool audit table, divisions
+  table, and UUID-based division normalization.
+- No protected inventory behavior changed: inventory balances, ledger,
+  transaction behavior, checkout/finalization, Count Intake, QR/scan behavior,
+  Accounting Export, Financials/job-cost, Return-to-Inventory, buyout,
+  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
+  behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — implementing locked Tool Catalogue Foundation (ARCHITECTURE v2.18, HANDOFF Entry 085).
+
+---
+
+## Entry 086 - Tool Catalogue UI (Milestone 5I.2)
+
+**Date:** 2026-06-26
+**Updated by:** Codex
+**Phase:** Tool Catalogue / first UI
+**Session type:** implementation
+
+### Context
+Milestone 5I.2 is the second Tool Catalogue implementation step under
+ARCHITECTURE v2.18 Section 36. The migration foundation from Entry 085 is
+already present, and this pass adds the first Supabase-backed Tool Catalogue
+UI only.
+
+Classification: Architecture-sensitive implementation of an already-locked
+Tool Catalogue UI surface.
+
+### What Was Completed
+- Added a Tool Catalogue tab inside the existing inventory module shell.
+- Added the locked Tool Catalogue title and helper copy:
+  "Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle
+  storage, and tracking history are reserved for future milestones."
+- Added live Supabase reads from `public.tools` using only the approved
+  Section 36 columns.
+- Added search across tool number, name, category, brand, model, serial
+  number, description, home location, current location, assigned-to text, and
+  notes.
+- Added category, status, condition, and Show archived filters.
+- Added active/default table and mobile list views with the first recommended
+  Tool Catalogue columns.
+- Added the required empty state text:
+  "No tools have been added yet."
+- Added an add/edit form for approved editable fields only.
+- Create uses the existing current-user `permissions.division` convention and
+  inserts `division` into `public.tools`.
+- Edit updates approved editable fields only and does not change `division`.
+- Added soft archive behavior that updates `archived_at`, `archived_by`,
+  optional `archive_reason`, and `status = 'retired'`.
+- No hard delete behavior was added.
+- Updated the Development Status card to Milestone 5I.2 / Entry 086 /
+  ARCHITECTURE v2.18 / Tool Catalogue / build marker `092da08`.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No schema, RLS, grants, permission flags, RPCs, backend functions, storage,
+  indexes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Tool Catalogue constants, filters, add/edit form, table/mobile list,
+    Supabase read/create/update/soft-archive behavior, tab registration, and
+    Development Status updates.
+- `src/styles.css`
+  - Added Tool Catalogue layout, toolbar, form, responsive table/mobile, and
+    archived-row styling.
+- `HANDOFF.md`
+  - Appended this Entry 086.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 086.
+
+### What Codex Needs to Know
+- Tool Catalogue UI now exists as a catalogue-only foundation.
+- It intentionally uses the existing `can_manage_inventory` write gate and
+  current-user `division` value from `usePermissions`.
+- Cross-division visible rows remain read-only in the UI; writes are limited to
+  the current user division and remain server-enforced by RLS.
+- The UI does not expose archive metadata in the normal edit form.
+
+### What Claude Needs to Know
+- This pass implemented the already-locked Tool Catalogue UI.
+- No migration, schema, RLS, permission, backend, inventory balance, ledger,
+  checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing Inventory behavior changed.
+- Browser verification was attempted against `http://127.0.0.1:5173/`, but
+  the local app failed before render because `VITE_SUPABASE_URL` was not set in
+  the dev-server environment. Authenticated Tool Catalogue verification was not
+  completed in this Codex session.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed no migrations were added or edited in this pass.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no new permission flags were added.
+- Confirmed no DELETE behavior was added.
+- Confirmed no checkout/check-in, QR labels, assignment history, tracking
+  ledger, vehicle/bin linkage, accounting behavior, or reserved Tool Catalogue
+  features were added.
+- Confirmed no direct `inventory_balances` write path was added.
+- Browser verification was attempted but blocked by missing local
+  `VITE_SUPABASE_URL`; no authenticated visual verification is claimed.
+
+### Next Steps (in order)
+1. Perform authenticated browser verification with a user whose server
+   permissions include a division and `can_manage_inventory`.
+2. Begin logging company tools in Tool Catalogue.
+3. Reserve checkout/check-in, QR labels, assignments, vehicle storage, and
+   tracking history for future architecture-cleared milestones.
+
+### Open Questions / Concerns
+- Browser/authenticated verification was blocked by missing local
+  `VITE_SUPABASE_URL` in the dev-server environment.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: first Tool Catalogue UI.
+- RESERVED: checkout/check-in, assignment history, custody chain, QR labels,
+  scan pages, transfers, vehicle-bin tool storage, employee-linked
+  assignments, job/project-linked assignments, maintenance/inspection/
+  calibration logs, repair history, purchase accounting/depreciation,
+  attachments/photos/receipts, canonical accounting import/export,
+  tool-specific permission flags, tool ledger, tool audit table, divisions
+  table, and UUID-based division normalization.
+- No protected inventory behavior changed: inventory balances, ledger,
+  transaction behavior, checkout/finalization, Count Intake, QR/scan behavior,
+  Accounting Export, Financials/job-cost, Return-to-Inventory, buyout,
+  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
+  behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — implementing locked Tool Catalogue UI (ARCHITECTURE v2.18, HANDOFF Entry 086).
+
+---
+
+## Entry 087 - Dashboard Width / Layout Usability Pass (Milestone 5I.3)
+
+**Date:** 2026-06-26
+**Updated by:** Codex
+**Phase:** Dashboard layout usability
+**Session type:** implementation
+
+### Context
+Milestone 5I.3 is a Safe UI/CSS layout pass under ARCHITECTURE v2.18 and
+Section 35. Ryan visually verified the Tool Catalogue UI from Entry 086 and
+identified the next usability issue: the desktop dashboard/app content was too
+narrow, causing excessive vertical stacking and avoidable horizontal scrolling
+inside content areas.
+
+Classification: Safe UI/CSS task.
+
+### What Was Completed
+- Widened the shared desktop app content container.
+- Added a shared `--app-content-width` CSS variable with a desktop cap of
+  `1600px` and viewport-based width behavior.
+- Updated `.app-header__inner` to use the shared app content width.
+- Updated `.app-main` to use the shared app content width.
+- Preserved the existing centered layout and balanced left/right margins.
+- Preserved existing dashboard grid, card, table wrapper, mobile list, and
+  responsive stacking behavior.
+- Reduced artificial horizontal scrolling pressure for Inventory, Accounting
+  Export, Count Intake, Tool Catalogue, and other wide table views by widening
+  their parent shell.
+- Updated the Development Status card to Milestone 5I.3 / Entry 087 /
+  ARCHITECTURE v2.18 / Layout usability / build marker `3f85fe7`.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No schema, RLS, grants, permission flags, RPCs, backend functions, storage,
+  indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/styles.css`
+  - Added `--app-content-width: min(96vw, 1600px)`.
+  - Changed `.app-header__inner` from the old 1180px cap to the shared width.
+  - Changed `.app-main` from the old 1180px cap to the shared width.
+- `src/App.jsx`
+  - Updated the Development Status card values only.
+- `HANDOFF.md`
+  - Appended this Entry 087.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 087.
+
+### What Codex Needs to Know
+- The desktop dashboard shell is intentionally wider after this pass.
+- The change is shared at the app container level rather than one-off table or
+  Tool Catalogue styling.
+- Existing table horizontal scrolling remains available where the table is
+  genuinely wider than the viewport.
+- Mobile/tablet breakpoint rules were not changed.
+
+### What Claude Needs to Know
+- This was a Safe UI/CSS layout pass only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
+  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/styles.css` and
+  `src/App.jsx`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no new routes or data behavior changed.
+- Confirmed no Tool Catalogue CRUD/archive behavior changed.
+- Confirmed no existing Inventory/Cart/Checkout/Count Intake/QR/Accounting
+  Export behavior changed.
+
+### Manual Verification Notes For Ryan
+- Open the app on desktop.
+- Confirm main content is wider and centered.
+- Confirm margins are roughly even left/right.
+- Confirm Inventory and Tool Catalogue views require less horizontal scrolling.
+- Confirm mobile/tablet layout still works.
+
+### Next Steps (in order)
+1. Visually verify the widened dashboard on a desktop browser.
+2. Check Tool Catalogue and Inventory wide-table views for reduced horizontal
+   scrolling.
+3. Check one tablet/mobile viewport to confirm the existing stacking still
+   feels good.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: desktop dashboard width/layout usability pass.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, routes, inventory balances, ledger, transaction
+  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
+  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/CSS layout pass (ARCHITECTURE v2.18, HANDOFF Entry 087).
+
+---
+
+## Entry 088 - Dev-only Layout Tuner (Milestone 5I.4)
+
+**Date:** 2026-06-26
+**Updated by:** Codex
+**Phase:** Dashboard layout tuning dev tool
+**Session type:** implementation
+
+### Context
+Milestone 5I.4 is a Safe UI/client-side dev tooling task under ARCHITECTURE
+v2.18 and Section 35. Entry 087 widened the dashboard shell; this pass adds a
+URL-gated local layout tuner so Ryan can visually tune layout variables without
+repeated CSS adjustment passes.
+
+Classification: Safe UI/client-side dev tooling task.
+
+### What Was Completed
+- Added a dev-only Layout Tuner panel gated behind `layoutTuner=1`.
+- The tuner is not added to normal navigation and does not render when the URL
+  flag is absent.
+- Added localStorage-only persistence under `northgate.layoutTuner.v1`.
+- Added live CSS-variable application through `document.documentElement`.
+- Added Reset behavior that clears the localStorage key, restores defaults,
+  and keeps the panel open.
+- Added Copy CSS behavior that copies a `:root { ... }` variable snippet for a
+  later commit.
+- Added a collapsible floating panel with sliders and numeric inputs.
+- Updated layout CSS variables so the tuner can adjust app width, page gutter,
+  dashboard card gap, dashboard card padding, and table density.
+- Updated the Development Status card to Milestone 5I.4 / Entry 088 /
+  ARCHITECTURE v2.18 / Dev-only layout tuner / build marker `07a2f44`.
+
+### CSS Variables Exposed
+- `--app-content-max`
+- `--app-content-vw`
+- `--app-page-gutter`
+- `--dashboard-card-gap`
+- `--dashboard-card-padding`
+- `--dense-table-font-size`
+- `--dense-table-cell-padding-y`
+- `--dense-table-cell-padding-x`
+
+### Selectors Affected
+- `.app-header__inner`
+- `.app-main`
+- `.dashboard-grid`
+- `.card`
+- `.data-table`
+- `.data-table th`
+- `.data-table td`
+- `.layout-tuner` and child Layout Tuner controls
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase, schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Layout Tuner field definitions, URL flag detection, localStorage
+    helpers, live CSS-variable application, Copy CSS, Reset, and the gated
+    floating panel.
+  - Updated Development Status values.
+- `src/styles.css`
+  - Added default layout CSS variables.
+  - Rewired the existing shared layout/table/card selectors to use those
+    variables.
+  - Added Layout Tuner panel styles.
+- `HANDOFF.md`
+  - Appended this Entry 088.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 088.
+
+### What Codex Needs to Know
+- Layout Tuner is a local/dev convenience only.
+- It appears only when the current URL contains `layoutTuner=1`.
+- It uses browser localStorage only and must not become a production settings
+  system.
+- Normal app usage without `layoutTuner=1` uses the committed CSS defaults.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side dev tooling pass only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
+  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no route/data/write behavior changed.
+- Confirmed no Tool Catalogue CRUD/archive behavior changed.
+- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
+  behavior changed.
+- Confirmed tuner render is gated by `layoutTuner=1` in the current URL.
+
+### Manual Verification Notes For Ryan
+- Open the app normally and confirm Layout Tuner is not visible.
+- Open the app with `?layoutTuner=1` and confirm the panel appears.
+- Adjust content width and confirm the dashboard changes live.
+- Refresh and confirm localStorage keeps the tuned values.
+- Click Reset and confirm defaults return.
+- Click Copy CSS and confirm the variable snippet copies.
+- Confirm no app data behavior changes.
+
+### Next Steps (in order)
+1. Use `?layoutTuner=1` on desktop to dial in preferred layout values.
+2. Copy the CSS snippet after choosing values.
+3. Send the snippet back for a small follow-up commit that updates defaults.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: dev-only layout tuner.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, routes, inventory balances, ledger, transaction
+  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
+  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side dev layout tuner (ARCHITECTURE v2.18, HANDOFF Entry 088).

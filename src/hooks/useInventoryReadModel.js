@@ -119,7 +119,7 @@ export function useInventoryReadModel({ enabled }) {
             )
             .gt('quantity_on_hand', 0)
             .order('bin_code', { ascending: true })
-            .limit(50),
+            .limit(1000),
           client
             .from('inventory_destination_users_view')
             .select('clerk_user_id, display_name, email, role, division')
