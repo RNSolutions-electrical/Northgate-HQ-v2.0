@@ -9006,3 +9006,196 @@ Classification: Safe UI/client-side Tool Catalogue design preview.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side Tool Catalogue design preview (ARCHITECTURE v2.18, HANDOFF Entry 089).
+
+---
+
+## Entry 090 - Deliverable App Shell / Navigation UI (Milestone 5J.2)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** App shell / deliverable navigation UI
+**Session type:** implementation
+
+### Context
+Milestone 5J.2 is a Safe UI/client-side app-shell styling task under
+ARCHITECTURE v2.18 and Section 35. The prior Tool Catalogue design preview
+from Entry 089 was directionally correct, and this pass starts applying the
+same Northgate deliverable UI direction to normal app use instead of leaving it
+only behind `designPreview=1`.
+
+Classification: Safe UI/client-side app-shell styling task.
+
+### What Was Completed
+- Updated the normal app shell toward the submitted prototype/design direction:
+  - light content background;
+  - navy sticky top header;
+  - gold active navigation accents;
+  - white cards with soft borders/shadows;
+  - compact operations-dashboard spacing.
+- Added a real top navigation strip in the header.
+- Top navigation uses existing client navigation/query handling only:
+  - Dashboard;
+  - Tool Catalogue;
+  - Scan QR;
+  - Cart;
+  - Count;
+  - Accounting.
+- Reworked the top-level dashboard content from one all-purpose grid into:
+  - a status-card grid;
+  - a full-width workflow/status banner;
+  - the existing live Inventory module below it.
+- Converted the existing Inventory module tab list into a deliverable-style
+  left module sidebar without changing tab state or module behavior.
+- Preserved the Development Status card and updated it to Milestone 5J.2 /
+  Entry 090 / ARCHITECTURE v2.18 / Deliverable UI shell / build marker
+  `a88a558`.
+- Added shared deliverable visual treatment for common cards, panels, tables,
+  inputs, buttons, badges, empty states, alerts, and mobile item cards.
+- Kept the prior `designPreview=1` Tool Catalogue preview flag in place.
+- Kept the prior `layoutTuner=1` dev-only Layout Tuner in place.
+
+### App Shell / Navigation Strategy
+- Adopted a top-nav plus module-sidebar structure rather than replacing the app
+  with prototype screens.
+- The top nav calls the existing `navigateTo('/?inventoryTab=...')` path that
+  was already used by scan/cart/count deep links.
+- The Inventory module sidebar still uses the existing `activeTab` React state
+  and the same `setActiveTab(...)` handlers.
+- No mock screens or fake data were introduced.
+
+### Selectors / Components Added or Changed
+- `src/App.jsx`
+  - Updated `DEVELOPMENT_STATUS`.
+  - Added `shellNavTab`.
+  - Added `.app-brand`.
+  - Added `.app-top-nav`.
+  - Added `.app-nav-item`.
+  - Added `.shell-status-grid`.
+  - Added `.inventory-module-card`.
+  - Added `.inventory-module-shell`.
+  - Added `.module-sidebar`.
+  - Added `.module-sidebar__header`.
+  - Added `.module-content`.
+  - Preserved existing module tab buttons and active-tab handlers.
+- `src/styles.css`
+  - Added deliverable shell tokens:
+    - `--ng-navy`;
+    - `--ng-gold`;
+    - `--ng-page-bg`;
+    - `--ng-card-bg`;
+    - `--ng-border`;
+    - semantic status variables.
+  - Restyled:
+    - `.app-shell`;
+    - `.app-header`;
+    - `.app-header__inner`;
+    - `.app-top-nav`;
+    - `.app-nav-item`;
+    - `.app-main`;
+    - `.card`;
+    - `.status-pill`;
+    - `.count-card`;
+    - `.module-sidebar`;
+    - `.module-tabs`;
+    - `.module-tab`;
+    - shared panels/tables/buttons/forms/alerts/empty states/mobile cards.
+  - Added responsive collapse rules for the new module sidebar and top nav.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated Development Status values.
+  - Added top navigation markup using existing client navigation.
+  - Rewrapped dashboard status cards.
+  - Rewrapped existing Inventory module tabs into a sidebar shell.
+- `src/styles.css`
+  - Added deliverable shell design tokens and normal-use shell styling.
+  - Added shared light dashboard component styling.
+  - Added responsive top-nav/sidebar behavior.
+- `HANDOFF.md`
+  - Appended this Entry 090.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 090.
+
+### What Codex Needs to Know
+- This is a normal-use deliverable shell pass, not a hidden preview.
+- The prior Tool Catalogue `designPreview=1` preview remains available.
+- The new top nav is a UI shortcut into existing tab/query behavior.
+- Inventory module tab behavior is still local React state.
+- Existing real modules and real data paths remain in place.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side app-shell styling pass only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
+  Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- Section 35 start checks:
+  - local `main` and `origin/main` both pointed at `a88a558`;
+  - `docs/ARCHITECTURE.md` remains v2.18;
+  - HANDOFF was current through Entry 089;
+  - the working tree already contained uncommitted Entry 089 changes from the
+    immediately prior milestone and those changes were preserved.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed `git diff --name-only -- supabase` is empty.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no auth behavior changed.
+- Confirmed no direct `inventory_balances` write path was added.
+- Confirmed no Tool Catalogue data behavior changed.
+- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
+  behavior changed.
+- Confirmed existing app sections/tabs remain present in the module sidebar.
+- Confirmed no prototype mock data replaced real app data.
+- Confirmed no intentional page-level horizontal scrolling was introduced.
+
+### Manual Verification Notes For Ryan
+- Open the app normally.
+- Confirm the app shell/navigation looks closer to the submitted prototype.
+- Confirm Development Status/current-status info is still visible.
+- Confirm all existing main sections are still accessible.
+- Confirm Tool Catalogue still loads and add/edit/archive behavior still works.
+- Confirm Inventory still loads and normal actions are still accessible.
+- Confirm Cart/Checkout/Count/QR/Accounting Export access was not broken.
+- Confirm no overlapping UI.
+- Confirm no page-level horizontal scrolling.
+- Confirm laptop/mobile widths remain usable.
+
+### Next Steps (in order)
+1. Visually verify the normal app shell on desktop.
+2. Check the new module sidebar at laptop and mobile widths.
+3. Decide which individual module surfaces should receive deeper per-module
+   polish next, starting with the highest-traffic workflows.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+- Vite still reports the existing chunk-size warning after a successful build.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: deliverable app shell/navigation UI pass.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
+  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
+  Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side deliverable app shell pass (ARCHITECTURE v2.18, HANDOFF Entry 090).

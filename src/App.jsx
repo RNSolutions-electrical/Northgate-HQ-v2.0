@@ -66,12 +66,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5J.1 - Tool Catalogue design preview',
-  relatedHandoff: 'Entry 089',
+  mostRecentChange: 'Milestone 5J.2 - Deliverable app shell',
+  relatedHandoff: 'Entry 090',
   architectureVersion: 'v2.18',
-  currentStep: 'UI design preview',
-  buildMarker: '9693baa',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.1 Tool Catalogue design preview code is present in the loaded build.',
+  currentStep: 'Deliverable UI shell',
+  buildMarker: 'a88a558',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.2 deliverable shell code is present in the loaded build.',
 };
 
 const LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
@@ -6779,11 +6779,11 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
   }, [requestedTab]);
 
   return (
-    <article className="card card--wide">
+    <article className="card card--wide inventory-module-card">
       <div className="card__header">
         <div>
           <p className="eyebrow">Inventory Step 1–4I</p>
-          <h2>Read-only Inventory + Cart Candidate Picker</h2>
+          <h2>Inventory Command Center</h2>
           <p>
             This module reads from live v2 Supabase and supports controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout. Express checkout remains locked.
           </p>
@@ -6810,7 +6810,13 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
         <CountCard label="Grand Master rows" value={counts.grandMasterRows} />
       </div>
 
-      <div className="module-tabs" role="tablist" aria-label="Inventory read-only views">
+      <div className="inventory-module-shell">
+        <aside className="module-sidebar" aria-label="Inventory module navigation">
+          <div className="module-sidebar__header">
+            <p className="eyebrow">Workspace</p>
+            <h3>Inventory</h3>
+          </div>
+          <div className="module-tabs" role="tablist" aria-label="Inventory read-only views">
         <button className="module-tab" type="button" aria-selected={activeTab === 'grand-master'} onClick={() => setActiveTab('grand-master')}>
           Grand Master
         </button>
@@ -6844,7 +6850,10 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
         <button className="module-tab" type="button" aria-selected={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>
           Transactions
         </button>
-      </div>
+          </div>
+        </aside>
+
+        <div className="module-content">
 
       {inventory.isLoading ? <p className="muted">Loading live inventory data…</p> : null}
       {activeTab === 'grand-master' ? <GrandMasterOverviewPanel permissions={permissions} /> : null}
@@ -6872,6 +6881,8 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
       <p className="build-note">
         Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}
       </p>
+        </div>
+      </div>
     </article>
   );
 }
@@ -7034,16 +7045,37 @@ function Dashboard() {
   );
   const layoutTunerEnabled = hasLayoutTunerFlag(browserPath);
   const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
+  const shellNavTab = dashboardRouteContext.requestedInventoryTab || 'dashboard';
 
   return (
     <main className="app-shell">
       <header className="app-header">
         <div className="app-header__inner">
-          <div>
+          <div className="app-brand">
             <p className="eyebrow">Northgate HQ v2.0</p>
             <h1 className="app-title">Operations Dashboard</h1>
             <p className="build-note">{DEVELOPMENT_STATUS.buildMarker}</p>
           </div>
+          <nav className="app-top-nav" aria-label="Primary workspace navigation">
+            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'dashboard' ? 'page' : undefined} onClick={() => navigateTo('/')}>
+              Dashboard
+            </button>
+            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'tools' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=tools')}>
+              Tool Catalogue
+            </button>
+            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'scan' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=scan')}>
+              Scan QR
+            </button>
+            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'cart' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=cart')}>
+              Cart
+            </button>
+            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'count' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=count')}>
+              Count
+            </button>
+            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'accounting-export' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=accounting-export')}>
+              Accounting
+            </button>
+          </nav>
           <UserButton afterSignOutUrl="/" />
         </div>
       </header>
@@ -7057,7 +7089,8 @@ function Dashboard() {
           />
         </section>
       ) : (
-      <section className="app-main dashboard-grid">
+      <section className="app-main">
+        <div className="dashboard-grid shell-status-grid">
         <article className="card">
           <LayoutDashboard className="card__icon" />
           <h2>Dashboard Shell</h2>
@@ -7082,6 +7115,7 @@ function Dashboard() {
         </article>
 
         <DevelopmentStatusCard />
+        </div>
 
         <article className="card card--wide">
           <div className="card__header">
