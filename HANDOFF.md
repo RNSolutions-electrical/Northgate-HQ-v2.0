@@ -9926,3 +9926,167 @@ and ChatGPT cross-cleared.
 
 ### Routing Verdict
 No Claude review needed — docs-only architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.19, HANDOFF Entry 094).
+
+---
+
+## Entry 095 - Jobs Foundation locked (ARCHITECTURE v2.20, new Section 38)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** Jobs Foundation architecture lock adoption
+**Session type:** alignment
+
+### Context
+This milestone is a docs-only architecture lock adoption. Ryan provided the
+Claude-reviewed and ChatGPT cross-cleared Jobs Foundation architecture lock and
+instructed Codex to apply it to the canonical repo documents only.
+
+Jobs Foundation is the prerequisite after Section 37 / Milestone 5K.1. It locks
+the minimal `jobs` table and first Jobs workspace scope required before future
+Job Material Workflow implementation slices.
+
+Classification: docs-only Jobs Foundation architecture lock adoption already
+Claude-reviewed and ChatGPT cross-cleared.
+
+### What Was Completed
+- Updated `docs/ARCHITECTURE.md` from v2.19 to v2.20.
+- Added new Section 38: Jobs Foundation.
+- Added a Section 5 cross-reference note pointing Jobs implementation details
+  to Section 38.
+- Locked the `jobs` table shape.
+- Locked `division text not null` as the division-scoping convention.
+- Locked `job_type` and `service_call_number` as included from day one per
+  Section 5b.
+- Locked `status` values:
+  - `active`;
+  - `on_hold`;
+  - `complete`;
+  - `cancelled`.
+- Locked that `archived` is not a status value.
+- Locked `job_number` as nullable and unique-when-non-null through a partial
+  unique index.
+- Locked soft archive only; no hard delete and no DELETE policy.
+- Locked read permission as own division or `can_view_all_divisions`.
+- Locked create permission as `can_create_jobs`.
+- Locked edit/archive permission as `can_manage_jobs`.
+- Locked that no new permission flags are introduced.
+- Locked future Jobs workspace UI scope:
+  - Jobs workspace/page;
+  - list/table;
+  - search/filter;
+  - create/edit forms;
+  - archive action;
+  - detail/read view;
+  - empty state;
+  - status badge/display;
+  - job type display.
+- Locked reserved scope outside Jobs Foundation:
+  - material workflow;
+  - `job_materials`;
+  - Issue to Job;
+  - Buyout;
+  - Return-to-Inventory;
+  - QR/job tote labels;
+  - phases/schedule;
+  - employee assignments;
+  - documents/photos;
+  - financials;
+  - estimates/contracts;
+  - financial exports.
+- No code, schema, RPC, RLS, permission, backend, balance, checkout,
+  transaction, UI, or runtime behavior was implemented.
+
+### Schema Changes
+- None applied.
+- Section 38 locks future Jobs Foundation schema shape but does not create a
+  migration.
+- No migrations were added or edited.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated version line to v2.20.
+  - Added Section 5 cross-reference note to Section 38.
+  - Added new Section 38 after Section 37.
+- `HANDOFF.md`
+  - Appended this Entry 095.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.19 to v2.20.
+- New Section 38 locks Jobs Foundation:
+  - `jobs` table foundation;
+  - status and job type values;
+  - `job_number` partial unique index;
+  - `set_jobs_updated_at` trigger using the existing
+    `touch_user_permissions_updated_at()` function;
+  - RLS/permissions;
+  - permitted first UI;
+  - reserved features.
+- Section 5 now points to Section 38 for Jobs implementation details.
+- HANDOFF remains gapless through Entry 095.
+
+### What Codex Needs to Know
+- This entry is docs-only and does not implement Jobs Foundation.
+- After Ryan commits v2.20 / Entry 095, Codex may implement Jobs Foundation
+  migration and UI within the locked decisions, provided preflight confirms
+  `can_create_jobs` and `can_manage_jobs` exist in the live schema.
+- Jobs Foundation implementation must not include material workflow,
+  `job_materials`, Issue to Job, Buyout, Return-to-Inventory, QR/job tote
+  labels, phases, assignments, documents, financials, estimates/contracts, or
+  financial exports.
+- `archived` is not a job status. Archive via `archived_at`, `archived_by`, and
+  `archive_reason`.
+
+### What Claude Needs to Know
+- Codex applied the Claude-reviewed / ChatGPT cross-cleared Jobs Foundation lock
+  as a docs-only adoption.
+- No implementation occurred.
+- No schema, RLS, grant, permission, backend, balance, checkout, transaction,
+  UI, auth, Jobs runtime, Job Material Workflow, Buyout, Return-to-Inventory,
+  QR, assignments, documents, or financial behavior changed.
+
+### Verification
+- Section 35 start checks:
+  - `git pull --ff-only origin main` completed and reported already up to date;
+  - working tree was clean before changes;
+  - `docs/ARCHITECTURE.md` was v2.19 with Section 37 canonical;
+  - HANDOFF was gapless through Entry 094;
+  - task classified as docs-only Jobs Foundation architecture lock adoption
+    already Claude-reviewed and ChatGPT cross-cleared.
+- Confirmed `docs/ARCHITECTURE.md` is updated to v2.20.
+- Confirmed Section 38 is added after Section 37.
+- Confirmed Section 5 cross-reference note is added.
+- Confirmed HANDOFF Entry 095 is appended.
+- `git diff --check` passed.
+- Build was skipped because this task changed documentation only and no app-code
+  files changed.
+- Confirmed changed files are docs-only:
+  - `docs/ARCHITECTURE.md`;
+  - `HANDOFF.md`.
+- Confirmed no migrations were added or edited.
+- Confirmed no `src` files changed.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no implementation of Jobs Foundation occurred yet.
+
+### Next Steps (in order)
+1. Ryan commits v2.20 / Entry 095.
+2. Codex may then implement Jobs Foundation migration and UI within the locked
+   decisions, provided preflight confirms `can_create_jobs` and
+   `can_manage_jobs` exist in the live schema.
+3. Keep any future Jobs Foundation implementation strictly inside Section 38.
+
+### Open Questions / Concerns
+- None for this docs-only adoption.
+- Future implementation must preflight-confirm `can_create_jobs` and
+  `can_manage_jobs` before writing migration/RLS.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Jobs Foundation architecture lock adoption.
+- No runtime/protected behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Jobs runtime, Job Material Workflow, Buyout, Return-to-Inventory, Tool
+  Catalogue behavior, Financials/job-cost, vehicle-bin stock, Express Checkout,
+  Manager Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — docs-only Jobs Foundation architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.20, HANDOFF Entry 095).
