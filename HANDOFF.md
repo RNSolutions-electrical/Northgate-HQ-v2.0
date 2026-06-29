@@ -9359,3 +9359,198 @@ Classification: Safe UI/client-side development dashboard visibility toggle.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side development dashboard visibility toggle (ARCHITECTURE v2.18, HANDOFF Entry 091).
+
+---
+
+## Entry 092 - Workspace Navigation / Dev Dashboard Separation (Milestone 5J.3)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** App shell / workspace navigation separation
+**Session type:** implementation
+
+### Context
+Milestone 5J.3 is a Safe UI/client-side navigation/layout task under
+ARCHITECTURE v2.18 and Section 35. Recent work moved the app toward the
+deliverable UI shell and added a Dev Dashboard visibility toggle. This pass
+separates top-level workspaces from inventory tool navigation and moves
+development/status content out of normal Inventory screens.
+
+Classification: Safe UI/client-side navigation/layout task.
+
+### What Was Completed
+- Added top-level workspace routing/state through the existing client-side URL
+  query model.
+- Top nav now represents workspaces/pages:
+  - Dashboard;
+  - Inventory;
+  - Jobs;
+  - Estimating;
+  - Tools;
+  - Employees;
+  - Vehicles;
+  - Developer.
+- Inventory remains the default workspace for normal app entry.
+- Inventory left nav remains the tool/view navigation for existing inventory
+  tools.
+- Added a top-level Tools workspace that renders the existing real Tool
+  Catalogue behavior with a Tools workspace sidebar.
+- Added clean Coming Soon workspace panels for:
+  - Dashboard;
+  - Jobs;
+  - Estimating;
+  - Employees;
+  - Vehicles.
+- Moved development/status cards into a clearly labeled Developer Dashboard
+  workspace.
+- Normal Inventory workspace no longer renders the Dashboard Shell, Server
+  Permissions, Supabase Client, Development Status, or Cart Write Gate cards
+  above the selected tool.
+- Updated the Dev Dashboard toggle so:
+  - default browser state is hidden unless localStorage contains `"true"`;
+  - `Show Dev Dashboard` opens the Developer workspace and shows the
+    development/status dashboard;
+  - `Hide Dev Dashboard` hides the Developer Dashboard content and persists the
+    preference under `northgate.showDevDashboard`;
+  - selecting a non-Developer workspace returns to the clean team-facing view.
+- Changed visible label `Grand Master` to `Inventory Overview`.
+- Updated the Development Status card values to Milestone 5J.3 / Entry 092 /
+  ARCHITECTURE v2.18 / Deliverable UI shell / build marker `a88a558`.
+
+### Workspace / Navigation Strategy
+- Top nav controls the active workspace using `?workspace=...`.
+- Old deep links with `?inventoryTab=...` still resolve to the Inventory
+  workspace.
+- Inventory tool nav still uses existing `activeTab` state and existing
+  `setActiveTab(...)` handlers.
+- Tools workspace reuses the existing `ToolCataloguePanel`.
+- Coming Soon workspaces are placeholders only and contain no fake workflow
+  behavior or mock operational data.
+
+### Selectors / Components Added or Changed
+- `src/App.jsx`
+  - Added `WORKSPACES`.
+  - Added `activeWorkspace` to dashboard route context.
+  - Added `ComingSoonWorkspace`.
+  - Added `ToolsWorkspace`.
+  - Added `DeveloperDashboard`.
+  - Reworked top-nav buttons to select workspaces.
+  - Reworked normal main content to render only the active workspace.
+  - Moved development/status cards into `DeveloperDashboard`.
+  - Changed visible `Grand Master` copy to `Inventory Overview`.
+- `src/styles.css`
+  - Added `.developer-dashboard`.
+  - Added `.workspace-placeholder`.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated Development Status values.
+  - Added workspace navigation/rendering.
+  - Added Developer Dashboard separation.
+  - Added Coming Soon workspace panels.
+  - Updated visible `Grand Master` labels to `Inventory Overview`.
+- `src/styles.css`
+  - Added workspace placeholder and Developer Dashboard layout styling.
+- `HANDOFF.md`
+  - Appended this Entry 092.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 092.
+
+### What Codex Needs to Know
+- Top nav now represents workspaces/pages.
+- Left nav inside Inventory represents Inventory tools/views.
+- Developer/status content should live under the Developer workspace, not above
+  normal Inventory tools.
+- Inventory remains the default workspace.
+- The `grand-master` internal identifier and CSS class remain for stability;
+  only user-visible labels changed to `Inventory Overview`.
+- This is not a route/security model; it is client-side workspace organization.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side navigation/layout task only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
+  Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- Section 35 start checks:
+  - local `main` and `origin/main` both pointed at `a88a558`;
+  - `docs/ARCHITECTURE.md` remains v2.18;
+  - HANDOFF was current through Entry 091 in the working tree;
+  - the working tree already contained uncommitted Entry 089, Entry 090, and
+    Entry 091 changes from the immediately prior milestones and those changes
+    were preserved.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed `git diff --name-only -- supabase` is empty.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no auth behavior changed.
+- Confirmed no module data/write behavior changed.
+- Confirmed no direct `inventory_balances` write path was added.
+- Static code review confirmed Inventory workspace renders without the
+  development/status dashboard branch by default.
+- Static code review confirmed Developer workspace renders the development
+  dashboard branch when opened from top navigation.
+- Static code review confirmed visible `Grand Master` strings were removed from
+  `src/App.jsx` and replaced with `Inventory Overview`.
+- Static code review confirmed existing Inventory tools remain present in the
+  Inventory sidebar.
+- Static code review confirmed Tool Catalogue remains reachable from both the
+  Inventory sidebar and the top-level Tools workspace.
+- Static code review confirmed Coming Soon workspaces render placeholders only.
+
+### Manual Verification Notes For Ryan
+- Open app normally.
+- Confirm top nav shows workspaces/pages.
+- Confirm left nav changes based on active workspace.
+- Open Inventory.
+- Confirm Inventory Command Center/dev notes do not appear by default.
+- Confirm `Inventory Overview` replaces `Grand Master`.
+- Navigate Inventory tools from the left nav.
+- Confirm selected tool is the only main content visible.
+- Open Developer workspace/dashboard.
+- Confirm developer/status information is there and clearly labeled.
+- Open Coming Soon workspaces and confirm they are clean placeholders.
+- Confirm Inventory, Tool Catalogue, Cart, Count, QR/scan, and Accounting
+  Export access still works.
+
+### Next Steps (in order)
+1. Visually verify workspace navigation on desktop.
+2. Check mobile/laptop wrapping for the top nav and Inventory sidebar.
+3. Decide whether the top-level Tools workspace should eventually replace or
+   simply mirror the Inventory sidebar Tool Catalogue entry.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+- Vite still reports the existing chunk-size warning after a successful build.
+- Workspace navigation is client-side organization only and is not a
+  permission/security boundary.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: workspace navigation and dev dashboard separation.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
+  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
+  Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side workspace navigation and dev dashboard separation (ARCHITECTURE v2.18, HANDOFF Entry 092).

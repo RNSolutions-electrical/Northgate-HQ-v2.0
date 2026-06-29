@@ -45,6 +45,16 @@ const INVENTORY_TABS = new Set([
   'count',
   'transactions',
 ]);
+const WORKSPACES = new Set([
+  'dashboard',
+  'inventory',
+  'jobs',
+  'estimating',
+  'tools',
+  'employees',
+  'vehicles',
+  'developer',
+]);
 const COUNT_REASON_OPTIONS = [
   { value: 'initial shelf count', label: 'Initial shelf count' },
   { value: 'cycle count', label: 'Cycle count' },
@@ -66,12 +76,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5J.2a - Development Dashboard Visibility Toggle',
-  relatedHandoff: 'Entry 091',
+  mostRecentChange: 'Milestone 5J.3 - Workspace navigation and dev dashboard separation',
+  relatedHandoff: 'Entry 092',
   architectureVersion: 'v2.18',
-  currentStep: 'Dev dashboard visibility toggle',
+  currentStep: 'Deliverable UI shell',
   buildMarker: 'a88a558',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.2a dev dashboard visibility toggle code is present in the loaded build.',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.3 workspace navigation and dev dashboard separation code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -478,6 +488,7 @@ function useBrowserPath() {
 function getDashboardInventoryRouteContext(path) {
   try {
     const url = new URL(path || '/', 'https://northgate.local');
+    const requestedWorkspace = url.searchParams.get('workspace') ?? '';
     const requestedTab = url.searchParams.get('inventoryTab') ?? '';
     const binId = url.searchParams.get('scanBinId') ?? '';
     const binCode = url.searchParams.get('scanBinCode') ?? '';
@@ -489,12 +500,18 @@ function getDashboardInventoryRouteContext(path) {
       : null;
 
     return {
+      activeWorkspace: WORKSPACES.has(requestedWorkspace)
+        ? requestedWorkspace
+        : requestedTab
+          ? 'inventory'
+          : 'inventory',
       requestedInventoryTab: INVENTORY_TABS.has(requestedTab) ? requestedTab : '',
       scanCartContext: requestedTab === 'cart' ? scanBinContext : null,
       scanCountContext: requestedTab === 'count' ? scanBinContext : null,
     };
   } catch {
     return {
+      activeWorkspace: 'inventory',
       requestedInventoryTab: '',
       scanCartContext: null,
       scanCountContext: null,
@@ -521,11 +538,11 @@ function hasDesignPreviewFlag(path) {
 }
 
 function readDevDashboardVisibility() {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(DEV_DASHBOARD_STORAGE_KEY) !== 'false';
+    return window.localStorage.getItem(DEV_DASHBOARD_STORAGE_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -1571,12 +1588,12 @@ function GrandMasterOverviewPanel({ permissions }) {
       <section className="cart-panel cart-panel--locked">
         <div className="card__header">
           <div>
-            <p className="eyebrow">Grand Master</p>
+            <p className="eyebrow">Inventory Overview</p>
             <h3>Inventory Overview</h3>
           </div>
           <span className="status-pill status-pill--warn">Server permissions required</span>
         </div>
-        <p>Grand Master inventory uses the existing server-authorized inventory read path.</p>
+        <p>Inventory Overview uses the existing server-authorized inventory read path.</p>
       </section>
     );
   }
@@ -1585,7 +1602,7 @@ function GrandMasterOverviewPanel({ permissions }) {
     <section className="cart-panel grand-master-panel">
       <div className="card__header">
         <div>
-          <p className="eyebrow">Grand Master</p>
+          <p className="eyebrow">Inventory Overview</p>
           <h3>Inventory Overview</h3>
           <p>
             Read-only operational view from the existing inventory count/read path. Search and filters only change this display.
@@ -1597,9 +1614,9 @@ function GrandMasterOverviewPanel({ permissions }) {
       </div>
 
       {countSheet.error ? (
-        <div className="alert">Grand Master inventory failed to load through the existing authorized read path.</div>
+        <div className="alert">Inventory Overview failed to load through the existing authorized read path.</div>
       ) : null}
-      {countSheet.isLoading ? <p className="muted">Loading Grand Master inventory...</p> : null}
+      {countSheet.isLoading ? <p className="muted">Loading Inventory Overview...</p> : null}
 
       <div className="count-grid grand-master-summary">
         <CountCard label="Stocked locations" value={grandMaster.positiveBinIds.size} />
@@ -1745,7 +1762,7 @@ function GrandMasterOverviewPanel({ permissions }) {
           </div>
         </>
       ) : (
-        <EmptyState title="No Grand Master rows match">
+        <EmptyState title="No Inventory Overview rows match">
           No authorized inventory rows or empty bins match the current overview filters.
         </EmptyState>
       )}
@@ -6826,7 +6843,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
         <CountCard label="Bins" value={counts.bins} />
         <CountCard label="Bin items" value={counts.binItems} />
         <CountCard label="Balance rows" value={counts.inventoryBalances} />
-        <CountCard label="Grand Master rows" value={counts.grandMasterRows} />
+        <CountCard label="Inventory Overview rows" value={counts.grandMasterRows} />
       </div>
 
       <div className="inventory-module-shell">
@@ -6837,7 +6854,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
           </div>
           <div className="module-tabs" role="tablist" aria-label="Inventory read-only views">
         <button className="module-tab" type="button" aria-selected={activeTab === 'grand-master'} onClick={() => setActiveTab('grand-master')}>
-          Grand Master
+          Inventory Overview
         </button>
         <button className="module-tab" type="button" aria-selected={activeTab === 'accounting-export'} onClick={() => setActiveTab('accounting-export')}>
           Accounting Export
@@ -6920,6 +6937,123 @@ function DevelopmentStatusCard() {
         <span>Deployment note: {DEVELOPMENT_STATUS.deploymentNote}</span>
       </div>
     </article>
+  );
+}
+
+function ComingSoonWorkspace({ title, description }) {
+  return (
+    <article className="card card--wide workspace-placeholder">
+      <p className="eyebrow">{title}</p>
+      <h2>{title} - Coming soon</h2>
+      <p>{description}</p>
+    </article>
+  );
+}
+
+function ToolsWorkspace({ permissions, designPreviewEnabled }) {
+  return (
+    <article className="card card--wide inventory-module-card">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Workspace</p>
+          <h2>Tools</h2>
+          <p>Tool Catalogue is live as a catalogue-only foundation. Checkout, assignments, QR labels, and tracking history remain reserved.</p>
+        </div>
+        <Wrench className="card__icon" aria-hidden="true" />
+      </div>
+      <div className="inventory-module-shell">
+        <aside className="module-sidebar" aria-label="Tools workspace navigation">
+          <div className="module-sidebar__header">
+            <p className="eyebrow">Workspace</p>
+            <h3>Tools</h3>
+          </div>
+          <div className="module-tabs" role="tablist" aria-label="Tools views">
+            <button className="module-tab" type="button" aria-selected="true">
+              Tool Catalogue
+            </button>
+          </div>
+        </aside>
+        <div className="module-content">
+          <ToolCataloguePanel permissions={permissions} designPreviewEnabled={designPreviewEnabled} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DeveloperDashboard({ user, permissions, showDevDashboard, onShow, onHide }) {
+  if (!showDevDashboard) {
+    return (
+      <article className="card card--wide developer-dashboard-hidden">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Developer Dashboard</p>
+            <h2>Developer Dashboard Hidden</h2>
+            <p>Development-only status cards are hidden in this browser. Show them when you want architecture, HANDOFF, build, and status details.</p>
+          </div>
+          <button type="button" className="secondary-button" onClick={onShow}>
+            Show Dev Dashboard
+          </button>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <section className="developer-dashboard">
+      <article className="card card--wide">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Developer Dashboard</p>
+            <h2>Developer Dashboard</h2>
+            <p>Development-only status, architecture, permission, and build information. This workspace is separate from normal team-facing Inventory screens.</p>
+          </div>
+          <button type="button" className="secondary-button" onClick={onHide}>
+            Hide Dev Dashboard
+          </button>
+        </div>
+      </article>
+
+      <div className="dashboard-grid shell-status-grid">
+        <article className="card">
+          <LayoutDashboard className="card__icon" />
+          <h2>Dashboard Shell</h2>
+          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
+        </article>
+
+        <article className="card">
+          <ShieldCheck className="card__icon" />
+          <h2>Server Permissions</h2>
+          <p>Signed in as {user?.primaryEmailAddress?.emailAddress ?? user?.id}.</p>
+          <p className="muted">
+            Role: {permissions.isLoaded ? permissions.role : 'Loading'} / Division: {permissions.isLoaded ? permissions.division ?? 'Unassigned' : 'Loading'}
+          </p>
+          <p className="muted">Source: {permissions.permissionSource}</p>
+        </article>
+
+        <article className="card">
+          <Database className="card__icon" />
+          <h2>Supabase Client</h2>
+          <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
+          <p className="muted">Cart opening, add-to-cart, remove-line, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
+        </article>
+
+        <DevelopmentStatusCard />
+      </div>
+
+      <article className="card card--wide dev-dashboard-card">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Cart Write Gate</p>
+            <h2>Per-Line Checkout Is Controlled</h2>
+            <p>
+              The app can reload cart items from the server, remove mistaken cart rows, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
+            </p>
+          </div>
+          <ShoppingCart className="card__icon" />
+        </div>
+      </article>
+    </section>
   );
 }
 
@@ -7065,11 +7199,26 @@ function Dashboard() {
   const [showDevDashboard, setShowDevDashboard] = useState(() => readDevDashboardVisibility());
   const layoutTunerEnabled = hasLayoutTunerFlag(browserPath);
   const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
-  const shellNavTab = dashboardRouteContext.requestedInventoryTab || 'dashboard';
+  const activeWorkspace = dashboardRouteContext.activeWorkspace;
+  const devDashboardActive = activeWorkspace === 'developer' && showDevDashboard;
 
   useEffect(() => {
     writeDevDashboardVisibility(showDevDashboard);
   }, [showDevDashboard]);
+
+  function openWorkspace(workspace) {
+    if (workspace === 'developer') {
+      setShowDevDashboard(true);
+    } else {
+      setShowDevDashboard(false);
+    }
+    navigateTo(`/?workspace=${workspace}`);
+  }
+
+  function showDeveloperDashboard() {
+    setShowDevDashboard(true);
+    navigateTo('/?workspace=developer');
+  }
 
   return (
     <main className="app-shell">
@@ -7081,33 +7230,45 @@ function Dashboard() {
             <p className="build-note">{DEVELOPMENT_STATUS.buildMarker}</p>
           </div>
           <nav className="app-top-nav" aria-label="Primary workspace navigation">
-            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'dashboard' ? 'page' : undefined} onClick={() => navigateTo('/')}>
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'dashboard' ? 'page' : undefined} onClick={() => openWorkspace('dashboard')}>
               Dashboard
             </button>
-            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'tools' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=tools')}>
-              Tool Catalogue
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'inventory' ? 'page' : undefined} onClick={() => openWorkspace('inventory')}>
+              Inventory
             </button>
-            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'scan' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=scan')}>
-              Scan QR
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'jobs' ? 'page' : undefined} onClick={() => openWorkspace('jobs')}>
+              Jobs
             </button>
-            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'cart' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=cart')}>
-              Cart
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'estimating' ? 'page' : undefined} onClick={() => openWorkspace('estimating')}>
+              Estimating
             </button>
-            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'count' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=count')}>
-              Count
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'tools' ? 'page' : undefined} onClick={() => openWorkspace('tools')}>
+              Tools
             </button>
-            <button className="app-nav-item" type="button" aria-current={shellNavTab === 'accounting-export' ? 'page' : undefined} onClick={() => navigateTo('/?inventoryTab=accounting-export')}>
-              Accounting
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'employees' ? 'page' : undefined} onClick={() => openWorkspace('employees')}>
+              Employees
+            </button>
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'vehicles' ? 'page' : undefined} onClick={() => openWorkspace('vehicles')}>
+              Vehicles
+            </button>
+            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'developer' ? 'page' : undefined} onClick={() => openWorkspace('developer')}>
+              Developer
             </button>
           </nav>
           <button
             className="dev-dashboard-toggle"
             type="button"
-            aria-pressed={!showDevDashboard}
+            aria-pressed={devDashboardActive}
             title="Hides development-only status cards in this browser."
-            onClick={() => setShowDevDashboard((current) => !current)}
+            onClick={() => {
+              if (devDashboardActive) {
+                setShowDevDashboard(false);
+              } else {
+                showDeveloperDashboard();
+              }
+            }}
           >
-            {showDevDashboard ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
+            {devDashboardActive ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
           </button>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -7123,58 +7284,33 @@ function Dashboard() {
         </section>
       ) : (
       <section className="app-main">
-        {showDevDashboard ? (
-          <>
-            <div className="dashboard-grid shell-status-grid">
-              <article className="card">
-                <LayoutDashboard className="card__icon" />
-                <h2>Dashboard Shell</h2>
-                <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
-              </article>
-
-              <article className="card">
-                <ShieldCheck className="card__icon" />
-                <h2>Server Permissions</h2>
-                <p>Signed in as {user?.primaryEmailAddress?.emailAddress ?? user?.id}.</p>
-                <p className="muted">
-                  Role: {permissions.isLoaded ? permissions.role : 'Loading'} / Division: {permissions.isLoaded ? permissions.division ?? 'Unassigned' : 'Loading'}
-                </p>
-                <p className="muted">Source: {permissions.permissionSource}</p>
-              </article>
-
-              <article className="card">
-                <Database className="card__icon" />
-                <h2>Supabase Client</h2>
-                <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-                <p className="muted">Cart opening, add-to-cart, remove-line, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
-              </article>
-
-              <DevelopmentStatusCard />
-            </div>
-
-            <article className="card card--wide dev-dashboard-card">
-              <div className="card__header">
-                <div>
-                  <p className="eyebrow">Cart Write Gate</p>
-                  <h2>Per-Line Checkout Is Controlled</h2>
-                  <p>
-                    The app can reload cart items from the server, remove mistaken cart rows, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
-                  </p>
-                </div>
-                <ShoppingCart className="card__icon" />
-              </div>
-            </article>
-          </>
+        {activeWorkspace === 'dashboard' ? (
+          <ComingSoonWorkspace title="Dashboard" description="A team-facing operations dashboard will live here. For now, use the Inventory workspace for live workflows." />
         ) : null}
-
-        <InventoryReadOnlyPanel
-          permissions={permissions}
-          navigateTo={navigateTo}
-          requestedTab={dashboardRouteContext.requestedInventoryTab}
-          scanCartContext={dashboardRouteContext.scanCartContext}
-          scanCountContext={dashboardRouteContext.scanCountContext}
-          designPreviewEnabled={designPreviewEnabled}
-        />
+        {activeWorkspace === 'inventory' ? (
+          <InventoryReadOnlyPanel
+            permissions={permissions}
+            navigateTo={navigateTo}
+            requestedTab={dashboardRouteContext.requestedInventoryTab}
+            scanCartContext={dashboardRouteContext.scanCartContext}
+            scanCountContext={dashboardRouteContext.scanCountContext}
+            designPreviewEnabled={designPreviewEnabled}
+          />
+        ) : null}
+        {activeWorkspace === 'jobs' ? <ComingSoonWorkspace title="Jobs" description="Job workspace is reserved for a future milestone." /> : null}
+        {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
+        {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
+        {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}
+        {activeWorkspace === 'vehicles' ? <ComingSoonWorkspace title="Vehicles" description="Vehicle workspace is reserved for a future milestone." /> : null}
+        {activeWorkspace === 'developer' ? (
+          <DeveloperDashboard
+            user={user}
+            permissions={permissions}
+            showDevDashboard={showDevDashboard}
+            onShow={showDeveloperDashboard}
+            onHide={() => setShowDevDashboard(false)}
+          />
+        ) : null}
       </section>
       )}
       {layoutTunerEnabled ? <LayoutTuner /> : null}

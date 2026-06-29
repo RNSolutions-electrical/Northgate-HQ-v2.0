@@ -90,6 +90,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .module-sidebar__header { padding: 14px 14px 8px; border-bottom: 1px solid rgba(255,255,255,.07); }
 .module-sidebar__header h3 { margin: .15rem 0 0; color: #ffffff; }
 .module-content { min-width: 0; display: grid; gap: 1rem; }
+.developer-dashboard { display: grid; gap: var(--dashboard-card-gap); }
+.workspace-placeholder { min-height: 18rem; align-content: center; }
 .module-tabs { display: grid; gap: 0; margin: 0; }
 .module-tab { min-height: 40px; justify-content: flex-start; border: 0; border-left: 3px solid transparent; border-radius: 0; background: transparent; color: rgba(255,255,255,.62); padding: .65rem .85rem; text-align: left; cursor: pointer; font-weight: 700; }
 .module-tab:hover { background: rgba(255,255,255,.07); color: #ffffff; }
