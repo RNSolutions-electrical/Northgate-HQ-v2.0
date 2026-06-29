@@ -66,12 +66,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5I.4 - Dev-only Layout Tuner',
-  relatedHandoff: 'Entry 088',
+  mostRecentChange: 'Milestone 5J.1 - Tool Catalogue design preview',
+  relatedHandoff: 'Entry 089',
   architectureVersion: 'v2.18',
-  currentStep: 'Dev-only layout tuner',
-  buildMarker: '07a2f44',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5I.4 layout tuner code is present in the loaded build.',
+  currentStep: 'UI design preview',
+  buildMarker: '9693baa',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.1 Tool Catalogue design preview code is present in the loaded build.',
 };
 
 const LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
@@ -505,6 +505,15 @@ function hasLayoutTunerFlag(path) {
   try {
     const url = new URL(path || '/', 'https://northgate.local');
     return url.searchParams.get('layoutTuner') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function hasDesignPreviewFlag(path) {
+  try {
+    const url = new URL(path || '/', 'https://northgate.local');
+    return url.searchParams.get('designPreview') === '1';
   } catch {
     return false;
   }
@@ -2100,6 +2109,22 @@ function formatToolDate(value) {
   return date.toLocaleDateString();
 }
 
+function getToolBadgeClass(value) {
+  const toneByValue = {
+    active: 'ok',
+    good: 'ok',
+    inactive: 'info',
+    unknown: 'info',
+    fair: 'warn',
+    poor: 'warn',
+    retired: 'warn',
+    damaged: 'err',
+    missing: 'err',
+  };
+  const tone = toneByValue[String(value ?? '').toLowerCase()] ?? 'info';
+  return `status-pill tool-catalogue__badge tool-catalogue__badge--${tone}`;
+}
+
 function filterToolRows(rows, filters) {
   const search = filters.search.trim().toLowerCase();
   return rows.filter((row) => {
@@ -2116,7 +2141,7 @@ function getToolFilterOptions(rows, key) {
     .sort((first, second) => String(first).localeCompare(String(second)));
 }
 
-function ToolCataloguePanel({ permissions }) {
+function ToolCataloguePanel({ permissions, designPreviewEnabled = false }) {
   const { getToken } = useAuth();
   const canReadTools = permissions.permissionSource === 'server';
   const canWriteTools = canReadTools && permissions.canManageInventory;
@@ -2138,6 +2163,9 @@ function ToolCataloguePanel({ permissions }) {
   const selectedTool = tools.find((row) => row.id === selectedToolId) ?? null;
   const categoryOptions = useMemo(() => getToolFilterOptions(tools, 'category'), [tools]);
   const filteredTools = useMemo(() => filterToolRows(tools, filters), [tools, filters]);
+  const toolCatalogueClassName = designPreviewEnabled
+    ? 'cart-panel tool-catalogue tool-catalogue-skin'
+    : 'cart-panel tool-catalogue';
 
   async function loadTools({ preserveMessage = false } = {}) {
     if (!canReadTools) return;
@@ -2288,7 +2316,7 @@ function ToolCataloguePanel({ permissions }) {
 
   if (!canReadTools) {
     return (
-      <section className="cart-panel cart-panel--locked">
+      <section className={`${toolCatalogueClassName} cart-panel--locked`}>
         <div className="card__header">
           <div>
             <p className="eyebrow">Tool Catalogue</p>
@@ -2302,7 +2330,7 @@ function ToolCataloguePanel({ permissions }) {
   }
 
   return (
-    <section className="cart-panel tool-catalogue">
+    <section className={toolCatalogueClassName}>
       <div className="card__header">
         <div>
           <p className="eyebrow">Tool Catalogue</p>
@@ -2408,8 +2436,8 @@ function ToolCataloguePanel({ permissions }) {
                         <td>{formatToolValue(row.brand)}</td>
                         <td>{formatToolValue(row.model)}</td>
                         <td>{formatToolValue(row.serial_number)}</td>
-                        <td>{formatToolValue(row.condition)}</td>
-                        <td><span className="status-pill">{row.status}</span></td>
+                        <td>{designPreviewEnabled && row.condition ? <span className={getToolBadgeClass(row.condition)}>{row.condition}</span> : formatToolValue(row.condition)}</td>
+                        <td><span className={designPreviewEnabled ? getToolBadgeClass(row.status) : 'status-pill'}>{row.status}</span></td>
                         <td>{formatToolValue(row.home_location)}</td>
                         <td>{formatToolValue(row.current_location)}</td>
                         <td>{formatToolValue(row.assigned_to)}</td>
@@ -2441,8 +2469,8 @@ function ToolCataloguePanel({ permissions }) {
                       <span>Brand: {formatToolValue(row.brand)}</span>
                       <span>Model: {formatToolValue(row.model)}</span>
                       <span>Serial #: {formatToolValue(row.serial_number)}</span>
-                      <span>Condition: {formatToolValue(row.condition)}</span>
-                      <span>Status: {formatToolValue(row.status)}</span>
+                      <span>Condition: {designPreviewEnabled && row.condition ? <span className={getToolBadgeClass(row.condition)}>{row.condition}</span> : formatToolValue(row.condition)}</span>
+                      <span>Status: {designPreviewEnabled ? <span className={getToolBadgeClass(row.status)}>{formatToolValue(row.status)}</span> : formatToolValue(row.status)}</span>
                       <span>Home: {formatToolValue(row.home_location)}</span>
                       <span>Current: {formatToolValue(row.current_location)}</span>
                       <span>Assigned: {formatToolValue(row.assigned_to)}</span>
@@ -6739,7 +6767,7 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   );
 }
 
-function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', scanCartContext = null, scanCountContext = null }) {
+function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', scanCartContext = null, scanCountContext = null, designPreviewEnabled = false }) {
   const [activeTab, setActiveTab] = useState(INVENTORY_TABS.has(requestedTab) ? requestedTab : 'grand-master');
   const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
   const counts = inventory.model.counts;
@@ -6826,7 +6854,7 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
       {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
       {activeTab === 'scan' ? <LocationScannerPanel permissions={permissions} navigateTo={navigateTo} /> : null}
       {activeTab === 'labels' ? <LabelTemplateDesignerPanel permissions={permissions} /> : null}
-      {activeTab === 'tools' ? <ToolCataloguePanel permissions={permissions} /> : null}
+      {activeTab === 'tools' ? <ToolCataloguePanel permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
       {activeTab === 'cart' ? (
         <CartScaffold
           permissions={permissions}
@@ -7005,6 +7033,7 @@ function Dashboard() {
     [browserPath],
   );
   const layoutTunerEnabled = hasLayoutTunerFlag(browserPath);
+  const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
 
   return (
     <main className="app-shell">
@@ -7073,6 +7102,7 @@ function Dashboard() {
           requestedTab={dashboardRouteContext.requestedInventoryTab}
           scanCartContext={dashboardRouteContext.scanCartContext}
           scanCountContext={dashboardRouteContext.scanCountContext}
+          designPreviewEnabled={designPreviewEnabled}
         />
       </section>
       )}

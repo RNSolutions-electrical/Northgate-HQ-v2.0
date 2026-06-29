@@ -8837,3 +8837,172 @@ Classification: Safe UI/client-side dev tooling task.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side dev layout tuner (ARCHITECTURE v2.18, HANDOFF Entry 088).
+
+---
+
+## Entry 089 - UI Design System Preview / Tool Catalogue Skin (Milestone 5J.1)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** Tool Catalogue / UI design preview
+**Session type:** implementation
+
+### Context
+Milestone 5J.1 is a Safe UI/client-side style preview task under ARCHITECTURE
+v2.18 and Section 35. The attached Claude Design CSS was used as a visual
+reference for the Northgate navy/gold/light operations-dashboard direction, but
+its broad prototype selectors were not pasted into the live global stylesheet.
+
+Classification: Safe UI/client-side Tool Catalogue design preview.
+
+### What Was Completed
+- Added an opt-in Tool Catalogue design preview gated by `designPreview=1`.
+- Normal Tool Catalogue rendering remains on the existing classes unless the
+  URL flag is present.
+- Added the Tool Catalogue-only wrapper class `tool-catalogue-skin` when the
+  preview flag is active.
+- Added scoped design tokens behind `.tool-catalogue-skin`, including:
+  - navy `#0D1F3C`;
+  - gold `#C8922A`;
+  - light page/card surfaces;
+  - soft borders/shadows;
+  - semantic badge colors for ok/warn/error/info states.
+- Applied the preview skin to the real Tool Catalogue surface and real data:
+  - header/helper area;
+  - helper/info note;
+  - search/filter toolbar;
+  - table view;
+  - mobile list cards;
+  - add/edit form panel;
+  - archive action button styling;
+  - loading/muted, empty, and alert states.
+- Added visual-only Tool Catalogue badge tone classes for preview status and
+  condition display.
+- Updated the Development Status card to Milestone 5J.1 / Entry 089 /
+  ARCHITECTURE v2.18 / UI design preview / build marker `9693baa`.
+
+### URL Flag Behavior
+- Implemented `designPreview=1` gating.
+- Normal app use without `designPreview=1` does not add `tool-catalogue-skin`.
+- The existing `layoutTuner=1` dev tool remains unchanged.
+
+### Selectors / Wrappers Added or Changed
+- Added URL helper:
+  - `hasDesignPreviewFlag(path)`
+- Added prop flow:
+  - `Dashboard` -> `InventoryReadOnlyPanel` -> `ToolCataloguePanel`
+- Added wrapper class:
+  - `.tool-catalogue-skin`
+- Added scoped CSS selectors under:
+  - `.cart-panel.tool-catalogue-skin`
+  - `.tool-catalogue-skin .card__header`
+  - `.tool-catalogue-skin .tool-catalogue__note`
+  - `.tool-catalogue-skin .tool-catalogue__layout`
+  - `.tool-catalogue-skin .tool-catalogue__list-panel`
+  - `.tool-catalogue-skin .tool-catalogue__form-panel`
+  - `.tool-catalogue-skin .tool-toolbar`
+  - `.tool-catalogue-skin .tool-form`
+  - `.tool-catalogue-skin .table-wrap`
+  - `.tool-catalogue-skin .tool-table`
+  - `.tool-catalogue-skin .tool-catalogue__badge`
+  - `.tool-catalogue-skin .empty-state`
+  - `.tool-catalogue-skin .alert`
+  - `.tool-catalogue-skin .mobile-item`
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated Development Status values.
+  - Added `designPreview=1` URL flag detection.
+  - Passed the preview flag down to the Tool Catalogue panel.
+  - Added `tool-catalogue-skin` only when the flag is active.
+  - Added visual-only Tool Catalogue badge tone class helper.
+- `src/styles.css`
+  - Added scoped `.tool-catalogue-skin` design preview tokens and component
+    styling.
+  - Kept prototype/global selectors such as `.app`, `.body`, `.content`,
+    `.card`, `.btn`, and `.badge` out of global application scope.
+- `HANDOFF.md`
+  - Appended this Entry 089.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 089.
+
+### What Codex Needs to Know
+- This preview is intentionally Tool Catalogue-only.
+- The preview uses the real Tool Catalogue data and existing behavior.
+- The preview is URL-gated with `designPreview=1`.
+- The attached prototype CSS was adapted into scoped selectors rather than
+  applied globally.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side style preview task only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
+  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- Section 35 start procedure completed:
+  - pulled `origin/main` with fast-forward-only pull;
+  - local `main` now matches `origin/main` at `9693baa`;
+  - working tree was clean before implementation after the pull.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed `git diff --name-only -- supabase` is empty.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no route/data/write behavior changed, except reading the harmless
+  `designPreview=1` URL flag.
+- Confirmed no direct `inventory_balances` write path was added.
+- Confirmed no Tool Catalogue create/edit/archive behavior changed.
+- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
+  behavior changed.
+- Confirmed broad prototype CSS classes were not globally applied.
+- Confirmed `tool-catalogue-skin` is added only when `designPreview=1` is
+  present.
+
+### Manual Verification Notes For Ryan
+- Open normal Tool Catalogue and confirm expected behavior.
+- Open Tool Catalogue with `?designPreview=1`.
+- Confirm Tool Catalogue looks closer to the attached design system.
+- Confirm search/filter/add/edit/archive still work.
+- Confirm no page-level horizontal scrolling.
+- Confirm no overlapping UI.
+- Confirm mobile/tablet still stack cleanly.
+- Confirm other app areas were not unexpectedly restyled.
+
+### Next Steps (in order)
+1. Visually verify normal Tool Catalogue without `designPreview=1`.
+2. Visually verify Tool Catalogue with `?designPreview=1`.
+3. If the direction feels right, choose whether to keep it URL-gated longer or
+   graduate it into the default Tool Catalogue styling in a later UI-only pass.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+- Vite still reports the existing chunk-size warning after a successful build.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Tool Catalogue design preview skin.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, routes, inventory balances, ledger, transaction
+  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
+  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side Tool Catalogue design preview (ARCHITECTURE v2.18, HANDOFF Entry 089).
