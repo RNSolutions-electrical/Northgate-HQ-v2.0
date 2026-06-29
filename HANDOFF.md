@@ -9199,3 +9199,163 @@ Classification: Safe UI/client-side app-shell styling task.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side deliverable app shell pass (ARCHITECTURE v2.18, HANDOFF Entry 090).
+
+---
+
+## Entry 091 - Development Dashboard Visibility Toggle (Milestone 5J.2a)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** App shell / development dashboard visibility
+**Session type:** implementation
+
+### Context
+Milestone 5J.2a is a Safe UI/client-side toggle task under ARCHITECTURE v2.18
+and Section 35. Entry 090 moved the app toward the deliverable shell, but Ryan
+still needs an easy way to hide the development/status dashboard area and see a
+team-facing UI without deleting the development information.
+
+Classification: Safe UI/client-side development dashboard visibility toggle.
+
+### What Was Completed
+- Added a header toggle for the development/status dashboard area.
+- Toggle labels:
+  - visible state: `Hide Dev Dashboard`;
+  - hidden state: `Show Dev Dashboard`.
+- Added browser-local persistence under `northgate.showDevDashboard`.
+- Default visibility remains visible unless localStorage contains `"false"`.
+- When hidden, the following development/status area does not render and does
+  not take layout space:
+  - Dashboard Shell card;
+  - Server Permissions card;
+  - Supabase Client card;
+  - Development Status card;
+  - Cart Write Gate / Per-Line Checkout status card.
+- When shown again, the same development/status cards render normally.
+- Updated the Development Status card values to Milestone 5J.2a / Entry 091 /
+  ARCHITECTURE v2.18 / Dev dashboard visibility toggle / build marker
+  `a88a558`.
+
+### Toggle / Storage Details
+- Toggle location: normal app shell header, next to the primary navigation and
+  before the user menu.
+- localStorage key: `northgate.showDevDashboard`.
+- Stored values:
+  - `"true"` when visible;
+  - `"false"` when hidden.
+- This is a browser preference only and is not a security boundary.
+- No backend settings or permission rules were added.
+
+### Selectors / Components Added or Changed
+- `src/App.jsx`
+  - Added `DEV_DASHBOARD_STORAGE_KEY`.
+  - Added `readDevDashboardVisibility()`.
+  - Added `writeDevDashboardVisibility(isVisible)`.
+  - Added `showDevDashboard` state in `Dashboard`.
+  - Added header button `.dev-dashboard-toggle`.
+  - Wrapped the development/status dashboard cards in conditional rendering.
+- `src/styles.css`
+  - Added `.dev-dashboard-toggle`.
+  - Added responsive mobile treatment for `.dev-dashboard-toggle`.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated Development Status values.
+  - Added localStorage-backed visibility helpers.
+  - Added the Dev Dashboard header toggle.
+  - Conditionally renders the dev/status card area.
+- `src/styles.css`
+  - Added the toggle styling.
+- `HANDOFF.md`
+  - Appended this Entry 091.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 091.
+
+### What Codex Needs to Know
+- The dev dashboard is visible by default.
+- Hiding it removes the development/status cards from layout flow.
+- The preference is per-browser localStorage only.
+- The real Inventory module remains visible and usable when the dev dashboard
+  is hidden.
+- The toggle does not change permissions, auth, data fetching, or module
+  behavior.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side toggle task only.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
+  Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- Section 35 start checks:
+  - local `main` and `origin/main` both pointed at `a88a558`;
+  - `docs/ARCHITECTURE.md` remains v2.18;
+  - HANDOFF was current through Entry 090 in the working tree;
+  - the working tree already contained uncommitted Entry 089 and Entry 090
+    changes from the immediately prior milestones and those changes were
+    preserved.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed no migrations were added or edited.
+- Confirmed `git diff --name-only -- supabase` is empty.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no auth behavior changed.
+- Confirmed no module data/write behavior changed.
+- Confirmed no direct `inventory_balances` write path was added.
+- Static code review confirmed hiding the dev dashboard removes the status card
+  branch from rendering, leaving no placeholder element.
+- Static code review confirmed showing the dev dashboard restores the same
+  branch.
+- Static code review confirmed refresh persistence uses
+  `northgate.showDevDashboard`.
+
+### Manual Verification Notes For Ryan
+- Open the app and find the Dev Dashboard toggle.
+- Hide the dev dashboard.
+- Confirm the Inventory Command Center / Development Status dashboard area
+  disappears.
+- Confirm the page closes the gap and looks like the team-facing UI.
+- Refresh and confirm it stays hidden.
+- Show it again and confirm the cards return.
+- Confirm Inventory, Tool Catalogue, Cart, Count, QR/scan, and Accounting
+  Export access still works.
+
+### Next Steps (in order)
+1. Visually verify the toggle in normal app use.
+2. Refresh once with the dashboard hidden and once with it shown.
+3. Decide whether the toggle should remain always visible in the shell or move
+   behind a dev-only affordance later.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+- Vite still reports the existing chunk-size warning after a successful build.
+- The toggle is client-side convenience only and is not a permission/security
+  boundary.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: development dashboard visibility toggle.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
+  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
+  Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side development dashboard visibility toggle (ARCHITECTURE v2.18, HANDOFF Entry 091).

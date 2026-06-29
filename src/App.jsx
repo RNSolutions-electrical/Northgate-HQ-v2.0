@@ -66,14 +66,15 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5J.2 - Deliverable app shell',
-  relatedHandoff: 'Entry 090',
+  mostRecentChange: 'Milestone 5J.2a - Development Dashboard Visibility Toggle',
+  relatedHandoff: 'Entry 091',
   architectureVersion: 'v2.18',
-  currentStep: 'Deliverable UI shell',
+  currentStep: 'Dev dashboard visibility toggle',
   buildMarker: 'a88a558',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.2 deliverable shell code is present in the loaded build.',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.2a dev dashboard visibility toggle code is present in the loaded build.',
 };
 
+const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
 const LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
 const LAYOUT_TUNER_FIELDS = [
   { key: 'appContentMax', cssName: '--app-content-max', label: 'Content max', min: 1200, max: 2600, step: 20, unit: 'px', defaultValue: 1600 },
@@ -516,6 +517,24 @@ function hasDesignPreviewFlag(path) {
     return url.searchParams.get('designPreview') === '1';
   } catch {
     return false;
+  }
+}
+
+function readDevDashboardVisibility() {
+  if (typeof window === 'undefined') return true;
+  try {
+    return window.localStorage.getItem(DEV_DASHBOARD_STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function writeDevDashboardVisibility(isVisible) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(DEV_DASHBOARD_STORAGE_KEY, isVisible ? 'true' : 'false');
+  } catch (error) {
+    console.warn('Dev dashboard visibility storage unavailable', error);
   }
 }
 
@@ -7043,9 +7062,14 @@ function Dashboard() {
     () => getDashboardInventoryRouteContext(browserPath),
     [browserPath],
   );
+  const [showDevDashboard, setShowDevDashboard] = useState(() => readDevDashboardVisibility());
   const layoutTunerEnabled = hasLayoutTunerFlag(browserPath);
   const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
   const shellNavTab = dashboardRouteContext.requestedInventoryTab || 'dashboard';
+
+  useEffect(() => {
+    writeDevDashboardVisibility(showDevDashboard);
+  }, [showDevDashboard]);
 
   return (
     <main className="app-shell">
@@ -7076,6 +7100,15 @@ function Dashboard() {
               Accounting
             </button>
           </nav>
+          <button
+            className="dev-dashboard-toggle"
+            type="button"
+            aria-pressed={!showDevDashboard}
+            title="Hides development-only status cards in this browser."
+            onClick={() => setShowDevDashboard((current) => !current)}
+          >
+            {showDevDashboard ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
+          </button>
           <UserButton afterSignOutUrl="/" />
         </div>
       </header>
@@ -7090,45 +7123,49 @@ function Dashboard() {
         </section>
       ) : (
       <section className="app-main">
-        <div className="dashboard-grid shell-status-grid">
-        <article className="card">
-          <LayoutDashboard className="card__icon" />
-          <h2>Dashboard Shell</h2>
-          <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
-        </article>
+        {showDevDashboard ? (
+          <>
+            <div className="dashboard-grid shell-status-grid">
+              <article className="card">
+                <LayoutDashboard className="card__icon" />
+                <h2>Dashboard Shell</h2>
+                <p>Base app shell is online. The inventory module supports read-only browsing, controlled cart-open, add-to-cart, remove-line, durable cart item reads, draft destination persistence, and per-line normal checkout.</p>
+              </article>
 
-        <article className="card">
-          <ShieldCheck className="card__icon" />
-          <h2>Server Permissions</h2>
-          <p>Signed in as {user?.primaryEmailAddress?.emailAddress ?? user?.id}.</p>
-          <p className="muted">
-            Role: {permissions.isLoaded ? permissions.role : 'Loading'} / Division: {permissions.isLoaded ? permissions.division ?? 'Unassigned' : 'Loading'}
-          </p>
-          <p className="muted">Source: {permissions.permissionSource}</p>
-        </article>
+              <article className="card">
+                <ShieldCheck className="card__icon" />
+                <h2>Server Permissions</h2>
+                <p>Signed in as {user?.primaryEmailAddress?.emailAddress ?? user?.id}.</p>
+                <p className="muted">
+                  Role: {permissions.isLoaded ? permissions.role : 'Loading'} / Division: {permissions.isLoaded ? permissions.division ?? 'Unassigned' : 'Loading'}
+                </p>
+                <p className="muted">Source: {permissions.permissionSource}</p>
+              </article>
 
-        <article className="card">
-          <Database className="card__icon" />
-          <h2>Supabase Client</h2>
-          <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
-          <p className="muted">Cart opening, add-to-cart, remove-line, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
-        </article>
+              <article className="card">
+                <Database className="card__icon" />
+                <h2>Supabase Client</h2>
+                <p>Client initialized: {supabase ? 'yes' : 'no'}.</p>
+                <p className="muted">Cart opening, add-to-cart, remove-line, checkout, and cart item reads are routed through server RPCs. Destination drafts are local until checkout writes them.</p>
+              </article>
 
-        <DevelopmentStatusCard />
-        </div>
-
-        <article className="card card--wide">
-          <div className="card__header">
-            <div>
-              <p className="eyebrow">Cart Write Gate</p>
-              <h2>Per-Line Checkout Is Controlled</h2>
-              <p>
-                The app can reload cart items from the server, remove mistaken cart rows, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
-              </p>
+              <DevelopmentStatusCard />
             </div>
-            <ShoppingCart className="card__icon" />
-          </div>
-        </article>
+
+            <article className="card card--wide dev-dashboard-card">
+              <div className="card__header">
+                <div>
+                  <p className="eyebrow">Cart Write Gate</p>
+                  <h2>Per-Line Checkout Is Controlled</h2>
+                  <p>
+                    The app can reload cart items from the server, remove mistaken cart rows, preserve draft destinations locally, and finalize each active cart line through `finalize_inventory_cart`. Express checkout is still not built.
+                  </p>
+                </div>
+                <ShoppingCart className="card__icon" />
+              </div>
+            </article>
+          </>
+        ) : null}
 
         <InventoryReadOnlyPanel
           permissions={permissions}
