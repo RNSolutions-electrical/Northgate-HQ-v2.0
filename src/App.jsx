@@ -76,12 +76,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5J.3 - Workspace navigation and dev dashboard separation',
-  relatedHandoff: 'Entry 092',
+  mostRecentChange: 'Milestone 5J.4 - Deliverable shell styling global pass',
+  relatedHandoff: 'Entry 093',
   architectureVersion: 'v2.18',
-  currentStep: 'Deliverable UI shell',
-  buildMarker: 'a88a558',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.3 workspace navigation and dev dashboard separation code is present in the loaded build.',
+  currentStep: 'Deliverable UI polish',
+  buildMarker: '4513851',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.4 deliverable shell styling pass is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';

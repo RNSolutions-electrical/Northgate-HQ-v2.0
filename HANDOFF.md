@@ -9554,3 +9554,223 @@ Classification: Safe UI/client-side navigation/layout task.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side workspace navigation and dev dashboard separation (ARCHITECTURE v2.18, HANDOFF Entry 092).
+
+---
+
+## Entry 093 - Deliverable Shell Styling Global Pass (Milestone 5J.4)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** App shell / deliverable UI polish
+**Session type:** implementation
+
+### Context
+Milestone 5J.4 is a Safe UI/client-side global styling pass under
+ARCHITECTURE v2.18 and Section 35. Entry 092 already separated workspaces,
+Inventory left navigation, Coming Soon pages, and the Developer Dashboard. This
+pass maps the submitted Northgate HQ v2 design CSS direction onto the real app
+selectors without replacing live modules with prototype markup or mock data.
+
+Classification: Safe UI/client-side global styling pass.
+
+The pasted milestone brief referenced HANDOFF Entry 091, but the local canonical
+HANDOFF was already gapless through Entry 092. This entry was therefore appended
+as Entry 093 to preserve the required sequential log.
+
+### What Was Completed
+- Applied the Northgate navy/gold/light operations-dashboard visual language to
+  the real app shell and shared UI elements.
+- Polished top workspace navigation with clearer active state, hover state,
+  compact spacing, and responsive wrapping behavior.
+- Polished Inventory and Tools left navigation/sidebar surfaces while keeping
+  existing tool/view routing intact.
+- Updated shared page/content spacing, card borders, shadows, padding, headers,
+  badges, buttons, table shells, filter/search rows, mobile item cards, alerts,
+  empty states, Coming Soon panels, and Developer Dashboard panels.
+- Added scoped table overflow refinements so wide operational tables remain
+  contained inside their table wrappers rather than creating intentional
+  page-level horizontal scroll.
+- Preserved the prior `layoutTuner=1` dev tool and `designPreview=1` Tool
+  Catalogue preview behavior.
+- Updated the Development Status card values to Milestone 5J.4 / Entry 093 /
+  ARCHITECTURE v2.18 / Deliverable UI polish / build marker `4513851`.
+
+### Visual Styling Strategy
+- Used the submitted Northgate HQ v2 design CSS as a visual reference.
+- Reused existing real selectors and CSS variables instead of pasting broad
+  prototype selectors such as `.app`, `.content`, `.card`, `.btn`, or `.badge`
+  wholesale.
+- Kept styling additive and scoped to the current React app shell and shared
+  component classes.
+- Preserved live data modules and existing workflow entry points.
+
+### Selectors / Components Added or Changed
+- `:root` design tokens:
+  - added panel, raised shadow, radius, and focus-ring variables;
+  - adjusted content width, gutters, card gap, and dense table sizing defaults.
+- Shell / navigation:
+  - `.app-shell`;
+  - `.app-header`;
+  - `.app-header__inner`;
+  - `.app-brand`;
+  - `.app-top-nav`;
+  - `.app-nav-item`;
+  - `.dev-dashboard-toggle`;
+  - `.app-main`.
+- Shared UI:
+  - `.card`;
+  - `.card__header`;
+  - `.card__icon`;
+  - `.status-pill`;
+  - `.primary-button`;
+  - `.secondary-button`;
+  - `.secondary-button--danger`;
+  - `.empty-state`;
+  - `.alert`.
+- Workspace/module surfaces:
+  - `.inventory-module-card`;
+  - `.inventory-module-shell`;
+  - `.module-sidebar`;
+  - `.module-tab`;
+  - `.module-content`;
+  - `.workspace-placeholder`;
+  - `.developer-dashboard`;
+  - `.developer-dashboard-hidden`;
+  - `.development-status-card`;
+  - `.development-status-grid`.
+- Inventory / Tool Catalogue shared surfaces:
+  - `.cart-panel`;
+  - `.tool-catalogue`;
+  - `.tool-catalogue__list-panel`;
+  - `.tool-catalogue__form-panel`;
+  - `.tool-toolbar`;
+  - `.tool-form`;
+  - `.count-section-header`;
+  - `.count-toolbar`;
+  - `.history-toolbar`;
+  - `.cart-apply-all`;
+  - `.count-correction-form`;
+  - `.count-intake-form`;
+  - `.table-wrap`;
+  - `.data-table`;
+  - `.tool-table`;
+  - `.grand-master-table`;
+  - `.history-table`;
+  - `.accounting-export-table`;
+  - `.mobile-list` and module-specific mobile lists.
+- Responsive breakpoints:
+  - added a 1200px shell/dashboard breakpoint;
+  - expanded existing 900px and 640px responsive behavior.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
+  storage, indexes, auth, routes, or database behavior changed.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Updated Development Status metadata only.
+- `src/styles.css`
+  - Added and adjusted deliverable shell, navigation, sidebar, shared card,
+    button, badge, form, table, panel, Tool Catalogue, Inventory, Developer
+    Dashboard, Coming Soon, and responsive styling.
+- `HANDOFF.md`
+  - Appended this Entry 093.
+
+### Lock Document Changes
+- None.
+- ARCHITECTURE remains v2.18.
+- HANDOFF remains gapless through Entry 093.
+
+### What Codex Needs to Know
+- This was a styling/layout consistency pass only.
+- Normal team-facing workspaces remain clean; Developer Dashboard content stays
+  inside the Developer workspace.
+- Tool Catalogue behavior remains the real `ToolCataloguePanel`; no reserved
+  Tool Catalogue features were added.
+- Inventory Overview, Count, Cart/Checkout, QR/scan, and Accounting Export
+  behavior were not altered.
+- The prior `designPreview=1` and `layoutTuner=1` flags remain intact.
+
+### What Claude Needs to Know
+- This was a Safe UI/client-side styling task only.
+- No architecture decision was made or changed.
+- No behavior, data fetching, write behavior, permissions, schema, RLS,
+  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
+  Intake, QR/scan, Accounting Export, Financials/job-cost,
+  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
+  Override, or existing runtime behavior changed.
+- Authenticated browser verification was not completed in this Codex session.
+
+### Verification
+- Section 35 start checks:
+  - working tree was clean before changes;
+  - `docs/ARCHITECTURE.md` remains v2.18;
+  - HANDOFF was current through Entry 092 in the working tree;
+  - task classified as Safe UI/client-side global styling pass.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Build completed with Vite's chunk-size warning only.
+- Confirmed changed files are UI/client-side only: `src/App.jsx` and
+  `src/styles.css`, plus this HANDOFF append.
+- Confirmed `git diff --name-only -- supabase` is empty.
+- Confirmed no migrations were added or edited.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no auth behavior changed.
+- Confirmed no module data/write behavior changed.
+- Confirmed no direct `inventory_balances` write path was added.
+- Static code review confirmed existing workspaces remain represented in the
+  top navigation.
+- Static code review confirmed existing Inventory tools remain represented in
+  the Inventory sidebar.
+- Static code review confirmed Tool Catalogue remains reachable through the
+  current UI and still uses the existing real component.
+- Static code review confirmed Developer Dashboard remains separate from normal
+  workspaces.
+- Static code review confirmed Coming Soon pages remain placeholder panels only.
+- Static code review confirmed no prototype/mock data replaced real app data.
+- Authenticated browser verification was unavailable/not completed, so no
+  visual browser verification is claimed.
+
+### Manual Verification Notes For Ryan
+- Open app normally.
+- Confirm top nav looks polished and active workspace is clear.
+- Confirm left nav looks polished and active tool is clear.
+- Confirm normal workspaces do not show dev notes by default.
+- Confirm Developer Dashboard still shows development/status information.
+- Confirm Coming Soon pages look intentional.
+- Confirm Inventory Overview, Count, Cart/Checkout, QR/scan, and Accounting
+  Export remain accessible.
+- Confirm Tool Catalogue remains accessible and add/edit/archive behavior still
+  works.
+- Confirm no page-level horizontal scrolling.
+- Confirm no overlapping UI.
+- Confirm mobile/tablet widths remain usable.
+
+### Next Steps (in order)
+1. Perform authenticated visual QA on desktop, tablet, and mobile widths.
+2. Check the widest Tool Catalogue, Inventory Overview, and Accounting Export
+   tables with real data to confirm overflow stays scoped to the table wrapper.
+3. Decide whether the top-level Tools workspace should eventually replace or
+   simply mirror the Inventory sidebar Tool Catalogue entry.
+
+### Open Questions / Concerns
+- Authenticated browser verification was unavailable/not completed in this
+  local Codex session.
+- Vite still reports the existing chunk-size warning after a successful build.
+- The milestone brief's requested handoff/routing entry number was stale
+  relative to the local canonical HANDOFF; this entry preserves the gapless log
+  as Entry 093.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: deliverable shell styling global pass.
+- No protected runtime behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
+  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
+  Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side deliverable shell styling pass (ARCHITECTURE v2.18, HANDOFF Entry 093).
