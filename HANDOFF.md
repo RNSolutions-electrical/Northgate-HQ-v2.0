@@ -10090,3 +10090,160 @@ Claude-reviewed and ChatGPT cross-cleared.
 
 ### Routing Verdict
 No Claude review needed — docs-only Jobs Foundation architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.20, HANDOFF Entry 095).
+
+---
+
+## Entry 096 - Jobs Foundation implemented
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** Jobs Foundation
+**Session type:** implementation
+
+### Context
+Ryan instructed Codex to implement only the locked Jobs Foundation scope from
+ARCHITECTURE v2.20 Section 38. The design was already Claude-reviewed and
+ChatGPT-cross-cleared, so Codex did not reclassify or expand the milestone.
+
+This implementation follows the Section 38 sequence:
+1. Add the `public.jobs` migration.
+2. Add the Jobs workspace UI.
+
+### What Was Completed
+- Added Jobs Foundation migration under `supabase/migrations`.
+- Created `public.jobs` with `division TEXT NOT NULL` using the existing app
+  division convention.
+- Included `job_type` and `service_call_number` from day one.
+- Locked `status` to:
+  - `active`;
+  - `on_hold`;
+  - `complete`;
+  - `cancelled`.
+- Preserved the Section 38 rule that `archived` is not a status value.
+- Added nullable `job_number` with a partial unique index.
+- Added `updated_at` maintenance through the existing
+  `touch_user_permissions_updated_at()` trigger function.
+- Enabled RLS and added:
+  - `jobs_read`;
+  - `jobs_insert`;
+  - `jobs_update`.
+- Did not add a DELETE policy or DELETE grant.
+- Added the Jobs workspace UI in the deliverable shell.
+- Added list, search, status filter, division filter for authorized
+  cross-division users, create form, edit form, archive action, detail/read
+  view, status badge display, job type display, empty state, loading state, and
+  error state.
+- Added the locked helper copy that reserves material workflow and future job
+  management features.
+
+### Schema Changes
+- Added `supabase/migrations/202606290001_jobs_foundation.sql`.
+- `public.jobs` fields include the Section 38 foundation columns only.
+- RLS read scope:
+  - active non-archived jobs;
+  - own division;
+  - or `can_view_all_divisions`.
+- RLS insert scope:
+  - own division only;
+  - gated by `can_create_jobs`.
+- RLS update scope:
+  - own division only;
+  - gated by `can_manage_jobs`;
+  - used for edit and soft archive.
+- Soft archive uses `archived_at`, `archived_by`, and `archive_reason`.
+- No hard delete path was introduced.
+
+### UI Changes
+- Added `JobsWorkspace` to `src/App.jsx`.
+- Replaced the Jobs coming-soon placeholder with the active Jobs workspace.
+- Jobs create uses the authenticated user's current division and does not allow
+  arbitrary division entry.
+- Jobs edit/archive controls are shown only when the row is in the user's own
+  division and the user has `can_manage_jobs`.
+- Jobs create controls are shown only with `can_create_jobs`.
+- The UI reads/writes only approved Jobs Foundation fields.
+- Added a `.jobs-table` width rule in `src/styles.css`.
+- Updated the Development Status panel to mark Jobs Foundation / Entry 096.
+
+### Explicitly Not Implemented
+- No `job_materials`.
+- No Issue to Job.
+- No Buyout.
+- No Return-to-Inventory.
+- No QR labels or job tote labels.
+- No phases or schedule.
+- No employee assignments.
+- No documents/photos.
+- No financials, estimates/contracts, accounting, cost, or financial exports.
+- No customer/client CRM features.
+- No inventory balance behavior changes.
+- No checkout, cart, count, QR/scan, Accounting Export, Tool Catalogue, vehicle,
+  bin, or ledger behavior changes.
+
+### Code / File Changes
+- `supabase/migrations/202606290001_jobs_foundation.sql`
+  - Added Jobs Foundation table, index, trigger, RLS policies, revokes, and
+    grants.
+- `src/App.jsx`
+  - Added Jobs workspace data loading, filters, forms, detail view, and archive
+    behavior.
+- `src/styles.css`
+  - Added Jobs table layout support.
+- `HANDOFF.md`
+  - Appended this Entry 096.
+
+### Preflight / Existing Lock Confirmation
+- Confirmed ARCHITECTURE is v2.20 with Section 38 canonical.
+- Confirmed Section 37 remains the Job Material Workflow lock and was not
+  implemented.
+- Confirmed HANDOFF was gapless through Entry 095 before this append.
+- Confirmed existing repo migrations define
+  `touch_user_permissions_updated_at()`.
+- Confirmed existing repo migrations define `user_permissions` with
+  `clerk_user_id`, `division`, `role`, `permission_overrides`, and `is_active`.
+- Confirmed existing repo migrations define
+  `effective_permissions_for_user(p_role TEXT, p_division TEXT,
+  p_permission_overrides JSONB)`.
+- Confirmed `can_create_jobs` and `can_manage_jobs` are present in the repo's
+  canonical permission defaults/effective permission model.
+- Live Supabase schema was not queried in this local session; the migration was
+  added to the repo and still needs to be applied through the project's normal
+  Supabase migration/deploy process.
+
+### Verification
+- `git pull --ff-only origin main` completed and reported already up to date
+  before implementation.
+- Working tree was clean before implementation.
+- `git diff --check` passed before this handoff append.
+- `npm.cmd run build` passed.
+- Static scan confirmed the new Jobs migration does not include
+  `inventory_balances`, `job_materials`, or DELETE behavior.
+- Static scan confirmed Jobs UI changes are limited to the locked Jobs
+  Foundation workspace and required helper copy.
+- Authenticated browser verification was not performed in this local session.
+- Live Supabase migration application was not performed in this local session.
+
+### Next Steps
+1. Apply `202606290001_jobs_foundation.sql` through the normal Supabase
+   migration path.
+2. Verify the Jobs workspace with an authenticated user that has
+   `can_create_jobs` and/or `can_manage_jobs`.
+3. Continue future Job Material Workflow slices only after the Jobs Foundation
+   migration is live.
+
+### Open Questions / Concerns
+- No architecture blocker found.
+- Runtime Jobs UI depends on the new `public.jobs` table existing in Supabase.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Jobs Foundation migration and workspace UI.
+- Protected behavior remained unchanged: inventory balances, ledger,
+  transactions, checkout/finalization, Count Intake, QR/scan, Accounting
+  Export, Tool Catalogue, financial/job-cost behavior, vehicle-bin stock,
+  Express Checkout, Manager Override, and existing Inventory behavior were not
+  changed.
+- Reserved Jobs and Job Material Workflow scope remained unimplemented except
+  for the locked helper copy naming future reserved areas.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.20, HANDOFF Entry 096).

@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Archive, Camera, CameraOff, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
+import { Archive, Briefcase, Camera, CameraOff, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
@@ -76,12 +76,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5J.4 - Deliverable shell styling global pass',
-  relatedHandoff: 'Entry 093',
-  architectureVersion: 'v2.18',
-  currentStep: 'Deliverable UI polish',
-  buildMarker: '4513851',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the 5J.4 deliverable shell styling pass is present in the loaded build.',
+  mostRecentChange: 'Jobs Foundation',
+  relatedHandoff: 'Entry 096',
+  architectureVersion: 'v2.20',
+  currentStep: 'Jobs foundation',
+  buildMarker: '2976934',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Jobs Foundation migration and workspace UI code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -166,6 +166,73 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
   assigned_to: '',
   purchase_date: '',
   notes: '',
+});
+
+const JOBS_HELPER_COPY = 'Jobs foundation. Material workflow (job material list, issue to job, buyout, and return-to-inventory) and job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
+const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
+const JOB_TYPE_OPTIONS = ['job', 'service_call'];
+const JOBS_SELECT_FIELDS = [
+  'id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'job_number',
+  'name',
+  'status',
+  'description',
+  'notes',
+  'address_line1',
+  'address_line2',
+  'city',
+  'state',
+  'postal_code',
+  'job_type',
+  'service_call_number',
+  'created_by',
+].join(',');
+const JOB_SEARCH_FIELDS = [
+  'job_number',
+  'name',
+  'description',
+  'notes',
+  'address_line1',
+  'address_line2',
+  'city',
+  'state',
+  'postal_code',
+  'job_type',
+  'service_call_number',
+  'division',
+];
+const JOB_TEXT_FORM_FIELDS = [
+  { key: 'job_number', label: 'Job #' },
+  { key: 'service_call_number', label: 'Service Call #' },
+  { key: 'address_line1', label: 'Address Line 1' },
+  { key: 'address_line2', label: 'Address Line 2' },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'postal_code', label: 'Postal Code' },
+];
+const JOB_TEXTAREA_FORM_FIELDS = [
+  { key: 'description', label: 'Description' },
+  { key: 'notes', label: 'Notes' },
+];
+const EMPTY_JOB_DRAFT = Object.freeze({
+  job_number: '',
+  name: '',
+  status: 'active',
+  description: '',
+  notes: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  state: '',
+  postal_code: '',
+  job_type: 'job',
+  service_call_number: '',
 });
 
 const COUNT_INTAKE_HELP_ITEMS = [
@@ -2143,6 +2210,80 @@ function formatToolDate(value) {
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
+}
+
+function createJobDraft(row = null) {
+  if (!row) return { ...EMPTY_JOB_DRAFT };
+  return {
+    job_number: row.job_number ?? '',
+    name: row.name ?? '',
+    status: row.status ?? 'active',
+    description: row.description ?? '',
+    notes: row.notes ?? '',
+    address_line1: row.address_line1 ?? '',
+    address_line2: row.address_line2 ?? '',
+    city: row.city ?? '',
+    state: row.state ?? '',
+    postal_code: row.postal_code ?? '',
+    job_type: row.job_type ?? 'job',
+    service_call_number: row.service_call_number ?? '',
+  };
+}
+
+function buildJobMutationPayload(draft) {
+  return {
+    job_number: cleanToolText(draft.job_number),
+    name: String(draft.name ?? '').trim(),
+    status: JOB_STATUS_OPTIONS.includes(draft.status) ? draft.status : 'active',
+    description: cleanToolText(draft.description),
+    notes: cleanToolText(draft.notes),
+    address_line1: cleanToolText(draft.address_line1),
+    address_line2: cleanToolText(draft.address_line2),
+    city: cleanToolText(draft.city),
+    state: cleanToolText(draft.state),
+    postal_code: cleanToolText(draft.postal_code),
+    job_type: JOB_TYPE_OPTIONS.includes(draft.job_type) ? draft.job_type : 'job',
+    service_call_number: cleanToolText(draft.service_call_number),
+  };
+}
+
+function formatJobDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function formatJobType(value) {
+  if (value === 'service_call') return 'Service Call';
+  return 'Job';
+}
+
+function getJobStatusBadgeClass(value) {
+  const toneByValue = {
+    active: 'ok',
+    on_hold: 'warn',
+    complete: 'info',
+    cancelled: 'err',
+  };
+  const tone = toneByValue[String(value ?? '').toLowerCase()] ?? 'info';
+  return `status-pill tool-catalogue__badge tool-catalogue__badge--${tone}`;
+}
+
+function buildJobAddressSummary(row) {
+  const lineOne = [row.address_line1, row.address_line2].filter(Boolean).join(', ');
+  const cityState = [row.city, row.state].filter(Boolean).join(', ');
+  return [lineOne, cityState, row.postal_code].filter(Boolean).join(' ');
+}
+
+function filterJobRows(rows, filters) {
+  const search = filters.search.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filters.status && (row.status || '') !== filters.status) return false;
+    if (filters.division && (row.division || 'Unassigned') !== filters.division) return false;
+    if (!search) return true;
+    return JOB_SEARCH_FIELDS.some((field) => String(row[field] ?? '').toLowerCase().includes(search));
+  });
 }
 
 function getToolBadgeClass(value) {
@@ -6950,6 +7091,431 @@ function ComingSoonWorkspace({ title, description }) {
   );
 }
 
+function JobsWorkspace({ permissions }) {
+  const { getToken } = useAuth();
+  const canReadJobs = permissions.permissionSource === 'server';
+  const canCreateJobs = canReadJobs && permissions.canCreateJobs;
+  const canManageJobs = canReadJobs && permissions.canManageJobs;
+  const hasWritableDivision = Boolean(permissions.division);
+  const [jobs, setJobs] = useState([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [isSavingJob, setIsSavingJob] = useState(false);
+  const [jobsError, setJobsError] = useState(null);
+  const [jobMessage, setJobMessage] = useState('');
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [draft, setDraft] = useState(() => createJobDraft());
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    division: '',
+  });
+  const selectedJob = jobs.find((row) => row.id === selectedJobId) ?? null;
+  const selectedJobCanEdit = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
+  const formCanSave = selectedJob ? selectedJobCanEdit : canCreateJobs && hasWritableDivision;
+  const divisionOptions = useMemo(
+    () => [...new Set(jobs.map((row) => row.division || 'Unassigned'))]
+      .sort((first, second) => first.localeCompare(second)),
+    [jobs],
+  );
+  const showDivisionFilter = permissions.canViewAllDivisions && divisionOptions.length > 1;
+  const filteredJobs = useMemo(() => filterJobRows(jobs, filters), [jobs, filters]);
+
+  async function loadJobs({ preserveMessage = false } = {}) {
+    if (!canReadJobs) return;
+
+    setIsLoadingJobs(true);
+    setJobsError(null);
+    if (!preserveMessage) setJobMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('jobs')
+        .select(JOBS_SELECT_FIELDS)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setJobs(data ?? []);
+    } catch (error) {
+      console.error('Jobs load failed', error);
+      setJobs([]);
+      setJobsError(error);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }
+
+  useEffect(() => {
+    loadJobs();
+  }, [canReadJobs, getToken]);
+
+  useEffect(() => {
+    if (selectedJobId && !jobs.some((row) => row.id === selectedJobId)) {
+      startNewJob();
+    }
+  }, [selectedJobId, jobs]);
+
+  function updateDraft(key, value) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function startNewJob() {
+    setSelectedJobId('');
+    setDraft(createJobDraft());
+    setJobMessage('');
+  }
+
+  function viewJob(row) {
+    setSelectedJobId(row.id);
+    setDraft(createJobDraft(row));
+    setJobMessage('');
+  }
+
+  function startEditJob(row) {
+    if (!canManageJobs || row.division !== permissions.division) {
+      setJobMessage('Job edit is limited to the current user division.');
+      viewJob(row);
+      return;
+    }
+    viewJob(row);
+  }
+
+  async function saveJob(event) {
+    event.preventDefault();
+    if (!formCanSave || isSavingJob) return;
+    if (!hasWritableDivision) {
+      setJobMessage('Job save blocked because the current user division could not be determined from server permissions.');
+      return;
+    }
+    if (selectedJob && selectedJob.division !== permissions.division) {
+      setJobMessage('Job save blocked because this row is outside the current user division.');
+      return;
+    }
+
+    const payload = buildJobMutationPayload(draft);
+    if (!payload.name) {
+      setJobMessage('Job name is required.');
+      return;
+    }
+
+    setIsSavingJob(true);
+    setJobMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      if (selectedJobId) {
+        const { error } = await client
+          .from('jobs')
+          .update(payload)
+          .eq('id', selectedJobId);
+        if (error) throw error;
+        await loadJobs({ preserveMessage: true });
+        setJobMessage('Job saved.');
+      } else {
+        const { error } = await client
+          .from('jobs')
+          .insert({ division: permissions.division, created_by: permissions.userId, ...payload })
+          .select('id')
+          .single();
+        if (error) throw error;
+        setSelectedJobId('');
+        setDraft(createJobDraft());
+        await loadJobs({ preserveMessage: true });
+        setJobMessage('Job added.');
+      }
+    } catch (error) {
+      console.error('Jobs save failed', error);
+      setJobMessage('Job save failed. Confirm permissions, division scope, and the Jobs Foundation migration.');
+    } finally {
+      setIsSavingJob(false);
+    }
+  }
+
+  async function archiveJob(row) {
+    if (!canManageJobs || isSavingJob || !row?.id || row.archived_at) return;
+    if (row.division !== permissions.division) {
+      setJobMessage('Job archive is limited to the current user division.');
+      return;
+    }
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingJob(true);
+    setJobMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('jobs')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanToolText(reason),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      if (selectedJobId === row.id) startNewJob();
+      await loadJobs({ preserveMessage: true });
+      setJobMessage('Job archived.');
+    } catch (error) {
+      console.error('Jobs archive failed', error);
+      setJobMessage('Job archive failed. Confirm permissions and division scope.');
+    } finally {
+      setIsSavingJob(false);
+    }
+  }
+
+  if (!canReadJobs) {
+    return (
+      <article className="card card--wide inventory-module-card">
+        <div className="card__header">
+          <div>
+            <p className="eyebrow">Workspace</p>
+            <h2>Jobs</h2>
+            <p>{JOBS_HELPER_COPY}</p>
+          </div>
+          <span className="status-pill status-pill--warn">Server permissions required</span>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="card card--wide inventory-module-card">
+      <div className="card__header">
+        <div>
+          <p className="eyebrow">Workspace</p>
+          <h2>Jobs</h2>
+          <p>{JOBS_HELPER_COPY}</p>
+        </div>
+        <Briefcase className="card__icon" aria-hidden="true" />
+      </div>
+
+      <div className="inventory-module-shell">
+        <aside className="module-sidebar" aria-label="Jobs workspace navigation">
+          <div className="module-sidebar__header">
+            <p className="eyebrow">Workspace</p>
+            <h3>Jobs</h3>
+          </div>
+          <div className="module-tabs" role="tablist" aria-label="Jobs views">
+            <button className="module-tab" type="button" aria-selected="true">
+              Jobs Foundation
+            </button>
+          </div>
+        </aside>
+
+        <div className="module-content">
+          <section className="cart-panel tool-catalogue">
+            <div className="card__header">
+              <div>
+                <p className="eyebrow">Jobs</p>
+                <h3>Jobs Foundation</h3>
+                <p>{JOBS_HELPER_COPY}</p>
+              </div>
+              <span className="status-pill">{filteredJobs.length} job{filteredJobs.length === 1 ? '' : 's'}</span>
+            </div>
+
+            <div className="location-note tool-catalogue__note">
+              <Briefcase aria-hidden="true" />
+              <span>{JOBS_HELPER_COPY}</span>
+            </div>
+
+            {jobsError ? <div className="alert">Jobs failed to load. Confirm server permissions and the `public.jobs` migration.</div> : null}
+            {!hasWritableDivision ? <div className="alert">Job create/edit is blocked because the current user division could not be determined from server permissions.</div> : null}
+            {jobMessage ? <div className="alert">{jobMessage}</div> : null}
+
+            <div className="tool-catalogue__layout">
+              <section className="tool-catalogue__list-panel">
+                <div className="count-section-header">
+                  <div>
+                    <p className="eyebrow">Directory</p>
+                    <h3>Active jobs</h3>
+                  </div>
+                  <button type="button" className="secondary-button" onClick={() => loadJobs()} disabled={isLoadingJobs}>
+                    <RefreshCw aria-hidden="true" /> Refresh
+                  </button>
+                </div>
+
+                <div className="tool-toolbar">
+                  <label>
+                    Search
+                    <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} />
+                  </label>
+                  <label>
+                    Status
+                    <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
+                      <option value="">All statuses</option>
+                      {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  {showDivisionFilter ? (
+                    <label>
+                      Division
+                      <select value={filters.division} onChange={(event) => setFilters((current) => ({ ...current, division: event.target.value }))}>
+                        <option value="">All visible divisions</option>
+                        {divisionOptions.map((division) => <option key={division} value={division}>{division}</option>)}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+
+                {isLoadingJobs ? <p className="muted">Loading Jobs...</p> : null}
+                {!isLoadingJobs && !filteredJobs.length ? (
+                  <div className="empty-state">
+                    <strong>No jobs have been added yet.</strong>
+                    <p>{JOBS_HELPER_COPY}</p>
+                  </div>
+                ) : null}
+
+                {filteredJobs.length ? (
+                  <>
+                    <div className="table-wrap">
+                      <table className="data-table jobs-table">
+                        <thead>
+                          <tr>
+                            <th>Job #</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Service Call #</th>
+                            <th>Division</th>
+                            <th>Address</th>
+                            <th>Updated</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredJobs.map((row) => (
+                            <tr key={row.id}>
+                              <td>{formatToolValue(row.job_number)}</td>
+                              <td>
+                                <strong>{row.name}</strong>
+                                {row.description ? <span>{row.description}</span> : null}
+                              </td>
+                              <td><span className={getJobStatusBadgeClass(row.status)}>{row.status}</span></td>
+                              <td>{formatJobType(row.job_type)}</td>
+                              <td>{formatToolValue(row.service_call_number)}</td>
+                              <td>{row.division || 'Unassigned'}</td>
+                              <td>{buildJobAddressSummary(row) || '-'}</td>
+                              <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                              <td>
+                                <div className="count-action-stack">
+                                  <button type="button" className="secondary-button" onClick={() => viewJob(row)}>
+                                    View
+                                  </button>
+                                  <button type="button" className="secondary-button" onClick={() => startEditJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                                    <Pencil aria-hidden="true" /> Edit
+                                  </button>
+                                  <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                                    <Archive aria-hidden="true" /> Archive
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="mobile-list tool-mobile-list">
+                      {filteredJobs.map((row) => (
+                        <article className="mobile-item" key={row.id}>
+                          <strong>{row.name}</strong>
+                          <div className="meta-grid">
+                            <span>Job #: {formatToolValue(row.job_number)}</span>
+                            <span>Status: <span className={getJobStatusBadgeClass(row.status)}>{row.status}</span></span>
+                            <span>Type: {formatJobType(row.job_type)}</span>
+                            <span>Service Call #: {formatToolValue(row.service_call_number)}</span>
+                            <span>Division: {row.division || 'Unassigned'}</span>
+                            <span>Address: {buildJobAddressSummary(row) || '-'}</span>
+                            <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                          </div>
+                          <div className="cart-actions">
+                            <button type="button" className="secondary-button" onClick={() => viewJob(row)}>
+                              View
+                            </button>
+                            <button type="button" className="secondary-button" onClick={() => startEditJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                              <Pencil aria-hidden="true" /> Edit
+                            </button>
+                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                              <Archive aria-hidden="true" /> Archive
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </section>
+
+              <section className="tool-catalogue__form-panel">
+                <div className="count-section-header">
+                  <div>
+                    <p className="eyebrow">{selectedJob ? 'Edit Job' : 'Create Job'}</p>
+                    <h3>{selectedJob ? selectedJob.name : 'Create job'}</h3>
+                  </div>
+                  <span>{selectedJob ? selectedJob.division ?? 'Unassigned' : canCreateJobs ? `Division: ${permissions.division ?? 'Unassigned'}` : 'can_create_jobs required'}</span>
+                </div>
+
+                {selectedJob ? (
+                  <div className="empty-state">
+                    <strong>{selectedJob.name}</strong>
+                    <p>Job #: {formatToolValue(selectedJob.job_number)} / {formatJobType(selectedJob.job_type)} / {selectedJob.status}</p>
+                    <p>{buildJobAddressSummary(selectedJob) || 'No address recorded.'}</p>
+                    <p>Created: {formatJobDateTime(selectedJob.created_at)} / Updated: {formatJobDateTime(selectedJob.updated_at)}</p>
+                  </div>
+                ) : null}
+
+                <form className="tool-form" onSubmit={saveJob}>
+                  <label className="tool-form__wide">
+                    Name
+                    <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!formCanSave || isSavingJob} />
+                  </label>
+                  <label>
+                    Status
+                    <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!formCanSave || isSavingJob}>
+                      {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Job Type
+                    <select value={draft.job_type} onChange={(event) => updateDraft('job_type', event.target.value)} disabled={!formCanSave || isSavingJob}>
+                      {JOB_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{formatJobType(type)}</option>)}
+                    </select>
+                  </label>
+                  {JOB_TEXT_FORM_FIELDS.map((field) => (
+                    <label key={field.key}>
+                      {field.label}
+                      <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+                    </label>
+                  ))}
+                  {JOB_TEXTAREA_FORM_FIELDS.map((field) => (
+                    <label className="tool-form__wide" key={field.key}>
+                      {field.label}
+                      <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+                    </label>
+                  ))}
+                  <div className="cart-actions tool-form__wide">
+                    <button type="submit" className="secondary-button" disabled={!formCanSave || isSavingJob}>
+                      <Plus aria-hidden="true" /> {isSavingJob ? 'Saving...' : selectedJob ? 'Save Job' : 'Create Job'}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
+                      New Job
+                    </button>
+                  </div>
+                </form>
+              </section>
+            </div>
+          </section>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function ToolsWorkspace({ permissions, designPreviewEnabled }) {
   return (
     <article className="card card--wide inventory-module-card">
@@ -7297,7 +7863,7 @@ function Dashboard() {
             designPreviewEnabled={designPreviewEnabled}
           />
         ) : null}
-        {activeWorkspace === 'jobs' ? <ComingSoonWorkspace title="Jobs" description="Job workspace is reserved for a future milestone." /> : null}
+        {activeWorkspace === 'jobs' ? <JobsWorkspace permissions={permissions} /> : null}
         {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
         {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
         {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}

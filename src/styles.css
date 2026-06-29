@@ -250,6 +250,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .history-table { min-width: 1040px; }
 .history-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .history-mobile-list { display: none; }
+.jobs-table { min-width: 1040px; }
 .count-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .count-workspace__main { min-width: 0; }
 .count-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .6rem; align-items: end; margin-bottom: .9rem; }
