@@ -9774,3 +9774,155 @@ as Entry 093 to preserve the required sequential log.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side deliverable shell styling pass (ARCHITECTURE v2.18, HANDOFF Entry 093).
+
+---
+
+## Entry 094 - Job Material Workflow architecture locked (ARCHITECTURE v2.19, new Section 37)
+
+**Date:** 2026-06-29
+**Updated by:** Codex
+**Phase:** Milestone 5K.1 - Job Material Workflow architecture lock adoption
+**Session type:** alignment
+
+### Context
+Milestone 5K.1 is a docs-only architecture lock adoption. Ryan provided the
+Claude-reviewed and ChatGPT cross-cleared Job Material Workflow architecture
+text and instructed Codex to apply it to the canonical repo documents only.
+
+Classification: docs-only architecture lock adoption already Claude-reviewed
+and ChatGPT cross-cleared.
+
+### What Was Completed
+- Updated `docs/ARCHITECTURE.md` from v2.18 to v2.19.
+- Added new Section 37: Job Material Workflow — Demand, Issue, Buyout, Return.
+- Locked the Job Material Workflow domain for future gated implementation
+  slices.
+- Locked demand layer vs movement layer separation:
+  - Job Material List / `job_materials` is demand/planning only;
+  - it never writes balances;
+  - it never creates transactions;
+  - fulfillment is derived from the ledger.
+- Locked Issue to Job as an Assign to Job movement through the existing
+  Inventory Cart / Checkout engine only.
+- Locked that no parallel job stock movement write path is permitted.
+- Locked Buyout as derived and demand-side:
+  - requested minus net issued per line;
+  - status is demand/procurement state;
+  - no inventory movement;
+  - no ledger row;
+  - no auto-post to Financials.
+- Locked Return-to-Inventory as future 5K.5 scope via a Return-from-Job inbound
+  RPC.
+- Locked the future Return-from-Job RPC gate on `can_inventory_transactions`.
+- Locked that the future Return-from-Job RPC follows the existing Section 11
+  checkout RPC pattern and never writes `inventory_balances` directly.
+- Locked that no new transaction types are introduced.
+- Locked that reservations are not part of the 5K series.
+- Locked that "Allocation" is reserved for a future reservation concept and
+  must not be used for movement terminology.
+- Locked the `jobs` table as a hard prerequisite before any 5K implementation
+  slice.
+- Locked that Jobs foundation is Bucket 3 / Architecture-sensitive and requires
+  its own Claude review before Codex implementation.
+- Locked the milestone sequence:
+  5K.1 → Jobs foundation → 5K.2 → 5K.3 → 5K.4 → 5K.5.
+- No code, schema, RPC, RLS, permission, backend, balance, checkout,
+  transaction, UI, or runtime behavior was implemented.
+
+### Schema Changes
+- None applied.
+- Section 37 reserves future schema slices but does not create migrations.
+- No migrations were added or edited.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated version line to v2.19.
+  - Added new Section 37 after Section 36.
+- `HANDOFF.md`
+  - Appended this Entry 094.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.18 to v2.19.
+- New Section 37 locks the Job Material Workflow architecture:
+  - demand/movement layer separation;
+  - Job Material List as demand/planning only;
+  - Issue to Job through existing Cart / Checkout only;
+  - Buyout as derived demand-side state;
+  - Return-to-Inventory as future 5K.5 via Return-from-Job inbound RPC;
+  - no new transaction types;
+  - no reservations / no "Allocation" movement terminology;
+  - Jobs table prerequisite;
+  - Jobs foundation requires its own Claude review;
+  - 5K milestone sequence.
+- HANDOFF remains gapless through Entry 094.
+
+### What Codex Needs to Know
+- 5K.1 is docs-only. Do not treat it as implementation permission.
+- Future Jobs foundation must go to Claude as its own Bucket 3 review before
+  Codex implementation.
+- No 5K implementation slice may proceed unless the slice is Claude-reviewed or
+  Section 37 already locks the exact shape and the work implements that shape
+  without changing protected behavior.
+- Job Material List is demand/planning only and cannot write balances or ledger
+  rows.
+- Issue to Job must go through the existing Inventory Cart / Checkout engine.
+- Buyout is derived/demand-side and cannot auto-post to Financials.
+- Return-to-Inventory is future 5K.5 and requires a new inbound RPC reviewed at
+  that milestone.
+
+### What Claude Needs to Know
+- Codex applied the Claude-reviewed / ChatGPT cross-cleared lock text as a
+  docs-only adoption.
+- No implementation occurred.
+- No schema, RLS, grant, permission, backend, balance, checkout, transaction,
+  UI, auth, Jobs, Job Material List, Issue to Job, Buyout, or
+  Return-to-Inventory behavior changed.
+
+### Verification
+- Section 35 start checks:
+  - `git pull --ff-only origin main` completed and reported already up to date;
+  - working tree was clean before changes;
+  - `docs/ARCHITECTURE.md` was v2.18 with Section 36 as the last section;
+  - HANDOFF was gapless through Entry 093;
+  - task classified as docs-only architecture lock adoption already
+    Claude-reviewed and ChatGPT cross-cleared.
+- Confirmed `docs/ARCHITECTURE.md` is updated to v2.19.
+- Confirmed new Section 37 is added after Section 36.
+- Confirmed HANDOFF Entry 094 is appended.
+- `git diff --check` passed.
+- Build was skipped because this task changed documentation only and no app-code
+  files changed.
+- Confirmed changed files are docs-only:
+  - `docs/ARCHITECTURE.md`;
+  - `HANDOFF.md`.
+- Confirmed no migrations were added or edited.
+- Confirmed no `src` files changed.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no implementation of Jobs, Job Material List, Issue to Job, Buyout,
+  or Return-to-Inventory occurred.
+
+### Next Steps (in order)
+1. Route Jobs foundation to Claude as its own Bucket 3 review before Codex
+   implementation.
+2. After Jobs foundation is reviewed and implemented, proceed only through the
+   locked 5K sequence:
+   5K.2 → 5K.3 → 5K.4 → 5K.5.
+3. Keep each 5K implementation slice scoped to the reviewed slice and verify
+   no protected behavior changes outside that slice.
+
+### Open Questions / Concerns
+- None for this docs-only adoption.
+- Future Jobs foundation is explicitly not cleared by this entry for Codex
+  implementation; it requires its own Claude review.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Material Workflow architecture lock adoption.
+- No runtime/protected behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Jobs, Job Material List, Issue to Job, Buyout, Return-to-Inventory, Tool
+  Catalogue behavior, Financials/job-cost, vehicle-bin stock, Express Checkout,
+  Manager Override, and existing Inventory behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — docs-only architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.19, HANDOFF Entry 094).
