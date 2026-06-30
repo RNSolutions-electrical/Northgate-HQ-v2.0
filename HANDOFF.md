@@ -10612,3 +10612,106 @@ This was classified as a safe UI/CSS containment bugfix.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/CSS Job Material List containment fix (ARCHITECTURE v2.21, HANDOFF Entry 099).
+
+---
+
+## Entry 100 - Job Material List material search/add fix
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Job Material List / material search and add bugfix
+**Session type:** implementation
+
+### Context
+Ryan reported that the Job Material List UI was now contained correctly, but
+the material search/select/add flow still could not be completed. This was
+classified as a safe UI/client-side bugfix within locked ARCHITECTURE v2.21
+Section 39 behavior.
+
+### Root Cause
+- The Job Material List catalog loader was filtering `items` by the selected
+  job division.
+- Existing app catalog/count paths read active catalog items without that
+  division filter.
+- Valid catalog materials with global, blank, null, or otherwise non-matching
+  `items.division` values could be hidden from the Material List select, which
+  blocked search/select/add even though the materials existed.
+
+### What Was Completed
+- Fixed Job Material List catalog loading to read active, non-archived catalog
+  `items` through the existing authorized client read path without the extra
+  job-division filter.
+- Expanded catalog select fields to include `description` and
+  `unit_of_measure`.
+- Expanded Material List catalog search to match material code, name,
+  description, and unit of measure.
+- Updated catalog option labels to include unit of measure when present.
+- Improved add/save failure messaging so live Supabase insert errors surface in
+  the UI during testing.
+- Preserved the approved insert payload fields:
+  `job_id`, `division`, `item_id`, `requested_quantity`, `note`,
+  `material_name_snapshot`, `material_code_snapshot`, and `created_by`.
+
+### Files Changed
+- `src/App.jsx`
+  - Updated Job Material List catalog select fields.
+  - Updated catalog search matching.
+  - Removed the overly strict catalog division filter.
+  - Improved Job Material List save error message detail.
+- `HANDOFF.md`
+  - Appended this Entry 100.
+
+### Behavior / Data Safety
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permissions, auth, backend, or database
+  behavior changed.
+- No `job_materials` table shape, RLS policy, grant, or write path changed.
+- No requested quantity validation rule changed; submit still requires a
+  numeric quantity greater than zero.
+- No edit requested quantity/note behavior changed.
+- No soft archive/remove behavior changed.
+- No Jobs Foundation behavior changed outside the Job Material List UI.
+- No inventory/cart/checkout/count/QR/accounting behavior changed.
+- No Tool Catalogue behavior changed.
+- No direct `inventory_balances` write path was added.
+- No Issue to Job, Buyout, Return-to-Inventory, hard delete, cart/checkout,
+  transaction, fulfillment, remaining, reservation/allocation, procurement, or
+  financial behavior was added.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `HANDOFF.md`.
+- Static review confirmed no migration/schema/RLS/grant/permission/backend
+  files were changed.
+- Static review confirmed no auth, inventory/cart/checkout/count/QR/accounting,
+  Tool Catalogue, or direct `inventory_balances` write path changed.
+- Authenticated browser verification was not performed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Open Jobs.
+2. Open a job detail.
+3. Search for a material, such as `1/2 EMT`.
+4. Confirm matching catalog materials appear/select correctly.
+5. Select a catalog material.
+6. Enter requested quantity greater than zero.
+7. Add Material Line.
+8. Confirm the material line appears in the list.
+9. Edit requested quantity/note.
+10. Archive/remove the material line.
+11. Confirm no Issue to Job / Buyout / Return-to-Inventory behavior appears.
+12. Confirm Inventory, Cart/Checkout, Count, QR/scan, Accounting Export, and
+    Tool Catalogue still work.
+
+### Open Questions / Concerns
+- No architecture blocker found.
+- Authenticated visual/live add verification remains a manual browser step.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Material List material search/add bugfix.
+- Protected runtime behavior outside the approved Job Material List UI remained
+  unchanged.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side Job Material List material search/add fix (ARCHITECTURE v2.21, HANDOFF Entry 100).

@@ -237,7 +237,7 @@ const JOB_MATERIALS_SELECT_FIELDS = [
   'material_code_snapshot',
   'created_by',
 ].join(',');
-const JOB_MATERIAL_CATALOG_SELECT_FIELDS = 'id,material_code,name,division,is_active,is_archived';
+const JOB_MATERIAL_CATALOG_SELECT_FIELDS = 'id,material_code,name,description,unit_of_measure,division,is_active,is_archived';
 const EMPTY_JOB_DRAFT = Object.freeze({
   job_number: '',
   name: '',
@@ -2360,6 +2360,8 @@ function filterJobMaterialCatalogItems(items, searchText) {
     .filter((item) => [
       item.material_code,
       item.name,
+      item.description,
+      item.unit_of_measure,
     ].some((value) => String(value ?? '').toLowerCase().includes(search)))
     .slice(0, 80);
 }
@@ -7275,8 +7277,8 @@ function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function loadJobMaterialCatalog(division) {
-    if (!canReadJobs || !division) {
+  async function loadJobMaterialCatalog() {
+    if (!canReadJobs) {
       setCatalogItems([]);
       return;
     }
@@ -7289,7 +7291,6 @@ function JobsWorkspace({ permissions }) {
         .select(JOB_MATERIAL_CATALOG_SELECT_FIELDS)
         .eq('is_active', true)
         .eq('is_archived', false)
-        .eq('division', division)
         .order('material_code', { ascending: true })
         .limit(1000);
       if (error) throw error;
@@ -7320,7 +7321,7 @@ function JobsWorkspace({ permissions }) {
 
     loadJobMaterials(selectedJob.id);
     if (selectedJobCanEdit) {
-      loadJobMaterialCatalog(selectedJob.division);
+      loadJobMaterialCatalog();
     } else {
       setCatalogItems([]);
     }
@@ -7480,7 +7481,7 @@ function JobsWorkspace({ permissions }) {
       }
     } catch (error) {
       console.error('Job Material List save failed', error);
-      setJobMaterialMessage('Material line save failed. Confirm can_manage_jobs and the Job Material List migration.');
+      setJobMaterialMessage(`Material line save failed. ${error?.message || 'Confirm can_manage_jobs and the Job Material List migration.'}`);
     } finally {
       setIsSavingJobMaterial(false);
     }
@@ -7785,7 +7786,7 @@ function JobsWorkspace({ permissions }) {
                               <option value="">Select material</option>
                               {catalogMatches.map((item) => (
                                 <option key={item.id} value={item.id}>
-                                  {item.material_code} / {item.name}
+                                  {[item.material_code, item.name, item.unit_of_measure].filter(Boolean).join(' / ')}
                                 </option>
                               ))}
                             </select>
