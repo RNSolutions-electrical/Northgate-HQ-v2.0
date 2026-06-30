@@ -10247,3 +10247,145 @@ This implementation follows the Section 38 sequence:
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.20, HANDOFF Entry 096).
+
+---
+
+## Entry 097 - Job Material List locked (ARCHITECTURE v2.21, new Section 39)
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Job Material List / architecture lock adoption
+**Session type:** implementation
+
+### Context
+Jobs Foundation is implemented and live. Ryan instructed Codex to adopt the
+Claude-reviewed and ChatGPT cross-cleared Job Material List architecture lock.
+
+This is a docs-only architecture adoption. No code, schema, migration, RPC, RLS,
+permission, backend, balance, checkout, transaction, UI, or runtime behavior was
+implemented in this pass.
+
+### What Was Completed
+- Advanced ARCHITECTURE from v2.20 to v2.21.
+- Added new `## 39. Job Material List (locked v2.21 — Entry 097)`.
+- Locked Job Material List as the Section 37 demand layer.
+- Locked `job_materials` as planning-only demand:
+  - never writes `inventory_balances`;
+  - never creates ledger transactions;
+  - never reserves stock;
+  - stores no fulfillment counter;
+  - fulfillment remains derived later from ledger activity.
+- Locked the `job_materials` table shape:
+  - `job_id uuid not null references public.jobs(id)`;
+  - `division text not null`;
+  - `requested_quantity numeric not null check (requested_quantity > 0)`;
+  - soft-archive fields;
+  - `item_id` references the existing catalog `items` table;
+  - exact `items` primary key column/type must be confirmed by Codex preflight
+    before migration;
+  - optional display-only `material_name_snapshot` and
+    `material_code_snapshot`;
+  - `created_by text null`.
+- Explicitly excluded fulfillment/procurement/accounting/transaction fields:
+  - no `issued_quantity`;
+  - no `fulfilled_quantity`;
+  - no `remaining_quantity`;
+  - no `reserved_quantity`;
+  - no `allocated_quantity`;
+  - no `buyout_quantity`;
+  - no `purchased_quantity`;
+  - no `procurement_status`;
+  - no `purchase_order_id`;
+  - no `cost`;
+  - no `vendor`;
+  - no `checkout_transaction_id`;
+  - no `return_transaction_id`;
+  - no `line_number`;
+  - no `unit_of_measure`;
+  - no `source_note`.
+- Locked read permission to own division or `can_view_all_divisions`.
+- Locked write permission for insert/edit/archive to `can_manage_jobs`.
+- Locked that Job Material List must not use `can_manage_inventory` as its
+  table write gate.
+- Aligned the Section 37 Job Material Workflow permission placeholder to point
+  to Section 39 and `can_manage_jobs`.
+- Locked no new permission flags and no hard delete / DELETE policy.
+- Locked first UI scope:
+  - lives inside Jobs workspace on the job detail view;
+  - not Inventory workspace;
+  - not a new top-level workspace;
+  - add material lines from existing catalog items only;
+  - edit requested quantity and note;
+  - soft archive/remove line;
+  - search/filter material lines;
+  - empty/loading/error states;
+  - display-only requested quantity count/sum;
+  - no fulfillment/issued/remaining/buyout language;
+  - "Issue to Job" affordance may appear disabled/coming soon only and must not
+    be wired.
+- Locked helper copy:
+  `Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Issue to Job, Buyout, and Return-to-Inventory are reserved for future milestones.`
+- Appended this HANDOFF Entry 097.
+
+### Schema Changes
+- None.
+- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
+  policies, grants, permission flags, backend handlers, database indexes, or
+  backend action services were added or changed.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line from v2.20 to v2.21.
+  - Added new Section 39 after Section 38.
+  - Aligned the Section 37 Job Material List permission note with Section 39.
+- `HANDOFF.md`
+  - Appended this Entry 097.
+- No source app code, styles, migrations, Supabase files, package files,
+  backend/RPC files, auth files, or runtime behavior files were changed.
+
+### Lock Document Changes
+- ARCHITECTURE advanced from v2.20 to v2.21.
+- Section 39 is now canonical for Job Material List.
+- HANDOFF remains gapless through Entry 097.
+
+### What Codex Needs to Know
+- After Ryan commits v2.21 / Entry 097, Codex may implement Job Material List
+  migration and UI within the locked decisions, provided preflight confirms the
+  catalog `items` table primary key column/type.
+- Job Material List is demand/planning only.
+- It must not implement Issue to Job, Buyout, Return-to-Inventory,
+  cart/checkout, transaction, balance, QR, accounting, or job-cost behavior.
+- Write permission is `can_manage_jobs`, not `can_manage_inventory`.
+- The UI belongs inside Jobs workspace on the job detail view.
+
+### What Claude Needs to Know
+- Claude reviewed the Job Material List architecture lock before this adoption.
+- ChatGPT cross-cleared the lock.
+- No implementation occurred in this pass.
+
+### Next Steps (in order)
+1. Ryan commits v2.21 / Entry 097.
+2. Codex may implement Job Material List migration and UI within locked
+   decisions after preflight confirms the catalog `items` table primary key
+   column/type.
+3. Keep Issue to Job, Buyout, and Return-to-Inventory reserved for 5K.3, 5K.4,
+   and 5K.5 respectively.
+
+### Open Questions / Concerns
+- None for this docs-only adoption.
+- Future implementation must preflight-confirm the existing catalog `items`
+  table primary key column/type before writing the `job_materials.item_id`
+  foreign key.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Material List architecture lock adoption.
+- No runtime/protected behavior changed: schema, RLS, grants, permissions,
+  backend behavior, auth, inventory balances, ledger, transaction behavior,
+  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
+  Jobs runtime, Job Material Workflow runtime, Issue to Job, Buyout,
+  Return-to-Inventory, Tool Catalogue behavior, Financials/job-cost,
+  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
+  behavior were untouched.
+
+### Routing Verdict
+No Claude review needed — docs-only Job Material List architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.21, HANDOFF Entry 097).
