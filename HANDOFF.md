@@ -10795,3 +10795,75 @@ client-side bugfix within locked ARCHITECTURE v2.21 Section 39 behavior.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side Job Material List quantity validation fix (ARCHITECTURE v2.21, HANDOFF Entry 101).
+
+---
+
+## Entry 102 - Issue to Job locked (ARCHITECTURE v2.22, new Section 40)
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Issue to Job / architecture lock adoption
+**Session type:** decision
+
+### Context
+Job Material List is live and verified through Entry 101. This session is a
+docs-only adoption of the Claude-reviewed and ChatGPT cross-cleared Issue to
+Job lock.
+
+### Decisions Made This Session (locked)
+- Added Section 40 to `docs/ARCHITECTURE.md`.
+- Updated the architecture version from v2.21 to v2.22.
+- Locked Issue to Job as a UI-only binding that closes a Cart / Checkout
+  destination-selection gap.
+- Locked that Section 11 already supports `destination_type = 'job'` /
+  `destination_id`, so no schema or RPC change is required for the future
+  implementation slice.
+- Locked that the existing checkout RPC is the only writer.
+- Locked that Job Material List issue actions hand off through the existing
+  Cart / Checkout flow and do not write directly.
+
+### Schema Changes
+- None.
+- No migrations, Supabase schema changes, RLS changes, grants, or permission
+  changes were made.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line to v2.22.
+  - Added new Section 40 - Issue to Job.
+  - Aligned Section 39 wording with the new lock so the document remains
+    consistent.
+- `HANDOFF.md`
+  - Appended this Entry 102.
+
+### What Codex Needs to Know
+- No implementation occurred in this task.
+- No App.jsx changes, styles changes, RPC changes, schema changes, or runtime
+  changes were made.
+- The locked future implementation slice is UI navigation/prefill only.
+- Mandatory Codex preflight before implementation:
+  - confirm the live `transaction_items.destination_type` CHECK includes
+    `'job'`;
+  - confirm `transaction_items.destination_id` is `TEXT`.
+- After Ryan commits v2.22 / Entry 102, Codex may implement Issue to Job only
+  if that preflight passes.
+
+### What Claude Needs to Know
+- The new Section 40 is docs-only and does not change runtime behavior.
+- Issue to Job remains gated to the future existing-flow binding slice.
+
+### Next Steps (in order)
+1. Ryan commits `docs/ARCHITECTURE.md` and `HANDOFF.md`.
+2. Codex may later implement Issue to Job only after the required live
+   preflight confirms `transaction_items.destination_type` includes `'job'`
+   and `destination_id` is `TEXT`.
+
+### Open Questions / Concerns
+- None for this docs-only adoption.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: docs-only Issue to Job lock adoption.
+- No implementation/code/schema/RPC/UI/runtime changes were made.
+
+### Routing Verdict
+No Claude review needed — docs-only Issue to Job architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.22, HANDOFF Entry 102).
