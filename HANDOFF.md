@@ -10715,3 +10715,83 @@ Section 39 behavior.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side Job Material List material search/add fix (ARCHITECTURE v2.21, HANDOFF Entry 100).
+
+---
+
+## Entry 101 - Job Material List quantity validation fix
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Job Material List / requested quantity validation bugfix
+**Session type:** implementation
+
+### Context
+Ryan reported that the Job Material List material add flow was still rejecting
+normal whole-number requested quantities. This was classified as a safe UI /
+client-side bugfix within locked ARCHITECTURE v2.21 Section 39 behavior.
+
+### Root Cause
+- The requested quantity input was still carrying a narrow numeric constraint
+  that did not line up cleanly with the locked `requested_quantity > 0` rule.
+- That client-side constraint made the field behave more strictly than the
+  database rule, so normal quantities like `1` could be blocked before submit.
+
+### What Was Completed
+- Relaxed the Job Material List requested quantity input configuration so it
+  matches the locked rule instead of a tighter browser constraint.
+- Kept submit-time validation aligned to `requested_quantity > 0`.
+- Preserved the existing clear error message:
+  `Requested quantity must be greater than zero.`
+
+### Files Changed
+- `src/App.jsx`
+  - Updated the requested quantity input constraint to allow normal whole
+    numbers while still supporting decimal entry.
+- `HANDOFF.md`
+  - Appended this Entry 101.
+
+### Behavior / Data Safety
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permissions, auth, backend, or database
+  behavior changed.
+- No Jobs Foundation behavior changed.
+- No inventory/cart/checkout/count/QR/accounting behavior changed.
+- No direct `inventory_balances` write path was added.
+- No Issue to Job, Buyout, Return-to-Inventory, cart/checkout, inventory
+  transaction, fulfillment, remaining, reservation/allocation, procurement, or
+  financial behavior was added.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `HANDOFF.md`.
+- Static review confirmed no migration/schema/RLS/grant/permission/backend
+  files were changed.
+- Static review confirmed no auth, inventory/cart/checkout/count/QR/accounting,
+  or direct `inventory_balances` write path changed.
+- Authenticated browser verification was not performed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Open Jobs.
+2. Open a job detail.
+3. Search/select a catalog material.
+4. Enter requested quantity `1`.
+5. Add Material Line.
+6. Confirm the material line appears.
+7. Try requested quantity `0` and confirm it is rejected.
+8. Try blank quantity and confirm it is rejected.
+9. Confirm no Issue to Job / Buyout / Return-to-Inventory behavior appears.
+
+### Open Questions / Concerns
+- No architecture blocker found.
+- Authenticated visual/live add verification remains a manual browser step.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Material List requested quantity validation
+  fix.
+- Protected runtime behavior outside the approved Job Material List UI remained
+  unchanged.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side Job Material List quantity validation fix (ARCHITECTURE v2.21, HANDOFF Entry 101).

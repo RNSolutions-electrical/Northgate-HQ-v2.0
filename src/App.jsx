@@ -7802,8 +7802,8 @@ function JobsWorkspace({ permissions }) {
                         Requested quantity
                         <input
                           type="number"
-                          min="0.0001"
-                          step="0.01"
+                          min="0"
+                          step="any"
                           value={materialDraft.requested_quantity}
                           onChange={(event) => updateMaterialDraft('requested_quantity', event.target.value)}
                           disabled={!materialFormCanSave}
