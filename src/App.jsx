@@ -32,6 +32,7 @@ const TRANSACTION_TYPE_FILTER_OPTIONS = [
   { value: 'physical_count_correction', label: 'Physical Count Correction' },
   { value: 'add_stock', label: 'Add Stock' },
 ];
+const ISSUE_TO_JOB_HANDOFF_KEY = 'northgate.inventoryCart.issueToJobHandoff';
 const INVENTORY_TABS = new Set([
   'grand-master',
   'accounting-export',
@@ -76,12 +77,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5K.2 - Job Material List',
-  relatedHandoff: 'Entry 098',
-  architectureVersion: 'v2.21',
-  currentStep: 'Job Material List',
-  buildMarker: '7be81b5',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Job Material List migration and job detail UI code is present in the loaded build.',
+  mostRecentChange: 'Milestone 5K.3 - Issue to Job',
+  relatedHandoff: 'Entry 103',
+  architectureVersion: 'v2.22',
+  currentStep: 'Issue to Job',
+  buildMarker: 'd3b7d89',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Issue to Job UI binding code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -168,7 +169,7 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
   notes: '',
 });
 
-const JOBS_HELPER_COPY = 'Jobs foundation. Material workflow (job material list, issue to job, buyout, and return-to-inventory) and job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
+const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List is live, Issue to Job routes through cart/checkout, and Buyout / Return-to-Inventory plus job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 const JOB_TYPE_OPTIONS = ['job', 'service_call'];
 const JOBS_SELECT_FIELDS = [
@@ -220,7 +221,7 @@ const JOB_TEXTAREA_FORM_FIELDS = [
   { key: 'description', label: 'Description' },
   { key: 'notes', label: 'Notes' },
 ];
-const JOB_MATERIAL_HELPER_COPY = 'Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Issue to Job, Buyout, and Return-to-Inventory are reserved for future milestones.';
+const JOB_MATERIAL_HELPER_COPY = 'Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Buyout and Return-to-Inventory are reserved for future milestones.';
 const JOB_MATERIALS_SELECT_FIELDS = [
   'id',
   'job_id',
@@ -694,6 +695,32 @@ function buildLayoutTunerCss(values) {
 
 function getCartDestinationDraftKey(cartId) {
   return cartId ? `${CART_DESTINATION_DRAFT_PREFIX}${cartId}` : null;
+}
+
+function setIssueToJobHandoff(payload) {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    window.localStorage.setItem(ISSUE_TO_JOB_HANDOFF_KEY, JSON.stringify(payload));
+    return true;
+  } catch (error) {
+    console.warn('Issue to Job handoff storage unavailable', error);
+    return false;
+  }
+}
+
+function consumeIssueToJobHandoff() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const stored = window.localStorage.getItem(ISSUE_TO_JOB_HANDOFF_KEY);
+    if (!stored) return null;
+    window.localStorage.removeItem(ISSUE_TO_JOB_HANDOFF_KEY);
+    return JSON.parse(stored);
+  } catch (error) {
+    console.warn('Issue to Job handoff read failed', error);
+    return null;
+  }
 }
 
 function normalizeDestinationType(destinationType) {
@@ -1434,9 +1461,107 @@ function EmptyState({ title, children }) {
   );
 }
 
-function DestinationIdControl({ line, cartItemId, destinationReferences, onChange }) {
+function JobDestinationControl({ line, cartItemId, jobs, isLoadingJobs, onChange }) {
+  const [jobSearch, setJobSearch] = useState('');
+  const normalizedSearch = normalizeSearchText(jobSearch);
+  const activeJobs = useMemo(
+    () => jobs.filter((job) => !job.archived_at),
+    [jobs],
+  );
+  const selectedJob = activeJobs.find((job) => job.id === line.destination_id) ?? jobs.find((job) => job.id === line.destination_id) ?? null;
+  const filteredJobs = useMemo(() => {
+    const baseJobs = activeJobs;
+    if (!normalizedSearch) return baseJobs;
+
+    return baseJobs.filter((job) => [
+      job.job_number,
+      job.name,
+      job.service_call_number,
+      job.division,
+    ].some((value) => normalizeSearchText(value).includes(normalizedSearch)));
+  }, [activeJobs, normalizedSearch]);
+  const visibleJobs = useMemo(() => {
+    const rows = [...filteredJobs];
+    if (selectedJob && !rows.some((job) => job.id === selectedJob.id)) {
+      rows.unshift(selectedJob);
+    }
+    return rows.slice(0, 100);
+  }, [filteredJobs, selectedJob]);
+
+  if (!jobs.length) {
+    return (
+      <div className="job-destination-control">
+        <label>
+          Job ID / number
+          <input
+            type="text"
+            placeholder="Select a job destination for this checkout."
+            value={line.destination_id}
+            onChange={(event) => onChange(cartItemId, { destination_id: event.target.value })}
+          />
+        </label>
+        <p className="muted">{ISSUE_TO_JOB_HELPER_COPY}</p>
+        <p className="muted">{isLoadingJobs ? 'Loading accessible jobs...' : 'No accessible jobs were loaded for job selection.'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="job-destination-control">
+      <label>
+        Job search
+        <input
+          type="search"
+          placeholder="Job number, name, or service call"
+          value={jobSearch}
+          onChange={(event) => setJobSearch(event.target.value)}
+        />
+      </label>
+      <label>
+        Job
+        <select value={line.destination_id} onChange={(event) => onChange(cartItemId, { destination_id: event.target.value })}>
+          <option value="">Select job</option>
+          {visibleJobs.map((job) => (
+            <option key={job.id} value={job.id}>
+              {buildJobDisplayLabel(job)}
+              {job.division ? ` / ${job.division}` : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="muted">Select a job destination for this checkout.</p>
+      <p className="muted">{ISSUE_TO_JOB_HELPER_COPY}</p>
+      {selectedJob ? (
+        <div className="job-destination-summary">
+          <strong>{selectedJob.job_number ? `Job #${selectedJob.job_number}` : 'Job destination selected'}</strong>
+          <span>{selectedJob.name || 'No job name recorded.'}</span>
+          <span>{selectedJob.service_call_number ? `Service Call #${selectedJob.service_call_number}` : 'No service call number recorded.'}</span>
+        </div>
+      ) : line.destination_id ? (
+        <div className="job-destination-summary">
+          <strong>Selected job destination</strong>
+          <span>{line.destination_id}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DestinationIdControl({ line, cartItemId, destinationReferences, jobs, isLoadingJobs, onChange }) {
   const users = destinationReferences?.users ?? [];
   const vehicles = destinationReferences?.vehicles ?? [];
+
+  if (line.destination_type === 'job') {
+    return (
+      <JobDestinationControl
+        line={line}
+        cartItemId={cartItemId}
+        jobs={jobs}
+        isLoadingJobs={isLoadingJobs}
+        onChange={onChange}
+      />
+    );
+  }
 
   if (line.destination_type === 'user' && users.length) {
     return (
@@ -2298,6 +2423,15 @@ function buildJobAddressSummary(row) {
   const lineOne = [row.address_line1, row.address_line2].filter(Boolean).join(', ');
   const cityState = [row.city, row.state].filter(Boolean).join(', ');
   return [lineOne, cityState, row.postal_code].filter(Boolean).join(' ');
+}
+
+function buildJobDisplayLabel(row) {
+  const labelParts = [];
+  if (row.job_number) labelParts.push(`Job #${row.job_number}`);
+  else labelParts.push('Job');
+  if (row.name) labelParts.push(row.name);
+  if (row.service_call_number) labelParts.push(`Service Call #${row.service_call_number}`);
+  return labelParts.join(' / ');
 }
 
 function filterJobRows(rows, filters) {
@@ -6368,6 +6502,7 @@ function InventoryCountIntakePanel({ permissions, scanCountContext = null }) {
 }
 
 function CartScaffold({ permissions, cartCandidates, destinationReferences, onInventoryReload, scanCartContext = null }) {
+  const { getToken } = useAuth();
   const cartState = useInventoryCart();
   const [lineDestinations, setLineDestinations] = useState({});
   const [applyAllDestination, setApplyAllDestination] = useState({
@@ -6375,6 +6510,12 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
     destination_id: '',
     note: '',
   });
+  const [jobs, setJobs] = useState([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+  const [jobsError, setJobsError] = useState(null);
+  const [issueToJobHandoff, setIssueToJobHandoff] = useState(null);
+  const [issueToJobSuggestedQuantity, setIssueToJobSuggestedQuantity] = useState(0);
+  const [issueToJobBanner, setIssueToJobBanner] = useState('');
   const [candidateSearch, setCandidateSearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
   const [candidateQuantityMessage, setCandidateQuantityMessage] = useState('');
@@ -6406,6 +6547,34 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         candidate.bin_code,
       ].some((value) => String(value ?? '').toLowerCase().includes(normalizedCandidateSearch));
     });
+
+  async function loadJobs() {
+    if (permissions.permissionSource !== 'server') {
+      setJobs([]);
+      return;
+    }
+
+    setIsLoadingJobs(true);
+    setJobsError(null);
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('jobs')
+        .select(JOBS_SELECT_FIELDS)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setJobs(data ?? []);
+    } catch (error) {
+      console.error('Cart job lookup failed', error);
+      setJobs([]);
+      setJobsError(error);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }
 
   useEffect(() => {
     if (scanCartContext?.binId) {
@@ -6444,6 +6613,59 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
       console.warn('Failed to save cart destination draft', caughtError);
     }
   }, [cartDraftKey, cartIsCheckedOut, lineDestinations]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [getToken, permissions.permissionSource]);
+
+  useEffect(() => {
+    const savedHandoff = consumeIssueToJobHandoff();
+    if (!savedHandoff) {
+      return;
+    }
+
+    setIssueToJobHandoff(savedHandoff);
+    const suggestion = Number(savedHandoff.requestedQuantity ?? 0);
+    setIssueToJobSuggestedQuantity(Number.isFinite(suggestion) && suggestion > DEFAULT_CANDIDATE_QUANTITY ? suggestion : DEFAULT_CANDIDATE_QUANTITY);
+    if (savedHandoff.jobId) {
+      setApplyAllDestination({
+        destination_type: 'job',
+        destination_id: savedHandoff.jobId,
+        note: '',
+      });
+    }
+    setIssueToJobBanner(
+      savedHandoff.jobDisplayLabel
+        ? `Issue to Job handoff: ${savedHandoff.jobDisplayLabel}. Requested quantity is a suggestion. Confirm actual source bin and quantity during checkout.`
+        : 'Issue to Job handoff loaded. Requested quantity is a suggestion. Confirm actual source bin and quantity during checkout.',
+    );
+    if (savedHandoff.materialSearch) {
+      setCandidateSearch(savedHandoff.materialSearch);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!issueToJobHandoff?.jobId || !cart?.cart_id || !cartState.cartItems.length) {
+      return;
+    }
+
+    setLineDestinations((current) => {
+      const next = { ...current };
+      cartState.cartItems.forEach((item) => {
+        next[item.cart_item_id] = {
+          ...(current[item.cart_item_id] ?? {}),
+          destination_type: 'job',
+          destination_id: issueToJobHandoff.jobId,
+          note: current[item.cart_item_id]?.note ?? '',
+        };
+      });
+      return next;
+    });
+    if (issueToJobHandoff.materialSearch) {
+      setCandidateSearch(issueToJobHandoff.materialSearch);
+    }
+    setIssueToJobHandoff(null);
+  }, [cart?.cart_id, cartState.cartItems, issueToJobHandoff]);
 
   function getLineDestination(cartItem) {
     const savedLine = lineDestinations[cartItem.cart_item_id];
@@ -6548,7 +6770,11 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
   }
 
   function getCandidateQuantityInputValue(candidate) {
-    return candidateQuantities[candidate.bin_item_id] ?? String(DEFAULT_CANDIDATE_QUANTITY);
+    return candidateQuantities[candidate.bin_item_id] ?? (
+      issueToJobSuggestedQuantity > DEFAULT_CANDIDATE_QUANTITY
+        ? String(issueToJobSuggestedQuantity)
+        : String(DEFAULT_CANDIDATE_QUANTITY)
+    );
   }
 
   function getCandidateQuantityForAction(candidate) {
@@ -6797,13 +7023,12 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
         <section className="cart-panel cart-panel--locked">
           <h3>Destination Sources</h3>
           <p>
-            User and vehicle references come from live Supabase when available. Jobs and service calls remain manual IDs until those modules are built.
+            User and vehicle references come from live Supabase when available. Job destinations use the live Jobs read path when accessible.
           </p>
           <div className="cart-facts">
             <span>Users loaded: {destinationReferences?.users?.length ?? 0}</span>
             <span>Vehicles loaded: {destinationReferences?.vehicles?.length ?? 0}</span>
-            <span>Job table: not built yet</span>
-            <span>Service calls: not built yet</span>
+            <span>Jobs loaded: {jobs.length}</span>
           </div>
         </section>
       </div>
@@ -6912,6 +7137,8 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
 
         <section className="cart-panel">
           <h3>Cart Destinations</h3>
+          {issueToJobBanner ? <div className="location-note tool-catalogue__note"><ClipboardCheck aria-hidden="true" /><span>{issueToJobBanner}</span></div> : null}
+          {jobsError ? <div className="alert">Job destination lookup failed. Existing user and vehicle destinations are unchanged.</div> : null}
           {cartState.isReadingItems ? <p className="muted">Reloading cart items from server…</p> : null}
           {cartState.isRemovingItem ? <p className="muted">Removing cart item…</p> : null}
           <div className="cart-apply-all">
@@ -6928,6 +7155,8 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
               line={applyAllDestination}
               cartItemId="apply-all-destination"
               destinationReferences={destinationReferences}
+              jobs={jobs}
+              isLoadingJobs={isLoadingJobs}
               onChange={(_, updates) => updateApplyAllDestination(updates)}
             />
             <label>
@@ -6972,6 +7201,8 @@ function CartScaffold({ permissions, cartCandidates, destinationReferences, onIn
                           line={line}
                           cartItemId={item.cart_item_id}
                           destinationReferences={destinationReferences}
+                          jobs={jobs}
+                          isLoadingJobs={isLoadingJobs}
                           onChange={updateLineDestination}
                         />
                         <label>
@@ -7179,11 +7410,12 @@ function ComingSoonWorkspace({ title, description }) {
   );
 }
 
-function JobsWorkspace({ permissions }) {
+function JobsWorkspace({ permissions, navigateTo }) {
   const { getToken } = useAuth();
   const canReadJobs = permissions.permissionSource === 'server';
   const canCreateJobs = canReadJobs && permissions.canCreateJobs;
   const canManageJobs = canReadJobs && permissions.canManageJobs;
+  const canIssueToJob = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const hasWritableDivision = Boolean(permissions.division);
   const [jobs, setJobs] = useState([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(false);
@@ -7300,6 +7532,41 @@ function JobsWorkspace({ permissions }) {
       setCatalogItems([]);
       setJobMaterialMessage('Catalog materials failed to load for this job division.');
     }
+  }
+
+  function issueMaterialToJob(row) {
+    if (!canIssueToJob || !selectedJob || !navigateTo) {
+      return;
+    }
+
+    const materialSearch = [row.material_code_snapshot, row.material_name_snapshot]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    const stored = setIssueToJobHandoff({
+      jobId: selectedJob.id,
+      jobDisplayLabel: buildJobDisplayLabel(selectedJob),
+      jobNumber: selectedJob.job_number ?? '',
+      jobName: selectedJob.name ?? '',
+      serviceCallNumber: selectedJob.service_call_number ?? '',
+      division: selectedJob.division ?? '',
+      itemId: row.item_id ?? '',
+      materialCode: row.material_code_snapshot ?? '',
+      materialName: row.material_name_snapshot ?? '',
+      materialSearch,
+      requestedQuantity: row.requested_quantity ?? '',
+      lineId: row.id ?? '',
+      source: 'job-material-line',
+      createdAt: new Date().toISOString(),
+    });
+
+    if (!stored) {
+      setJobMaterialMessage('Issue to Job handoff failed to save locally. Please try again.');
+      return;
+    }
+
+    navigateTo('/?workspace=inventory&inventoryTab=cart');
   }
 
   useEffect(() => {
@@ -7866,6 +8133,15 @@ function JobsWorkspace({ permissions }) {
                                   <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
                                   <td>
                                     <div className="count-action-stack">
+                                      <button
+                                        type="button"
+                                        className="secondary-button"
+                                        onClick={() => issueMaterialToJob(row)}
+                                        disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
+                                        title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
+                                      >
+                                        <ShoppingCart aria-hidden="true" /> Issue to Job
+                                      </button>
                                       <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
                                         <Pencil aria-hidden="true" /> Edit
                                       </button>
@@ -7891,6 +8167,15 @@ function JobsWorkspace({ permissions }) {
                                 <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
                               </div>
                               <div className="cart-actions">
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  onClick={() => issueMaterialToJob(row)}
+                                  disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
+                                  title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
+                                >
+                                  <ShoppingCart aria-hidden="true" /> Issue to Job
+                                </button>
                                 <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
                                   <Pencil aria-hidden="true" /> Edit
                                 </button>
@@ -8300,7 +8585,7 @@ function Dashboard() {
             designPreviewEnabled={designPreviewEnabled}
           />
         ) : null}
-        {activeWorkspace === 'jobs' ? <JobsWorkspace permissions={permissions} /> : null}
+        {activeWorkspace === 'jobs' ? <JobsWorkspace permissions={permissions} navigateTo={navigateTo} /> : null}
         {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
         {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
         {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}

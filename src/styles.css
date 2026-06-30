@@ -224,6 +224,13 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .cart-apply-all { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: .6rem; margin-bottom: .8rem; }
 .cart-apply-all label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
 .cart-apply-all input, .cart-apply-all select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; }
+.job-destination-control { display: grid; gap: .6rem; min-width: 0; }
+.job-destination-control label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
+.job-destination-control input, .job-destination-control select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; width: 100%; }
+.job-destination-summary { display: grid; gap: .22rem; border: 1px solid rgba(148,163,184,.16); border-radius: .85rem; background: rgba(15,23,42,.48); padding: .65rem .75rem; color: #e5edf8; }
+.job-destination-summary strong,
+.job-destination-summary span { overflow-wrap: anywhere; }
+.job-destination-summary span { color: #94a3b8; font-size: .82rem; }
 .count-correction-form { display: grid; grid-template-columns: minmax(14rem, 2fr) minmax(8rem, 1fr) minmax(12rem, 1.4fr) auto; align-items: end; gap: .6rem; }
 .count-correction-form label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
 .count-correction-form input, .count-correction-form select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; }

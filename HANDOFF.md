@@ -10867,3 +10867,107 @@ Job lock.
 
 ### Routing Verdict
 No Claude review needed — docs-only Issue to Job architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.22, HANDOFF Entry 102).
+
+---
+
+## Entry 103 - Issue to Job implemented
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Issue to Job / UI binding implementation
+**Session type:** implementation
+
+### Context
+Job Material List is live and verified through Entry 101. Ryan committed and
+pushed the v2.22 / Entry 102 architecture lock, and this session implements
+the Issue to Job UI binding within the locked Section 40 existing-flow slice.
+
+### What Was Completed
+- Added Job as a destination option in the existing Cart / Checkout UI.
+- Added a division-scoped job picker backed by the live Jobs read path.
+- Added an `Issue to Job` action on Job Material List lines.
+- Wired the Job Material List action to a local handoff that routes into the
+  existing Cart / Checkout flow with job + item context.
+- Prefilled the Job destination selection and candidate search context when
+  the handoff is used.
+- Kept requested quantity as a suggestion only.
+- Updated the development status card to reflect Milestone 5K.3.
+
+### Schema Changes
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grant, or permission changes were made.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added Issue to Job handoff helpers.
+  - Added a job destination picker for Cart / Checkout.
+  - Added Issue to Job navigation/prefill support from Job Material List
+    rows.
+  - Updated Jobs helper copy and Job Material List helper copy so the visible
+    app text matches the new lock.
+  - Updated the development status card values.
+- `src/styles.css`
+  - Added small job destination picker / summary styling.
+- `HANDOFF.md`
+  - Appended this Entry 103.
+
+### What Codex Needs to Know
+- Existing checkout/finalization remains the only inventory movement writer.
+- The new Issue to Job behavior is navigation/prefill only.
+- No direct RPC call is made from the Job Material List action.
+- No direct write to `job_materials` or `inventory_balances` was added.
+- Requested quantity is a suggestion only and can still be changed in checkout.
+- Existing user and vehicle destinations remain unchanged.
+- Tool Catalogue behavior remains unchanged.
+
+### What Claude Needs to Know
+- No schema or RPC changes were made.
+- The change stays inside the locked Section 40 existing-flow binding.
+- The Job picker uses the existing Jobs read pattern.
+
+### Verification
+- Repo preflight confirmed the local migration set already includes
+  `transaction_items.destination_type` with `'job'` and `destination_id` as
+  `TEXT`.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
+- Static review confirmed no migrations, schema, RLS, grant, permission,
+  backend, or auth files were changed.
+- Static review confirmed no direct `inventory_balances` write path and no
+  new transaction type were introduced.
+- Authenticated browser verification was not performed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Open Inventory Cart / Checkout.
+2. Confirm destination options include User/Employee, Vehicle, and Job.
+3. Select Job.
+4. Search/select a job.
+5. Confirm helper copy appears:
+   `Issue to Job moves stock out of inventory through checkout. This is not a reservation.`
+6. Complete a normal checkout to job if safe test inventory exists.
+7. Confirm existing user/vehicle destination checkout still works or remains
+   visually unchanged.
+8. Open Jobs.
+9. Open a job detail.
+10. In Job Material List, click `Issue to Job` on a material line.
+11. Confirm it routes to Cart/Checkout.
+12. Confirm job destination is preselected.
+13. Confirm material/item context or search context is carried forward if
+   supported.
+14. Confirm requested quantity is only a suggestion and can be changed.
+15. Confirm no issued/fulfilled/remaining/buyout/return behavior appears.
+
+### Open Questions / Concerns
+- No architecture blocker found.
+- Authenticated visual/live verification remains a manual browser step.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Issue to Job UI binding.
+- Protected runtime behavior outside the approved existing-flow binding
+  remained unchanged.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.22, HANDOFF Entry 103).
