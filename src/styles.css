@@ -251,6 +251,16 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .history-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .history-mobile-list { display: none; }
 .jobs-table { min-width: 1040px; }
+.job-material-list { display: grid; gap: .8rem; margin: 1rem 0; }
+.job-material-form { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.2fr) minmax(8rem, .7fr); gap: .6rem; align-items: end; }
+.job-material-form label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
+.job-material-form input, .job-material-form select { border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; width: 100%; }
+.job-material-form__wide { grid-column: 1 / -1; }
+.job-material-form__locked { display: grid; gap: .25rem; border: 1px solid rgba(148,163,184,.16); border-radius: .85rem; background: rgba(15,23,42,.48); padding: .65rem .75rem; color: #e5edf8; }
+.job-material-form__locked span { color: #94a3b8; font-size: .82rem; }
+.job-material-toolbar { align-items: end; }
+.job-material-table { min-width: 760px; }
+.job-material-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .count-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .count-workspace__main { min-width: 0; }
 .count-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .6rem; align-items: end; margin-bottom: .9rem; }
@@ -783,7 +793,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .meta-grid,
   .cart-facts { grid-template-columns: 1fr; }
   .card__header .secondary-button { width: 100%; }
-  .label-form-grid, .label-style-panel, .label-layout-panel, .tool-form { grid-template-columns: 1fr; }
+  .label-form-grid, .label-style-panel, .label-layout-panel, .tool-form, .job-material-form { grid-template-columns: 1fr; }
   .table-wrap { display: none; }
   .mobile-list { display: grid; }
   .history-mobile-list { display: grid; }

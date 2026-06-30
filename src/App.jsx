@@ -76,12 +76,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Jobs Foundation',
-  relatedHandoff: 'Entry 096',
-  architectureVersion: 'v2.20',
-  currentStep: 'Jobs foundation',
-  buildMarker: '2976934',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Jobs Foundation migration and workspace UI code is present in the loaded build.',
+  mostRecentChange: 'Milestone 5K.2 - Job Material List',
+  relatedHandoff: 'Entry 098',
+  architectureVersion: 'v2.21',
+  currentStep: 'Job Material List',
+  buildMarker: '7be81b5',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Job Material List migration and job detail UI code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -220,6 +220,24 @@ const JOB_TEXTAREA_FORM_FIELDS = [
   { key: 'description', label: 'Description' },
   { key: 'notes', label: 'Notes' },
 ];
+const JOB_MATERIAL_HELPER_COPY = 'Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Issue to Job, Buyout, and Return-to-Inventory are reserved for future milestones.';
+const JOB_MATERIALS_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'item_id',
+  'requested_quantity',
+  'note',
+  'material_name_snapshot',
+  'material_code_snapshot',
+  'created_by',
+].join(',');
+const JOB_MATERIAL_CATALOG_SELECT_FIELDS = 'id,material_code,name,division,is_active,is_archived';
 const EMPTY_JOB_DRAFT = Object.freeze({
   job_number: '',
   name: '',
@@ -233,6 +251,12 @@ const EMPTY_JOB_DRAFT = Object.freeze({
   postal_code: '',
   job_type: 'job',
   service_call_number: '',
+});
+const EMPTY_JOB_MATERIAL_DRAFT = Object.freeze({
+  id: '',
+  item_id: '',
+  requested_quantity: '',
+  note: '',
 });
 
 const COUNT_INTAKE_HELP_ITEMS = [
@@ -2284,6 +2308,68 @@ function filterJobRows(rows, filters) {
     if (!search) return true;
     return JOB_SEARCH_FIELDS.some((field) => String(row[field] ?? '').toLowerCase().includes(search));
   });
+}
+
+function createJobMaterialDraft(row = null) {
+  if (!row) return { ...EMPTY_JOB_MATERIAL_DRAFT };
+  return {
+    id: row.id ?? '',
+    item_id: row.item_id ?? '',
+    requested_quantity: row.requested_quantity ?? '',
+    note: row.note ?? '',
+  };
+}
+
+function getJobMaterialLabel(row) {
+  return [row.material_code_snapshot, row.material_name_snapshot].filter(Boolean).join(' / ')
+    || row.item_id
+    || 'Material line';
+}
+
+function formatRequestedQuantity(value) {
+  const quantity = Number(value ?? 0);
+  if (!Number.isFinite(quantity)) return '0';
+  return Number.isInteger(quantity) ? String(quantity) : quantity.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function filterJobMaterialRows(rows, searchText) {
+  const search = searchText.trim().toLowerCase();
+  if (!search) return rows;
+  return rows.filter((row) => [
+    row.material_code_snapshot,
+    row.material_name_snapshot,
+    row.note,
+  ].some((value) => String(value ?? '').toLowerCase().includes(search)));
+}
+
+function getJobMaterialSummary(rows) {
+  const total = rows.reduce((sum, row) => {
+    const quantity = Number(row.requested_quantity ?? 0);
+    return Number.isFinite(quantity) ? sum + quantity : sum;
+  }, 0);
+  return {
+    count: rows.length,
+    total,
+  };
+}
+
+function filterJobMaterialCatalogItems(items, searchText) {
+  const search = searchText.trim().toLowerCase();
+  if (!search) return items.slice(0, 80);
+  return items
+    .filter((item) => [
+      item.material_code,
+      item.name,
+    ].some((value) => String(value ?? '').toLowerCase().includes(search)))
+    .slice(0, 80);
+}
+
+function buildJobMaterialMutationPayload(draft) {
+  const requestedQuantity = Number(draft.requested_quantity);
+  return {
+    requested_quantity: Number.isFinite(requestedQuantity) ? requestedQuantity : 0,
+    note: cleanToolText(draft.note),
+  };
 }
 
 function getToolBadgeClass(value) {
@@ -7104,6 +7190,15 @@ function JobsWorkspace({ permissions }) {
   const [jobMessage, setJobMessage] = useState('');
   const [selectedJobId, setSelectedJobId] = useState('');
   const [draft, setDraft] = useState(() => createJobDraft());
+  const [jobMaterials, setJobMaterials] = useState([]);
+  const [isLoadingJobMaterials, setIsLoadingJobMaterials] = useState(false);
+  const [isSavingJobMaterial, setIsSavingJobMaterial] = useState(false);
+  const [jobMaterialsError, setJobMaterialsError] = useState(null);
+  const [jobMaterialMessage, setJobMaterialMessage] = useState('');
+  const [jobMaterialSearch, setJobMaterialSearch] = useState('');
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [materialDraft, setMaterialDraft] = useState(() => createJobMaterialDraft());
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -7119,6 +7214,11 @@ function JobsWorkspace({ permissions }) {
   );
   const showDivisionFilter = permissions.canViewAllDivisions && divisionOptions.length > 1;
   const filteredJobs = useMemo(() => filterJobRows(jobs, filters), [jobs, filters]);
+  const filteredJobMaterials = useMemo(() => filterJobMaterialRows(jobMaterials, jobMaterialSearch), [jobMaterials, jobMaterialSearch]);
+  const jobMaterialSummary = useMemo(() => getJobMaterialSummary(jobMaterials), [jobMaterials]);
+  const catalogMatches = useMemo(() => filterJobMaterialCatalogItems(catalogItems, catalogSearch), [catalogItems, catalogSearch]);
+  const selectedCatalogItem = catalogItems.find((item) => item.id === materialDraft.item_id) ?? null;
+  const materialFormCanSave = Boolean(selectedJobCanEdit && selectedJob && !isSavingJobMaterial);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -7145,9 +7245,86 @@ function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function loadJobMaterials(jobId, { preserveMessage = false } = {}) {
+    if (!canReadJobs || !jobId) {
+      setJobMaterials([]);
+      return;
+    }
+
+    setIsLoadingJobMaterials(true);
+    setJobMaterialsError(null);
+    if (!preserveMessage) setJobMaterialMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('job_materials')
+        .select(JOB_MATERIALS_SELECT_FIELDS)
+        .eq('job_id', jobId)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setJobMaterials(data ?? []);
+    } catch (error) {
+      console.error('Job Material List load failed', error);
+      setJobMaterials([]);
+      setJobMaterialsError(error);
+    } finally {
+      setIsLoadingJobMaterials(false);
+    }
+  }
+
+  async function loadJobMaterialCatalog(division) {
+    if (!canReadJobs || !division) {
+      setCatalogItems([]);
+      return;
+    }
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('items')
+        .select(JOB_MATERIAL_CATALOG_SELECT_FIELDS)
+        .eq('is_active', true)
+        .eq('is_archived', false)
+        .eq('division', division)
+        .order('material_code', { ascending: true })
+        .limit(1000);
+      if (error) throw error;
+      setCatalogItems(data ?? []);
+    } catch (error) {
+      console.error('Job Material catalog load failed', error);
+      setCatalogItems([]);
+      setJobMaterialMessage('Catalog materials failed to load for this job division.');
+    }
+  }
+
   useEffect(() => {
     loadJobs();
   }, [canReadJobs, getToken]);
+
+  useEffect(() => {
+    setMaterialDraft(createJobMaterialDraft());
+    setCatalogSearch('');
+    setJobMaterialSearch('');
+    setJobMaterialMessage('');
+
+    if (!selectedJob) {
+      setJobMaterials([]);
+      setCatalogItems([]);
+      setJobMaterialsError(null);
+      return;
+    }
+
+    loadJobMaterials(selectedJob.id);
+    if (selectedJobCanEdit) {
+      loadJobMaterialCatalog(selectedJob.division);
+    } else {
+      setCatalogItems([]);
+    }
+  }, [selectedJobId, selectedJobCanEdit, selectedJob?.division]);
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((row) => row.id === selectedJobId)) {
@@ -7157,6 +7334,10 @@ function JobsWorkspace({ permissions }) {
 
   function updateDraft(key, value) {
     setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateMaterialDraft(key, value) {
+    setMaterialDraft((current) => ({ ...current, [key]: value }));
   }
 
   function startNewJob() {
@@ -7169,6 +7350,22 @@ function JobsWorkspace({ permissions }) {
     setSelectedJobId(row.id);
     setDraft(createJobDraft(row));
     setJobMessage('');
+  }
+
+  function startNewJobMaterial() {
+    setMaterialDraft(createJobMaterialDraft());
+    setCatalogSearch('');
+    setJobMaterialMessage('');
+  }
+
+  function startEditJobMaterial(row) {
+    if (!selectedJobCanEdit) {
+      setJobMaterialMessage('Material List edits are limited to the current user division with can_manage_jobs.');
+      return;
+    }
+    setMaterialDraft(createJobMaterialDraft(row));
+    setCatalogSearch('');
+    setJobMaterialMessage('');
   }
 
   function startEditJob(row) {
@@ -7230,6 +7427,93 @@ function JobsWorkspace({ permissions }) {
       setJobMessage('Job save failed. Confirm permissions, division scope, and the Jobs Foundation migration.');
     } finally {
       setIsSavingJob(false);
+    }
+  }
+
+  async function saveJobMaterial(event) {
+    event.preventDefault();
+    if (!materialFormCanSave || !selectedJob) return;
+
+    const payload = buildJobMaterialMutationPayload(materialDraft);
+    if (!Number.isFinite(payload.requested_quantity) || payload.requested_quantity <= 0) {
+      setJobMaterialMessage('Requested quantity must be greater than zero.');
+      return;
+    }
+
+    if (!materialDraft.id && !selectedCatalogItem) {
+      setJobMaterialMessage('Choose an existing catalog material.');
+      return;
+    }
+
+    setIsSavingJobMaterial(true);
+    setJobMaterialMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      if (materialDraft.id) {
+        const { error } = await client
+          .from('job_materials')
+          .update(payload)
+          .eq('id', materialDraft.id);
+        if (error) throw error;
+        await loadJobMaterials(selectedJob.id, { preserveMessage: true });
+        setJobMaterialMessage('Material line saved.');
+      } else {
+        const { error } = await client
+          .from('job_materials')
+          .insert({
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            item_id: selectedCatalogItem.id,
+            ...payload,
+            material_name_snapshot: cleanToolText(selectedCatalogItem.name),
+            material_code_snapshot: cleanToolText(selectedCatalogItem.material_code),
+            created_by: permissions.userId,
+          });
+        if (error) throw error;
+        await loadJobMaterials(selectedJob.id, { preserveMessage: true });
+        setMaterialDraft(createJobMaterialDraft());
+        setCatalogSearch('');
+        setJobMaterialMessage('Material line added.');
+      }
+    } catch (error) {
+      console.error('Job Material List save failed', error);
+      setJobMaterialMessage('Material line save failed. Confirm can_manage_jobs and the Job Material List migration.');
+    } finally {
+      setIsSavingJobMaterial(false);
+    }
+  }
+
+  async function archiveJobMaterial(row) {
+    if (!selectedJobCanEdit || isSavingJobMaterial || !row?.id) return;
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingJobMaterial(true);
+    setJobMaterialMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_materials')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanToolText(reason),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      if (materialDraft.id === row.id) startNewJobMaterial();
+      await loadJobMaterials(selectedJob.id, { preserveMessage: true });
+      setJobMaterialMessage('Material line removed from the active list.');
+    } catch (error) {
+      console.error('Job Material List archive failed', error);
+      setJobMaterialMessage('Material line archive failed. Confirm can_manage_jobs and division scope.');
+    } finally {
+      setIsSavingJobMaterial(false);
     }
   }
 
@@ -7467,6 +7751,158 @@ function JobsWorkspace({ permissions }) {
                     <p>{buildJobAddressSummary(selectedJob) || 'No address recorded.'}</p>
                     <p>Created: {formatJobDateTime(selectedJob.created_at)} / Updated: {formatJobDateTime(selectedJob.updated_at)}</p>
                   </div>
+                ) : null}
+
+                {selectedJob ? (
+                  <section className="job-material-list">
+                    <div className="count-section-header">
+                      <div>
+                        <p className="eyebrow">Material List</p>
+                        <h3>Job Material List</h3>
+                        <p>{JOB_MATERIAL_HELPER_COPY}</p>
+                      </div>
+                      <span>{jobMaterialSummary.count} line{jobMaterialSummary.count === 1 ? '' : 's'} / {formatRequestedQuantity(jobMaterialSummary.total)} requested</span>
+                    </div>
+
+                    <div className="location-note tool-catalogue__note">
+                      <ClipboardCheck aria-hidden="true" />
+                      <span>{JOB_MATERIAL_HELPER_COPY}</span>
+                    </div>
+
+                    {jobMaterialsError ? <div className="alert">Job Material List failed to load. Confirm the `public.job_materials` migration and server permissions.</div> : null}
+                    {jobMaterialMessage ? <div className="alert">{jobMaterialMessage}</div> : null}
+
+                    <form className="job-material-form" onSubmit={saveJobMaterial}>
+                      {!materialDraft.id ? (
+                        <>
+                          <label>
+                            Material search
+                            <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} disabled={!materialFormCanSave} />
+                          </label>
+                          <label>
+                            Catalog material
+                            <select value={materialDraft.item_id} onChange={(event) => updateMaterialDraft('item_id', event.target.value)} disabled={!materialFormCanSave}>
+                              <option value="">Select material</option>
+                              {catalogMatches.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.material_code} / {item.name}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </>
+                      ) : (
+                        <div className="job-material-form__locked">
+                          <strong>{getJobMaterialLabel(jobMaterials.find((row) => row.id === materialDraft.id) ?? {})}</strong>
+                          <span>Catalog material is fixed for this planning line.</span>
+                        </div>
+                      )}
+                      <label>
+                        Requested quantity
+                        <input
+                          type="number"
+                          min="0.0001"
+                          step="0.01"
+                          value={materialDraft.requested_quantity}
+                          onChange={(event) => updateMaterialDraft('requested_quantity', event.target.value)}
+                          disabled={!materialFormCanSave}
+                        />
+                      </label>
+                      <label className="job-material-form__wide">
+                        Note
+                        <input value={materialDraft.note} onChange={(event) => updateMaterialDraft('note', event.target.value)} disabled={!materialFormCanSave} />
+                      </label>
+                      <div className="cart-actions job-material-form__wide">
+                        <button type="submit" className="secondary-button" disabled={!materialFormCanSave}>
+                          <Plus aria-hidden="true" /> {isSavingJobMaterial ? 'Saving...' : materialDraft.id ? 'Save Material Line' : 'Add Material Line'}
+                        </button>
+                        <button type="button" className="secondary-button" onClick={startNewJobMaterial} disabled={isSavingJobMaterial}>
+                          New Material Line
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="tool-toolbar job-material-toolbar">
+                      <label>
+                        Search material lines
+                        <input value={jobMaterialSearch} onChange={(event) => setJobMaterialSearch(event.target.value)} />
+                      </label>
+                      <button type="button" className="secondary-button" onClick={() => loadJobMaterials(selectedJob.id)} disabled={isLoadingJobMaterials}>
+                        <RefreshCw aria-hidden="true" /> Refresh
+                      </button>
+                    </div>
+
+                    {isLoadingJobMaterials ? <p className="muted">Loading Job Material List...</p> : null}
+                    {!isLoadingJobMaterials && !filteredJobMaterials.length ? (
+                      <div className="empty-state">
+                        <strong>No material lines yet.</strong>
+                        <p>Add existing catalog materials as planning demand for this job.</p>
+                      </div>
+                    ) : null}
+
+                    {filteredJobMaterials.length ? (
+                      <>
+                        <div className="table-wrap">
+                          <table className="data-table job-material-table">
+                            <thead>
+                              <tr>
+                                <th>Material</th>
+                                <th>Requested</th>
+                                <th>Note</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredJobMaterials.map((row) => (
+                                <tr key={row.id}>
+                                  <td>
+                                    <strong>{row.material_name_snapshot || 'Catalog material'}</strong>
+                                    <span>{row.material_code_snapshot || row.item_id}</span>
+                                  </td>
+                                  <td>{formatRequestedQuantity(row.requested_quantity)}</td>
+                                  <td>{row.note || '-'}</td>
+                                  <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                                  <td>
+                                    <div className="count-action-stack">
+                                      <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                                        <Pencil aria-hidden="true" /> Edit
+                                      </button>
+                                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                                        <Archive aria-hidden="true" /> Remove
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="mobile-list tool-mobile-list">
+                          {filteredJobMaterials.map((row) => (
+                            <article className="mobile-item" key={row.id}>
+                              <strong>{row.material_name_snapshot || 'Catalog material'}</strong>
+                              <div className="meta-grid">
+                                <span>Code: {row.material_code_snapshot || row.item_id}</span>
+                                <span>Requested: {formatRequestedQuantity(row.requested_quantity)}</span>
+                                <span>Note: {row.note || '-'}</span>
+                                <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                              </div>
+                              <div className="cart-actions">
+                                <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                                  <Pencil aria-hidden="true" /> Edit
+                                </button>
+                                <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                                  <Archive aria-hidden="true" /> Remove
+                                </button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                  </section>
                 ) : null}
 
                 <form className="tool-form" onSubmit={saveJob}>

@@ -10389,3 +10389,143 @@ implemented in this pass.
 
 ### Routing Verdict
 No Claude review needed — docs-only Job Material List architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.21, HANDOFF Entry 097).
+
+---
+
+## Entry 098 - Job Material List implemented
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Job Material List / migration foundation + Jobs detail UI
+**Session type:** implementation
+
+### Context
+Ryan instructed Codex to implement Milestone 5K.2 within locked ARCHITECTURE
+v2.21 Section 39. Classification was provided as Bucket 3 / architecture-
+sensitive implementation, already Claude-reviewed and ChatGPT cross-cleared;
+Codex did not reclassify.
+
+### Preflight Confirmed Before Implementation
+- Working tree was clean before implementation.
+- `items.id` is the catalog primary key and is `UUID`.
+- `public.jobs(id)` exists and is `UUID`.
+- `touch_user_permissions_updated_at()` exists.
+- `user_permissions` contains `clerk_user_id`, `division`, `role`, and
+  `permission_overrides`.
+- `effective_permissions_for_user(role, division, permission_overrides)`
+  exists.
+- `can_manage_jobs` exists in the permission model.
+- Division convention is `text`; no `division_id` was introduced.
+- No existing `public.job_materials` table was found.
+
+### What Was Completed
+- Added the Job Material List migration foundation.
+- Added Job Material List UI inside the existing Jobs workspace job detail
+  view.
+- Added create, edit, refresh, search/filter, and soft archive/remove flows
+  for planning material rows.
+- Added empty, loading, error, and success states.
+- Added requested-line count and requested-quantity sum display.
+- Included the locked helper copy exactly:
+  `Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Issue to Job, Buyout, and Return-to-Inventory are reserved for future milestones.`
+- Updated Development Status to:
+  - Most recent: `Milestone 5K.2 - Job Material List`
+  - Handoff Entry 098
+  - Architecture v2.21
+  - Current step: `Job Material List`
+  - Build marker: current short commit `7be81b5`
+
+### Schema Changes
+- Added one migration:
+  `supabase/migrations/202606300001_job_materials_foundation.sql`.
+- Created `public.job_materials` with:
+  - `id uuid primary key default gen_random_uuid()`;
+  - `job_id uuid not null references public.jobs(id)`;
+  - `division text not null`;
+  - `created_at timestamptz not null default now()`;
+  - `updated_at timestamptz not null default now()`;
+  - soft archive fields: `archived_at`, `archived_by`, `archive_reason`;
+  - `item_id uuid not null references public.items(id)`;
+  - `requested_quantity numeric not null check (requested_quantity > 0)`;
+  - `note text null`;
+  - display-only snapshots: `material_name_snapshot`,
+    `material_code_snapshot`;
+  - `created_by text null`.
+- Added trigger `set_job_materials_updated_at` using the existing
+  `touch_user_permissions_updated_at()` function.
+- Enabled RLS.
+- Added policies:
+  - `job_materials_read`: active rows only, own division or
+    `can_view_all_divisions`;
+  - `job_materials_insert`: own division and `can_manage_jobs`;
+  - `job_materials_update`: active row, own division, and `can_manage_jobs`.
+- Granted only `SELECT`, `INSERT`, and `UPDATE` to `authenticated`.
+- Added no DELETE policy and no DELETE grant.
+
+### UI / Code Changes
+- `src/App.jsx`
+  - Added Job Material List constants and helpers.
+  - Added job material and catalog item Supabase reads.
+  - Added insert/update soft-archive handlers.
+  - Added material search/select from existing active, non-archived catalog
+    items in the selected job division.
+  - Added requested quantity and note create/edit UI.
+  - Added line search/filter, table/mobile rendering, and refresh.
+  - Preserved selected Jobs workspace and job detail behavior.
+- `src/styles.css`
+  - Added responsive Job Material List form/table styling.
+
+### Preserved / Not Implemented
+- Count Loaded Stock behavior unchanged.
+- Selected Path count behavior unchanged.
+- Count Intake submission/write behavior unchanged.
+- Authorization behavior outside the new `job_materials` RLS unchanged.
+- Inventory balances were not touched.
+- No inventory ledger, transaction, checkout, cart, issue, buyout, return,
+  reservation, allocation, fulfillment, financial, QR, accounting, or job-cost
+  behavior was implemented.
+- No new permission flags were added.
+- No `can_manage_inventory` gate was used for Job Material List writes.
+- No hard delete was added.
+- Tool Catalogue behavior was unchanged.
+
+### Verification
+- `git diff --check` passed before and after this handoff append.
+- `npm.cmd run build` passed.
+- Static scan confirmed the migration has no prohibited Job Material List
+  columns, no `division_id`, no inventory balance reference, no DELETE policy,
+  and no DELETE grant.
+- Static scan confirmed the expected migration anchors:
+  `public.job_materials`, `public.jobs(id)`, `public.items(id)`,
+  `division TEXT NOT NULL`, `set_job_materials_updated_at`,
+  `job_materials_read`, `job_materials_insert`, `job_materials_update`, and
+  `GRANT SELECT, INSERT, UPDATE`.
+- Changed files are limited to the new migration, `src/App.jsx`,
+  `src/styles.css`, and this `HANDOFF.md` append.
+- No existing migrations were edited.
+- Authenticated browser verification was not performed in this local session.
+- Live Supabase migration application was not performed in this local session.
+
+### Next Steps
+1. Apply `202606300001_job_materials_foundation.sql` through the normal
+   Supabase migration path.
+2. Verify the Jobs workspace with an authenticated user that has
+   `can_manage_jobs`.
+3. Create, edit, and soft archive one Job Material List row from the job detail
+   view after the migration is live.
+
+### Open Questions / Concerns
+- No architecture blocker found.
+- Runtime Job Material List UI depends on the new `public.job_materials` table
+  being applied in Supabase.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Material List migration foundation and Jobs
+  detail UI.
+- Reserved future behavior remains unimplemented: Issue to Job, Buyout,
+  Return-to-Inventory, cart/checkout, inventory transactions, balance writes,
+  fulfillment counters, procurement, financials, job costing, QR, and
+  accounting behavior.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.21, HANDOFF Entry 098).
