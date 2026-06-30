@@ -10529,3 +10529,86 @@ Codex did not reclassify.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.21, HANDOFF Entry 098).
+
+---
+
+## Entry 099 - Job Material List UI containment fix
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Job Material List / UI containment bugfix
+**Session type:** implementation
+
+### Context
+Ryan reported that the Job Material List form overflowed horizontally from the
+visible card/container, blocking live app testing after opening a job detail.
+This was classified as a safe UI/CSS containment bugfix.
+
+### What Was Completed
+- Added a Jobs-specific layout state class for selected job detail mode.
+- Updated the selected job detail layout so the Job Material List is no longer
+  constrained to the narrow right-side form column.
+- Updated Job Material List CSS containment so the form and controls stay
+  inside the visible card.
+- Changed the Job Material List form grid to use responsive auto-fit columns.
+- Added `min-width: 0` and `max-width: 100%` containment to the relevant
+  Material List wrappers, controls, toolbar, helper copy, and locked edit row.
+- Allowed Job Material List action buttons and helper copy to wrap cleanly.
+- Kept dense table horizontal overflow scoped to the table wrapper only.
+
+### Files Changed
+- `src/App.jsx`
+  - Added `jobs-foundation-layout` and selected-detail modifier class to the
+    existing Jobs layout wrapper.
+- `src/styles.css`
+  - Updated `jobs-foundation-layout`, `job-material-list`,
+    `job-material-form`, `job-material-toolbar`, and related Material List
+    containment selectors.
+- `HANDOFF.md`
+  - Appended this Entry 099.
+
+### Behavior / Data Safety
+- No migrations were added or edited.
+- No Supabase schema, RLS, grants, permissions, auth, backend, or data behavior
+  changed.
+- No `job_materials` create/edit/archive/query behavior changed.
+- No Jobs Foundation behavior changed outside layout containment.
+- No inventory/cart/checkout/count/QR/accounting behavior changed.
+- No Tool Catalogue behavior changed.
+- No direct `inventory_balances` write path was added.
+- No Issue to Job, Buyout, Return-to-Inventory, hard delete, or reserved Job
+  Material List behavior was added.
+
+### Verification
+- `git pull --ff-only origin main` completed and reported already up to date.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
+- Static review confirmed no migration/schema/RLS/grant/permission/backend
+  files were changed.
+- Authenticated browser verification was not performed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Open Jobs.
+2. Open a job detail.
+3. Confirm Job Material List stays inside the card.
+4. Confirm Material search, Catalog material, Requested quantity, Note, Add
+   Material Line, New Material Line, and Refresh controls are visible and
+   usable.
+5. Confirm no page-level horizontal scrolling.
+6. Add a material line.
+7. Edit requested quantity/note.
+8. Archive/remove the material line.
+9. Confirm no Issue to Job / Buyout / Return-to-Inventory behavior appears.
+
+### Open Questions / Concerns
+- No architecture blocker found.
+- Authenticated visual verification remains a manual browser step.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Material List UI containment.
+- Protected runtime behavior remained unchanged.
+
+### Routing Verdict
+No Claude review needed — Safe UI/CSS Job Material List containment fix (ARCHITECTURE v2.21, HANDOFF Entry 099).

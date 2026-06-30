@@ -7611,7 +7611,7 @@ function JobsWorkspace({ permissions }) {
             {!hasWritableDivision ? <div className="alert">Job create/edit is blocked because the current user division could not be determined from server permissions.</div> : null}
             {jobMessage ? <div className="alert">{jobMessage}</div> : null}
 
-            <div className="tool-catalogue__layout">
+            <div className={`tool-catalogue__layout jobs-foundation-layout${selectedJob ? ' jobs-foundation-layout--detail' : ''}`}>
               <section className="tool-catalogue__list-panel">
                 <div className="count-section-header">
                   <div>
