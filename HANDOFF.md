@@ -10971,3 +10971,89 @@ the Issue to Job UI binding within the locked Section 40 existing-flow slice.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.22, HANDOFF Entry 103).
+
+---
+
+## Entry 104 - Issue to Job helper copy runtime fix
+
+**Date:** 2026-06-30
+**Updated by:** Codex
+**Phase:** Issue to Job / UI runtime bugfix
+**Session type:** implementation
+
+### Context
+Ryan hit a runtime crash while testing the locked Issue to Job flow. The Cart /
+Checkout destination UI was referencing `ISSUE_TO_JOB_HELPER_COPY` before that
+constant existed in the module scope.
+
+### What Was Completed
+- Added the locked Issue to Job helper copy constant once at top-level scope.
+- Kept the helper copy text consistent wherever the Job destination checkout UI
+  renders.
+- Confirmed the Issue to Job destination UI now reads the same locked copy
+  string without a missing reference.
+
+### Root Cause
+- `ISSUE_TO_JOB_HELPER_COPY` was referenced by the Job destination rendering
+  path in `src/App.jsx`, but the constant was not declared in that module.
+
+### Schema / Backend / Data Safety
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grant, permission, RPC, or backend behavior changes
+  were made.
+- No transaction/finalization behavior changes were made.
+- No direct `inventory_balances` write path was added.
+- No writes to `job_materials` were added.
+- No Buyout, Return-to-Inventory, reservation/allocation, issued, fulfilled, or
+  remaining-quantity behavior was added.
+
+### Supabase Client Check
+- No new direct `createClient(...)` call was introduced by this fix.
+- The repeated GoTrue warning was not traced to a new client construction path in
+  this patch.
+- Carry-forward note: if the warning persists in browser testing, it likely
+  comes from the existing client pattern rather than this helper-copy fix.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added `ISSUE_TO_JOB_HELPER_COPY` at module scope.
+  - Left the locked Issue to Job UI behavior otherwise unchanged.
+- `HANDOFF.md`
+  - Appended this Entry 104.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files remain UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `HANDOFF.md`.
+- No migrations, schema, RLS, grant, permission, RPC, or backend files were
+  changed.
+- Authenticated browser verification was not performed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Hard refresh the deployed app.
+2. Open Inventory Cart / Checkout.
+3. Select Job destination.
+4. Confirm the helper copy renders:
+   `Issue to Job moves stock out of inventory through checkout. This is not a reservation.`
+5. Confirm the page no longer crashes.
+6. Open Jobs.
+7. Open a job detail.
+8. Click `Issue to Job` on a material line.
+9. Confirm it routes to Cart/Checkout without crashing.
+10. Confirm job destination is preselected if that was part of 5K.3.
+11. Confirm no Buyout / Return-to-Inventory / issued / fulfilled / remaining
+    behavior appears.
+
+### Open Questions / Concerns
+- No new blocker found.
+- GoTrue warnings remain a carry-forward observation unless browser testing
+  proves they are caused by something else.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: safe UI/client-side helper-copy runtime fix.
+- The patch stayed inside the locked Issue to Job UI binding surface.
+
+### Routing Verdict
+No Claude review needed — Safe UI/client-side Issue to Job runtime fix (ARCHITECTURE v2.22, HANDOFF Entry 104).

@@ -170,6 +170,7 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
 });
 
 const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List is live, Issue to Job routes through cart/checkout, and Buyout / Return-to-Inventory plus job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
+const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 const JOB_TYPE_OPTIONS = ['job', 'service_call'];
 const JOBS_SELECT_FIELDS = [
