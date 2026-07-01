@@ -171,6 +171,8 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
 
 const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List is live, Issue to Job routes through cart/checkout, and Buyout / Return-to-Inventory plus job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
+// Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
+const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 const JOB_TYPE_OPTIONS = ['job', 'service_call'];
 const JOBS_SELECT_FIELDS = [
@@ -8134,15 +8136,17 @@ function JobsWorkspace({ permissions, navigateTo }) {
                                   <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
                                   <td>
                                     <div className="count-action-stack">
-                                      <button
-                                        type="button"
-                                        className="secondary-button"
-                                        onClick={() => issueMaterialToJob(row)}
-                                        disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
-                                        title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
-                                      >
-                                        <ShoppingCart aria-hidden="true" /> Issue to Job
-                                      </button>
+                                      {ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION ? (
+                                        <button
+                                          type="button"
+                                          className="secondary-button"
+                                          onClick={() => issueMaterialToJob(row)}
+                                          disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
+                                          title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
+                                        >
+                                          <ShoppingCart aria-hidden="true" /> Issue to Job
+                                        </button>
+                                      ) : null}
                                       <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
                                         <Pencil aria-hidden="true" /> Edit
                                       </button>
@@ -8168,15 +8172,17 @@ function JobsWorkspace({ permissions, navigateTo }) {
                                 <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
                               </div>
                               <div className="cart-actions">
-                                <button
-                                  type="button"
-                                  className="secondary-button"
-                                  onClick={() => issueMaterialToJob(row)}
-                                  disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
-                                  title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
-                                >
-                                  <ShoppingCart aria-hidden="true" /> Issue to Job
-                                </button>
+                                {ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION ? (
+                                  <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => issueMaterialToJob(row)}
+                                    disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
+                                    title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
+                                  >
+                                    <ShoppingCart aria-hidden="true" /> Issue to Job
+                                  </button>
+                                ) : null}
                                 <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
                                   <Pencil aria-hidden="true" /> Edit
                                 </button>

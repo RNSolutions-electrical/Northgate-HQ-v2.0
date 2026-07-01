@@ -11057,3 +11057,85 @@ constant existed in the module scope.
 
 ### Routing Verdict
 No Claude review needed — Safe UI/client-side Issue to Job runtime fix (ARCHITECTURE v2.22, HANDOFF Entry 104).
+
+---
+
+## Entry 105 - Job-detail Issue to Job shortcut hidden
+
+**Date:** 2026-07-01
+**Updated by:** Codex
+**Phase:** Issue to Job / UI visibility toggle
+**Session type:** implementation
+
+### Context
+Ryan decided the Job screen should stop presenting `Issue to Job` as the place
+where material movement begins. The existing Cart / Checkout Job destination
+flow stays active, but the Job detail shortcut should be hidden for now behind a
+local toggle.
+
+### What Was Completed
+- Added a local client-side feature flag to hide the Job-detail / Job Material
+  List `Issue to Job` shortcut UI.
+- Kept the underlying shortcut code available behind the toggle for possible
+  future reactivation.
+- Preserved the Cart / Checkout Job destination option and job picker flow.
+- Kept the existing checkout/finalization path unchanged.
+
+### Operational Decision
+- Job-detail Issue to Job shortcut is intentionally hidden for now.
+- Material movement should originate from Inventory / future Vehicle Inventory,
+  with Job selected as the checkout destination.
+
+### Schema / Backend / Data Safety
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grant, permission, RPC, or backend behavior changes
+  were made.
+- No transaction/finalization behavior changes were made.
+- No direct `inventory_balances` write path was added.
+- No writes to `job_materials` were added.
+- No Buyout, Return-to-Inventory, reservation/allocation, issued, fulfilled, or
+  remaining-quantity behavior was added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false`.
+  - Added the carry-forward comment explaining why the shortcut is hidden.
+  - Wrapped the Job Material List `Issue to Job` buttons in a local toggle so
+    they do not render while the flag is false.
+- `HANDOFF.md`
+  - Appended this Entry 105.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files remain UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `HANDOFF.md`.
+- No migrations, schema, RLS, grant, permission, RPC, or backend files were
+  changed.
+- Authenticated browser verification was not performed in this local session.
+- Static review confirms Cart / Checkout still includes Job as a destination
+  option and the job picker path remains in place.
+
+### Manual Verification Notes For Ryan
+1. Open Inventory Cart / Checkout.
+2. Confirm Job remains available as a destination.
+3. Confirm the Job picker still works in Cart / Checkout.
+4. Open a job detail.
+5. Confirm the Job Material List no longer shows an active `Issue to Job`
+   shortcut button.
+6. Confirm the page still renders normally and no crash is introduced.
+7. Confirm no Buyout / Return-to-Inventory / issued / fulfilled / remaining
+   behavior appears.
+
+### Open Questions / Concerns
+- No blocker found.
+- The hidden shortcut code remains available for future reactivation if Ryan
+  wants that workflow restored later.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: safe UI/client-side visibility toggle.
+- The patch stayed within the locked Issue to Job decisions.
+
+### Routing Verdict
+No Claude review needed — Safe UI visibility toggle within locked Issue to Job decisions (ARCHITECTURE v2.22).
