@@ -77,12 +77,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5K.3 - Issue to Job',
-  relatedHandoff: 'Entry 103',
-  architectureVersion: 'v2.22',
-  currentStep: 'Issue to Job',
-  buildMarker: 'd3b7d89',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Issue to Job UI binding code is present in the loaded build.',
+  mostRecentChange: 'Milestone 5K.4 - Buyout Planning',
+  relatedHandoff: 'Entry 107',
+  architectureVersion: 'v2.23',
+  currentStep: 'Buyout Planning',
+  buildMarker: '883d3e0',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Buyout Planning implementation code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -169,10 +169,11 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
   notes: '',
 });
 
-const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List is live, Issue to Job routes through cart/checkout, and Buyout / Return-to-Inventory plus job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
+const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List and Buyout List are live, Issue to Job routes through cart/checkout, and Return-to-Inventory plus job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
+const BUYOUT_LIST_HELPER_COPY = 'Buyout List is a planning tool for the PM. Add items that need to be quoted or ordered. The In Stock column shows current inventory levels — it does not reserve material. To pull stock for this job, use the Inventory module.';
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 const JOB_TYPE_OPTIONS = ['job', 'service_call'];
 const JOBS_SELECT_FIELDS = [
@@ -224,7 +225,8 @@ const JOB_TEXTAREA_FORM_FIELDS = [
   { key: 'description', label: 'Description' },
   { key: 'notes', label: 'Notes' },
 ];
-const JOB_MATERIAL_HELPER_COPY = 'Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Buyout and Return-to-Inventory are reserved for future milestones.';
+const JOB_MATERIAL_HELPER_COPY = 'Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Buyout List is a separate planning surface, and Return-to-Inventory is reserved for future milestones.';
+const BUYOUT_STATUS_OPTIONS = ['pending', 'ordered', 'received', 'cancelled'];
 const JOB_MATERIALS_SELECT_FIELDS = [
   'id',
   'job_id',
@@ -239,6 +241,25 @@ const JOB_MATERIALS_SELECT_FIELDS = [
   'note',
   'material_name_snapshot',
   'material_code_snapshot',
+  'created_by',
+].join(',');
+const JOB_BUYOUT_LINES_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'item_id',
+  'item_description',
+  'quantity_needed',
+  'quantity_ordered',
+  'status',
+  'vendor_note',
+  'lead_time_note',
+  'note',
   'created_by',
 ].join(',');
 const JOB_MATERIAL_CATALOG_SELECT_FIELDS = 'id,material_code,name,description,unit_of_measure,division,is_active,is_archived';
@@ -260,6 +281,17 @@ const EMPTY_JOB_MATERIAL_DRAFT = Object.freeze({
   id: '',
   item_id: '',
   requested_quantity: '',
+  note: '',
+});
+const EMPTY_JOB_BUYOUT_DRAFT = Object.freeze({
+  id: '',
+  item_id: '',
+  item_description: '',
+  quantity_needed: '',
+  quantity_ordered: '',
+  status: 'pending',
+  vendor_note: '',
+  lead_time_note: '',
   note: '',
 });
 
@@ -2509,6 +2541,215 @@ function buildJobMaterialMutationPayload(draft) {
     requested_quantity: Number.isFinite(requestedQuantity) ? requestedQuantity : 0,
     note: cleanToolText(draft.note),
   };
+}
+
+function formatOptionalQuantity(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return '-';
+  return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function createJobBuyoutDraft(row = null) {
+  if (!row) return { ...EMPTY_JOB_BUYOUT_DRAFT };
+  return {
+    id: row.id ?? '',
+    item_id: row.item_id ?? '',
+    item_description: row.item_description ?? '',
+    quantity_needed: row.quantity_needed ?? '',
+    quantity_ordered: row.quantity_ordered ?? '',
+    status: BUYOUT_STATUS_OPTIONS.includes(String(row.status ?? '').toLowerCase()) ? String(row.status).toLowerCase() : 'pending',
+    vendor_note: row.vendor_note ?? '',
+    lead_time_note: row.lead_time_note ?? '',
+    note: row.note ?? '',
+  };
+}
+
+function getBuyoutItemLabel(row, catalogItem = null) {
+  const catalogLabel = catalogItem
+    ? [catalogItem.material_code, catalogItem.name].filter(Boolean).join(' / ')
+    : '';
+  return [catalogLabel, row.item_description].filter(Boolean).join(' / ') || row.item_id || 'Buyout line';
+}
+
+function getBuyoutStatusBadgeClass(value) {
+  const toneByValue = {
+    pending: 'warn',
+    ordered: 'info',
+    received: 'good',
+    cancelled: 'err',
+  };
+  const tone = toneByValue[String(value ?? '').toLowerCase()] ?? 'info';
+  return `status-pill tool-catalogue__badge tool-catalogue__badge--${tone}`;
+}
+
+function filterJobBuyoutRows(rows, searchText) {
+  const search = searchText.trim().toLowerCase();
+  if (!search) return rows;
+  return rows.filter((row) => [
+    row.item_description,
+    row.vendor_note,
+    row.lead_time_note,
+    row.note,
+    row.status,
+    row.item_id,
+  ].some((value) => String(value ?? '').toLowerCase().includes(search)));
+}
+
+function getJobBuyoutSummary(rows) {
+  const orderedCount = rows.reduce((count, row) => {
+    const status = String(row.status ?? '').toLowerCase();
+    return status === 'ordered' || status === 'received' ? count + 1 : count;
+  }, 0);
+
+  return {
+    count: rows.length,
+    orderedCount,
+  };
+}
+
+function buildJobBuyoutMutationPayload(draft) {
+  const itemId = cleanToolText(draft.item_id);
+  const itemDescription = cleanToolText(draft.item_description);
+  const quantityNeeded = Number(draft.quantity_needed);
+  const quantityOrderedText = String(draft.quantity_ordered ?? '').trim();
+  const quantityOrdered = quantityOrderedText === '' ? null : Number(quantityOrderedText);
+  const status = BUYOUT_STATUS_OPTIONS.includes(String(draft.status ?? '').toLowerCase())
+    ? String(draft.status).toLowerCase().toLowerCase()
+    : 'pending';
+
+  return {
+    item_id: itemId || null,
+    item_description: itemDescription,
+    quantity_needed: Number.isFinite(quantityNeeded) ? quantityNeeded : NaN,
+    quantity_ordered: quantityOrderedText === ''
+      ? null
+      : Number.isFinite(quantityOrdered)
+        ? quantityOrdered
+        : NaN,
+    status,
+    vendor_note: cleanToolText(draft.vendor_note),
+    lead_time_note: cleanToolText(draft.lead_time_note),
+    note: cleanToolText(draft.note),
+  };
+}
+
+function buildJobBuyoutExportRows(rows, catalogItems, inStockByItemId) {
+  const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
+  return rows.map((row) => {
+    const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
+    const inStock = row.item_id ? inStockByItemId.get(row.item_id) ?? null : null;
+    return {
+      ...row,
+      itemLabel: getBuyoutItemLabel(row, catalogItem),
+      qtyNeededLabel: formatQuantitySummary(row.quantity_needed),
+      qtyOrderedLabel: formatOptionalQuantity(row.quantity_ordered),
+      statusLabel: String(row.status ?? 'pending'),
+      inStockLabel: row.item_id ? formatOptionalQuantity(inStock) : '',
+      leadTimeLabel: row.lead_time_note ?? '',
+      vendorLabel: row.vendor_note ?? '',
+      noteLabel: row.note ?? '',
+    };
+  });
+}
+
+function downloadBuyoutCsvFile({ jobLabel, rows, catalogItems, inStockByItemId }) {
+  const columns = [
+    { label: 'Item / Description', getValue: (row) => row.itemLabel },
+    { label: 'Qty Needed', getValue: (row) => row.qtyNeededLabel },
+    { label: 'Qty Ordered', getValue: (row) => row.qtyOrderedLabel },
+    { label: 'Status', getValue: (row) => row.statusLabel },
+    { label: 'In Stock', getValue: (row) => row.inStockLabel },
+    { label: 'Lead Time', getValue: (row) => row.leadTimeLabel },
+    { label: 'Vendor', getValue: (row) => row.vendorLabel },
+    { label: 'Note', getValue: (row) => row.noteLabel },
+  ];
+  const safeFilename = `${String(jobLabel || 'job').replace(/[\\/:*?"<>|]+/g, '-')} - buyout-list.csv`;
+
+  return downloadCsvFile(
+    safeFilename,
+    columns,
+    buildJobBuyoutExportRows(rows, catalogItems, inStockByItemId),
+  );
+}
+
+function getBuyoutPrintDocument({ title, jobLabel, rows, catalogItems, inStockByItemId }) {
+  const exportRows = buildJobBuyoutExportRows(rows, catalogItems, inStockByItemId);
+  const rowMarkup = exportRows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.itemLabel)}</td>
+      <td>${escapeHtml(row.qtyNeededLabel)}</td>
+      <td>${escapeHtml(row.qtyOrderedLabel)}</td>
+      <td>${escapeHtml(row.statusLabel)}</td>
+      <td>${escapeHtml(row.inStockLabel || '-')}</td>
+      <td>${escapeHtml(row.leadTimeLabel || '-')}</td>
+      <td>${escapeHtml(row.vendorLabel || '-')}</td>
+      <td>${escapeHtml(row.noteLabel || '-')}</td>
+    </tr>
+  `).join('');
+
+  return `<!doctype html>
+<html>
+  <head>
+    <title>${escapeHtml(title)}</title>
+    <style>
+      @page { margin: .4in; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #111827; font-family: Arial, Helvetica, sans-serif; }
+      .print-sheet { padding: 0; }
+      .print-header { display: grid; gap: .2rem; margin-bottom: 1rem; }
+      .print-header h1 { margin: 0; font-size: 1.2rem; }
+      .print-header p { margin: 0; color: #4b5563; font-size: .9rem; }
+      .print-copy { margin: 0 0 1rem; color: #374151; font-size: .88rem; line-height: 1.45; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #d1d5db; padding: .45rem .5rem; text-align: left; vertical-align: top; }
+      th { background: #f3f4f6; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+      td { font-size: .85rem; }
+      tbody tr:nth-child(even) td { background: #fafafa; }
+    </style>
+  </head>
+  <body>
+    <section class="print-sheet">
+      <header class="print-header">
+        <h1>${escapeHtml(jobLabel || 'Buyout List')}</h1>
+        <p>${escapeHtml(title)}</p>
+      </header>
+      <p class="print-copy">${escapeHtml(BUYOUT_LIST_HELPER_COPY)}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Item / Description</th>
+            <th>Qty Needed</th>
+            <th>Qty Ordered</th>
+            <th>Status</th>
+            <th>In Stock</th>
+            <th>Lead Time</th>
+            <th>Vendor</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowMarkup || '<tr><td colspan="8">No buyout lines.</td></tr>'}
+        </tbody>
+      </table>
+    </section>
+    <script>
+      window.addEventListener('load', () => {
+        window.focus();
+        window.print();
+      });
+    </script>
+  </body>
+</html>`;
+}
+
+function openBuyoutPrintWindow({ title, jobLabel, rows, catalogItems, inStockByItemId }) {
+  if (typeof window === 'undefined') return false;
+  const printWindow = window.open('', '_blank', 'width=980,height=1100');
+  if (!printWindow) return false;
+  printWindow.document.write(getBuyoutPrintDocument({ title, jobLabel, rows, catalogItems, inStockByItemId }));
+  printWindow.document.close();
+  return true;
 }
 
 function getToolBadgeClass(value) {
@@ -7436,6 +7677,17 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [catalogItems, setCatalogItems] = useState([]);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [materialDraft, setMaterialDraft] = useState(() => createJobMaterialDraft());
+  const [buyoutLines, setBuyoutLines] = useState([]);
+  const [isLoadingBuyoutLines, setIsLoadingBuyoutLines] = useState(false);
+  const [isSavingBuyoutLine, setIsSavingBuyoutLine] = useState(false);
+  const [buyoutLinesError, setBuyoutLinesError] = useState(null);
+  const [buyoutLineMessage, setBuyoutLineMessage] = useState('');
+  const [buyoutLineSearch, setBuyoutLineSearch] = useState('');
+  const [buyoutCatalogSearch, setBuyoutCatalogSearch] = useState('');
+  const [buyoutDraft, setBuyoutDraft] = useState(() => createJobBuyoutDraft());
+  const [buyoutInStockByItemId, setBuyoutInStockByItemId] = useState(() => new Map());
+  const [isLoadingBuyoutInStock, setIsLoadingBuyoutInStock] = useState(false);
+  const [buyoutInStockError, setBuyoutInStockError] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -7456,6 +7708,12 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const catalogMatches = useMemo(() => filterJobMaterialCatalogItems(catalogItems, catalogSearch), [catalogItems, catalogSearch]);
   const selectedCatalogItem = catalogItems.find((item) => item.id === materialDraft.item_id) ?? null;
   const materialFormCanSave = Boolean(selectedJobCanEdit && selectedJob && !isSavingJobMaterial);
+  const catalogById = useMemo(() => new Map(catalogItems.map((item) => [item.id, item])), [catalogItems]);
+  const filteredBuyoutLines = useMemo(() => filterJobBuyoutRows(buyoutLines, buyoutLineSearch), [buyoutLines, buyoutLineSearch]);
+  const buyoutSummary = useMemo(() => getJobBuyoutSummary(buyoutLines), [buyoutLines]);
+  const buyoutCatalogMatches = useMemo(() => filterJobMaterialCatalogItems(catalogItems, buyoutCatalogSearch), [catalogItems, buyoutCatalogSearch]);
+  const selectedBuyoutCatalogItem = catalogItems.find((item) => item.id === buyoutDraft.item_id) ?? null;
+  const buyoutFormCanSave = Boolean(selectedJobCanEdit && selectedJob && !isSavingBuyoutLine);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -7537,6 +7795,83 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }
 
+  async function loadBuyoutLines(jobId, { preserveMessage = false } = {}) {
+    if (!canReadJobs || !jobId) {
+      setBuyoutLines([]);
+      setBuyoutInStockByItemId(new Map());
+      setIsLoadingBuyoutLines(false);
+      return;
+    }
+
+    setIsLoadingBuyoutLines(true);
+    setBuyoutLinesError(null);
+    if (!preserveMessage) setBuyoutLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('job_buyout_lines')
+        .select(JOB_BUYOUT_LINES_SELECT_FIELDS)
+        .eq('job_id', jobId)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setBuyoutLines(data ?? []);
+    } catch (error) {
+      console.error('Buyout List load failed', error);
+      setBuyoutLines([]);
+      setBuyoutLinesError(error);
+    } finally {
+      setIsLoadingBuyoutLines(false);
+    }
+  }
+
+  async function loadBuyoutInStockSignals(lines = buyoutLines, division = selectedJob?.division ?? '') {
+    if (!canReadJobs || !division) {
+      setBuyoutInStockByItemId(new Map());
+      setIsLoadingBuyoutInStock(false);
+      return;
+    }
+
+    const itemIds = [...new Set(lines.map((row) => row.item_id).filter(Boolean))];
+    if (!itemIds.length) {
+      setBuyoutInStockByItemId(new Map());
+      setIsLoadingBuyoutInStock(false);
+      return;
+    }
+
+    setIsLoadingBuyoutInStock(true);
+    setBuyoutInStockError(null);
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('inventory_cart_candidates_view')
+        .select('item_id, division, quantity_on_hand')
+        .eq('division', division)
+        .in('item_id', itemIds);
+      if (error) throw error;
+
+      const next = new Map();
+      (data ?? []).forEach((row) => {
+        const itemId = row.item_id;
+        if (!itemId) return;
+        const quantity = Number(row.quantity_on_hand ?? 0);
+        if (!Number.isFinite(quantity)) return;
+        next.set(itemId, (next.get(itemId) ?? 0) + quantity);
+      });
+      setBuyoutInStockByItemId(next);
+    } catch (error) {
+      console.error('Buyout List In Stock lookup failed', error);
+      setBuyoutInStockByItemId(new Map());
+      setBuyoutInStockError(error);
+    } finally {
+      setIsLoadingBuyoutInStock(false);
+    }
+  }
+
   function issueMaterialToJob(row) {
     if (!canIssueToJob || !selectedJob || !navigateTo) {
       return;
@@ -7581,21 +7916,40 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setCatalogSearch('');
     setJobMaterialSearch('');
     setJobMaterialMessage('');
+    setBuyoutDraft(createJobBuyoutDraft());
+    setBuyoutCatalogSearch('');
+    setBuyoutLineSearch('');
+    setBuyoutLineMessage('');
+    setBuyoutLinesError(null);
+    setBuyoutInStockByItemId(new Map());
+    setBuyoutInStockError(null);
 
     if (!selectedJob) {
       setJobMaterials([]);
+      setBuyoutLines([]);
       setCatalogItems([]);
       setJobMaterialsError(null);
+      setBuyoutLinesError(null);
       return;
     }
 
     loadJobMaterials(selectedJob.id);
+    loadBuyoutLines(selectedJob.id);
     if (selectedJobCanEdit) {
       loadJobMaterialCatalog();
     } else {
       setCatalogItems([]);
     }
   }, [selectedJobId, selectedJobCanEdit, selectedJob?.division]);
+
+  useEffect(() => {
+    if (!selectedJob?.division) {
+      setBuyoutInStockByItemId(new Map());
+      return;
+    }
+
+    loadBuyoutInStockSignals(buyoutLines, selectedJob.division);
+  }, [buyoutLines, selectedJob?.division]);
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((row) => row.id === selectedJobId)) {
@@ -7785,6 +8139,142 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setJobMaterialMessage('Material line archive failed. Confirm can_manage_jobs and division scope.');
     } finally {
       setIsSavingJobMaterial(false);
+    }
+  }
+
+  function updateBuyoutDraft(key, value) {
+    setBuyoutDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function startNewBuyoutLine() {
+    setBuyoutDraft(createJobBuyoutDraft());
+    setBuyoutCatalogSearch('');
+    setBuyoutLineMessage('');
+  }
+
+  function startEditBuyoutLine(row) {
+    if (!selectedJobCanEdit) {
+      setBuyoutLineMessage('Buyout List edits are limited to the current user division with can_manage_jobs.');
+      return;
+    }
+    setBuyoutDraft(createJobBuyoutDraft(row));
+    setBuyoutCatalogSearch('');
+    setBuyoutLineMessage('');
+  }
+
+  async function saveBuyoutLine(event) {
+    event.preventDefault();
+    if (!buyoutFormCanSave || !selectedJob) return;
+
+    const payload = buildJobBuyoutMutationPayload(buyoutDraft);
+    if (!payload.item_id && !payload.item_description) {
+      setBuyoutLineMessage('Choose a catalog item or enter a free-text item description.');
+      return;
+    }
+    if (!Number.isFinite(payload.quantity_needed) || payload.quantity_needed <= 0) {
+      setBuyoutLineMessage('Qty Needed must be greater than zero.');
+      return;
+    }
+    if (payload.quantity_ordered !== null && (!Number.isFinite(payload.quantity_ordered) || payload.quantity_ordered < 0)) {
+      setBuyoutLineMessage('Qty Ordered must be blank, zero, or greater.');
+      return;
+    }
+
+    setIsSavingBuyoutLine(true);
+    setBuyoutLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      if (buyoutDraft.id) {
+        const { error } = await client
+          .from('job_buyout_lines')
+          .update(payload)
+          .eq('id', buyoutDraft.id);
+        if (error) throw error;
+        await loadBuyoutLines(selectedJob.id, { preserveMessage: true });
+        setBuyoutLineMessage('Buyout line saved.');
+      } else {
+        const { error } = await client
+          .from('job_buyout_lines')
+          .insert({
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            created_by: permissions.userId,
+            ...payload,
+          });
+        if (error) throw error;
+        await loadBuyoutLines(selectedJob.id, { preserveMessage: true });
+        setBuyoutDraft(createJobBuyoutDraft());
+        setBuyoutCatalogSearch('');
+        setBuyoutLineMessage('Buyout line added.');
+      }
+    } catch (error) {
+      console.error('Buyout List save failed', error);
+      setBuyoutLineMessage(`Buyout line save failed. ${error?.message || 'Confirm can_manage_jobs and the Buyout Planning migration.'}`);
+    } finally {
+      setIsSavingBuyoutLine(false);
+    }
+  }
+
+  async function archiveBuyoutLine(row) {
+    if (!selectedJobCanEdit || isSavingBuyoutLine || !row?.id) return;
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingBuyoutLine(true);
+    setBuyoutLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_buyout_lines')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanToolText(reason),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      if (buyoutDraft.id === row.id) startNewBuyoutLine();
+      await loadBuyoutLines(selectedJob.id, { preserveMessage: true });
+      setBuyoutLineMessage('Buyout line removed from the active list.');
+    } catch (error) {
+      console.error('Buyout List archive failed', error);
+      setBuyoutLineMessage('Buyout line archive failed. Confirm can_manage_jobs and division scope.');
+    } finally {
+      setIsSavingBuyoutLine(false);
+    }
+  }
+
+  function exportBuyoutLines() {
+    if (!selectedJob) return;
+    const ok = downloadBuyoutCsvFile({
+      jobLabel: buildJobDisplayLabel(selectedJob),
+      rows: filteredBuyoutLines,
+      catalogItems,
+      inStockByItemId: buyoutInStockByItemId,
+    });
+    if (!ok) {
+      setBuyoutLineMessage('CSV export is unavailable in this browser.');
+      return;
+    }
+    setBuyoutLineMessage('Buyout CSV export downloaded.');
+  }
+
+  function printBuyoutLines() {
+    if (!selectedJob) return;
+    const ok = openBuyoutPrintWindow({
+      title: `Buyout List - ${buildJobDisplayLabel(selectedJob)}`,
+      jobLabel: buildJobDisplayLabel(selectedJob),
+      rows: filteredBuyoutLines,
+      catalogItems,
+      inStockByItemId: buyoutInStockByItemId,
+    });
+    if (!ok) {
+      setBuyoutLineMessage('Print view is unavailable in this browser.');
     }
   }
 
@@ -8194,9 +8684,233 @@ function JobsWorkspace({ permissions, navigateTo }) {
                           ))}
                         </div>
                       </>
-                    ) : null}
-                  </section>
-                ) : null}
+                  ) : null}
+                </section>
+              ) : null}
+
+              {selectedJob ? (
+                <section className="job-buyout-list">
+                  <div className="count-section-header">
+                    <div>
+                      <p className="eyebrow">Planning</p>
+                      <h3>Buyout List</h3>
+                      <p>{BUYOUT_LIST_HELPER_COPY}</p>
+                    </div>
+                    <span>{buyoutSummary.orderedCount} of {buyoutSummary.count} line{buyoutSummary.count === 1 ? '' : 's'} ordered</span>
+                  </div>
+
+                  <div className="location-note tool-catalogue__note">
+                    <ClipboardCheck aria-hidden="true" />
+                    <span>{BUYOUT_LIST_HELPER_COPY}</span>
+                  </div>
+
+                  {buyoutLinesError ? <div className="alert">Buyout List failed to load. Confirm the `public.job_buyout_lines` migration and server permissions.</div> : null}
+                  {buyoutInStockError ? <div className="alert">In Stock lookup failed. The Buyout List is still available, but read-time on-hand values could not be loaded.</div> : null}
+                  {buyoutLineMessage ? <div className="alert">{buyoutLineMessage}</div> : null}
+
+                  <div className="tool-toolbar job-buyout-toolbar">
+                    <label>
+                      Search buyout lines
+                      <input value={buyoutLineSearch} onChange={(event) => setBuyoutLineSearch(event.target.value)} />
+                    </label>
+                    <div className="cart-actions job-buyout-toolbar__actions">
+                      <button type="button" className="secondary-button" onClick={exportBuyoutLines} disabled={isLoadingBuyoutLines}>
+                        <Download aria-hidden="true" /> CSV
+                      </button>
+                      <button type="button" className="secondary-button" onClick={printBuyoutLines} disabled={isLoadingBuyoutLines}>
+                        <Printer aria-hidden="true" /> Print
+                      </button>
+                      <button type="button" className="secondary-button" onClick={() => loadBuyoutLines(selectedJob.id)} disabled={isLoadingBuyoutLines}>
+                        <RefreshCw aria-hidden="true" /> Refresh
+                      </button>
+                    </div>
+                  </div>
+
+                  {isLoadingBuyoutLines ? <p className="muted">Loading Buyout List...</p> : null}
+                  {isLoadingBuyoutInStock ? <p className="muted">Loading In Stock levels...</p> : null}
+
+                  {buyoutFormCanSave ? (
+                    <form className="job-buyout-form" onSubmit={saveBuyoutLine}>
+                      <label>
+                        Item search
+                        <input value={buyoutCatalogSearch} onChange={(event) => setBuyoutCatalogSearch(event.target.value)} disabled={!buyoutFormCanSave} />
+                      </label>
+                      <label>
+                        Catalog item
+                        <select value={buyoutDraft.item_id} onChange={(event) => updateBuyoutDraft('item_id', event.target.value)} disabled={!buyoutFormCanSave}>
+                          <option value="">Select item</option>
+                          {buyoutCatalogMatches.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {[item.material_code, item.name, item.unit_of_measure].filter(Boolean).join(' / ')}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="job-buyout-form__wide">
+                        Free-text description
+                        <input
+                          value={buyoutDraft.item_description}
+                          onChange={(event) => updateBuyoutDraft('item_description', event.target.value)}
+                          disabled={!buyoutFormCanSave}
+                          placeholder="Optional when a catalog item is selected"
+                        />
+                      </label>
+                      <label>
+                        Qty Needed
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={buyoutDraft.quantity_needed}
+                          onChange={(event) => updateBuyoutDraft('quantity_needed', event.target.value)}
+                          disabled={!buyoutFormCanSave}
+                        />
+                      </label>
+                      <label>
+                        Qty Ordered
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={buyoutDraft.quantity_ordered}
+                          onChange={(event) => updateBuyoutDraft('quantity_ordered', event.target.value)}
+                          disabled={!buyoutFormCanSave}
+                        />
+                      </label>
+                      <label>
+                        Status
+                        <select value={buyoutDraft.status} onChange={(event) => updateBuyoutDraft('status', event.target.value)} disabled={!buyoutFormCanSave}>
+                          {BUYOUT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                      </label>
+                      <label className="job-buyout-form__wide">
+                        Vendor note
+                        <input value={buyoutDraft.vendor_note} onChange={(event) => updateBuyoutDraft('vendor_note', event.target.value)} disabled={!buyoutFormCanSave} />
+                      </label>
+                      <label className="job-buyout-form__wide">
+                        Lead time note
+                        <input value={buyoutDraft.lead_time_note} onChange={(event) => updateBuyoutDraft('lead_time_note', event.target.value)} disabled={!buyoutFormCanSave} />
+                      </label>
+                      <label className="job-buyout-form__wide">
+                        Note
+                        <input value={buyoutDraft.note} onChange={(event) => updateBuyoutDraft('note', event.target.value)} disabled={!buyoutFormCanSave} />
+                      </label>
+                      <div className="cart-actions job-buyout-form__wide">
+                        <button type="submit" className="secondary-button" disabled={!buyoutFormCanSave}>
+                          <Plus aria-hidden="true" /> {isSavingBuyoutLine ? 'Saving...' : buyoutDraft.id ? 'Save Buyout Line' : 'Add Buyout Line'}
+                        </button>
+                        <button type="button" className="secondary-button" onClick={startNewBuyoutLine} disabled={isSavingBuyoutLine}>
+                          New Buyout Line
+                        </button>
+                      </div>
+                      <p className="job-buyout-form__help">Choose a catalog item or enter a free-text description. At least one source is required.</p>
+                      {selectedBuyoutCatalogItem ? (
+                        <div className="job-buyout-form__locked">
+                          <strong>{[selectedBuyoutCatalogItem.material_code, selectedBuyoutCatalogItem.name].filter(Boolean).join(' / ')}</strong>
+                          <span>Selected catalog item. In Stock is read at display time only.</span>
+                        </div>
+                      ) : null}
+                    </form>
+                  ) : (
+                    <div className="empty-state">
+                      <strong>Buyout List editing is limited to the current job division.</strong>
+                      <p>Read-only buyout planning details remain visible.</p>
+                    </div>
+                  )}
+
+                  {isLoadingBuyoutLines ? null : !filteredBuyoutLines.length ? (
+                    <div className="empty-state">
+                      <strong>No buyout lines yet.</strong>
+                      <p>Add items that need to be quoted or ordered for this job.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="table-wrap">
+                        <table className="data-table job-buyout-table">
+                          <thead>
+                            <tr>
+                              <th>Item / Description</th>
+                              <th>Qty Needed</th>
+                              <th>Qty Ordered</th>
+                              <th>Status</th>
+                              <th>In Stock</th>
+                              <th>Lead Time</th>
+                              <th>Vendor</th>
+                              <th>Note</th>
+                              <th>Updated</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredBuyoutLines.map((row) => {
+                              const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
+                              const inStock = row.item_id ? buyoutInStockByItemId.get(row.item_id) ?? null : null;
+
+                              return (
+                                <tr key={row.id}>
+                                  <td>
+                                    <strong>{getBuyoutItemLabel(row, catalogItem)}</strong>
+                                    <span>{row.item_id ? (catalogItem ? 'Catalog item' : row.item_id) : 'Free-text line'}</span>
+                                  </td>
+                                  <td>{formatQuantitySummary(row.quantity_needed)}</td>
+                                  <td>{formatOptionalQuantity(row.quantity_ordered)}</td>
+                                  <td><span className={getBuyoutStatusBadgeClass(row.status)}>{row.status}</span></td>
+                                  <td>{row.item_id ? formatOptionalQuantity(inStock) : '-'}</td>
+                                  <td>{row.lead_time_note || '-'}</td>
+                                  <td>{row.vendor_note || '-'}</td>
+                                  <td>{row.note || '-'}</td>
+                                  <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                                  <td>
+                                    <div className="count-action-stack">
+                                      <button type="button" className="secondary-button" onClick={() => startEditBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                                        <Pencil aria-hidden="true" /> Edit
+                                      </button>
+                                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                                        <Archive aria-hidden="true" /> Remove
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="mobile-list tool-mobile-list">
+                        {filteredBuyoutLines.map((row) => {
+                          const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
+                          const inStock = row.item_id ? buyoutInStockByItemId.get(row.item_id) ?? null : null;
+
+                          return (
+                            <article className="mobile-item" key={row.id}>
+                              <strong>{getBuyoutItemLabel(row, catalogItem)}</strong>
+                              <div className="meta-grid">
+                                <span>Qty Needed: {formatQuantitySummary(row.quantity_needed)}</span>
+                                <span>Qty Ordered: {formatOptionalQuantity(row.quantity_ordered)}</span>
+                                <span>Status: <span className={getBuyoutStatusBadgeClass(row.status)}>{row.status}</span></span>
+                                <span>In Stock: {row.item_id ? formatOptionalQuantity(inStock) : '-'}</span>
+                                <span>Lead Time: {row.lead_time_note || '-'}</span>
+                                <span>Vendor: {row.vendor_note || '-'}</span>
+                                <span>Note: {row.note || '-'}</span>
+                                <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                              </div>
+                              <div className="cart-actions">
+                                <button type="button" className="secondary-button" onClick={() => startEditBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                                  <Pencil aria-hidden="true" /> Edit
+                                </button>
+                                <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                                  <Archive aria-hidden="true" /> Remove
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </section>
+              ) : null}
 
                 <form className="tool-form" onSubmit={saveJob}>
                   <label className="tool-form__wide">

@@ -11139,3 +11139,190 @@ local toggle.
 
 ### Routing Verdict
 No Claude review needed — Safe UI visibility toggle within locked Issue to Job decisions (ARCHITECTURE v2.22).
+
+---
+
+## Entry 106 - Buyout Planning locked (ARCHITECTURE v2.23, new Section 41)
+
+**Date:** 2026-07-01
+**Updated by:** Codex
+**Phase:** Buyout Planning / architecture lock adoption
+**Session type:** docs-only
+
+### Context
+Issue to Job remains live through Entry 105. This session adopts the Claude-
+reviewed and ChatGPT cross-cleared Buyout Planning architecture lock as a
+docs-only update, with no implementation work.
+
+### What Was Completed
+- Added new Section 41 - Buyout Planning to `docs/ARCHITECTURE.md`.
+- Updated the architecture version to v2.23.
+- Locked Buyout Planning as a PM procurement checklist for jobs.
+- Locked `job_buyout_lines` as a standalone table with no FK to
+  `job_materials`.
+- Locked optional catalog `item_id` plus free-text `item_description`.
+- Locked nullable `quantity_ordered` semantics where null means not yet ordered
+  and 0 means ordered but quantity TBD.
+- Locked status values to `pending`, `ordered`, `received`, and `cancelled`.
+- Locked the read-time `In Stock` signal as a display-only read from
+  `inventory_balances`.
+- Approved simple print-to-PDF and CSV export for display-only planning data.
+
+### Schema / Backend / Data Safety
+- None.
+- No migrations were added or edited.
+- No Supabase schema, RLS, grant, permission, RPC, or backend behavior changes
+  were made.
+- No implementation, code, runtime, or UI changes were made.
+- No transaction/finalization behavior changes were made.
+- No direct `inventory_balances` write path was added.
+- No writes to `job_materials` were added.
+- No Buyout / Return-to-Inventory / reservation/allocation behavior was added.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated the version line to v2.23.
+  - Added Section 41 - Buyout Planning.
+- `HANDOFF.md`
+  - Appended this Entry 106.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` was run and passed, although this task was docs-only.
+- Changed files are docs-only for this task:
+  `docs/ARCHITECTURE.md`, `HANDOFF.md`.
+- No `src` files were changed in this task.
+- No migrations were added or edited.
+- No schema, RLS, grant, permission, RPC, or backend files were changed.
+- Authenticated browser verification was not performed in this local session.
+- No implementation of Buyout Planning occurred yet.
+
+### Manual Verification Notes For Ryan
+1. Commit the docs lock.
+2. Later, implement Buyout Planning only after the lock is adopted.
+3. Confirm the future implementation stays inside the new Section 41 scope.
+
+### Open Questions / Concerns
+- None.
+- Buyout Planning remains reserved for a later implementation milestone.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: docs-only Buyout Planning architecture lock adoption.
+- No runtime or schema drift was introduced.
+
+### Routing Verdict
+No Claude review needed — docs-only Buyout Planning architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.23, HANDOFF Entry 106).
+
+---
+
+## Entry 107 - Buyout Planning implemented
+
+**Date:** 2026-07-01
+**Updated by:** Codex
+**Phase:** Buyout Planning / implementation
+**Session type:** implementation
+
+### Context
+Buyout Planning is now implemented inside the locked ARCHITECTURE v2.23
+Section 41 slice. Issue to Job remains live through Entry 105, and this work
+adds the Buyout List as a separate planning surface in the Jobs workspace job
+detail view.
+
+### What Was Completed
+- Added the `public.job_buyout_lines` migration foundation.
+- Confirmed the catalog `items` primary key type during preflight as `uuid`
+  (`public.items(id)`).
+- Implemented `job_id uuid references public.jobs(id)`.
+- Implemented `division text not null`.
+- Implemented nullable `item_id` plus free-text `item_description`.
+- Implemented nullable `quantity_ordered` with distinct null/zero handling.
+- Locked the status values to `pending`, `ordered`, `received`, and
+  `cancelled`.
+- Added the `touch_user_permissions_updated_at()` trigger pattern for
+  `updated_at`.
+- Added RLS policies:
+  - `job_buyout_lines_read`
+  - `job_buyout_lines_insert`
+  - `job_buyout_lines_update`
+- Kept the table soft-archive only with no DELETE policy.
+- Added the Jobs workspace job detail Buyout List UI.
+- Added add/edit/archive, status badges, search, on-hand display, empty state,
+  loading state, and error state handling.
+- Added the locked Buyout List helper copy.
+- Implemented read-time only In Stock lookup from the existing inventory read
+  pattern backed by `inventory_balances`.
+- Added CSV export and print-to-PDF support for the current job's Buyout List.
+- Implemented quantity inputs so users can temporarily blank the field while
+  typing.
+
+### Schema / Backend / Data Safety
+- No inventory movement was added.
+- No cart/checkout changes were added.
+- No Issue to Job shortcut changes were added.
+- No Return-to-Inventory behavior was added.
+- No reservation/allocation behavior was added.
+- No accounting / Financials / PO behavior was added.
+- No direct `inventory_balances` write path was added.
+- No writes to `job_materials` were added.
+- No new transaction type was added.
+- No new permission flags were added.
+- No FK/link to `job_materials` was added.
+- No cost, price, PO number, vendor ID, or structured accounting columns were
+  added.
+
+### Code / File Changes
+- `supabase/migrations/202607010001_job_buyout_lines_foundation.sql`
+  - New Buyout Planning foundation migration.
+- `src/App.jsx`
+  - Added Buyout Planning state, CRUD wiring, on-hand lookup, print/export, and
+    development status updates.
+- `src/styles.css`
+  - Added Buyout List form/table/layout styles.
+- `HANDOFF.md`
+  - Appended this Entry 107.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are the new migration plus UI/client-side files and this
+  HANDOFF append:
+  `supabase/migrations/202607010001_job_buyout_lines_foundation.sql`,
+  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
+- No existing migrations were edited.
+- No schema, RLS, grant, permission, RPC, auth, or backend behavior outside the
+  Buyout Planning migration scope was changed.
+- No authenticated browser verification was performed in this local session.
+- The migration has been added to the repo but still needs to be applied to the
+  live Supabase project manually.
+
+### Manual Verification Notes For Ryan
+1. Open Jobs.
+2. Open a job detail.
+3. Confirm Buyout List appears inside the job detail.
+4. Add a catalog-item buyout line.
+5. Add a free-text buyout line.
+6. Confirm Qty Needed accepts `1`.
+7. Confirm Qty Needed can be cleared temporarily while typing.
+8. Confirm blank Qty Needed cannot be saved.
+9. Confirm Qty Ordered can be blank/null.
+10. Confirm Qty Ordered can be `0`.
+11. Change status to ordered, received, and cancelled.
+12. Edit vendor note, lead time note, and note.
+13. Archive/remove a line.
+14. Confirm In Stock appears only as read-only context.
+15. Confirm print-to-PDF works.
+16. Confirm CSV export works.
+17. Confirm no inventory movement, cart/checkout, reservation, or accounting
+    behavior appears.
+
+### Open Questions / Concerns
+- No blocker found.
+- Live Supabase migration application still remains as a manual follow-up.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Buyout Planning implementation within locked
+  decisions.
+- The work remained inside ARCHITECTURE v2.23 Section 41.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.23, HANDOFF Entry 107).

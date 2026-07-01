@@ -1,4 +1,5 @@
 ﻿# Northgate HQ v2 — Architecture Lock Document
+### Version 2.23 — Buyout Planning locked (new Section 41): new `job_buyout_lines` table, standalone (no FK to `job_materials`), division-scoped via `division text not null`; `item_id` nullable (supports free-text lines for non-catalog items via `item_description`); `quantity_ordered` nullable (null = not yet ordered; 0 = ordered, qty TBD); `status` CHECK-constrained text (`pending`, `ordered`, `received`, `cancelled`); no cost/price/PO number/vendor ID columns; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions`; write gated on `can_manage_jobs`; no new permission flags; "In Stock" column reads `inventory_balances` at display time — read-only, never allocates; print-to-PDF and CSV export approved (display only, no accounting post); UI in Jobs workspace job detail view with locked helper copy; structured cost/vendor/PO tracking, link to `job_materials`, and accounting integration reserved. (Entry 106).
 ### Version 2.22 — Issue to Job locked (new Section 40): confirms the existing `destination_type = 'job'` / `destination_id` schema and checkout RPC (locked since Section 11, v2.5) already support Assign-to-Job movement with no schema or RPC change; 5K.3 is a UI-only binding — adds Job as a third destination option in the existing Cart/Checkout destination-selection UI (alongside user/vehicle) with a division-scoped job picker, and adds an "Issue to Job" navigation/prefill action on Job Material List lines (Section 39) that hands off to the existing cart/checkout flow with no direct write; requested_quantity may prefill the cart quantity as a suggestion only; a job not on a job's Job Material List may still receive issued material; no write to `job_materials`, no issued/fulfilled/remaining calculation in this milestone; no new transaction type, RPC, schema, or permission flag; gated on existing `can_inventory_transactions`. (Entry 102). Prior: v2.21 — Job Material List locked (new Section 39): implements the Section 37 demand layer; new `job_materials` table referencing `public.jobs(id)`, division-scoped via `division text not null`; `item_id` references existing catalog `items` (exact PK type confirmed by Codex preflight, not assumed); no fulfillment/issued/remaining/reserved/allocated/buyout/purchased columns, no procurement or cost columns; optional display-only `material_name_snapshot` / `material_code_snapshot`; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions`; write gated on `can_manage_jobs` (not `can_manage_inventory`); no new permission flags; UI lives in Jobs workspace on job detail view with locked helper copy; display-only requested-quantity summary permitted, no fulfillment language; Issue to Job affordance may appear disabled only; Issue to Job, Buyout, and Return-to-Inventory remain reserved for 5K.3, 5K.4, 5K.5. (Entry 097). Prior: v2.20 — Jobs Foundation locked (new Section 38): new `jobs` table, division-scoped via `division text not null`; `job_type` and `service_call_number` included per Section 5b; `status` as CHECK-constrained text (`active`, `on_hold`, `complete`, `cancelled` — `archived` is not a status value; archive via `archived_at`); `job_number` unique-when-non-null via partial index; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions` (Section 17a pattern); create gated on `can_create_jobs`; edit/archive gated on `can_manage_jobs`; no new permission flags (`can_create_jobs` and `can_manage_jobs` already canonical per Section 17); customer/client, budget/accounting, job_materials, and all job management features reserved; cross-reference note added to Section 5. (Entry 095). Prior: v2.19 — Job Material Workflow locked (new Section 37): demand/movement layer separation; Job Material List (`job_materials`) is a demand/planning artifact — never writes balances; fulfillment derived from the ledger (no stored counter, no second source of truth); Issue to Job = Assign to Job movement through the existing Cart / Checkout engine (Section 11) only — no parallel write path; Buyout = derived demand-side calculation + status, no ledger write, no auto-post to Financials; Return-to-Inventory = Return from Job inbound transaction via a new RPC (5K.5), gated on `can_inventory_transactions`, following Section 11 checkout RPC pattern; no new transaction types; reservation concept and "Allocation" term reserved for future architecture clearance; `jobs` table is a hard prerequisite for all 5K implementation (Bucket 3; requires its own Claude review); milestone sequence locked: 5K.1 → Jobs foundation → 5K.2 → 5K.3 → 5K.4 → 5K.5. (Entry 094). Prior: v2.18 — Section 36 (Tool Catalogue) corrected: division_id uuid references divisions(id) replaced with division text not null to match existing app convention (user_permissions.division, items.division); divisions table and UUID-based division normalization reserved for a future architecture-cleared milestone. No other changes to Tool Catalogue schema, RLS model, permissions, or reserved feature list. Rule 20 cross-cleared. (Entry 084). Prior: v2.17 — Tool Catalogue Foundation locked (new Section 36): new tools table, division-scoped via division_id FK; condition and status as CHECK-constrained text columns with starting value sets; tool_number and serial_number unique-when-non-null via partial indexes; archived_by as text (Clerk user ID); purchase_price and vendor deferred; home_location, current_location, and assigned_to as plain text placeholders until linkage is architecture-cleared; soft-archive per Section 18; read gated on division scope / can_view_all_divisions; write gated on can_manage_inventory; no new permission flags; no audit table; no attachments; UI title "Tool Catalogue" with locked helper copy; checkout, assignment history, QR labels, vehicle/bin linkage, job linkage, tracking history, audit table, tool-specific permission flags, and purchase accounting all reserved. Rule 20 cross-cleared. (Entry 083). Prior: v2.16 — Standard Codex Operating Instructions adopted (new Section 35): reusable task classification buckets (Safe UI/CSS, Existing-flow binding with positive confirmation gate, Architecture-sensitive); protected-scope rules with cross-location transfer and multi-bin batch action lock references (Section 10a, v2.15); explicit RLS-bypass prohibition in UI/client-side rule; explicit inventory_balances direct-write check in verification procedure; standard start procedure, HANDOFF requirement, routing verdict, and short-prompt footer. Rule 20 cross-cleared. (Entry 081). Prior: v2.15 — Scan Destination Behavior locked in new Section 10a: resolving a location QR opens a division-scoped, location-scoped view and action entry point; scan pages dispatch into existing cart/checkout and `physical_count_correction` engines and must not reimplement cart, transaction, or balance logic; authentication is required before contents; resolution is server-resolved and fail-closed generically; inventory cost is open within authorized inventory scope; bin pages allow cart add/remove through the existing cart flow and count correction through `physical_count_correction`; unit/shelf/bay pages are read + navigation and actions occur at bin level; no generic ambiguous +/- controls; scan pages initiate no location-to-location movement and do not surface Transfer Location; multi-bin batch cart actions are reserved; label layout may vary by level through `label_templates.scope_level`; QR payload is unchanged; no new transaction type or balance-derivation change (Entry 062). Prior: v2.14 — Inventory module-completion milestone locked: Division-Scoped Read Rule added in new Section 17a; `can_view_all_divisions` added for read-only cross-division scope; cross-division access comes from Developer role default and Admin division default/effective permission, while Administrator role outside Admin division remains own-division unless individually granted; own-division-full and self-scoped read tiers locked; inventory cost is open within authorized inventory scope and `can_view_financials` is not used for inventory cost; QR payload and web scanner scope locked in Section 10; Label Template Designer and `label_templates` table locked in Section 25; Section 29 inventory build sequence updated for QR scanner and label designer; HANDOFF Entry 051/052 presentation order repaired under Rule 20 (Entry 056). Prior: v2.13 — bin_item retirement locked (Section 23): a mistakenly added material is archived (Rule 13 / Section 18), never hard-deleted; archival is a structural action (no ledger row, no quantity change) gated on a zero ledger-derived balance — a non-zero balance must first be zeroed via `physical_count_correction`; one Developer/Admin-only RPC (`can_archive_records`) records `archived_at` / `archived_by` / `archive_reason`; archived `bin_items` are hidden from active count/intake views but preserved in transaction history (Entry 042). Prior: v2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: 'office' is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release 'office' correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
 
@@ -22,7 +23,7 @@
 ```
 Northgate-HQ-v2.0/
   docs/
-    ARCHITECTURE.md          ← Architecture Lock Document v2.15
+    ARCHITECTURE.md          ← Architecture Lock Document v2.23
     INVENTORY_SCHEMA.md      ← Inventory Schema Plan v2.3
   HANDOFF.md                 ← Cumulative session handoff log
   src/                       ← React + Vite application
@@ -2873,3 +2874,164 @@ Bucket 2 existing-flow binding only if preflight confirms the live
 Implementation must remain limited to UI navigation/prefill binding into the
 existing Cart / Checkout flow. No schema, RPC, permission, or runtime write
 changes are authorized by this section.
+
+---
+
+## 41. Buyout Planning (locked v2.23 — Entry 106)
+
+### 41.0 Purpose
+
+Buyout List is a PM's standalone procurement checklist for a job. It captures
+long-lead items, quoted materials, and anything worth shopping before the job
+starts.
+
+It is not a comprehensive material tracking system. Foreman as-needed orders
+happen outside the app for now. Job budget and cost tracking are separate
+concerns.
+
+Buyout List is not derived from `job_materials`. Buyout List is its own table:
+`job_buyout_lines`. There is no FK to `job_materials`. Any relationship to Job
+Material List is informational only and reserved for a future architecture
+decision.
+
+On-hand inventory is a read-time convenience signal only. Buyout Planning does
+not allocate, reserve, move, or post accounting entries for inventory.
+
+### 41.1 New table
+
+`public.job_buyout_lines`
+
+Fields:
+
+- `id uuid primary key default gen_random_uuid()`
+- `job_id uuid not null references public.jobs(id)`
+- `division text not null`
+- `created_at timestamptz not null default now()`
+- `updated_at timestamptz not null default now()`
+- `archived_at timestamptz null`
+- `archived_by text null`
+- `archive_reason text null`
+- `item_id <confirmed type> null references existing catalog items table`
+- `item_description text null`
+- `quantity_needed numeric not null default 1 check (quantity_needed > 0)`
+- `quantity_ordered numeric null check (quantity_ordered is null or quantity_ordered >= 0)`
+- `status text not null default 'pending' check status in ('pending','ordered','received','cancelled')`
+- `vendor_note text null`
+- `lead_time_note text null`
+- `note text null`
+- `created_by text null`
+
+### 41.2 Schema decisions
+
+- `item_id` is nullable.
+- `item_description` supports non-catalog / free-text lines.
+- Either `item_id` or `item_description` should be present via UI validation,
+  not a DB constraint.
+- `quantity_ordered` is nullable:
+  - null = not yet ordered
+  - 0 = ordered, quantity TBD
+- `status` is CHECK-constrained text, not a Postgres enum.
+- No cost, price, PO number, or vendor ID columns.
+- `vendor_note` and `lead_time_note` are plain text only.
+- No FK to `job_materials`.
+- Soft archive only.
+- No DELETE policy.
+
+### 41.3 In Stock read-time signal
+
+`In Stock` reads from `inventory_balances` at display time for catalog item
+lines.
+
+The signal is division-scoped using existing inventory visibility conventions.
+It is blank for free-text lines.
+
+The value is never stored on `job_buyout_lines`. It never allocates, reserves,
+or moves material.
+
+### 41.4 Permissions
+
+- Read: own division or `can_view_all_divisions`.
+- Write insert/edit/archive: `can_manage_jobs`.
+- No new permission flags.
+- No hard delete.
+
+### 41.5 UI location
+
+- Jobs workspace.
+- Job detail view.
+- Buyout List section/tab alongside Job Material List.
+- Not Inventory workspace.
+- No inventory movement UI from this screen.
+- No cart/checkout UI from this screen.
+- No reservation/allocation UI.
+- No accounting UI.
+
+### 41.6 UI allowed
+
+- Add buyout line using catalog item picker or free-text description.
+- Edit `quantity_needed`, `quantity_ordered`, `status`, `vendor_note`,
+  `lead_time_note`, and `note`.
+- Soft archive/remove buyout line.
+- Status badge values: `pending`, `ordered`, `received`, `cancelled`.
+- In Stock read-time column.
+- Per-job summary such as "3 of 7 lines ordered".
+- Print to PDF.
+- CSV export.
+- Empty, loading, and error states.
+
+### 41.7 Locked helper copy
+
+`Buyout List is a planning tool for the PM. Add items that need to be quoted or ordered. The In Stock column shows current inventory levels — it does not reserve material. To pull stock for this job, use the Inventory module.`
+
+### 41.8 Print/export
+
+Approved for 5K.4:
+
+- simple print-to-PDF
+- CSV export
+
+Export columns:
+
+- Item / Description
+- Qty Needed
+- Qty Ordered
+- Status
+- In Stock
+- Lead Time
+- Vendor
+- Note
+
+Export must not include:
+
+- cost
+- price
+- PO number
+- accounting codes
+- fields outside the approved column list
+
+### 41.9 Explicitly reserved
+
+- structured cost/price/PO number/vendor ID
+- accounting / Financials integration
+- purchase order creation
+- inventory movement
+- cart/checkout changes
+- reservation/allocation behavior
+- link/FK to `job_materials`
+- Return-to-Inventory
+- Return-from-Job RPC
+- new transaction types
+- direct `inventory_balances` writes
+- job tote / QR labels
+- customer/client CRM
+- job phases/schedule
+- employee assignments
+- documents/photos
+- estimates/contracts linkage
+
+### 41.10 Implementation gate and sequencing
+
+After this Section 41 lock is adopted, Codex may implement Buyout Planning only
+as a Bucket 3 / Architecture-sensitive feature within the locked decisions.
+This section does not authorize any schema, RPC, permission, or runtime write
+changes by itself.
