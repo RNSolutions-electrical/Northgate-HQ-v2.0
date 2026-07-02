@@ -347,11 +347,17 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   padding: .65rem .8rem;
   text-align: left;
   font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
 }
 .job-detail-tab small {
   color: #94a3b8;
   font-size: .72rem;
   font-weight: 700;
+}
+.job-detail-tab:hover:not(:disabled) {
+  border-color: rgba(200,146,42,.32);
+  background: rgba(200,146,42,.08);
 }
 .job-detail-tab--active {
   border-color: rgba(200,146,42,.45);
@@ -360,6 +366,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 }
 .job-detail-tab--disabled {
   border-style: dashed;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 .job-detail-module { display: grid; gap: 1rem; overflow: hidden; }
 .job-overview-panel,

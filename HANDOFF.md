@@ -11810,3 +11810,81 @@ ARCHITECTURE v2.25 decisions.
 
 ### Routing Verdict
 No Claude review needed — Safe UI tab activation fix within locked Job Transactions Log decisions (ARCHITECTURE v2.25).
+
+---
+
+## Entry 113 - Transactions tab clickability fix
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Job Transactions Log / UI clickability fix
+**Session type:** bugfix
+
+### Context
+Ryan reported that the Jobs detail Transactions tab still was not actually
+clickable even after the prior activation wiring pass. This follow-up remained
+strictly inside the locked ARCHITECTURE v2.25 UI/client-side scope.
+
+### Root Cause
+- The Jobs detail sub-nav still split tab status across generic helper sets,
+  inline button behavior, and shared button styling.
+- Transactions was logically intended to be active, but the tab bar did not
+  have one direct source of truth for clickability, and the CSS did not
+  explicitly reserve pointer blocking for only the true Coming Soon tabs.
+
+### What Was Completed
+- Moved Jobs detail tab status into one explicit config source of truth.
+- Kept these tabs active and clickable:
+  - Overview
+  - Details
+  - Materials
+  - Buyout
+  - Transactions
+- Kept these tabs visible but disabled / Coming Soon:
+  - Financials
+  - Documents
+  - Schedule
+- Added a shared Jobs detail tab-change handler so clicking Transactions sets
+  the selected tab to `transactions`.
+- Updated tab styling so active tabs use normal pointer behavior and only
+  disabled / Coming Soon tabs block pointer interaction.
+- Kept Transactions rendering the existing read-only Job Transactions Log panel.
+
+### Safety Confirmations
+- Safe UI/client-side clickability fix only.
+- No schema, RLS, grant, permission, migration, RPC, or backend behavior
+  changes.
+- No transaction write behavior changes.
+- No inventory movement, cart, or checkout behavior changes.
+- No changes to the transaction view itself.
+- No Financials, Return-to-Inventory, cost, or value behavior added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Replaced split helper-set tab status wiring with explicit per-tab config.
+  - Added a shared tab-change handler for Jobs detail tabs.
+  - Ensured Transactions routes into the read-only log panel.
+- `src/styles.css`
+  - Added explicit active-tab pointer/cursor styling.
+  - Restricted pointer blocking to disabled / Coming Soon tabs only.
+- `HANDOFF.md`
+  - Appended this Entry 113.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side plus this HANDOFF append only:
+  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
+- No migrations were added or edited in this milestone.
+- No authenticated browser verification was completed.
+- In-app browser verification against localhost was not available because the
+  browser session could not connect to the local Vite app from this environment.
+
+### Outcome
+- Transactions tab/button is now active and clickable in code and styling.
+- Clicking Transactions routes the Jobs detail panel to the read-only Job
+  Transactions Log.
+- Financials, Documents, and Schedule remain disabled / Coming soon.
+
+### Routing Verdict
+No Claude review needed — Safe UI clickability fix within locked Job Transactions Log decisions (ARCHITECTURE v2.25).

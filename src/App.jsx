@@ -173,25 +173,24 @@ const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List and Buyout List are
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
-const ACTIVE_JOB_DETAIL_TAB_KEYS = new Set(['overview', 'details', 'materials', 'buyout', 'transactions']);
-const COMING_SOON_JOB_DETAIL_TAB_KEYS = new Set(['financials', 'documents', 'schedule']);
 const JOB_DETAIL_TABS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'details', label: 'Details' },
-  { key: 'materials', label: 'Materials' },
-  { key: 'buyout', label: 'Buyout' },
-  { key: 'transactions', label: 'Transactions' },
-  { key: 'financials', label: 'Financials' },
-  { key: 'documents', label: 'Documents' },
-  { key: 'schedule', label: 'Schedule' },
+  { key: 'overview', label: 'Overview', isDisabled: false, isComingSoon: false },
+  { key: 'details', label: 'Details', isDisabled: false, isComingSoon: false },
+  { key: 'materials', label: 'Materials', isDisabled: false, isComingSoon: false },
+  { key: 'buyout', label: 'Buyout', isDisabled: false, isComingSoon: false },
+  { key: 'transactions', label: 'Transactions', isDisabled: false, isComingSoon: false },
+  { key: 'financials', label: 'Financials', isDisabled: true, isComingSoon: true },
+  { key: 'documents', label: 'Documents', isDisabled: true, isComingSoon: true },
+  { key: 'schedule', label: 'Schedule', isDisabled: true, isComingSoon: true },
 ];
 
-function isJobDetailTabDisabled(tabKey) {
-  return !ACTIVE_JOB_DETAIL_TAB_KEYS.has(tabKey);
+function getJobDetailTab(tabKey) {
+  return JOB_DETAIL_TABS.find((tab) => tab.key === tabKey) ?? null;
 }
 
 function normalizeJobDetailTab(tabKey) {
-  return ACTIVE_JOB_DETAIL_TAB_KEYS.has(tabKey) ? tabKey : 'overview';
+  const tab = getJobDetailTab(tabKey);
+  return tab && !tab.isDisabled ? tab.key : 'overview';
 }
 const BUYOUT_LIST_HELPER_COPY = 'Buyout List is a planning tool for the PM. Add items that need to be quoted or ordered. The In Stock column shows current inventory levels — it does not reserve material. To pull stock for this job, use the Inventory module.';
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
@@ -8055,9 +8054,14 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setJobMessage('');
   }
 
+  function handleJobDetailTabChange(tabKey) {
+    const nextTab = normalizeJobDetailTab(tabKey);
+    setActiveJobDetailTab(nextTab);
+  }
+
   function viewJob(row, detailTab = 'overview') {
     setSelectedJobId(row.id);
-    setActiveJobDetailTab(normalizeJobDetailTab(detailTab));
+    handleJobDetailTabChange(detailTab);
     setDraft(createJobDraft(row));
     setJobMessage('');
   }
@@ -9261,15 +9265,15 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
                     <div className="job-detail-tabs" role="tablist" aria-label="Job detail sections">
                       {JOB_DETAIL_TABS.map((tab) => {
-                        const isDisabled = isJobDetailTabDisabled(tab.key);
-                        const isComingSoon = COMING_SOON_JOB_DETAIL_TAB_KEYS.has(tab.key);
+                        const isDisabled = tab.isDisabled;
+                        const isComingSoon = tab.isComingSoon;
 
                         return (
                           <button
                             key={tab.key}
                             type="button"
                             className={`job-detail-tab${activeJobDetailTab === tab.key ? ' job-detail-tab--active' : ''}${isDisabled ? ' job-detail-tab--disabled' : ''}`}
-                            onClick={isDisabled ? undefined : () => setActiveJobDetailTab(normalizeJobDetailTab(tab.key))}
+                            onClick={isDisabled ? undefined : () => handleJobDetailTabChange(tab.key)}
                             aria-selected={activeJobDetailTab === tab.key}
                             aria-disabled={isDisabled}
                             disabled={isDisabled}
