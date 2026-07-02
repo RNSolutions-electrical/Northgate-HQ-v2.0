@@ -4,7 +4,7 @@ SELECT
   ti.transaction_id,
   COALESCE(ti.occurred_at, ti.created_at, tx.created_at) AS occurred_at,
   tx.created_at AS transaction_created_at,
-  ti.division,
+  i.division,
   ti.destination_id AS job_id,
   ti.item_id,
   i.material_code,
