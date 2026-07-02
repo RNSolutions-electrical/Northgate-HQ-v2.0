@@ -11600,3 +11600,140 @@ without pulling Financials into the same decision set.
 
 ### Routing Verdict
 No Claude review needed — docs-only Job Transactions Log architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.25, HANDOFF Entry 110).
+
+---
+
+## Entry 111 - Job Transactions Log implemented
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Job Transactions Log / implementation
+**Session type:** implementation
+
+### Context
+Section 43 is now implemented inside the locked ARCHITECTURE v2.25 slice.
+Transactions was previously a placeholder tab in the Jobs detail sub-nav, and
+this milestone activates it as a read-only log sourced from the existing
+inventory ledger.
+
+### What Was Completed
+- Added a new read-only `public.job_transaction_log` migration view.
+- Confirmed the source ledger table columns during preflight:
+  - `transaction_items.id`
+  - `transaction_items.transaction_id`
+  - `transaction_items.occurred_at`
+  - `transaction_items.division`
+  - `transaction_items.destination_id`
+  - `transaction_items.item_id`
+  - `transaction_items.quantity`
+  - `transaction_items.transaction_type`
+  - `transaction_items.note`
+  - `transaction_items.ledger_sequence`
+  - `inventory_transactions.id`
+  - `inventory_transactions.created_at`
+  - `inventory_transactions.user_id`
+  - `inventory_transactions.performed_by_name`
+  - `inventory_transactions.notes`
+  - `inventory_transactions.source_vehicle_id`
+- Locked the view to rows where `destination_type = 'job'`.
+- Matched the job with `destination_id = jobs.id::text`.
+- Included read-model fields for material/item, quantity, source location/bin,
+  transaction type, performed by, and notes/reference.
+- Activated the Transactions tab in the Jobs detail sub-nav.
+- Added the read-only Transactions table/log UI.
+- Added the required helper copy verbatim.
+- Kept Financials disabled / placeholder.
+- Kept edit, delete, return, print, and export actions out of the Transactions
+  tab.
+- Updated the Development Status card to ARCHITECTURE v2.25 / Entry 111.
+
+### View / UI Shape
+- View columns support the Transactions tab with:
+  - transaction item id
+  - occurred date/time
+  - division
+  - job id
+  - item id
+  - material code / item name / unit of measure
+  - quantity
+  - transaction type
+  - source bin id
+  - source bin code
+  - source bin label
+  - source location label
+  - performed by
+  - performed by user id
+  - note
+  - ledger sequence
+- UI table columns are:
+  - Date
+  - Material / Item
+  - Quantity
+  - Source location / bin
+  - Transaction type
+  - Performed by
+  - Notes / reference
+- Empty, loading, and error states are present.
+- The tab remains read-only and source-location-agnostic.
+
+### Permissions / RLS / View Behavior
+- The source transaction tables are RLS-disabled in the repo’s existing phase 1
+  inventory migrations, so the view follows the project’s existing plain-view
+  pattern instead of introducing a SECURITY DEFINER bypass.
+- No new permission flags were introduced.
+- No RPC changes were introduced.
+- No backend write path changes were introduced.
+- No direct `inventory_balances` write path was introduced.
+
+### Code / File Changes
+- `supabase/migrations/202607020001_job_transaction_log_view.sql`
+  - New read-only job transaction log view.
+- `src/App.jsx`
+  - Added Transactions tab state, loading, table/log UI, and tab activation.
+- `src/styles.css`
+  - Added Transactions tab styling.
+- `HANDOFF.md`
+  - Appended this Entry 111.
+
+### Verification
+- Mandatory preflight passed:
+  - working tree was clean before implementation
+  - `docs/ARCHITECTURE.md` was already at v2.25
+  - HANDOFF was gapless through Entry 110
+  - exact ledger table columns, `jobs.id` UUID shape, and the repo’s view
+    pattern were confirmed before editing
+  - no schema / RPC / permission changes were required
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are migration plus UI/client-side files and this HANDOFF append:
+  `supabase/migrations/202607020001_job_transaction_log_view.sql`,
+  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
+- No authenticated browser verification was performed in this local session.
+- The new migration has been added to the repo but still needs to be applied to
+  the live Supabase project manually.
+
+### Manual Verification Notes For Ryan
+1. Open Jobs.
+2. Select a job.
+3. Open Transactions tab.
+4. Confirm the helper copy appears:
+   `This is a read-only log of material coded to this job through Inventory Checkout.`
+5. Confirm transactions coded to that job appear if any exist.
+6. Confirm the empty state appears if none exist.
+7. Confirm the table shows date, material/item, quantity, source location/bin,
+   transaction type, performed by, and notes/reference.
+8. Confirm there are no edit, delete, or return buttons.
+9. Confirm no cost/value or financial columns appear.
+10. Confirm Financials remains Coming soon / disabled.
+
+### Open Questions / Concerns
+- No blocker found.
+- Live Supabase migration application still needs manual follow-up.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Job Transactions Log implementation within locked
+  decisions.
+- The work remained inside ARCHITECTURE v2.25 Section 43.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.25, HANDOFF Entry 111).

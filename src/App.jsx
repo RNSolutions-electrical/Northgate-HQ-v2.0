@@ -77,12 +77,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Workspace Detail Sub-Navigation Pattern - Jobs',
-  relatedHandoff: 'Entry 109',
-  architectureVersion: 'v2.24',
-  currentStep: 'Jobs detail sub-nav refactor',
+  mostRecentChange: 'Job Transactions Log',
+  relatedHandoff: 'Entry 111',
+  architectureVersion: 'v2.25',
+  currentStep: 'Transactions tab activation',
   buildMarker: 'ebebe9d',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Jobs detail sub-nav implementation code is present in the loaded build.',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Job Transactions Log implementation code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -178,7 +178,7 @@ const JOB_DETAIL_TABS = [
   { key: 'details', label: 'Details', disabled: false },
   { key: 'materials', label: 'Materials', disabled: false },
   { key: 'buyout', label: 'Buyout', disabled: false },
-  { key: 'transactions', label: 'Transactions', disabled: true },
+  { key: 'transactions', label: 'Transactions', disabled: false },
   { key: 'financials', label: 'Financials', disabled: true },
   { key: 'documents', label: 'Documents', disabled: true },
   { key: 'schedule', label: 'Schedule', disabled: true },
@@ -2554,6 +2554,13 @@ function buildJobMaterialMutationPayload(draft) {
 }
 
 function formatOptionalQuantity(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return '-';
+  return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function formatTransactionLogQuantity(value) {
   if (value === null || value === undefined || value === '') return '-';
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) return '-';
@@ -7710,6 +7717,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [buyoutInStockByItemId, setBuyoutInStockByItemId] = useState(() => new Map());
   const [isLoadingBuyoutInStock, setIsLoadingBuyoutInStock] = useState(false);
   const [buyoutInStockError, setBuyoutInStockError] = useState(null);
+  const [jobTransactions, setJobTransactions] = useState([]);
+  const [isLoadingJobTransactions, setIsLoadingJobTransactions] = useState(false);
+  const [jobTransactionsError, setJobTransactionsError] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -7736,6 +7746,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const buyoutCatalogMatches = useMemo(() => filterJobMaterialCatalogItems(catalogItems, buyoutCatalogSearch), [catalogItems, buyoutCatalogSearch]);
   const selectedBuyoutCatalogItem = catalogItems.find((item) => item.id === buyoutDraft.item_id) ?? null;
   const buyoutFormCanSave = Boolean(selectedJobCanEdit && selectedJob && !isSavingBuyoutLine);
+  const filteredJobTransactions = useMemo(() => jobTransactions, [jobTransactions]);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -7894,6 +7905,37 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }
 
+  async function loadJobTransactions(jobId) {
+    if (!canReadJobs || !jobId) {
+      setJobTransactions([]);
+      setIsLoadingJobTransactions(false);
+      setJobTransactionsError(null);
+      return;
+    }
+
+    setIsLoadingJobTransactions(true);
+    setJobTransactionsError(null);
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('job_transaction_log')
+        .select('transaction_item_id, transaction_id, occurred_at, transaction_created_at, division, job_id, item_id, material_code, item_name, unit_of_measure, quantity, transaction_type, source_bin_id, source_bin_code, source_bin_label, source_location_label, performed_by, performed_by_user_id, note, ledger_sequence')
+        .eq('job_id', jobId)
+        .order('occurred_at', { ascending: false })
+        .order('ledger_sequence', { ascending: false });
+      if (error) throw error;
+      setJobTransactions(data ?? []);
+    } catch (error) {
+      console.error('Job Transactions Log load failed', error);
+      setJobTransactions([]);
+      setJobTransactionsError(error);
+    } finally {
+      setIsLoadingJobTransactions(false);
+    }
+  }
+
   function issueMaterialToJob(row) {
     if (!canIssueToJob || !selectedJob || !navigateTo) {
       return;
@@ -7945,6 +7987,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setBuyoutLinesError(null);
     setBuyoutInStockByItemId(new Map());
     setBuyoutInStockError(null);
+    setJobTransactions([]);
+    setJobTransactionsError(null);
 
     if (!selectedJob) {
       setJobMaterials([]);
@@ -7952,11 +7996,14 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setCatalogItems([]);
       setJobMaterialsError(null);
       setBuyoutLinesError(null);
+      setJobTransactions([]);
+      setJobTransactionsError(null);
       return;
     }
 
     loadJobMaterials(selectedJob.id);
     loadBuyoutLines(selectedJob.id);
+    loadJobTransactions(selectedJob.id);
     if (selectedJobCanEdit) {
       loadJobMaterialCatalog();
     } else {
@@ -8911,6 +8958,89 @@ function JobsWorkspace({ permissions, navigateTo }) {
     );
   }
 
+  function renderJobTransactionsTab() {
+    if (!selectedJob) return null;
+
+    return (
+      <section className="job-transactions-list">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Transactions</p>
+            <h3>Job Transactions Log</h3>
+            <p>This is a read-only log of material coded to this job through Inventory Checkout.</p>
+          </div>
+          <span>{filteredJobTransactions.length} row{filteredJobTransactions.length === 1 ? '' : 's'}</span>
+        </div>
+
+        {jobTransactionsError ? <div className="alert">Job Transactions Log failed to load. Confirm the deployed `public.job_transaction_log` view and server access.</div> : null}
+
+        {isLoadingJobTransactions ? <p className="muted">Loading Job Transactions Log...</p> : null}
+
+        {!isLoadingJobTransactions && !filteredJobTransactions.length ? (
+          <div className="empty-state">
+            <strong>No transactions have been coded to this job yet.</strong>
+            <p>This log will populate after Inventory Checkout posts job-coded transactions.</p>
+          </div>
+        ) : null}
+
+        {filteredJobTransactions.length ? (
+          <>
+            <div className="table-wrap">
+              <table className="data-table job-transactions-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Material / Item</th>
+                    <th>Quantity</th>
+                    <th>Source location / bin</th>
+                    <th>Transaction type</th>
+                    <th>Performed by</th>
+                    <th>Notes / reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredJobTransactions.map((row) => (
+                    <tr key={row.transaction_item_id}>
+                      <td>{formatJobDateTime(row.occurred_at ?? row.transaction_created_at)}</td>
+                      <td>
+                        <strong>{[row.material_code, row.item_name].filter(Boolean).join(' / ') || row.item_id}</strong>
+                        <span>{row.unit_of_measure || row.item_id || '-'}</span>
+                      </td>
+                      <td>{formatTransactionLogQuantity(row.quantity)}</td>
+                      <td>
+                        <strong>{row.source_location_label || row.source_bin_label || row.source_bin_code || row.source_bin_id || '-'}</strong>
+                        <span>{row.source_bin_code || row.source_bin_id || '-'}</span>
+                      </td>
+                      <td>{formatTransactionType(row.transaction_type)}</td>
+                      <td>{row.performed_by || row.performed_by_user_id || 'Unknown'}</td>
+                      <td>{row.note || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list job-transactions-mobile-list">
+              {filteredJobTransactions.map((row) => (
+                <article className="mobile-item" key={row.transaction_item_id}>
+                  <strong>{[row.material_code, row.item_name].filter(Boolean).join(' / ') || row.item_id}</strong>
+                  <div className="meta-grid">
+                    <span>Date: {formatJobDateTime(row.occurred_at ?? row.transaction_created_at)}</span>
+                    <span>Qty: {formatTransactionLogQuantity(row.quantity)}</span>
+                    <span>Source: {row.source_location_label || row.source_bin_label || row.source_bin_code || row.source_bin_id || '-'}</span>
+                    <span>Type: {formatTransactionType(row.transaction_type)}</span>
+                    <span>By: {row.performed_by || row.performed_by_user_id || 'Unknown'}</span>
+                    <span>Notes: {row.note || '-'}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </section>
+    );
+  }
+
   function renderActiveJobDetailTab() {
     switch (activeJobDetailTab) {
       case 'details':
@@ -8919,6 +9049,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
         return renderJobMaterialsTab();
       case 'buyout':
         return renderJobBuyoutTab();
+      case 'transactions':
+        return renderJobTransactionsTab();
       case 'overview':
       default:
         return renderJobOverviewTab();

@@ -450,6 +450,18 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-buyout-form .secondary-button { white-space: normal; }
 .job-buyout-table { min-width: 1120px; }
 .job-buyout-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.job-transactions-list {
+  display: grid;
+  gap: .8rem;
+  margin: 1rem 0;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+}
+.job-transactions-list .count-section-header { align-items: flex-start; flex-wrap: wrap; }
+.job-transactions-list .count-section-header p { margin: 0; overflow-wrap: anywhere; }
+.job-transactions-table { min-width: 1080px; }
+.job-transactions-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .count-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .count-workspace__main { min-width: 0; }
 .count-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .6rem; align-items: end; margin-bottom: .9rem; }
