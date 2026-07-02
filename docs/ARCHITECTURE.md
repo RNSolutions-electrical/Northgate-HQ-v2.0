@@ -1,4 +1,5 @@
 ﻿# Northgate HQ v2 — Architecture Lock Document
+### Version 2.24 — Workspace Detail Sub-Navigation Pattern locked (new Section 42): reusable detail-view shell with a persistent selected-record header, horizontal sub-nav tabs, and a single focused content area; Jobs is the first application; active tabs Overview, Details, Materials, and Buyout are live; Transactions, Financials, Documents, and Schedule are disabled/Coming Soon using the existing 5J shell placeholder pattern; Job list/directory remains unchanged; no sidebar for job sub-nav; mobile responsive per Constitutional Rule 18; `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` remains false/hidden; no schema, Supabase, RPC, permission, runtime, or UI implementation changes yet. (Entry 108).
 ### Version 2.23 — Buyout Planning locked (new Section 41): new `job_buyout_lines` table, standalone (no FK to `job_materials`), division-scoped via `division text not null`; `item_id` nullable (supports free-text lines for non-catalog items via `item_description`); `quantity_ordered` nullable (null = not yet ordered; 0 = ordered, qty TBD); `status` CHECK-constrained text (`pending`, `ordered`, `received`, `cancelled`); no cost/price/PO number/vendor ID columns; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions`; write gated on `can_manage_jobs`; no new permission flags; "In Stock" column reads `inventory_balances` at display time — read-only, never allocates; print-to-PDF and CSV export approved (display only, no accounting post); UI in Jobs workspace job detail view with locked helper copy; structured cost/vendor/PO tracking, link to `job_materials`, and accounting integration reserved. (Entry 106).
 ### Version 2.22 — Issue to Job locked (new Section 40): confirms the existing `destination_type = 'job'` / `destination_id` schema and checkout RPC (locked since Section 11, v2.5) already support Assign-to-Job movement with no schema or RPC change; 5K.3 is a UI-only binding — adds Job as a third destination option in the existing Cart/Checkout destination-selection UI (alongside user/vehicle) with a division-scoped job picker, and adds an "Issue to Job" navigation/prefill action on Job Material List lines (Section 39) that hands off to the existing cart/checkout flow with no direct write; requested_quantity may prefill the cart quantity as a suggestion only; a job not on a job's Job Material List may still receive issued material; no write to `job_materials`, no issued/fulfilled/remaining calculation in this milestone; no new transaction type, RPC, schema, or permission flag; gated on existing `can_inventory_transactions`. (Entry 102). Prior: v2.21 — Job Material List locked (new Section 39): implements the Section 37 demand layer; new `job_materials` table referencing `public.jobs(id)`, division-scoped via `division text not null`; `item_id` references existing catalog `items` (exact PK type confirmed by Codex preflight, not assumed); no fulfillment/issued/remaining/reserved/allocated/buyout/purchased columns, no procurement or cost columns; optional display-only `material_name_snapshot` / `material_code_snapshot`; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions`; write gated on `can_manage_jobs` (not `can_manage_inventory`); no new permission flags; UI lives in Jobs workspace on job detail view with locked helper copy; display-only requested-quantity summary permitted, no fulfillment language; Issue to Job affordance may appear disabled only; Issue to Job, Buyout, and Return-to-Inventory remain reserved for 5K.3, 5K.4, 5K.5. (Entry 097). Prior: v2.20 — Jobs Foundation locked (new Section 38): new `jobs` table, division-scoped via `division text not null`; `job_type` and `service_call_number` included per Section 5b; `status` as CHECK-constrained text (`active`, `on_hold`, `complete`, `cancelled` — `archived` is not a status value; archive via `archived_at`); `job_number` unique-when-non-null via partial index; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions` (Section 17a pattern); create gated on `can_create_jobs`; edit/archive gated on `can_manage_jobs`; no new permission flags (`can_create_jobs` and `can_manage_jobs` already canonical per Section 17); customer/client, budget/accounting, job_materials, and all job management features reserved; cross-reference note added to Section 5. (Entry 095). Prior: v2.19 — Job Material Workflow locked (new Section 37): demand/movement layer separation; Job Material List (`job_materials`) is a demand/planning artifact — never writes balances; fulfillment derived from the ledger (no stored counter, no second source of truth); Issue to Job = Assign to Job movement through the existing Cart / Checkout engine (Section 11) only — no parallel write path; Buyout = derived demand-side calculation + status, no ledger write, no auto-post to Financials; Return-to-Inventory = Return from Job inbound transaction via a new RPC (5K.5), gated on `can_inventory_transactions`, following Section 11 checkout RPC pattern; no new transaction types; reservation concept and "Allocation" term reserved for future architecture clearance; `jobs` table is a hard prerequisite for all 5K implementation (Bucket 3; requires its own Claude review); milestone sequence locked: 5K.1 → Jobs foundation → 5K.2 → 5K.3 → 5K.4 → 5K.5. (Entry 094). Prior: v2.18 — Section 36 (Tool Catalogue) corrected: division_id uuid references divisions(id) replaced with division text not null to match existing app convention (user_permissions.division, items.division); divisions table and UUID-based division normalization reserved for a future architecture-cleared milestone. No other changes to Tool Catalogue schema, RLS model, permissions, or reserved feature list. Rule 20 cross-cleared. (Entry 084). Prior: v2.17 — Tool Catalogue Foundation locked (new Section 36): new tools table, division-scoped via division_id FK; condition and status as CHECK-constrained text columns with starting value sets; tool_number and serial_number unique-when-non-null via partial indexes; archived_by as text (Clerk user ID); purchase_price and vendor deferred; home_location, current_location, and assigned_to as plain text placeholders until linkage is architecture-cleared; soft-archive per Section 18; read gated on division scope / can_view_all_divisions; write gated on can_manage_inventory; no new permission flags; no audit table; no attachments; UI title "Tool Catalogue" with locked helper copy; checkout, assignment history, QR labels, vehicle/bin linkage, job linkage, tracking history, audit table, tool-specific permission flags, and purchase accounting all reserved. Rule 20 cross-cleared. (Entry 083). Prior: v2.16 — Standard Codex Operating Instructions adopted (new Section 35): reusable task classification buckets (Safe UI/CSS, Existing-flow binding with positive confirmation gate, Architecture-sensitive); protected-scope rules with cross-location transfer and multi-bin batch action lock references (Section 10a, v2.15); explicit RLS-bypass prohibition in UI/client-side rule; explicit inventory_balances direct-write check in verification procedure; standard start procedure, HANDOFF requirement, routing verdict, and short-prompt footer. Rule 20 cross-cleared. (Entry 081). Prior: v2.15 — Scan Destination Behavior locked in new Section 10a: resolving a location QR opens a division-scoped, location-scoped view and action entry point; scan pages dispatch into existing cart/checkout and `physical_count_correction` engines and must not reimplement cart, transaction, or balance logic; authentication is required before contents; resolution is server-resolved and fail-closed generically; inventory cost is open within authorized inventory scope; bin pages allow cart add/remove through the existing cart flow and count correction through `physical_count_correction`; unit/shelf/bay pages are read + navigation and actions occur at bin level; no generic ambiguous +/- controls; scan pages initiate no location-to-location movement and do not surface Transfer Location; multi-bin batch cart actions are reserved; label layout may vary by level through `label_templates.scope_level`; QR payload is unchanged; no new transaction type or balance-derivation change (Entry 062). Prior: v2.14 — Inventory module-completion milestone locked: Division-Scoped Read Rule added in new Section 17a; `can_view_all_divisions` added for read-only cross-division scope; cross-division access comes from Developer role default and Admin division default/effective permission, while Administrator role outside Admin division remains own-division unless individually granted; own-division-full and self-scoped read tiers locked; inventory cost is open within authorized inventory scope and `can_view_financials` is not used for inventory cost; QR payload and web scanner scope locked in Section 10; Label Template Designer and `label_templates` table locked in Section 25; Section 29 inventory build sequence updated for QR scanner and label designer; HANDOFF Entry 051/052 presentation order repaired under Rule 20 (Entry 056). Prior: v2.13 — bin_item retirement locked (Section 23): a mistakenly added material is archived (Rule 13 / Section 18), never hard-deleted; archival is a structural action (no ledger row, no quantity change) gated on a zero ledger-derived balance — a non-zero balance must first be zeroed via `physical_count_correction`; one Developer/Admin-only RPC (`can_archive_records`) records `archived_at` / `archived_by` / `archive_reason`; archived `bin_items` are hidden from active count/intake views but preserved in transaction history (Entry 042). Prior: v2.12 — Count Intake locked (Section 23): UI-driven physical count intake establishes quantities solely via the existing `physical_count_correction` mechanic (`destination_type = NULL`); a single atomic RPC find-or-creates the `bin_item` (structural link, opens at zero — never a direct opening balance) then applies the same correction path; existing catalog items only (no in-UI catalog creation); zero is a valid count; Developer/Admin write gate; no new transaction type and no second source of truth (Entry 039). Prior: v2.11 — Office disposition resolved: 'office' is a physical location, not a material destination, and is removed from the material `destination_type` enum (Sections 9, 11). `destination_type` records outbound disposition only and is NULL for inbound/non-movement transactions; Physical Count Corrections write `destination_type = NULL` (existing pre-release 'office' correction rows migrated to NULL, balance-neutral, scoped by transaction type). Return-to-inventory and buyout reserved as defined-but-unbuilt concepts; tools-at-office is a Tools-module location. Section 16 display resolution updated for NULL destinations (Entry 037). Prior: v2.10 — Section 16 user→vehicle assignment model concretized (`vehicle_assignments`, a time-bounded bridge table keyed by Clerk user ID with at most one active row per user) plus `vehicles.display_name` unit label and a read-path destination display-resolution doctrine (structural destination IDs unchanged; vehicle unit label resolved dynamically, operator association resolved point-in-time from assignment history; no snapshot of display strings, no checkout change) (Entry 033). Prior: v2.9 — Constitutional Rule 20: coordination documents are never edited or repaired silently — any change beyond a clean append must be surfaced to Ryan first, brought to a model, and cross-cleared between Claude and ChatGPT; normal append-only HANDOFF logging is exempt (Entry 031). Prior: v2.8 — Section 30 escalation protocol "When Claude Must Be Involved": decision-ready routing rule (MUST-involve triggers, proceed-without conditions, tie-breaker) plus a required per-summary routing verdict from Codex (Entry 028). Prior: v2.7 — Constitutional Rule 19 (coordination documents are the versioned source of truth: append-only sequential entries, one identical entry format, canonical filenames never renamed) and Section 34 Documentation Standard (Entry 022). Prior: v2.6 — Section 14d Express Checkout / Manager Override (new transaction-completeness concept), Section 17 new permission flags (`can_express_checkout`, `can_approve_express_checkout`, `can_defer_completion`), Section 22 reason-gated developer override (Entry 017). Prior: v2.5 — Section 11 cart-open controls (server-side permission gate + server-derived vehicle snapshot) and Section 16 vehicle stock-carrying flag + user→vehicle assignment model (Entry 016). Prior: v2.4 — Section 29 updated to reflect completed build state (Entry 014). v2.3 — Constitutional Rule 18 added: Responsive UI is a Foundational Requirement (Entry 011). v2.2 — Responsive build requirement + React Native companion app future phase. v2.1 — Updated after Claude architectural review.
 ### Ryan is final authority on all decisions marked below.
@@ -3035,3 +3036,92 @@ After this Section 41 lock is adopted, Codex may implement Buyout Planning only
 as a Bucket 3 / Architecture-sensitive feature within the locked decisions.
 This section does not authorize any schema, RPC, permission, or runtime write
 changes by itself.
+
+---
+
+## 42. Workspace Detail Sub-Navigation Pattern (locked v2.24 — Entry 108)
+
+### 42.0 Purpose
+
+The Jobs detail screen is the first application of a reusable workspace detail
+pattern: a persistent selected-record header, a horizontal sub-nav, and one
+focused content area.
+
+This pattern is intended for detail screens that need multiple scoped views
+without adding a left sidebar inside the record detail surface.
+
+### 42.1 Locked structure
+
+- Persistent selected-record header at the top of the detail view.
+- Horizontal sub-navigation directly under the header.
+- Single content panel below the sub-nav.
+- No sidebar for the detail sub-navigation.
+- The Jobs directory/list screen remains unchanged.
+- Mobile responsiveness is required under Constitutional Rule 18.
+
+### 42.2 Jobs tab set
+
+The Jobs detail sub-nav is locked to these tabs, in this exact order:
+
+1. Overview
+2. Details
+3. Materials
+4. Buyout
+5. Transactions
+6. Financials
+7. Documents
+8. Schedule
+
+Active tabs:
+
+- Overview
+- Details
+- Materials
+- Buyout
+
+Disabled / Coming Soon tabs:
+
+- Transactions
+- Financials
+- Documents
+- Schedule
+
+The disabled tabs use the existing 5J shell Coming Soon placeholder pattern.
+They are present as locked navigation targets, but they do not expose workflow
+behavior yet.
+
+### 42.3 Tab content
+
+- Overview: lightweight read-only summary for the selected job. It is a new
+  summary surface, not a renamed version of the old stacked card.
+- Details: the existing job edit form.
+- Materials: the existing Job Material List surface.
+- Buyout: the existing Buyout List surface.
+- Transactions, Financials, Documents, Schedule: Coming Soon placeholders only.
+
+### 42.4 Behavior
+
+- The selected job remains visible in the persistent header while switching
+  tabs.
+- The sub-nav changes content without changing the selected job context.
+- The job list/directory does not gain sub-navigation.
+- `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` remains false/hidden.
+- The Issue to Job shortcut stays out of this lock.
+
+### 42.5 Explicitly reserved
+
+- No sidebar navigation inside the job detail surface.
+- No schema changes.
+- No Supabase migration changes.
+- No RPC changes.
+- No permission model changes.
+- No runtime behavior changes.
+- No new backend writes.
+- No Job detail implementation changes yet.
+
+### 42.6 Implementation gate
+
+After this Section 42 lock is adopted, Codex may implement the workspace detail
+sub-navigation pattern only within the locked decisions above. This section
+does not authorize any schema, RPC, permission, or runtime write changes by
+itself.

@@ -11326,3 +11326,75 @@ detail view.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.23, HANDOFF Entry 107).
+
+---
+
+## Entry 108 - Workspace Detail Sub-Navigation Pattern locked (ARCHITECTURE v2.24, new Section 42)
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Workspace Detail Sub-Navigation Pattern / architecture lock adoption
+**Session type:** docs-only
+
+### Context
+Buyout Planning is live through Entry 107, and the Jobs detail screen had
+grown into one long stacked page. This entry locks the reusable workspace detail
+sub-navigation pattern in ARCHITECTURE v2.24 Section 42 so Jobs can become the
+first application of the pattern.
+
+### What Was Decided
+- Added a persistent selected-record header for the detail view.
+- Added a horizontal sub-navigation under the header.
+- Locked a single focused content area below the sub-nav.
+- Locked Jobs as the first application of the reusable detail pattern.
+- Locked the Jobs tab order to:
+  - Overview
+  - Details
+  - Materials
+  - Buyout
+  - Transactions
+  - Financials
+  - Documents
+  - Schedule
+- Locked Overview as a lightweight read-only summary, not a renamed old card.
+- Locked Details to the existing job edit form.
+- Locked Materials to the existing Job Material List.
+- Locked Buyout to the existing Buyout List.
+- Locked Transactions, Financials, Documents, and Schedule as disabled Coming
+  Soon tabs using the existing 5J shell placeholder pattern.
+- Confirmed the Jobs directory/list screen remains unchanged.
+- Confirmed there is no sidebar for the job sub-navigation.
+- Confirmed mobile responsiveness is required.
+- Confirmed `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` remains false/hidden.
+
+### Schema / Backend / Data Safety
+- No schema changes were added.
+- No Supabase migration changes were added.
+- No RPC changes were added.
+- No permission changes were added.
+- No runtime behavior changes were added.
+- No backend write path changes were added.
+- No UI implementation changes were added yet.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated to v2.24 and added Section 42.
+- `HANDOFF.md`
+  - Appended this Entry 108.
+
+### Verification
+- Docs only; no implementation code was changed in this task.
+- No authenticated browser verification was performed in this local session.
+- No schema, RLS, grant, permission, RPC, auth, or backend behavior outside the
+  documented lock changed.
+
+### Open Questions / Concerns
+- No blocker found.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: docs-only Workspace Detail Sub-Navigation Pattern
+  lock adoption.
+- No runtime or schema drift was introduced.
+
+### Routing Verdict
+No Claude review needed — docs-only Workspace Detail Sub-Navigation Pattern lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.24, HANDOFF Entry 108).
