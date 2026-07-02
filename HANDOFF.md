@@ -11888,3 +11888,94 @@ strictly inside the locked ARCHITECTURE v2.25 UI/client-side scope.
 
 ### Routing Verdict
 No Claude review needed — Safe UI clickability fix within locked Job Transactions Log decisions (ARCHITECTURE v2.25).
+
+---
+
+## Entry 114 - Developer Dashboard build marker sync fix
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Developer Dashboard / build metadata sync
+**Session type:** diagnostic + bugfix
+
+### Context
+Ryan reported that the Developer Dashboard showed a stale build marker even
+though recent work was committed, pushed, and reportedly deployed. This raised
+the possibility that the browser was serving an older bundle and also made it
+hard to trust whether the Transactions tab clickability fix had reached the
+served app.
+
+### Root Cause
+- The Developer Dashboard build marker was hardcoded in `src/App.jsx`.
+- The displayed hash was therefore manual metadata, not the actual commit SHA of
+  the bundle being served.
+- No service worker or other app-side cache layer was found in the repo.
+
+### What Was Completed
+- Replaced the stale manual build-marker string with build-time metadata from
+  Vite.
+- Added a Vite-defined `__APP_BUILD_SHA__` value sourced from:
+  `git rev-parse --short HEAD`
+- Updated the Developer Dashboard / header build note to display the actual
+  built commit SHA.
+- Updated the deployment note to clarify that the dashboard now reports the
+  bundle commit rather than a hand-maintained UI marker.
+
+### Build Marker Strategy
+- Build metadata is now automatic at build time.
+- Current displayed build marker from this local build path is:
+  `579d9ba`
+- This means the served app should reflect whichever commit Netlify actually
+  builds and serves, instead of whichever manual string was last edited in
+  source.
+
+### Transactions Relationship
+- The Transactions tab clickability code is present in source.
+- Build output verification confirmed the built bundle still contains the locked
+  Job Transactions Log helper copy, indicating the Transactions panel code is
+  included in the built app.
+- If Netlify still shows older behavior after this fix is deployed and the
+  Developer Dashboard shows an older SHA, that points to an older deployed
+  bundle or browser caching outside the app code.
+
+### Safety Confirmations
+- No schema, migration, RLS, grant, permission, RPC, or backend behavior
+  changes.
+- No transaction write behavior changes.
+- No Financials, Return-to-Inventory, cost, or value behavior added.
+- No cart, checkout, inventory movement, `job_materials`, or
+  `job_buyout_lines` behavior changed.
+
+### Code / File Changes
+- `vite.config.js`
+  - Added build-time SHA injection via Vite `define`.
+- `src/App.jsx`
+  - Switched `DEVELOPMENT_STATUS.buildMarker` to the build-time SHA.
+  - Updated Development Status metadata for this milestone.
+- `HANDOFF.md`
+  - Appended this Entry 114.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Built bundle inspection confirmed:
+  - the current build SHA `579d9ba` is embedded in the output;
+  - the Transactions Log helper copy is present in the built bundle.
+- No migrations were added or edited.
+- No authenticated browser verification was completed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Deploy this fix.
+2. Hard refresh the deployed app.
+3. Open Developer Dashboard.
+4. Confirm the current build marker matches the latest deployed commit or at
+   least clearly identifies the actual served build.
+5. Open Jobs.
+6. Select a job.
+7. Confirm Transactions tab clickability again.
+8. If Transactions still does not click after the deployed build marker is
+   current, capture screenshot/console and treat it as the next separate UI
+   bug.
+
+### Routing Verdict
+No Claude review needed — Safe Developer Dashboard build marker/deploy sync fix.

@@ -12,6 +12,7 @@ import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionH
 import { usePermissions } from './hooks/usePermissions.js';
 import { buildLocationQrSvg, buildLocationQrUrl, buildLocationScanPath, parseLocationScanPayload, getAppOrigin } from './lib/locationQr.js';
 
+const APP_BUILD_SHA = __APP_BUILD_SHA__;
 const DESTINATION_OPTIONS = [
   { value: 'job', label: 'Job' },
   { value: 'service_call', label: 'Service Call' },
@@ -77,12 +78,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Transactions Tab Wiring Fix',
-  relatedHandoff: 'Entry 112',
+  mostRecentChange: 'Developer Dashboard Build Marker Sync Fix',
+  relatedHandoff: 'Entry 114',
   architectureVersion: 'v2.25',
-  currentStep: 'Transactions tab activation fix',
-  buildMarker: '6e4592d',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Transactions tab is wired into the read-only Job Transactions Log panel.',
+  currentStep: 'Build marker sync',
+  buildMarker: APP_BUILD_SHA,
+  deploymentNote: 'Build marker now comes from the commit SHA embedded at build time, so the dashboard reports the actual bundle being served rather than a manual UI string.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
