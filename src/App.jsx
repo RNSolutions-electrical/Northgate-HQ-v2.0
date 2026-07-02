@@ -77,12 +77,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Milestone 5K.4 - Buyout Planning',
-  relatedHandoff: 'Entry 107',
-  architectureVersion: 'v2.23',
-  currentStep: 'Buyout Planning',
-  buildMarker: '883d3e0',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Buyout Planning implementation code is present in the loaded build.',
+  mostRecentChange: 'Workspace Detail Sub-Navigation Pattern - Jobs',
+  relatedHandoff: 'Entry 109',
+  architectureVersion: 'v2.24',
+  currentStep: 'Jobs detail sub-nav refactor',
+  buildMarker: 'ebebe9d',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Jobs detail sub-nav implementation code is present in the loaded build.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -173,6 +173,16 @@ const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List and Buyout List are
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
+const JOB_DETAIL_TABS = [
+  { key: 'overview', label: 'Overview', disabled: false },
+  { key: 'details', label: 'Details', disabled: false },
+  { key: 'materials', label: 'Materials', disabled: false },
+  { key: 'buyout', label: 'Buyout', disabled: false },
+  { key: 'transactions', label: 'Transactions', disabled: true },
+  { key: 'financials', label: 'Financials', disabled: true },
+  { key: 'documents', label: 'Documents', disabled: true },
+  { key: 'schedule', label: 'Schedule', disabled: true },
+];
 const BUYOUT_LIST_HELPER_COPY = 'Buyout List is a planning tool for the PM. Add items that need to be quoted or ordered. The In Stock column shows current inventory levels — it does not reserve material. To pull stock for this job, use the Inventory module.';
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 const JOB_TYPE_OPTIONS = ['job', 'service_call'];
@@ -2597,14 +2607,25 @@ function filterJobBuyoutRows(rows, searchText) {
 }
 
 function getJobBuyoutSummary(rows) {
+  const pendingCount = rows.reduce((count, row) => {
+    const status = String(row.status ?? '').toLowerCase();
+    return status === 'pending' ? count + 1 : count;
+  }, 0);
   const orderedCount = rows.reduce((count, row) => {
     const status = String(row.status ?? '').toLowerCase();
-    return status === 'ordered' || status === 'received' ? count + 1 : count;
+    return status === 'ordered' ? count + 1 : count;
+  }, 0);
+  const receivedCount = rows.reduce((count, row) => {
+    const status = String(row.status ?? '').toLowerCase();
+    return status === 'received' ? count + 1 : count;
   }, 0);
 
   return {
     count: rows.length,
+    pendingCount,
     orderedCount,
+    receivedCount,
+    committedCount: orderedCount + receivedCount,
   };
 }
 
@@ -7667,6 +7688,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [jobsError, setJobsError] = useState(null);
   const [jobMessage, setJobMessage] = useState('');
   const [selectedJobId, setSelectedJobId] = useState('');
+  const [activeJobDetailTab, setActiveJobDetailTab] = useState('overview');
   const [draft, setDraft] = useState(() => createJobDraft());
   const [jobMaterials, setJobMaterials] = useState([]);
   const [isLoadingJobMaterials, setIsLoadingJobMaterials] = useState(false);
@@ -7967,12 +7989,14 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function startNewJob() {
     setSelectedJobId('');
+    setActiveJobDetailTab('overview');
     setDraft(createJobDraft());
     setJobMessage('');
   }
 
-  function viewJob(row) {
+  function viewJob(row, detailTab = 'overview') {
     setSelectedJobId(row.id);
+    setActiveJobDetailTab(detailTab);
     setDraft(createJobDraft(row));
     setJobMessage('');
   }
@@ -7996,10 +8020,10 @@ function JobsWorkspace({ permissions, navigateTo }) {
   function startEditJob(row) {
     if (!canManageJobs || row.division !== permissions.division) {
       setJobMessage('Job edit is limited to the current user division.');
-      viewJob(row);
+      viewJob(row, 'details');
       return;
     }
-    viewJob(row);
+    viewJob(row, 'details');
   }
 
   async function saveJob(event) {
@@ -8313,6 +8337,594 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }
 
+  function renderSelectedJobHeader() {
+    if (!selectedJob) return null;
+
+    const addressSummary = buildJobAddressSummary(selectedJob);
+    const metaChips = [
+      selectedJob.job_number ? `Job #${selectedJob.job_number}` : 'No job number',
+      formatJobType(selectedJob.job_type),
+      selectedJob.service_call_number ? `Service Call #${selectedJob.service_call_number}` : null,
+      selectedJob.division || 'Unassigned division',
+    ].filter(Boolean);
+
+    return (
+      <section className="job-detail-header">
+        <div className="job-detail-header__body">
+          <p className="eyebrow">Selected job</p>
+          <div className="job-detail-header__title-row">
+            <div>
+              <h3>{selectedJob.name || 'Unnamed job'}</h3>
+              <p>{addressSummary || 'No address recorded.'}</p>
+            </div>
+            <span className={getJobStatusBadgeClass(selectedJob.status)}>{selectedJob.status}</span>
+          </div>
+          <div className="job-detail-header__meta">
+            {metaChips.map((value) => <span key={value}>{value}</span>)}
+          </div>
+        </div>
+        <div className="job-detail-header__actions">
+          <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
+            <Plus aria-hidden="true" /> New Job
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  function renderJobOverviewTab() {
+    if (!selectedJob) return null;
+
+    const addressSummary = buildJobAddressSummary(selectedJob);
+
+    return (
+      <section className="job-overview-panel">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Overview</p>
+            <h3>Job overview</h3>
+            <p>Lightweight read-only summary for the selected job.</p>
+          </div>
+          <span>Read only</span>
+        </div>
+
+        <div className="job-overview-grid">
+          <article className="job-overview-card">
+            <strong>{jobMaterialSummary.count}</strong>
+            <span>Material lines</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{formatRequestedQuantity(jobMaterialSummary.total)}</strong>
+            <span>Total requested quantity</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{buyoutSummary.count}</strong>
+            <span>Buyout lines</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{buyoutSummary.pendingCount}</strong>
+            <span>Pending buyout lines</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{buyoutSummary.orderedCount + buyoutSummary.receivedCount}</strong>
+            <span>Ordered / received buyout lines</span>
+          </article>
+        </div>
+
+        <div className="job-overview-summary">
+          <span>Job #: {formatToolValue(selectedJob.job_number)}</span>
+          <span>Status: {selectedJob.status || '-'}</span>
+          <span>Type: {formatJobType(selectedJob.job_type)}</span>
+          <span>Service Call #: {formatToolValue(selectedJob.service_call_number)}</span>
+          <span>Division: {selectedJob.division || 'Unassigned'}</span>
+          <span>Address: {addressSummary || 'No address recorded.'}</span>
+          <span>Created: {formatJobDateTime(selectedJob.created_at)}</span>
+          <span>Updated: {formatJobDateTime(selectedJob.updated_at || selectedJob.created_at)}</span>
+        </div>
+
+        {selectedJob.description || selectedJob.notes ? (
+          <div className="job-overview-notes">
+            {selectedJob.description ? (
+              <div className="empty-state">
+                <strong>Description</strong>
+                <p>{selectedJob.description}</p>
+              </div>
+            ) : null}
+            {selectedJob.notes ? (
+              <div className="empty-state">
+                <strong>Notes</strong>
+                <p>{selectedJob.notes}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
+  function renderJobDetailsTab() {
+    if (!selectedJob) return null;
+
+    return (
+      <section className="job-details-panel">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Details</p>
+            <h3>Job details</h3>
+            <p>Existing job edit form and save flow for the selected job.</p>
+          </div>
+          <span>{selectedJob.division ?? 'Unassigned'}</span>
+        </div>
+
+        <div className="empty-state">
+          <strong>{selectedJob.name}</strong>
+          <p>Job #: {formatToolValue(selectedJob.job_number)} / {formatJobType(selectedJob.job_type)} / {selectedJob.status}</p>
+          <p>{buildJobAddressSummary(selectedJob) || 'No address recorded.'}</p>
+          <p>Created: {formatJobDateTime(selectedJob.created_at)} / Updated: {formatJobDateTime(selectedJob.updated_at)}</p>
+        </div>
+
+        <form className="tool-form" onSubmit={saveJob}>
+          <label className="tool-form__wide">
+            Name
+            <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!formCanSave || isSavingJob} />
+          </label>
+          <label>
+            Status
+            <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!formCanSave || isSavingJob}>
+              {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
+          <label>
+            Job Type
+            <select value={draft.job_type} onChange={(event) => updateDraft('job_type', event.target.value)} disabled={!formCanSave || isSavingJob}>
+              {JOB_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{formatJobType(type)}</option>)}
+            </select>
+          </label>
+          {JOB_TEXT_FORM_FIELDS.map((field) => (
+            <label key={field.key}>
+              {field.label}
+              <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+            </label>
+          ))}
+          {JOB_TEXTAREA_FORM_FIELDS.map((field) => (
+            <label className="tool-form__wide" key={field.key}>
+              {field.label}
+              <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+            </label>
+          ))}
+          <div className="cart-actions tool-form__wide">
+            <button type="submit" className="secondary-button" disabled={!formCanSave || isSavingJob}>
+              <Plus aria-hidden="true" /> {isSavingJob ? 'Saving...' : selectedJob ? 'Save Job' : 'Create Job'}
+            </button>
+            <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
+              New Job
+            </button>
+          </div>
+        </form>
+      </section>
+    );
+  }
+
+  function renderJobMaterialsTab() {
+    if (!selectedJob) return null;
+
+    return (
+      <section className="job-material-list">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Material List</p>
+            <h3>Job Material List</h3>
+            <p>{JOB_MATERIAL_HELPER_COPY}</p>
+          </div>
+          <span>{jobMaterialSummary.count} line{jobMaterialSummary.count === 1 ? '' : 's'} / {formatRequestedQuantity(jobMaterialSummary.total)} requested</span>
+        </div>
+
+        <div className="location-note tool-catalogue__note">
+          <ClipboardCheck aria-hidden="true" />
+          <span>{JOB_MATERIAL_HELPER_COPY}</span>
+        </div>
+
+        {jobMaterialsError ? <div className="alert">Job Material List failed to load. Confirm the `public.job_materials` migration and server permissions.</div> : null}
+        {jobMaterialMessage ? <div className="alert">{jobMaterialMessage}</div> : null}
+
+        <form className="job-material-form" onSubmit={saveJobMaterial}>
+          {!materialDraft.id ? (
+            <>
+              <label>
+                Material search
+                <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} disabled={!materialFormCanSave} />
+              </label>
+              <label>
+                Catalog material
+                <select value={materialDraft.item_id} onChange={(event) => updateMaterialDraft('item_id', event.target.value)} disabled={!materialFormCanSave}>
+                  <option value="">Select material</option>
+                  {catalogMatches.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {[item.material_code, item.name, item.unit_of_measure].filter(Boolean).join(' / ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : (
+            <div className="job-material-form__locked">
+              <strong>{getJobMaterialLabel(jobMaterials.find((row) => row.id === materialDraft.id) ?? {})}</strong>
+              <span>Catalog material is fixed for this planning line.</span>
+            </div>
+          )}
+          <label>
+            Requested quantity
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={materialDraft.requested_quantity}
+              onChange={(event) => updateMaterialDraft('requested_quantity', event.target.value)}
+              disabled={!materialFormCanSave}
+            />
+          </label>
+          <label className="job-material-form__wide">
+            Note
+            <input value={materialDraft.note} onChange={(event) => updateMaterialDraft('note', event.target.value)} disabled={!materialFormCanSave} />
+          </label>
+          <div className="cart-actions job-material-form__wide">
+            <button type="submit" className="secondary-button" disabled={!materialFormCanSave}>
+              <Plus aria-hidden="true" /> {isSavingJobMaterial ? 'Saving...' : materialDraft.id ? 'Save Material Line' : 'Add Material Line'}
+            </button>
+            <button type="button" className="secondary-button" onClick={startNewJobMaterial} disabled={isSavingJobMaterial}>
+              New Material Line
+            </button>
+          </div>
+        </form>
+
+        <div className="tool-toolbar job-material-toolbar">
+          <label>
+            Search material lines
+            <input value={jobMaterialSearch} onChange={(event) => setJobMaterialSearch(event.target.value)} />
+          </label>
+          <button type="button" className="secondary-button" onClick={() => loadJobMaterials(selectedJob.id)} disabled={isLoadingJobMaterials}>
+            <RefreshCw aria-hidden="true" /> Refresh
+          </button>
+        </div>
+
+        {isLoadingJobMaterials ? <p className="muted">Loading Job Material List...</p> : null}
+        {!isLoadingJobMaterials && !filteredJobMaterials.length ? (
+          <div className="empty-state">
+            <strong>No material lines yet.</strong>
+            <p>Add existing catalog materials as planning demand for this job.</p>
+          </div>
+        ) : null}
+
+        {filteredJobMaterials.length ? (
+          <>
+            <div className="table-wrap">
+              <table className="data-table job-material-table">
+                <thead>
+                  <tr>
+                    <th>Material</th>
+                    <th>Requested</th>
+                    <th>Note</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredJobMaterials.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.material_name_snapshot || 'Catalog material'}</strong>
+                        <span>{row.material_code_snapshot || row.item_id}</span>
+                      </td>
+                      <td>{formatRequestedQuantity(row.requested_quantity)}</td>
+                      <td>{row.note || '-'}</td>
+                      <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                      <td>
+                        <div className="count-action-stack">
+                          {ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION ? (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => issueMaterialToJob(row)}
+                              disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
+                              title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
+                            >
+                              <ShoppingCart aria-hidden="true" /> Issue to Job
+                            </button>
+                          ) : null}
+                          <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                            <Pencil aria-hidden="true" /> Edit
+                          </button>
+                          <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                            <Archive aria-hidden="true" /> Remove
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list tool-mobile-list">
+              {filteredJobMaterials.map((row) => (
+                <article className="mobile-item" key={row.id}>
+                  <strong>{row.material_name_snapshot || 'Catalog material'}</strong>
+                  <div className="meta-grid">
+                    <span>Code: {row.material_code_snapshot || row.item_id}</span>
+                    <span>Requested: {formatRequestedQuantity(row.requested_quantity)}</span>
+                    <span>Note: {row.note || '-'}</span>
+                    <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                  </div>
+                  <div className="cart-actions">
+                    {ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION ? (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => issueMaterialToJob(row)}
+                        disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
+                        title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
+                      >
+                        <ShoppingCart aria-hidden="true" /> Issue to Job
+                      </button>
+                    ) : null}
+                    <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                      <Pencil aria-hidden="true" /> Edit
+                    </button>
+                    <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
+                      <Archive aria-hidden="true" /> Remove
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </section>
+    );
+  }
+
+  function renderJobBuyoutTab() {
+    if (!selectedJob) return null;
+
+    return (
+      <section className="job-buyout-list">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Planning</p>
+            <h3>Buyout List</h3>
+            <p>{BUYOUT_LIST_HELPER_COPY}</p>
+          </div>
+          <span>{buyoutSummary.committedCount} of {buyoutSummary.count} line{buyoutSummary.count === 1 ? '' : 's'} ordered / received</span>
+        </div>
+
+        <div className="location-note tool-catalogue__note">
+          <ClipboardCheck aria-hidden="true" />
+          <span>{BUYOUT_LIST_HELPER_COPY}</span>
+        </div>
+
+        {buyoutLinesError ? <div className="alert">Buyout List failed to load. Confirm the `public.job_buyout_lines` migration and server permissions.</div> : null}
+        {buyoutInStockError ? <div className="alert">In Stock lookup failed. The Buyout List is still available, but read-time on-hand values could not be loaded.</div> : null}
+        {buyoutLineMessage ? <div className="alert">{buyoutLineMessage}</div> : null}
+
+        <div className="tool-toolbar job-buyout-toolbar">
+          <label>
+            Search buyout lines
+            <input value={buyoutLineSearch} onChange={(event) => setBuyoutLineSearch(event.target.value)} />
+          </label>
+          <div className="cart-actions job-buyout-toolbar__actions">
+            <button type="button" className="secondary-button" onClick={exportBuyoutLines} disabled={isLoadingBuyoutLines}>
+              <Download aria-hidden="true" /> CSV
+            </button>
+            <button type="button" className="secondary-button" onClick={printBuyoutLines} disabled={isLoadingBuyoutLines}>
+              <Printer aria-hidden="true" /> Print
+            </button>
+            <button type="button" className="secondary-button" onClick={() => loadBuyoutLines(selectedJob.id)} disabled={isLoadingBuyoutLines}>
+              <RefreshCw aria-hidden="true" /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {isLoadingBuyoutLines ? <p className="muted">Loading Buyout List...</p> : null}
+        {isLoadingBuyoutInStock ? <p className="muted">Loading In Stock levels...</p> : null}
+
+        {buyoutFormCanSave ? (
+          <form className="job-buyout-form" onSubmit={saveBuyoutLine}>
+            <label>
+              Item search
+              <input value={buyoutCatalogSearch} onChange={(event) => setBuyoutCatalogSearch(event.target.value)} disabled={!buyoutFormCanSave} />
+            </label>
+            <label>
+              Catalog item
+              <select value={buyoutDraft.item_id} onChange={(event) => updateBuyoutDraft('item_id', event.target.value)} disabled={!buyoutFormCanSave}>
+                <option value="">Select item</option>
+                {buyoutCatalogMatches.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {[item.material_code, item.name, item.unit_of_measure].filter(Boolean).join(' / ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="job-buyout-form__wide">
+              Free-text description
+              <input
+                value={buyoutDraft.item_description}
+                onChange={(event) => updateBuyoutDraft('item_description', event.target.value)}
+                disabled={!buyoutFormCanSave}
+                placeholder="Optional when a catalog item is selected"
+              />
+            </label>
+            <label>
+              Qty Needed
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={buyoutDraft.quantity_needed}
+                onChange={(event) => updateBuyoutDraft('quantity_needed', event.target.value)}
+                disabled={!buyoutFormCanSave}
+              />
+            </label>
+            <label>
+              Qty Ordered
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={buyoutDraft.quantity_ordered}
+                onChange={(event) => updateBuyoutDraft('quantity_ordered', event.target.value)}
+                disabled={!buyoutFormCanSave}
+              />
+            </label>
+            <label>
+              Status
+              <select value={buyoutDraft.status} onChange={(event) => updateBuyoutDraft('status', event.target.value)} disabled={!buyoutFormCanSave}>
+                {BUYOUT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </label>
+            <label className="job-buyout-form__wide">
+              Vendor note
+              <input value={buyoutDraft.vendor_note} onChange={(event) => updateBuyoutDraft('vendor_note', event.target.value)} disabled={!buyoutFormCanSave} />
+            </label>
+            <label className="job-buyout-form__wide">
+              Lead time note
+              <input value={buyoutDraft.lead_time_note} onChange={(event) => updateBuyoutDraft('lead_time_note', event.target.value)} disabled={!buyoutFormCanSave} />
+            </label>
+            <label className="job-buyout-form__wide">
+              Note
+              <input value={buyoutDraft.note} onChange={(event) => updateBuyoutDraft('note', event.target.value)} disabled={!buyoutFormCanSave} />
+            </label>
+            <div className="cart-actions job-buyout-form__wide">
+              <button type="submit" className="secondary-button" disabled={!buyoutFormCanSave}>
+                <Plus aria-hidden="true" /> {isSavingBuyoutLine ? 'Saving...' : buyoutDraft.id ? 'Save Buyout Line' : 'Add Buyout Line'}
+              </button>
+              <button type="button" className="secondary-button" onClick={startNewBuyoutLine} disabled={isSavingBuyoutLine}>
+                New Buyout Line
+              </button>
+            </div>
+            <p className="job-buyout-form__help">Choose a catalog item or enter a free-text description. At least one source is required.</p>
+            {selectedBuyoutCatalogItem ? (
+              <div className="job-buyout-form__locked">
+                <strong>{[selectedBuyoutCatalogItem.material_code, selectedBuyoutCatalogItem.name].filter(Boolean).join(' / ')}</strong>
+                <span>Selected catalog item. In Stock is read at display time only.</span>
+              </div>
+            ) : null}
+          </form>
+        ) : (
+          <div className="empty-state">
+            <strong>Buyout List editing is limited to the current job division.</strong>
+            <p>Read-only buyout planning details remain visible.</p>
+          </div>
+        )}
+
+        {isLoadingBuyoutLines ? null : !filteredBuyoutLines.length ? (
+          <div className="empty-state">
+            <strong>No buyout lines yet.</strong>
+            <p>Add items that need to be quoted or ordered for this job.</p>
+          </div>
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table className="data-table job-buyout-table">
+                <thead>
+                  <tr>
+                    <th>Item / Description</th>
+                    <th>Qty Needed</th>
+                    <th>Qty Ordered</th>
+                    <th>Status</th>
+                    <th>In Stock</th>
+                    <th>Lead Time</th>
+                    <th>Vendor</th>
+                    <th>Note</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBuyoutLines.map((row) => {
+                    const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
+                    const inStock = row.item_id ? buyoutInStockByItemId.get(row.item_id) ?? null : null;
+
+                    return (
+                      <tr key={row.id}>
+                        <td>
+                          <strong>{getBuyoutItemLabel(row, catalogItem)}</strong>
+                          <span>{row.item_id ? (catalogItem ? 'Catalog item' : row.item_id) : 'Free-text line'}</span>
+                        </td>
+                        <td>{formatQuantitySummary(row.quantity_needed)}</td>
+                        <td>{formatOptionalQuantity(row.quantity_ordered)}</td>
+                        <td><span className={getBuyoutStatusBadgeClass(row.status)}>{row.status}</span></td>
+                        <td>{row.item_id ? formatOptionalQuantity(inStock) : '-'}</td>
+                        <td>{row.lead_time_note || '-'}</td>
+                        <td>{row.vendor_note || '-'}</td>
+                        <td>{row.note || '-'}</td>
+                        <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                        <td>
+                          <div className="count-action-stack">
+                            <button type="button" className="secondary-button" onClick={() => startEditBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                              <Pencil aria-hidden="true" /> Edit
+                            </button>
+                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                              <Archive aria-hidden="true" /> Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list tool-mobile-list">
+              {filteredBuyoutLines.map((row) => {
+                const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
+                const inStock = row.item_id ? buyoutInStockByItemId.get(row.item_id) ?? null : null;
+
+                return (
+                  <article className="mobile-item" key={row.id}>
+                    <strong>{getBuyoutItemLabel(row, catalogItem)}</strong>
+                    <div className="meta-grid">
+                      <span>Qty Needed: {formatQuantitySummary(row.quantity_needed)}</span>
+                      <span>Qty Ordered: {formatOptionalQuantity(row.quantity_ordered)}</span>
+                      <span>Status: <span className={getBuyoutStatusBadgeClass(row.status)}>{row.status}</span></span>
+                      <span>In Stock: {row.item_id ? formatOptionalQuantity(inStock) : '-'}</span>
+                      <span>Lead Time: {row.lead_time_note || '-'}</span>
+                      <span>Vendor: {row.vendor_note || '-'}</span>
+                      <span>Note: {row.note || '-'}</span>
+                      <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                    </div>
+                    <div className="cart-actions">
+                      <button type="button" className="secondary-button" onClick={() => startEditBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                        <Pencil aria-hidden="true" /> Edit
+                      </button>
+                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
+                        <Archive aria-hidden="true" /> Remove
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+    );
+  }
+
+  function renderActiveJobDetailTab() {
+    switch (activeJobDetailTab) {
+      case 'details':
+        return renderJobDetailsTab();
+      case 'materials':
+        return renderJobMaterialsTab();
+      case 'buyout':
+        return renderJobBuyoutTab();
+      case 'overview':
+      default:
+        return renderJobOverviewTab();
+    }
+  }
+
   if (!canReadJobs) {
     return (
       <article className="card card--wide inventory-module-card">
@@ -8496,460 +9108,83 @@ function JobsWorkspace({ permissions, navigateTo }) {
                 ) : null}
               </section>
 
-              <section className="tool-catalogue__form-panel">
-                <div className="count-section-header">
-                  <div>
-                    <p className="eyebrow">{selectedJob ? 'Edit Job' : 'Create Job'}</p>
-                    <h3>{selectedJob ? selectedJob.name : 'Create job'}</h3>
-                  </div>
-                  <span>{selectedJob ? selectedJob.division ?? 'Unassigned' : canCreateJobs ? `Division: ${permissions.division ?? 'Unassigned'}` : 'can_create_jobs required'}</span>
-                </div>
-
+              <section className="tool-catalogue__form-panel job-detail-panel">
                 {selectedJob ? (
-                  <div className="empty-state">
-                    <strong>{selectedJob.name}</strong>
-                    <p>Job #: {formatToolValue(selectedJob.job_number)} / {formatJobType(selectedJob.job_type)} / {selectedJob.status}</p>
-                    <p>{buildJobAddressSummary(selectedJob) || 'No address recorded.'}</p>
-                    <p>Created: {formatJobDateTime(selectedJob.created_at)} / Updated: {formatJobDateTime(selectedJob.updated_at)}</p>
-                  </div>
-                ) : null}
+                  <div className="job-detail-shell">
+                    {renderSelectedJobHeader()}
 
-                {selectedJob ? (
-                  <section className="job-material-list">
+                    <div className="job-detail-tabs" role="tablist" aria-label="Job detail sections">
+                      {JOB_DETAIL_TABS.map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          className={`job-detail-tab${activeJobDetailTab === tab.key ? ' job-detail-tab--active' : ''}${tab.disabled ? ' job-detail-tab--disabled' : ''}`}
+                          onClick={tab.disabled ? undefined : () => setActiveJobDetailTab(tab.key)}
+                          aria-selected={activeJobDetailTab === tab.key}
+                          aria-disabled={tab.disabled}
+                          disabled={tab.disabled}
+                          title={tab.disabled ? `${tab.label} is coming soon.` : undefined}
+                        >
+                          <span>{tab.label}</span>
+                          {tab.disabled ? <small>Coming soon</small> : null}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="job-detail-module">
+                      {renderActiveJobDetailTab()}
+                    </div>
+                  </div>
+                ) : (
+                  <>
                     <div className="count-section-header">
                       <div>
-                        <p className="eyebrow">Material List</p>
-                        <h3>Job Material List</h3>
-                        <p>{JOB_MATERIAL_HELPER_COPY}</p>
+                        <p className="eyebrow">Create Job</p>
+                        <h3>Create job</h3>
                       </div>
-                      <span>{jobMaterialSummary.count} line{jobMaterialSummary.count === 1 ? '' : 's'} / {formatRequestedQuantity(jobMaterialSummary.total)} requested</span>
+                      <span>{canCreateJobs ? `Division: ${permissions.division ?? 'Unassigned'}` : 'can_create_jobs required'}</span>
                     </div>
 
-                    <div className="location-note tool-catalogue__note">
-                      <ClipboardCheck aria-hidden="true" />
-                      <span>{JOB_MATERIAL_HELPER_COPY}</span>
-                    </div>
-
-                    {jobMaterialsError ? <div className="alert">Job Material List failed to load. Confirm the `public.job_materials` migration and server permissions.</div> : null}
-                    {jobMaterialMessage ? <div className="alert">{jobMaterialMessage}</div> : null}
-
-                    <form className="job-material-form" onSubmit={saveJobMaterial}>
-                      {!materialDraft.id ? (
-                        <>
-                          <label>
-                            Material search
-                            <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} disabled={!materialFormCanSave} />
-                          </label>
-                          <label>
-                            Catalog material
-                            <select value={materialDraft.item_id} onChange={(event) => updateMaterialDraft('item_id', event.target.value)} disabled={!materialFormCanSave}>
-                              <option value="">Select material</option>
-                              {catalogMatches.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                  {[item.material_code, item.name, item.unit_of_measure].filter(Boolean).join(' / ')}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </>
-                      ) : (
-                        <div className="job-material-form__locked">
-                          <strong>{getJobMaterialLabel(jobMaterials.find((row) => row.id === materialDraft.id) ?? {})}</strong>
-                          <span>Catalog material is fixed for this planning line.</span>
-                        </div>
-                      )}
-                      <label>
-                        Requested quantity
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={materialDraft.requested_quantity}
-                          onChange={(event) => updateMaterialDraft('requested_quantity', event.target.value)}
-                          disabled={!materialFormCanSave}
-                        />
-                      </label>
-                      <label className="job-material-form__wide">
-                        Note
-                        <input value={materialDraft.note} onChange={(event) => updateMaterialDraft('note', event.target.value)} disabled={!materialFormCanSave} />
-                      </label>
-                      <div className="cart-actions job-material-form__wide">
-                        <button type="submit" className="secondary-button" disabled={!materialFormCanSave}>
-                          <Plus aria-hidden="true" /> {isSavingJobMaterial ? 'Saving...' : materialDraft.id ? 'Save Material Line' : 'Add Material Line'}
-                        </button>
-                        <button type="button" className="secondary-button" onClick={startNewJobMaterial} disabled={isSavingJobMaterial}>
-                          New Material Line
-                        </button>
-                      </div>
-                    </form>
-
-                    <div className="tool-toolbar job-material-toolbar">
-                      <label>
-                        Search material lines
-                        <input value={jobMaterialSearch} onChange={(event) => setJobMaterialSearch(event.target.value)} />
-                      </label>
-                      <button type="button" className="secondary-button" onClick={() => loadJobMaterials(selectedJob.id)} disabled={isLoadingJobMaterials}>
-                        <RefreshCw aria-hidden="true" /> Refresh
-                      </button>
-                    </div>
-
-                    {isLoadingJobMaterials ? <p className="muted">Loading Job Material List...</p> : null}
-                    {!isLoadingJobMaterials && !filteredJobMaterials.length ? (
-                      <div className="empty-state">
-                        <strong>No material lines yet.</strong>
-                        <p>Add existing catalog materials as planning demand for this job.</p>
-                      </div>
-                    ) : null}
-
-                    {filteredJobMaterials.length ? (
-                      <>
-                        <div className="table-wrap">
-                          <table className="data-table job-material-table">
-                            <thead>
-                              <tr>
-                                <th>Material</th>
-                                <th>Requested</th>
-                                <th>Note</th>
-                                <th>Updated</th>
-                                <th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredJobMaterials.map((row) => (
-                                <tr key={row.id}>
-                                  <td>
-                                    <strong>{row.material_name_snapshot || 'Catalog material'}</strong>
-                                    <span>{row.material_code_snapshot || row.item_id}</span>
-                                  </td>
-                                  <td>{formatRequestedQuantity(row.requested_quantity)}</td>
-                                  <td>{row.note || '-'}</td>
-                                  <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
-                                  <td>
-                                    <div className="count-action-stack">
-                                      {ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION ? (
-                                        <button
-                                          type="button"
-                                          className="secondary-button"
-                                          onClick={() => issueMaterialToJob(row)}
-                                          disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
-                                          title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
-                                        >
-                                          <ShoppingCart aria-hidden="true" /> Issue to Job
-                                        </button>
-                                      ) : null}
-                                      <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
-                                        <Pencil aria-hidden="true" /> Edit
-                                      </button>
-                                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
-                                        <Archive aria-hidden="true" /> Remove
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        <div className="mobile-list tool-mobile-list">
-                          {filteredJobMaterials.map((row) => (
-                            <article className="mobile-item" key={row.id}>
-                              <strong>{row.material_name_snapshot || 'Catalog material'}</strong>
-                              <div className="meta-grid">
-                                <span>Code: {row.material_code_snapshot || row.item_id}</span>
-                                <span>Requested: {formatRequestedQuantity(row.requested_quantity)}</span>
-                                <span>Note: {row.note || '-'}</span>
-                                <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
-                              </div>
-                              <div className="cart-actions">
-                                {ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION ? (
-                                  <button
-                                    type="button"
-                                    className="secondary-button"
-                                    onClick={() => issueMaterialToJob(row)}
-                                    disabled={!canIssueToJob || !selectedJob || isSavingJobMaterial}
-                                    title={!canIssueToJob ? 'Inventory checkout permission required' : 'Route this line into checkout with the current job selected'}
-                                  >
-                                    <ShoppingCart aria-hidden="true" /> Issue to Job
-                                  </button>
-                                ) : null}
-                                <button type="button" className="secondary-button" onClick={() => startEditJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
-                                  <Pencil aria-hidden="true" /> Edit
-                                </button>
-                                <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJobMaterial(row)} disabled={!selectedJobCanEdit || isSavingJobMaterial}>
-                                  <Archive aria-hidden="true" /> Remove
-                                </button>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      </>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {selectedJob ? (
-                <section className="job-buyout-list">
-                  <div className="count-section-header">
-                    <div>
-                      <p className="eyebrow">Planning</p>
-                      <h3>Buyout List</h3>
-                      <p>{BUYOUT_LIST_HELPER_COPY}</p>
-                    </div>
-                    <span>{buyoutSummary.orderedCount} of {buyoutSummary.count} line{buyoutSummary.count === 1 ? '' : 's'} ordered</span>
-                  </div>
-
-                  <div className="location-note tool-catalogue__note">
-                    <ClipboardCheck aria-hidden="true" />
-                    <span>{BUYOUT_LIST_HELPER_COPY}</span>
-                  </div>
-
-                  {buyoutLinesError ? <div className="alert">Buyout List failed to load. Confirm the `public.job_buyout_lines` migration and server permissions.</div> : null}
-                  {buyoutInStockError ? <div className="alert">In Stock lookup failed. The Buyout List is still available, but read-time on-hand values could not be loaded.</div> : null}
-                  {buyoutLineMessage ? <div className="alert">{buyoutLineMessage}</div> : null}
-
-                  <div className="tool-toolbar job-buyout-toolbar">
-                    <label>
-                      Search buyout lines
-                      <input value={buyoutLineSearch} onChange={(event) => setBuyoutLineSearch(event.target.value)} />
-                    </label>
-                    <div className="cart-actions job-buyout-toolbar__actions">
-                      <button type="button" className="secondary-button" onClick={exportBuyoutLines} disabled={isLoadingBuyoutLines}>
-                        <Download aria-hidden="true" /> CSV
-                      </button>
-                      <button type="button" className="secondary-button" onClick={printBuyoutLines} disabled={isLoadingBuyoutLines}>
-                        <Printer aria-hidden="true" /> Print
-                      </button>
-                      <button type="button" className="secondary-button" onClick={() => loadBuyoutLines(selectedJob.id)} disabled={isLoadingBuyoutLines}>
-                        <RefreshCw aria-hidden="true" /> Refresh
-                      </button>
-                    </div>
-                  </div>
-
-                  {isLoadingBuyoutLines ? <p className="muted">Loading Buyout List...</p> : null}
-                  {isLoadingBuyoutInStock ? <p className="muted">Loading In Stock levels...</p> : null}
-
-                  {buyoutFormCanSave ? (
-                    <form className="job-buyout-form" onSubmit={saveBuyoutLine}>
-                      <label>
-                        Item search
-                        <input value={buyoutCatalogSearch} onChange={(event) => setBuyoutCatalogSearch(event.target.value)} disabled={!buyoutFormCanSave} />
-                      </label>
-                      <label>
-                        Catalog item
-                        <select value={buyoutDraft.item_id} onChange={(event) => updateBuyoutDraft('item_id', event.target.value)} disabled={!buyoutFormCanSave}>
-                          <option value="">Select item</option>
-                          {buyoutCatalogMatches.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {[item.material_code, item.name, item.unit_of_measure].filter(Boolean).join(' / ')}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="job-buyout-form__wide">
-                        Free-text description
-                        <input
-                          value={buyoutDraft.item_description}
-                          onChange={(event) => updateBuyoutDraft('item_description', event.target.value)}
-                          disabled={!buyoutFormCanSave}
-                          placeholder="Optional when a catalog item is selected"
-                        />
-                      </label>
-                      <label>
-                        Qty Needed
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={buyoutDraft.quantity_needed}
-                          onChange={(event) => updateBuyoutDraft('quantity_needed', event.target.value)}
-                          disabled={!buyoutFormCanSave}
-                        />
-                      </label>
-                      <label>
-                        Qty Ordered
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={buyoutDraft.quantity_ordered}
-                          onChange={(event) => updateBuyoutDraft('quantity_ordered', event.target.value)}
-                          disabled={!buyoutFormCanSave}
-                        />
+                    <form className="tool-form" onSubmit={saveJob}>
+                      <label className="tool-form__wide">
+                        Name
+                        <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!formCanSave || isSavingJob} />
                       </label>
                       <label>
                         Status
-                        <select value={buyoutDraft.status} onChange={(event) => updateBuyoutDraft('status', event.target.value)} disabled={!buyoutFormCanSave}>
-                          {BUYOUT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                        <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!formCanSave || isSavingJob}>
+                          {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
                         </select>
                       </label>
-                      <label className="job-buyout-form__wide">
-                        Vendor note
-                        <input value={buyoutDraft.vendor_note} onChange={(event) => updateBuyoutDraft('vendor_note', event.target.value)} disabled={!buyoutFormCanSave} />
+                      <label>
+                        Job Type
+                        <select value={draft.job_type} onChange={(event) => updateDraft('job_type', event.target.value)} disabled={!formCanSave || isSavingJob}>
+                          {JOB_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{formatJobType(type)}</option>)}
+                        </select>
                       </label>
-                      <label className="job-buyout-form__wide">
-                        Lead time note
-                        <input value={buyoutDraft.lead_time_note} onChange={(event) => updateBuyoutDraft('lead_time_note', event.target.value)} disabled={!buyoutFormCanSave} />
-                      </label>
-                      <label className="job-buyout-form__wide">
-                        Note
-                        <input value={buyoutDraft.note} onChange={(event) => updateBuyoutDraft('note', event.target.value)} disabled={!buyoutFormCanSave} />
-                      </label>
-                      <div className="cart-actions job-buyout-form__wide">
-                        <button type="submit" className="secondary-button" disabled={!buyoutFormCanSave}>
-                          <Plus aria-hidden="true" /> {isSavingBuyoutLine ? 'Saving...' : buyoutDraft.id ? 'Save Buyout Line' : 'Add Buyout Line'}
+                      {JOB_TEXT_FORM_FIELDS.map((field) => (
+                        <label key={field.key}>
+                          {field.label}
+                          <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+                        </label>
+                      ))}
+                      {JOB_TEXTAREA_FORM_FIELDS.map((field) => (
+                        <label className="tool-form__wide" key={field.key}>
+                          {field.label}
+                          <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+                        </label>
+                      ))}
+                      <div className="cart-actions tool-form__wide">
+                        <button type="submit" className="secondary-button" disabled={!formCanSave || isSavingJob}>
+                          <Plus aria-hidden="true" /> {isSavingJob ? 'Saving...' : 'Create Job'}
                         </button>
-                        <button type="button" className="secondary-button" onClick={startNewBuyoutLine} disabled={isSavingBuyoutLine}>
-                          New Buyout Line
+                        <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
+                          Clear Form
                         </button>
                       </div>
-                      <p className="job-buyout-form__help">Choose a catalog item or enter a free-text description. At least one source is required.</p>
-                      {selectedBuyoutCatalogItem ? (
-                        <div className="job-buyout-form__locked">
-                          <strong>{[selectedBuyoutCatalogItem.material_code, selectedBuyoutCatalogItem.name].filter(Boolean).join(' / ')}</strong>
-                          <span>Selected catalog item. In Stock is read at display time only.</span>
-                        </div>
-                      ) : null}
                     </form>
-                  ) : (
-                    <div className="empty-state">
-                      <strong>Buyout List editing is limited to the current job division.</strong>
-                      <p>Read-only buyout planning details remain visible.</p>
-                    </div>
-                  )}
-
-                  {isLoadingBuyoutLines ? null : !filteredBuyoutLines.length ? (
-                    <div className="empty-state">
-                      <strong>No buyout lines yet.</strong>
-                      <p>Add items that need to be quoted or ordered for this job.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="table-wrap">
-                        <table className="data-table job-buyout-table">
-                          <thead>
-                            <tr>
-                              <th>Item / Description</th>
-                              <th>Qty Needed</th>
-                              <th>Qty Ordered</th>
-                              <th>Status</th>
-                              <th>In Stock</th>
-                              <th>Lead Time</th>
-                              <th>Vendor</th>
-                              <th>Note</th>
-                              <th>Updated</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredBuyoutLines.map((row) => {
-                              const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
-                              const inStock = row.item_id ? buyoutInStockByItemId.get(row.item_id) ?? null : null;
-
-                              return (
-                                <tr key={row.id}>
-                                  <td>
-                                    <strong>{getBuyoutItemLabel(row, catalogItem)}</strong>
-                                    <span>{row.item_id ? (catalogItem ? 'Catalog item' : row.item_id) : 'Free-text line'}</span>
-                                  </td>
-                                  <td>{formatQuantitySummary(row.quantity_needed)}</td>
-                                  <td>{formatOptionalQuantity(row.quantity_ordered)}</td>
-                                  <td><span className={getBuyoutStatusBadgeClass(row.status)}>{row.status}</span></td>
-                                  <td>{row.item_id ? formatOptionalQuantity(inStock) : '-'}</td>
-                                  <td>{row.lead_time_note || '-'}</td>
-                                  <td>{row.vendor_note || '-'}</td>
-                                  <td>{row.note || '-'}</td>
-                                  <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
-                                  <td>
-                                    <div className="count-action-stack">
-                                      <button type="button" className="secondary-button" onClick={() => startEditBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
-                                        <Pencil aria-hidden="true" /> Edit
-                                      </button>
-                                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
-                                        <Archive aria-hidden="true" /> Remove
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="mobile-list tool-mobile-list">
-                        {filteredBuyoutLines.map((row) => {
-                          const catalogItem = row.item_id ? catalogById.get(row.item_id) ?? null : null;
-                          const inStock = row.item_id ? buyoutInStockByItemId.get(row.item_id) ?? null : null;
-
-                          return (
-                            <article className="mobile-item" key={row.id}>
-                              <strong>{getBuyoutItemLabel(row, catalogItem)}</strong>
-                              <div className="meta-grid">
-                                <span>Qty Needed: {formatQuantitySummary(row.quantity_needed)}</span>
-                                <span>Qty Ordered: {formatOptionalQuantity(row.quantity_ordered)}</span>
-                                <span>Status: <span className={getBuyoutStatusBadgeClass(row.status)}>{row.status}</span></span>
-                                <span>In Stock: {row.item_id ? formatOptionalQuantity(inStock) : '-'}</span>
-                                <span>Lead Time: {row.lead_time_note || '-'}</span>
-                                <span>Vendor: {row.vendor_note || '-'}</span>
-                                <span>Note: {row.note || '-'}</span>
-                                <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
-                              </div>
-                              <div className="cart-actions">
-                                <button type="button" className="secondary-button" onClick={() => startEditBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
-                                  <Pencil aria-hidden="true" /> Edit
-                                </button>
-                                <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBuyoutLine(row)} disabled={!selectedJobCanEdit || isSavingBuyoutLine}>
-                                  <Archive aria-hidden="true" /> Remove
-                                </button>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </section>
-              ) : null}
-
-                <form className="tool-form" onSubmit={saveJob}>
-                  <label className="tool-form__wide">
-                    Name
-                    <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!formCanSave || isSavingJob} />
-                  </label>
-                  <label>
-                    Status
-                    <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!formCanSave || isSavingJob}>
-                      {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    Job Type
-                    <select value={draft.job_type} onChange={(event) => updateDraft('job_type', event.target.value)} disabled={!formCanSave || isSavingJob}>
-                      {JOB_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{formatJobType(type)}</option>)}
-                    </select>
-                  </label>
-                  {JOB_TEXT_FORM_FIELDS.map((field) => (
-                    <label key={field.key}>
-                      {field.label}
-                      <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
-                    </label>
-                  ))}
-                  {JOB_TEXTAREA_FORM_FIELDS.map((field) => (
-                    <label className="tool-form__wide" key={field.key}>
-                      {field.label}
-                      <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
-                    </label>
-                  ))}
-                  <div className="cart-actions tool-form__wide">
-                    <button type="submit" className="secondary-button" disabled={!formCanSave || isSavingJob}>
-                      <Plus aria-hidden="true" /> {isSavingJob ? 'Saving...' : selectedJob ? 'Save Job' : 'Create Job'}
-                    </button>
-                    <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
-                      New Job
-                    </button>
-                  </div>
-                </form>
+                  </>
+                )}
               </section>
             </div>
           </section>

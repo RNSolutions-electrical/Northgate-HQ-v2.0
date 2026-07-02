@@ -11398,3 +11398,132 @@ first application of the pattern.
 
 ### Routing Verdict
 No Claude review needed — docs-only Workspace Detail Sub-Navigation Pattern lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.24, HANDOFF Entry 108).
+
+---
+
+## Entry 109 - Jobs detail sub-nav implemented
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Jobs detail sub-nav / implementation
+**Session type:** implementation
+
+### Context
+This milestone implements the locked ARCHITECTURE v2.24 Section 42 pattern for
+Jobs. The prior job detail experience had become one long stacked page, so this
+work refactors the selected-job detail surface into a persistent header, a
+horizontal sub-nav, and a single focused content area without changing the
+existing data flows.
+
+### What Was Completed
+- Added a persistent selected-job header above the detail content.
+- Added a horizontal job sub-nav under the header.
+- Implemented the locked tab set:
+  - Overview
+  - Details
+  - Materials
+  - Buyout
+  - Transactions
+  - Financials
+  - Documents
+  - Schedule
+- Implemented the active tabs:
+  - Overview
+  - Details
+  - Materials
+  - Buyout
+- Implemented the disabled / Coming Soon tabs:
+  - Transactions
+  - Financials
+  - Documents
+  - Schedule
+- Created a new lightweight read-only Overview tab.
+- Relocated the existing job edit form into Details with no behavior change.
+- Relocated the existing Job Material List into Materials with no behavior
+  change.
+- Relocated the existing Buyout List into Buyout with no behavior change.
+- Kept the Jobs directory/list screen accessible and unchanged.
+- Kept `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` false / hidden.
+- Updated the Development Status card to ARCHITECTURE v2.24 / Entry 109.
+
+### UI / UX Notes
+- The selected job header now shows compact identity data:
+  - job number
+  - job name
+  - status badge
+  - job type / service call number when present
+  - address summary when present
+- The sub-nav is horizontal and visually distinguishes active vs Coming Soon
+  tabs.
+- The tab strip remains mobile-safe through horizontal scrolling.
+- The page no longer stacks Details, Materials, and Buyout into one long detail
+  surface.
+
+### Behavior / Data Safety
+- No schema changes were added.
+- No migration files were added or edited.
+- No RLS, grant, permission, or auth changes were added.
+- No RPC changes were added.
+- No backend behavior changes were added.
+- No inventory movement behavior was added or changed.
+- No cart / checkout behavior was added or changed.
+- No Job Material List write behavior was changed beyond relocation.
+- No Buyout List write behavior was changed beyond relocation.
+- No direct `inventory_balances` write path was added.
+- No Transactions, Financials, Documents, or Schedule implementation was added.
+- Tool Catalogue behavior remained unchanged.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Added the selected-job header, horizontal sub-nav, Overview tab, and tab
+    relocation wiring.
+- `src/styles.css`
+  - Added Jobs detail header / tab / overview styling and responsive tab-strip
+    behavior.
+- `HANDOFF.md`
+  - Appended this Entry 109.
+
+### Verification
+- Mandatory preflight passed:
+  - working tree was clean before implementation
+  - `docs/ARCHITECTURE.md` was already at v2.24
+  - HANDOFF was gapless through Entry 108
+  - current Jobs detail structure, Job Material List flow, Buyout List flow,
+    existing 5J Coming Soon pattern, and the `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION`
+    false flag were confirmed before editing
+  - no schema / RPC / permission changes were needed
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side only plus this HANDOFF append:
+  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
+- No authenticated browser verification was performed in this local session.
+
+### Manual Verification Notes For Ryan
+1. Open Jobs.
+2. Select a job.
+3. Confirm the selected-job header appears.
+4. Confirm the sub-nav shows Overview, Details, Materials, Buyout,
+   Transactions, Financials, Documents, and Schedule.
+5. Confirm Transactions, Financials, Documents, and Schedule are disabled /
+   Coming soon.
+6. Open Overview and confirm it is lightweight and read-only.
+7. Open Details and confirm job edit/save still works.
+8. Open Materials and confirm Job Material List add/edit/archive still works.
+9. Open Buyout and confirm Buyout List add/edit/archive/print/export still
+   works.
+10. Confirm the page no longer feels like one long stacked detail card.
+11. Confirm the Issue-to-Job shortcut is still hidden from Job detail.
+12. Confirm Inventory Cart / Checkout Job destination behavior remains
+    unchanged.
+
+### Open Questions / Concerns
+- No blocker found.
+- Authenticated browser verification remains a manual follow-up.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: Jobs detail sub-nav implementation within locked
+  decisions.
+- The work remained inside ARCHITECTURE v2.24 Section 42.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.24, HANDOFF Entry 109).
