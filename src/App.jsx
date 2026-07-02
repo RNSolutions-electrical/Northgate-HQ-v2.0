@@ -77,12 +77,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Job Transactions Log',
-  relatedHandoff: 'Entry 111',
+  mostRecentChange: 'Transactions Tab Wiring Fix',
+  relatedHandoff: 'Entry 112',
   architectureVersion: 'v2.25',
-  currentStep: 'Transactions tab activation',
-  buildMarker: 'ebebe9d',
-  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Job Transactions Log implementation code is present in the loaded build.',
+  currentStep: 'Transactions tab activation fix',
+  buildMarker: '6e4592d',
+  deploymentNote: 'Browser verification is not claimed from Codex; this marker confirms the Transactions tab is wired into the read-only Job Transactions Log panel.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -173,16 +173,26 @@ const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List and Buyout List are
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
+const ACTIVE_JOB_DETAIL_TAB_KEYS = new Set(['overview', 'details', 'materials', 'buyout', 'transactions']);
+const COMING_SOON_JOB_DETAIL_TAB_KEYS = new Set(['financials', 'documents', 'schedule']);
 const JOB_DETAIL_TABS = [
-  { key: 'overview', label: 'Overview', disabled: false },
-  { key: 'details', label: 'Details', disabled: false },
-  { key: 'materials', label: 'Materials', disabled: false },
-  { key: 'buyout', label: 'Buyout', disabled: false },
-  { key: 'transactions', label: 'Transactions', disabled: false },
-  { key: 'financials', label: 'Financials', disabled: true },
-  { key: 'documents', label: 'Documents', disabled: true },
-  { key: 'schedule', label: 'Schedule', disabled: true },
+  { key: 'overview', label: 'Overview' },
+  { key: 'details', label: 'Details' },
+  { key: 'materials', label: 'Materials' },
+  { key: 'buyout', label: 'Buyout' },
+  { key: 'transactions', label: 'Transactions' },
+  { key: 'financials', label: 'Financials' },
+  { key: 'documents', label: 'Documents' },
+  { key: 'schedule', label: 'Schedule' },
 ];
+
+function isJobDetailTabDisabled(tabKey) {
+  return !ACTIVE_JOB_DETAIL_TAB_KEYS.has(tabKey);
+}
+
+function normalizeJobDetailTab(tabKey) {
+  return ACTIVE_JOB_DETAIL_TAB_KEYS.has(tabKey) ? tabKey : 'overview';
+}
 const BUYOUT_LIST_HELPER_COPY = 'Buyout List is a planning tool for the PM. Add items that need to be quoted or ordered. The In Stock column shows current inventory levels — it does not reserve material. To pull stock for this job, use the Inventory module.';
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 const JOB_TYPE_OPTIONS = ['job', 'service_call'];
@@ -8026,6 +8036,10 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }, [selectedJobId, jobs]);
 
+  useEffect(() => {
+    setActiveJobDetailTab((current) => normalizeJobDetailTab(current));
+  }, []);
+
   function updateDraft(key, value) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
@@ -8043,7 +8057,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function viewJob(row, detailTab = 'overview') {
     setSelectedJobId(row.id);
-    setActiveJobDetailTab(detailTab);
+    setActiveJobDetailTab(normalizeJobDetailTab(detailTab));
     setDraft(createJobDraft(row));
     setJobMessage('');
   }
@@ -9246,21 +9260,26 @@ function JobsWorkspace({ permissions, navigateTo }) {
                     {renderSelectedJobHeader()}
 
                     <div className="job-detail-tabs" role="tablist" aria-label="Job detail sections">
-                      {JOB_DETAIL_TABS.map((tab) => (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          className={`job-detail-tab${activeJobDetailTab === tab.key ? ' job-detail-tab--active' : ''}${tab.disabled ? ' job-detail-tab--disabled' : ''}`}
-                          onClick={tab.disabled ? undefined : () => setActiveJobDetailTab(tab.key)}
-                          aria-selected={activeJobDetailTab === tab.key}
-                          aria-disabled={tab.disabled}
-                          disabled={tab.disabled}
-                          title={tab.disabled ? `${tab.label} is coming soon.` : undefined}
-                        >
-                          <span>{tab.label}</span>
-                          {tab.disabled ? <small>Coming soon</small> : null}
-                        </button>
-                      ))}
+                      {JOB_DETAIL_TABS.map((tab) => {
+                        const isDisabled = isJobDetailTabDisabled(tab.key);
+                        const isComingSoon = COMING_SOON_JOB_DETAIL_TAB_KEYS.has(tab.key);
+
+                        return (
+                          <button
+                            key={tab.key}
+                            type="button"
+                            className={`job-detail-tab${activeJobDetailTab === tab.key ? ' job-detail-tab--active' : ''}${isDisabled ? ' job-detail-tab--disabled' : ''}`}
+                            onClick={isDisabled ? undefined : () => setActiveJobDetailTab(normalizeJobDetailTab(tab.key))}
+                            aria-selected={activeJobDetailTab === tab.key}
+                            aria-disabled={isDisabled}
+                            disabled={isDisabled}
+                            title={isComingSoon ? `${tab.label} is coming soon.` : undefined}
+                          >
+                            <span>{tab.label}</span>
+                            {isComingSoon ? <small>Coming soon</small> : null}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     <div className="job-detail-module">

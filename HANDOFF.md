@@ -11737,3 +11737,76 @@ inventory ledger.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.25, HANDOFF Entry 111).
+
+---
+
+## Entry 112 - Transactions tab activation fix
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Job Transactions Log / UI wiring fix
+**Session type:** bugfix
+
+### Context
+Ryan reported that the Jobs detail Transactions tab was still behaving like an
+inactive placeholder after the Section 43 implementation landed. This follow-up
+was limited to a safe UI/client-side wiring fix under the locked
+ARCHITECTURE v2.25 decisions.
+
+### Root Cause
+- The Jobs detail sub-nav still relied on loose inline disabled-state wiring
+  instead of an explicit active-tab allowlist.
+- Transactions existed in the render switch and data loader, but the sub-nav
+  needed a single source of truth that clearly treated `transactions` as a live
+  tab rather than legacy Section 42 placeholder behavior.
+
+### What Was Completed
+- Added an explicit active-tab allowlist for:
+  - Overview
+  - Details
+  - Materials
+  - Buyout
+  - Transactions
+- Added an explicit Coming Soon allowlist for:
+  - Financials
+  - Documents
+  - Schedule
+- Normalized Jobs detail tab selection through a shared helper so live tabs
+  stay clickable and placeholder tabs stay blocked.
+- Kept the Transactions tab rendering the read-only Job Transactions Log panel.
+- Kept the required helper copy intact:
+  `This is a read-only log of material coded to this job through Inventory Checkout.`
+
+### Safety Confirmations
+- Safe UI/client-side wiring fix only.
+- No schema, migration, RLS, grant, permission, RPC, or backend behavior
+  changes.
+- No transaction write behavior changes.
+- No changes to cart / checkout / inventory movement behavior.
+- No changes to `job_materials` or `job_buyout_lines`.
+- No Financials, Return-to-Inventory, cost, or value behavior added.
+
+### Code / File Changes
+- `src/App.jsx`
+  - Replaced loose inline disabled logic with explicit live-tab and Coming Soon
+    tab allowlists.
+  - Ensured Transactions is normalized as an active detail tab.
+  - Kept Financials / Documents / Schedule visible but disabled.
+- `HANDOFF.md`
+  - Appended this Entry 112.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Changed files are UI/client-side plus this HANDOFF append only:
+  `src/App.jsx`, `HANDOFF.md`.
+- No migrations were added or edited in this milestone.
+- No authenticated browser verification was performed in this local session.
+
+### Outcome
+- Transactions is now active / clickable in the Jobs detail sub-nav.
+- Transactions renders the read-only Job Transactions Log panel.
+- Financials, Documents, and Schedule remain disabled / Coming soon.
+
+### Routing Verdict
+No Claude review needed — Safe UI tab activation fix within locked Job Transactions Log decisions (ARCHITECTURE v2.25).
