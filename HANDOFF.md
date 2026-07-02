@@ -11527,3 +11527,76 @@ existing data flows.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.24, HANDOFF Entry 109).
+
+---
+
+## Entry 110 - Job Transactions Log locked (ARCHITECTURE v2.25, new Section 43)
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Job Transactions Log / architecture lock adoption
+**Session type:** docs-only
+
+### Context
+Jobs detail is live through Entry 109, and this milestone splits the remaining
+Jobs detail transaction work away from Financials. Section 43 now locks a
+read-only Job Transactions Log so the Transactions tab can be activated later
+without pulling Financials into the same decision set.
+
+### What Was Decided
+- Locked a new read-only `public.job_transaction_log` view.
+- Locked the view as a read over `transaction_items` plus `inventory_transactions`.
+- Locked the view filter to `destination_type = 'job'`.
+- Locked the job match on `destination_id = jobs.id::text`.
+- Locked the Transactions tab as a read-only log of job-coded material only.
+- Locked the display shape to:
+  - date / occurred_at
+  - item / material
+  - quantity
+  - source location / bin
+  - transaction type
+  - performed by
+  - notes / reference
+- Locked the Transactions tab as read-only with no edit, delete, return, or
+  print/export actions in this milestone.
+- Locked no cost/value column and no unit-cost or financial actuals display.
+- Confirmed Financials is intentionally split out and remains unlocked /
+  deferred.
+- Confirmed source-location-agnostic behavior so future Vehicle Inventory
+  transactions appear automatically when they use the same ledger and
+  `destination_type = 'job'`.
+- Flagged Return-from-Job as a future 5K.5 delta, not solved in this lock.
+- Confirmed no new permission flags, RPCs, or tables are introduced by this
+  docs-only adoption.
+
+### Schema / Backend / Data Safety
+- No implementation code was added.
+- No schema migration was added.
+- No RLS grant or permission change was added.
+- No RPC change was added.
+- No auth behavior change was added.
+- No runtime behavior change was added.
+- No Financials work was introduced.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated to v2.25 and added Section 43.
+- `HANDOFF.md`
+  - Appended this Entry 110.
+
+### Verification
+- Docs only; no implementation files were changed in this task.
+- No authenticated browser verification was performed in this local session.
+- No schema, RLS, grant, permission, RPC, auth, or backend behavior outside the
+  documented lock changed.
+
+### Open Questions / Concerns
+- No blocker found.
+
+### Architecture Drift Warnings
+- CLOSED for this milestone: docs-only Job Transactions Log architecture lock
+  adoption.
+- No runtime or schema drift was introduced.
+
+### Routing Verdict
+No Claude review needed — docs-only Job Transactions Log architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.25, HANDOFF Entry 110).
