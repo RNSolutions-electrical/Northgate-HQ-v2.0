@@ -11979,3 +11979,82 @@ served app.
 
 ### Routing Verdict
 No Claude review needed — Safe Developer Dashboard build marker/deploy sync fix.
+
+---
+
+## Entry 115 - Job Financials v1 Budget Foundation locked (ARCHITECTURE v2.26, new Section 44)
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Job Financials / Budget Foundation
+**Session type:** docs-only
+
+### Context
+Job Transactions Log is live and verified through Entry 114. This milestone
+locks the next Financials step as Budget Foundation only, keeping it fully
+separate from actuals, profit, accounting, and the existing Transactions /
+Buyout work.
+
+### What Was Completed
+- Added new Section 44 to ARCHITECTURE.
+- Updated ARCHITECTURE version to v2.26.
+- Locked the new `job_budget_lines` table shape.
+- Locked Financials v1 as budget-only and standalone.
+- Locked `category` to six required values:
+  - material
+  - labor
+  - subcontractor
+  - equipment
+  - permit
+  - other
+- Locked `cost_code` as free-text in v1.
+- Reserved a formal cost-code table for later.
+- Locked `description` as required.
+- Locked `budget_amount` as numeric with explicit zero allowed and `>= 0`.
+- Locked soft archive only and no status column.
+- Locked read access to `can_view_financials`.
+- Locked write access to `can_approve_budget`.
+- Confirmed `can_manage_jobs` is not the Financials gate.
+- Locked the Financials tab to be hidden from users lacking `can_view_financials`.
+- Locked read-only access for users with view permission but without write
+  permission.
+- Locked no print/export in v1.
+- Locked no reads from Job Transactions Log or Buyout List in v1.
+
+### Safety Confirmations
+- Docs-only architecture lock adoption.
+- No migrations were added or edited.
+- No `src` files were changed.
+- No schema, RLS, grant, permission, backend, RPC, or runtime changes were
+  made.
+- No Financials implementation was added yet.
+- No actuals, profit, revenue, accounting, or Return-to-Inventory behavior was
+  introduced.
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+  - Updated to v2.26.
+  - Added Section 44.
+- `HANDOFF.md`
+  - Appended this Entry 115.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` was not required for this docs-only task.
+- Confirmed changed files are docs-only:
+  - `docs/ARCHITECTURE.md`
+  - `HANDOFF.md`
+- Confirmed no migrations were added or edited.
+- Confirmed no `src` files changed.
+- Confirmed no schema/RLS/grant/permission/backend behavior changed.
+- Confirmed no Financials implementation occurred yet.
+
+### Outcome
+- Financials v1 is now locked as Budget Foundation only.
+- The model is standalone from Job Transactions Log and Buyout List.
+- The next implementation step, if Ryan later approves it, is Bucket 3 Job
+  Financials v1 after the mandatory permission preflight confirms
+  `can_view_financials` and `can_approve_budget` are functional.
+
+### Routing Verdict
+No Claude review needed — docs-only Job Financials v1 Budget Foundation architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.26, HANDOFF Entry 115).

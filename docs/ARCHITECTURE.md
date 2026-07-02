@@ -1,4 +1,5 @@
 ﻿# Northgate HQ v2 — Architecture Lock Document
+### Version 2.26 — Job Financials v1 (Budget Foundation) locked (new Section 44): new `job_budget_lines` table, division-scoped via `division text not null`, references `public.jobs(id)`; `category` CHECK-constrained to material/labor/subcontractor/equipment/permit/other, required; `cost_code` free-text (Option A — formal cost-code table reserved); `description` required; `budget_amount` allows zero, CHECK `>= 0`; no `status` column; soft-archive per Section 18; read gated on `can_view_financials`, write gated on `can_approve_budget` — both already-canonical Section 17 flags, first real consumer of either; no new permission flags; Financials tab fully hidden from users lacking `can_view_financials`; helper copy locked; print/export deferred; numeric input blocks save on blank rather than coercing to 0; fully standalone from Job Transactions Log and Buyout List in v1 — no reads from either; actual cost, committed cost, issued inventory value, contract value, revenue, profit/margin, PO, invoice, change order, and accounting integration all explicitly reserved. (Entry 115).
 ### Version 2.25 — Job Transactions Log locked (new Section 43): new read-only view `job_transaction_log` over `transaction_items` + `inventory_transactions`, filtered to `destination_type = 'job'`; activates the previously-placeholder Transactions tab (Section 42) with a read-only table (date, item, quantity, source location, transaction type, performed by, notes); no cost/value column (reserved for Financials); no edit/delete/return actions; source-location-agnostic so future Vehicle Inventory transactions appear automatically; inbound Return-from-Job (5K.5) will require a follow-up delta to this view, flagged but not solved now; no new RPC, table, or permission flag; read access inherits existing `transaction_items` / `inventory_transactions` RLS. Financials remains unlocked and scoped separately. (Entry 110).
 ### Version 2.24 — Workspace Detail Sub-Navigation Pattern locked (new Section 42): reusable detail-view shell with a persistent selected-record header, horizontal sub-nav tabs, and a single focused content area; Jobs is the first application; active tabs Overview, Details, Materials, and Buyout are live; Transactions, Financials, Documents, and Schedule are disabled/Coming Soon using the existing 5J shell placeholder pattern; Job list/directory remains unchanged; no sidebar for job sub-nav; mobile responsive per Constitutional Rule 18; `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` remains false/hidden; no schema, Supabase, RPC, permission, runtime, or UI implementation changes yet. (Entry 108).
 ### Version 2.23 — Buyout Planning locked (new Section 41): new `job_buyout_lines` table, standalone (no FK to `job_materials`), division-scoped via `division text not null`; `item_id` nullable (supports free-text lines for non-catalog items via `item_description`); `quantity_ordered` nullable (null = not yet ordered; 0 = ordered, qty TBD); `status` CHECK-constrained text (`pending`, `ordered`, `received`, `cancelled`); no cost/price/PO number/vendor ID columns; soft-archive per Section 18; read gated on own-division / `can_view_all_divisions`; write gated on `can_manage_jobs`; no new permission flags; "In Stock" column reads `inventory_balances` at display time — read-only, never allocates; print-to-PDF and CSV export approved (display only, no accounting post); UI in Jobs workspace job detail view with locked helper copy; structured cost/vendor/PO tracking, link to `job_materials`, and accounting integration reserved. (Entry 106).
@@ -3234,3 +3235,177 @@ current schema before implementation.
 After this Section 43 lock is adopted, Codex may implement Job Transactions
 Log only within the locked decisions above. This section does not authorize any
 schema, RPC, permission, or runtime write changes by itself.
+
+---
+
+## 44. Job Financials / Budget Foundation (locked v2.26 — Entry 115)
+
+### 44.0 Purpose
+
+Financials v1 is Budget Foundation only.
+
+It tracks budgeted cost lines for a job and answers: "What did we budget for
+this job by category/cost code?"
+
+It does not answer actual spend, billing, profit, inventory value, committed
+costs, approved change orders, or accounting outcomes.
+
+It is not accounting.
+It is not job-cost actuals.
+It is not invoice / PO / change-order integration.
+It is standalone from Job Transactions Log and Buyout List in v1.
+
+### 44.1 Read / write model
+
+Add a new table:
+
+`public.job_budget_lines`
+
+Fields:
+
+- `id uuid primary key default gen_random_uuid()`
+- `job_id uuid not null references public.jobs(id)`
+- `division text not null`
+- `created_at timestamptz not null default now()`
+- `updated_at timestamptz not null default now()`
+- `archived_at timestamptz null`
+- `archived_by text null`
+- `archive_reason text null`
+- `category text not null check (category in ('material','labor','subcontractor','equipment','permit','other'))`
+- `cost_code text null`
+- `description text not null`
+- `budget_amount numeric not null default 0 check (budget_amount >= 0)`
+- `note text null`
+- `created_by text null`
+
+### 44.2 Explicitly excluded from schema
+
+Do not include:
+
+- `status`
+- `actual_amount`
+- `committed_amount`
+- `issued_value`
+- `contract_value`
+- `revenue`
+- `profit`
+- `margin`
+- `po_number`
+- `invoice_id`
+- `change_order_id`
+- accounting fields
+- transaction references
+- buyout references
+
+### 44.3 Schema decisions
+
+- `category` is required and CHECK-constrained to `material`, `labor`,
+  `subcontractor`, `equipment`, `permit`, and `other`.
+- `cost_code` is free-text in v1.
+- No formal cost code table in v1.
+- Formal cost code table is reserved until the full Northgate cost code
+  convention is documented.
+- `description` is required.
+- `budget_amount` allows zero.
+- Blank budget input in UI must not silently become zero.
+- No status column.
+- Soft archive only.
+- No DELETE policy.
+
+### 44.4 Permission model
+
+Use the existing canonical Section 17 permissions:
+
+- Read / tab visibility / viewing budget lines: `can_view_financials`
+- Write / add/edit/archive budget lines: `can_approve_budget`
+- Do not use `can_manage_jobs`.
+- Do not create new permission flags.
+- Financials tab must be hidden completely from users without
+  `can_view_financials`.
+- Users with `can_view_financials` but without `can_approve_budget` may view
+  Financials read-only.
+- Add/edit/archive controls must be hidden from users without
+  `can_approve_budget`.
+
+### 44.5 UI scope
+
+Location:
+
+- Jobs workspace
+- selected job
+- Financials tab from Section 42
+
+Financials tab becomes active only for users with `can_view_financials`.
+
+UI should include:
+
+- locked helper copy
+- Total Budget summary
+- Budget by Category summary
+- Budget line count
+- budget lines table
+- add budget line form/control
+- edit budget line form/control
+- soft archive/remove line
+- category selector
+- cost code free-text
+- description
+- budget amount
+- note
+
+### 44.6 Locked helper copy
+
+`Financials v1 is a budget planning tool. It tracks budgeted cost lines for this job only. It does not calculate actual cost, profit, revenue, inventory value, purchase orders, invoices, change orders, payroll, or accounting entries.`
+
+### 44.7 Numeric input UX
+
+- Budget amount input may be temporarily blank while focused/typing.
+- App must not force `0` back into the field while the user is editing.
+- Validate on save/submit.
+- Final blank value blocks save with validation.
+- Final negative value blocks save with validation.
+- Explicit `0` is allowed and saved as zero.
+
+### 44.8 Print / export
+
+- Deferred in v1.
+- No print-to-PDF.
+- No CSV export.
+- Budget export may be added later as a display-only follow-on after the model
+  is tested.
+
+### 44.9 Reserved
+
+Do not include:
+
+- actual cost
+- committed cost
+- issued inventory value
+- unit cost display
+- transaction cost values
+- buyout cost import/linkage
+- purchase orders
+- invoices
+- change orders
+- contract value
+- revenue
+- profit/margin
+- payroll/labor actuals
+- accounting export
+- accounting post
+- financial integrations
+- new inventory movement pathways
+- transaction edits/deletes
+- Return-to-Inventory
+- documents/photos
+- schedule/phases
+- assignments
+- formal cost code table
+- print/export
+
+### 44.10 Implementation gate
+
+This section locks the Budget Foundation model only.
+
+It does not authorize any implementation, migration, runtime, RPC, or UI
+changes by itself.
