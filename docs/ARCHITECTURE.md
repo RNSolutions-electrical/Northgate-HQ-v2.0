@@ -1,4 +1,5 @@
 ﻿# Northgate HQ v2 — Architecture Lock Document
+### Version 2.27 — Jobs Module Completion Roadmap locked (new Section 45 roadmap; new Section 46 Job Documents v1 — first real implementation of the long-dormant Section 20 generic documents design, scoped to `owner_type = 'job'` with six other Section 20 owner types declared but not yet RLS-permitted; new Section 47 Job Schedule v1 — flat milestone/task list, no calendar/dependency/assignment integration; delta to Section 44 adding `sort_order` to `job_budget_lines` for manual/drag-drop reordering, no RLS change; Formatting Tuner ruled Bucket 1/no-lock (localStorage + CSS variables only, Developer-gated, no Supabase writes) — triggers for a future real architecture review specified; Job Export deliberately NOT locked this version — reserved as Section 48 pending Documents/Schedule going live, with hard boundaries pre-confirmed (browser print-to-PDF only, section-selectable, permission-aware per section, documents never bundled — index/list only, no database writes). (Entry 118)
 ### Version 2.26 — Job Financials v1 (Budget Foundation) locked (new Section 44): new `job_budget_lines` table, division-scoped via `division text not null`, references `public.jobs(id)`; `category` CHECK-constrained to material/labor/subcontractor/equipment/permit/other, required; `cost_code` free-text (Option A — formal cost-code table reserved); `description` required; `budget_amount` allows zero, CHECK `>= 0`; no `status` column; soft-archive per Section 18; read gated on `can_view_financials`, write gated on `can_approve_budget` — both already-canonical Section 17 flags, first real consumer of either; no new permission flags; Financials tab fully hidden from users lacking `can_view_financials`; helper copy locked; print/export deferred; numeric input blocks save on blank rather than coercing to 0; fully standalone from Job Transactions Log and Buyout List in v1 — no reads from either; actual cost, committed cost, issued inventory value, contract value, revenue, profit/margin, PO, invoice, change order, and accounting integration all explicitly reserved. (Entry 115).
 ### Version 2.25 — Job Transactions Log locked (new Section 43): new read-only view `job_transaction_log` over `transaction_items` + `inventory_transactions`, filtered to `destination_type = 'job'`; activates the previously-placeholder Transactions tab (Section 42) with a read-only table (date, item, quantity, source location, transaction type, performed by, notes); no cost/value column (reserved for Financials); no edit/delete/return actions; source-location-agnostic so future Vehicle Inventory transactions appear automatically; inbound Return-from-Job (5K.5) will require a follow-up delta to this view, flagged but not solved now; no new RPC, table, or permission flag; read access inherits existing `transaction_items` / `inventory_transactions` RLS. Financials remains unlocked and scoped separately. (Entry 110).
 ### Version 2.24 — Workspace Detail Sub-Navigation Pattern locked (new Section 42): reusable detail-view shell with a persistent selected-record header, horizontal sub-nav tabs, and a single focused content area; Jobs is the first application; active tabs Overview, Details, Materials, and Buyout are live; Transactions, Financials, Documents, and Schedule are disabled/Coming Soon using the existing 5J shell placeholder pattern; Job list/directory remains unchanged; no sidebar for job sub-nav; mobile responsive per Constitutional Rule 18; `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` remains false/hidden; no schema, Supabase, RPC, permission, runtime, or UI implementation changes yet. (Entry 108).
@@ -3275,8 +3276,21 @@ Fields:
 - `cost_code text null`
 - `description text not null`
 - `budget_amount numeric not null default 0 check (budget_amount >= 0)`
+- `sort_order numeric not null default 0`
 - `note text null`
 - `created_by text null`
+
+### 44.1a Budget line ordering delta
+
+- Add `sort_order` to support manual and drag/drop reordering.
+- One-time backfill assigns sequential `sort_order` values per `job_id` based
+  on `created_at`.
+- No grouping field yet.
+- No `cost_report_group` yet.
+- Ordering updates use the existing `job_budget_lines_update` policy.
+- Reorder permission remains `can_approve_budget`.
+- Database source of truth for ordering is `sort_order`.
+- No RLS change.
 
 ### 44.2 Explicitly excluded from schema
 
@@ -3406,6 +3420,229 @@ Do not include:
 ### 44.10 Implementation gate
 
 This section locks the Budget Foundation model only.
+
+It does not authorize any implementation, migration, runtime, RPC, or UI
+changes by itself.
+
+---
+
+## 45. Jobs Module Completion Roadmap (locked v2.27 — Entry 118)
+
+### 45.0 Purpose
+
+Ryan wants to finish Jobs before Vehicle Inventory, so this roadmap locks the
+next Jobs-module sequence after Financials v1 live verification.
+
+### 45.1 Locked sequence
+
+1. Formatting / readability cleanup + Developer formatting tuner
+2. Financials budget line ordering
+3. Job Documents v1
+4. Job Schedule v1
+5. Job Export later, after Documents and Schedule are live
+
+### 45.2 Formatting Tuner
+
+- Bucket 1 / no-lock safe UI only
+- Developer-gated by `can_access_developer`
+- localStorage + CSS variables only
+- no Supabase writes
+- no schema
+- no cross-device sync
+- no team/division theme persistence
+- no admin-configured themes for other users
+- future architecture review required if persistence moves beyond browser
+  localStorage
+
+### 45.3 Job Export boundary
+
+- Not locked in v2.27
+- Section 48 reserved
+- Do not build yet
+- Future hard boundaries already confirmed:
+  - browser print-to-PDF only
+  - section-selectable
+  - permission-aware per section
+  - documents never bundled into a full job PDF
+  - document index/list only
+  - no database writes
+
+---
+
+## 46. Job Documents v1 (locked v2.27 — Entry 118)
+
+### 46.0 Purpose
+
+This is the first implementation of the already-locked Section 20 generic
+documents design.
+
+Job is the first owner type to go live. The other Section 20 owner types are
+declared in schema only for now and are not yet RLS-permitted.
+
+### 46.1 Schema lock
+
+Use `public.documents`, not a bespoke `job_documents` table.
+
+Fields:
+
+- `id uuid primary key default gen_random_uuid()`
+- `division text not null`
+- `created_at timestamptz not null default now()`
+- `updated_at timestamptz not null default now()`
+- `archived_at timestamptz null`
+- `archived_by text null`
+- `archive_reason text null`
+- `owner_type text not null check (owner_type in ('job','estimate','vehicle','tool','employee','change_order','report','snapshot'))`
+- `owner_id uuid not null`
+- `storage_path text not null`
+- `file_name text not null`
+- `document_type text null`
+- `description text null`
+- `file_size_bytes bigint null`
+- `mime_type text null`
+- `created_by text null`
+
+Trigger:
+
+- `set_documents_updated_at`
+- use existing `touch_user_permissions_updated_at()` if confirmed in
+  implementation preflight
+
+### 46.2 RLS / permissions
+
+- Enable RLS
+- `documents_read`
+  - archived_at is null
+  - owner_type = `job`
+  - own division OR `can_view_all_divisions`
+- `documents_insert`
+  - owner_type = `job`
+  - own division
+  - `can_manage_jobs`
+- `documents_update`
+  - owner_type = `job`
+  - own division
+  - `can_manage_jobs`
+- No DELETE policy
+- No hard delete
+- No new permission flag
+- Not `can_view_financials`
+
+### 46.3 Storage
+
+- Supabase Storage is required per Section 20
+- Codex must preflight the actual bucket name / configuration before
+  implementation
+- Do not assume the bucket name
+
+### 46.4 UI scope
+
+- Documents tab becomes active
+- Upload file
+- List documents for selected job
+- Open/download individual document
+- Archive document
+- No hard delete
+- No export bundling
+- Enforce or default-suggest Section 20 naming convention:
+  `[Job_Name] [YYYY-MM-DD] [HHMM] [Document_Type] [Description]`
+
+### 46.5 Locked helper copy
+
+`Documents attach to this job. They are stored securely and can be downloaded individually. Deleting a document only archives it — it is not permanently removed.`
+
+### 46.6 Explicitly reserved
+
+- No bundled full-job PDF
+- No database writes outside the documents table and storage object handling
+- No hard delete
+- No permission flag expansion
+- No accounting integration
+
+### 46.7 Implementation gate
+
+This section locks Job Documents v1 only.
+
+It does not authorize any implementation, migration, runtime, RPC, or UI
+changes by itself.
+
+---
+
+## 47. Job Schedule v1 (locked v2.27 — Entry 118)
+
+### 47.0 Purpose
+
+Job Schedule v1 is a flat milestone/task list only.
+
+It does not model dependencies, calendar events, assignments, reminders, or
+recurring work.
+
+### 47.1 Schema lock
+
+Use `public.job_schedule_items`.
+
+Fields:
+
+- `id uuid primary key default gen_random_uuid()`
+- `job_id uuid not null references public.jobs(id)`
+- `division text not null`
+- `created_at timestamptz not null default now()`
+- `updated_at timestamptz not null default now()`
+- `archived_at timestamptz null`
+- `archived_by text null`
+- `archive_reason text null`
+- `title text not null`
+- `description text null`
+- `target_date date null`
+- `status text not null default 'pending' check (status in ('pending','in_progress','complete','delayed'))`
+- `sort_order numeric not null default 0`
+- `note text null`
+- `created_by text null`
+
+Trigger:
+
+- `set_job_schedule_items_updated_at`
+- use existing `touch_user_permissions_updated_at()` if confirmed in
+  implementation preflight
+
+### 47.2 RLS / permissions
+
+- Enable RLS
+- Read: division-scoped, own division OR `can_view_all_divisions`
+- Insert/update/archive: `can_manage_jobs`, own division
+- No DELETE policy
+- No hard delete
+- No new permission flag
+
+### 47.3 UI scope
+
+- Schedule tab becomes active
+- Flat milestone/task list only
+- Add/edit/archive schedule item
+- Title, description, target date, status, sort order, note
+- No calendar integration
+- No Google Calendar integration
+- No dependencies
+- No employee assignments
+- No reminders/notifications
+- No recurring events
+
+### 47.4 Locked helper copy
+
+`Schedule tracks key milestones and tasks for this job. It does not sync with a calendar or manage dependencies between items.`
+
+### 47.5 Explicitly reserved
+
+- Calendar sync
+- Dependencies
+- Employee assignments
+- Reminders / notifications
+- Recurring events
+- Any broader project-management engine
+
+### 47.6 Implementation gate
+
+This section locks Job Schedule v1 only.
 
 It does not authorize any implementation, migration, runtime, RPC, or UI
 changes by itself.

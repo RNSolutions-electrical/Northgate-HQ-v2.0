@@ -12246,3 +12246,61 @@ successfully.
 
 ### Routing Verdict
 No Claude review needed — verification-only HANDOFF update within locked decisions (ARCHITECTURE v2.26, HANDOFF Entry 117).
+
+---
+
+## Entry 118 - Jobs Module Completion Roadmap locked (ARCHITECTURE v2.27, new Sections 45-47, Section 44 delta)
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Jobs Module / Completion Roadmap
+**Session type:** docs-only / architecture lock
+
+### Context
+Job Financials v1 is live verified through Entry 117. Ryan wants to finish Jobs
+before Vehicle Inventory, so this entry locks the next Jobs-module sequence as
+the Claude-reviewed and ChatGPT cross-cleared roadmap for ARCHITECTURE v2.27.
+
+### What Was Completed
+- Confirmed Job Financials v1 is live verified through Entry 117.
+- Locked the Jobs Module Completion Roadmap in ARCHITECTURE v2.27.
+- Locked the next sequence as:
+  - Formatting Tuner
+  - Budget Ordering
+  - Documents v1
+  - Schedule v1
+  - Export later
+- Confirmed the Formatting Tuner is Bucket 1 / no-lock if it stays localStorage
+  and CSS-variable only.
+- Added the Section 44 delta for Financials budget line ordering via
+  `sort_order`.
+- Locked Job Documents v1 as the first implementation of the generic Section 20
+  `documents` design, scoped to jobs first.
+- Confirmed Job Documents use Supabase Storage.
+- Confirmed Job Documents are individually downloadable/openable.
+- Confirmed Job Documents are not bundled into a full job export.
+- Locked Job Schedule v1 as a flat milestone/task list only.
+- Confirmed Job Export is not locked yet and remains reserved as Section 48.
+- Added no code changes in this docs-only task.
+- Added no schema changes in this docs-only task.
+
+### Safety Confirmations
+- No runtime code was changed.
+- No migrations were created.
+- No Supabase schema was modified.
+- No `src` files were changed.
+- No ARCHITECTURE decisions outside the approved roadmap were added.
+- No Financials actuals, revenue, profit, issued inventory value, accounting,
+  or print/export behavior was added.
+
+### Verification
+- Confirmed the coordination documents were updated only.
+- Confirmed the roadmap sequence is recorded for later implementation.
+- Confirmed Section 48 is still reserved and not locked in v2.27.
+
+### Manual Verification Notes For Ryan
+1. Proceed with the roadmap in the locked sequence when ready.
+2. Keep Job Export reserved until Documents and Schedule are live.
+
+### Routing Verdict
+No Claude review needed — docs-only Jobs Module Completion Roadmap architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.27, HANDOFF Entry 118).
