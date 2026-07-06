@@ -12190,3 +12190,59 @@ preflight and then stayed inside the locked schema and UI decisions.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.26, HANDOFF Entry 116).
+
+---
+
+## Entry 117 - Job Financials v1 live verification
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Job Financials / Budget Foundation
+**Session type:** verification
+
+### Context
+Job Financials v1 was already implemented under ARCHITECTURE v2.26 Section 44.
+This entry records the live verification step after Ryan confirmed the live
+Supabase migration was applied and the deployed app/browser path was tested
+successfully.
+
+### What Was Verified
+- Live Supabase migration for `public.job_budget_lines` is applied and verified.
+- `public.job_budget_lines` exists live in the `northgate-hq-v2.0` Supabase
+  project.
+- RLS is enabled on `public.job_budget_lines`.
+- Verified policies present:
+  - `job_budget_lines_read`
+  - `job_budget_lines_insert`
+  - `job_budget_lines_update`
+- Verified no DELETE policy exists for `public.job_budget_lines`.
+- Verified no reserved Financials columns were added.
+- Verified the live table columns match the repo migration shape.
+- Deployed app/browser verification was completed by Ryan.
+- Ryan built an entire job budget in Financials successfully with no issues.
+- Minor UI polish remains for a later pass and is not blocking.
+- Financials v1 is now considered live verified.
+
+### Safety Confirmations
+- No code changes were made in this verification entry.
+- No schema changes were made in this verification entry.
+- No ARCHITECTURE changes were made in this verification entry.
+- No actuals, revenue, profit, issued inventory value, accounting, or print /
+  export behavior was added.
+- No new Financials behavior was introduced beyond the already locked
+  Budget Foundation scope.
+
+### Verification
+- Live Supabase table existence confirmed.
+- Live RLS configuration confirmed.
+- Live policy set confirmed.
+- Live table shape confirmed against the repo migration.
+- Deployed UI verification completed successfully by Ryan.
+- Financials workflow proven usable end-to-end for budget entry.
+
+### Manual Verification Notes For Ryan
+1. Keep the minor UI polish items for a later, non-blocking pass.
+2. Continue with the next milestone when ready.
+
+### Routing Verdict
+No Claude review needed — verification-only HANDOFF update within locked decisions (ARCHITECTURE v2.26, HANDOFF Entry 117).
