@@ -509,6 +509,71 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-financials-order-controls .secondary-button { white-space: nowrap; padding: .5rem .65rem; }
 .job-financials-reorder-actions { margin-top: .15rem; }
 .job-financials-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.job-documents-list,
+.job-documents-form,
+.job-documents-form > *,
+.job-documents-list .count-section-header > *,
+.job-documents-list .location-note,
+.job-documents-summary-grid {
+  min-width: 0;
+  max-width: 100%;
+}
+.job-documents-list { display: grid; gap: .8rem; margin: 1rem 0; overflow: hidden; }
+.job-documents-list .count-section-header { align-items: flex-start; flex-wrap: wrap; }
+.job-documents-list .count-section-header p,
+.job-documents-list .location-note span,
+.job-documents-form__help,
+.job-documents-form__suggestion strong,
+.job-documents-form__suggestion span {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.job-documents-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: .75rem;
+}
+.job-documents-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: .6rem;
+  align-items: end;
+}
+.job-documents-form label {
+  display: grid;
+  gap: .28rem;
+  color: #94a3b8;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.job-documents-form input {
+  max-width: 100%;
+  border: 1px solid rgba(148,163,184,.24);
+  border-radius: .75rem;
+  background: rgba(2,6,23,.45);
+  color: #e5edf8;
+  padding: .62rem .7rem;
+  min-width: 0;
+  width: 100%;
+}
+.job-documents-form__wide { grid-column: 1 / -1; }
+.job-documents-form__suggestion {
+  display: grid;
+  gap: .22rem;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: .85rem;
+  background: rgba(15,23,42,.48);
+  padding: .65rem .75rem;
+  color: #e5edf8;
+}
+.job-documents-form__suggestion strong { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+.job-documents-form__suggestion span { font-size: .88rem; }
+.job-documents-form__help { grid-column: 1 / -1; color: #94a3b8; font-size: .82rem; line-height: 1.45; }
+.job-documents-form .cart-actions { min-width: 0; }
+.job-documents-form .secondary-button { white-space: normal; }
+.job-documents-table { min-width: 1240px; }
+.job-documents-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.job-documents-mobile-list { display: none; }
 .job-transactions-list {
   display: grid;
   gap: .8rem;
@@ -621,12 +686,12 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .location-record[aria-pressed="true"] { border-color: var(--ng-gold); background: var(--ng-gold-light); }
 .location-record__type, .scan-nav-button span, .count-path-crumbs span, .repeat-chip { border-color: rgba(29,78,216,.18); background: var(--ng-info-bg); color: var(--ng-info) !important; }
 .label-form-grid label, .label-style-panel label, .label-layout-panel label, .tool-toolbar label, .tool-form label, .scanner-manual-form label, .cart-apply-all label, .count-correction-form label, .cart-search, .quantity-field, .history-toolbar label, .count-toolbar label, .count-intake-form label, .count-reason-cell, .count-mobile-item label { color: var(--ng-muted); letter-spacing: 0; }
-.label-form-grid input, .label-form-grid select, .label-style-panel input, .label-style-panel select, .label-layout-panel input, .label-layout-panel select, .tool-toolbar input, .tool-toolbar select, .tool-form input, .tool-form select, .tool-form textarea, .scanner-manual-form textarea, .cart-apply-all input, .cart-apply-all select, .count-correction-form input, .count-correction-form select, .cart-search input, .quantity-field input, .meta-grid input, .meta-grid select, .history-toolbar input, .history-toolbar select, .count-toolbar input, .count-toolbar select, .count-table input, .count-table select, .count-mobile-item input, .count-mobile-item select, .count-intake-form input, .count-intake-form select { border-color: var(--ng-border); border-radius: 7px; background: var(--ng-card-bg); color: var(--ng-text); }
+.label-form-grid input, .label-form-grid select, .label-style-panel input, .label-style-panel select, .label-layout-panel input, .label-layout-panel select, .tool-toolbar input, .tool-toolbar select, .tool-form input, .tool-form select, .tool-form textarea, .job-documents-form input, .scanner-manual-form textarea, .cart-apply-all input, .cart-apply-all select, .count-correction-form input, .count-correction-form select, .cart-search input, .quantity-field input, .meta-grid input, .meta-grid select, .history-toolbar input, .history-toolbar select, .count-toolbar input, .count-toolbar select, .count-table input, .count-table select, .count-mobile-item input, .count-mobile-item select, .count-intake-form input, .count-intake-form select { border-color: var(--ng-border); border-radius: 7px; background: var(--ng-card-bg); color: var(--ng-text); }
 .table-wrap { border-color: var(--ng-border); border-radius: 8px; background: var(--ng-card-bg); }
 .data-table th, .data-table td { border-color: var(--ng-divider); }
 .data-table th { background: var(--ng-navy); color: #ffffff; letter-spacing: .03em; }
 .data-table td { color: var(--ng-text); }
-.tool-table td span, .scan-contents-table td span, .history-table td span, .count-table td span, .grand-master-table td span, .accounting-export-table td span, .mobile-item span, .cart-candidate span, .scan-group-header span, .scan-nav-button small, .count-form-note, .label-preview-meta, .meta-grid { color: var(--ng-muted); }
+.tool-table td span, .scan-contents-table td span, .history-table td span, .count-table td span, .grand-master-table td span, .accounting-export-table td span, .job-documents-table td span, .mobile-item span, .cart-candidate span, .scan-group-header span, .scan-nav-button small, .count-form-note, .job-documents-form__help, .label-preview-meta, .meta-grid { color: var(--ng-muted); }
 .secondary-button { border-color: var(--ng-border); border-radius: 7px; background: var(--ng-card-bg); color: var(--ng-text); box-shadow: 0 1px 2px rgba(13,31,60,.04); }
 .secondary-button:hover:not(:disabled) { border-color: var(--ng-gold); background: var(--ng-gold-light); color: var(--ng-gold-dark); }
 .secondary-button--danger { border-color: rgba(185,28,28,.2); background: var(--ng-err-bg); color: var(--ng-err); }
@@ -670,11 +735,13 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .repeat-review-panel,
 .count-history-item,
 .cart-candidate,
-.mobile-item {
+.mobile-item,
+.job-documents-form__suggestion {
   border-radius: var(--ng-radius-card);
   border-color: var(--ng-border);
   background: var(--ng-card-bg);
   box-shadow: var(--ng-shadow);
+  color: var(--ng-text);
 }
 
 .module-content > .cart-panel,
@@ -760,6 +827,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .tool-form input:focus,
 .tool-form select:focus,
 .tool-form textarea:focus,
+.job-documents-form input:focus,
 .scanner-manual-form textarea:focus,
 .cart-apply-all input:focus,
 .cart-apply-all select:focus,

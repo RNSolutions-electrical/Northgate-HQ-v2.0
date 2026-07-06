@@ -12343,6 +12343,80 @@ adds ordering support to the live Financials budget lines model.
 - No new permission flags were added.
 - No reserved Financials fields were added.
 - No Financials permission model changes were introduced.
+
+## Entry 120 - Job Documents v1 implemented
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Documents
+**Session type:** implementation
+
+### Context
+Implemented under ARCHITECTURE v2.27 Section 46 as the first live slice of the
+generic Section 20 documents system.
+
+Job Documents v1 is job-scoped only. The other Section 20 owner types remain
+schema-declared but are not RLS-permitted in this milestone.
+
+### What Was Completed
+- Added `supabase/migrations/202607060002_job_documents_foundation.sql`.
+- Created the new generic `public.documents` table with the Section 46 field
+  set and the Section 20 owner-type check.
+- Added the `set_documents_updated_at` trigger path for `public.documents`.
+- Used a local trigger helper function because `touch_user_permissions_updated_at()`
+  was not confirmed as present in the live project during preflight.
+- Enabled RLS on `public.documents`.
+- Added the locked RLS policies:
+  - `documents_read`
+  - `documents_insert`
+  - `documents_update`
+- Added storage policies for the live `northgate-files` bucket so job documents
+  can be uploaded and downloaded through Supabase Storage.
+- Did not create or use a bespoke `job_documents` table.
+- Activated the Documents tab in the Jobs workspace.
+- Added the job document upload flow:
+  - file picker
+  - free-text document type
+  - optional description
+  - suggested Section 20-style file naming
+  - upload to `northgate-files`
+  - insert document row after upload
+- Added the job document list view:
+  - file name
+  - document type
+  - description
+  - upload date
+  - uploaded by
+  - file size
+  - MIME type
+- Added open/download actions for individual documents.
+- Added soft-archive only behavior for documents.
+- Kept Documents out of bundling/export behavior.
+- Kept Schedule, Financials, inventory, cart, checkout, accounting, and other
+  job modules unchanged.
+
+### Live Verification
+- Confirmed the live Supabase bucket `northgate-files` exists.
+- Confirmed the live project did not already expose the new `public.documents`
+  table before this repo change.
+- Confirmed the live project did not already expose the `touch_user_permissions_updated_at()`
+  function during preflight, so the migration uses a local `set_documents_updated_at`
+  helper function instead.
+- Live schema application was not completed in this session because the direct
+  live DDL attempt was rejected as too risky; the migration still needs manual
+  application to the live project.
+- The live bucket required storage policies for this documents flow; those
+  policies are now defined in the repo migration.
+
+### Safety Confirmations
+- No ARCHITECTURE.md changes were made.
+- No hard delete path was added.
+- No new permission flag was added.
+- No accounting integration was added.
+- No Job Export bundling was added.
+- No Schedule implementation was added.
+- No Financials, inventory, cart, checkout, or transaction-log behavior was
+  changed.
 - No reads from `job_transaction_log`, `job_buyout_lines`, `job_materials`,
   `inventory_balances`, or transaction tables were added.
 

@@ -78,12 +78,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Financials Budget Ordering',
-  relatedHandoff: 'Entry 119',
+  mostRecentChange: 'Job Documents v1',
+  relatedHandoff: 'Entry 120',
   architectureVersion: 'v2.27',
-  currentStep: 'Jobs completion — Budget Ordering',
+  currentStep: 'Jobs completion — Documents',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'Financials v1 is now budget-only, permission-aware, and backed by the build-time SHA marker so the dashboard still reports the actual bundle being served.',
+  deploymentNote: 'Job Documents v1 is now the active Jobs completion slice, with the build-time SHA marker still reporting the actual bundle being served.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -170,7 +170,9 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
   notes: '',
 });
 
-const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List, Buyout List, Transactions, and Financials v1 are live. Issue to Job routes through cart/checkout, and Return-to-Inventory plus broader job management features (phases, assignments, documents, and schedule) remain reserved.';
+const DOCUMENTS_STORAGE_BUCKET = 'northgate-files';
+const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List, Buyout List, Transactions, Financials v1, and Documents are live. Issue to Job routes through cart/checkout, and Return-to-Inventory plus broader job management features (phases and schedule) remain reserved.';
+const JOB_DOCUMENTS_HELPER_COPY = 'Documents attach to this job. They are stored securely and can be downloaded individually. Deleting a document only archives it — it is not permanently removed.';
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 const JOB_FINANCIALS_HELPER_COPY = 'Financials v1 is a budget planning tool. It tracks budgeted cost lines for this job only. It does not calculate actual cost, profit, revenue, inventory value, purchase orders, invoices, change orders, payroll, or accounting entries.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
@@ -183,6 +185,24 @@ const JOB_BUDGET_CATEGORY_OPTIONS = [
   { value: 'permit', label: 'Permit' },
   { value: 'other', label: 'Other' },
 ];
+const JOB_DOCUMENTS_SELECT_FIELDS = [
+  'id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'owner_type',
+  'owner_id',
+  'storage_path',
+  'file_name',
+  'document_type',
+  'description',
+  'file_size_bytes',
+  'mime_type',
+  'created_by',
+].join(',');
 const BASE_JOB_DETAIL_TABS = [
   { key: 'overview', label: 'Overview', isDisabled: false, isComingSoon: false },
   { key: 'details', label: 'Details', isDisabled: false, isComingSoon: false },
@@ -190,7 +210,7 @@ const BASE_JOB_DETAIL_TABS = [
   { key: 'buyout', label: 'Buyout', isDisabled: false, isComingSoon: false },
   { key: 'transactions', label: 'Transactions', isDisabled: false, isComingSoon: false },
   { key: 'financials', label: 'Financials', isDisabled: false, isComingSoon: false },
-  { key: 'documents', label: 'Documents', isDisabled: true, isComingSoon: true },
+  { key: 'documents', label: 'Documents', isDisabled: false, isComingSoon: false },
   { key: 'schedule', label: 'Schedule', isDisabled: true, isComingSoon: true },
 ];
 
@@ -2525,6 +2545,88 @@ function buildJobDisplayLabel(row) {
   if (row.name) labelParts.push(row.name);
   if (row.service_call_number) labelParts.push(`Service Call #${row.service_call_number}`);
   return labelParts.join(' / ');
+}
+
+function formatFileSizeBytes(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return '-';
+  if (bytes < 1024) return `${bytes} B`;
+
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let size = bytes / 1024;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size >= 10 ? size.toFixed(0) : size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function cleanDocumentText(value) {
+  const text = String(value ?? '').trim().replace(/\s+/g, ' ');
+  return text || null;
+}
+
+function sanitizeDocumentFileNamePart(value, fallback = '') {
+  const text = String(value ?? '').trim().replace(/\s+/g, ' ');
+  const safe = text.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+  return safe || fallback;
+}
+
+function getDocumentFileExtension(fileName) {
+  const match = String(fileName ?? '').trim().match(/(\.[^.\\/:*?"<>|]+)$/);
+  return match ? match[1] : '';
+}
+
+function formatDocumentDateStamp(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDocumentTimeStamp(date = new Date()) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}${minutes}`;
+}
+
+function buildJobDocumentSuggestedName(job, documentType, description, originalFileName) {
+  const jobName = sanitizeDocumentFileNamePart(job?.name || job?.job_number || 'Job', 'Job');
+  const typePart = sanitizeDocumentFileNamePart(documentType, 'Document');
+  const descriptionPart = sanitizeDocumentFileNamePart(description, '');
+  const dateStamp = formatDocumentDateStamp();
+  const timeStamp = formatDocumentTimeStamp();
+  const baseParts = [jobName, dateStamp, timeStamp, typePart];
+  if (descriptionPart) baseParts.push(descriptionPart);
+  const baseName = baseParts.filter(Boolean).join(' ').trim();
+  return `${baseName}${getDocumentFileExtension(originalFileName)}`.trim();
+}
+
+function buildJobDocumentStoragePath(jobId, documentId, fileName) {
+  const safeFileName = sanitizeDocumentFileNamePart(fileName, 'document');
+  return `documents/job/${jobId}/${documentId}/${safeFileName}`;
+}
+
+function createJobDocumentDraft() {
+  return {
+    file: null,
+    document_type: '',
+    description: '',
+  };
+}
+
+function getJobDocumentSummary(rows) {
+  const totalBytes = rows.reduce((sum, row) => {
+    const bytes = Number(row.file_size_bytes ?? 0);
+    return Number.isFinite(bytes) ? sum + bytes : sum;
+  }, 0);
+  return {
+    count: rows.length,
+    totalBytes,
+    latestUploadedAt: rows[0]?.created_at ?? null,
+  };
 }
 
 function filterJobRows(rows, filters) {
@@ -7873,6 +7975,13 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [budgetLineMessage, setBudgetLineMessage] = useState('');
   const [budgetLineSearch, setBudgetLineSearch] = useState('');
   const [budgetDraft, setBudgetDraft] = useState(() => createJobBudgetDraft());
+  const [documents, setDocuments] = useState([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [isSavingDocument, setIsSavingDocument] = useState(false);
+  const [documentsError, setDocumentsError] = useState(null);
+  const [documentMessage, setDocumentMessage] = useState('');
+  const [documentDraft, setDocumentDraft] = useState(() => createJobDocumentDraft());
+  const [documentFileInputKey, setDocumentFileInputKey] = useState(0);
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -7881,6 +7990,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const selectedJob = jobs.find((row) => row.id === selectedJobId) ?? null;
   const selectedJobCanEdit = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
   const selectedJobCanManageBudget = Boolean(selectedJob && canApproveBudget && selectedJob.division === permissions.division);
+  const selectedJobCanManageDocuments = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
   const formCanSave = selectedJob ? selectedJobCanEdit : canCreateJobs && hasWritableDivision;
   const jobDetailTabs = useMemo(() => getJobDetailTabs(canViewFinancials), [canViewFinancials]);
   const divisionOptions = useMemo(
@@ -7905,7 +8015,20 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const orderedBudgetLines = useMemo(() => sortJobBudgetRows(budgetLines), [budgetLines]);
   const filteredBudgetLines = useMemo(() => filterJobBudgetRows(orderedBudgetLines, budgetLineSearch), [orderedBudgetLines, budgetLineSearch]);
   const budgetSummary = useMemo(() => getJobBudgetSummary(orderedBudgetLines), [orderedBudgetLines]);
+  const documentSummary = useMemo(() => getJobDocumentSummary(documents), [documents]);
+  const documentSuggestedName = useMemo(
+    () => (selectedJob && documentDraft.file
+      ? buildJobDocumentSuggestedName(
+        selectedJob,
+        documentDraft.document_type,
+        documentDraft.description,
+        documentDraft.file?.name ?? '',
+      )
+      : ''),
+    [selectedJob, documentDraft.document_type, documentDraft.description, documentDraft.file],
+  );
   const budgetFormCanSave = Boolean(selectedJobCanManageBudget && selectedJob && !isSavingBudgetLine);
+  const documentFormCanSave = Boolean(selectedJobCanManageDocuments && selectedJob && documentDraft.file && !isSavingDocument);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -8095,6 +8218,39 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }
 
+  async function loadJobDocuments(jobId, { preserveMessage = false } = {}) {
+    if (!canReadJobs || !jobId) {
+      setDocuments([]);
+      setIsLoadingDocuments(false);
+      setDocumentsError(null);
+      return;
+    }
+
+    setIsLoadingDocuments(true);
+    setDocumentsError(null);
+    if (!preserveMessage) setDocumentMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('documents')
+        .select(JOB_DOCUMENTS_SELECT_FIELDS)
+        .eq('owner_type', 'job')
+        .eq('owner_id', jobId)
+        .is('archived_at', null)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setDocuments(data ?? []);
+    } catch (error) {
+      console.error('Job Documents load failed', error);
+      setDocuments([]);
+      setDocumentsError(error);
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  }
+
   async function loadJobBudgetLines(jobId, { preserveMessage = false } = {}) {
     if (!canViewFinancials || !jobId) {
       setBudgetLines([]);
@@ -8187,6 +8343,11 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setBudgetLineMessage('');
     setBudgetLines([]);
     setBudgetLinesError(null);
+    setDocumentDraft(createJobDocumentDraft());
+    setDocumentMessage('');
+    setDocuments([]);
+    setDocumentsError(null);
+    setDocumentFileInputKey((value) => value + 1);
 
     if (!selectedJob) {
       setJobMaterials([]);
@@ -8198,12 +8359,15 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setJobTransactionsError(null);
       setBudgetLines([]);
       setBudgetLinesError(null);
+      setDocuments([]);
+      setDocumentsError(null);
       return;
     }
 
     loadJobMaterials(selectedJob.id);
     loadBuyoutLines(selectedJob.id);
     loadJobTransactions(selectedJob.id);
+    loadJobDocuments(selectedJob.id);
     if (canViewFinancials) {
       loadJobBudgetLines(selectedJob.id);
     }
@@ -8243,6 +8407,10 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function updateBudgetDraft(key, value) {
     setBudgetDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateDocumentDraft(key, value) {
+    setDocumentDraft((current) => ({ ...current, [key]: value }));
   }
 
   function startNewJob() {
@@ -8682,6 +8850,145 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setBudgetLineMessage('Budget line archive failed. Confirm can_approve_budget and division scope.');
     } finally {
       setIsSavingBudgetLine(false);
+    }
+  }
+
+  function startNewDocumentUpload() {
+    setDocumentDraft(createJobDocumentDraft());
+    setDocumentMessage('');
+    setDocumentFileInputKey((value) => value + 1);
+  }
+
+  async function saveDocument(event) {
+    event.preventDefault();
+    if (!documentFormCanSave || !selectedJob || !documentDraft.file) return;
+
+    setIsSavingDocument(true);
+    setDocumentMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const documentId = crypto.randomUUID();
+      const fileName = buildJobDocumentSuggestedName(
+        selectedJob,
+        documentDraft.document_type,
+        documentDraft.description,
+        documentDraft.file.name,
+      );
+      const storagePath = buildJobDocumentStoragePath(selectedJob.id, documentId, fileName);
+      const fileType = documentDraft.file.type || 'application/octet-stream';
+
+      const { error: uploadError } = await client.storage
+        .from(DOCUMENTS_STORAGE_BUCKET)
+        .upload(storagePath, documentDraft.file, {
+          contentType: fileType,
+          upsert: false,
+        });
+      if (uploadError) throw uploadError;
+
+      const { error: insertError } = await client
+        .from('documents')
+        .insert({
+          id: documentId,
+          division: selectedJob.division,
+          owner_type: 'job',
+          owner_id: selectedJob.id,
+          storage_path: storagePath,
+          file_name: fileName,
+          document_type: cleanDocumentText(documentDraft.document_type),
+          description: cleanDocumentText(documentDraft.description),
+          file_size_bytes: documentDraft.file.size ?? null,
+          mime_type: fileType,
+          created_by: permissions.userId,
+        });
+      if (insertError) throw insertError;
+
+      await loadJobDocuments(selectedJob.id, { preserveMessage: true });
+      startNewDocumentUpload();
+      setDocumentMessage('Document uploaded.');
+    } catch (error) {
+      console.error('Job Documents save failed', error);
+      setDocumentMessage(`Document upload failed. ${error?.message || 'Confirm northgate-files storage policies and can_manage_jobs.'}`);
+    } finally {
+      setIsSavingDocument(false);
+    }
+  }
+
+  async function openDocument(row) {
+    if (!row?.storage_path || !selectedJob) return;
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client.storage
+        .from(DOCUMENTS_STORAGE_BUCKET)
+        .createSignedUrl(row.storage_path, 5 * 60);
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Unable to create a document link.');
+      const opened = window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        setDocumentMessage('Browser blocked the document preview popup.');
+      }
+    } catch (error) {
+      console.error('Job Documents open failed', error);
+      setDocumentMessage(`Open failed. ${error?.message || 'Confirm document storage access.'}`);
+    }
+  }
+
+  async function downloadDocument(row) {
+    if (!row?.storage_path || !selectedJob) return;
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client.storage
+        .from(DOCUMENTS_STORAGE_BUCKET)
+        .download(row.storage_path);
+      if (error) throw error;
+      if (!data) throw new Error('Document download returned no data.');
+
+      const fileUrl = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = row.file_name || 'document';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(fileUrl), 1000);
+    } catch (error) {
+      console.error('Job Documents download failed', error);
+      setDocumentMessage(`Download failed. ${error?.message || 'Confirm document storage access.'}`);
+    }
+  }
+
+  async function archiveDocument(row) {
+    if (!selectedJobCanManageDocuments || isSavingDocument || !row?.id) return;
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingDocument(true);
+    setDocumentMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('documents')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanDocumentText(reason),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      await loadJobDocuments(selectedJob.id, { preserveMessage: true });
+      setDocumentMessage('Document archived from the active list.');
+    } catch (error) {
+      console.error('Job Documents archive failed', error);
+      setDocumentMessage('Document archive failed. Confirm can_manage_jobs and division scope.');
+    } finally {
+      setIsSavingDocument(false);
     }
   }
 
@@ -9568,6 +9875,193 @@ function JobsWorkspace({ permissions, navigateTo }) {
     );
   }
 
+  function renderJobDocumentsTab() {
+    if (!selectedJob) return null;
+
+    return (
+      <section className="job-documents-list">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Documents</p>
+            <h3>Job Documents v1</h3>
+            <p>{JOB_DOCUMENTS_HELPER_COPY}</p>
+          </div>
+          <span>{documentSummary.count} document{documentSummary.count === 1 ? '' : 's'}</span>
+        </div>
+
+        <div className="location-note tool-catalogue__note">
+          <ClipboardCheck aria-hidden="true" />
+          <span>{JOB_DOCUMENTS_HELPER_COPY}</span>
+        </div>
+
+        <div className="job-documents-summary-grid">
+          <article className="job-overview-card">
+            <strong>{documentSummary.count}</strong>
+            <span>Documents</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{formatFileSizeBytes(documentSummary.totalBytes)}</strong>
+            <span>Total file size</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{DOCUMENTS_STORAGE_BUCKET}</strong>
+            <span>Storage bucket</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{selectedJobCanManageDocuments ? 'Editable' : 'Read only'}</strong>
+            <span>{selectedJobCanManageDocuments ? 'can_manage_jobs in current division' : 'View-only document access'}</span>
+          </article>
+        </div>
+
+        {documentsError ? <div className="alert">Job Documents failed to load. Confirm the live `public.documents` table and bucket policies.</div> : null}
+        {documentMessage ? <div className="alert">{documentMessage}</div> : null}
+
+        {selectedJobCanManageDocuments ? (
+          <form className="job-documents-form" onSubmit={saveDocument}>
+            <label className="job-documents-form__wide">
+              File
+              <input
+                key={documentFileInputKey}
+                type="file"
+                onChange={(event) => updateDocumentDraft('file', event.target.files?.[0] ?? null)}
+                required
+                disabled={!selectedJobCanManageDocuments || isSavingDocument}
+              />
+            </label>
+            <label>
+              Document type
+              <input
+                value={documentDraft.document_type}
+                onChange={(event) => updateDocumentDraft('document_type', event.target.value)}
+                disabled={!selectedJobCanManageDocuments || isSavingDocument}
+                placeholder="Invoice, photos, permit, etc."
+              />
+            </label>
+            <label className="job-documents-form__wide">
+              Description
+              <input
+                value={documentDraft.description}
+                onChange={(event) => updateDocumentDraft('description', event.target.value)}
+                disabled={!selectedJobCanManageDocuments || isSavingDocument}
+                placeholder="Optional note"
+              />
+            </label>
+            <div className="job-documents-form__wide job-documents-form__suggestion">
+              <strong>Suggested name</strong>
+              <span>{documentSuggestedName || 'Select a file to generate a suggested name.'}</span>
+            </div>
+            <div className="cart-actions job-documents-form__wide">
+              <button type="submit" className="secondary-button" disabled={!documentFormCanSave}>
+                <Plus aria-hidden="true" /> {isSavingDocument ? 'Uploading...' : 'Upload Document'}
+              </button>
+              <button type="button" className="secondary-button" onClick={startNewDocumentUpload} disabled={isSavingDocument}>
+                Clear Form
+              </button>
+            </div>
+            <p className="job-documents-form__help">
+              Files are stored in {DOCUMENTS_STORAGE_BUCKET} and linked to the selected job after upload.
+            </p>
+          </form>
+        ) : (
+          <div className="empty-state">
+            <strong>Documents are read only for this job.</strong>
+            <p>{selectedJob?.division === permissions.division ? 'can_manage_jobs is required to upload or archive documents.' : 'Document upload and archive actions are limited to the current user division.'}</p>
+          </div>
+        )}
+
+        {isLoadingDocuments ? <p className="muted">Loading Job Documents...</p> : null}
+
+        {!isLoadingDocuments && !documents.length ? (
+          <div className="empty-state">
+            <strong>No documents yet.</strong>
+            <p>Upload job records, photos, permits, or other supporting files for this job.</p>
+          </div>
+        ) : null}
+
+        {documents.length ? (
+          <>
+            <div className="table-wrap">
+              <table className="data-table job-documents-table">
+                <thead>
+                  <tr>
+                    <th>File name</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Uploaded</th>
+                    <th>Uploaded by</th>
+                    <th>Size</th>
+                    <th>MIME type</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.file_name || row.storage_path}</strong>
+                        <span>{row.storage_path}</span>
+                      </td>
+                      <td>{row.document_type || '-'}</td>
+                      <td>{row.description || '-'}</td>
+                      <td>{formatJobDateTime(row.created_at)}</td>
+                      <td>{row.created_by || '-'}</td>
+                      <td>{formatFileSizeBytes(row.file_size_bytes)}</td>
+                      <td>{row.mime_type || '-'}</td>
+                      <td>
+                        <div className="count-action-stack">
+                          <button type="button" className="secondary-button" onClick={() => openDocument(row)} disabled={isSavingDocument}>
+                            <Copy aria-hidden="true" /> Open
+                          </button>
+                          <button type="button" className="secondary-button" onClick={() => downloadDocument(row)} disabled={isSavingDocument}>
+                            <Download aria-hidden="true" /> Download
+                          </button>
+                          {selectedJobCanManageDocuments ? (
+                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveDocument(row)} disabled={isSavingDocument}>
+                              <Archive aria-hidden="true" /> Archive
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list job-documents-mobile-list">
+              {documents.map((row) => (
+                <article className="mobile-item" key={row.id}>
+                  <strong>{row.file_name || row.storage_path}</strong>
+                  <div className="meta-grid">
+                    <span>Type: {row.document_type || '-'}</span>
+                    <span>Uploaded: {formatJobDateTime(row.created_at)}</span>
+                    <span>By: {row.created_by || '-'}</span>
+                    <span>Size: {formatFileSizeBytes(row.file_size_bytes)}</span>
+                    <span>MIME: {row.mime_type || '-'}</span>
+                    <span>Description: {row.description || '-'}</span>
+                  </div>
+                  <div className="cart-actions">
+                    <button type="button" className="secondary-button" onClick={() => openDocument(row)} disabled={isSavingDocument}>
+                      <Copy aria-hidden="true" /> Open
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => downloadDocument(row)} disabled={isSavingDocument}>
+                      <Download aria-hidden="true" /> Download
+                    </button>
+                    {selectedJobCanManageDocuments ? (
+                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveDocument(row)} disabled={isSavingDocument}>
+                        <Archive aria-hidden="true" /> Archive
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </section>
+    );
+  }
+
   function renderJobTransactionsTab() {
     if (!selectedJob) return null;
 
@@ -9661,6 +10155,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
         return renderJobBuyoutTab();
       case 'financials':
         return renderJobFinancialsTab();
+      case 'documents':
+        return renderJobDocumentsTab();
       case 'transactions':
         return renderJobTransactionsTab();
       case 'overview':
