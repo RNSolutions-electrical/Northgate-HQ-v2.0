@@ -12596,3 +12596,75 @@ stayed strictly inside local formatting controls plus Jobs readability cleanup.
 
 ### Routing Verdict
 No Claude review needed — Developer Formatting Tuner and Jobs readability cleanup stayed within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 122).
+
+## Entry 123 - Job Schedule v1 implemented
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Schedule
+**Session type:** implementation
+
+### Context
+Implemented Job Schedule v1 under ARCHITECTURE v2.27 Section 47 as the next
+locked Jobs completion milestone after Documents and the Developer Formatting
+Tuner cleanup. This stayed inside the flat milestone/task-list scope only.
+
+### What Was Completed
+- Created `public.job_schedule_items`.
+- Added fields `title`, `description`, `target_date`, `status`, `sort_order`,
+  `note`, plus the standard division/archive/created metadata columns.
+- Locked status values to `pending`, `in_progress`, `complete`, and `delayed`.
+- Added the `set_job_schedule_items_updated_at` trigger using the existing
+  `touch_user_permissions_updated_at()` function.
+- Enabled the Schedule tab in the Jobs workspace.
+- Implemented add, edit, archive, and up/down reorder behavior for schedule
+  items.
+- Kept archive behavior soft-only through `archived_at`, `archived_by`, and
+  optional `archive_reason`.
+- Added division-scoped read behavior and `can_manage_jobs` write/archive/
+  reorder gating through the new table RLS.
+
+### Safety Confirmations
+- No hard delete policy was added.
+- No new permission flag was added.
+- No calendar integration was added.
+- No Google Calendar integration was added.
+- No dependency model was added.
+- No employee assignments were added.
+- No reminders or notifications were added.
+- No recurring-event behavior was added.
+- No Job Export implementation was added.
+- No Documents behavior was changed.
+- No Financials behavior was changed.
+- No Formatting Tuner behavior was changed.
+- No accounting, actuals, revenue, profit, or issued inventory value behavior
+  was added.
+- No inventory, cart, or checkout behavior was changed.
+- No existing migrations were edited.
+- No existing RLS, grants, or permissions were changed outside the new
+  `job_schedule_items` table.
+
+### Files Changed
+- `supabase/migrations/202607060004_job_schedule_items_foundation.sql`
+- `src/App.jsx`
+- `src/styles.css`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch remained `main`.
+- Confirmed the working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
+- Confirmed HANDOFF was gapless through Entry 122 before this append.
+- Confirmed Section 47 exists and locks Job Schedule v1.
+- Confirmed no existing `public.job_schedule_items` migration already existed.
+- Confirmed `touch_user_permissions_updated_at()` remains the shared updated_at
+  trigger function used by adjacent Jobs tables.
+- Confirmed the Jobs workspace already exposed a Schedule placeholder tab and
+  activated that existing tab slot instead of creating a new navigation model.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Live Supabase migration still needs manual application.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).

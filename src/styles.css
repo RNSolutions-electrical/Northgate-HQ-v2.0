@@ -582,6 +582,57 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-documents-table { min-width: 1240px; }
 .job-documents-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .job-documents-mobile-list { display: none; }
+.job-schedule-list,
+.job-schedule-form,
+.job-schedule-form > *,
+.job-schedule-list .count-section-header > *,
+.job-schedule-list .location-note,
+.job-schedule-summary-grid {
+  min-width: 0;
+  max-width: 100%;
+}
+.job-schedule-list { display: grid; gap: .8rem; margin: 1rem 0; overflow: hidden; }
+.job-schedule-list .count-section-header { align-items: flex-start; flex-wrap: wrap; }
+.job-schedule-list .count-section-header p,
+.job-schedule-list .location-note span {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.job-schedule-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: .75rem;
+}
+.job-schedule-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: .6rem;
+  align-items: end;
+}
+.job-schedule-form label {
+  display: grid;
+  gap: .28rem;
+  color: #94a3b8;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.job-schedule-form input,
+.job-schedule-form select {
+  max-width: 100%;
+  border: 1px solid rgba(148,163,184,.24);
+  border-radius: .75rem;
+  background: rgba(2,6,23,.45);
+  color: #e5edf8;
+  padding: .62rem .7rem;
+  min-width: 0;
+  width: 100%;
+}
+.job-schedule-form__wide { grid-column: 1 / -1; }
+.job-schedule-form .cart-actions { min-width: 0; }
+.job-schedule-form .secondary-button { white-space: normal; }
+.job-schedule-table { min-width: 1220px; }
+.job-schedule-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.job-schedule-mobile-list { display: none; }
 .job-transactions-list {
   display: grid;
   gap: .8rem;
@@ -610,6 +661,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-buyout-table td,
 .job-financials-table td,
 .job-documents-table td,
+.job-schedule-table td,
 .job-transactions-table td {
   overflow-wrap: anywhere;
 }
@@ -643,6 +695,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-buyout-list,
 .job-financials-list,
 .job-documents-list,
+.job-schedule-list,
 .job-transactions-list {
   gap: 1rem;
   margin: 0;
@@ -650,7 +703,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-material-form,
 .job-buyout-form,
 .job-financials-form,
-.job-documents-form {
+.job-documents-form,
+.job-schedule-form {
   border: 1px solid var(--ng-border);
   border-radius: var(--ng-radius-card);
   background: var(--ng-panel-bg);
@@ -659,7 +713,9 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-material-toolbar,
 .job-buyout-toolbar,
 .job-financials-toolbar,
+.job-schedule-toolbar,
 .job-documents-list .count-section-header,
+.job-schedule-list .count-section-header,
 .job-transactions-list .count-section-header,
 .job-overview-panel .count-section-header,
 .job-details-panel .count-section-header {
@@ -1285,7 +1341,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .meta-grid,
   .cart-facts { grid-template-columns: 1fr; }
   .card__header .secondary-button { width: 100%; }
-  .label-form-grid, .label-style-panel, .label-layout-panel, .tool-form, .job-material-form, .job-buyout-form, .job-financials-form, .job-documents-form, .formatting-tuner__controls { grid-template-columns: 1fr; }
+  .label-form-grid, .label-style-panel, .label-layout-panel, .tool-form, .job-material-form, .job-buyout-form, .job-financials-form, .job-documents-form, .job-schedule-form, .formatting-tuner__controls { grid-template-columns: 1fr; }
   .table-wrap { display: none; }
   .mobile-list { display: grid; }
   .history-mobile-list { display: grid; }

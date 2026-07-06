@@ -78,12 +78,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Developer Formatting Tuner',
-  relatedHandoff: 'Entry 122',
+  mostRecentChange: 'Job Schedule v1',
+  relatedHandoff: 'Entry 123',
   architectureVersion: 'v2.27',
-  currentStep: 'Jobs completion — UI readability',
+  currentStep: 'Jobs completion — Schedule',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'Developer-only local formatting preview plus Jobs readability cleanup are the active Bucket 1 UI pass, with the build-time SHA marker still reporting the actual bundle being served.',
+  deploymentNote: 'Job Schedule v1 is the active Jobs completion slice, while the build-time SHA marker still reports the actual bundle being served.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -208,10 +208,11 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
 });
 
 const DOCUMENTS_STORAGE_BUCKET = 'northgate-files';
-const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List, Buyout List, Transactions, Financials v1, and Documents are live. Issue to Job routes through cart/checkout, and Return-to-Inventory plus broader job management features (phases and schedule) remain reserved.';
+const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List, Buyout List, Transactions, Financials v1, Documents, and Schedule are live. Issue to Job routes through cart/checkout, and Return-to-Inventory plus broader project-management features remain reserved.';
 const JOB_DOCUMENTS_HELPER_COPY = 'Documents attach to this job. They are stored securely and can be downloaded individually. Deleting a document only archives it — it is not permanently removed.';
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 const JOB_FINANCIALS_HELPER_COPY = 'Financials v1 is a budget planning tool. It tracks budgeted cost lines for this job only. It does not calculate actual cost, profit, revenue, inventory value, purchase orders, invoices, change orders, payroll, or accounting entries.';
+const JOB_SCHEDULE_HELPER_COPY = 'Schedule tracks key milestones and tasks for this job. It does not sync with a calendar or manage dependencies between items.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
 const JOB_BUDGET_CATEGORY_OPTIONS = [
@@ -240,6 +241,29 @@ const JOB_DOCUMENTS_SELECT_FIELDS = [
   'mime_type',
   'created_by',
 ].join(',');
+const JOB_SCHEDULE_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'complete', label: 'Complete' },
+  { value: 'delayed', label: 'Delayed' },
+];
+const JOB_SCHEDULE_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'title',
+  'description',
+  'target_date',
+  'status',
+  'sort_order',
+  'note',
+  'created_by',
+].join(',');
 const BASE_JOB_DETAIL_TABS = [
   { key: 'overview', label: 'Overview', isDisabled: false, isComingSoon: false },
   { key: 'details', label: 'Details', isDisabled: false, isComingSoon: false },
@@ -248,7 +272,7 @@ const BASE_JOB_DETAIL_TABS = [
   { key: 'transactions', label: 'Transactions', isDisabled: false, isComingSoon: false },
   { key: 'financials', label: 'Financials', isDisabled: false, isComingSoon: false },
   { key: 'documents', label: 'Documents', isDisabled: false, isComingSoon: false },
-  { key: 'schedule', label: 'Schedule', isDisabled: true, isComingSoon: true },
+  { key: 'schedule', label: 'Schedule', isDisabled: false, isComingSoon: false },
 ];
 
 function getJobDetailTabs(canViewFinancials) {
@@ -375,6 +399,14 @@ const EMPTY_JOB_BUDGET_DRAFT = Object.freeze({
   cost_code: '',
   description: '',
   budget_amount: '',
+  note: '',
+});
+const EMPTY_JOB_SCHEDULE_DRAFT = Object.freeze({
+  id: '',
+  title: '',
+  description: '',
+  target_date: '',
+  status: 'pending',
   note: '',
 });
 const JOB_MATERIAL_CATALOG_SELECT_FIELDS = 'id,material_code,name,description,unit_of_measure,division,is_active,is_archived';
@@ -2577,6 +2609,13 @@ function formatJobDateTime(value) {
   return date.toLocaleString();
 }
 
+function formatJobDate(value) {
+  if (!value) return '-';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString();
+}
+
 function formatJobType(value) {
   if (value === 'service_call') return 'Service Call';
   return 'Job';
@@ -2688,6 +2727,96 @@ function getJobDocumentSummary(rows) {
     totalBytes,
     latestUploadedAt: rows[0]?.created_at ?? null,
   };
+}
+
+function getJobScheduleStatusLabel(value) {
+  return JOB_SCHEDULE_STATUS_OPTIONS.find((option) => option.value === value)?.label ?? 'Pending';
+}
+
+function getJobScheduleStatusBadgeClass(value) {
+  const toneByValue = {
+    pending: 'warn',
+    in_progress: 'info',
+    complete: 'good',
+    delayed: 'err',
+  };
+  const tone = toneByValue[String(value ?? '').toLowerCase()] ?? 'info';
+  return `status-pill tool-catalogue__badge tool-catalogue__badge--${tone}`;
+}
+
+function createJobScheduleDraft(row = null) {
+  if (!row) return { ...EMPTY_JOB_SCHEDULE_DRAFT };
+  return {
+    id: row.id ?? '',
+    title: row.title ?? '',
+    description: row.description ?? '',
+    target_date: row.target_date ?? '',
+    status: JOB_SCHEDULE_STATUS_OPTIONS.some((option) => option.value === row.status) ? row.status : 'pending',
+    note: row.note ?? '',
+  };
+}
+
+function sortJobScheduleRows(rows) {
+  return rows.slice().sort((left, right) => {
+    const leftSort = Number(left.sort_order ?? 0);
+    const rightSort = Number(right.sort_order ?? 0);
+    if (leftSort !== rightSort) return leftSort - rightSort;
+
+    const leftTarget = left.target_date ? String(left.target_date) : '9999-12-31';
+    const rightTarget = right.target_date ? String(right.target_date) : '9999-12-31';
+    if (leftTarget !== rightTarget) return leftTarget.localeCompare(rightTarget);
+
+    const leftCreated = String(left.created_at ?? '');
+    const rightCreated = String(right.created_at ?? '');
+    if (leftCreated !== rightCreated) return leftCreated.localeCompare(rightCreated);
+
+    return String(left.id ?? '').localeCompare(String(right.id ?? ''));
+  });
+}
+
+function getNextScheduleSortOrder(rows) {
+  return rows.reduce((maxSort, row) => {
+    const sortValue = Number(row.sort_order ?? 0);
+    return Number.isFinite(sortValue) ? Math.max(maxSort, sortValue) : maxSort;
+  }, 0) + 1;
+}
+
+function buildJobScheduleMutationPayload(draft) {
+  return {
+    title: String(draft.title ?? '').trim(),
+    description: cleanToolText(draft.description),
+    target_date: String(draft.target_date ?? '').trim() || null,
+    status: JOB_SCHEDULE_STATUS_OPTIONS.some((option) => option.value === draft.status) ? draft.status : '',
+    note: cleanToolText(draft.note),
+  };
+}
+
+function filterJobScheduleRows(rows, searchText) {
+  const search = searchText.trim().toLowerCase();
+  if (!search) return rows;
+  return rows.filter((row) => [
+    row.title,
+    row.description,
+    row.note,
+    row.status,
+    getJobScheduleStatusLabel(row.status),
+    row.created_by,
+  ].some((value) => String(value ?? '').toLowerCase().includes(search)));
+}
+
+function getJobScheduleSummary(rows) {
+  return rows.reduce((summary, row) => {
+    summary.count += 1;
+    if (row.status === 'complete') summary.completeCount += 1;
+    if (row.status === 'delayed') summary.delayedCount += 1;
+    if (row.target_date) summary.withDateCount += 1;
+    return summary;
+  }, {
+    count: 0,
+    completeCount: 0,
+    delayedCount: 0,
+    withDateCount: 0,
+  });
 }
 
 function filterJobRows(rows, filters) {
@@ -8043,6 +8172,13 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [documentMessage, setDocumentMessage] = useState('');
   const [documentDraft, setDocumentDraft] = useState(() => createJobDocumentDraft());
   const [documentFileInputKey, setDocumentFileInputKey] = useState(0);
+  const [scheduleItems, setScheduleItems] = useState([]);
+  const [isLoadingScheduleItems, setIsLoadingScheduleItems] = useState(false);
+  const [isSavingScheduleItem, setIsSavingScheduleItem] = useState(false);
+  const [scheduleItemsError, setScheduleItemsError] = useState(null);
+  const [scheduleItemMessage, setScheduleItemMessage] = useState('');
+  const [scheduleSearch, setScheduleSearch] = useState('');
+  const [scheduleDraft, setScheduleDraft] = useState(() => createJobScheduleDraft());
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -8052,6 +8188,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const selectedJobCanEdit = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
   const selectedJobCanManageBudget = Boolean(selectedJob && canApproveBudget && selectedJob.division === permissions.division);
   const selectedJobCanManageDocuments = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
+  const selectedJobCanManageSchedule = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
   const formCanSave = selectedJob ? selectedJobCanEdit : canCreateJobs && hasWritableDivision;
   const jobDetailTabs = useMemo(() => getJobDetailTabs(canViewFinancials), [canViewFinancials]);
   const divisionOptions = useMemo(
@@ -8077,6 +8214,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const filteredBudgetLines = useMemo(() => filterJobBudgetRows(orderedBudgetLines, budgetLineSearch), [orderedBudgetLines, budgetLineSearch]);
   const budgetSummary = useMemo(() => getJobBudgetSummary(orderedBudgetLines), [orderedBudgetLines]);
   const documentSummary = useMemo(() => getJobDocumentSummary(documents), [documents]);
+  const orderedScheduleItems = useMemo(() => sortJobScheduleRows(scheduleItems), [scheduleItems]);
+  const filteredScheduleItems = useMemo(() => filterJobScheduleRows(orderedScheduleItems, scheduleSearch), [orderedScheduleItems, scheduleSearch]);
+  const scheduleSummary = useMemo(() => getJobScheduleSummary(orderedScheduleItems), [orderedScheduleItems]);
   const documentSuggestedName = useMemo(
     () => (selectedJob && documentDraft.file
       ? buildJobDocumentSuggestedName(
@@ -8090,6 +8230,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   );
   const budgetFormCanSave = Boolean(selectedJobCanManageBudget && selectedJob && !isSavingBudgetLine);
   const documentFormCanSave = Boolean(selectedJobCanManageDocuments && selectedJob && documentDraft.file && !isSavingDocument);
+  const scheduleFormCanSave = Boolean(selectedJobCanManageSchedule && selectedJob && !isSavingScheduleItem);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -8346,6 +8487,40 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }
 
+  async function loadJobScheduleItems(jobId, { preserveMessage = false } = {}) {
+    if (!canReadJobs || !jobId) {
+      setScheduleItems([]);
+      setIsLoadingScheduleItems(false);
+      setScheduleItemsError(null);
+      return;
+    }
+
+    setIsLoadingScheduleItems(true);
+    setScheduleItemsError(null);
+    if (!preserveMessage) setScheduleItemMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('job_schedule_items')
+        .select(JOB_SCHEDULE_SELECT_FIELDS)
+        .eq('job_id', jobId)
+        .is('archived_at', null)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) throw error;
+      setScheduleItems(data ?? []);
+    } catch (error) {
+      console.error('Job Schedule load failed', error);
+      setScheduleItems([]);
+      setScheduleItemsError(error);
+    } finally {
+      setIsLoadingScheduleItems(false);
+    }
+  }
+
   function issueMaterialToJob(row) {
     if (!canIssueToJob || !selectedJob || !navigateTo) {
       return;
@@ -8409,6 +8584,11 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setDocuments([]);
     setDocumentsError(null);
     setDocumentFileInputKey((value) => value + 1);
+    setScheduleDraft(createJobScheduleDraft());
+    setScheduleSearch('');
+    setScheduleItemMessage('');
+    setScheduleItems([]);
+    setScheduleItemsError(null);
 
     if (!selectedJob) {
       setJobMaterials([]);
@@ -8422,6 +8602,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setBudgetLinesError(null);
       setDocuments([]);
       setDocumentsError(null);
+      setScheduleItems([]);
+      setScheduleItemsError(null);
       return;
     }
 
@@ -8429,6 +8611,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
     loadBuyoutLines(selectedJob.id);
     loadJobTransactions(selectedJob.id);
     loadJobDocuments(selectedJob.id);
+    loadJobScheduleItems(selectedJob.id);
     if (canViewFinancials) {
       loadJobBudgetLines(selectedJob.id);
     }
@@ -8472,6 +8655,10 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function updateDocumentDraft(key, value) {
     setDocumentDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateScheduleDraft(key, value) {
+    setScheduleDraft((current) => ({ ...current, [key]: value }));
   }
 
   function startNewJob() {
@@ -9050,6 +9237,141 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setDocumentMessage('Document archive failed. Confirm can_manage_jobs and division scope.');
     } finally {
       setIsSavingDocument(false);
+    }
+  }
+
+  function startNewScheduleItem() {
+    setScheduleDraft(createJobScheduleDraft());
+    setScheduleItemMessage('');
+  }
+
+  function startEditScheduleItem(row) {
+    if (!selectedJobCanManageSchedule) {
+      setScheduleItemMessage('Schedule editing and reordering are limited to the current job division with can_manage_jobs.');
+      return;
+    }
+    setScheduleDraft(createJobScheduleDraft(row));
+    setScheduleItemMessage('');
+  }
+
+  async function moveScheduleItem(rowId, direction) {
+    if (!selectedJobCanManageSchedule || isSavingScheduleItem || !selectedJob?.id) return;
+
+    const currentRows = sortJobScheduleRows(scheduleItems);
+    const currentIndex = currentRows.findIndex((row) => row.id === rowId);
+    if (currentIndex < 0) return;
+
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= currentRows.length) return;
+
+    const currentRow = currentRows[currentIndex];
+    const targetRow = currentRows[targetIndex];
+    const currentSort = Number(currentRow.sort_order ?? currentIndex + 1);
+    const targetSort = Number(targetRow.sort_order ?? targetIndex + 1);
+
+    setIsSavingScheduleItem(true);
+    setScheduleItemMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const results = await Promise.all([
+        client.from('job_schedule_items').update({ sort_order: targetSort }).eq('id', currentRow.id),
+        client.from('job_schedule_items').update({ sort_order: currentSort }).eq('id', targetRow.id),
+      ]);
+      const error = results.find((result) => result.error)?.error ?? null;
+      if (error) throw error;
+
+      await loadJobScheduleItems(selectedJob.id, { preserveMessage: true });
+      setScheduleItemMessage(direction < 0 ? 'Schedule item moved up.' : 'Schedule item moved down.');
+    } catch (error) {
+      console.error('Job Schedule reorder failed', error);
+      setScheduleItemMessage(`Schedule reorder failed. ${error?.message || 'Confirm can_manage_jobs and the job_schedule_items migration.'}`);
+    } finally {
+      setIsSavingScheduleItem(false);
+    }
+  }
+
+  async function saveScheduleItem(event) {
+    event.preventDefault();
+    if (!scheduleFormCanSave || !selectedJob) return;
+
+    const payload = buildJobScheduleMutationPayload(scheduleDraft);
+    if (!payload.title) {
+      setScheduleItemMessage('Title is required.');
+      return;
+    }
+    if (!payload.status) {
+      setScheduleItemMessage('Status is required.');
+      return;
+    }
+
+    setIsSavingScheduleItem(true);
+    setScheduleItemMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      if (scheduleDraft.id) {
+        const { error } = await client
+          .from('job_schedule_items')
+          .update(payload)
+          .eq('id', scheduleDraft.id);
+        if (error) throw error;
+        await loadJobScheduleItems(selectedJob.id, { preserveMessage: true });
+        setScheduleItemMessage('Schedule item saved.');
+      } else {
+        const { error } = await client
+          .from('job_schedule_items')
+          .insert({
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            created_by: permissions.userId,
+            sort_order: getNextScheduleSortOrder(orderedScheduleItems),
+            ...payload,
+          });
+        if (error) throw error;
+        await loadJobScheduleItems(selectedJob.id, { preserveMessage: true });
+        setScheduleDraft(createJobScheduleDraft());
+        setScheduleItemMessage('Schedule item added.');
+      }
+    } catch (error) {
+      console.error('Job Schedule save failed', error);
+      setScheduleItemMessage(`Schedule save failed. ${error?.message || 'Confirm can_manage_jobs and the job_schedule_items migration.'}`);
+    } finally {
+      setIsSavingScheduleItem(false);
+    }
+  }
+
+  async function archiveScheduleItem(row) {
+    if (!selectedJobCanManageSchedule || isSavingScheduleItem || !row?.id) return;
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingScheduleItem(true);
+    setScheduleItemMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_schedule_items')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanToolText(reason),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      if (scheduleDraft.id === row.id) startNewScheduleItem();
+      await loadJobScheduleItems(selectedJob.id, { preserveMessage: true });
+      setScheduleItemMessage('Schedule item archived from the active list.');
+    } catch (error) {
+      console.error('Job Schedule archive failed', error);
+      setScheduleItemMessage('Schedule archive failed. Confirm can_manage_jobs and division scope.');
+    } finally {
+      setIsSavingScheduleItem(false);
     }
   }
 
@@ -10206,6 +10528,232 @@ function JobsWorkspace({ permissions, navigateTo }) {
     );
   }
 
+  function renderJobScheduleTab() {
+    if (!selectedJob) return null;
+
+    return (
+      <section className="job-schedule-list">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Schedule</p>
+            <h3>Job Schedule v1</h3>
+            <p>{JOB_SCHEDULE_HELPER_COPY}</p>
+          </div>
+          <span>{scheduleSummary.count} item{scheduleSummary.count === 1 ? '' : 's'}</span>
+        </div>
+
+        <div className="location-note tool-catalogue__note">
+          <ClipboardCheck aria-hidden="true" />
+          <span>{JOB_SCHEDULE_HELPER_COPY}</span>
+        </div>
+
+        <div className="job-schedule-summary-grid">
+          <article className="job-overview-card">
+            <strong>{scheduleSummary.count}</strong>
+            <span>Schedule items</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{scheduleSummary.completeCount}</strong>
+            <span>Complete</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{scheduleSummary.withDateCount}</strong>
+            <span>With target date</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{selectedJobCanManageSchedule ? 'Editable' : 'Read only'}</strong>
+            <span>{selectedJobCanManageSchedule ? 'can_manage_jobs in current division' : 'View-only schedule access'}</span>
+          </article>
+        </div>
+
+        {scheduleItemsError ? <div className="alert">Job Schedule failed to load. Confirm the `public.job_schedule_items` migration and Schedule permissions.</div> : null}
+        {scheduleItemMessage ? <div className="alert">{scheduleItemMessage}</div> : null}
+
+        <div className="tool-toolbar job-schedule-toolbar">
+          <label>
+            Search schedule items
+            <input value={scheduleSearch} onChange={(event) => setScheduleSearch(event.target.value)} />
+          </label>
+          <div className="cart-actions">
+            <button type="button" className="secondary-button" onClick={() => loadJobScheduleItems(selectedJob.id)} disabled={isLoadingScheduleItems}>
+              <RefreshCw aria-hidden="true" /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {isLoadingScheduleItems ? <p className="muted">Loading Job Schedule...</p> : null}
+
+        {scheduleFormCanSave ? (
+          <form className="job-schedule-form" onSubmit={saveScheduleItem}>
+            <label className="job-schedule-form__wide">
+              Title
+              <input value={scheduleDraft.title} onChange={(event) => updateScheduleDraft('title', event.target.value)} disabled={!scheduleFormCanSave} required />
+            </label>
+            <label>
+              Status
+              <select value={scheduleDraft.status} onChange={(event) => updateScheduleDraft('status', event.target.value)} disabled={!scheduleFormCanSave}>
+                {JOB_SCHEDULE_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label>
+              Target date
+              <input type="date" value={scheduleDraft.target_date} onChange={(event) => updateScheduleDraft('target_date', event.target.value)} disabled={!scheduleFormCanSave} />
+            </label>
+            <label className="job-schedule-form__wide">
+              Description
+              <input value={scheduleDraft.description} onChange={(event) => updateScheduleDraft('description', event.target.value)} disabled={!scheduleFormCanSave} placeholder="Optional description" />
+            </label>
+            <label className="job-schedule-form__wide">
+              Note
+              <input value={scheduleDraft.note} onChange={(event) => updateScheduleDraft('note', event.target.value)} disabled={!scheduleFormCanSave} placeholder="Optional note" />
+            </label>
+            <div className="cart-actions job-schedule-form__wide">
+              <button type="submit" className="secondary-button" disabled={!scheduleFormCanSave}>
+                <Plus aria-hidden="true" /> {isSavingScheduleItem ? 'Saving...' : scheduleDraft.id ? 'Save Schedule Item' : 'Add Schedule Item'}
+              </button>
+              <button type="button" className="secondary-button" onClick={startNewScheduleItem} disabled={isSavingScheduleItem}>
+                New Schedule Item
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="empty-state">
+            <strong>Schedule is read-only for this job.</strong>
+            <p>{selectedJob?.division === permissions.division ? 'can_manage_jobs is required to add, edit, archive, or reorder schedule items.' : 'Schedule edits are limited to the current user division.'}</p>
+          </div>
+        )}
+
+        {!isLoadingScheduleItems && !filteredScheduleItems.length ? (
+          <div className="empty-state">
+            <strong>No schedule items yet.</strong>
+            <p>Add milestones or tasks to track this job without calendar sync or dependency logic.</p>
+          </div>
+        ) : null}
+
+        {filteredScheduleItems.length ? (
+          <>
+            <div className="table-wrap">
+              <table className="data-table job-schedule-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Target Date</th>
+                    <th>Description</th>
+                    <th>Note</th>
+                    <th>Updated</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredScheduleItems.map((row) => {
+                    const scheduleIndex = orderedScheduleItems.findIndex((item) => item.id === row.id);
+                    const canMoveUp = selectedJobCanManageSchedule && scheduleIndex > 0;
+                    const canMoveDown = selectedJobCanManageSchedule && scheduleIndex >= 0 && scheduleIndex < orderedScheduleItems.length - 1;
+
+                    return (
+                      <tr key={row.id}>
+                        <td>
+                          <div className="job-financials-order-cell">
+                            <strong>{formatOptionalQuantity(row.sort_order)}</strong>
+                            <span>Order</span>
+                            {selectedJobCanManageSchedule ? (
+                              <div className="job-financials-order-controls">
+                                <button type="button" className="secondary-button" onClick={() => moveScheduleItem(row.id, -1)} disabled={!canMoveUp || isSavingScheduleItem}>
+                                  <ChevronUp aria-hidden="true" /> Up
+                                </button>
+                                <button type="button" className="secondary-button" onClick={() => moveScheduleItem(row.id, 1)} disabled={!canMoveDown || isSavingScheduleItem}>
+                                  <ChevronDown aria-hidden="true" /> Down
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="muted">Read only</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <strong>{row.title}</strong>
+                          <span>Created: {formatJobDateTime(row.created_at)}</span>
+                        </td>
+                        <td><span className={getJobScheduleStatusBadgeClass(row.status)}>{getJobScheduleStatusLabel(row.status)}</span></td>
+                        <td>{formatJobDate(row.target_date)}</td>
+                        <td>{row.description || '-'}</td>
+                        <td>{row.note || '-'}</td>
+                        <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                        <td>{row.created_by || '-'}</td>
+                        <td>
+                          {selectedJobCanManageSchedule ? (
+                            <div className="count-action-stack">
+                              <button type="button" className="secondary-button" onClick={() => startEditScheduleItem(row)} disabled={isSavingScheduleItem}>
+                                <Pencil aria-hidden="true" /> Edit
+                              </button>
+                              <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveScheduleItem(row)} disabled={isSavingScheduleItem}>
+                                <Archive aria-hidden="true" /> Archive
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="muted">Read only</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list job-schedule-mobile-list">
+              {filteredScheduleItems.map((row) => {
+                const scheduleIndex = orderedScheduleItems.findIndex((item) => item.id === row.id);
+                const canMoveUp = selectedJobCanManageSchedule && scheduleIndex > 0;
+                const canMoveDown = selectedJobCanManageSchedule && scheduleIndex >= 0 && scheduleIndex < orderedScheduleItems.length - 1;
+
+                return (
+                  <article className="mobile-item" key={row.id}>
+                    <strong>{row.title}</strong>
+                    <div className="meta-grid">
+                      <span>Order: {formatOptionalQuantity(row.sort_order)}</span>
+                      <span>Status: <span className={getJobScheduleStatusBadgeClass(row.status)}>{getJobScheduleStatusLabel(row.status)}</span></span>
+                      <span>Target Date: {formatJobDate(row.target_date)}</span>
+                      <span>Description: {row.description || '-'}</span>
+                      <span>Note: {row.note || '-'}</span>
+                      <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                      <span>Created By: {row.created_by || '-'}</span>
+                    </div>
+                    {selectedJobCanManageSchedule ? (
+                      <>
+                        <div className="cart-actions job-financials-reorder-actions">
+                          <button type="button" className="secondary-button" onClick={() => moveScheduleItem(row.id, -1)} disabled={!canMoveUp || isSavingScheduleItem}>
+                            <ChevronUp aria-hidden="true" /> Up
+                          </button>
+                          <button type="button" className="secondary-button" onClick={() => moveScheduleItem(row.id, 1)} disabled={!canMoveDown || isSavingScheduleItem}>
+                            <ChevronDown aria-hidden="true" /> Down
+                          </button>
+                        </div>
+                        <div className="cart-actions">
+                          <button type="button" className="secondary-button" onClick={() => startEditScheduleItem(row)} disabled={isSavingScheduleItem}>
+                            <Pencil aria-hidden="true" /> Edit
+                          </button>
+                          <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveScheduleItem(row)} disabled={isSavingScheduleItem}>
+                            <Archive aria-hidden="true" /> Archive
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="muted">Read only</p>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        ) : null}
+      </section>
+    );
+  }
+
   function renderActiveJobDetailTab() {
     switch (activeJobDetailTab) {
       case 'details':
@@ -10220,6 +10768,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
         return renderJobDocumentsTab();
       case 'transactions':
         return renderJobTransactionsTab();
+      case 'schedule':
+        return renderJobScheduleTab();
       case 'overview':
       default:
         return renderJobOverviewTab();
