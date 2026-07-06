@@ -12449,3 +12449,83 @@ schema-declared but are not RLS-permitted in this milestone.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 119).
+
+## Entry 121 - Job Documents upload RLS bugfix
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Documents
+**Session type:** bugfix
+
+### Context
+After Entry 120 went live, a user attempted to upload a Job Document in the
+deployed app and hit an RLS-looking failure:
+`new row violates row-level security policy`.
+
+The error initially looked like a `public.documents` insert policy problem, but
+diagnosis confirmed the first failure was actually Storage RLS on
+`storage.objects`.
+
+### Root Cause
+- The live `documents_storage_insert` policy had a name-shadowing / path-parsing
+  bug.
+- Inside the policy subquery, the folder parsing effectively referenced
+  `storage.foldername(j.name)[3]` instead of the outer storage object path.
+- The policy was parsing the job display name instead of the uploaded storage
+  object path, so the `jobs.id` match failed and the upload was blocked before
+  the `public.documents` row insert.
+- A second bug existed in `documents_read`: it incorrectly required
+  `can_view_all_divisions = true` even for same-division reads, instead of
+  allowing own-division reads under the locked Section 46 model.
+
+### What Was Completed
+- Added `supabase/migrations/202607060003_job_documents_rls_bugfix.sql`.
+- Fixed `documents_storage_insert` so the job-id path segment is parsed from
+  `storage.objects.name`.
+- Fixed `documents_read` so own-division reads are allowed, with
+  `can_view_all_divisions` still permitting cross-division reads where
+  authorized.
+- Applied the same fix live to the v2 Supabase project
+  `keogysnoukbendfkfjcn`.
+- Kept Job Documents v1 locked to:
+  - generic `public.documents`
+  - `owner_type = 'job'`
+  - division-scoped reads
+  - `can_manage_jobs` for upload/archive
+  - no hard delete
+
+### Confirmed Behavior
+- Frontend upload flow is storage upload first, then `public.documents` row
+  insert.
+- Storage upload was rejected first during the failed production attempt.
+- No `storage.objects` row was created for the failed upload attempt.
+- No `public.documents` row was created for the failed upload attempt.
+- No orphaned storage file or document row was left behind.
+
+### Safety Confirmations
+- No Schedule work was started.
+- No Job Export work was started.
+- No new permission flags were added.
+- No hard delete behavior was added.
+- No unrelated Documents, Jobs, Financials, inventory, cart, checkout, or
+  export behavior was changed.
+
+### Verification
+- Confirmed repo branch remained `main`.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
+- Confirmed HANDOFF was gapless through Entry 120 before this append.
+- Confirmed `supabase/migrations/202607060003_job_documents_rls_bugfix.sql`
+  exists in repo.
+- Confirmed no Schedule implementation was added.
+- Confirmed no Job Export implementation was added.
+- Confirmed no new permission flags were introduced.
+- Confirmed no DELETE policy was added for `public.documents`.
+- Confirmed no hard delete path was introduced.
+- Confirmed the live project now exposes the corrected `documents_read` and
+  `documents_storage_insert` policies.
+- `git diff --check` passed.
+- `npm.cmd run build` was not required because no runtime code changed in this
+  finalization/logging pass.
+
+### Routing Verdict
+No Claude review needed — Job Documents upload RLS bugfix stayed within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 121).
