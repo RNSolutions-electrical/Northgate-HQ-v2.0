@@ -12365,6 +12365,8 @@ schema-declared but are not RLS-permitted in this milestone.
 - Added the `set_documents_updated_at` trigger path for `public.documents`.
 - Used a local trigger helper function because `touch_user_permissions_updated_at()`
   was not confirmed as present in the live project during preflight.
+- Bootstrapped the `northgate-files` storage bucket in the migration so the
+  Job Documents upload path has a live bucket target if it is missing.
 - Enabled RLS on `public.documents`.
 - Added the locked RLS policies:
   - `documents_read`
@@ -12396,17 +12398,19 @@ schema-declared but are not RLS-permitted in this milestone.
   job modules unchanged.
 
 ### Live Verification
-- Confirmed the live Supabase bucket `northgate-files` exists.
-- Confirmed the live project did not already expose the new `public.documents`
-  table before this repo change.
+- Confirmed the live v2 Supabase project is `keogysnoukbendfkfjcn`.
+- Confirmed the live `northgate-files` bucket exists after the migration apply.
+- Confirmed the live `public.documents` table now exists.
+- Confirmed the live project now exposes `set_documents_updated_at()`.
+- Confirmed the live project now has the `documents_read`, `documents_insert`,
+  and `documents_update` policies on `public.documents`.
+- Confirmed the live project now has the `documents_storage_read` and
+  `documents_storage_insert` policies on `storage.objects`.
+- Confirmed the live project has no DELETE policy for `public.documents`.
+- Confirmed the live `public.documents` columns match the repo migration shape.
 - Confirmed the live project did not already expose the `touch_user_permissions_updated_at()`
   function during preflight, so the migration uses a local `set_documents_updated_at`
   helper function instead.
-- Live schema application was not completed in this session because the direct
-  live DDL attempt was rejected as too risky; the migration still needs manual
-  application to the live project.
-- The live bucket required storage policies for this documents flow; those
-  policies are now defined in the repo migration.
 
 ### Safety Confirmations
 - No ARCHITECTURE.md changes were made.

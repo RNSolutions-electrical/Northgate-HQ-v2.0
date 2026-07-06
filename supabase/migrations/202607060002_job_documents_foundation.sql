@@ -127,6 +127,10 @@ WITH CHECK (
 REVOKE ALL ON public.documents FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.documents TO authenticated;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('northgate-files', 'northgate-files', false)
+ON CONFLICT (id) DO NOTHING;
+
 DROP POLICY IF EXISTS documents_storage_read ON storage.objects;
 CREATE POLICY documents_storage_read
 ON storage.objects
