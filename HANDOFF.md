@@ -12058,3 +12058,135 @@ Buyout work.
 
 ### Routing Verdict
 No Claude review needed — docs-only Job Financials v1 Budget Foundation architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.26, HANDOFF Entry 115).
+
+---
+
+## Entry 116 - Job Financials v1 Budget Foundation implemented
+
+**Date:** 2026-07-02
+**Updated by:** Codex
+**Phase:** Job Financials / Budget Foundation
+**Session type:** implementation
+
+### Context
+Implemented the locked Budget Foundation milestone under ARCHITECTURE v2.26
+Section 44. This is the first real consumer of `can_view_financials` and
+`can_approve_budget`, so the work started with the mandatory permission
+preflight and then stayed inside the locked schema and UI decisions.
+
+### What Was Completed
+- Implemented under ARCHITECTURE v2.26 Section 44.
+- Mandatory preflight confirmed `can_view_financials` is present and functional
+  in the current permission model and returned through
+  `effective_permissions_for_user`.
+- Mandatory preflight confirmed `can_approve_budget` is present and functional
+  in the current permission model and returned through
+  `effective_permissions_for_user`.
+- Added migration `supabase/migrations/202607020002_job_budget_lines_foundation.sql`
+  for `public.job_budget_lines`.
+- Migration uses `job_id uuid references public.jobs(id)` and `division text not
+  null`.
+- Added category CHECK values:
+  - `material`
+  - `labor`
+  - `subcontractor`
+  - `equipment`
+  - `permit`
+  - `other`
+- Added free-text nullable `cost_code`.
+- Added required `description`.
+- Added `budget_amount` with explicit zero allowed and CHECK `>= 0`.
+- Added no status column and no actual / committed / issued-value / revenue /
+  profit / PO / invoice / change-order / accounting columns.
+- Added the `updated_at` trigger using `touch_user_permissions_updated_at()`.
+- Added RLS policies:
+  - `job_budget_lines_read`
+  - `job_budget_lines_insert`
+  - `job_budget_lines_update`
+- Read is gated by `can_view_financials`.
+- Write is gated by `can_approve_budget`.
+- Added no DELETE policy and no delete grant.
+- Activated the Financials tab for users with `can_view_financials`.
+- Hid the Financials tab entirely for users without `can_view_financials`.
+- Users without `can_approve_budget` now see read-only Financials.
+- Included the locked helper copy verbatim.
+- Added summary cards, budget-by-category summary, budget line count, read-only
+  table, and add / edit / archive controls for authorized users.
+- Implemented numeric input blank typing behavior for budget amount.
+- Blank final budget blocks save.
+- Added no print/export.
+- Added no reads from Transactions, Buyout, Job Materials, inventory, or
+  transaction data into Financials.
+- Added no actuals/accounting behavior.
+- Added no transaction/inventory behavior changes and no direct
+  `inventory_balances` write.
+
+### Safety Confirmations
+- No migration changes outside the new `job_budget_lines` migration.
+- No existing table definitions were changed.
+- No RLS, grant, permission, or auth behavior changed on existing tables.
+- No new permission flags were added.
+- Policies use `can_view_financials` and `can_approve_budget`, not
+  `can_manage_jobs`.
+- No reserved financial fields were added to schema or UI.
+- No reads from `job_transaction_log`, `job_buyout_lines`, `job_materials`, or
+  `inventory_balances` were added to Financials.
+- No transaction write behavior or inventory movement behavior was introduced.
+- No print/export was added to Financials.
+
+### Code / File Changes
+- `supabase/migrations/202607020002_job_budget_lines_foundation.sql`
+  - Added `public.job_budget_lines` table, trigger, RLS policies, and grants.
+- `src/App.jsx`
+  - Added Financials tab permission gating and rendering.
+  - Added budget-line loading, summary, add/edit/archive, and read-only mode.
+  - Updated Development Status metadata for Entry 116 / v2.26.
+- `src/styles.css`
+  - Added Financials mini-module styles matching the Jobs tab pattern.
+- `HANDOFF.md`
+  - Appended this Entry 116.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Confirmed changed files include:
+  - one new migration for `job_budget_lines`
+  - `src/App.jsx`
+  - `src/styles.css`
+  - `HANDOFF.md`
+- Confirmed no existing migrations were edited.
+- Confirmed no existing schema / RLS / grant / permission behavior changed.
+- Confirmed no inventory / cart / checkout / count / QR / accounting behavior
+  changed.
+- Confirmed Jobs workspace still builds.
+- Confirmed Financials tab visibility is permission-gated in the client.
+- Confirmed users without `can_approve_budget` are rendered read-only in the
+  client.
+- Confirmed budget summaries calculate from budget lines only.
+- Confirmed blank budget input can be temporarily cleared while typing but
+  cannot be saved blank.
+- No authenticated browser verification was completed in this local session.
+- Live Supabase migration still needs manual application.
+
+### Manual Verification Notes For Ryan
+1. Apply the new Supabase migration in the live environment.
+2. Open Jobs.
+3. Select a job.
+4. Confirm Financials tab appears for a user with `can_view_financials`.
+5. Confirm Financials tab is hidden for a user without `can_view_financials`.
+6. Confirm the locked helper copy appears.
+7. Add a budget line.
+8. Confirm category, cost code, description, budget amount, and note save
+   correctly.
+9. Confirm explicit `0` budget amount is allowed.
+10. Confirm blank budget amount cannot be saved.
+11. Confirm the budget input can be temporarily blank while typing.
+12. Confirm Total Budget updates.
+13. Confirm Budget by Category updates.
+14. Edit a budget line.
+15. Archive/remove a budget line.
+16. Confirm no actuals, revenue, profit, inventory value, PO, invoice, change
+   order, print/export, or accounting behavior appears.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.26, HANDOFF Entry 116).

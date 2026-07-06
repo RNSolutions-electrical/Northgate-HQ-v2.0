@@ -458,6 +458,50 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-buyout-form .secondary-button { white-space: normal; }
 .job-buyout-table { min-width: 1120px; }
 .job-buyout-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.job-financials-list,
+.job-financials-form,
+.job-financials-toolbar,
+.job-financials-form > *,
+.job-financials-list .count-section-header > *,
+.job-financials-list .location-note,
+.job-financials-category-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+.job-financials-list { display: grid; gap: .8rem; margin: 1rem 0; overflow: hidden; }
+.job-financials-list .count-section-header,
+.job-financials-category-panel .count-section-header { align-items: flex-start; flex-wrap: wrap; }
+.job-financials-list .count-section-header p,
+.job-financials-list .location-note span,
+.job-financials-form__help,
+.job-financials-category-panel h4 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.job-financials-summary-grid,
+.job-financials-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: .75rem;
+}
+.job-financials-category-panel {
+  display: grid;
+  gap: .75rem;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 1rem;
+  background: rgba(15,23,42,.32);
+  padding: .9rem;
+}
+.job-financials-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .6rem; align-items: end; }
+.job-financials-form label { display: grid; gap: .28rem; color: #94a3b8; font-size: .78rem; font-weight: 700; }
+.job-financials-form input, .job-financials-form select { max-width: 100%; border: 1px solid rgba(148,163,184,.24); border-radius: .75rem; background: rgba(2,6,23,.45); color: #e5edf8; padding: .62rem .7rem; min-width: 0; width: 100%; }
+.job-financials-form__wide { grid-column: 1 / -1; }
+.job-financials-form__help { grid-column: 1 / -1; color: #94a3b8; font-size: .82rem; line-height: 1.45; }
+.job-financials-toolbar { align-items: end; }
+.job-financials-form .cart-actions { min-width: 0; }
+.job-financials-form .secondary-button { white-space: normal; }
+.job-financials-table { min-width: 980px; }
+.job-financials-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .job-transactions-list {
   display: grid;
   gap: .8rem;

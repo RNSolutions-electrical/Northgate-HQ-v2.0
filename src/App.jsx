@@ -78,12 +78,12 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Developer Dashboard Build Marker Sync Fix',
-  relatedHandoff: 'Entry 114',
-  architectureVersion: 'v2.25',
-  currentStep: 'Build marker sync',
+  mostRecentChange: 'Job Financials v1 - Budget Foundation',
+  relatedHandoff: 'Entry 116',
+  architectureVersion: 'v2.26',
+  currentStep: 'Financials tab activation',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'Build marker now comes from the commit SHA embedded at build time, so the dashboard reports the actual bundle being served rather than a manual UI string.',
+  deploymentNote: 'Financials v1 is now budget-only, permission-aware, and backed by the build-time SHA marker so the dashboard still reports the actual bundle being served.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
@@ -170,27 +170,40 @@ const EMPTY_TOOL_DRAFT = Object.freeze({
   notes: '',
 });
 
-const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List and Buyout List are live, Issue to Job routes through cart/checkout, and Return-to-Inventory plus job management features (phases, assignments, documents, and financials) are reserved for future milestones.';
+const JOBS_HELPER_COPY = 'Jobs foundation. Job Material List, Buyout List, Transactions, and Financials v1 are live. Issue to Job routes through cart/checkout, and Return-to-Inventory plus broader job management features (phases, assignments, documents, and schedule) remain reserved.';
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
+const JOB_FINANCIALS_HELPER_COPY = 'Financials v1 is a budget planning tool. It tracks budgeted cost lines for this job only. It does not calculate actual cost, profit, revenue, inventory value, purchase orders, invoices, change orders, payroll, or accounting entries.';
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
-const JOB_DETAIL_TABS = [
+const JOB_BUDGET_CATEGORY_OPTIONS = [
+  { value: 'material', label: 'Material' },
+  { value: 'labor', label: 'Labor' },
+  { value: 'subcontractor', label: 'Subcontractor' },
+  { value: 'equipment', label: 'Equipment' },
+  { value: 'permit', label: 'Permit' },
+  { value: 'other', label: 'Other' },
+];
+const BASE_JOB_DETAIL_TABS = [
   { key: 'overview', label: 'Overview', isDisabled: false, isComingSoon: false },
   { key: 'details', label: 'Details', isDisabled: false, isComingSoon: false },
   { key: 'materials', label: 'Materials', isDisabled: false, isComingSoon: false },
   { key: 'buyout', label: 'Buyout', isDisabled: false, isComingSoon: false },
   { key: 'transactions', label: 'Transactions', isDisabled: false, isComingSoon: false },
-  { key: 'financials', label: 'Financials', isDisabled: true, isComingSoon: true },
+  { key: 'financials', label: 'Financials', isDisabled: false, isComingSoon: false },
   { key: 'documents', label: 'Documents', isDisabled: true, isComingSoon: true },
   { key: 'schedule', label: 'Schedule', isDisabled: true, isComingSoon: true },
 ];
 
-function getJobDetailTab(tabKey) {
-  return JOB_DETAIL_TABS.find((tab) => tab.key === tabKey) ?? null;
+function getJobDetailTabs(canViewFinancials) {
+  return BASE_JOB_DETAIL_TABS.filter((tab) => tab.key !== 'financials' || canViewFinancials);
 }
 
-function normalizeJobDetailTab(tabKey) {
-  const tab = getJobDetailTab(tabKey);
+function getJobDetailTab(tabKey, tabs = BASE_JOB_DETAIL_TABS) {
+  return tabs.find((tab) => tab.key === tabKey) ?? null;
+}
+
+function normalizeJobDetailTab(tabKey, tabs = BASE_JOB_DETAIL_TABS) {
+  const tab = getJobDetailTab(tabKey, tabs);
   return tab && !tab.isDisabled ? tab.key : 'overview';
 }
 const BUYOUT_LIST_HELPER_COPY = 'Buyout List is a planning tool for the PM. Add items that need to be quoted or ordered. The In Stock column shows current inventory levels — it does not reserve material. To pull stock for this job, use the Inventory module.';
@@ -282,6 +295,30 @@ const JOB_BUYOUT_LINES_SELECT_FIELDS = [
   'note',
   'created_by',
 ].join(',');
+const JOB_BUDGET_LINES_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'category',
+  'cost_code',
+  'description',
+  'budget_amount',
+  'note',
+  'created_by',
+].join(',');
+const EMPTY_JOB_BUDGET_DRAFT = Object.freeze({
+  id: '',
+  category: 'material',
+  cost_code: '',
+  description: '',
+  budget_amount: '',
+  note: '',
+});
 const JOB_MATERIAL_CATALOG_SELECT_FIELDS = 'id,material_code,name,description,unit_of_measure,division,is_active,is_archived';
 const EMPTY_JOB_DRAFT = Object.freeze({
   job_number: '',
@@ -2570,11 +2607,86 @@ function formatOptionalQuantity(value) {
   return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(2).replace(/\.?0+$/, '');
 }
 
+function formatBudgetCurrency(value) {
+  const numericValue = Number(value ?? 0);
+  if (!Number.isFinite(numericValue)) return '$0.00';
+  return numericValue.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 function formatTransactionLogQuantity(value) {
   if (value === null || value === undefined || value === '') return '-';
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) return '-';
   return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function getBudgetCategoryLabel(value) {
+  return JOB_BUDGET_CATEGORY_OPTIONS.find((option) => option.value === value)?.label ?? 'Other';
+}
+
+function createJobBudgetDraft(row = null) {
+  if (!row) return { ...EMPTY_JOB_BUDGET_DRAFT };
+  return {
+    id: row.id ?? '',
+    category: row.category ?? 'material',
+    cost_code: row.cost_code ?? '',
+    description: row.description ?? '',
+    budget_amount: row.budget_amount === null || row.budget_amount === undefined ? '' : String(row.budget_amount),
+    note: row.note ?? '',
+  };
+}
+
+function filterJobBudgetRows(rows, searchText) {
+  const search = searchText.trim().toLowerCase();
+  if (!search) return rows;
+  return rows.filter((row) => [
+    row.category,
+    row.cost_code,
+    row.description,
+    row.note,
+    getBudgetCategoryLabel(row.category),
+  ].some((value) => String(value ?? '').toLowerCase().includes(search)));
+}
+
+function getJobBudgetSummary(rows) {
+  const categoryTotals = JOB_BUDGET_CATEGORY_OPTIONS.reduce((totals, option) => ({
+    ...totals,
+    [option.value]: 0,
+  }), {});
+
+  let totalBudget = 0;
+  rows.forEach((row) => {
+    const amount = Number(row.budget_amount ?? 0);
+    if (!Number.isFinite(amount)) return;
+    totalBudget += amount;
+    if (Object.prototype.hasOwnProperty.call(categoryTotals, row.category)) {
+      categoryTotals[row.category] += amount;
+    }
+  });
+
+  return {
+    count: rows.length,
+    totalBudget,
+    categoryTotals,
+  };
+}
+
+function buildJobBudgetMutationPayload(draft) {
+  const budgetAmountText = String(draft.budget_amount ?? '').trim();
+  const budgetAmount = budgetAmountText === '' ? NaN : Number(budgetAmountText);
+
+  return {
+    category: JOB_BUDGET_CATEGORY_OPTIONS.some((option) => option.value === draft.category) ? draft.category : '',
+    cost_code: cleanToolText(draft.cost_code),
+    description: String(draft.description ?? '').trim(),
+    budget_amount: Number.isFinite(budgetAmount) ? budgetAmount : NaN,
+    note: cleanToolText(draft.note),
+  };
 }
 
 function createJobBuyoutDraft(row = null) {
@@ -7697,6 +7809,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const canReadJobs = permissions.permissionSource === 'server';
   const canCreateJobs = canReadJobs && permissions.canCreateJobs;
   const canManageJobs = canReadJobs && permissions.canManageJobs;
+  const canViewFinancials = canReadJobs && permissions.canViewFinancials;
+  const canApproveBudget = canReadJobs && permissions.canApproveBudget;
   const canIssueToJob = permissions.permissionSource === 'server' && permissions.canInventoryTransactions;
   const hasWritableDivision = Boolean(permissions.division);
   const [jobs, setJobs] = useState([]);
@@ -7730,6 +7844,13 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [jobTransactions, setJobTransactions] = useState([]);
   const [isLoadingJobTransactions, setIsLoadingJobTransactions] = useState(false);
   const [jobTransactionsError, setJobTransactionsError] = useState(null);
+  const [budgetLines, setBudgetLines] = useState([]);
+  const [isLoadingBudgetLines, setIsLoadingBudgetLines] = useState(false);
+  const [isSavingBudgetLine, setIsSavingBudgetLine] = useState(false);
+  const [budgetLinesError, setBudgetLinesError] = useState(null);
+  const [budgetLineMessage, setBudgetLineMessage] = useState('');
+  const [budgetLineSearch, setBudgetLineSearch] = useState('');
+  const [budgetDraft, setBudgetDraft] = useState(() => createJobBudgetDraft());
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -7737,7 +7858,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
   });
   const selectedJob = jobs.find((row) => row.id === selectedJobId) ?? null;
   const selectedJobCanEdit = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
+  const selectedJobCanManageBudget = Boolean(selectedJob && canApproveBudget && selectedJob.division === permissions.division);
   const formCanSave = selectedJob ? selectedJobCanEdit : canCreateJobs && hasWritableDivision;
+  const jobDetailTabs = useMemo(() => getJobDetailTabs(canViewFinancials), [canViewFinancials]);
   const divisionOptions = useMemo(
     () => [...new Set(jobs.map((row) => row.division || 'Unassigned'))]
       .sort((first, second) => first.localeCompare(second)),
@@ -7757,6 +7880,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const selectedBuyoutCatalogItem = catalogItems.find((item) => item.id === buyoutDraft.item_id) ?? null;
   const buyoutFormCanSave = Boolean(selectedJobCanEdit && selectedJob && !isSavingBuyoutLine);
   const filteredJobTransactions = useMemo(() => jobTransactions, [jobTransactions]);
+  const filteredBudgetLines = useMemo(() => filterJobBudgetRows(budgetLines, budgetLineSearch), [budgetLines, budgetLineSearch]);
+  const budgetSummary = useMemo(() => getJobBudgetSummary(budgetLines), [budgetLines]);
+  const budgetFormCanSave = Boolean(selectedJobCanManageBudget && selectedJob && !isSavingBudgetLine);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -7946,6 +8072,38 @@ function JobsWorkspace({ permissions, navigateTo }) {
     }
   }
 
+  async function loadJobBudgetLines(jobId, { preserveMessage = false } = {}) {
+    if (!canViewFinancials || !jobId) {
+      setBudgetLines([]);
+      setIsLoadingBudgetLines(false);
+      setBudgetLinesError(null);
+      return;
+    }
+
+    setIsLoadingBudgetLines(true);
+    setBudgetLinesError(null);
+    if (!preserveMessage) setBudgetLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('job_budget_lines')
+        .select(JOB_BUDGET_LINES_SELECT_FIELDS)
+        .eq('job_id', jobId)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setBudgetLines(data ?? []);
+    } catch (error) {
+      console.error('Job Financials load failed', error);
+      setBudgetLines([]);
+      setBudgetLinesError(error);
+    } finally {
+      setIsLoadingBudgetLines(false);
+    }
+  }
+
   function issueMaterialToJob(row) {
     if (!canIssueToJob || !selectedJob || !navigateTo) {
       return;
@@ -7999,6 +8157,11 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setBuyoutInStockError(null);
     setJobTransactions([]);
     setJobTransactionsError(null);
+    setBudgetDraft(createJobBudgetDraft());
+    setBudgetLineSearch('');
+    setBudgetLineMessage('');
+    setBudgetLines([]);
+    setBudgetLinesError(null);
 
     if (!selectedJob) {
       setJobMaterials([]);
@@ -8008,18 +8171,23 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setBuyoutLinesError(null);
       setJobTransactions([]);
       setJobTransactionsError(null);
+      setBudgetLines([]);
+      setBudgetLinesError(null);
       return;
     }
 
     loadJobMaterials(selectedJob.id);
     loadBuyoutLines(selectedJob.id);
     loadJobTransactions(selectedJob.id);
+    if (canViewFinancials) {
+      loadJobBudgetLines(selectedJob.id);
+    }
     if (selectedJobCanEdit) {
       loadJobMaterialCatalog();
     } else {
       setCatalogItems([]);
     }
-  }, [selectedJobId, selectedJobCanEdit, selectedJob?.division]);
+  }, [selectedJobId, selectedJobCanEdit, selectedJob?.division, canViewFinancials]);
 
   useEffect(() => {
     if (!selectedJob?.division) {
@@ -8037,8 +8205,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
   }, [selectedJobId, jobs]);
 
   useEffect(() => {
-    setActiveJobDetailTab((current) => normalizeJobDetailTab(current));
-  }, []);
+    setActiveJobDetailTab((current) => normalizeJobDetailTab(current, jobDetailTabs));
+  }, [jobDetailTabs]);
 
   function updateDraft(key, value) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -8046,6 +8214,10 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function updateMaterialDraft(key, value) {
     setMaterialDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateBudgetDraft(key, value) {
+    setBudgetDraft((current) => ({ ...current, [key]: value }));
   }
 
   function startNewJob() {
@@ -8056,7 +8228,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   }
 
   function handleJobDetailTabChange(tabKey) {
-    const nextTab = normalizeJobDetailTab(tabKey);
+    const nextTab = normalizeJobDetailTab(tabKey, jobDetailTabs);
     setActiveJobDetailTab(nextTab);
   }
 
@@ -8242,6 +8414,20 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setBuyoutLineMessage('');
   }
 
+  function startNewBudgetLine() {
+    setBudgetDraft(createJobBudgetDraft());
+    setBudgetLineMessage('');
+  }
+
+  function startEditBudgetLine(row) {
+    if (!selectedJobCanManageBudget) {
+      setBudgetLineMessage('Financials editing is limited to the current job division with can_approve_budget.');
+      return;
+    }
+    setBudgetDraft(createJobBudgetDraft(row));
+    setBudgetLineMessage('');
+  }
+
   function startEditBuyoutLine(row) {
     if (!selectedJobCanEdit) {
       setBuyoutLineMessage('Buyout List edits are limited to the current user division with can_manage_jobs.');
@@ -8336,6 +8522,101 @@ function JobsWorkspace({ permissions, navigateTo }) {
       setBuyoutLineMessage('Buyout line archive failed. Confirm can_manage_jobs and division scope.');
     } finally {
       setIsSavingBuyoutLine(false);
+    }
+  }
+
+  async function saveBudgetLine(event) {
+    event.preventDefault();
+    if (!budgetFormCanSave || !selectedJob) return;
+
+    const payload = buildJobBudgetMutationPayload(budgetDraft);
+    const budgetAmountText = String(budgetDraft.budget_amount ?? '').trim();
+    if (!payload.category) {
+      setBudgetLineMessage('Category is required.');
+      return;
+    }
+    if (!payload.description) {
+      setBudgetLineMessage('Description is required.');
+      return;
+    }
+    if (budgetAmountText === '') {
+      setBudgetLineMessage('Budget amount is required.');
+      return;
+    }
+    if (!Number.isFinite(payload.budget_amount)) {
+      setBudgetLineMessage('Budget amount must be a valid number.');
+      return;
+    }
+    if (payload.budget_amount < 0) {
+      setBudgetLineMessage('Budget amount cannot be negative.');
+      return;
+    }
+
+    setIsSavingBudgetLine(true);
+    setBudgetLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      if (budgetDraft.id) {
+        const { error } = await client
+          .from('job_budget_lines')
+          .update(payload)
+          .eq('id', budgetDraft.id);
+        if (error) throw error;
+        await loadJobBudgetLines(selectedJob.id, { preserveMessage: true });
+        setBudgetLineMessage('Budget line saved.');
+      } else {
+        const { error } = await client
+          .from('job_budget_lines')
+          .insert({
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            created_by: permissions.userId,
+            ...payload,
+          });
+        if (error) throw error;
+        await loadJobBudgetLines(selectedJob.id, { preserveMessage: true });
+        setBudgetDraft(createJobBudgetDraft());
+        setBudgetLineMessage('Budget line added.');
+      }
+    } catch (error) {
+      console.error('Job Financials save failed', error);
+      setBudgetLineMessage(`Budget line save failed. ${error?.message || 'Confirm Financials permissions and the job_budget_lines migration.'}`);
+    } finally {
+      setIsSavingBudgetLine(false);
+    }
+  }
+
+  async function archiveBudgetLine(row) {
+    if (!selectedJobCanManageBudget || isSavingBudgetLine || !row?.id) return;
+    const reason = window.prompt('Archive reason (optional)') ?? '';
+
+    setIsSavingBudgetLine(true);
+    setBudgetLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_budget_lines')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: permissions.userId,
+          archive_reason: cleanToolText(reason),
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      if (budgetDraft.id === row.id) startNewBudgetLine();
+      await loadJobBudgetLines(selectedJob.id, { preserveMessage: true });
+      setBudgetLineMessage('Budget line archived from the active list.');
+    } catch (error) {
+      console.error('Job Financials archive failed', error);
+      setBudgetLineMessage('Budget line archive failed. Confirm can_approve_budget and division scope.');
+    } finally {
+      setIsSavingBudgetLine(false);
     }
   }
 
@@ -8977,6 +9258,209 @@ function JobsWorkspace({ permissions, navigateTo }) {
     );
   }
 
+  function renderJobFinancialsTab() {
+    if (!selectedJob || !canViewFinancials) return null;
+
+    return (
+      <section className="job-financials-list">
+        <div className="count-section-header">
+          <div>
+            <p className="eyebrow">Financials</p>
+            <h3>Job Financials v1</h3>
+            <p>{JOB_FINANCIALS_HELPER_COPY}</p>
+          </div>
+          <span>{budgetSummary.count} line{budgetSummary.count === 1 ? '' : 's'}</span>
+        </div>
+
+        <div className="location-note tool-catalogue__note">
+          <ClipboardCheck aria-hidden="true" />
+          <span>{JOB_FINANCIALS_HELPER_COPY}</span>
+        </div>
+
+        {budgetLinesError ? <div className="alert">Job Financials failed to load. Confirm the `public.job_budget_lines` migration and Financials permissions.</div> : null}
+        {budgetLineMessage ? <div className="alert">{budgetLineMessage}</div> : null}
+
+        <div className="job-financials-summary-grid">
+          <article className="job-overview-card">
+            <strong>{formatBudgetCurrency(budgetSummary.totalBudget)}</strong>
+            <span>Total budget</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{budgetSummary.count}</strong>
+            <span>Budget lines</span>
+          </article>
+          <article className="job-overview-card">
+            <strong>{selectedJobCanManageBudget ? 'Editable' : 'Read only'}</strong>
+            <span>{selectedJobCanManageBudget ? 'can_approve_budget in current division' : 'View-only Financials access'}</span>
+          </article>
+        </div>
+
+        <section className="job-financials-category-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Summary</p>
+              <h4>Budget by category</h4>
+            </div>
+          </div>
+          <div className="job-financials-category-grid">
+            {JOB_BUDGET_CATEGORY_OPTIONS.map((option) => (
+              <article className="job-overview-card" key={option.value}>
+                <strong>{formatBudgetCurrency(budgetSummary.categoryTotals[option.value] ?? 0)}</strong>
+                <span>{option.label}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <div className="tool-toolbar job-financials-toolbar">
+          <label>
+            Search budget lines
+            <input value={budgetLineSearch} onChange={(event) => setBudgetLineSearch(event.target.value)} />
+          </label>
+          <div className="cart-actions">
+            <button type="button" className="secondary-button" onClick={() => loadJobBudgetLines(selectedJob.id)} disabled={isLoadingBudgetLines}>
+              <RefreshCw aria-hidden="true" /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {isLoadingBudgetLines ? <p className="muted">Loading Job Financials...</p> : null}
+
+        {budgetFormCanSave ? (
+          <form className="job-financials-form" onSubmit={saveBudgetLine}>
+            <label>
+              Category
+              <select value={budgetDraft.category} onChange={(event) => updateBudgetDraft('category', event.target.value)} disabled={!budgetFormCanSave}>
+                {JOB_BUDGET_CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <label>
+              Cost code
+              <input value={budgetDraft.cost_code} onChange={(event) => updateBudgetDraft('cost_code', event.target.value)} disabled={!budgetFormCanSave} />
+            </label>
+            <label className="job-financials-form__wide">
+              Description
+              <input value={budgetDraft.description} onChange={(event) => updateBudgetDraft('description', event.target.value)} disabled={!budgetFormCanSave} required />
+            </label>
+            <label>
+              Budget amount
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={budgetDraft.budget_amount}
+                onChange={(event) => updateBudgetDraft('budget_amount', event.target.value)}
+                disabled={!budgetFormCanSave}
+                required
+              />
+            </label>
+            <label className="job-financials-form__wide">
+              Note
+              <input value={budgetDraft.note} onChange={(event) => updateBudgetDraft('note', event.target.value)} disabled={!budgetFormCanSave} />
+            </label>
+            <div className="cart-actions job-financials-form__wide">
+              <button type="submit" className="secondary-button" disabled={!budgetFormCanSave}>
+                <Plus aria-hidden="true" /> {isSavingBudgetLine ? 'Saving...' : budgetDraft.id ? 'Save Budget Line' : 'Add Budget Line'}
+              </button>
+              <button type="button" className="secondary-button" onClick={startNewBudgetLine} disabled={isSavingBudgetLine}>
+                New Budget Line
+              </button>
+            </div>
+            <p className="job-financials-form__help">Budget amount may be temporarily blank while typing, but the final saved value cannot be blank or negative.</p>
+          </form>
+        ) : (
+          <div className="empty-state">
+            <strong>Financials is read-only for this job.</strong>
+            <p>{selectedJob?.division === permissions.division ? 'can_approve_budget is required to add, edit, or archive budget lines.' : 'Budget line edits are limited to the current user division.'}</p>
+          </div>
+        )}
+
+        {!isLoadingBudgetLines && !filteredBudgetLines.length ? (
+          <div className="empty-state">
+            <strong>No budget lines yet.</strong>
+            <p>Add budgeted cost lines for this job only.</p>
+          </div>
+        ) : null}
+
+        {filteredBudgetLines.length ? (
+          <>
+            <div className="table-wrap">
+              <table className="data-table job-financials-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Cost Code</th>
+                    <th>Description</th>
+                    <th>Budget Amount</th>
+                    <th>Note</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBudgetLines.map((row) => (
+                    <tr key={row.id}>
+                      <td>{getBudgetCategoryLabel(row.category)}</td>
+                      <td>{row.cost_code || '-'}</td>
+                      <td>
+                        <strong>{row.description}</strong>
+                        <span>{getBudgetCategoryLabel(row.category)}</span>
+                      </td>
+                      <td>{formatBudgetCurrency(row.budget_amount)}</td>
+                      <td>{row.note || '-'}</td>
+                      <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                      <td>
+                        {selectedJobCanManageBudget ? (
+                          <div className="count-action-stack">
+                            <button type="button" className="secondary-button" onClick={() => startEditBudgetLine(row)} disabled={isSavingBudgetLine}>
+                              <Pencil aria-hidden="true" /> Edit
+                            </button>
+                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBudgetLine(row)} disabled={isSavingBudgetLine}>
+                              <Archive aria-hidden="true" /> Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="muted">Read only</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mobile-list job-financials-mobile-list">
+              {filteredBudgetLines.map((row) => (
+                <article className="mobile-item" key={row.id}>
+                  <strong>{row.description}</strong>
+                  <div className="meta-grid">
+                    <span>Category: {getBudgetCategoryLabel(row.category)}</span>
+                    <span>Cost Code: {row.cost_code || '-'}</span>
+                    <span>Budget: {formatBudgetCurrency(row.budget_amount)}</span>
+                    <span>Note: {row.note || '-'}</span>
+                    <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                  </div>
+                  {selectedJobCanManageBudget ? (
+                    <div className="cart-actions">
+                      <button type="button" className="secondary-button" onClick={() => startEditBudgetLine(row)} disabled={isSavingBudgetLine}>
+                        <Pencil aria-hidden="true" /> Edit
+                      </button>
+                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBudgetLine(row)} disabled={isSavingBudgetLine}>
+                        <Archive aria-hidden="true" /> Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="muted">Read only</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </section>
+    );
+  }
+
   function renderJobTransactionsTab() {
     if (!selectedJob) return null;
 
@@ -9068,6 +9552,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
         return renderJobMaterialsTab();
       case 'buyout':
         return renderJobBuyoutTab();
+      case 'financials':
+        return renderJobFinancialsTab();
       case 'transactions':
         return renderJobTransactionsTab();
       case 'overview':
@@ -9265,7 +9751,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
                     {renderSelectedJobHeader()}
 
                     <div className="job-detail-tabs" role="tablist" aria-label="Job detail sections">
-                      {JOB_DETAIL_TABS.map((tab) => {
+                      {jobDetailTabs.map((tab) => {
                         const isDisabled = tab.isDisabled;
                         const isComingSoon = tab.isComingSoon;
 
