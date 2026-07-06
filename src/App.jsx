@@ -78,26 +78,63 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Job Documents v1',
-  relatedHandoff: 'Entry 120',
+  mostRecentChange: 'Developer Formatting Tuner',
+  relatedHandoff: 'Entry 122',
   architectureVersion: 'v2.27',
-  currentStep: 'Jobs completion — Documents',
+  currentStep: 'Jobs completion — UI readability',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'Job Documents v1 is now the active Jobs completion slice, with the build-time SHA marker still reporting the actual bundle being served.',
+  deploymentNote: 'Developer-only local formatting preview plus Jobs readability cleanup are the active Bucket 1 UI pass, with the build-time SHA marker still reporting the actual bundle being served.',
 };
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
-const LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
-const LAYOUT_TUNER_FIELDS = [
-  { key: 'appContentMax', cssName: '--app-content-max', label: 'Content max', min: 1200, max: 2600, step: 20, unit: 'px', defaultValue: 1600 },
-  { key: 'appContentVw', cssName: '--app-content-vw', label: 'Content viewport width', min: 88, max: 98, step: 1, unit: 'vw', defaultValue: 96 },
-  { key: 'appPageGutter', cssName: '--app-page-gutter', label: 'Page gutter', min: 12, max: 56, step: 2, unit: 'px', defaultValue: 16 },
-  { key: 'dashboardCardGap', cssName: '--dashboard-card-gap', label: 'Dashboard card gap', min: 8, max: 32, step: 1, unit: 'px', defaultValue: 16 },
-  { key: 'dashboardCardPadding', cssName: '--dashboard-card-padding', label: 'Dashboard card padding', min: 12, max: 32, step: 1, unit: 'px', defaultValue: 18 },
-  { key: 'denseTableFontSize', cssName: '--dense-table-font-size', label: 'Dense table font size', min: 0.78, max: 1, step: 0.01, unit: 'rem', defaultValue: 1 },
-  { key: 'denseTableCellPaddingY', cssName: '--dense-table-cell-padding-y', label: 'Table cell padding Y', min: 4, max: 12, step: 1, unit: 'px', defaultValue: 12 },
-  { key: 'denseTableCellPaddingX', cssName: '--dense-table-cell-padding-x', label: 'Table cell padding X', min: 6, max: 16, step: 1, unit: 'px', defaultValue: 12 },
+const LEGACY_LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
+const FORMATTING_TUNER_STORAGE_KEY = 'northgate.formattingTuner.v1';
+const FORMATTING_TUNER_FIELDS = [
+  { key: 'appContentMax', cssName: '--app-content-max', label: 'Content width', min: 1200, max: 2400, step: 20, unit: 'px', defaultValue: 1720 },
+  { key: 'appPageGutter', cssName: '--app-page-gutter', label: 'Page gutter', min: 8, max: 40, step: 1, unit: 'px', defaultValue: 20 },
+  { key: 'cardPadding', cssName: '--card-padding', label: 'Card padding', min: 12, max: 32, step: 1, unit: 'px', defaultValue: 18 },
+  { key: 'cardGap', cssName: '--card-gap', label: 'Card gap', min: 8, max: 32, step: 1, unit: 'px', defaultValue: 14 },
+  { key: 'baseFontSize', cssName: '--base-font-size', label: 'Base font size', min: 14, max: 18, step: 1, unit: 'px', defaultValue: 16 },
+  { key: 'tableFontSize', cssName: '--table-font-size', label: 'Table font size', min: 12, max: 16, step: 1, unit: 'px', defaultValue: 14 },
+  { key: 'tableCellPaddingY', cssName: '--table-cell-padding-y', label: 'Table cell padding Y', min: 4, max: 14, step: 1, unit: 'px', defaultValue: 10 },
+  { key: 'tableCellPaddingX', cssName: '--table-cell-padding-x', label: 'Table cell padding X', min: 6, max: 20, step: 1, unit: 'px', defaultValue: 11 },
+  { key: 'uiRadius', cssName: '--ui-radius', label: 'Border radius', min: 4, max: 20, step: 1, unit: 'px', defaultValue: 8 },
 ];
+const FORMATTING_TUNER_PRESETS = {
+  comfortable: {
+    appContentMax: 1840,
+    appPageGutter: 24,
+    cardPadding: 22,
+    cardGap: 18,
+    baseFontSize: 17,
+    tableFontSize: 15,
+    tableCellPaddingY: 12,
+    tableCellPaddingX: 14,
+    uiRadius: 10,
+  },
+  standard: {
+    appContentMax: 1720,
+    appPageGutter: 20,
+    cardPadding: 18,
+    cardGap: 14,
+    baseFontSize: 16,
+    tableFontSize: 14,
+    tableCellPaddingY: 10,
+    tableCellPaddingX: 11,
+    uiRadius: 8,
+  },
+  compact: {
+    appContentMax: 1640,
+    appPageGutter: 14,
+    cardPadding: 14,
+    cardGap: 10,
+    baseFontSize: 15,
+    tableFontSize: 13,
+    tableCellPaddingY: 7,
+    tableCellPaddingX: 9,
+    uiRadius: 7,
+  },
+};
 
 const TOOL_CATALOGUE_HELPER_COPY = 'Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle storage, and tracking history are reserved for future milestones.';
 const TOOL_CATALOGUE_EMPTY_NOTE = 'Add tools here as a catalogue only. Checkout, assignments, QR labels, and tracking history are reserved for future milestones.';
@@ -724,15 +761,6 @@ function getDashboardInventoryRouteContext(path) {
   }
 }
 
-function hasLayoutTunerFlag(path) {
-  try {
-    const url = new URL(path || '/', 'https://northgate.local');
-    return url.searchParams.get('layoutTuner') === '1';
-  } catch {
-    return false;
-  }
-}
-
 function hasDesignPreviewFlag(path) {
   try {
     const url = new URL(path || '/', 'https://northgate.local');
@@ -760,13 +788,13 @@ function writeDevDashboardVisibility(isVisible) {
   }
 }
 
-function getLayoutTunerDefaults() {
-  return Object.fromEntries(LAYOUT_TUNER_FIELDS.map((field) => [field.key, field.defaultValue]));
+function getFormattingTunerDefaults() {
+  return Object.fromEntries(FORMATTING_TUNER_FIELDS.map((field) => [field.key, field.defaultValue]));
 }
 
-function normalizeLayoutTunerValues(values) {
-  const defaults = getLayoutTunerDefaults();
-  return LAYOUT_TUNER_FIELDS.reduce((next, field) => {
+function normalizeFormattingTunerValues(values) {
+  const defaults = getFormattingTunerDefaults();
+  return FORMATTING_TUNER_FIELDS.reduce((next, field) => {
     const numericValue = Number(values?.[field.key]);
     const fallback = defaults[field.key];
     const boundedValue = Number.isFinite(numericValue)
@@ -777,33 +805,66 @@ function normalizeLayoutTunerValues(values) {
   }, {});
 }
 
-function readLayoutTunerValues() {
-  if (typeof window === 'undefined') return getLayoutTunerDefaults();
+function readLegacyFormattingTunerValues() {
+  if (typeof window === 'undefined') return null;
+
   try {
-    const stored = window.localStorage.getItem(LAYOUT_TUNER_STORAGE_KEY);
-    return normalizeLayoutTunerValues(stored ? JSON.parse(stored) : null);
+    const stored = window.localStorage.getItem(LEGACY_LAYOUT_TUNER_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    return normalizeFormattingTunerValues({
+      appContentMax: parsed?.appContentMax ?? parsed?.contentWidth ?? parsed?.contentMax,
+      appPageGutter: parsed?.appPageGutter ?? parsed?.pageGutter,
+      cardPadding: parsed?.cardPadding ?? parsed?.dashboardCardPadding,
+      cardGap: parsed?.cardGap ?? parsed?.dashboardCardGap,
+      baseFontSize: parsed?.baseFontSize,
+      tableFontSize: parsed?.tableFontSize ?? parsed?.denseTableFontSize,
+      tableCellPaddingY: parsed?.tableCellPaddingY ?? parsed?.denseTableCellPaddingY,
+      tableCellPaddingX: parsed?.tableCellPaddingX ?? parsed?.denseTableCellPaddingX,
+      uiRadius: parsed?.uiRadius ?? parsed?.radius,
+    });
   } catch {
-    return getLayoutTunerDefaults();
+    return null;
   }
 }
 
-function applyLayoutTunerValues(values) {
+function readFormattingTunerValues() {
+  if (typeof window === 'undefined') return getFormattingTunerDefaults();
+
+  try {
+    const stored = window.localStorage.getItem(FORMATTING_TUNER_STORAGE_KEY);
+    if (stored) {
+      return normalizeFormattingTunerValues(JSON.parse(stored));
+    }
+    return readLegacyFormattingTunerValues() ?? getFormattingTunerDefaults();
+  } catch {
+    return getFormattingTunerDefaults();
+  }
+}
+
+function applyFormattingTunerValues(values) {
   if (typeof document === 'undefined') return;
-  LAYOUT_TUNER_FIELDS.forEach((field) => {
+  FORMATTING_TUNER_FIELDS.forEach((field) => {
     document.documentElement.style.setProperty(field.cssName, `${values[field.key]}${field.unit}`);
   });
 }
 
-function clearLayoutTunerInlineValues() {
+function clearFormattingTunerInlineValues() {
   if (typeof document === 'undefined') return;
-  LAYOUT_TUNER_FIELDS.forEach((field) => {
+  FORMATTING_TUNER_FIELDS.forEach((field) => {
     document.documentElement.style.removeProperty(field.cssName);
   });
 }
 
-function buildLayoutTunerCss(values) {
-  const lines = LAYOUT_TUNER_FIELDS.map((field) => `  ${field.cssName}: ${values[field.key]}${field.unit};`);
+function buildFormattingTunerCss(values) {
+  const lines = FORMATTING_TUNER_FIELDS.map((field) => `  ${field.cssName}: ${values[field.key]}${field.unit};`);
   return [':root {', ...lines, '}'].join('\n');
+}
+
+function getActiveFormattingPreset(values) {
+  return Object.entries(FORMATTING_TUNER_PRESETS).find(([, presetValues]) => (
+    FORMATTING_TUNER_FIELDS.every((field) => Number(values?.[field.key]) === Number(presetValues[field.key]))
+  ))?.[0] ?? '';
 }
 
 function getCartDestinationDraftKey(cartId) {
@@ -10470,7 +10531,139 @@ function ToolsWorkspace({ permissions, designPreviewEnabled }) {
   );
 }
 
-function DeveloperDashboard({ user, permissions, showDevDashboard, onShow, onHide }) {
+function FormattingTunerCard({ values, setValues, onReset }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [copyMessage, setCopyMessage] = useState('');
+  const activePreset = getActiveFormattingPreset(values);
+
+  function updateValue(field, value) {
+    const numericValue = Number(value);
+    const nextValue = Number.isFinite(numericValue)
+      ? Math.min(field.max, Math.max(field.min, numericValue))
+      : field.defaultValue;
+    setValues((current) => ({ ...current, [field.key]: nextValue }));
+    setCopyMessage('');
+  }
+
+  function applyPreset(presetKey) {
+    const presetValues = FORMATTING_TUNER_PRESETS[presetKey];
+    if (!presetValues) return;
+    setValues(normalizeFormattingTunerValues(presetValues));
+    setCopyMessage(`${presetKey[0].toUpperCase()}${presetKey.slice(1)} preset applied.`);
+  }
+
+  async function copyCss() {
+    const cssSnippet = buildFormattingTunerCss(values);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(cssSnippet);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = cssSnippet;
+        textArea.setAttribute('readonly', '');
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopyMessage('CSS copied.');
+    } catch (error) {
+      console.warn('Formatting tuner copy failed', error);
+      setCopyMessage('Copy failed. Select the CSS preview manually.');
+    }
+  }
+
+  function resetValues() {
+    onReset();
+    setIsCollapsed(false);
+    setCopyMessage('Defaults restored.');
+  }
+
+  return (
+    <article className="card card--wide formatting-tuner">
+      <div className="card__header formatting-tuner__header">
+        <div>
+          <p className="eyebrow">Developer Tool</p>
+          <h2>Formatting Tuner</h2>
+          <p>Local preview only. Values save in this browser under `northgate.formattingTuner.v1` and apply only during a developer-permitted session.</p>
+        </div>
+        <button type="button" className="secondary-button" onClick={() => setIsCollapsed((current) => !current)}>
+          <SlidersHorizontal aria-hidden="true" /> {isCollapsed ? 'Expand Tuner' : 'Collapse Tuner'}
+        </button>
+      </div>
+
+      {!isCollapsed ? (
+        <div className="formatting-tuner__body">
+          <div className="formatting-tuner__preset-row" role="group" aria-label="Formatting tuner presets">
+            {['comfortable', 'standard', 'compact'].map((presetKey) => (
+              <button
+                key={presetKey}
+                type="button"
+                className={`secondary-button formatting-tuner__preset${activePreset === presetKey ? ' formatting-tuner__preset--active' : ''}`}
+                aria-pressed={activePreset === presetKey}
+                onClick={() => applyPreset(presetKey)}
+              >
+                {presetKey[0].toUpperCase()}{presetKey.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <div className="formatting-tuner__controls">
+            {FORMATTING_TUNER_FIELDS.map((field) => (
+              <label className="formatting-tuner__field" key={field.key}>
+                <span>
+                  {field.label}
+                  <strong>{values[field.key]}{field.unit}</strong>
+                </span>
+                <input
+                  type="range"
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                  value={values[field.key]}
+                  onChange={(event) => updateValue(field, event.target.value)}
+                />
+                <input
+                  type="number"
+                  min={field.min}
+                  max={field.max}
+                  step={field.step}
+                  value={values[field.key]}
+                  onChange={(event) => updateValue(field, event.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+
+          <pre className="formatting-tuner__css">{buildFormattingTunerCss(values)}</pre>
+
+          <div className="formatting-tuner__actions">
+            <button type="button" className="secondary-button" onClick={copyCss}>
+              <Copy aria-hidden="true" /> Copy CSS
+            </button>
+            <button type="button" className="secondary-button" onClick={resetValues}>
+              <RotateCcw aria-hidden="true" /> Reset to Standard
+            </button>
+          </div>
+          {copyMessage ? <p className="formatting-tuner__message">{copyMessage}</p> : null}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function DeveloperDashboard({
+  user,
+  permissions,
+  showDevDashboard,
+  onShow,
+  onHide,
+  formattingTunerValues,
+  setFormattingTunerValues,
+  resetFormattingTunerValues,
+}) {
   if (!showDevDashboard) {
     return (
       <article className="card card--wide developer-dashboard-hidden">
@@ -10530,6 +10723,12 @@ function DeveloperDashboard({ user, permissions, showDevDashboard, onShow, onHid
         <DevelopmentStatusCard />
       </div>
 
+      <FormattingTunerCard
+        values={formattingTunerValues}
+        setValues={setFormattingTunerValues}
+        onReset={resetFormattingTunerValues}
+      />
+
       <article className="card card--wide dev-dashboard-card">
         <div className="card__header">
           <div>
@@ -10546,133 +10745,18 @@ function DeveloperDashboard({ user, permissions, showDevDashboard, onShow, onHid
   );
 }
 
-function LayoutTuner() {
-  const [values, setValues] = useState(() => readLayoutTunerValues());
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [copyMessage, setCopyMessage] = useState('');
-
-  useEffect(() => {
-    applyLayoutTunerValues(values);
-
-    if (typeof window !== 'undefined') {
-      try {
-        const defaults = getLayoutTunerDefaults();
-        const isDefault = LAYOUT_TUNER_FIELDS.every((field) => Number(values[field.key]) === Number(defaults[field.key]));
-        if (isDefault) {
-          window.localStorage.removeItem(LAYOUT_TUNER_STORAGE_KEY);
-        } else {
-          window.localStorage.setItem(LAYOUT_TUNER_STORAGE_KEY, JSON.stringify(values));
-        }
-      } catch (error) {
-        console.warn('Layout tuner storage unavailable', error);
-      }
-    }
-
-    return () => {
-      clearLayoutTunerInlineValues();
-    };
-  }, [values]);
-
-  function updateValue(field, value) {
-    const numericValue = Number(value);
-    const nextValue = Number.isFinite(numericValue)
-      ? Math.min(field.max, Math.max(field.min, numericValue))
-      : field.defaultValue;
-    setValues((current) => ({ ...current, [field.key]: nextValue }));
-    setCopyMessage('');
-  }
-
-  function resetValues() {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(LAYOUT_TUNER_STORAGE_KEY);
-    }
-    setValues(getLayoutTunerDefaults());
-    setIsCollapsed(false);
-    setCopyMessage('Defaults restored.');
-  }
-
-  async function copyCss() {
-    const cssSnippet = buildLayoutTunerCss(values);
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(cssSnippet);
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = cssSnippet;
-        textArea.setAttribute('readonly', '');
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px';
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
-      setCopyMessage('CSS copied.');
-    } catch (error) {
-      console.warn('Layout tuner copy failed', error);
-      setCopyMessage('Copy failed. Select the CSS preview manually.');
-    }
-  }
-
+function DeveloperWorkspaceLocked() {
   return (
-    <aside className={`layout-tuner${isCollapsed ? ' layout-tuner--collapsed' : ''}`} aria-label="Layout Tuner">
-      <div className="layout-tuner__header">
+    <article className="card card--wide developer-dashboard-hidden">
+      <div className="card__header">
         <div>
-          <p className="eyebrow">Dev Tool</p>
-          <h2>Layout Tuner</h2>
+          <p className="eyebrow">Developer Workspace</p>
+          <h2>Developer Access Required</h2>
+          <p>The developer workspace is gated by the existing `can_access_developer` permission and is not available in this session.</p>
         </div>
-        <button type="button" className="secondary-button" onClick={() => setIsCollapsed((current) => !current)}>
-          <SlidersHorizontal aria-hidden="true" /> {isCollapsed ? 'Open' : 'Collapse'}
-        </button>
+        <ShieldCheck className="card__icon" />
       </div>
-
-      {!isCollapsed ? (
-        <>
-          <p className="layout-tuner__note">
-            Local preview only. Values are saved in this browser and do not change production defaults until committed.
-          </p>
-
-          <div className="layout-tuner__controls">
-            {LAYOUT_TUNER_FIELDS.map((field) => (
-              <label className="layout-tuner__field" key={field.key}>
-                <span>
-                  {field.label}
-                  <strong>{values[field.key]}{field.unit}</strong>
-                </span>
-                <input
-                  type="range"
-                  min={field.min}
-                  max={field.max}
-                  step={field.step}
-                  value={values[field.key]}
-                  onChange={(event) => updateValue(field, event.target.value)}
-                />
-                <input
-                  type="number"
-                  min={field.min}
-                  max={field.max}
-                  step={field.step}
-                  value={values[field.key]}
-                  onChange={(event) => updateValue(field, event.target.value)}
-                />
-              </label>
-            ))}
-          </div>
-
-          <pre className="layout-tuner__css">{buildLayoutTunerCss(values)}</pre>
-
-          <div className="layout-tuner__actions">
-            <button type="button" className="secondary-button" onClick={copyCss}>
-              <Copy aria-hidden="true" /> Copy CSS
-            </button>
-            <button type="button" className="secondary-button" onClick={resetValues}>
-              <RotateCcw aria-hidden="true" /> Reset
-            </button>
-          </div>
-          {copyMessage ? <p className="layout-tuner__message">{copyMessage}</p> : null}
-        </>
-      ) : null}
-    </aside>
+    </article>
   );
 }
 
@@ -10686,14 +10770,42 @@ function Dashboard() {
     [browserPath],
   );
   const [showDevDashboard, setShowDevDashboard] = useState(() => readDevDashboardVisibility());
-  const layoutTunerEnabled = hasLayoutTunerFlag(browserPath);
+  const [formattingTunerValues, setFormattingTunerValues] = useState(() => readFormattingTunerValues());
   const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
+  const canAccessDeveloper = permissions.permissionSource === 'server' && permissions.canAccessDeveloper;
   const activeWorkspace = dashboardRouteContext.activeWorkspace;
-  const devDashboardActive = activeWorkspace === 'developer' && showDevDashboard;
+  const devDashboardActive = activeWorkspace === 'developer' && showDevDashboard && canAccessDeveloper;
 
   useEffect(() => {
     writeDevDashboardVisibility(showDevDashboard);
   }, [showDevDashboard]);
+
+  useEffect(() => {
+    if (!canAccessDeveloper) {
+      clearFormattingTunerInlineValues();
+      return undefined;
+    }
+
+    applyFormattingTunerValues(formattingTunerValues);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const defaults = getFormattingTunerDefaults();
+        const isDefault = FORMATTING_TUNER_FIELDS.every((field) => Number(formattingTunerValues[field.key]) === Number(defaults[field.key]));
+        if (isDefault) {
+          window.localStorage.removeItem(FORMATTING_TUNER_STORAGE_KEY);
+        } else {
+          window.localStorage.setItem(FORMATTING_TUNER_STORAGE_KEY, JSON.stringify(formattingTunerValues));
+        }
+      } catch (error) {
+        console.warn('Formatting tuner storage unavailable', error);
+      }
+    }
+
+    return () => {
+      clearFormattingTunerInlineValues();
+    };
+  }, [canAccessDeveloper, formattingTunerValues]);
 
   function openWorkspace(workspace) {
     if (workspace === 'developer') {
@@ -10705,8 +10817,17 @@ function Dashboard() {
   }
 
   function showDeveloperDashboard() {
+    if (!canAccessDeveloper) return;
     setShowDevDashboard(true);
     navigateTo('/?workspace=developer');
+  }
+
+  function resetFormattingTunerValues() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(FORMATTING_TUNER_STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_LAYOUT_TUNER_STORAGE_KEY);
+    }
+    setFormattingTunerValues(getFormattingTunerDefaults());
   }
 
   return (
@@ -10740,25 +10861,29 @@ function Dashboard() {
             <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'vehicles' ? 'page' : undefined} onClick={() => openWorkspace('vehicles')}>
               Vehicles
             </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'developer' ? 'page' : undefined} onClick={() => openWorkspace('developer')}>
-              Developer
-            </button>
+            {canAccessDeveloper ? (
+              <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'developer' ? 'page' : undefined} onClick={() => openWorkspace('developer')}>
+                Developer
+              </button>
+            ) : null}
           </nav>
-          <button
-            className="dev-dashboard-toggle"
-            type="button"
-            aria-pressed={devDashboardActive}
-            title="Hides development-only status cards in this browser."
-            onClick={() => {
-              if (devDashboardActive) {
-                setShowDevDashboard(false);
-              } else {
-                showDeveloperDashboard();
-              }
-            }}
-          >
-            {devDashboardActive ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
-          </button>
+          {canAccessDeveloper ? (
+            <button
+              className="dev-dashboard-toggle"
+              type="button"
+              aria-pressed={devDashboardActive}
+              title="Hides development-only status cards in this browser."
+              onClick={() => {
+                if (devDashboardActive) {
+                  setShowDevDashboard(false);
+                } else {
+                  showDeveloperDashboard();
+                }
+              }}
+            >
+              {devDashboardActive ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
+            </button>
+          ) : null}
           <UserButton afterSignOutUrl="/" />
         </div>
       </header>
@@ -10792,17 +10917,23 @@ function Dashboard() {
         {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}
         {activeWorkspace === 'vehicles' ? <ComingSoonWorkspace title="Vehicles" description="Vehicle workspace is reserved for a future milestone." /> : null}
         {activeWorkspace === 'developer' ? (
-          <DeveloperDashboard
-            user={user}
-            permissions={permissions}
-            showDevDashboard={showDevDashboard}
-            onShow={showDeveloperDashboard}
-            onHide={() => setShowDevDashboard(false)}
-          />
+          canAccessDeveloper ? (
+            <DeveloperDashboard
+              user={user}
+              permissions={permissions}
+              showDevDashboard={showDevDashboard}
+              onShow={showDeveloperDashboard}
+              onHide={() => setShowDevDashboard(false)}
+              formattingTunerValues={formattingTunerValues}
+              setFormattingTunerValues={setFormattingTunerValues}
+              resetFormattingTunerValues={resetFormattingTunerValues}
+            />
+          ) : (
+            <DeveloperWorkspaceLocked />
+          )
         ) : null}
       </section>
       )}
-      {layoutTunerEnabled ? <LayoutTuner /> : null}
     </main>
   );
 }

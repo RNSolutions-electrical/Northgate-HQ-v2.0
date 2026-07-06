@@ -12529,3 +12529,70 @@ diagnosis confirmed the first failure was actually Storage RLS on
 
 ### Routing Verdict
 No Claude review needed — Job Documents upload RLS bugfix stayed within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 121).
+
+## Entry 122 - Developer Formatting Tuner and Jobs readability cleanup
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Bucket 1 UI cleanup
+**Session type:** implementation
+
+### Context
+Completed the requested Bucket 1 local-only UI pass under ARCHITECTURE v2.27
+Section 45, with Schedule still paused and Job Export still reserved. This pass
+stayed strictly inside local formatting controls plus Jobs readability cleanup.
+
+### What Was Completed
+- Replaced the old query-param Layout Tuner with a Developer-only Formatting
+  Tuner inside the Developer workspace.
+- Gated the Developer nav/toggle/workspace with the existing
+  `can_access_developer` permission already exposed through
+  `permissions.canAccessDeveloper`.
+- Added the new browser-local storage key
+  `northgate.formattingTuner.v1`.
+- Kept the tuner local-only by applying CSS variables through
+  `document.documentElement.style.setProperty(...)`, with no Supabase writes.
+- Added preset/reset/copy-CSS behavior and safe clamping for the tuner fields.
+- Added a best-effort legacy read path from `northgate.layoutTuner.v1`, while
+  persisting only to `northgate.formattingTuner.v1`.
+- Tuned Jobs workspace readability across the split layout, detail header, tab
+  strip, forms, cards, and responsive stacking so wide content stays more
+  contained and readable.
+
+### Safety Confirmations
+- No Supabase schema, migrations, RLS, storage, auth, RPC, or backend behavior
+  was changed.
+- No new permission flag was added.
+- No Documents upload/archive logic was changed.
+- No Schedule work was started.
+- No Job Export work was started.
+- No inventory, cart, checkout, Financials logic, buyout logic, or data model
+  behavior was changed.
+- No hard delete path was added.
+- No `docs/ARCHITECTURE.md` changes were made.
+
+### Files Changed
+- `src/App.jsx`
+- `src/styles.css`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch remained `main`.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
+- Confirmed HANDOFF was gapless through Entry 121 before this append.
+- Confirmed no Schedule implementation was added.
+- Confirmed no Job Export implementation was added.
+- Confirmed no new permission flags were introduced.
+- Confirmed no Supabase migrations were added in this pass.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+
+### Notes
+- Formatting Tuner defaults remain the committed baseline and Reset returns the
+  browser back to those defaults.
+- The Developer workspace now shows a locked placeholder if someone routes to
+  `?workspace=developer` without `can_access_developer`.
+- No unrelated behavior changed outside the local UI/readability scope.
+
+### Routing Verdict
+No Claude review needed — Developer Formatting Tuner and Jobs readability cleanup stayed within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 122).

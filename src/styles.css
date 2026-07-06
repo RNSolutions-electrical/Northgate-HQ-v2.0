@@ -16,8 +16,9 @@
   --ng-soft: #EEF2F7;
   --ng-shadow: 0 1px 3px rgba(13,31,60,.07), 0 1px 2px rgba(13,31,60,.04);
   --ng-shadow-raised: 0 8px 24px rgba(13,31,60,.10);
-  --ng-radius-card: 8px;
-  --ng-radius-control: 7px;
+  --ui-radius: 8px;
+  --ng-radius-card: var(--ui-radius);
+  --ng-radius-control: var(--ui-radius);
   --ng-focus-ring: 0 0 0 3px rgba(200,146,42,.16);
   --ng-ok: #15803D;
   --ng-ok-bg: #F0FDF4;
@@ -30,11 +31,17 @@
   --app-content-max: 1720px;
   --app-content-vw: 97vw;
   --app-page-gutter: 20px;
-  --dashboard-card-gap: 14px;
-  --dashboard-card-padding: 18px;
-  --dense-table-font-size: .92rem;
-  --dense-table-cell-padding-y: 10px;
-  --dense-table-cell-padding-x: 11px;
+  --card-gap: 14px;
+  --card-padding: 18px;
+  --base-font-size: 16px;
+  --table-font-size: 14px;
+  --table-cell-padding-y: 10px;
+  --table-cell-padding-x: 11px;
+  --dashboard-card-gap: var(--card-gap);
+  --dashboard-card-padding: var(--card-padding);
+  --dense-table-font-size: var(--table-font-size);
+  --dense-table-cell-padding-y: var(--table-cell-padding-y);
+  --dense-table-cell-padding-x: var(--table-cell-padding-x);
   --app-content-width: min(var(--app-content-vw), var(--app-content-max));
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -52,6 +59,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: var(--ng-page-bg);
+  font-size: var(--base-font-size);
 }
 
 button, input, select, textarea { font: inherit; }
@@ -586,6 +594,84 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-transactions-list .count-section-header p { margin: 0; overflow-wrap: anywhere; }
 .job-transactions-table { min-width: 1080px; }
 .job-transactions-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
+.jobs-foundation-layout {
+  grid-template-columns: minmax(22rem, .92fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: clamp(1rem, 1.5vw, 1.35rem);
+}
+.jobs-foundation-layout .tool-catalogue__list-panel,
+.jobs-foundation-layout .job-detail-panel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+.jobs-table td,
+.jobs-table th,
+.job-buyout-table td,
+.job-financials-table td,
+.job-documents-table td,
+.job-transactions-table td {
+  overflow-wrap: anywhere;
+}
+.job-detail-header {
+  gap: 1rem 1.25rem;
+  padding: clamp(1rem, 1.4vw, 1.25rem);
+}
+.job-detail-header__title-row { flex-wrap: wrap; }
+.job-detail-header__actions {
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-self: stretch;
+}
+.job-detail-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  overflow: visible;
+}
+.job-detail-tab {
+  min-height: 58px;
+  width: 100%;
+}
+.job-detail-module > * { min-width: 0; }
+.job-overview-grid,
+.job-financials-summary-grid,
+.job-documents-summary-grid,
+.job-financials-category-grid {
+  gap: .85rem;
+}
+.job-material-list,
+.job-buyout-list,
+.job-financials-list,
+.job-documents-list,
+.job-transactions-list {
+  gap: 1rem;
+  margin: 0;
+}
+.job-material-form,
+.job-buyout-form,
+.job-financials-form,
+.job-documents-form {
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: 12px;
+}
+.job-material-toolbar,
+.job-buyout-toolbar,
+.job-financials-toolbar,
+.job-documents-list .count-section-header,
+.job-transactions-list .count-section-header,
+.job-overview-panel .count-section-header,
+.job-details-panel .count-section-header {
+  gap: .85rem;
+}
+.job-overview-card,
+.job-financials-category-panel,
+.job-documents-form__suggestion,
+.job-buyout-form__locked,
+.job-material-form__locked {
+  border-radius: var(--ng-radius-card);
+}
 .count-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
 .count-workspace__main { min-width: 0; }
 .count-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .6rem; align-items: end; margin-bottom: .9rem; }
@@ -1052,20 +1138,94 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .tool-catalogue-skin .mobile-item { border-color: var(--ng-preview-border); border-radius: 8px; background: var(--ng-preview-card); color: var(--ng-preview-text); box-shadow: var(--ng-preview-shadow); }
 .tool-catalogue-skin .mobile-item strong { color: var(--ng-preview-text); }
 .tool-catalogue-skin .meta-grid { color: var(--ng-preview-muted); }
-.layout-tuner { position: fixed; right: 1rem; bottom: 1rem; z-index: 40; width: min(25rem, calc(100vw - 2rem)); max-height: min(44rem, calc(100vh - 2rem)); overflow: auto; border: 1px solid rgba(125,211,252,.35); border-radius: 1rem; background: rgba(2,6,23,.96); box-shadow: 0 24px 72px rgba(0,0,0,.45); padding: 1rem; }
-.layout-tuner--collapsed { width: min(18rem, calc(100vw - 2rem)); }
-.layout-tuner__header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
-.layout-tuner__header h2 { margin: .15rem 0 0; font-size: 1.05rem; }
-.layout-tuner__note { margin: .8rem 0; color: #cbd5e1; font-size: .86rem; line-height: 1.45; }
-.layout-tuner__controls { display: grid; gap: .75rem; }
-.layout-tuner__field { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem .6rem; align-items: center; color: #94a3b8; font-size: .78rem; font-weight: 700; }
-.layout-tuner__field span { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
-.layout-tuner__field strong { color: #dbeafe; font-size: .78rem; white-space: nowrap; }
-.layout-tuner__field input[type="range"] { width: 100%; accent-color: #7dd3fc; }
-.layout-tuner__field input[type="number"] { min-width: 0; border: 1px solid rgba(148,163,184,.24); border-radius: .65rem; background: rgba(15,23,42,.72); color: #e5edf8; padding: .45rem .5rem; }
-.layout-tuner__css { max-height: 10rem; overflow: auto; border: 1px solid rgba(148,163,184,.18); border-radius: .75rem; background: rgba(15,23,42,.7); color: #bfdbfe; padding: .75rem; font-size: .74rem; line-height: 1.45; white-space: pre-wrap; }
-.layout-tuner__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.layout-tuner__message { margin: .65rem 0 0; color: #bbf7d0; font-size: .82rem; font-weight: 800; }
+.formatting-tuner {
+  overflow: hidden;
+}
+.formatting-tuner__header {
+  align-items: flex-start !important;
+}
+.formatting-tuner__body {
+  display: grid;
+  gap: 1rem;
+}
+.formatting-tuner__preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+}
+.formatting-tuner__preset {
+  min-width: 8.25rem;
+}
+.formatting-tuner__preset--active {
+  border-color: var(--ng-gold);
+  background: var(--ng-gold-light);
+  color: var(--ng-gold-dark);
+}
+.formatting-tuner__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+  gap: .8rem 1rem;
+}
+.formatting-tuner__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
+  gap: .4rem .6rem;
+  align-items: center;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: .85rem;
+  color: var(--ng-muted);
+  font-size: .78rem;
+  font-weight: 700;
+}
+.formatting-tuner__field span {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.formatting-tuner__field strong {
+  color: var(--ng-text);
+  font-size: .8rem;
+  white-space: nowrap;
+}
+.formatting-tuner__field input[type="range"] {
+  width: 100%;
+  accent-color: var(--ng-gold);
+}
+.formatting-tuner__field input[type="number"] {
+  min-width: 0;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  color: var(--ng-text);
+  padding: .5rem .55rem;
+}
+.formatting-tuner__css {
+  max-height: 13rem;
+  overflow: auto;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  color: var(--ng-text);
+  padding: .85rem;
+  font-size: .8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.formatting-tuner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+}
+.formatting-tuner__message {
+  margin: 0;
+  color: var(--ng-ok);
+  font-size: .82rem;
+  font-weight: 800;
+}
 
 @media (max-width: 1200px) {
   .dashboard-grid,
@@ -1094,8 +1254,10 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .module-tabs { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
   .module-tab { border-left: 0; border-bottom: 3px solid transparent; }
   .module-tab[aria-selected="true"] { border-bottom-color: var(--ng-gold); }
+  .jobs-foundation-layout { grid-template-columns: 1fr; }
   .job-detail-header { grid-template-columns: 1fr; }
   .job-detail-header__actions { justify-content: stretch; }
+  .job-detail-tabs { grid-template-columns: repeat(auto-fit, minmax(8.75rem, 1fr)); }
   .count-help-panel { grid-template-columns: 1fr; }
   .count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .count-history-panel { position: static; }
@@ -1107,8 +1269,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 @media (max-width: 640px) {
   :root {
     --app-page-gutter: 12px;
-    --dashboard-card-gap: 12px;
-    --dashboard-card-padding: 14px;
+    --card-gap: 12px;
+    --card-padding: 14px;
   }
 
   .app-header__inner { align-items: flex-start; flex-wrap: wrap; }
@@ -1123,7 +1285,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .meta-grid,
   .cart-facts { grid-template-columns: 1fr; }
   .card__header .secondary-button { width: 100%; }
-  .label-form-grid, .label-style-panel, .label-layout-panel, .tool-form, .job-material-form, .job-buyout-form { grid-template-columns: 1fr; }
+  .label-form-grid, .label-style-panel, .label-layout-panel, .tool-form, .job-material-form, .job-buyout-form, .job-financials-form, .job-documents-form, .formatting-tuner__controls { grid-template-columns: 1fr; }
   .table-wrap { display: none; }
   .mobile-list { display: grid; }
   .history-mobile-list { display: grid; }
@@ -1141,8 +1303,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .cart-actions { flex-direction: column; }
   .secondary-button,
   .primary-button { width: 100%; }
-  .layout-tuner { right: .5rem; bottom: .5rem; width: calc(100vw - 1rem); max-height: calc(100vh - 1rem); }
-  .layout-tuner__header, .layout-tuner__actions { align-items: stretch; flex-direction: column; }
+  .formatting-tuner__header, .formatting-tuner__actions, .formatting-tuner__preset-row { align-items: stretch; flex-direction: column; }
+  .formatting-tuner__field { grid-template-columns: 1fr; }
   .location-record { grid-template-columns: 1fr; }
   .location-record small { grid-column: 1; }
 }
