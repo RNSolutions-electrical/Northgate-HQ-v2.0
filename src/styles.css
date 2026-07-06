@@ -500,7 +500,14 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .job-financials-toolbar { align-items: end; }
 .job-financials-form .cart-actions { min-width: 0; }
 .job-financials-form .secondary-button { white-space: normal; }
-.job-financials-table { min-width: 980px; }
+.job-financials-table { min-width: 1120px; }
+.job-financials-table th:first-child,
+.job-financials-table td:first-child { white-space: nowrap; }
+.job-financials-order-cell { display: grid; gap: .28rem; align-content: start; }
+.job-financials-order-cell strong { font-size: 1.02rem; }
+.job-financials-order-controls { display: flex; flex-wrap: wrap; gap: .35rem; }
+.job-financials-order-controls .secondary-button { white-space: nowrap; padding: .5rem .65rem; }
+.job-financials-reorder-actions { margin-top: .15rem; }
 .job-financials-table td span { display: block; margin-top: .22rem; color: #94a3b8; font-size: .8rem; }
 .job-transactions-list {
   display: grid;

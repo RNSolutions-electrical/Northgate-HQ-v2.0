@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Archive, Briefcase, Camera, CameraOff, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
+import { Archive, Briefcase, Camera, CameraOff, ChevronDown, ChevronUp, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
@@ -78,10 +78,10 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Job Financials v1 - Budget Foundation',
-  relatedHandoff: 'Entry 116',
-  architectureVersion: 'v2.26',
-  currentStep: 'Financials tab activation',
+  mostRecentChange: 'Financials Budget Ordering',
+  relatedHandoff: 'Entry 119',
+  architectureVersion: 'v2.27',
+  currentStep: 'Jobs completion — Budget Ordering',
   buildMarker: APP_BUILD_SHA,
   deploymentNote: 'Financials v1 is now budget-only, permission-aware, and backed by the build-time SHA marker so the dashboard still reports the actual bundle being served.',
 };
@@ -308,6 +308,7 @@ const JOB_BUDGET_LINES_SELECT_FIELDS = [
   'cost_code',
   'description',
   'budget_amount',
+  'sort_order',
   'note',
   'created_by',
 ].join(',');
@@ -2627,6 +2628,27 @@ function formatTransactionLogQuantity(value) {
 
 function getBudgetCategoryLabel(value) {
   return JOB_BUDGET_CATEGORY_OPTIONS.find((option) => option.value === value)?.label ?? 'Other';
+}
+
+function sortJobBudgetRows(rows) {
+  return rows.slice().sort((left, right) => {
+    const leftSort = Number(left.sort_order ?? 0);
+    const rightSort = Number(right.sort_order ?? 0);
+    if (leftSort !== rightSort) return leftSort - rightSort;
+
+    const leftCreated = String(left.created_at ?? '');
+    const rightCreated = String(right.created_at ?? '');
+    if (leftCreated !== rightCreated) return leftCreated.localeCompare(rightCreated);
+
+    return String(left.id ?? '').localeCompare(String(right.id ?? ''));
+  });
+}
+
+function getNextBudgetSortOrder(rows) {
+  return rows.reduce((maxSort, row) => {
+    const sortValue = Number(row.sort_order ?? 0);
+    return Number.isFinite(sortValue) ? Math.max(maxSort, sortValue) : maxSort;
+  }, 0) + 1;
 }
 
 function createJobBudgetDraft(row = null) {
@@ -7880,8 +7902,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const selectedBuyoutCatalogItem = catalogItems.find((item) => item.id === buyoutDraft.item_id) ?? null;
   const buyoutFormCanSave = Boolean(selectedJobCanEdit && selectedJob && !isSavingBuyoutLine);
   const filteredJobTransactions = useMemo(() => jobTransactions, [jobTransactions]);
-  const filteredBudgetLines = useMemo(() => filterJobBudgetRows(budgetLines, budgetLineSearch), [budgetLines, budgetLineSearch]);
-  const budgetSummary = useMemo(() => getJobBudgetSummary(budgetLines), [budgetLines]);
+  const orderedBudgetLines = useMemo(() => sortJobBudgetRows(budgetLines), [budgetLines]);
+  const filteredBudgetLines = useMemo(() => filterJobBudgetRows(orderedBudgetLines, budgetLineSearch), [orderedBudgetLines, budgetLineSearch]);
+  const budgetSummary = useMemo(() => getJobBudgetSummary(orderedBudgetLines), [orderedBudgetLines]);
   const budgetFormCanSave = Boolean(selectedJobCanManageBudget && selectedJob && !isSavingBudgetLine);
 
   async function loadJobs({ preserveMessage = false } = {}) {
@@ -8092,7 +8115,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
         .select(JOB_BUDGET_LINES_SELECT_FIELDS)
         .eq('job_id', jobId)
         .is('archived_at', null)
-        .order('updated_at', { ascending: false });
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
       if (error) throw error;
       setBudgetLines(data ?? []);
     } catch (error) {
@@ -8421,11 +8446,50 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function startEditBudgetLine(row) {
     if (!selectedJobCanManageBudget) {
-      setBudgetLineMessage('Financials editing is limited to the current job division with can_approve_budget.');
+      setBudgetLineMessage('Financials editing and reordering are limited to the current job division with can_approve_budget.');
       return;
     }
     setBudgetDraft(createJobBudgetDraft(row));
     setBudgetLineMessage('');
+  }
+
+  async function moveBudgetLine(rowId, direction) {
+    if (!selectedJobCanManageBudget || isSavingBudgetLine || !selectedJob?.id) return;
+
+    const currentRows = sortJobBudgetRows(budgetLines);
+    const currentIndex = currentRows.findIndex((row) => row.id === rowId);
+    if (currentIndex < 0) return;
+
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= currentRows.length) return;
+
+    const currentRow = currentRows[currentIndex];
+    const targetRow = currentRows[targetIndex];
+    const currentSort = Number(currentRow.sort_order ?? currentIndex + 1);
+    const targetSort = Number(targetRow.sort_order ?? targetIndex + 1);
+
+    setIsSavingBudgetLine(true);
+    setBudgetLineMessage('');
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const updates = [
+        client.from('job_budget_lines').update({ sort_order: targetSort }).eq('id', currentRow.id),
+        client.from('job_budget_lines').update({ sort_order: currentSort }).eq('id', targetRow.id),
+      ];
+      const results = await Promise.all(updates);
+      const error = results.find((result) => result.error)?.error ?? null;
+      if (error) throw error;
+
+      await loadJobBudgetLines(selectedJob.id, { preserveMessage: true });
+      setBudgetLineMessage(direction < 0 ? 'Budget line moved up.' : 'Budget line moved down.');
+    } catch (error) {
+      console.error('Job Financials reorder failed', error);
+      setBudgetLineMessage(`Budget line reorder failed. ${error?.message || 'Confirm can_approve_budget and the job_budget_lines migration.'}`);
+    } finally {
+      setIsSavingBudgetLine(false);
+    }
   }
 
   function startEditBuyoutLine(row) {
@@ -8574,6 +8638,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
             job_id: selectedJob.id,
             division: selectedJob.division,
             created_by: permissions.userId,
+            sort_order: getNextBudgetSortOrder(orderedBudgetLines),
             ...payload,
           });
         if (error) throw error;
@@ -9371,7 +9436,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
         ) : (
           <div className="empty-state">
             <strong>Financials is read-only for this job.</strong>
-            <p>{selectedJob?.division === permissions.division ? 'can_approve_budget is required to add, edit, or archive budget lines.' : 'Budget line edits are limited to the current user division.'}</p>
+            <p>{selectedJob?.division === permissions.division ? 'can_approve_budget is required to add, edit, archive, or reorder budget lines.' : 'Budget line edits are limited to the current user division.'}</p>
           </div>
         )}
 
@@ -9388,6 +9453,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
               <table className="data-table job-financials-table">
                 <thead>
                   <tr>
+                    <th>Order</th>
                     <th>Category</th>
                     <th>Cost Code</th>
                     <th>Description</th>
@@ -9398,62 +9464,103 @@ function JobsWorkspace({ permissions, navigateTo }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBudgetLines.map((row) => (
-                    <tr key={row.id}>
-                      <td>{getBudgetCategoryLabel(row.category)}</td>
-                      <td>{row.cost_code || '-'}</td>
-                      <td>
-                        <strong>{row.description}</strong>
-                        <span>{getBudgetCategoryLabel(row.category)}</span>
-                      </td>
-                      <td>{formatBudgetCurrency(row.budget_amount)}</td>
-                      <td>{row.note || '-'}</td>
-                      <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
-                      <td>
-                        {selectedJobCanManageBudget ? (
-                          <div className="count-action-stack">
-                            <button type="button" className="secondary-button" onClick={() => startEditBudgetLine(row)} disabled={isSavingBudgetLine}>
-                              <Pencil aria-hidden="true" /> Edit
-                            </button>
-                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBudgetLine(row)} disabled={isSavingBudgetLine}>
-                              <Archive aria-hidden="true" /> Remove
-                            </button>
+                  {filteredBudgetLines.map((row) => {
+                    const budgetLineIndex = orderedBudgetLines.findIndex((item) => item.id === row.id);
+                    const canMoveUp = selectedJobCanManageBudget && budgetLineIndex > 0;
+                    const canMoveDown = selectedJobCanManageBudget && budgetLineIndex >= 0 && budgetLineIndex < orderedBudgetLines.length - 1;
+
+                    return (
+                      <tr key={row.id}>
+                        <td>
+                          <div className="job-financials-order-cell">
+                            <strong>{formatOptionalQuantity(row.sort_order)}</strong>
+                            <span>Order</span>
+                            {selectedJobCanManageBudget ? (
+                              <div className="job-financials-order-controls">
+                                <button type="button" className="secondary-button" onClick={() => moveBudgetLine(row.id, -1)} disabled={!canMoveUp || isSavingBudgetLine}>
+                                  <ChevronUp aria-hidden="true" /> Up
+                                </button>
+                                <button type="button" className="secondary-button" onClick={() => moveBudgetLine(row.id, 1)} disabled={!canMoveDown || isSavingBudgetLine}>
+                                  <ChevronDown aria-hidden="true" /> Down
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="muted">Read only</span>
+                            )}
                           </div>
-                        ) : (
-                          <span className="muted">Read only</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>{getBudgetCategoryLabel(row.category)}</td>
+                        <td>{row.cost_code || '-'}</td>
+                        <td>
+                          <strong>{row.description}</strong>
+                          <span>{getBudgetCategoryLabel(row.category)}</span>
+                        </td>
+                        <td>{formatBudgetCurrency(row.budget_amount)}</td>
+                        <td>{row.note || '-'}</td>
+                        <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                        <td>
+                          {selectedJobCanManageBudget ? (
+                            <div className="count-action-stack">
+                              <button type="button" className="secondary-button" onClick={() => startEditBudgetLine(row)} disabled={isSavingBudgetLine}>
+                                <Pencil aria-hidden="true" /> Edit
+                              </button>
+                              <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBudgetLine(row)} disabled={isSavingBudgetLine}>
+                                <Archive aria-hidden="true" /> Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="muted">Read only</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             <div className="mobile-list job-financials-mobile-list">
-              {filteredBudgetLines.map((row) => (
-                <article className="mobile-item" key={row.id}>
-                  <strong>{row.description}</strong>
-                  <div className="meta-grid">
-                    <span>Category: {getBudgetCategoryLabel(row.category)}</span>
-                    <span>Cost Code: {row.cost_code || '-'}</span>
-                    <span>Budget: {formatBudgetCurrency(row.budget_amount)}</span>
-                    <span>Note: {row.note || '-'}</span>
-                    <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
-                  </div>
-                  {selectedJobCanManageBudget ? (
-                    <div className="cart-actions">
-                      <button type="button" className="secondary-button" onClick={() => startEditBudgetLine(row)} disabled={isSavingBudgetLine}>
-                        <Pencil aria-hidden="true" /> Edit
-                      </button>
-                      <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBudgetLine(row)} disabled={isSavingBudgetLine}>
-                        <Archive aria-hidden="true" /> Remove
-                      </button>
+              {filteredBudgetLines.map((row) => {
+                const budgetLineIndex = orderedBudgetLines.findIndex((item) => item.id === row.id);
+                const canMoveUp = selectedJobCanManageBudget && budgetLineIndex > 0;
+                const canMoveDown = selectedJobCanManageBudget && budgetLineIndex >= 0 && budgetLineIndex < orderedBudgetLines.length - 1;
+
+                return (
+                  <article className="mobile-item" key={row.id}>
+                    <strong>{row.description}</strong>
+                    <div className="meta-grid">
+                      <span>Order: {formatOptionalQuantity(row.sort_order)}</span>
+                      <span>Category: {getBudgetCategoryLabel(row.category)}</span>
+                      <span>Cost Code: {row.cost_code || '-'}</span>
+                      <span>Budget: {formatBudgetCurrency(row.budget_amount)}</span>
+                      <span>Note: {row.note || '-'}</span>
+                      <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
                     </div>
-                  ) : (
-                    <p className="muted">Read only</p>
-                  )}
-                </article>
-              ))}
+                    {selectedJobCanManageBudget ? (
+                      <>
+                        <div className="cart-actions job-financials-reorder-actions">
+                          <button type="button" className="secondary-button" onClick={() => moveBudgetLine(row.id, -1)} disabled={!canMoveUp || isSavingBudgetLine}>
+                            <ChevronUp aria-hidden="true" /> Up
+                          </button>
+                          <button type="button" className="secondary-button" onClick={() => moveBudgetLine(row.id, 1)} disabled={!canMoveDown || isSavingBudgetLine}>
+                            <ChevronDown aria-hidden="true" /> Down
+                          </button>
+                        </div>
+                        <div className="cart-actions">
+                          <button type="button" className="secondary-button" onClick={() => startEditBudgetLine(row)} disabled={isSavingBudgetLine}>
+                            <Pencil aria-hidden="true" /> Edit
+                          </button>
+                          <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveBudgetLine(row)} disabled={isSavingBudgetLine}>
+                            <Archive aria-hidden="true" /> Remove
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="muted">Read only</p>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           </>
         ) : null}

@@ -12304,3 +12304,70 @@ the Claude-reviewed and ChatGPT cross-cleared roadmap for ARCHITECTURE v2.27.
 
 ### Routing Verdict
 No Claude review needed — docs-only Jobs Module Completion Roadmap architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.27, HANDOFF Entry 118).
+
+---
+
+## Entry 119 - Financials Budget Ordering implemented
+
+**Date:** 2026-07-06
+**Updated by:** Codex
+**Phase:** Job Financials / Budget Ordering
+**Session type:** implementation
+
+### Context
+Implemented under ARCHITECTURE v2.27 Section 44 delta and Section 45 roadmap.
+This is the first milestone after the Jobs Module Completion Roadmap lock and
+adds ordering support to the live Financials budget lines model.
+
+### What Was Completed
+- Added `sort_order` to `public.job_budget_lines`.
+- Backfilled existing budget lines per job using `created_at` and `id` order.
+- Updated Financials UI to load and display budget lines ordered by
+  `sort_order`, then `created_at`, then `id`.
+- Added simple Up / Down rearrangement controls for budget lines.
+- Persisted reorder changes by updating `sort_order`.
+- Reorder is gated by `can_approve_budget`.
+- View-only users with `can_view_financials` remain read-only.
+- Added no grouping field.
+- Added no `cost_report_group`.
+- Added no formal cost code table.
+- Added no actuals, revenue, profit, issued inventory value, accounting, or
+  print/export behavior.
+- Added no Documents, Schedule, or Export work.
+- Added no inventory/cart/checkout behavior changes.
+
+### Safety Confirmations
+- No existing migration was edited.
+- No existing RLS policies were changed.
+- No existing grants were changed.
+- No new permission flags were added.
+- No reserved Financials fields were added.
+- No Financials permission model changes were introduced.
+- No reads from `job_transaction_log`, `job_buyout_lines`, `job_materials`,
+  `inventory_balances`, or transaction tables were added.
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Confirmed the only new schema file is the `sort_order` migration.
+- Confirmed the Financials tab still supports add/edit/archive plus budget
+  summaries.
+- Confirmed reorder uses the existing `can_approve_budget` path.
+- Live Supabase migration still needs manual application.
+
+### Manual Verification Notes For Ryan
+1. Apply the live `sort_order` migration if not already applied.
+2. Open the deployed app.
+3. Open Jobs.
+4. Select a job with Financials budget lines.
+5. Confirm existing line order appears stable.
+6. Move a budget line up or down.
+7. Refresh the page.
+8. Confirm order persists.
+9. Confirm Total Budget and Budget by Category did not change.
+10. Confirm Add / Edit / Archive still work.
+11. Confirm no actuals, revenue, profit, accounting, or export behavior
+    appears.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 119).
