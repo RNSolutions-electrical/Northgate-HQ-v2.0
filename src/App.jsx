@@ -9354,17 +9354,22 @@ function JobsWorkspace({ permissions, navigateTo }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client
+      const { data, error } = await client
         .from('job_schedule_items')
         .update({
           archived_at: new Date().toISOString(),
           archived_by: permissions.userId,
           archive_reason: cleanToolText(reason),
         })
-        .eq('id', row.id);
+        .eq('id', row.id)
+        .select('id, archived_at, archived_by');
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error('Schedule item archive did not return an updated row.');
+      }
 
       if (scheduleDraft.id === row.id) startNewScheduleItem();
+      setScheduleItems((current) => current.filter((item) => item.id !== row.id));
       await loadJobScheduleItems(selectedJob.id, { preserveMessage: true });
       setScheduleItemMessage('Schedule item archived from the active list.');
     } catch (error) {
