@@ -12668,3 +12668,65 @@ Tuner cleanup. This stayed inside the flat milestone/task-list scope only.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
+
+## Entry 124 - Job Schedule archive RLS bugfix prepared
+
+**Date:** 2026-07-08
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Schedule
+**Session type:** bugfix
+
+### Context
+Ryan browser-tested Job Schedule v1 after the Schedule milestone went live and
+confirmed add, edit, status changes, and ordering worked, but archive/remove
+still failed in both the in-app browser and a regular browser.
+
+### What Was Completed
+- Reproduced the live archive failure after confirming the deployed site was on
+  the current Schedule build.
+- Confirmed the Schedule archive client path was sending
+  `archived_at`, `archived_by`, and `archive_reason`.
+- Confirmed the active Schedule load query already filters
+  `archived_at is null`.
+- Confirmed the target live rows were still unarchived after archive attempts.
+- Confirmed the authenticated user's effective permissions include
+  `can_manage_jobs`.
+- Simulated the archive update in live Supabase under the authenticated role and
+  confirmed the database rejected the update with `new row violates row-level security policy for table "job_schedule_items"`.
+- Isolated the failure to the `job_schedule_items_update` RLS policy:
+  ordinary updates succeed, but changing `archived_at` fails.
+- Added `supabase/migrations/202607080001_job_schedule_items_archive_rls_bugfix.sql`
+  to allow the soft-archive transition while blocking later mutation of already
+  archived Schedule rows.
+
+### Safety Confirmations
+- No new Schedule features were added.
+- No Job Export work was started.
+- No Documents, Financials, Formatting Tuner, inventory, cart, or checkout
+  behavior was changed.
+- No application code was changed in this bugfix.
+- No hard delete behavior was added.
+- The fix stays inside the existing Section 47 soft-archive model.
+
+### Files Changed
+- `supabase/migrations/202607080001_job_schedule_items_archive_rls_bugfix.sql`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch `main`.
+- Confirmed the working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
+- Confirmed HANDOFF was gapless through Entry 123 before this append.
+- Confirmed `supabase/migrations/202607060004_job_schedule_items_foundation.sql`
+  exists in repo.
+- Confirmed the live `job_schedule_items` migration had already been applied.
+- Confirmed the live `job_schedule_items_update` policy still required
+  `archived_at is null` in `USING`.
+- Confirmed the live archive failure is a database RLS rejection, not a stale
+  deploy or browser-cache issue.
+- Attempted to apply the live RLS bugfix, but production policy/trigger changes
+  require fresh explicit approval in this environment before they can be run.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
