@@ -9346,7 +9346,12 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   async function archiveScheduleItem(row) {
     if (!selectedJobCanManageSchedule || isSavingScheduleItem || !row?.id) return;
-    const reason = window.prompt('Archive reason (optional)') ?? '';
+    let reason = '';
+    try {
+      reason = window.prompt('Archive reason (optional)') ?? '';
+    } catch (error) {
+      console.warn('Job Schedule archive reason prompt unavailable', error);
+    }
 
     setIsSavingScheduleItem(true);
     setScheduleItemMessage('');
