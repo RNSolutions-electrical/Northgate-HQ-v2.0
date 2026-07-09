@@ -1,4 +1,5 @@
 ﻿# Northgate HQ v2 — Architecture Lock Document
+### Version 2.28 — Silas (AI Assistant) locked (new Section 48, filling the "Future AI Assistant" slot reserved in Section 4 since the project's first architecture pass); Section 47 delta documenting the Schedule archive RLS two-policy fix (Entries 124–125, live-verified — soft-archive transitions require both a permissive UPDATE policy and a SELECT policy that admits the row through the transition, not just the UPDATE policy in isolation): new `silas_conversations` / `silas_messages` tables for persisted chat history, per-user RLS (not division-scoped — chat history is personal, deliberate deviation from Section 17a); new `silas_settings` table — a Developer-controlled global kill switch (`silas_enabled`), enforced server-side in the Netlify proxy function (not just UI-hidden, per Section 17's non-negotiable server-authoritative rule), writable only via `can_access_developer`; dual UI (dedicated workspace + global floating chat bubble) sharing one backend and one conversation history; Silas reads only what the requesting user's own RLS context permits — backend must authenticate to Supabase using the user's JWT, not a service-role key (flagged as the highest-stakes preflight item); Silas never writes directly to any business-data table — every suggested action, once approved, executes through the existing RPC/insert flow for that action type, so Section 19 audit logging requires no changes; three response options locked — Approve, Deny, Other (specify) — corrections happen conversationally via Other (specify), producing a revised suggestion rather than a separate review screen; receipt images attach to the job as a Document (Section 46) on approval, not discarded after extraction; API key stored server-side only, never client-exposed; no new permission flag beyond reusing `can_access_developer` for the kill switch. This version also repairs a HANDOFF documentation defect (Entries 124/125 found physically out of chronological order; repaired with Ryan's explicit approval per Rule 20 — see HANDOFF Entry 126) and establishes a standing policy that all future coordination-document discrepancies route to Ryan for approval before correction. Job Export remains unscoped, reserved as Section 49. Docs-only lock — does not authorize Silas implementation. (Entry 127)
 ### Version 2.27 — Jobs Module Completion Roadmap locked (new Section 45 roadmap; new Section 46 Job Documents v1 — first real implementation of the long-dormant Section 20 generic documents design, scoped to `owner_type = 'job'` with six other Section 20 owner types declared but not yet RLS-permitted; new Section 47 Job Schedule v1 — flat milestone/task list, no calendar/dependency/assignment integration; delta to Section 44 adding `sort_order` to `job_budget_lines` for manual/drag-drop reordering, no RLS change; Formatting Tuner ruled Bucket 1/no-lock (localStorage + CSS variables only, Developer-gated, no Supabase writes) — triggers for a future real architecture review specified; Job Export deliberately NOT locked this version — reserved as Section 48 pending Documents/Schedule going live, with hard boundaries pre-confirmed (browser print-to-PDF only, section-selectable, permission-aware per section, documents never bundled — index/list only, no database writes). (Entry 118)
 ### Version 2.26 — Job Financials v1 (Budget Foundation) locked (new Section 44): new `job_budget_lines` table, division-scoped via `division text not null`, references `public.jobs(id)`; `category` CHECK-constrained to material/labor/subcontractor/equipment/permit/other, required; `cost_code` free-text (Option A — formal cost-code table reserved); `description` required; `budget_amount` allows zero, CHECK `>= 0`; no `status` column; soft-archive per Section 18; read gated on `can_view_financials`, write gated on `can_approve_budget` — both already-canonical Section 17 flags, first real consumer of either; no new permission flags; Financials tab fully hidden from users lacking `can_view_financials`; helper copy locked; print/export deferred; numeric input blocks save on blank rather than coercing to 0; fully standalone from Job Transactions Log and Buyout List in v1 — no reads from either; actual cost, committed cost, issued inventory value, contract value, revenue, profit/margin, PO, invoice, change order, and accounting integration all explicitly reserved. (Entry 115).
 ### Version 2.25 — Job Transactions Log locked (new Section 43): new read-only view `job_transaction_log` over `transaction_items` + `inventory_transactions`, filtered to `destination_type = 'job'`; activates the previously-placeholder Transactions tab (Section 42) with a read-only table (date, item, quantity, source location, transaction type, performed by, notes); no cost/value column (reserved for Financials); no edit/delete/return actions; source-location-agnostic so future Vehicle Inventory transactions appear automatically; inbound Return-from-Job (5K.5) will require a follow-up delta to this view, flagged but not solved now; no new RPC, table, or permission flag; read access inherits existing `transaction_items` / `inventory_transactions` RLS. Financials remains unlocked and scoped separately. (Entry 110).
@@ -3614,6 +3615,40 @@ Trigger:
 - No hard delete
 - No new permission flag
 
+**Archive transition requires two coordinated policies (locked after live
+bugfix, Entries 124–125):** a soft-archive is itself a row UPDATE (setting
+`archived_at`/`archived_by`/`archive_reason`), and in Postgres RLS, an UPDATE is
+evaluated against **both** the UPDATE policy's `USING`/`WITH CHECK` clauses **and**
+the SELECT policy governing whether the target row is visible to the transaction at
+all. If the SELECT policy excludes rows once a condition changes (or excludes rows
+mid-transition), the UPDATE can fail even when the UPDATE policy itself is
+permissive. For `job_schedule_items`:
+- The UPDATE policy must not require `archived_at IS NULL` in its `USING` clause —
+  that would make the archive transition (which sets `archived_at` to a non-null
+  value) reject itself.
+- The SELECT policy must allow a same-division `can_manage_jobs` user to read the
+  row through the archive transition, not only while `archived_at IS NULL`.
+- The **active Schedule list UI** continues to filter `archived_at IS NULL`
+  client-side/query-side — this RLS fix does not change what appears in the normal
+  list. It only ensures the archive *action itself* can complete.
+- No hard delete was introduced. No new permission flag was introduced. The fix
+  stays entirely inside the existing soft-archive model (Section 18) and the
+  existing `can_manage_jobs` gate.
+
+**Live migrations implementing this fix:**
+- `supabase/migrations/202607080001_job_schedule_items_archive_rls_bugfix.sql`
+  (UPDATE policy correction)
+- `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
+  (SELECT policy correction — required in addition to the UPDATE fix, not instead
+  of it)
+
+Both were manually applied to live Supabase and confirmed working by Ryan's live
+browser testing (Entries 124–125). **General principle for future RLS work on any
+table with soft-archive:** when an archive/soft-delete transition fails at the RLS
+layer, check the SELECT policy's interaction with the UPDATE, not only the UPDATE
+policy in isolation — this is now a known failure shape for this project, not
+unique to Schedule.
+
 ### 47.3 UI scope
 
 - Schedule tab becomes active
@@ -3646,3 +3681,193 @@ This section locks Job Schedule v1 only.
 
 It does not authorize any implementation, migration, runtime, RPC, or UI
 changes by itself.
+
+---
+
+## 48. Silas (AI Assistant) (locked v2.28 — Entry 127)
+
+### 48.0 Purpose and reserved-slot origin
+
+Silas fills the "Future AI Assistant" slot reserved in the original workspace
+list (Section 4) since the project's first architecture pass, predating Jobs
+and every other module built since. Silas is a **permission-aware interface
+layer**, not a new system with its own authority. Everything it can see, it
+sees because the requesting user could already see it. Everything it can do,
+it does through **existing** write paths (Cart/Checkout, Job Budget Lines, Job
+Materials, Documents, etc.) — never a new or parallel write mechanism. This is
+the same "reuse, don't fork" principle governing the 5K-series milestones
+(Section 37, Section 40), applied at the UI/agent layer.
+
+### 48.1 Dual UI presence
+
+1. **Dedicated Silas workspace** — full chat history, past conversations,
+   detailed exchanges.
+2. **Floating chat bubble** — available from any screen, for quick questions
+   without leaving current context.
+
+Both surfaces share one backend and one conversation history — two entry
+points into one system, not two systems.
+
+### 48.2 Capability categories
+
+1. **Read/inform** — answer questions about data the user can see, with an
+   optional quick-link button navigating to the relevant screen.
+2. **Suggest/act** — propose a write action (e.g., create a transaction from a
+   receipt photo), requiring explicit user approval before anything is
+   written. No silent writes, ever.
+
+### 48.3 Three response options for suggested writes
+
+- **Approve** — the write executes through the existing engine immediately,
+  from the chat interface. No detour to another screen.
+- **Deny** — the suggestion is discarded. Nothing is written.
+- **Other (specify)** — the user replies in chat with a correction instead of
+  approving or denying. Silas incorporates the correction and presents a
+  revised suggested action; the same three options apply to the revision.
+  This can repeat until the user approves or denies.
+
+There is deliberately no separate "review before approve" screen in v1 — the
+"Other (specify)" loop replaces that need conversationally. Every path
+terminates in the same existing write path a human would use manually. Silas
+never has its own insert/update capability that bypasses any existing engine.
+
+### 48.4 Receipt-to-Document attachment
+
+When a receipt-derived transaction is approved, the receipt image is uploaded
+through the existing Documents write path (Section 46: `owner_type = 'job'`,
+`owner_id = job.id`), not discarded after data extraction. The same
+`can_manage_jobs` gate that governs the transaction's job context also governs
+this upload — no new permission logic is needed.
+
+### 48.5 Permission model
+
+Silas's capability is **strictly bounded by the requesting user's own
+permissions** — not a separate Silas permission tier. If a user without
+`can_view_financials` asks Silas about a job's budget, Silas must not answer,
+for the same reason the Financials tab itself is hidden from that user
+(Section 44). Silas is not a permission-elevation path. No new permission flag
+is introduced for Silas's data capability — it inherits whatever the user
+already has.
+
+### 48.6 Schema lock
+
+```sql
+create table public.silas_conversations (
+  id                uuid          primary key default gen_random_uuid(),
+  division          text          not null,
+  created_at        timestamptz   not null default now(),
+  updated_at        timestamptz   not null default now(),
+  archived_at       timestamptz   null,
+  archived_by       text          null,
+  archive_reason    text          null,
+  user_id           text          not null,
+  title             text          null
+);
+
+create table public.silas_messages (
+  id                uuid          primary key default gen_random_uuid(),
+  conversation_id   uuid          not null references public.silas_conversations(id),
+  division          text          not null,
+  created_at        timestamptz   not null default now(),
+  role              text          not null check (role in ('user', 'assistant')),
+  content           text          not null,
+  suggested_action  jsonb         null,
+  action_status     text          null check (
+                                    action_status is null or action_status in (
+                                      'pending', 'approved', 'declined', 'revised'
+                                    )
+                                  ),
+  approved_at       timestamptz   null,
+  approved_by       text          null
+);
+
+create table public.silas_settings (
+  id                uuid          primary key default gen_random_uuid(),
+  silas_enabled     boolean       not null default true,
+  updated_at        timestamptz   not null default now(),
+  updated_by        text          null
+);
+```
+
+`suggested_action` is a proposal record for display/prefill only — **never
+itself a write path.** The actual write, on approval, always executes through
+the existing RPC/insert flow for that action type. `silas_settings` is a
+single-row table by convention (Codex to enforce exactly one row exists at
+implementation time) — a Developer-controlled global kill switch, not a
+general-purpose feature-flag system.
+
+### 48.7 RLS / permissions
+
+- `silas_conversations` / `silas_messages`: **per-user**, not division-scoped
+  — chat history is personal, a deliberate deviation from the Section 17a
+  division-scoped pattern. Read/write restricted to `user_id = auth.jwt() ->>
+  'sub'` (via the parent conversation for messages). `can_view_all_divisions`
+  does **not** grant cross-user visibility into Silas conversations.
+- `silas_settings`: read open to any authenticated user (a single boolean, not
+  sensitive); write restricted to `can_access_developer`.
+- No DELETE policy on any Silas table (Section 18 — soft-archive at the
+  conversation level only; `silas_settings` has no delete/insert path beyond
+  migration seeding).
+- No new permission flag beyond reusing `can_access_developer` for the kill
+  switch write policy.
+
+### 48.8 The critical boundary — Silas never writes directly
+
+Silas's backend function may **read** from any table the requesting user has
+RLS access to. It may **never** perform an `INSERT`/`UPDATE` against
+`job_materials`, `job_budget_lines`, `transaction_items`, `documents`, or any
+other business-data table directly. Approved actions always route through the
+existing RPC or UI flow for that action type. This is why Section 19 audit
+logging requires no changes — a Silas-approved transaction is indistinguishable
+at the write layer from one a human completed manually.
+
+**Silas must authenticate to Supabase using the requesting user's own JWT, not
+a service-role key**, so existing RLS governs what Silas can see. This is the
+single highest-stakes implementation preflight item for this section.
+
+### 48.9 Developer kill switch — server-enforced, not UI-hidden
+
+Per Section 17's non-negotiable rule ("a hidden button is UX convenience only,
+the server still validates"), `silas_settings.silas_enabled = false` must be
+checked at two points:
+1. **Frontend:** hides the Silas workspace and floating chat bubble — normal
+   UX convenience.
+2. **Backend (hard stop):** the Netlify function proxying to the Claude API
+   must itself check `silas_enabled` before any Claude API call or user-scoped
+   read, and refuse if disabled. This is the actual kill switch.
+
+### 48.10 UI scope and locked helper copy
+
+Dedicated workspace: conversation list, chat view, suggested-action cards with
+Approve / Deny / Other (specify). Floating bubble: same backend/history,
+condensed UI, not rendered when disabled. Dev Console gains a single "Silas
+Enabled" toggle (`can_access_developer`), taking effect immediately for all
+users with no deploy required.
+
+Locked helper copy (first use / empty state):
+`Silas can answer questions about anything you have access to and can help with tasks like logging receipts. Silas never makes changes without your approval, and can only do what you're already permitted to do.`
+
+Locked helper copy (disabled state):
+`Silas is currently unavailable. Contact a Developer if you believe this is unexpected.`
+
+### 48.11 Explicitly reserved
+
+- Any Silas capability exceeding the requesting user's own permissions.
+- Any write path bypassing an existing RPC/insert flow.
+- Cross-user visibility into Silas conversations (including for
+  `can_view_all_divisions` or Developer roles).
+- Proactive/unprompted Silas actions — everything is user-initiated.
+- Multi-step autonomous task chains without per-step approval.
+- Voice input/output.
+- Silas modifying its own permissions, prompts, or configuration through chat.
+- A general-purpose feature-flag/settings system — `silas_settings` is scoped
+  to Silas only.
+- Job Export (moved to reserved Section 49 — was reserved as 48; Silas took
+  48 since it was ready and Export explicitly is not).
+
+### 48.12 Implementation gate
+
+This section locks Silas's architecture only. It does not authorize
+implementation, migration, runtime, or UI changes by itself. Implementation
+requires a separate Codex prompt, gated on Ryan's decision to proceed after
+this docs-only update is committed (HANDOFF Entry 127).

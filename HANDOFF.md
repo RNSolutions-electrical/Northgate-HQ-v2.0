@@ -12669,58 +12669,6 @@ Tuner cleanup. This stayed inside the flat milestone/task-list scope only.
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
 
-## Entry 125 - Job Schedule archive select-policy fix prepared
-
-**Date:** 2026-07-09
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Schedule
-**Session type:** bugfix
-
-### Context
-After Entry 124's live RLS adjustment was run, Ryan still saw the same Schedule
-archive failure in both browsers. A second live-policy check was required
-because the update-policy fix alone did not clear the archive transition.
-
-### What Was Completed
-- Re-checked the live `job_schedule_items` policy state and confirmed the
-  `job_schedule_items_update` policy and archive-protection trigger from Entry
-  124 were present in production.
-- Re-ran the live authenticated archive simulation and confirmed it still failed
-  with `new row violates row-level security policy for table "job_schedule_items"`.
-- Proved the remaining blocker is the Schedule `SELECT` path, not the update
-  path, by running a rollback-only test that temporarily added manager read
-  access and saw the archive update succeed immediately.
-- Added `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
-  to grant same-division `can_manage_jobs` users Schedule-row read access needed
-  for the soft-archive transition.
-
-### Safety Confirmations
-- No new Schedule features were added.
-- No application code changed.
-- No Job Export work was started.
-- No Documents, Financials, Formatting Tuner, inventory, cart, or checkout
-  behavior was changed.
-- Active Schedule UI still filters `archived_at is null`, so archived items do
-  not reappear in the normal list after this fix.
-- The added read policy is limited to same-division users who already have
-  `can_manage_jobs`.
-
-### Files Changed
-- `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed the live `job_schedule_items_update` policy no longer requires
-  `archived_at is null`.
-- Confirmed the live archive-protection trigger exists.
-- Confirmed the live archive simulation still failed before the select-policy
-  test.
-- Confirmed a rollback-only temporary manager-read policy makes the exact same
-  live archive update succeed.
-
-### Routing Verdict
-No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
-
 ## Entry 124 - Job Schedule archive RLS bugfix prepared
 
 **Date:** 2026-07-08
@@ -12782,3 +12730,293 @@ still failed in both the in-app browser and a regular browser.
 
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
+
+## Entry 125 - Job Schedule archive select-policy fix prepared
+
+**Date:** 2026-07-09
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Schedule
+**Session type:** bugfix
+
+### Context
+After Entry 124's live RLS adjustment was run, Ryan still saw the same Schedule
+archive failure in both browsers. A second live-policy check was required
+because the update-policy fix alone did not clear the archive transition.
+
+### What Was Completed
+- Re-checked the live `job_schedule_items` policy state and confirmed the
+  `job_schedule_items_update` policy and archive-protection trigger from Entry
+  124 were present in production.
+- Re-ran the live authenticated archive simulation and confirmed it still failed
+  with `new row violates row-level security policy for table "job_schedule_items"`.
+- Proved the remaining blocker is the Schedule `SELECT` path, not the update
+  path, by running a rollback-only test that temporarily added manager read
+  access and saw the archive update succeed immediately.
+- Added `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
+  to grant same-division `can_manage_jobs` users Schedule-row read access needed
+  for the soft-archive transition.
+
+### Safety Confirmations
+- No new Schedule features were added.
+- No application code changed.
+- No Job Export work was started.
+- No Documents, Financials, Formatting Tuner, inventory, cart, or checkout
+  behavior was changed.
+- Active Schedule UI still filters `archived_at is null`, so archived items do
+  not reappear in the normal list after this fix.
+- The added read policy is limited to same-division users who already have
+  `can_manage_jobs`.
+
+### Files Changed
+- `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed the live `job_schedule_items_update` policy no longer requires
+  `archived_at is null`.
+- Confirmed the live archive-protection trigger exists.
+- Confirmed the live archive simulation still failed before the select-policy
+  test.
+- Confirmed a rollback-only temporary manager-read policy makes the exact same
+  live archive update succeed.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
+
+
+════════════════════════════════════════════════════════════════════════════
+█ DOCUMENT REPAIR — APPROVED BY RYAN — 2026-07-09
+════════════════════════════════════════════════════════════════════════════
+
+The two entries immediately above this marker (Entry 124, dated 2026-07-08, and
+Entry 125, dated 2026-07-09) were discovered during a Claude architecture
+reconciliation session to be physically OUT OF ORDER in this file — Entry 125
+had been appended above Entry 124, despite being dated one day later. Both
+entries' own Routing Verdict lines cited "HANDOFF Entry 123" as the prior
+entry, indicating neither drafting session was aware of the other at the time.
+
+This is the same class of defect previously documented and repaired under
+Rule 20 in ARCHITECTURE v2.14 ("HANDOFF Entry 051/052 presentation order
+repaired under Rule 20, Entry 056").
+
+Per Constitutional Rule 20, this was surfaced to Ryan rather than silently
+corrected. Ryan reviewed the finding and explicitly approved the repair on
+2026-07-09. The two entries above have been physically reordered into correct
+chronological sequence (124 before 125). Their content is otherwise UNCHANGED
+— no facts, decisions, or verification claims were altered, only position.
+
+Entry 126 (immediately below) is the permanent, standard-format log entry for
+this repair, for the audit trail.
+
+STANDING POLICY, EFFECTIVE FROM THIS POINT FORWARD:
+Any discrepancy found in these coordination documents — ordering defects,
+numbering gaps, content conflicts, or any other integrity issue — must be
+brought to Ryan for explicit approval before any correction is made. This
+applies regardless of which model or session discovers the discrepancy.
+Normal append-only logging remains exempt, per the existing Rule 20 carve-out.
+
+════════════════════════════════════════════════════════════════════════════
+
+## Entry 126 - HANDOFF Entry 124/125 ordering defect repaired (Rule 20)
+
+**Date:** 2026-07-09
+**Updated by:** Claude
+**Phase:** Coordination document integrity
+**Session type:** repair (Rule 20)
+
+### Context
+During a Claude architecture reconciliation session (Silas AI Assistant
+renumbering request), direct inspection of this file found Entry 125 physically
+positioned before Entry 124, despite Entry 125 being dated one day later
+(2026-07-09 vs. 2026-07-08). Both entries' Routing Verdict lines cited Entry 123
+as the prior entry, indicating each was drafted without visibility into the
+other — consistent with two separate bugfix sessions each appending after what
+they believed was the current tail.
+
+This defect was not identified in the request packet that prompted the
+reconciliation session; it was found only by reading the canonical file
+directly rather than relying on a summarized checkpoint description.
+
+Precedent: ARCHITECTURE v2.14 documents an identical prior repair ("HANDOFF
+Entry 051/052 presentation order repaired under Rule 20, Entry 056").
+
+### What Was Completed
+- Confirmed the ordering defect at the byte/line level (Entry 125 at the
+  original line 12672, Entry 124 at the original line 12724).
+- Surfaced the finding to Ryan per Rule 20, with a recommended resolution
+  (physical reorder, matching the Entry 051/052 precedent) and an alternative
+  (leave in place with an explanatory note).
+- Ryan reviewed and explicitly approved the physical-reorder resolution on
+  2026-07-09.
+- Entries 124 and 125 were reordered into correct chronological sequence.
+  **Content of both entries is unchanged** — only their position in the file
+  was corrected. No fact, decision, or verification claim in either entry was
+  altered.
+- A visible repair marker was inserted immediately following the reordered
+  entries, documenting the defect, the approval, and a standing policy for
+  handling future discrepancies.
+
+### Safety Confirmations
+- No application code changed.
+- No schema, RLS, or permission changed as a result of this repair — the
+  underlying Schedule archive RLS fix (documented in Entries 124-125
+  themselves) was already live and verified prior to this repair.
+- No content was deleted or rewritten — this was a position-only correction.
+- This repair itself was explicitly approved by Ryan before being applied,
+  consistent with Rule 20's requirement that coordination documents are never
+  edited or repaired silently.
+
+### Files Changed
+- `HANDOFF.md` (Entries 124/125 reordered; repair marker and this entry
+  appended)
+
+### Verification
+- Confirmed the reordered entries' content is byte-identical to the original,
+  only their sequence changed.
+- Confirmed no other entry in the file was touched.
+- Confirmed HANDOFF is gapless in entry numbering (123, 124, 125, 126) even
+  though the pre-repair file had 124/125 reversed in position.
+
+### New Standing Policy (effective from this entry forward)
+Any discrepancy found in the coordination documents — ordering defects,
+numbering gaps, content conflicts, or any other integrity issue — must be
+brought to Ryan for explicit approval before any correction is made, regardless
+of which model or session discovers it. Normal append-only logging remains
+exempt, per the existing Rule 20 carve-out. This formalizes, as an explicit
+standing instruction, what Rule 20 already implied.
+
+### Routing Verdict
+Repair approved directly by Ryan (2026-07-09) — Rule 20 satisfied by sole
+decision authority approval. No further cross-clearance required for this
+repair specifically, though the standing policy above applies to all future
+discrepancies.
+
+---
+## Entry 127 - Silas (AI Assistant) locked (ARCHITECTURE v2.28, new Section 48); Section 47 delta (Schedule archive RLS fix documentation)
+
+**Date:** 2026-07-09
+**Updated by:** Claude
+**Phase:** Silas - AI Assistant foundation; Jobs Module - Schedule RLS documentation
+**Session type:** decision / architecture / reconciliation
+
+### Context
+Job Schedule v1 (Section 47) is live, browser-tested, and its archive/remove
+functionality failed live RLS testing after initial deployment. Codex diagnosed
+and fixed this across two sessions (Entries 124-125): an UPDATE policy fix,
+then a SELECT policy fix, both required together for the soft-archive
+transition to succeed. Ryan confirmed live resolution.
+
+Entries 124-125 were also found to be physically out of order in this file;
+that defect was repaired immediately prior to this entry (see Entry 126) with
+Ryan's explicit approval.
+
+Separately, Ryan requested Silas (AI Assistant) architecture, previously
+drafted against a stale checkpoint (v2.27/Entry 124 assumed as prior state).
+Reconciled this session against the actual canonical state: v2.27, gapless
+through Entry 126 following the repair above. This entry is 127.
+
+### Decisions Made This Session (locked)
+- Section 47 delta: documents that Schedule's soft-archive transition required
+  TWO coordinated RLS policies (UPDATE + SELECT), not one - archived_at IS
+  NULL must not gate the UPDATE policy's USING clause, and the SELECT policy
+  must allow same-division can_manage_jobs users to read the row through the
+  transition. No design change - soft-archive-only, can_manage_jobs,
+  own-division, no hard delete, no new permission flag all remain exactly as
+  originally locked. - Claude, documenting Codex's live-verified fix
+  (Entries 124-125).
+- General principle logged for future RLS work: soft-archive transition
+  failures should be checked against BOTH the UPDATE and SELECT policy, not
+  the UPDATE policy in isolation - now a known failure shape for this
+  project. - Claude.
+- Silas: all prior design decisions unchanged from the working session with
+  Ryan - permission-aware interface layer; reads only through requesting
+  user's own RLS context; Netlify function must use user JWT, not
+  service-role, for Supabase reads; Silas never writes directly to business
+  tables; approved actions route through existing RPCs/flows only; three
+  response options (Approve / Deny / Other-specify), with Other-specify
+  producing a revised suggestion; no silent writes; dedicated Silas workspace
+  plus floating chat bubble sharing one backend and one conversation history;
+  chat history persisted in Supabase, per-user RLS (not division-scoped);
+  API key server-side only, never client-exposed; Developer kill switch
+  (silas_settings.silas_enabled) enforced server-side in the Netlify function,
+  not just hidden client-side; no new permission flags beyond reusing
+  can_access_developer for the kill switch; no cross-user chat visibility; no
+  direct inventory_balances writes; receipt-derived transactions attach the
+  receipt image via the existing Documents path (owner_type='job'); Job
+  Export remains unscoped and is not part of Silas. - Ryan (operational
+  model, working session), formalized by Claude.
+- New section: Section 48 (Silas), filling the "Future AI Assistant" slot
+  reserved in Section 4 since the project's original architecture pass. -
+  Claude.
+- Job Export moves to reserved Section 49 (was reserved as 48; Silas took 48
+  since it was ready and Export explicitly is not). - Claude.
+- Version advances to v2.28. - Claude.
+
+### Schema Changes
+- None applied live in this entry. Section 47 delta is documentation-only -
+  the actual schema/RLS was already applied live via the two migrations
+  referenced in the Section 47 delta text (202607080001, 202607090001).
+- Silas schema (silas_conversations, silas_messages, silas_settings) is
+  LOCKED but NOT YET IMPLEMENTED. This entry authorizes the docs update only,
+  not implementation.
+
+### Code / File Changes
+- None this session (decision/architecture/reconciliation only).
+
+### Lock Document Changes
+- ARCHITECTURE -> v2.28: Section 47.2 replaced with the archive RLS delta
+  text; new Section 48 (Silas, full text); version line updated.
+- Reviewed and finalized by Claude; Ryan applies and commits.
+- This entry authorizes a DOCS-ONLY update to ARCHITECTURE.md. It does NOT
+  authorize Silas implementation.
+
+### What Codex Needs to Know
+- This entry is DOCS-ONLY. Do not implement Silas. Do not touch
+  job_schedule_items, its RLS, or any other existing table/RPC/UI - the
+  Schedule fix is already live; Section 47's delta only documents it
+  retroactively at the architecture level.
+- Silas implementation (migration, Netlify function, UI) is a SEPARATE future
+  request, gated on Ryan's decision to proceed after this docs update is
+  committed.
+- When Silas implementation is eventually requested: the single highest-stakes
+  preflight item is confirming the Netlify function authenticates to Supabase
+  using the requesting user's JWT, not a service-role key - this determines
+  whether Silas correctly inherits existing RLS or accidentally gets
+  admin-level read access. This must be confirmed explicitly, not assumed.
+
+### What Claude Needs to Know
+- Silas design is fully locked and stable. Implementation-prompt generation
+  is the next step once Ryan commits this docs-only update, and is a separate
+  future request.
+- The two-policy soft-archive RLS lesson (Section 47 delta) should be treated
+  as a standing checklist item for any future table gaining soft-archive/RLS
+  for the first time, not just a one-off Schedule fix.
+- The HANDOFF ordering-defect repair (Entry 126) established a standing
+  policy: all future coordination-document discrepancies route to Ryan for
+  approval before correction. Apply this going forward without being
+  re-reminded.
+
+### Next Steps (in order)
+1. Ryan applies and commits ARCHITECTURE v2.28 (Section 47 delta + Section 48)
+   and this HANDOFF entry.
+2. Silas implementation prompt generation happens as a separate future
+   request, once the docs-only update is committed.
+
+### Open Questions / Concerns
+- (Carried forward) Supabase auth-context approach for the Silas Netlify
+  function remains the highest-stakes open implementation question, to be
+  resolved at Codex preflight when implementation begins - not part of this
+  docs-only entry.
+
+### Architecture Drift Warnings
+- CARRIED FORWARD: all Silas reserved items unchanged (proactive actions,
+  multi-step autonomous chains, voice I/O, cross-user chat visibility,
+  self-modifying configuration, general-purpose feature-flag system beyond
+  silas_settings). Job Export remains unscoped, now Section 49.
+- CARRIED FORWARD: no direct inventory_balances writes; no new permission
+  flags beyond can_access_developer reuse for the Silas kill switch.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 127).
+
+---
