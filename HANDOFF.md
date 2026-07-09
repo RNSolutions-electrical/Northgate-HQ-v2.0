@@ -12669,6 +12669,58 @@ Tuner cleanup. This stayed inside the flat milestone/task-list scope only.
 ### Routing Verdict
 No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
 
+## Entry 125 - Job Schedule archive select-policy fix prepared
+
+**Date:** 2026-07-09
+**Updated by:** Codex
+**Phase:** Jobs Module Completion / Schedule
+**Session type:** bugfix
+
+### Context
+After Entry 124's live RLS adjustment was run, Ryan still saw the same Schedule
+archive failure in both browsers. A second live-policy check was required
+because the update-policy fix alone did not clear the archive transition.
+
+### What Was Completed
+- Re-checked the live `job_schedule_items` policy state and confirmed the
+  `job_schedule_items_update` policy and archive-protection trigger from Entry
+  124 were present in production.
+- Re-ran the live authenticated archive simulation and confirmed it still failed
+  with `new row violates row-level security policy for table "job_schedule_items"`.
+- Proved the remaining blocker is the Schedule `SELECT` path, not the update
+  path, by running a rollback-only test that temporarily added manager read
+  access and saw the archive update succeed immediately.
+- Added `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
+  to grant same-division `can_manage_jobs` users Schedule-row read access needed
+  for the soft-archive transition.
+
+### Safety Confirmations
+- No new Schedule features were added.
+- No application code changed.
+- No Job Export work was started.
+- No Documents, Financials, Formatting Tuner, inventory, cart, or checkout
+  behavior was changed.
+- Active Schedule UI still filters `archived_at is null`, so archived items do
+  not reappear in the normal list after this fix.
+- The added read policy is limited to same-division users who already have
+  `can_manage_jobs`.
+
+### Files Changed
+- `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed the live `job_schedule_items_update` policy no longer requires
+  `archived_at is null`.
+- Confirmed the live archive-protection trigger exists.
+- Confirmed the live archive simulation still failed before the select-policy
+  test.
+- Confirmed a rollback-only temporary manager-read policy makes the exact same
+  live archive update succeed.
+
+### Routing Verdict
+No Claude review needed — within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
+
 ## Entry 124 - Job Schedule archive RLS bugfix prepared
 
 **Date:** 2026-07-08
