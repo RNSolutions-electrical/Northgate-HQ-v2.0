@@ -13020,3 +13020,112 @@ through Entry 126 following the repair above. This entry is 127.
 No Claude review needed — within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 127).
 
 ---
+
+## Entry 128 - Silas foundation implemented
+
+**Date:** 2026-07-09
+**Updated by:** Codex
+**Phase:** Silas foundation
+**Session type:** implementation
+
+### Context
+This is the first implementation pass after the docs-only Silas architecture
+lock in ARCHITECTURE v2.28 Section 48. Ryan approved Option A / Phase 1 only:
+schema, RLS, global kill switch, Netlify proxy foundation, dedicated workspace
+shell, floating bubble shell, and Developer toggle — without any business-data
+write capability or advanced suggested actions.
+
+### What Was Completed
+- Created `supabase/migrations/202607090002_silas_foundation.sql`.
+- Created `public.silas_conversations`.
+- Created `public.silas_messages`.
+- Created `public.silas_settings`.
+- Seeded a single-row Silas settings record with `silas_enabled = true`.
+- Enforced the single-row settings convention with a unique index on a constant
+  expression.
+- Added `set_silas_conversations_updated_at`.
+- Added `set_silas_settings_updated_at`.
+- Added per-user RLS for Silas conversations/messages.
+- Added authenticated read + Developer-only update for `silas_settings` using
+  the existing `can_access_developer` effective-permissions pattern.
+- Added no DELETE policies on any Silas table.
+- Added `netlify/functions/silas-chat.js` as the Silas proxy foundation.
+- Confirmed the proxy uses the requesting user's Clerk-issued Supabase JWT for
+  Supabase reads/writes by creating the function-side client from the anon/public
+  key plus the incoming `Authorization: Bearer <jwt>` header.
+- Confirmed the proxy does not use `SUPABASE_SERVICE_ROLE_KEY` and does not use
+  service-role plus manual filtering.
+- Confirmed the backend checks `silas_settings.silas_enabled` before any
+  user-scoped Silas conversation read or Claude API call.
+- Added a dedicated Silas workspace shell to the main app navigation.
+- Added a floating Silas bubble shell that shares the same conversation history.
+- Added a Developer Dashboard Silas Enabled / Silas Disabled toggle.
+- Added Developer-visible missing-key messaging for
+  `SILAS_ANTHROPIC_API_KEY`.
+- Added foundation chat persistence for user/assistant message history through
+  the new Silas tables only.
+
+### Safety Confirmations
+- No new permission flags were added.
+- No existing permissions were changed.
+- No existing business-data table RLS/grants/policies were changed.
+- No direct `inventory_balances` write path was added.
+- No service-role Supabase read path was added for Silas.
+- No business-data writes are performed by the Silas proxy.
+- No inventory, cart, checkout, Documents, Financials, Schedule, or Formatting
+  Tuner behavior was changed beyond shared app-shell exposure of the Silas
+  workspace and bubble.
+- No Job Export work was started.
+
+### Phase 1 limitations
+- No receipt parsing.
+- No suggested-action execution.
+- No business-data writes.
+- No Cart/Checkout wiring.
+- No Documents upload wiring.
+- No Job Budget Line wiring.
+- No Schedule wiring.
+- No Job Export.
+
+### Files Changed
+- `supabase/migrations/202607090002_silas_foundation.sql`
+- `netlify/functions/silas-chat.js`
+- `src/hooks/useSilas.js`
+- `src/components/SilasPanels.jsx`
+- `src/App.jsx`
+- `src/styles.css`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch `main`.
+- Confirmed working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
+- Confirmed HANDOFF was current through Entry 127 before this append.
+- Confirmed Section 48 exists and locks Silas.
+- Confirmed Section 48 explicitly requires requesting-user JWT Supabase access,
+  not service-role access.
+- Confirmed no prior Silas migrations existed in repo.
+- Confirmed no prior `silas_conversations`, `silas_messages`, or
+  `silas_settings` migrations existed in repo.
+- Confirmed no `netlify/functions` implementation existed before this pass.
+- Confirmed the frontend already had a reusable authenticated Supabase client
+  pattern using Clerk `getToken({ template: 'supabase' })` plus
+  `createSupabaseClient(token)`.
+- Confirmed the function-side Silas Supabase client is built from anon/public
+  credentials plus the requesting user's JWT in the Authorization header.
+- Confirmed no `SUPABASE_SERVICE_ROLE_KEY` reference was added.
+- Confirmed `silas_settings.silas_enabled` is checked inside the backend
+  function.
+- Confirmed only one new migration file was added and no existing migration file
+  was edited.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Live Supabase migration was not applied in this session and still needs manual
+  application if Ryan wants the deployed app to use Silas immediately.
+- Netlify env var `SILAS_ANTHROPIC_API_KEY` still needs deployment-time setup or
+  verification unless Ryan already configured it in Netlify outside this
+  session.
+
+### Routing Verdict
+No Claude review needed — Silas foundation stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 128).

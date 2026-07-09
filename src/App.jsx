@@ -3,6 +3,7 @@ import jsQR from 'jsqr';
 import { Archive, Briefcase, Camera, CameraOff, ChevronDown, ChevronUp, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
+import { SilasBubble, SilasWorkspacePanel } from './components/SilasPanels.jsx';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
@@ -10,6 +11,7 @@ import { useInventoryReadModel } from './hooks/useInventoryReadModel.js';
 import { useInventoryCart } from './hooks/useInventoryCart.js';
 import { useInventoryTransactionHistory } from './hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from './hooks/usePermissions.js';
+import { useSilas } from './hooks/useSilas.js';
 import { buildLocationQrSvg, buildLocationQrUrl, buildLocationScanPath, parseLocationScanPayload, getAppOrigin } from './lib/locationQr.js';
 
 const APP_BUILD_SHA = __APP_BUILD_SHA__;
@@ -55,6 +57,7 @@ const WORKSPACES = new Set([
   'tools',
   'employees',
   'vehicles',
+  'silas',
   'developer',
 ]);
 const COUNT_REASON_OPTIONS = [
@@ -78,13 +81,15 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Job Schedule v1',
-  relatedHandoff: 'Entry 123',
-  architectureVersion: 'v2.27',
+  mostRecentChange: 'Silas Foundation',
+  relatedHandoff: 'Entry 128',
+  architectureVersion: 'v2.28',
   currentStep: 'Jobs completion — Schedule',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'Job Schedule v1 is the active Jobs completion slice, while the build-time SHA marker still reports the actual bundle being served.',
+  deploymentNote: 'The build marker still reflects the exact bundle being served while Silas foundation stays inside the v2.28 locked shell.',
 };
+
+DEVELOPMENT_STATUS.currentStep = 'Silas foundation - schema, kill switch, proxy, UI shell';
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
 const LEGACY_LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
@@ -11219,6 +11224,11 @@ function DeveloperDashboard({
   formattingTunerValues,
   setFormattingTunerValues,
   resetFormattingTunerValues,
+  silasEnabled,
+  silasSettingsLoading,
+  silasSettingsError,
+  silasTogglePending,
+  onToggleSilas,
 }) {
   if (!showDevDashboard) {
     return (
@@ -11288,6 +11298,45 @@ function DeveloperDashboard({
       <article className="card card--wide dev-dashboard-card">
         <div className="card__header">
           <div>
+            <p className="eyebrow">Silas Control</p>
+            <h2>Global Kill Switch</h2>
+            <p>
+              Silas uses one authenticated settings row for a server-enforced
+              global enable/disable state. The backend still checks this value
+              before any user-scoped Silas read or Claude call.
+            </p>
+          </div>
+        </div>
+        {silasSettingsError ? (
+          <div className="alert">Silas settings failed to load in the Developer Dashboard.</div>
+        ) : null}
+        <div className="developer-toggle-row">
+          <div>
+            <strong>{silasEnabled ? 'Silas Enabled' : 'Silas Disabled'}</strong>
+            <p className="muted">
+              {silasSettingsLoading
+                ? 'Loading Silas kill switch state...'
+                : 'This toggle updates silas_settings.silas_enabled only. No new permission flags were added.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className={silasEnabled ? 'secondary-button' : 'primary-button'}
+            disabled={silasSettingsLoading || silasTogglePending}
+            onClick={() => onToggleSilas(!silasEnabled)}
+          >
+            {silasTogglePending
+              ? 'Updating...'
+              : silasEnabled
+                ? 'Disable Silas'
+                : 'Enable Silas'}
+          </button>
+        </div>
+      </article>
+
+      <article className="card card--wide dev-dashboard-card">
+        <div className="card__header">
+          <div>
             <p className="eyebrow">Cart Write Gate</p>
             <h2>Per-Line Checkout Is Controlled</h2>
             <p>
@@ -11319,6 +11368,7 @@ function DeveloperWorkspaceLocked() {
 function Dashboard() {
   const { user } = useUser();
   const permissions = usePermissions();
+  const silas = useSilas({ permissions });
   const [browserPath, navigateTo] = useBrowserPath();
   const scanRoute = parseLocationScanPayload(browserPath);
   const dashboardRouteContext = useMemo(
@@ -11327,6 +11377,7 @@ function Dashboard() {
   );
   const [showDevDashboard, setShowDevDashboard] = useState(() => readDevDashboardVisibility());
   const [formattingTunerValues, setFormattingTunerValues] = useState(() => readFormattingTunerValues());
+  const [silasBubbleOpen, setSilasBubbleOpen] = useState(false);
   const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
   const canAccessDeveloper = permissions.permissionSource === 'server' && permissions.canAccessDeveloper;
   const activeWorkspace = dashboardRouteContext.activeWorkspace;
@@ -11362,6 +11413,12 @@ function Dashboard() {
       clearFormattingTunerInlineValues();
     };
   }, [canAccessDeveloper, formattingTunerValues]);
+
+  useEffect(() => {
+    if (!silas.silasEnabled) {
+      setSilasBubbleOpen(false);
+    }
+  }, [silas.silasEnabled]);
 
   function openWorkspace(workspace) {
     if (workspace === 'developer') {
@@ -11417,6 +11474,11 @@ function Dashboard() {
             <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'vehicles' ? 'page' : undefined} onClick={() => openWorkspace('vehicles')}>
               Vehicles
             </button>
+            {silas.silasEnabled ? (
+              <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'silas' ? 'page' : undefined} onClick={() => openWorkspace('silas')}>
+                Silas
+              </button>
+            ) : null}
             {canAccessDeveloper ? (
               <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'developer' ? 'page' : undefined} onClick={() => openWorkspace('developer')}>
                 Developer
@@ -11468,6 +11530,27 @@ function Dashboard() {
           />
         ) : null}
         {activeWorkspace === 'jobs' ? <JobsWorkspace permissions={permissions} navigateTo={navigateTo} /> : null}
+        {activeWorkspace === 'silas' ? (
+          <SilasWorkspacePanel
+            enabled={silas.silasEnabled}
+            settingsLoading={silas.settingsLoading}
+            settingsError={silas.settingsError}
+            conversations={silas.conversations}
+            conversationsLoading={silas.conversationsLoading}
+            activeConversationId={silas.activeConversationId}
+            messages={silas.messages}
+            messagesLoading={silas.messagesLoading}
+            draftMessage={silas.draftMessage}
+            setDraftMessage={silas.setDraftMessage}
+            onSend={silas.sendMessage}
+            onSelectConversation={silas.setActiveConversationId}
+            onNewConversation={silas.startNewConversation}
+            statusMessage={silas.statusMessage}
+            chatError={silas.chatError}
+            isSending={silas.isSending}
+            responseSource={silas.responseSource}
+          />
+        ) : null}
         {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
         {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
         {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}
@@ -11483,6 +11566,11 @@ function Dashboard() {
               formattingTunerValues={formattingTunerValues}
               setFormattingTunerValues={setFormattingTunerValues}
               resetFormattingTunerValues={resetFormattingTunerValues}
+              silasEnabled={silas.silasEnabled}
+              silasSettingsLoading={silas.settingsLoading}
+              silasSettingsError={silas.settingsError}
+              silasTogglePending={silas.isUpdatingSettings}
+              onToggleSilas={silas.toggleSilasEnabled}
             />
           ) : (
             <DeveloperWorkspaceLocked />
@@ -11490,6 +11578,23 @@ function Dashboard() {
         ) : null}
       </section>
       )}
+      <SilasBubble
+        enabled={silas.silasEnabled}
+        isOpen={silasBubbleOpen}
+        onOpen={() => setSilasBubbleOpen(true)}
+        onClose={() => setSilasBubbleOpen(false)}
+        conversations={silas.conversations}
+        activeConversationId={silas.activeConversationId}
+        messages={silas.messages}
+        messagesLoading={silas.messagesLoading}
+        draftMessage={silas.draftMessage}
+        setDraftMessage={silas.setDraftMessage}
+        onSend={silas.sendMessage}
+        onSelectConversation={silas.setActiveConversationId}
+        statusMessage={silas.statusMessage}
+        chatError={silas.chatError}
+        isSending={silas.isSending}
+      />
     </main>
   );
 }

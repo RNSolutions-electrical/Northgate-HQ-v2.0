@@ -1365,6 +1365,173 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   .location-record small { grid-column: 1; }
 }
 
+.silas-workspace,
+.silas-chat-card,
+.silas-disabled-state,
+.silas-empty-state,
+.silas-bubble__panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.silas-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.silas-sidebar,
+.silas-chat-card {
+  border: 1px solid var(--card-border, #d6d9e0);
+  border-radius: var(--ui-radius, 8px);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 1rem;
+}
+
+.silas-sidebar__header,
+.silas-bubble__header,
+.developer-toggle-row,
+.silas-composer__actions,
+.silas-message__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.silas-conversation-list,
+.silas-message-list,
+.silas-bubble__conversation-strip {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.silas-conversation-list__item,
+.silas-chip {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--card-border, #d6d9e0);
+  border-radius: var(--ui-radius, 8px);
+  background: #f8fafc;
+  color: inherit;
+  padding: 0.85rem 0.95rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.silas-conversation-list__item--active,
+.silas-chip--active {
+  border-color: #1f6feb;
+  background: #eaf2ff;
+}
+
+.silas-conversation-list__item span,
+.silas-message__meta span {
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.silas-message {
+  border-radius: var(--ui-radius, 8px);
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--card-border, #d6d9e0);
+}
+
+.silas-message p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.silas-message--assistant {
+  background: #f3f7ff;
+}
+
+.silas-message--user {
+  background: #f9fafb;
+}
+
+.silas-action-placeholder {
+  margin-top: 0.75rem;
+  border-radius: var(--ui-radius, 8px);
+  background: #fff7ed;
+  color: #9a3412;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.92rem;
+}
+
+.silas-composer {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.silas-composer__input {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.silas-bubble {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 30;
+  display: grid;
+  justify-items: end;
+  gap: 0.75rem;
+}
+
+.silas-bubble__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+}
+
+.silas-bubble__panel {
+  width: min(360px, calc(100vw - 2rem));
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  border: 1px solid var(--card-border, #d6d9e0);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+  padding: 1rem;
+}
+
+.developer-toggle-row {
+  margin-top: 1rem;
+}
+
+@media (max-width: 980px) {
+  .silas-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .developer-toggle-row,
+  .silas-sidebar__header,
+  .silas-bubble__header,
+  .silas-composer__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .silas-bubble {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .silas-bubble__panel {
+    width: min(100vw - 1.5rem, 420px);
+    max-height: min(65vh, 520px);
+  }
+}
+
 @media print {
   @page { size: landscape; margin: .35in; }
   body { background: #fff; color: #111827; }
