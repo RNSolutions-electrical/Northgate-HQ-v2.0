@@ -3,6 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 const DISABLED_MESSAGE = 'Silas is currently unavailable. Contact a Developer if you believe this is unexpected.';
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const MAX_CONTEXT_MESSAGES = 10;
+const SILAS_SYSTEM_PROMPT = [
+  'You are Silas, the AI assistant inside Northgate HQ.',
+  'You can have normal conversation and answer general questions from your built-in knowledge.',
+  'You are permission-aware and must not claim access beyond the requesting user\'s permissions.',
+  'In this phase, you do not execute business-data writes.',
+  'In this phase, you do not perform Approve/Deny business actions.',
+  'In this phase, you do not parse receipts.',
+  'In this phase, you do not browse or search the web.',
+  'If asked for current or live information, clearly say web search is not enabled yet.',
+  'If asked to change Northgate HQ records, explain that action approvals are not enabled yet.',
+  'Never invent Northgate HQ data or claim to see records you were not given.',
+  'Never claim to have changed a record unless an existing approved action path actually did so.',
+  'Keep responses practical, concise, and useful.',
+].join(' ');
 
 function json(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -43,12 +58,6 @@ function createUserScopedClient(accessToken) {
   });
 }
 
-function buildFallbackAssistantReply(prompt) {
-  const collapsed = String(prompt || '').replace(/\s+/g, ' ').trim();
-  const excerpt = collapsed.length > 140 ? `${collapsed.slice(0, 137)}...` : collapsed;
-  return `Silas foundation is online. I saved your message${excerpt ? ` about "${excerpt}"` : ''} and will stay inside your existing permissions. Approve/Deny business actions, receipts, and module-specific automations are not enabled yet in Phase 1.`;
-}
-
 async function loadSilasSettings(client) {
   const { data, error } = await client
     .from('silas_settings')
@@ -65,6 +74,7 @@ async function loadConversation(client, conversationId) {
     .from('silas_conversations')
     .select('id,division,title')
     .eq('id', conversationId)
+    .is('archived_at', null)
     .single();
 
   if (error) throw error;
@@ -76,12 +86,12 @@ async function loadRecentMessages(client, conversationId) {
     .from('silas_messages')
     .select('role,content')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(12);
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(MAX_CONTEXT_MESSAGES);
 
   if (error) throw error;
-  return data ?? [];
+  return [...(data ?? [])].reverse();
 }
 
 async function callAnthropic({ apiKey, promptMessages }) {
@@ -95,7 +105,7 @@ async function callAnthropic({ apiKey, promptMessages }) {
     body: JSON.stringify({
       model: DEFAULT_MODEL,
       max_tokens: 350,
-      system: 'You are Silas, a cautious assistant for Northgate HQ. Stay high-level, avoid claiming write authority, and do not suggest executing actions that are not explicitly enabled yet.',
+      system: SILAS_SYSTEM_PROMPT,
       messages: promptMessages.map((message) => ({
         role: message.role === 'assistant' ? 'assistant' : 'user',
         content: message.content,
@@ -185,25 +195,34 @@ export default async (req) => {
     }
 
     let assistantContent = '';
-    let responseSource = 'claude';
-
     try {
       assistantContent = await callAnthropic({ apiKey, promptMessages });
-      if (!assistantContent) {
-        assistantContent = buildFallbackAssistantReply(message);
-        responseSource = 'fallback';
-      }
     } catch (error) {
-      console.error('Silas Claude call failed, using foundation fallback', error);
-      assistantContent = buildFallbackAssistantReply(message);
-      responseSource = 'fallback';
+      console.error('Silas Claude call failed', error);
+      return json(
+        {
+          message: 'Silas could not respond right now. Your message was saved, but no assistant reply was generated. Please try again.',
+          reason: 'claude_unavailable',
+        },
+        { status: 502 },
+      );
+    }
+
+    if (!assistantContent) {
+      return json(
+        {
+          message: 'Silas returned an empty response. Your message was saved, but no assistant reply was generated. Please try again.',
+          reason: 'claude_empty',
+        },
+        { status: 502 },
+      );
     }
 
     const assistantMessage = await insertAssistantMessage(client, conversation, assistantContent);
 
     return json({
       assistantMessage,
-      responseSource,
+      responseSource: 'claude',
     });
   } catch (error) {
     console.error('Silas chat failed', error);

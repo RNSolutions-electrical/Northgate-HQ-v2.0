@@ -236,6 +236,7 @@ export function useSilas({ permissions }) {
     setIsSending(true);
     setStatusMessage('');
     setChatError('');
+    setResponseSource('');
 
     try {
       const { client, token } = await createAuthedClient();
@@ -280,13 +281,10 @@ export function useSilas({ permissions }) {
       setResponseSource(payload.responseSource || '');
       await loadMessages(conversation.id);
       await loadConversations();
-      setStatusMessage(
-        payload.responseSource === 'fallback'
-          ? 'Silas foundation response saved.'
-          : 'Silas response saved.',
-      );
+      setStatusMessage('Silas response saved.');
     } catch (error) {
       console.error('Silas send failed', error);
+      setResponseSource('');
       setChatError(error?.message || 'Silas could not send that message.');
     } finally {
       setIsSending(false);

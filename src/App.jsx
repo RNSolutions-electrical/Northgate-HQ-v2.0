@@ -81,15 +81,15 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Silas Foundation',
-  relatedHandoff: 'Entry 128',
+  mostRecentChange: 'Silas Conversation',
+  relatedHandoff: 'Entry 130',
   architectureVersion: 'v2.28',
   currentStep: 'Jobs completion — Schedule',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'The build marker still reflects the exact bundle being served while Silas foundation stays inside the v2.28 locked shell.',
+  deploymentNote: 'The build marker still reflects the exact bundle being served while Silas conversation stays inside the v2.28 locked shell.',
 };
 
-DEVELOPMENT_STATUS.currentStep = 'Silas foundation - schema, kill switch, proxy, UI shell';
+DEVELOPMENT_STATUS.currentStep = 'Silas Phase 2A - casual conversation';
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
 const LEGACY_LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';

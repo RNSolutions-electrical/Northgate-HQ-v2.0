@@ -10,7 +10,7 @@ function formatTimestamp(value) {
   }
 }
 
-function SilasMessageList({ messages, isLoading }) {
+function SilasMessageList({ messages, isLoading, isSending }) {
   if (isLoading) {
     return <p className="muted">Loading Silas conversation...</p>;
   }
@@ -24,25 +24,28 @@ function SilasMessageList({ messages, isLoading }) {
   }
 
   return (
-    <div className="silas-message-list">
-      {messages.map((message) => (
-        <article
-          key={message.id}
-          className={`silas-message silas-message--${message.role}`}
-        >
-          <div className="silas-message__meta">
-            <strong>{message.role === 'assistant' ? 'Silas' : 'You'}</strong>
-            <span>{formatTimestamp(message.createdAt)}</span>
-          </div>
-          <p>{message.content}</p>
-          {message.suggestedAction ? (
-            <div className="silas-action-placeholder">
-              Action approvals are not enabled yet in Phase 1.
+    <>
+      <div className="silas-message-list">
+        {messages.map((message) => (
+          <article
+            key={message.id}
+            className={`silas-message silas-message--${message.role}`}
+          >
+            <div className="silas-message__meta">
+              <strong>{message.role === 'assistant' ? 'Silas' : 'You'}</strong>
+              <span>{formatTimestamp(message.createdAt)}</span>
             </div>
-          ) : null}
-        </article>
-      ))}
-    </div>
+            <p>{message.content}</p>
+            {message.suggestedAction ? (
+              <div className="silas-action-placeholder">
+                Action approvals are not enabled yet in Phase 1.
+              </div>
+            ) : null}
+          </article>
+        ))}
+      </div>
+      {isSending ? <p className="muted">Silas is responding...</p> : null}
+    </>
   );
 }
 
@@ -151,9 +154,6 @@ export function SilasWorkspacePanel({
       {settingsError ? <div className="alert">Silas settings failed to load.</div> : null}
       {chatError ? <div className="alert">{chatError}</div> : null}
       {statusMessage ? <p className="build-note">{statusMessage}</p> : null}
-      {responseSource === 'fallback' ? (
-        <p className="muted">Silas is using a foundation fallback response path right now.</p>
-      ) : null}
       {settingsLoading ? <p className="muted">Loading Silas settings...</p> : null}
 
       {!enabled && !settingsLoading ? (
@@ -170,7 +170,7 @@ export function SilasWorkspacePanel({
             onNewConversation={onNewConversation}
           />
           <section className="silas-chat-card">
-            <SilasMessageList messages={messages} isLoading={messagesLoading} />
+            <SilasMessageList messages={messages} isLoading={messagesLoading} isSending={isSending} />
             <SilasComposer
               draftMessage={draftMessage}
               setDraftMessage={setDraftMessage}
@@ -238,7 +238,7 @@ export function SilasBubble({
               ))}
             </div>
           ) : null}
-          <SilasMessageList messages={messages} isLoading={messagesLoading} />
+          <SilasMessageList messages={messages} isLoading={messagesLoading} isSending={isSending} />
           <SilasComposer
             draftMessage={draftMessage}
             setDraftMessage={setDraftMessage}

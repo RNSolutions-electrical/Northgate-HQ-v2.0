@@ -13193,3 +13193,98 @@ configured for responses, and completed a browser-based live verification pass.
 
 ### Routing Verdict
 No Claude review needed — documentation-only Silas foundation live verification (ARCHITECTURE v2.28, HANDOFF Entry 129).
+
+## Entry 130 - Silas casual conversation enabled
+
+**Date:** 2026-07-10
+**Updated by:** Codex
+**Phase:** Silas Phase 2A
+**Session type:** implementation
+
+### Context
+Silas Foundation was already live under ARCHITECTURE v2.28 Section 48, with
+the dedicated workspace, floating bubble, per-user chat history, backend kill
+switch, and JWT-scoped Supabase access already verified by Ryan. This pass
+stayed inside that locked architecture and upgraded the existing Netlify Silas
+proxy from the canned Phase 1 foundation reply to real Claude-backed casual
+conversation and general Q&A.
+
+### What Was Completed
+- Enabled real Claude-backed casual conversation through the existing
+  `netlify/functions/silas-chat.js` proxy.
+- Refined the server-side Silas system prompt so Silas can handle normal
+  conversation and general questions while explicitly staying inside Phase 2A
+  limits.
+- Preserved server-side-only use of `SILAS_ANTHROPIC_API_KEY`.
+- Preserved the backend `silas_settings.silas_enabled` kill-switch check before
+  any Claude API call.
+- Preserved requesting-user JWT Supabase access for Silas conversation/message
+  reads and writes.
+- Did not use `SUPABASE_SERVICE_ROLE_KEY` or any service-role Supabase access.
+- Preserved per-user chat history and kept conversation context limited to the
+  current user's selected conversation only.
+- Corrected conversation-context loading so the Claude request includes recent
+  messages rather than the oldest messages in the thread.
+- Removed the canned fallback assistant reply path so backend Claude failures no
+  longer create a fake assistant message.
+- Kept the existing Silas workspace and floating bubble.
+- Added a clearer in-UI responding state while Silas is waiting on Claude.
+- Kept friendly frontend/backend error handling so a failed Claude response
+  leaves the saved user message visible without crashing the app.
+
+### Safety Confirmations
+- No web search was added.
+- No browsing provider was added.
+- No receipt parsing was added.
+- No suggested-action execution was added.
+- No Approve/Deny business action execution was added.
+- No business-data writes were added.
+- No Cart/Checkout behavior changed.
+- No Documents behavior changed.
+- No Financials behavior changed.
+- No Schedule behavior changed.
+- No Inventory behavior changed.
+- No Job Export work was started.
+- No new migrations were added.
+- No new permission flags were added.
+- No business-table RLS, grants, or policies were changed.
+
+### Files Changed
+- `netlify/functions/silas-chat.js`
+- `src/hooks/useSilas.js`
+- `src/components/SilasPanels.jsx`
+- `src/App.jsx`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch `main`.
+- Confirmed working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
+- Confirmed HANDOFF already included Entry 129 before this append.
+- Confirmed no migration files changed or were added.
+- Confirmed no package files changed.
+- Confirmed no business-data write calls were added.
+- Confirmed no `SUPABASE_SERVICE_ROLE_KEY` usage was added.
+- Confirmed `silas_settings.silas_enabled` is still checked in the backend
+  before Claude API calls.
+- Confirmed the backend prompt now tells Silas to refuse/defer current web
+  lookup because web search is not enabled yet.
+- Confirmed the backend prompt now tells Silas not to claim receipt handling or
+  action execution that is not enabled yet.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- `node --check netlify/functions/silas-chat.js` passed.
+- Live/browser verification of casual conversation, current-info refusal, and
+  no-action claims still needs Ryan to test on the deployed app after this
+  commit is pushed, because this session did not execute a live Anthropic call.
+
+### Next Steps (in order)
+1. Push/deploy this commit.
+2. Ryan verifies a normal casual message gets a real Silas reply.
+3. Ryan verifies a current/live-info request is refused/deferred because web
+   search is not enabled yet.
+4. Ryan verifies Silas does not claim it can execute receipts/actions yet.
+
+### Routing Verdict
+No Claude review needed — Silas casual conversation stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 130).
