@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const DISABLED_MESSAGE = 'Silas is currently unavailable. Contact a Developer if you believe this is unexpected.';
 const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
-const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_MODEL = 'claude-3-5-haiku-latest';
 const MAX_CONTEXT_MESSAGES = 10;
 const SILAS_SYSTEM_PROMPT = [
   'You are Silas, the AI assistant inside Northgate HQ.',
@@ -104,7 +104,7 @@ async function callAnthropic({ apiKey, promptMessages }) {
     },
     body: JSON.stringify({
       model: DEFAULT_MODEL,
-      max_tokens: 350,
+      max_tokens: 800,
       system: SILAS_SYSTEM_PROMPT,
       messages: promptMessages.map((message) => ({
         role: message.role === 'assistant' ? 'assistant' : 'user',
@@ -203,6 +203,7 @@ export default async (req) => {
         {
           message: 'Silas could not respond right now. Your message was saved, but no assistant reply was generated. Please try again.',
           reason: 'claude_unavailable',
+          details: error instanceof Error ? error.message : 'Unknown Claude request failure.',
         },
         { status: 502 },
       );

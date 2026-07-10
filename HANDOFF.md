@@ -13288,3 +13288,105 @@ conversation and general Q&A.
 
 ### Routing Verdict
 No Claude review needed — Silas casual conversation stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 130).
+
+## Entry 131 - Silas Phase 2A assistant response failure bugfix
+
+**Date:** 2026-07-10
+**Updated by:** Codex
+**Phase:** Silas Phase 2A
+**Session type:** bugfix / implementation
+
+### Context
+Ryan live-tested Silas Phase 2A after Entry 130 was pushed. The user message
+save path succeeded, but the assistant reply failed with:
+`Silas could not respond right now. Your message was saved, but no assistant reply was generated. Please try again.`
+
+That exact message came from the inner Claude-request failure branch in the
+existing Netlify function, not from the missing-key branch, not from the
+empty-response branch, and not from the assistant-message insert path.
+
+### What Was Diagnosed
+- Confirmed branch `main`.
+- Confirmed working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
+- Confirmed latest HANDOFF entry before this pass was Entry 130.
+- Confirmed the latest Silas Phase 2A commit `851c3f4` was present in history.
+- Confirmed `netlify/functions/silas-chat.js` exists.
+- Confirmed no Job Export work had started.
+- Confirmed no receipt/action/business-write work had started.
+- Confirmed the function still did not use `SUPABASE_SERVICE_ROLE_KEY`.
+- Confirmed the function still checked `silas_settings.silas_enabled` before
+  the Claude API call.
+- Confirmed the function still used the requesting user's JWT for Supabase
+  access.
+- Confirmed `SILAS_ANTHROPIC_API_KEY` was referenced exactly by that name.
+- Confirmed the live failure Ryan saw maps specifically to the function's
+  `claude_unavailable` path.
+- Ruled out missing API key as the observed failure, because that branch would
+  have returned `missing_api_key`, not the message Ryan saw.
+- Ruled out empty content parsing as the observed failure, because that branch
+  would have returned the separate `claude_empty` message.
+- Ruled out assistant-message insert / post-Claude Supabase failure as the
+  observed failure, because those would fall through to the outer generic 500
+  branch rather than the specific saved-message / no-assistant-reply branch.
+- Narrowed the most likely failure point to the Anthropic HTTP request itself.
+- The strongest request-shape mismatch in the pre-bugfix code was the model
+  identifier `claude-sonnet-4-20250514`, which did not match Ryan's expected
+  direct Anthropic Messages API example and was the highest-probability cause
+  of a provider rejection.
+
+### What Was Completed
+- Changed the Silas Anthropic model from `claude-sonnet-4-20250514` to
+  `claude-3-5-haiku-latest`.
+- Increased `max_tokens` from 350 to 800 to align the request more closely
+  with the intended casual-conversation Messages API shape.
+- Preserved the same endpoint:
+  `https://api.anthropic.com/v1/messages`.
+- Preserved the same `anthropic-version: 2023-06-01` header.
+- Preserved server-side-only use of `SILAS_ANTHROPIC_API_KEY`.
+- Preserved the backend kill-switch check before the Claude call.
+- Preserved requesting-user JWT Supabase access and did not use service-role.
+- Added developer-visible backend error detail passthrough for the
+  `claude_unavailable` path so future provider rejections surface the actual
+  Anthropic error text to a Developer session instead of only the generic
+  assistant failure banner.
+
+### Safety Confirmations
+- No web search was added.
+- No receipt parsing was added.
+- No Approve/Deny business actions were added.
+- No business-data writes were added.
+- No Job Export work was started.
+- No business-table RLS, grants, or policies were changed.
+- No new migrations were added.
+- No new permission flags were added.
+
+### Files Changed
+- `netlify/functions/silas-chat.js`
+- `src/hooks/useSilas.js`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- `node --check netlify/functions/silas-chat.js` passed.
+- Confirmed only the Silas function, Silas hook, and HANDOFF changed in this
+  bugfix pass.
+- Confirmed `SUPABASE_SERVICE_ROLE_KEY` still does not appear in the Silas
+  function.
+- Confirmed `silas_settings.silas_enabled` is still checked before the Claude
+  API call.
+- Confirmed `SILAS_ANTHROPIC_API_KEY` is still read exactly by that name.
+- Live confirmation of the repaired assistant reply path still requires Ryan to
+  test after deployment, because this session did not execute a live Anthropic
+  request with production secrets.
+
+### Next Steps (in order)
+1. Push/deploy this bugfix.
+2. Ryan re-tests a normal Silas message live.
+3. If the reply still fails, Ryan checks the new Developer-visible Claude error
+   detail in the UI so the exact provider rejection can be captured directly.
+
+### Routing Verdict
+No Claude review needed — focused Silas Phase 2A assistant-response bugfix within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 131).

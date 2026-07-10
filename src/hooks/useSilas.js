@@ -272,6 +272,8 @@ export function useSilas({ permissions }) {
         const messageForUser =
           payload.reason === 'missing_api_key' && canAccessDeveloper
             ? 'Silas is missing the SILAS_ANTHROPIC_API_KEY Netlify environment variable.'
+            : payload.reason === 'claude_unavailable' && canAccessDeveloper && payload.details
+              ? `Silas Claude request failed: ${payload.details}`
             : payload.reason === 'silas_disabled'
               ? SILAS_DISABLED_HELPER_COPY
               : payload.message || 'Silas chat request failed.';
