@@ -13463,3 +13463,88 @@ Supabase persistence path, kill switch, or JWT-scoped conversation access.
 
 ### Routing Verdict
 No Claude review needed — Silas Claude model ID fix stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 132).
+
+## Entry 133 - Silas chat scroll fix
+
+**Date:** 2026-07-10
+**Updated by:** Codex
+**Phase:** Silas Phase 2A
+**Session type:** UI bugfix / implementation
+
+### Context
+Ryan reported that in the dedicated Silas module, after sending a message, the
+screen jumped back to the top instead of staying near the latest message and
+chat input. Silas casual conversation itself was already working live; this was
+an interaction bug in the chat UI only.
+
+### What Was Diagnosed
+- Confirmed branch `main`.
+- Confirmed working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
+- Confirmed latest HANDOFF entry before this pass was Entry 132.
+- Confirmed Silas chat UI files exist:
+  - `src/components/SilasPanels.jsx`
+  - `src/hooks/useSilas.js`
+  - `src/App.jsx`
+  - `src/styles.css`
+- Confirmed no implementation work was pending outside this safe UI pass.
+- Identified the likely root cause as the message thread not being a stable
+  internal scroll container inside the dedicated workspace chat card, allowing
+  page-level viewport movement during rerender/focus changes after message send
+  and response load.
+
+### What Was Completed
+- Added a stable scroll-to-latest behavior to the shared Silas message list.
+- Added a bottom anchor ref so the chat can scroll to the newest content after:
+  - initial message load
+  - user send
+  - assistant response insert/load
+  - active conversation change
+- Added pinned-to-bottom detection so the UI stays naturally anchored during
+  normal chat flow without needing backend/state changes.
+- Added safe textarea refocus after send completion so the input remains easy
+  to continue using without forcing the page back to the top.
+- Converted the dedicated Silas chat card into a stable two-row layout with an
+  internal scrolling message list.
+- Applied the same scroll-to-latest behavior to the floating bubble so its chat
+  behavior remains sensible too.
+
+### Safety Confirmations
+- UI-only change.
+- No backend changes were made.
+- No Netlify function changed.
+- No migrations were added.
+- No Supabase changes were made.
+- No RLS or permission changes were made.
+- No web search was added.
+- No memory was added.
+- No user-profile read implementation was added.
+- No business-data writes were added.
+- No Job Export work was started.
+
+### Files Changed
+- `src/components/SilasPanels.jsx`
+- `src/styles.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- Confirmed expected files only changed in this pass.
+- Confirmed no migrations changed.
+- Confirmed no Netlify function changed.
+- Confirmed no package files changed.
+- Confirmed no backend or business-data logic changed.
+
+### Next Steps (in order)
+1. Push/deploy this UI fix.
+2. Ryan sends a message in the Silas workspace and confirms the view stays near
+   the latest message/input.
+3. Ryan sends a second message and confirms the workspace no longer jumps to
+   the top.
+4. Ryan checks the floating bubble and confirms its scroll behavior is also
+   sensible.
+
+### Routing Verdict
+No Claude review needed — Silas chat scroll UI fix stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 133).

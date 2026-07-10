@@ -1378,7 +1378,7 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .silas-sidebar,
@@ -1387,6 +1387,11 @@ button:disabled { cursor: not-allowed; opacity: .6; }
   border-radius: var(--ui-radius, 8px);
   background: rgba(255, 255, 255, 0.78);
   padding: 1rem;
+}
+
+.silas-chat-card {
+  min-height: clamp(28rem, 68vh, 42rem);
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .silas-sidebar__header,
@@ -1405,6 +1410,18 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .silas-bubble__conversation-strip {
   display: grid;
   gap: 0.75rem;
+}
+
+.silas-message-list {
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
+  padding-right: 0.25rem;
+  scrollbar-gutter: stable;
+}
+
+.silas-scroll-anchor {
+  height: 1px;
 }
 
 .silas-conversation-list__item,
@@ -1496,12 +1513,16 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .silas-bubble__panel {
   width: min(360px, calc(100vw - 2rem));
   max-height: min(70vh, 640px);
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--card-border, #d6d9e0);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
   padding: 1rem;
+}
+
+.silas-bubble__panel .silas-message-list {
+  max-height: min(34vh, 300px);
 }
 
 .developer-toggle-row {

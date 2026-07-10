@@ -1,4 +1,5 @@
 import { MessageSquare, Sparkles, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { SILAS_DISABLED_HELPER_COPY, SILAS_EMPTY_HELPER_COPY } from '../hooks/useSilas.js';
 
 function formatTimestamp(value) {
@@ -10,7 +11,43 @@ function formatTimestamp(value) {
   }
 }
 
-function SilasMessageList({ messages, isLoading, isSending }) {
+function SilasMessageList({
+  messages,
+  isLoading,
+  isSending,
+  activeConversationId,
+}) {
+  const scrollContainerRef = useRef(null);
+  const scrollAnchorRef = useRef(null);
+  const isPinnedToBottomRef = useRef(true);
+  const previousConversationIdRef = useRef(activeConversationId);
+
+  function updatePinnedState() {
+    const node = scrollContainerRef.current;
+    if (!node) return;
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+    isPinnedToBottomRef.current = distanceFromBottom <= 80;
+  }
+
+  function scrollToLatest() {
+    scrollAnchorRef.current?.scrollIntoView({ block: 'end' });
+  }
+
+  useLayoutEffect(() => {
+    const conversationChanged = previousConversationIdRef.current !== activeConversationId;
+    const shouldAutoScroll = conversationChanged || isSending || isPinnedToBottomRef.current;
+
+    if (shouldAutoScroll) {
+      scrollToLatest();
+    }
+
+    previousConversationIdRef.current = activeConversationId;
+  }, [activeConversationId, isSending, messages.length]);
+
+  useEffect(() => {
+    updatePinnedState();
+  }, [messages.length]);
+
   if (isLoading) {
     return <p className="muted">Loading Silas conversation...</p>;
   }
@@ -25,7 +62,11 @@ function SilasMessageList({ messages, isLoading, isSending }) {
 
   return (
     <>
-      <div className="silas-message-list">
+      <div
+        ref={scrollContainerRef}
+        className="silas-message-list"
+        onScroll={updatePinnedState}
+      >
         {messages.map((message) => (
           <article
             key={message.id}
@@ -43,6 +84,7 @@ function SilasMessageList({ messages, isLoading, isSending }) {
             ) : null}
           </article>
         ))}
+        <div ref={scrollAnchorRef} aria-hidden="true" className="silas-scroll-anchor" />
       </div>
       {isSending ? <p className="muted">Silas is responding...</p> : null}
     </>
@@ -92,6 +134,21 @@ function SilasComposer({
   disabled,
   isSending,
 }) {
+  const textareaRef = useRef(null);
+  const previousSendingRef = useRef(isSending);
+
+  useEffect(() => {
+    if (previousSendingRef.current && !isSending && !disabled) {
+      try {
+        textareaRef.current?.focus({ preventScroll: true });
+      } catch {
+        textareaRef.current?.focus();
+      }
+    }
+
+    previousSendingRef.current = isSending;
+  }, [disabled, isSending]);
+
   return (
     <form
       className="silas-composer"
@@ -101,6 +158,7 @@ function SilasComposer({
       }}
     >
       <textarea
+        ref={textareaRef}
         className="silas-composer__input"
         value={draftMessage}
         onChange={(event) => setDraftMessage(event.target.value)}
@@ -170,7 +228,12 @@ export function SilasWorkspacePanel({
             onNewConversation={onNewConversation}
           />
           <section className="silas-chat-card">
-            <SilasMessageList messages={messages} isLoading={messagesLoading} isSending={isSending} />
+            <SilasMessageList
+              messages={messages}
+              isLoading={messagesLoading}
+              isSending={isSending}
+              activeConversationId={activeConversationId}
+            />
             <SilasComposer
               draftMessage={draftMessage}
               setDraftMessage={setDraftMessage}
@@ -238,7 +301,12 @@ export function SilasBubble({
               ))}
             </div>
           ) : null}
-          <SilasMessageList messages={messages} isLoading={messagesLoading} isSending={isSending} />
+          <SilasMessageList
+            messages={messages}
+            isLoading={messagesLoading}
+            isSending={isSending}
+            activeConversationId={activeConversationId}
+          />
           <SilasComposer
             draftMessage={draftMessage}
             setDraftMessage={setDraftMessage}
