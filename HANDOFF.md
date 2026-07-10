@@ -13390,3 +13390,76 @@ empty-response branch, and not from the assistant-message insert path.
 
 ### Routing Verdict
 No Claude review needed — focused Silas Phase 2A assistant-response bugfix within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 131).
+
+## Entry 132 - Silas Claude model ID fix
+
+**Date:** 2026-07-10
+**Updated by:** Codex
+**Phase:** Silas Phase 2A
+**Session type:** bugfix / implementation
+
+### Context
+Ryan captured the live Silas provider error after Entry 131:
+`Anthropic request failed: 404 {"type":"error","error":{"type":"not_found_error","message":"model: claude-3-5-haiku-latest"}...}`
+
+This isolated the root cause to the Anthropic model ID rather than the
+Supabase persistence path, kill switch, or JWT-scoped conversation access.
+
+### What Was Completed
+- Replaced the Silas Anthropic model ID in
+  `netlify/functions/silas-chat.js`.
+- Old model: `claude-3-5-haiku-latest`
+- New model: `claude-haiku-4-5-20251001`
+- Kept the Messages API endpoint unchanged:
+  `https://api.anthropic.com/v1/messages`
+- Kept the existing request headers unchanged, including
+  `anthropic-version: 2023-06-01`.
+- Preserved safe backend logging of Anthropic status code/error text without
+  exposing secrets.
+
+### Safety Confirmations
+- No web search was added.
+- No receipt parsing was added.
+- No suggested-action execution was added.
+- No business-data writes were added.
+- No service-role Supabase access was added.
+- Backend kill switch was preserved.
+- Requesting-user JWT Supabase access was preserved.
+- No Job Export work was started.
+- No migrations were added.
+- No Supabase changes were made.
+- No new permission flags were added.
+
+### Files Changed
+- `netlify/functions/silas-chat.js`
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch `main`.
+- Confirmed working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` before edits.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
+- Confirmed latest HANDOFF entry before this pass was Entry 131.
+- Confirmed current `netlify/functions/silas-chat.js` used
+  `claude-3-5-haiku-latest` before this fix.
+- Confirmed `silas_settings.silas_enabled` is still checked before the
+  Anthropic call.
+- Confirmed `SUPABASE_SERVICE_ROLE_KEY` is still not used.
+- Confirmed requesting-user JWT Supabase access is still used.
+- `git diff --check` passed.
+- `npm.cmd run build` passed.
+- `node --check netlify/functions/silas-chat.js` passed.
+- Confirmed no migrations changed.
+- Confirmed no package files changed.
+- Confirmed no web search was added.
+- Confirmed no business-data write path was added.
+
+### Next Steps (in order)
+1. Push/deploy this model fix.
+2. Ryan sends `What can you do right now?` in Silas and confirms a real reply.
+3. Ryan refreshes and confirms the reply persists.
+4. Ryan asks `Can you search the web?` and confirms Silas says web search is
+   not enabled yet.
+
+### Routing Verdict
+No Claude review needed — Silas Claude model ID fix stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 132).
