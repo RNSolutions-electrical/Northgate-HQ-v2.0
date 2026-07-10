@@ -13129,3 +13129,67 @@ write capability or advanced suggested actions.
 
 ### Routing Verdict
 No Claude review needed — Silas foundation stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 128).
+
+## Entry 129 - Silas foundation live verification
+
+**Date:** 2026-07-10
+**Updated by:** Codex
+**Phase:** Silas foundation
+**Session type:** live verification documentation
+
+### Context
+Silas Foundation was implemented under ARCHITECTURE v2.28 Section 48 and
+shipped in implementation commit `b459c3a`. Ryan then manually applied the live
+Supabase migration, confirmed the Netlify/API-key foundation was sufficiently
+configured for responses, and completed a browser-based live verification pass.
+
+### What Was Verified
+- Implementation commit `b459c3a` was already pushed before this entry.
+- Live Supabase migration
+  `supabase/migrations/202607090002_silas_foundation.sql` was applied
+  manually.
+- Ryan confirmed Silas Phase 1 works live.
+- Silas workspace appears when enabled.
+- Floating Silas bubble appears when enabled.
+- A basic chat message sends successfully.
+- Message history persists in the Silas workspace.
+- The same conversation/history is shared with the floating bubble.
+- Developer Dashboard Silas Enabled / Disabled toggle works.
+- Disabled state persists after refresh.
+- Re-enabling restores the Silas workspace and bubble.
+- The backend foundation response still confirms Phase 1-only behavior:
+  `Silas foundation is online. I saved your message about "What can you do in Phase 1?" and will stay inside your existing permissions. Approve/Deny business actions, receipts, and module-specific automations are not enabled yet in Phase 1.`
+
+### Safety Confirmations
+- No Approve/Deny business actions are enabled.
+- No receipt import is enabled.
+- No module-specific automations are enabled.
+- No Job Export work was added.
+- No business-data writes are enabled from Silas yet.
+- No app, schema, RLS, Supabase, or Netlify changes were made in this
+  verification entry.
+
+### Files Changed
+- `HANDOFF.md`
+
+### Verification
+- Confirmed branch `main`.
+- Confirmed working tree was clean before this append.
+- Confirmed local `main` matched `origin/main` before this append.
+- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
+- Confirmed HANDOFF latest entry was 128 before this append.
+- Confirmed implementation commit `b459c3a` is in history.
+- Confirmed migration file
+  `supabase/migrations/202607090002_silas_foundation.sql` exists in repo.
+- Confirmed no implementation changes were needed for this documentation-only
+  pass.
+- Confirmed only `HANDOFF.md` changed in this entry.
+
+### Next Steps (in order)
+1. Keep Silas Phase 1 as the current live baseline.
+2. Scope the next Silas milestone separately before implementation.
+3. Do not start receipts, Approve/Deny business actions, module-specific
+   automations, or Job Export without a new architecture-cleared task prompt.
+
+### Routing Verdict
+No Claude review needed — documentation-only Silas foundation live verification (ARCHITECTURE v2.28, HANDOFF Entry 129).
