@@ -1,4 +1,4 @@
-﻿# Northgate HQ v2.0 — Handoff Log
+# Northgate HQ v2.0 — Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
@@ -13961,3 +13961,280 @@ Developer-access gating patterns.
 No additional Claude review required before migration application — this stayed
 inside the locked Section 17b / Entry 136 backend scope after live schema
 confirmation.
+
+## Entry 138 - Granular Permission Overrides: Runtime Behavior Confirmed & Documented
+
+**Date:** 2026-07-14
+**Updated by:** Claude
+**Phase:** Post-Implementation Verification
+**Session type:** Documentation / Verification (no schema or behavior change)
+
+### Context
+
+Following Entry 137's backend implementation, Ryan requested inspection of the
+live `effective_permissions_for_user()` function body and database role
+configuration before beginning permission-flow testing with the two live
+Clerk users. This surfaced three facts that were true of the implementation but
+not explicitly recorded in Entry 136 or Entry 137. No code, schema, or RLS
+policy was changed in this pass — this entry documents confirmed runtime
+behavior only.
+
+### What Was Verified
+
+1. **Caller-scoped resolution only.** Inspected the live function definition
+   via `pg_get_functiondef()`. Confirmed `effective_permissions_for_user()`
+   resolves active overrides using `auth.jwt() ->> 'sub'` internally, with no
+   parameter accepting an arbitrary target Clerk user ID. The function can only
+   return the calling session's own effective permissions. Confirmed this is
+   safe for all current call sites (all check-caller-own-access), and recorded
+   as a permanent design boundary: this function must not be reused or have its
+   signature changed to check another user's permissions. Any future feature
+   needing that (e.g., an admin view of another user's access) requires a new,
+   explicitly target-scoped function.
+
+2. **Legacy JSONB is single-purpose.** Confirmed via the same function body
+   inspection that `user_permissions.permission_overrides` (the legacy JSONB
+   column) is read for exactly one flag: `can_access_developer`. All other
+   flags resolve exclusively from `default_permissions_for_role()` plus active
+   rows in `user_permission_overrides`. This was implied but not explicit in
+   Entry 137's summary; now recorded directly.
+
+3. **No RLS recursion — mechanism confirmed.** Ran:
+   ```sql
+   select p.proname, r.rolname, r.rolbypassrls
+   from pg_proc p
+   join pg_roles r on r.oid = p.proowner
+   where p.proname = 'effective_permissions_for_user';
+   ```
+   Confirmed live result: owner `postgres`, `rolbypassrls = true`. Combined
+   with `effective_permissions_for_user()` being `SECURITY DEFINER`, this
+   function's internal read of `user_permission_overrides` bypasses that
+   table's RLS entirely, which is what prevents the recursion risk originally
+   flagged in the second Rule 20 cross-clearance pass (Entry 136). Confirmed
+   this is a distinct, non-conflicting mechanism from the separate
+   non-recursive `current_user_has_developer_access()` helper, which avoids
+   recursion by never querying the override table at all rather than by
+   bypassing RLS. Both are correct and serve different purposes; they should
+   not be collapsed into a single mechanism.
+
+### What Was Completed
+
+- Added a new "Confirmed Runtime Behavior" subsection to Section 17b in
+  `docs/ARCHITECTURE.md`, recording all three findings above as permanent,
+  load-bearing facts about the system rather than transient implementation
+  notes.
+- Version header updated to reflect this documentation-only pass.
+
+### Schema Changes
+
+None. This entry is documentation-only.
+
+### Code / File Changes
+
+- `docs/ARCHITECTURE.md` (Section 17b addition, version header)
+- `HANDOFF.md` (this entry)
+
+### What Codex Needs to Know
+
+- No action required. This confirms existing behavior; nothing to implement or
+  change.
+- If a future milestone requires checking another user's effective
+  permissions, do not modify `effective_permissions_for_user()`'s signature or
+  behavior — build a new, separately named, explicitly target-scoped function
+  instead, and route that through Claude review first per Section 17b.
+
+### What Claude Needs to Know
+
+- Section 17b now contains a permanent record of these three runtime facts.
+  Future architecture review involving `effective_permissions_for_user()`
+  should treat caller-scoped resolution and legacy-JSONB single-purpose
+  behavior as settled, documented constraints, not open questions.
+
+### Next Steps (in order)
+
+1. Ryan proceeds with the planned test sequence (grant/revoke via
+   `set_permission_override`, audit trail confirmation, direct-write rejection
+   test using `set role authenticated` or a real app session, Developer/
+   `can_access_developer` targeting rejection) using the two live Clerk users.
+2. No further documentation work is required for Section 17b unless testing
+   surfaces a genuine discrepancy.
+
+### Open Questions / Concerns
+
+None. All three items in this pass were verification/documentation only; no
+open items resulted.
+
+### Architecture Drift Warnings
+
+None active.
+
+---
+
+## Routing Verdict
+
+**No Rule 20 cross-clearance required.** This entry documents confirmed runtime
+behavior of already-locked, already-implemented functionality; it does not
+change architecture, schema, or permission semantics. Informational record only.
+
+**For Codex:** No action required.
+
+**For Claude:** Treat the three confirmed facts in this entry as settled going
+forward; no further review needed on this topic absent a new discrepancy.
+
+## Entry 139 - Northgate UI System Locked (Cross-Application Visual Standard)
+
+**Date:** 2026-07-14
+**Updated by:** Claude
+**Phase:** Architecture Lock — UI/Navigation Standard
+**Session type:** Architecture-Sensitive UI Decision (docs-only)
+
+### Context
+
+Ryan approved a reference mockup (attached image, this session) establishing
+the target visual and navigation direction for the entire Northgate HQ v2
+application — global header, primary/secondary sidebars, workspace layout
+hierarchy, table density, color language, and responsive behavior. This entry
+locks that direction as new Section 50 in ARCHITECTURE.md, per the existing
+governance process for architecture-sensitive UI decisions.
+
+This is a **docs-only lock**. No React, CSS, Supabase, migration, or runtime
+work was performed or authorized in this session.
+
+### What Was Reviewed
+
+- The approved reference mockup (Dashboard/Jobs view showing global header,
+  primary sidebar "My Jobs" workspace, secondary sidebar "Active Jobs" status
+  list, selected-job record header, and the existing horizontal detail tabs)
+- The full written design-direction brief accompanying the mockup
+- The complete existing ARCHITECTURE.md for conflicts, with particular
+  attention to Section 42 (Workspace Detail Sub-Navigation Pattern)
+
+### Conflict Identified and Resolved
+
+**Section 42 vs. new sidebar concept.** Section 42 (locked v2.24) states "no
+sidebar for job sub-nav" within a selected record's detail view. The new
+design direction introduces primary/secondary sidebars at the workspace
+level. These operate at different layers of the shell — the sidebar governs
+navigation *between* records/views; Section 42's horizontal tabs govern
+navigation *within* a selected record's detail surface — and are not
+actually in conflict. However, the proximity of the two concepts warranted an
+explicit reconciliation statement rather than leaving it to inference. Section
+50.1 states this directly: Section 42 remains fully in force and unchanged;
+the new sidebars never appear inside a selected record's detail view and never
+replace the horizontal tab pattern.
+
+No other conflicts were found. Permission-aware navigation, protected-column
+hiding, and responsive requirements all restate existing locked rules
+(Section 17, Section 17 `can_view_financials`, Constitutional Rule 18) rather
+than introducing new ones.
+
+### What Was Locked
+
+New Section 50 ("Northgate UI System") in `docs/ARCHITECTURE.md`, covering:
+
+- Global application header (branding, permission-aware top nav, compact
+  profile menu)
+- Primary sidebar (stable workspace navigation, existing routes/permissions
+  only)
+- Optional secondary sidebar (filters/saved views/status groups; one
+  consistent meaning per workspace; never replaces Section 42 tabs)
+- Main workspace structural hierarchy
+- Table density standard and protected-column omission rule (restates
+  `can_view_financials`, no new flag)
+- Summary card usage guidance
+- Permission-aware rendering (restates existing server-authoritative rule,
+  no new mechanism)
+- Color/styling language (Northgate red as active-state accent; bright green
+  excluded from nav)
+- Spacing/hierarchy standard
+- Full responsive behavior spec for desktop/tablet/mobile (Constitutional
+  Rule 18 compliance, designed in from Phase 1)
+- Reusable design-system primitive naming (illustrative, not a required file
+  layout)
+- Locked three-phase rollout sequence
+- Explicit out-of-scope list
+- Implementation gate (docs-only; does not authorize code)
+
+### Lock Document Changes
+
+**ARCHITECTURE.md v2.29 → v2.30**
+
+- New Section 50 appended after Section 48 (Section 49 remains reserved for
+  Job Export, unchanged, no collision)
+- Version header updated with the v2.30 summary
+
+### What Codex May Implement First (Phase 1 scope)
+
+- The reusable application shell primitives (AppShell, TopNavigation,
+  PrimarySidebar, SecondarySidebar, WorkspaceHeader, TabBar, etc. — naming
+  flexible) and design tokens (color, spacing, typography per Section 50.8–
+  50.9)
+- Conversion of the **Inventory module** to the new shell, with all existing
+  Inventory functionality, permissions, and business rules preserved exactly
+- Responsive behavior for the shell across desktop/tablet/mobile, per Section
+  50.10, built in from the start (not retrofitted)
+
+### What Remains Out of Scope (this milestone and Phase 1)
+
+- Jobs, Estimates, Employees, Vehicles, Developer, and Silas module
+  conversions (Phase 2/3 — sequenced later)
+- Any change to Section 42's horizontal detail-tab pattern
+- Any schema change, migration, new permission flag, new RPC, or direct
+  database write
+- Any change to inventory ledger, checkout, Jobs financial logic,
+  authentication, or Section 17b (granular permission override) behavior
+- Any new route or module not already approved elsewhere in this document
+
+### What Codex Needs to Know
+
+1. Build the shell and design tokens first; convert Inventory second. Do not
+   start Jobs/Estimates/etc. shell conversion until Phase 1 is confirmed
+   stable.
+2. Every existing Inventory permission check, RLS policy, and business rule
+   carries over unchanged — this is a presentation-layer conversion only.
+3. Section 42 is not being touched. When Phase 2 (Jobs) begins, the existing
+   horizontal detail-tab implementation is reused as-is inside the new shell,
+   not rebuilt.
+4. Protected columns (e.g., financial data gated on `can_view_financials`)
+   must be omitted from table markup entirely for unauthorized users — not
+   rendered blank/masked client-side.
+5. Responsive behavior is not a follow-up task — build mobile/tablet behavior
+   alongside desktop in the same implementation pass, per Constitutional Rule
+   18.
+
+### Next Steps (in order)
+
+1. Ryan confirms this entry and ARCHITECTURE v2.30
+2. Codex scopes Phase 1: shell primitives + design tokens + Inventory
+   conversion, as a Bucket classification per Section 35
+3. Codex implements Phase 1, preserving all existing Inventory functionality
+4. Ryan reviews Phase 1 against the reference mockup and existing Inventory
+   behavior before Phase 2 (Jobs) begins
+
+### Open Questions / Concerns
+
+None blocking. The Section 42/sidebar reconciliation above resolves the only
+ambiguity found during review.
+
+### Architecture Drift Warnings
+
+None active.
+
+---
+
+## Routing Verdict
+
+**Docs-only architecture lock, Rule 20 cross-clearance not required** — this
+session did not touch schema, permissions, RPCs, or business logic; it
+resolved one internal-consistency question (Section 42 vs. new sidebars) by
+direct textual reconciliation within the same document, which does not rise
+to the cross-model clearance threshold used for backend/security-sensitive
+changes.
+
+**For Codex:** Cleared to scope and begin Phase 1 (shell + Inventory
+conversion) per the "What Codex May Implement First" section above, once Ryan
+confirms this entry and the updated ARCHITECTURE v2.30.
+
+**For Claude:** No further review needed for this milestone unless Phase 1
+implementation surfaces a conflict with Section 42 or existing Inventory
+permission logic that Codex cannot resolve alone.

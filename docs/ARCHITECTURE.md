@@ -1,4 +1,6 @@
-﻿# Northgate HQ v2 — Architecture Lock Document
+# Northgate HQ v2 — Architecture Lock Document
+### Version 2.30 — Northgate UI System locked (new Section 50): approved cross-application visual and navigation standard based on Ryan's reference mockup (Entry 139); persistent global header (branding, permission-aware top-level module nav, compact profile menu replacing the standalone Clerk settings block); primary sidebar for stable workspace navigation and optional secondary sidebar for filters/saved views/status groups, both operating strictly at the workspace/module layer — explicitly reconciled against Section 42 (v2.24), whose "no sidebar inside record detail" rule and horizontal detail-tab pattern remain fully in force and unchanged; consistent main-workspace hierarchy (heading → controls → table/surface → record header → Section 42 tabs → summary cards → detail content); data-dense tables as default with protected columns omitted entirely (not blanked) per existing `can_view_financials` and other canonical flags — no new permission flags introduced; Northgate red as primary active-state accent (bright green excluded from general nav); full responsive behavior specified for desktop/tablet/mobile per Constitutional Rule 18, designed in from Phase 1; locked three-phase rollout — Phase 1 shell + Inventory conversion, Phase 2 Jobs reusing Section 42 unchanged, Phase 3 remaining modules; explicitly does not authorize schema changes, migrations, new permission flags, new RPCs, direct writes, or changes to inventory/checkout/financial/auth/Section 17b behavior; docs-only lock, does not authorize React/CSS/Supabase implementation. (Entry 139)
+### Version 2.29 (documentation clarified — Entry 138) — Section 17b runtime behavior confirmed and documented after live post-implementation testing, no schema or behavior change: (1) `effective_permissions_for_user()` is caller-scoped only (resolves via `auth.jwt() ->> 'sub'` internally, no target-user parameter) — recorded as a permanent boundary, not a defect, and must not be repurposed for checking another user's permissions; any such future feature needs its own target-scoped function; (2) legacy `user_permissions.permission_overrides` JSONB confirmed single-purpose — read only for `can_access_developer`, all other flags resolve exclusively from role defaults + `user_permission_overrides`; (3) no-RLS-recursion mechanism confirmed via live inspection — `effective_permissions_for_user()` is `SECURITY DEFINER` owned by a role with `rolbypassrls = true`, a distinct and non-conflicting mechanism from the non-recursive `current_user_has_developer_access()` helper. All three confirmed directly against the live function body and database role configuration; Section 17b updated with a new "Confirmed Runtime Behavior" subsection recording these as permanent facts.
 ### Version 2.29 (second-pass corrected) — Granular Permission Overrides (Section 17b, locked — Entry 136, Rule 20 cross-cleared twice): user-level override system allowing developers to grant/revoke individual permission flags per user without role elevation. First cross-clearance pass (Entry 135) fixed identity model, invalid FK, history-preserving uniqueness, and the can_access_developer escalation gap. Second cross-clearance pass (Entry 136, this version) fixed three further implementation blockers found before Codex migration: (1) RLS recursion risk — the original write/read-all gate called `effective_permissions_for_user()`, which itself would query `user_permission_overrides`, creating a self-referential RLS loop; corrected to require a dedicated non-recursive Developer-authority check that never touches the override table; (2) wrong role source — `users.role` was referenced, but no `users` table exists in this schema; corrected to `user_permissions.role`, matching every other locked section's identity pattern; (3) direct client writes — the original draft allowed a client-facing INSERT RLS policy with app-layer target blocking; corrected to RLS-denies-all-client-writes with a single controlled `SECURITY DEFINER`-style RPC (`set_permission_override`) that atomically validates authority, rejects can_access_developer and cross-developer targets, deactivates the prior active row, inserts the new row, and writes the change_logs entry in one transaction. Entries 134 and 135 are both superseded and not implementation-accurate; this version (136) is final. No new canonical permission flags added. Use cases: grant `can_manage_inventory` to field tech auditor; revoke transaction capability from user on leave; grant `can_view_financials` to field supervisor for one contract.
 ### Version 2.27 — Jobs Module Completion Roadmap locked (new Section 45 roadmap; new Section 46 Job Documents v1 — first real implementation of the long-dormant Section 20 generic documents design, scoped to `owner_type = 'job'` with six other Section 20 owner types declared but not yet RLS-permitted; new Section 47 Job Schedule v1 — flat milestone/task list, no calendar/dependency/assignment integration; delta to Section 44 adding `sort_order` to `job_budget_lines` for manual/drag-drop reordering, no RLS change; Formatting Tuner ruled Bucket 1/no-lock (localStorage + CSS variables only, Developer-gated, no Supabase writes) — triggers for a future real architecture review specified; Job Export deliberately NOT locked this version — reserved as Section 48 pending Documents/Schedule going live, with hard boundaries pre-confirmed (browser print-to-PDF only, section-selectable, permission-aware per section, documents never bundled — index/list only, no database writes). (Entry 118)
 ### Version 2.26 — Job Financials v1 (Budget Foundation) locked (new Section 44): new `job_budget_lines` table, division-scoped via `division text not null`, references `public.jobs(id)`; `category` CHECK-constrained to material/labor/subcontractor/equipment/permit/other, required; `cost_code` free-text (Option A — formal cost-code table reserved); `description` required; `budget_amount` allows zero, CHECK `>= 0`; no `status` column; soft-archive per Section 18; read gated on `can_view_financials`, write gated on `can_approve_budget` — both already-canonical Section 17 flags, first real consumer of either; no new permission flags; Financials tab fully hidden from users lacking `can_view_financials`; helper copy locked; print/export deferred; numeric input blocks save on blank rather than coercing to 0; fully standalone from Job Transactions Log and Buyout List in v1 — no reads from either; actual cost, committed cost, issued inventory value, contract value, revenue, profit/margin, PO, invoice, change order, and accounting integration all explicitly reserved. (Entry 115).
@@ -1190,6 +1192,49 @@ Silas reads the effective permission set (baseline + active overrides) via
 `effective_permissions_for_user()`. Per the refresh behavior above, this must not
 be cached indefinitely at conversation start — Silas needs to reflect permission
 changes without requiring a new conversation.
+
+### Confirmed Runtime Behavior (documented v2.29 — Entry 138)
+
+The following were verified directly against the live function body and
+database role configuration during post-implementation testing (Entry 138) and
+are recorded here as permanent, load-bearing facts about this system rather than
+implementation notes:
+
+**Caller-scoped resolution only — a hard boundary, not a temporary gap.**
+`effective_permissions_for_user(p_role, p_division, p_permission_overrides)`
+resolves active overrides using `auth.jwt() ->> 'sub'` internally — it has no
+parameter for an arbitrary target Clerk user ID. This means the function can
+only ever return the *calling session's own* effective permissions, never
+another user's. This is safe and correct for every current call site (all of
+which check the caller's own access), but it also means this function **cannot**
+be reused to build any feature that needs to inspect a *different* user's
+effective permissions (e.g., an admin screen showing "what can this other
+person do"). Any such feature requires a new, explicitly target-scoped function
+— this one must not be repurposed or have its signature changed to try to serve
+that need.
+
+**Legacy `user_permissions.permission_overrides` JSONB is single-purpose.**
+As of the live function body confirmed in Entry 138, this legacy column is
+read for exactly one flag: `can_access_developer`. No other key present in that
+JSONB has any effect on a user's effective permissions — all other flags
+resolve exclusively from role defaults (`default_permissions_for_role()`) plus
+active rows in `user_permission_overrides`. This column must not be treated as
+a general-purpose override mechanism going forward; it exists solely as the
+non-recursive source of Developer-access truth, consistent with
+`can_access_developer` being deliberately excluded from the granular override
+table (see above).
+
+**No RLS recursion — confirmed via `SECURITY DEFINER` + `rolbypassrls`.**
+`effective_permissions_for_user()` is `SECURITY DEFINER`, owned by a role with
+`rolbypassrls = true` (confirmed live). Its internal read of
+`user_permission_overrides` therefore bypasses that table's RLS policies
+entirely, regardless of caller identity, which is what prevents the recursion
+risk flagged during the second Rule 20 cross-clearance pass (Entry 136). This
+is a different mechanism than the non-recursive Developer-authority helper
+(`current_user_has_developer_access()`), which avoids recursion by never
+querying the override table at all. Both are correct; they solve the same
+class of problem via different, non-conflicting paths and must not be
+collapsed into one another.
 
 ---
 
@@ -4101,3 +4146,175 @@ This section locks Silas's architecture only. It does not authorize
 implementation, migration, runtime, or UI changes by itself. Implementation
 requires a separate Codex prompt, gated on Ryan's decision to proceed after
 this docs-only update is committed (HANDOFF Entry 127).
+
+---
+
+## 50. Northgate UI System (locked v2.30 — Entry 139)
+
+### Overview
+
+This section locks the approved cross-application visual and navigation
+standard for Northgate HQ v2, based on Ryan's approved reference mockup
+(HANDOFF Entry 139). It establishes the reusable application shell, layout
+hierarchy, and visual language that all modules will converge on. It is a
+**presentation and interaction-system lock**, not a code implementation
+authorization, and does not modify any existing schema, permission, RPC,
+business-logic, or authentication behavior.
+
+### 50.1 Relationship to Section 42 (explicit reconciliation)
+
+Section 42 (Workspace Detail Sub-Navigation Pattern, locked v2.24) remains
+**fully in force, unchanged**. Its "no sidebar for job sub-nav" rule governs
+the surface *inside* a selected record's detail view — the persistent record
+header and horizontal detail tabs (Overview, Details, Materials, Buyout,
+Transactions, Financials, Documents, Schedule) are not replaced or
+supplemented by a sidebar at any point.
+
+The primary and secondary sidebars locked in this section operate one layer
+above that — at the **workspace/module level**, for navigating between
+records, views, and filtered lists (e.g., "My Jobs," "Active Jobs," "On
+Hold"). Once a record is selected and its detail surface is showing, Section
+42's horizontal-tabs-only rule applies exactly as before. These are two
+distinct layers of the same shell and do not conflict.
+
+### 50.2 Global application header
+
+A persistent top header, present on every authenticated screen, containing:
+
+- Northgate branding on the left
+- Top-level module navigation: Dashboard, Inventory, Jobs, Estimates,
+  Employees, Vehicles, Silas, and Developer (when authorized)
+- Notification/account area on the right
+- A compact profile/account menu (account settings, sign-out) — replacing any
+  large standalone Clerk settings block from earlier rough concepts
+
+Top-level navigation is permission-aware per existing rules (50.7). A module
+appearing in the reference image does not, by itself, authorize its exposure
+to a user lacking the relevant permission.
+
+### 50.3 Primary sidebar
+
+A persistent or collapsible left sidebar for stable workspace navigation.
+Contents depend on the active workspace and must map to existing approved
+routes/features/permissions only — this lock does not invent new
+functionality, routes, or data surfaces. Examples: My Jobs, My Estimates, My
+Vehicle, My Information, My Customization; or, within a module such as
+Inventory, the existing approved Inventory sections.
+
+### 50.4 Optional secondary sidebar
+
+An optional collapsible sidebar for filters, saved views, status groups, or
+hierarchy navigation (e.g., Active Jobs / On Hold / Completed / Recently
+Viewed) within a given workspace. Must have one consistent meaning per
+workspace; must not be added merely to fill space; must never replace the
+Section 42 horizontal detail tabs (see 50.1).
+
+### 50.5 Main workspace structure
+
+Consistent hierarchy across modules: workspace/list heading → search/filter/
+primary-action controls → data table or operational surface → selected-record
+header where applicable → Section 42 horizontal detail tabs → summary cards
+where useful → detailed content below. Intent: one operational platform, not
+disconnected feature pages.
+
+### 50.6 Tables, density, and summary cards
+
+Data-dense tables are the default for multi-record comparison — not
+oversized cards. Required table qualities: clear column hierarchy, readable
+row spacing, subtle separators, hover/selected-row states, responsive
+overflow, and mobile card conversion only where a table cannot remain usable.
+
+**Protected columns:** financial or otherwise permission-gated columns must
+be omitted entirely for users lacking the relevant permission, never shown
+blank or masked. This is a UI restatement of the existing `can_view_financials`
+rule (Section 17) and any other existing canonical flag governing a given
+column — no new permission flag is introduced by this section.
+
+Summary cards are reserved for genuinely high-value metrics (estimate, budget
+used, remaining budget, margin, inventory counts, active jobs, exceptions),
+kept compact and secondary to the operational workflow.
+
+### 50.7 Permission-aware rendering (restated, not new)
+
+The shell and every module surface remain server-authoritative per the
+existing non-negotiable rule (Section 17): client-side hiding is UX
+convenience only. This visual standard must not create any route, button,
+tab, sidebar item, table column, action menu, or mobile shortcut that exposes
+protected behavior without the existing server-side authorization already in
+place. No new permission flags, RPCs, or authorization logic are introduced
+by this section — the UI shell consumes existing `effective_permissions_for_user()`
+output exactly as current modules already do.
+
+### 50.8 Color and styling
+
+White main surfaces; very light gray application background; charcoal/
+near-black primary text; muted gray secondary text; Northgate red as the
+primary brand and active-state accent, including a red left border/underline
+and light red/pink background tint for selected navigation or records (bright
+green must not be used as the general active-navigation color); green
+reserved for healthy/successful/positive status; amber for warnings/
+approaching limits; red for branding, errors, negative exceptions, overdue
+conditions, and losses; restrained shadows; thin borders/separators; rounded
+corners used consistently, not excessively.
+
+### 50.9 Spacing and hierarchy
+
+Consistent page/card/panel padding; predictable heading levels; compact but
+touch-usable controls; strong alignment across table columns, cards,
+toolbars, and tabs. The reference image sets the target density and polish
+level.
+
+### 50.10 Responsive behavior (Constitutional Rule 18 compliance)
+
+Desktop: both sidebars may be visible; either may collapse; workspace expands
+to fill freed space. Tablet: secondary sidebar collapses first; primary nav
+may reduce to icons/drawer; horizontal tabs may scroll. Mobile: sidebars
+become drawers/sheets; workspace takes full width; controls remain
+touch-friendly; record tabs scroll horizontally or use an approved compact
+alternative; tables retain controlled horizontal scroll or convert to
+readable cards. Per Constitutional Rule 18, this responsive behavior is
+designed into Phase 1 from the start — not retrofitted later.
+
+### 50.11 Design-system intent
+
+Future implementation should establish reusable presentation primitives
+(naming illustrative, not a required file layout): AppShell, TopNavigation,
+PrimarySidebar, SecondarySidebar, WorkspaceHeader, RecordHeader, TabBar,
+SummaryCard, DataTable, Toolbar, StatusBadge, EmptyState, ResponsiveDrawer.
+This section locks the reusable pattern, not a specific React structure.
+
+### 50.12 Phased rollout (locked sequence)
+
+**Phase 1:** Reusable application shell and design tokens; Inventory module
+conversion as the first real implementation; all existing Inventory
+functionality preserved exactly.
+
+**Phase 2:** Jobs and the selected-job workspace, reusing the locked Section
+42 horizontal detail-tab pattern unchanged.
+
+**Phase 3:** Estimates, Employees, Vehicles, Developer, Silas, and remaining
+modules.
+
+No risky all-at-once rewrite. Each phase preserves existing functionality,
+permissions, and business rules exactly as already locked elsewhere in this
+document.
+
+### 50.13 Explicitly out of scope for this lock
+
+This section authorizes a presentation/interaction standard only. It does
+**not** authorize: database schema changes, migrations, new permission flags,
+permission widening, new RPCs, direct database writes, changes to inventory
+ledger behavior, changes to checkout behavior, changes to Jobs financial
+logic, changes to authentication, changes to granular permission override
+behavior (Section 17b), starting any deferred feature, or inventing new
+routes/modules not already approved elsewhere in this document.
+
+### 50.14 Implementation gate
+
+This section locks the visual/navigation architecture only. It does not
+itself authorize React, CSS, Supabase, or any runtime implementation.
+Phase 1 implementation (application shell + Inventory conversion) requires a
+separate Codex prompt, gated on Ryan's decision to proceed after this
+docs-only update is committed (HANDOFF Entry 139).
+
+---
