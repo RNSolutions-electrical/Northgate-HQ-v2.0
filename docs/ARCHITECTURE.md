@@ -1,5 +1,5 @@
 ﻿# Northgate HQ v2 — Architecture Lock Document
-### Version 2.28 — Silas (AI Assistant) locked (new Section 48, filling the "Future AI Assistant" slot reserved in Section 4 since the project's first architecture pass); Section 47 delta documenting the Schedule archive RLS two-policy fix (Entries 124–125, live-verified — soft-archive transitions require both a permissive UPDATE policy and a SELECT policy that admits the row through the transition, not just the UPDATE policy in isolation): new `silas_conversations` / `silas_messages` tables for persisted chat history, per-user RLS (not division-scoped — chat history is personal, deliberate deviation from Section 17a); new `silas_settings` table — a Developer-controlled global kill switch (`silas_enabled`), enforced server-side in the Netlify proxy function (not just UI-hidden, per Section 17's non-negotiable server-authoritative rule), writable only via `can_access_developer`; dual UI (dedicated workspace + global floating chat bubble) sharing one backend and one conversation history; Silas reads only what the requesting user's own RLS context permits — backend must authenticate to Supabase using the user's JWT, not a service-role key (flagged as the highest-stakes preflight item); Silas never writes directly to any business-data table — every suggested action, once approved, executes through the existing RPC/insert flow for that action type, so Section 19 audit logging requires no changes; three response options locked — Approve, Deny, Other (specify) — corrections happen conversationally via Other (specify), producing a revised suggestion rather than a separate review screen; receipt images attach to the job as a Document (Section 46) on approval, not discarded after extraction; API key stored server-side only, never client-exposed; no new permission flag beyond reusing `can_access_developer` for the kill switch. This version also repairs a HANDOFF documentation defect (Entries 124/125 found physically out of chronological order; repaired with Ryan's explicit approval per Rule 20 — see HANDOFF Entry 126) and establishes a standing policy that all future coordination-document discrepancies route to Ryan for approval before correction. Job Export remains unscoped, reserved as Section 49. Docs-only lock — does not authorize Silas implementation. (Entry 127)
+### Version 2.29 (second-pass corrected) — Granular Permission Overrides (Section 17b, locked — Entry 136, Rule 20 cross-cleared twice): user-level override system allowing developers to grant/revoke individual permission flags per user without role elevation. First cross-clearance pass (Entry 135) fixed identity model, invalid FK, history-preserving uniqueness, and the can_access_developer escalation gap. Second cross-clearance pass (Entry 136, this version) fixed three further implementation blockers found before Codex migration: (1) RLS recursion risk — the original write/read-all gate called `effective_permissions_for_user()`, which itself would query `user_permission_overrides`, creating a self-referential RLS loop; corrected to require a dedicated non-recursive Developer-authority check that never touches the override table; (2) wrong role source — `users.role` was referenced, but no `users` table exists in this schema; corrected to `user_permissions.role`, matching every other locked section's identity pattern; (3) direct client writes — the original draft allowed a client-facing INSERT RLS policy with app-layer target blocking; corrected to RLS-denies-all-client-writes with a single controlled `SECURITY DEFINER`-style RPC (`set_permission_override`) that atomically validates authority, rejects can_access_developer and cross-developer targets, deactivates the prior active row, inserts the new row, and writes the change_logs entry in one transaction. Entries 134 and 135 are both superseded and not implementation-accurate; this version (136) is final. No new canonical permission flags added. Use cases: grant `can_manage_inventory` to field tech auditor; revoke transaction capability from user on leave; grant `can_view_financials` to field supervisor for one contract.
 ### Version 2.27 — Jobs Module Completion Roadmap locked (new Section 45 roadmap; new Section 46 Job Documents v1 — first real implementation of the long-dormant Section 20 generic documents design, scoped to `owner_type = 'job'` with six other Section 20 owner types declared but not yet RLS-permitted; new Section 47 Job Schedule v1 — flat milestone/task list, no calendar/dependency/assignment integration; delta to Section 44 adding `sort_order` to `job_budget_lines` for manual/drag-drop reordering, no RLS change; Formatting Tuner ruled Bucket 1/no-lock (localStorage + CSS variables only, Developer-gated, no Supabase writes) — triggers for a future real architecture review specified; Job Export deliberately NOT locked this version — reserved as Section 48 pending Documents/Schedule going live, with hard boundaries pre-confirmed (browser print-to-PDF only, section-selectable, permission-aware per section, documents never bundled — index/list only, no database writes). (Entry 118)
 ### Version 2.26 — Job Financials v1 (Budget Foundation) locked (new Section 44): new `job_budget_lines` table, division-scoped via `division text not null`, references `public.jobs(id)`; `category` CHECK-constrained to material/labor/subcontractor/equipment/permit/other, required; `cost_code` free-text (Option A — formal cost-code table reserved); `description` required; `budget_amount` allows zero, CHECK `>= 0`; no `status` column; soft-archive per Section 18; read gated on `can_view_financials`, write gated on `can_approve_budget` — both already-canonical Section 17 flags, first real consumer of either; no new permission flags; Financials tab fully hidden from users lacking `can_view_financials`; helper copy locked; print/export deferred; numeric input blocks save on blank rather than coercing to 0; fully standalone from Job Transactions Log and Buyout List in v1 — no reads from either; actual cost, committed cost, issued inventory value, contract value, revenue, profit/margin, PO, invoice, change order, and accounting integration all explicitly reserved. (Entry 115).
 ### Version 2.25 — Job Transactions Log locked (new Section 43): new read-only view `job_transaction_log` over `transaction_items` + `inventory_transactions`, filtered to `destination_type = 'job'`; activates the previously-placeholder Transactions tab (Section 42) with a read-only table (date, item, quantity, source location, transaction type, performed by, notes); no cost/value column (reserved for Financials); no edit/delete/return actions; source-location-agnostic so future Vehicle Inventory transactions appear automatically; inbound Return-from-Job (5K.5) will require a follow-up delta to this view, flagged but not solved now; no new RPC, table, or permission flag; read access inherits existing `transaction_items` / `inventory_transactions` RLS. Financials remains unlocked and scoped separately. (Entry 110).
@@ -960,6 +960,236 @@ can_defer_completion
 > hide buttons based on permission state, but all permission enforcement happens
 > at the API / database level. No local state, no client-side-only permission
 > gates. A hidden button is UX convenience only — the server still validates.
+
+---
+
+## 17b. Granular Permission Overrides (locked v2.29 — Entry 136, Rule 20 cross-cleared, second pass)
+
+### Overview
+
+Role-based permission defaults establish baseline access for each role. Individual
+users may receive additional, revoked, or modified permissions via a developer-only
+override system, enabling fine-grained control without adding new roles or creating
+overly-broad permission grants.
+
+This section has been through two rounds of Rule 20 cross-clearance (Claude/
+ChatGPT). Entries 134 and 135 are both superseded and are not
+implementation-accurate. This version (Entry 136) is final.
+
+### Identity Model
+
+Northgate does not use Supabase Auth identities. All identity in this system is
+Clerk-based, keyed as TEXT, consistent with project-wide convention
+(`user_permissions.clerk_user_id`, `auth.jwt() ->> 'sub'`). The override table
+follows this same pattern — no `auth.users` references anywhere.
+
+### Role Source (corrected — second pass)
+
+The user's role is sourced from `user_permissions.role`. There is no confirmed
+`users` table in this schema; every other locked section of this architecture
+reads role/division/identity from `user_permissions`
+(`user_permissions.clerk_user_id`, `user_permissions.division`,
+`user_permissions.display_name`), and Section 17b must follow the same pattern.
+Codex must confirm the live column name against the deployed schema before
+implementation, but the reference table is `user_permissions`, not `users`.
+
+### Override Table Schema
+
+New table: `user_permission_overrides`
+
+```sql
+id                  UUID PRIMARY KEY DEFAULT gen_random_uuid()
+user_id             TEXT NOT NULL          -- Clerk sub of the affected user
+permission_flag     TEXT NOT NULL          -- validated against canonical Section 17 list
+granted             BOOLEAN NOT NULL       -- TRUE = grant, FALSE = revoke
+granted_by_user_id  TEXT NOT NULL          -- Clerk sub of the acting developer
+granted_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+reason              TEXT NOT NULL          -- mandatory, max 500 chars
+is_active           BOOLEAN NOT NULL DEFAULT TRUE
+```
+
+`permission_flag` is validated at the application layer (or via CHECK constraint)
+against the canonical Section 17 flag list. It does not reference
+`user_permissions` as a lookup table — that table stores per-user permission
+state, not a catalogue of permission names, and is not a valid FK target for this
+purpose.
+
+**History-preserving uniqueness:** Each grant/revoke is its own row, preserving
+full history. Only one row per (user, flag) may be active at a time:
+
+```sql
+CREATE UNIQUE INDEX one_active_override_per_user_flag
+  ON user_permission_overrides (user_id, permission_flag)
+  WHERE is_active = TRUE;
+```
+
+Deactivating an override (setting `is_active = FALSE`) frees that slot for a new
+override row, so the full sequence of past grants/revokes for a given user/flag
+combination remains queryable rather than being overwritten in place.
+
+### `can_access_developer` — excluded from general override
+
+`can_access_developer` is **excluded from this override system entirely.** No
+developer may grant or revoke Developer-level access — for themselves or anyone
+else — through the mechanism described in this section. It is never written to
+`user_permission_overrides` and never read from it during resolution.
+
+> **Owner-only exception:** Ryan, as creator and primary developer, retains the
+> ability to modify Developer-level access (including other developers'
+> `can_access_developer` flag and general permission set) through a separate,
+> more deliberate path outside this override system. This is identity-gated to
+> Ryan's Clerk identity specifically, not to the Developer role generally.
+> Implementation of this Owner-only path is reserved for a future milestone; it
+> is not part of the v2.29 build. Until that path exists, Developer-role changes
+> continue through direct, manual administration as they do today.
+
+### Non-Recursive Developer Authority Check (corrected — second pass)
+
+The original draft gated write/read-all access on
+`effective_permissions_for_user()`, which itself would query
+`user_permission_overrides` once that function is updated — creating a
+recursion risk (RLS on the override table calls a function that queries the
+override table, which re-triggers RLS, and so on).
+
+**Correction:** Developer authority for managing overrides must be checked
+through a path that never queries `user_permission_overrides`. `can_access_developer`
+is never sourced from the override table (see above), so this is a natural
+consequence, but the implementation must be explicit about it rather than
+incidental:
+
+- Provide a dedicated, non-recursive check — e.g. a small `SECURITY DEFINER`
+  helper function or an inline query — that reads `can_access_developer`
+  directly from the user's role/Owner-path assignment (`user_permissions` plus
+  whatever mechanism currently grants Developer status), and nothing else.
+- This helper must not call the general `effective_permissions_for_user()` if
+  that function's execution path touches `user_permission_overrides`. If
+  `effective_permissions_for_user()` is refactored so that the
+  `can_access_developer` branch short-circuits before ever touching the
+  override table, it may be reused safely — but Codex must verify this
+  explicitly rather than assume it, since the two other flags it resolves
+  (baseline + overrides) do touch that table.
+- Whichever approach is used, it must be the same non-recursive check on both
+  the read-all-history policy and the write-gate inside the controlled RPC
+  (see below), so there is one source of truth for "is this person allowed to
+  manage overrides."
+
+### RPC-Only Writes (corrected — second pass)
+
+The original draft exposed a client-facing `INSERT` RLS policy with the
+justification that the application layer would additionally block forbidden
+targets. That is weaker than this project's server-authoritative standard
+(Section 17, Non-Negotiable Rule) and is corrected here.
+
+**Corrected write model:**
+
+- Authenticated clients may `SELECT` their own permitted override history via
+  RLS (per Access Control below). There is **no direct client `INSERT`,
+  `UPDATE`, or `DELETE`** on `user_permission_overrides` — RLS denies all
+  client-side writes outright, matching the existing cart-open pattern
+  (Section 11).
+- All grants and revokes happen through a single controlled RPC (e.g.
+  `set_permission_override`), which:
+  1. Verifies the caller's Developer authority via the non-recursive check
+     above; fails closed if not authorized.
+  2. Rejects any attempt to target `can_access_developer`.
+  3. Rejects any attempt to target a user who is themselves a Developer
+     (reserved for the future Owner-only path).
+  4. Validates `permission_flag` against the canonical Section 17 list.
+  5. Requires a non-null `reason`.
+  6. Deactivates any existing active row for that (user, flag) pair
+     (`is_active = FALSE`).
+  7. Inserts the new override row.
+  8. Writes the corresponding `change_logs` entry.
+  9. Performs steps 6–8 atomically (single transaction) so the override and its
+     audit entry can never become separated.
+- Revocation is a call to the same RPC with `granted = FALSE`, not a direct
+  client `UPDATE` of `is_active`.
+
+### Permission Resolution Logic
+
+In `effective_permissions_for_user()`:
+
+1. Fetch the user's role from `user_permissions.role`
+2. Load baseline permissions from role-to-flag mapping (existing logic)
+3. Query `user_permission_overrides` WHERE user_id = ? AND is_active = TRUE
+4. For each active override: if `granted = TRUE`, add flag; if `granted = FALSE`,
+   remove flag
+5. Explicit revokes win over grants if conflicting active rows are ever present
+   (should not occur given the partial unique index, but the resolution order is
+   specified defensively)
+6. Return only canonical Section 17 permission flags; fail closed on any
+   unrecognized or malformed flag
+7. `can_access_developer` is never modified by this resolution step — it is
+   sourced from role/Owner-path assignment only, never from
+   `user_permission_overrides`
+
+Result: baseline role permissions + overrides = user's actual effective
+permissions (excluding `can_access_developer`, which this system never touches).
+
+### Access Control
+
+- **Read:** A user may read their own override history (active and inactive
+  rows) via RLS keyed on `auth.jwt() ->> 'sub'`. A user who passes the
+  non-recursive Developer authority check may read any user's override history.
+  All other users are denied.
+- **Write:** Only through the controlled RPC described above. No direct client
+  `INSERT`/`UPDATE`/`DELETE` under any circumstance.
+
+### Audit Trail
+
+Every override write (grant, revoke, or reactivation) logs to the existing main
+audit log (Section 19, `change_logs`) using the real, already-live schema —
+Codex must inspect the actual `change_logs` columns before implementation rather
+than assume field names. At minimum the log entry must capture: affected user,
+permission flag, previous effective state, new effective state, direction
+(grant/revoke), reason, acting developer, and timestamp. This write happens
+inside the same RPC transaction as the override row itself (see RPC-Only Writes
+above) — never as a separate, decoupled step.
+
+Override **reads are not audited** — only writes and state transitions.
+
+### Expiration — deferred
+
+**v2.29 supports manual overrides only.** No expiration/auto-revoke behavior is
+included in this milestone. Time-bound overrides (`starts_at` / `expires_at`)
+are explicitly deferred to a future architecture-cleared milestone and must not
+be added speculatively now.
+
+### Refresh Behavior
+
+Because permissions are server-authoritative, an override takes effect on the
+affected user's **next request** — no sign-out/sign-in required. Implementation
+must:
+
+- invalidate or refetch the affected user's cached effective-permission state
+  after any override write;
+- refetch immediately if a user's own effective permissions changed;
+- ensure Silas (Section 48) computes effective permissions per-request (or
+  refreshes at minimum on each new conversation/message), never holding a stale
+  conversation-start snapshot indefinitely.
+
+### Use Cases (Examples)
+
+- Grant `can_manage_inventory` to a field tech designated as inventory auditor,
+  without making them a Project Manager
+- Revoke `can_inventory_transactions` from a specific user on leave without
+  changing their role
+- Grant `can_view_financials` to a field supervisor for one contract without
+  elevating their role
+
+### Interaction with Division Scope
+
+Overrides are user-level (not division-scoped). A developer granting
+`can_view_all_divisions` makes that override effective across all divisions
+immediately. Division-scoped defaults remain in place (Section 17a); overrides
+are applied after scope is resolved.
+
+### Interaction with Silas (Section 48)
+
+Silas reads the effective permission set (baseline + active overrides) via
+`effective_permissions_for_user()`. Per the refresh behavior above, this must not
+be cached indefinitely at conversation start — Silas needs to reflect permission
+changes without requiring a new conversation.
 
 ---
 

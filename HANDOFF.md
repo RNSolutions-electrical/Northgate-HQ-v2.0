@@ -13548,3 +13548,416 @@ an interaction bug in the chat UI only.
 
 ### Routing Verdict
 No Claude review needed — Silas chat scroll UI fix stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 133).
+
+## Entry 134 - Granular Permission Overrides superseded placeholder
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Coordination sync
+**Session type:** alignment
+
+### Context
+The local repository stopped at Entry 133, while the authoritative coordination
+checkpoint for the Granular Permission Overrides milestone was supplied
+externally. ARCHITECTURE v2.29 and final HANDOFF Entry 136 both state that
+Entries 134 and 135 are superseded and not implementation-accurate.
+
+### Decisions Made This Session (locked)
+- This placeholder exists only to preserve sequential local HANDOFF numbering
+  before recording the authoritative final Entry 136 text.
+- Do not implement from Entry 134.
+- Use Entry 136 only for Granular Permission Overrides work.
+
+### What Codex Needs to Know
+- Entry 134 is superseded.
+- Entry 135 is superseded.
+- Entry 136 is the first implementation-authoritative handoff for this
+  milestone in the local repository.
+
+### Next Steps (in order)
+1. Record the Entry 135 superseded placeholder.
+2. Record the authoritative Entry 136 final text.
+
+### Architecture Drift Warnings
+- Entry 134 is not implementation-accurate and is superseded by Entry 136.
+
+### Routing Verdict
+No implementation authority here — coordination placeholder only. Use Entry 136.
+
+## Entry 135 - Granular Permission Overrides superseded placeholder
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Coordination sync
+**Session type:** alignment
+
+### Context
+ARCHITECTURE v2.29 and authoritative HANDOFF Entry 136 both state that Entry
+135 was a first-pass correction that was later superseded by the second-pass
+final correction. The original text was not present in the local repository at
+the time of synchronization.
+
+### Decisions Made This Session (locked)
+- This placeholder exists only to preserve sequential local HANDOFF numbering
+  before recording the authoritative final Entry 136 text.
+- Do not implement from Entry 135.
+- Use Entry 136 only for Granular Permission Overrides work.
+
+### What Codex Needs to Know
+- Entry 135 is superseded and not implementation-accurate.
+- Entry 136 is final for Section 17b and supersedes both 134 and 135.
+
+### Next Steps (in order)
+1. Record the authoritative Entry 136 final text.
+2. Implement from Entry 136 only.
+
+### Architecture Drift Warnings
+- Entry 135 is not implementation-accurate and is superseded by Entry 136.
+
+### Routing Verdict
+No implementation authority here — coordination placeholder only. Use Entry 136.
+
+## Entry 136 — Granular Permission Overrides: Second Correction Pass (Final)
+
+**Date:** 2026-07-14
+**Updated by:** Claude
+**Phase:** Architecture Lock Correction (second pass)
+**Session type:** Rule 20 Cross-Clearance / Decision
+
+### Context
+
+Entry 135 corrected the identity model, invalid FK, history-loss, and Developer-
+escalation gap found in the original Entry 134 draft. Before handing Section 17b
+to Codex, Ryan ran a second Rule 20 cross-clearance pass, which surfaced three
+additional implementation-blocking issues that would not have been caught until
+migration time. This entry documents the final correction.
+
+### What Was Wrong in Entry 135 (identified by second cross-clearance pass)
+
+1. **RLS recursion risk.** The write/read-all access gate called
+   `effective_permissions_for_user()`. Once that function is updated to resolve
+   overrides (per this same milestone), calling it from inside the override
+   table's own RLS policy creates a self-referential loop: RLS on
+   `user_permission_overrides` → calls the function → function queries
+   `user_permission_overrides` → re-triggers RLS → repeats. This would either
+   fail outright or behave unpredictably depending on how Postgres resolves the
+   recursion.
+
+2. **Wrong role table.** Entry 135 still said "fetch the user's role from
+   `users.role`." There is no `users` table anywhere else in this architecture —
+   every other locked section reads identity/role/division from
+   `user_permissions`. This was Claude's error, not a change in the underlying
+   schema.
+
+3. **Client-writable table.** The original design let authenticated Developers
+   write directly to `user_permission_overrides` via an `INSERT` RLS policy,
+   with additional validation happening in the application layer. That's weaker
+   than this project's server-authoritative standard (Section 17, Non-
+   Negotiable Rule) and weaker than the pattern already used for cart-open
+   (Section 11) and other sensitive writes, which route through controlled
+   RPCs rather than direct table access.
+
+### Final Corrected Design (Section 17b, v2.29, Entry 136 — final)
+
+**Role source (fixed):** `user_permissions.role`, not `users.role`. Codex
+confirms the exact live column name before implementation, but the reference
+table is `user_permissions`.
+
+**Non-recursive Developer authority check (new):** A dedicated check —
+implemented as a small `SECURITY DEFINER` helper function or equivalent inline
+query — reads `can_access_developer` directly from the user's role/Owner-path
+assignment and never queries `user_permission_overrides`. This same check gates
+both:
+- who can read all users' override history (vs. only their own), and
+- who can call the write RPC.
+
+This works naturally because `can_access_developer` was already excluded from
+the override table in Entry 135 — it's never written there and never resolved
+from there. Entry 136 makes the non-recursive requirement explicit so Codex
+doesn't accidentally wire the check through `effective_permissions_for_user()`
+in a way that touches the override table.
+
+**RPC-only writes (new):** All direct client `INSERT`/`UPDATE`/`DELETE` on
+`user_permission_overrides` are denied by RLS. Every grant or revoke goes
+through one controlled RPC (`set_permission_override`), which in a single
+transaction:
+1. Verifies the caller's Developer authority (non-recursive check)
+2. Rejects targeting `can_access_developer`
+3. Rejects targeting another Developer (reserved for the future Owner-only
+   path)
+4. Validates the permission flag against the canonical Section 17 list
+5. Requires a non-null reason
+6. Deactivates the user's existing active row for that flag, if any
+7. Inserts the new override row
+8. Writes the `change_logs` audit entry
+9. Commits all of the above atomically
+
+This guarantees the override and its audit record can never end up out of sync
+— either both happen or neither does.
+
+**Everything else from Entry 135 stands unchanged:** Clerk identity model,
+`permission_flag` validation against the canonical list (not an FK),
+partial-unique-index history preservation, manual-only overrides (no
+expiration), immediate refresh behavior, and the Owner-only reserved path for
+future Developer-access management.
+
+### Lock Document Changes
+
+**ARCHITECTURE.md v2.29 (second-pass corrected)**
+
+- Section 17b fully rewritten a second time with the three corrections above
+- Entries 134 and 135 both explicitly marked superseded / not
+  implementation-accurate
+- Version header updated with the full second-pass correction summary
+
+### What Codex Needs to Know
+
+1. **Use Entry 136 only.** Entries 134 and 135 are both superseded.
+2. **Confirm `user_permissions.role` live column name** before implementation —
+   the table is settled, the exact column name should still be verified.
+3. **Build the non-recursive Developer-authority check first**, before wiring
+   any RLS policy or RPC that depends on it. Do not let this check call
+   `effective_permissions_for_user()` unless that function's
+   `can_access_developer` branch is verified to never touch
+   `user_permission_overrides`.
+4. **Do not create any RLS `INSERT`/`UPDATE`/`DELETE` policy on
+   `user_permission_overrides`.** RLS should deny all direct client writes.
+   The only write path is the `set_permission_override` RPC.
+5. **The RPC must be atomic** — override row + audit entry in one transaction,
+   using the confirmed `change_logs` schema.
+6. Confirm `change_logs` schema before implementing the audit write (carried
+   over from Entry 135, still applies).
+
+### Next Steps (in order)
+
+1. Ryan confirms this finalized entry and the second-pass corrected
+   ARCHITECTURE v2.29
+2. Codex confirms live schema: `user_permissions.role` column name and
+   `change_logs` column structure
+3. Codex builds the non-recursive Developer-authority check
+4. Codex builds `set_permission_override` RPC per the nine-step sequence above
+5. Codex adds RLS: SELECT-only for clients (own row + Developer-authority
+   read-all), deny-all writes
+6. Codex updates `effective_permissions_for_user()` per the resolution logic
+   (baseline role + active overrides, `can_access_developer` excluded)
+7. Ryan tests: grant/revoke via RPC, confirm audit trail, confirm direct
+   table writes are rejected, confirm no RLS recursion errors under load,
+   confirm developer-targeting and `can_access_developer`-targeting are both
+   rejected
+
+### Open Questions / Concerns
+
+None currently. The Owner-only Developer-access path remains a known future
+item, not an open question for this milestone.
+
+### Architecture Drift Warnings
+
+None active.
+
+---
+
+## Routing Verdict
+
+**Rule 20 cross-clearance: complete (second pass).** ChatGPT identified three
+further implementation-blocking issues after the first correction pass — all
+three confirmed against the live document and corrected here. Section 17b is
+now final.
+
+**For Codex:** Cleared to proceed with schema confirmation and implementation
+per the "What Codex Needs to Know" section above, once Ryan confirms this entry.
+
+**For Claude:** No further architecture review anticipated for this milestone
+unless schema confirmation surfaces something Codex cannot resolve alone.
+
+## Entry 137 - Granular Permission Overrides backend foundation implemented
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Granular Permission Overrides backend foundation
+**Session type:** implementation
+
+### Context
+Ryan provided authoritative attachment copies of ARCHITECTURE v2.29
+(second-pass corrected) and HANDOFF Entry 136 because the local repo on
+`main` still stopped at ARCHITECTURE v2.28 and HANDOFF Entry 133.
+
+Per the milestone preflight, implementation proceeded only after confirming the
+actual live/repo shapes for `user_permissions`, `change_logs`,
+`effective_permissions_for_user(...)`, existing Clerk JWT identity usage, and
+Developer-access gating patterns.
+
+### What Was Diagnosed
+- Confirmed branch `main`.
+- Confirmed working tree was clean before edits.
+- Confirmed local `main` matched `origin/main` at `06884ab`.
+- Confirmed local repo docs were behind the authoritative checkpoint:
+  - `docs/ARCHITECTURE.md` was still v2.28
+  - `HANDOFF.md` still ended at Entry 133
+- Confirmed live `public.user_permissions` shape:
+  - primary key: `id uuid`
+  - Clerk identity: `clerk_user_id text unique`
+  - role: `role text`
+  - division: `division text`
+  - legacy JSON column: `permission_overrides jsonb not null default '{}'::jsonb`
+  - no dedicated boolean columns for individual flags
+- Confirmed live `public.change_logs` shape:
+  - `id`, `user_id`, `user_name`, `table_name`, `record_id`, `action`,
+    `before_data`, `after_data`, `note`, `created_at`
+  - `action` already allows `permission_change`
+- Confirmed live `public.effective_permissions_for_user(...)` shape before this
+  pass:
+  - args: `(p_role text, p_division text, p_permission_overrides jsonb)`
+  - return: `jsonb`
+  - security: invoker
+  - no `search_path`
+  - behavior: role defaults + Admin-division read widening + direct JSON merge
+- Confirmed there was no live or repo `user_permission_overrides` table.
+- Confirmed current live callers of `effective_permissions_for_user(...)` are
+  all current-authenticated-user permission checks, which allowed preserving the
+  existing function signature while resolving active overrides by
+  `auth.jwt() ->> 'sub'`.
+- Confirmed legacy `user_permissions.permission_overrides` data is currently
+  empty in live data (`0` non-empty rows), including `0` rows with
+  `can_access_developer = true`.
+- Identified live inventory/cart RPCs that still merged
+  `default_permissions_for_role(...) || permission_overrides` directly instead
+  of using `effective_permissions_for_user(...)`; these needed to be updated so
+  the new override table would actually take effect in backend enforcement.
+
+### What Was Completed
+- Synced `docs/ARCHITECTURE.md` to the authoritative v2.29 header and inserted
+  Section 17b from the approved attachment text.
+- Backfilled local HANDOFF coordination sync so the repo now carries:
+  - Entry 134 superseded placeholder
+  - Entry 135 superseded placeholder
+  - authoritative Entry 136 final text
+- Added migration
+  `supabase/migrations/202607140001_granular_permission_overrides_foundation.sql`.
+- Created `public.user_permission_overrides` with the locked columns and
+  history-preserving partial unique index.
+- Enabled RLS on `public.user_permission_overrides`.
+- Added a dedicated non-recursive Developer-authority helper:
+  `public.current_user_has_developer_access()`
+  - reads `can_access_developer` from role plus legacy
+    `user_permissions.permission_overrides`
+  - never queries `user_permission_overrides`
+- Added controlled RPC `public.set_permission_override(...)`:
+  - requires authenticated Clerk JWT
+  - requires Developer authority via the non-recursive helper
+  - rejects `can_access_developer`
+  - rejects targeting any user who already has Developer access
+  - validates `permission_flag` against the canonical Section 17 list
+  - requires non-empty reason capped at 500 chars
+  - deactivates the prior active row for the same user/flag
+  - inserts the new active row
+  - writes `change_logs` action `permission_change`
+  - returns inserted row plus previous/new effective permission snapshots
+- Added SELECT-only client access on `user_permission_overrides`:
+  - self history read
+  - Developer read-all history
+  - no direct client `INSERT`/`UPDATE`/`DELETE`
+- Updated `public.effective_permissions_for_user(...)`:
+  - preserved the existing signature and `jsonb` return shape
+  - switched implementation to resolve active overrides from
+    `user_permission_overrides` for the authenticated caller
+  - kept `can_access_developer` on the role/legacy path only
+  - prevented `can_access_developer` from ever being sourced from the new table
+- Updated direct backend permission call sites so the new override table is
+  respected in real RPC enforcement:
+  - `open_inventory_cart(...)`
+  - `add_inventory_cart_item(...)`
+  - both `finalize_inventory_cart(...)` overloads
+  - `read_inventory_cart_items(...)`
+  - `remove_inventory_cart_item(...)`
+  - `retire_bin_item(...)`
+
+### Schema Changes
+- New table: `public.user_permission_overrides`
+- New partial unique index:
+  `one_active_override_per_user_flag`
+- New helper function:
+  `public.current_user_has_developer_access()`
+- Replaced function body:
+  `public.effective_permissions_for_user(...)`
+- New controlled RPC:
+  `public.set_permission_override(...)`
+- New RLS policies:
+  - `user_permission_overrides_self_read`
+  - `user_permission_overrides_developer_read_all`
+
+### Code / File Changes
+- `docs/ARCHITECTURE.md`
+- `HANDOFF.md`
+- `supabase/migrations/202607140001_granular_permission_overrides_foundation.sql`
+
+### Lock Document Changes
+- Local `ARCHITECTURE.md` now reflects the approved v2.29 second-pass-corrected
+  Section 17b text.
+- Local `HANDOFF.md` now contains the authoritative Entry 136 checkpoint and a
+  sequential bridge from Entry 133 to Entry 136 before this implementation
+  entry.
+
+### What Codex Needs to Know
+- The compatibility-preserving implementation keeps the existing
+  `effective_permissions_for_user(p_role, p_division, p_permission_overrides)`
+  signature intact because all current live callers are current-user checks.
+- The new override table is now the active source for user-level grants/revokes
+  in the shared effective-permissions resolver.
+- `can_access_developer` remains outside the override table and outside the new
+  RPC by design.
+- The helper used for override-management authority is intentionally separate
+  from `effective_permissions_for_user(...)` to avoid RLS recursion on
+  `user_permission_overrides`.
+
+### What Claude Needs to Know
+- The backend foundation for Section 17b is now implemented in migration form
+  and aligned to the final Entry 136 design.
+- No UI for override management was built in this pass.
+- No Owner-only Developer-access path was built in this pass.
+
+### Verification
+- `git diff --check` passed.
+- Confirmed local repo status before commit consists only of:
+  - `docs/ARCHITECTURE.md`
+  - `HANDOFF.md`
+  - `supabase/migrations/202607140001_granular_permission_overrides_foundation.sql`
+- Confirmed local docs now contain:
+  - ARCHITECTURE v2.29
+  - Section 17b
+  - HANDOFF Entries 134, 135, 136
+- Confirmed live schema preflight facts used for implementation:
+  - no existing `user_permission_overrides` table
+  - `user_permissions.role` exists
+  - `change_logs` supports `permission_change`
+  - current live `permission_overrides` data is empty
+- Live migration execution was **not** performed in this session; this pass
+  prepares the migration file and repo updates only.
+
+### Next Steps (in order)
+1. Commit and push this backend foundation.
+2. Apply the migration in the intended database environment.
+3. Ryan tests:
+   - grant a non-Developer user permission via `set_permission_override`
+   - revoke a permission via `set_permission_override`
+   - confirm direct table writes are rejected
+   - confirm `change_logs` records the write
+   - confirm targeting `can_access_developer` is rejected
+   - confirm targeting a Developer user is rejected
+4. Build the Developer Console UI for managing overrides in a later milestone.
+
+### Open Questions / Concerns
+- Entries 134 and 135 were not available as full local source text during repo
+  synchronization; local placeholders were added only to preserve sequential
+  numbering before inserting the authoritative final Entry 136.
+- Because the migration was not executed live here, runtime verification of the
+  SQL itself still depends on applying it in the target Supabase environment.
+
+### Architecture Drift Warnings
+- None active relative to Entry 136. This pass stayed within the locked backend
+  scope and did not add UI, Owner-path logic, expiration, or new permission
+  flags.
+
+### Routing Verdict
+No additional Claude review required before migration application — this stayed
+inside the locked Section 17b / Entry 136 backend scope after live schema
+confirmation.
