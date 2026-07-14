@@ -58,7 +58,7 @@
   height: 42px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 8px;
   background: linear-gradient(180deg, var(--ng-brand-red) 0%, var(--ng-brand-red-strong) 100%);
   color: #ffffff;
   font-size: 1rem;
@@ -141,7 +141,7 @@
   gap: 0.08rem;
   min-width: 0;
   border: 1px solid var(--ng-border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: #ffffff;
   padding: 0.65rem 0.9rem;
   line-height: 1.2;
@@ -307,7 +307,7 @@
   top: calc(var(--app-header-height) + 16px);
   min-width: 0;
   border: 1px solid var(--ng-border);
-  border-radius: 24px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--ng-shadow);
   overflow: hidden;
@@ -365,7 +365,7 @@
   gap: 0.7rem;
   border: 1px solid transparent;
   border-left: 3px solid transparent;
-  border-radius: 16px;
+  border-radius: 12px;
   background: transparent;
   color: var(--ng-text);
   padding: 0.8rem 0.9rem;
@@ -389,7 +389,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(24, 33, 43, 0.05);
 }
 
@@ -489,7 +489,7 @@
   gap: 0.3rem;
   min-width: 0;
   border: 1px solid var(--ng-border);
-  border-radius: 18px;
+  border-radius: 14px;
   background: #ffffff;
   padding: 1rem;
   box-shadow: 0 8px 22px rgba(24, 33, 43, 0.04);
@@ -695,7 +695,7 @@
 .secondary-button,
 .dev-dashboard-toggle {
   min-height: 42px;
-  border-radius: 999px;
+  border-radius: var(--ng-radius-control);
   padding: 0 1rem;
   font-weight: 700;
 }
@@ -844,12 +844,24 @@ textarea:focus-visible {
   align-items: start;
 }
 
+.jobs-dashboard-shell.is-utility-collapsed {
+  grid-template-columns: 4.75rem 14rem minmax(0, 1fr);
+}
+
+.jobs-dashboard-shell.is-status-collapsed {
+  grid-template-columns: 13rem 4.75rem minmax(0, 1fr);
+}
+
+.jobs-dashboard-shell.is-utility-collapsed.is-status-collapsed {
+  grid-template-columns: 4.75rem 4.75rem minmax(0, 1fr);
+}
+
 .jobs-utility-rail,
 .jobs-status-rail,
 .jobs-directory-panel,
 .jobs-detail-panel {
   border: 1px solid var(--ng-border);
-  border-radius: 24px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--ng-shadow);
 }
@@ -861,11 +873,42 @@ textarea:focus-visible {
   display: grid;
   gap: 1rem;
   padding: 1rem;
+  align-content: start;
+  overflow: hidden;
 }
 
 .jobs-utility-rail__create {
   width: 100%;
   justify-content: center;
+}
+
+.jobs-rail__header-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.jobs-status-rail__header-row {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.jobs-rail__collapse-button {
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ng-border);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--ng-muted);
+}
+
+.jobs-rail__collapse-button:hover {
+  border-color: var(--ng-brand-red-border);
+  background: var(--ng-brand-red-soft);
+  color: var(--ng-brand-red-strong);
 }
 
 .jobs-utility-rail__group,
@@ -883,7 +926,7 @@ textarea:focus-visible {
   gap: 0.75rem;
   border: 1px solid transparent;
   border-left: 3px solid transparent;
-  border-radius: 18px;
+  border-radius: 12px;
   background: transparent;
   color: var(--ng-text);
   padding: 0.9rem 1rem;
@@ -912,7 +955,7 @@ textarea:focus-visible {
   display: grid;
   gap: 0.18rem;
   border: 1px solid var(--ng-border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--ng-panel-bg);
   padding: 0.9rem 1rem;
 }
@@ -947,6 +990,21 @@ textarea:focus-visible {
 .jobs-status-rail__item-copy {
   display: grid;
   gap: 0.15rem;
+}
+
+.jobs-status-rail__glyph {
+  min-width: 2.4rem;
+  height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--ng-panel-bg);
+  color: var(--ng-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .jobs-status-rail__badge {
@@ -997,7 +1055,7 @@ textarea:focus-visible {
 .jobs-directory-toolbar__search input {
   min-width: 15rem;
   border: 1px solid var(--ng-border);
-  border-radius: 14px;
+  border-radius: 10px;
   background: #ffffff;
   padding: 0.8rem 0.95rem;
 }
@@ -1020,7 +1078,7 @@ textarea:focus-visible {
 .jobs-directory-filters select {
   min-width: 13rem;
   border: 1px solid var(--ng-border);
-  border-radius: 14px;
+  border-radius: 10px;
   background: #ffffff;
   color: var(--ng-text);
   padding: 0.7rem 0.8rem;
@@ -1046,7 +1104,7 @@ textarea:focus-visible {
   gap: 1rem;
   align-items: center;
   border: 1px solid var(--ng-border);
-  border-radius: 24px;
+  border-radius: 16px;
   background: linear-gradient(180deg, #ffffff 0%, #fff9f8 100%);
   padding: 1.15rem;
 }
@@ -1064,7 +1122,7 @@ textarea:focus-visible {
   height: 4.5rem;
   display: grid;
   place-items: center;
-  border-radius: 18px;
+  border-radius: 12px;
   background: linear-gradient(180deg, #fff3f2 0%, #ffeceb 100%);
   color: var(--ng-brand-red);
 }
@@ -1130,9 +1188,48 @@ textarea:focus-visible {
   display: grid;
   gap: 0.18rem;
   border: 1px solid var(--ng-border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: #ffffff;
   padding: 0.75rem 0.9rem;
+}
+
+.jobs-utility-rail.is-collapsed,
+.jobs-status-rail.is-collapsed {
+  padding-inline: 0.65rem;
+}
+
+.jobs-utility-rail.is-collapsed .jobs-rail__header-row,
+.jobs-status-rail.is-collapsed .jobs-status-rail__header-row {
+  justify-content: center;
+}
+
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__create {
+  padding-inline: 0;
+}
+
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__create span,
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__item span,
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__meta,
+.jobs-status-rail.is-collapsed .jobs-status-rail__header,
+.jobs-status-rail.is-collapsed .jobs-status-rail__item-copy,
+.jobs-status-rail.is-collapsed .jobs-status-rail__badge {
+  display: none;
+}
+
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__group,
+.jobs-status-rail.is-collapsed .jobs-status-rail__list {
+  justify-items: center;
+}
+
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__item,
+.jobs-status-rail.is-collapsed .jobs-status-rail__item {
+  justify-content: center;
+  padding-inline: 0.35rem;
+}
+
+.jobs-utility-rail.is-collapsed .jobs-utility-rail__item svg,
+.jobs-status-rail.is-collapsed .jobs-status-rail__glyph {
+  margin: 0;
 }
 
 .job-detail-header__fact span {

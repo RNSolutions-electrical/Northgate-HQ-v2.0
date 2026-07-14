@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Archive, Briefcase, Camera, CameraOff, ChevronDown, ChevronUp, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
+import { Archive, Briefcase, Camera, CameraOff, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { PrimarySidebar } from './components/layout/PrimarySidebar.jsx';
@@ -8599,6 +8599,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
     status: '',
     division: '',
   });
+  const [isJobsUtilityRailCollapsed, setIsJobsUtilityRailCollapsed] = useState(false);
+  const [isJobsStatusRailCollapsed, setIsJobsStatusRailCollapsed] = useState(false);
   const selectedJob = jobs.find((row) => row.id === selectedJobId) ?? null;
   const selectedJobCanEdit = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
   const selectedJobCanManageBudget = Boolean(selectedJob && canApproveBudget && selectedJob.division === permissions.division);
@@ -8646,6 +8648,11 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const budgetFormCanSave = Boolean(selectedJobCanManageBudget && selectedJob && !isSavingBudgetLine);
   const documentFormCanSave = Boolean(selectedJobCanManageDocuments && selectedJob && documentDraft.file && !isSavingDocument);
   const scheduleFormCanSave = Boolean(selectedJobCanManageSchedule && selectedJob && !isSavingScheduleItem);
+  const jobsDashboardShellClassName = [
+    'jobs-dashboard-shell',
+    isJobsUtilityRailCollapsed ? 'is-utility-collapsed' : '',
+    isJobsStatusRailCollapsed ? 'is-status-collapsed' : '',
+  ].filter(Boolean).join(' ');
   const jobStatusCounts = useMemo(() => ({
     all: jobs.length,
     active: jobs.filter((row) => row.status === 'active').length,
@@ -8654,6 +8661,13 @@ function JobsWorkspace({ permissions, navigateTo }) {
     cancelled: jobs.filter((row) => row.status === 'cancelled').length,
   }), [jobs]);
   const jobsPanelTitle = filters.status ? formatJobStatusLabel(filters.status) : 'All Jobs';
+  const jobsStatusRailItems = useMemo(() => ([
+    { key: '', label: 'All Jobs', shortLabel: 'All', badge: jobStatusCounts.all },
+    { key: 'active', label: 'Active Jobs', shortLabel: 'Act', badge: jobStatusCounts.active },
+    { key: 'on_hold', label: 'On Hold', shortLabel: 'Hold', badge: jobStatusCounts.on_hold },
+    { key: 'complete', label: 'Completed', shortLabel: 'Done', badge: jobStatusCounts.complete },
+    { key: 'cancelled', label: 'Cancelled', shortLabel: 'Off', badge: jobStatusCounts.cancelled },
+  ]), [jobStatusCounts]);
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -11245,13 +11259,25 @@ function JobsWorkspace({ permissions, navigateTo }) {
       {!hasWritableDivision ? <div className="alert">Job create/edit is blocked because the current user division could not be determined from server permissions.</div> : null}
       {jobMessage ? <div className="alert">{jobMessage}</div> : null}
 
-      <div className="jobs-dashboard-shell">
-        <aside className="jobs-utility-rail" aria-label="Jobs quick actions">
-          <button type="button" className="primary-button jobs-utility-rail__create" onClick={startNewJob} disabled={!canCreateJobs || isSavingJob}>
-            <Plus aria-hidden="true" /> Create Job
+      <div className={jobsDashboardShellClassName}>
+        <aside className={`jobs-utility-rail${isJobsUtilityRailCollapsed ? ' is-collapsed' : ''}`} aria-label="Jobs quick actions">
+          <div className="jobs-rail__header-row">
+            <button
+              type="button"
+              className="jobs-rail__collapse-button"
+              aria-label={isJobsUtilityRailCollapsed ? 'Expand jobs quick actions' : 'Collapse jobs quick actions'}
+              aria-pressed={isJobsUtilityRailCollapsed}
+              onClick={() => setIsJobsUtilityRailCollapsed((current) => !current)}
+            >
+              {isJobsUtilityRailCollapsed ? <ChevronRight aria-hidden="true" /> : <ChevronLeft aria-hidden="true" />}
+            </button>
+          </div>
+          <button type="button" className="primary-button jobs-utility-rail__create" onClick={startNewJob} disabled={!canCreateJobs || isSavingJob} title="Create Job">
+            <Plus aria-hidden="true" />
+            <span>Create Job</span>
           </button>
           <div className="jobs-utility-rail__group">
-            <button type="button" className="jobs-utility-rail__item is-active" aria-current="page">
+            <button type="button" className="jobs-utility-rail__item is-active" aria-current="page" title="My Jobs">
               <Briefcase aria-hidden="true" />
               <span>My Jobs</span>
             </button>
@@ -11266,27 +11292,34 @@ function JobsWorkspace({ permissions, navigateTo }) {
           </div>
         </aside>
 
-        <aside className="jobs-status-rail" aria-label="Jobs status navigation">
-          <div className="jobs-status-rail__header">
-            <p className="eyebrow">Status Views</p>
-            <h3>Jobs</h3>
-            <p>Filter the live list without changing the underlying Jobs reads or detail flows.</p>
+        <aside className={`jobs-status-rail${isJobsStatusRailCollapsed ? ' is-collapsed' : ''}`} aria-label="Jobs status navigation">
+          <div className="jobs-rail__header-row jobs-status-rail__header-row">
+            <div className="jobs-status-rail__header">
+              <p className="eyebrow">Status Views</p>
+              <h3>Jobs</h3>
+              <p>Filter the live list without changing the underlying Jobs reads or detail flows.</p>
+            </div>
+            <button
+              type="button"
+              className="jobs-rail__collapse-button"
+              aria-label={isJobsStatusRailCollapsed ? 'Expand jobs status navigation' : 'Collapse jobs status navigation'}
+              aria-pressed={isJobsStatusRailCollapsed}
+              onClick={() => setIsJobsStatusRailCollapsed((current) => !current)}
+            >
+              {isJobsStatusRailCollapsed ? <ChevronRight aria-hidden="true" /> : <ChevronLeft aria-hidden="true" />}
+            </button>
           </div>
           <div className="jobs-status-rail__list">
-            {[
-              { key: '', label: 'All Jobs', badge: jobStatusCounts.all },
-              { key: 'active', label: 'Active Jobs', badge: jobStatusCounts.active },
-              { key: 'on_hold', label: 'On Hold', badge: jobStatusCounts.on_hold },
-              { key: 'complete', label: 'Completed', badge: jobStatusCounts.complete },
-              { key: 'cancelled', label: 'Cancelled', badge: jobStatusCounts.cancelled },
-            ].map((item) => (
+            {jobsStatusRailItems.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 className="jobs-status-rail__item"
                 aria-current={filters.status === item.key ? 'page' : undefined}
                 onClick={() => setFilters((current) => ({ ...current, status: item.key }))}
+                title={item.label}
               >
+                <span className="jobs-status-rail__glyph" aria-hidden="true">{item.shortLabel}</span>
                 <span className="jobs-status-rail__item-copy">
                   <strong>{item.label}</strong>
                   <small>{item.badge} job{item.badge === 1 ? '' : 's'}</small>

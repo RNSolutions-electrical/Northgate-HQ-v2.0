@@ -26,8 +26,8 @@
   --ng-err-bg: #fdeeed;
   --ng-info: #2b5ea8;
   --ng-info-bg: #edf3ff;
-  --ng-radius-card: 20px;
-  --ng-radius-control: 14px;
+  --ng-radius-card: 14px;
+  --ng-radius-control: 10px;
   --app-header-height: 84px;
   --app-sidebar-width: 272px;
   --app-sidebar-collapsed-width: 84px;
@@ -41,6 +41,6 @@
   --table-font-size: 13px;
   --table-cell-padding-y: 9px;
   --table-cell-padding-x: 12px;
-  --ui-radius: 12px;
+  --ui-radius: 10px;
   font-family: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }

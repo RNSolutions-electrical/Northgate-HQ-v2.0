@@ -14540,3 +14540,112 @@ business-rule work was authorized.
 No Claude review needed before commit/push - this follow-up remained inside
 the locked Northgate UI presentation scope and did not cross backend or
 architecture-sensitive boundaries.
+
+## Entry 142 - Jobs rails made collapsible and shell corners sharpened
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Northgate UI System refinement
+**Session type:** implementation
+
+### Context
+Ryan requested one more visual refinement pass after Entry 141:
+
+- make the Jobs side panels collapsible like the supplied reference image
+- sharpen the corner radius across the interface so the shell feels more like
+  the mockup and less pill-rounded
+
+This remained a presentation-only follow-up on top of the pushed Jobs-theme
+alignment commit. No backend, schema, auth, permission, or business-rule work
+was authorized.
+
+### What Was Diagnosed
+- Confirmed starting commit:
+  `04336f205897034a021a4375d65298cec677eaad`
+- Confirmed the Jobs utility rail and Jobs status rail were static-width panels
+  with no user-controlled collapse state.
+- Confirmed the shell still relied on radius values that were softer/rounder
+  than the supplied reference, especially on cards, controls, rails, and Jobs
+  detail surfaces.
+
+### What Was Completed
+- Added independent collapse state for both Jobs side rails:
+  - far-left utility rail
+  - Jobs status/filter rail
+- Added desktop collapse/expand controls for each rail and reduced the grid
+  widths when either rail is collapsed.
+- Preserved useful collapsed affordances:
+  - utility rail keeps icon-only actions
+  - status rail keeps compact short-label glyphs
+- Sharpened the shared visual language by reducing radius values across the
+  shell:
+  - card radius
+  - control radius
+  - rail radius
+  - selected-job header radius
+  - supporting fact-card / icon-panel radius
+  - search/filter input radius
+  - button radius
+- Kept the existing Jobs create/view/edit/archive flows unchanged while
+  applying the new collapse behavior.
+
+### Code / File Changes
+- `HANDOFF.md`
+- `src/App.jsx`
+- `src/styles/layout.css`
+- `src/styles/tokens.css`
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
+- Prior HANDOFF checkpoint remained Entry 141; this entry appends Entry 142
+  only.
+
+### What Claude Needs to Know
+- This pass only adds presentational collapse behavior and radius refinement.
+- The collapsible Jobs rails do not introduce any new route, permission, or
+  data write path.
+- The left-rail `Create Job` action from Entry 141 remains wired to the
+  existing create-job behavior.
+
+### Verification
+- `cmd /c npm run build` passed.
+- Confirmed only UI-layer files changed:
+  - `src/App.jsx`
+  - `src/styles/layout.css`
+  - `src/styles/tokens.css`
+  - `HANDOFF.md`
+- Confirmed no migrations, schema files, RLS files, RPC files, auth files, or
+  permission files changed in this pass.
+- Confirmed the collapse behavior is local UI state only and does not affect
+  existing Jobs data loading or write semantics.
+- Manual logged-in runtime testing was not completed in this session.
+  Browser verification of the collapsed-rail interactions and narrow-screen
+  behavior remains pending.
+- The final implementation commit hash was not yet knowable at the moment this
+  entry was written; it is the commit that introduces Entry 142 and is
+  reported in the session summary / git history.
+
+### Next Steps (in order)
+1. Review the sharper-radius shell and the collapsible Jobs rails visually.
+2. In a logged-in browser session, test:
+   - collapse and expand on both Jobs rails
+   - left-rail `Create Job`
+   - status-rail filtering after collapse/expand
+   - selected-job switching and detail-tab navigation
+3. If the corner language now feels right, carry the sharper radius system
+   into later module conversions for consistency.
+
+### Open Questions / Concerns
+- The collapse behavior is currently scoped to the Jobs rails, which matches
+  the most direct interpretation of Ryan's request and the supplied image.
+- Runtime visual confirmation is still needed for final polish on the
+  collapsed desktop state and tablet/mobile layout feel.
+
+### Architecture Drift Warnings
+- None active. This pass stayed entirely within UI presentation scope and did
+  not alter schema, RPCs, permissions, auth, or Section 42 detail-tab rules.
+
+### Routing Verdict
+No Claude review needed before commit/push - this stayed inside the locked UI
+presentation scope and did not cross backend or architecture-sensitive
+boundaries.
