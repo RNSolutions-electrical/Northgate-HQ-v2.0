@@ -14238,3 +14238,176 @@ confirms this entry and the updated ARCHITECTURE v2.30.
 **For Claude:** No further review needed for this milestone unless Phase 1
 implementation surfaces a conflict with Section 42 or existing Inventory
 permission logic that Codex cannot resolve alone.
+
+## Entry 140 - Northgate UI shell adopted for Inventory
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Northgate UI System Phase 1
+**Session type:** implementation
+
+### Context
+Phase 1 implementation proceeded from the locked UI checkpoint in
+`docs/ARCHITECTURE.md` v2.30 and `HANDOFF.md` Entry 139 after confirming:
+
+- branch `main`
+- clean pre-edit working tree
+- local `HEAD` matched `origin/main`
+- starting commit `165eb327fe8f920f01f93b596910a47dc8a05abe`
+- Section 50 was present
+- Section 42 remained unchanged and compatible with the workspace-shell
+  decision
+
+This pass stayed inside the approved presentation-only scope: reusable shell,
+shared design tokens, Inventory conversion, and responsive behavior. No
+schema, RPC, permission, auth, audit, ledger, checkout, or business-rule work
+was authorized or performed.
+
+### What Was Diagnosed
+- Confirmed the existing app shell and Inventory presentation still lived
+  inside a monolithic `src/App.jsx`.
+- Confirmed the current live Inventory experience already included these
+  implemented surfaces and needed to remain wired to their existing handlers:
+  - Inventory Overview
+  - Accounting Export
+  - Catalog Preview
+  - Storage Browser
+  - Locations & QR
+  - Scan QR
+  - Label Designer
+  - Tool Catalogue
+  - Cart Checkout
+  - Inventory Count & Correction
+  - Transactions
+- Confirmed the new shell had to preserve the direct location-scan path, the
+  existing top-level workspaces, and the current permission-aware module
+  visibility model.
+- Confirmed the project has no separate automated test command beyond
+  `npm run build`.
+
+### What Was Completed
+- Added reusable light-theme design tokens for the locked Northgate visual
+  system:
+  - Northgate red brand and selected-state tints
+  - page/surface/border/text/status colors
+  - radius, shadow, spacing, header height, and sidebar width variables
+- Added reusable shell/layout components:
+  - `AppShell`
+  - `TopNavigation`
+  - `PrimarySidebar`
+  - `SecondarySidebar`
+  - `WorkspaceHeader`
+  - `SummaryCard`
+- Added shared shell/layout styles for:
+  - persistent global header
+  - responsive top navigation
+  - collapsible primary sidebar
+  - optional secondary context sidebar
+  - light workspace surfaces, compact operational spacing, and selected-state
+    red accents
+  - print-mode suppression of shell/navigation chrome
+- Integrated the new shell into `Dashboard()` while preserving existing
+  workspace routing and authorization behavior.
+- Converted Inventory from the old read-only shell wrapper into the new
+  `InventoryWorkspacePanel`, keeping the existing live panels and handlers for:
+  - overview
+  - accounting export
+  - catalog
+  - storage
+  - locations / QR
+  - scan flow
+  - labels
+  - tool catalogue
+  - cart
+  - count / correction
+  - transactions
+- Added Inventory-specific section metadata, summary-card counts, sidebar
+  navigation, and a context rail without creating new routes.
+- Preserved the direct location-scan route under the new global shell.
+- Left Dashboard, Jobs, Estimates, Employees, Vehicles, Silas, and Developer
+  internal workflows functionally unchanged aside from inheriting the new
+  top-level shell.
+
+### Code / File Changes
+- `HANDOFF.md`
+- `src/App.jsx`
+- `src/main.jsx`
+- `src/components/layout/AppShell.jsx`
+- `src/components/layout/PrimarySidebar.jsx`
+- `src/components/layout/SecondarySidebar.jsx`
+- `src/components/layout/TopNavigation.jsx`
+- `src/components/ui/SummaryCard.jsx`
+- `src/components/ui/WorkspaceHeader.jsx`
+- `src/styles/layout.css`
+- `src/styles/tokens.css`
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
+- Prior HANDOFF checkpoint remained Entry 139; this entry appends Entry 140
+  only.
+
+### What Claude Needs to Know
+- This pass stayed inside the locked Section 50 / Entry 139 presentation scope.
+- Inventory now uses the Northgate shell primitives, but no backend or
+  permission semantics were changed.
+- Jobs/Estimates/Employees/Vehicles/Silas/Developer still need future
+  workspace-level visual conversion if later phases authorize it.
+
+### Verification
+- Confirmed preflight before edits:
+  - branch `main`
+  - clean working tree
+  - local `HEAD` = `origin/main` = `165eb327fe8f920f01f93b596910a47dc8a05abe`
+  - ARCHITECTURE v2.30
+  - HANDOFF gapless through Entry 139
+- `cmd /c npm run build` passed.
+- `git diff --check` passed aside from a line-ending warning on `src/main.jsx`
+  caused by Git normalization; no whitespace error blocked the build.
+- Confirmed no migration files were added or changed.
+- Confirmed no backend files, Supabase schema files, RLS files, or RPC files
+  were changed in this pass.
+- Confirmed the new shell/layout/style files contain no direct Supabase
+  `insert`, `update`, `delete`, `rpc`, or `inventory_balances` write path.
+- Confirmed print-specific shell suppression exists in `src/styles/layout.css`
+  so the new navigation chrome does not appear in print mode.
+- Confirmed responsive behavior was implemented in code for:
+  - desktop default / 1440px class of layout
+  - 1279px secondary-sidebar collapse
+  - 1024px primary-sidebar drawer behavior
+  - 768px compact mobile/tablet spacing
+  - 390px narrow-screen action wrapping
+- Manual logged-in runtime verification was not completed in this session.
+  Browser-authenticated exercise of Inventory workflows, Clerk profile menu,
+  and responsive interaction states remains pending.
+- The final implementation commit hash was not yet knowable at the moment this
+  entry was written; it is the commit that introduces Entry 140 and is
+  reported in the session summary / git history.
+
+### Next Steps (in order)
+1. Review the visual result in a logged-in browser session at desktop, tablet,
+   and mobile widths.
+2. Exercise the existing Inventory read/action paths non-destructively:
+   section switching, catalog, storage, cart, count, transactions, scan, and
+   print/export surfaces as permissions allow.
+3. If runtime verification is clean, proceed with future module conversions in
+   later phases rather than expanding scope inside this commit.
+
+### Open Questions / Concerns
+- The approved mockup image was not available as a directly inspectable local
+  image file in the workspace attachments during this session, so visual
+  implementation followed the locked written design brief plus the current app
+  structure.
+- Because runtime browser/auth testing was not completed here, the responsive
+  layout and shell interactions are verified by build output and code review,
+  not by full live operator walkthrough.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside ARCHITECTURE v2.30 / Entry 139 and did
+  not alter Section 42, schema, RPCs, permissions, auth, or inventory source
+  of truth.
+
+### Routing Verdict
+No Claude review needed before commit/push - this implementation stayed within
+the locked Phase 1 UI shell + Inventory conversion scope from ARCHITECTURE
+v2.30 / HANDOFF Entry 139 and did not cross backend or architecture-sensitive
+boundaries.

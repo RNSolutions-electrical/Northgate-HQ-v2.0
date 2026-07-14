@@ -1,9 +1,14 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
 import { Archive, Briefcase, Camera, CameraOff, ChevronDown, ChevronUp, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppShell } from './components/layout/AppShell.jsx';
+import { PrimarySidebar } from './components/layout/PrimarySidebar.jsx';
+import { SecondarySidebar } from './components/layout/SecondarySidebar.jsx';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { SilasBubble, SilasWorkspacePanel } from './components/SilasPanels.jsx';
+import { SummaryCard } from './components/ui/SummaryCard.jsx';
+import { WorkspaceHeader } from './components/ui/WorkspaceHeader.jsx';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
@@ -60,6 +65,86 @@ const WORKSPACES = new Set([
   'silas',
   'developer',
 ]);
+const INVENTORY_TAB_ITEMS = [
+  {
+    key: 'grand-master',
+    label: 'Inventory Overview',
+    shortLabel: 'Overview',
+    icon: LayoutDashboard,
+    description: 'Live stock summary and comparison view.',
+  },
+  {
+    key: 'accounting-export',
+    label: 'Accounting Export',
+    shortLabel: 'Accounting Export',
+    icon: Download,
+    description: 'Read-only accounting preview and print surface.',
+  },
+  {
+    key: 'catalog',
+    label: 'Catalog Preview',
+    shortLabel: 'Catalog',
+    icon: Database,
+    description: 'Material list and pricing preview.',
+  },
+  {
+    key: 'storage',
+    label: 'Storage Browser',
+    shortLabel: 'Storage',
+    icon: MapPin,
+    description: 'Physical units, shelves, bays, and bins.',
+  },
+  {
+    key: 'locations',
+    label: 'Locations & QR',
+    shortLabel: 'Locations',
+    icon: QrCode,
+    description: 'Stable location records and QR outputs.',
+  },
+  {
+    key: 'scan',
+    label: 'Scan QR',
+    shortLabel: 'Scan',
+    icon: Camera,
+    description: 'Scan and dispatch into existing inventory flows.',
+  },
+  {
+    key: 'labels',
+    label: 'Label Designer',
+    shortLabel: 'Labels',
+    icon: Printer,
+    description: 'Template-driven unit, shelf, bay, and bin labels.',
+  },
+  {
+    key: 'tools',
+    label: 'Tool Catalogue',
+    shortLabel: 'Tool Catalogue',
+    icon: Wrench,
+    description: 'Inventory-adjacent catalogue foundation for tools.',
+  },
+  {
+    key: 'cart',
+    label: 'Cart Checkout',
+    shortLabel: 'Cart',
+    icon: ShoppingCart,
+    description: 'Controlled cart open, add, remove, and checkout flow.',
+  },
+  {
+    key: 'count',
+    label: 'Inventory Count & Correction',
+    shortLabel: 'Count',
+    icon: ClipboardCheck,
+    description: 'Count intake, correction, and retirement workflow.',
+  },
+  {
+    key: 'transactions',
+    label: 'Transactions',
+    shortLabel: 'Transactions',
+    icon: RefreshCw,
+    description: 'Read-only inventory movement history.',
+  },
+];
+const INVENTORY_TAB_META = new Map(INVENTORY_TAB_ITEMS.map((item) => [item.key, item]));
 const COUNT_REASON_OPTIONS = [
   { value: 'initial shelf count', label: 'Initial shelf count' },
   { value: 'cycle count', label: 'Cycle count' },
@@ -81,15 +166,15 @@ const REPEAT_REVIEW_FIELDS = [
   { key: 'description', label: 'Description', getValue: (row) => row.description },
 ];
 const DEVELOPMENT_STATUS = {
-  mostRecentChange: 'Silas Conversation',
-  relatedHandoff: 'Entry 130',
-  architectureVersion: 'v2.28',
+  mostRecentChange: 'Northgate UI shell',
+  relatedHandoff: 'Entry 140',
+  architectureVersion: 'v2.30',
   currentStep: 'Jobs completion — Schedule',
   buildMarker: APP_BUILD_SHA,
-  deploymentNote: 'The build marker still reflects the exact bundle being served while Silas conversation stays inside the v2.28 locked shell.',
+  deploymentNote: 'Build marker reflects the exact bundle while the v2.30 shell and Inventory conversion stay inside locked presentation boundaries.',
 };
 
-DEVELOPMENT_STATUS.currentStep = 'Silas Phase 2A - casual conversation';
+DEVELOPMENT_STATUS.currentStep = 'Phase 1 visual system - Inventory';
 
 const DEV_DASHBOARD_STORAGE_KEY = 'northgate.showDevDashboard';
 const LEGACY_LAYOUT_TUNER_STORAGE_KEY = 'northgate.layoutTuner.v1';
@@ -218,6 +303,141 @@ const JOB_DOCUMENTS_HELPER_COPY = 'Documents attach to this job. They are stored
 const ISSUE_TO_JOB_HELPER_COPY = 'Issue to Job moves stock out of inventory through checkout. This is not a reservation.';
 const JOB_FINANCIALS_HELPER_COPY = 'Financials v1 is a budget planning tool. It tracks budgeted cost lines for this job only. It does not calculate actual cost, profit, revenue, inventory value, purchase orders, invoices, change orders, payroll, or accounting entries.';
 const JOB_SCHEDULE_HELPER_COPY = 'Schedule tracks key milestones and tasks for this job. It does not sync with a calendar or manage dependencies between items.';
+function buildWorkspaceNavItems({ silasEnabled, canAccessDeveloper }) {
+  const items = [
+    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { key: 'inventory', label: 'Inventory', icon: Briefcase },
+    { key: 'jobs', label: 'Jobs', icon: Briefcase },
+    { key: 'estimating', label: 'Estimates', icon: Database },
+    { key: 'tools', label: 'Tools', icon: Wrench },
+    { key: 'employees', label: 'Employees', icon: ClipboardCheck },
+    { key: 'vehicles', label: 'Vehicles', icon: MapPin },
+  ];
+
+  if (silasEnabled) {
+    items.push({ key: 'silas', label: 'Silas', icon: ShieldCheck });
+  }
+
+  if (canAccessDeveloper) {
+    items.push({ key: 'developer', label: 'Developer', icon: SlidersHorizontal });
+  }
+
+  return items;
+}
+
+function buildInventorySidebarItems(counts) {
+  const badgeMap = {
+    'grand-master': counts.grandMasterRows,
+    catalog: counts.activeItems,
+    storage: counts.bins,
+    locations: counts.bins,
+    cart: counts.inventoryBalances,
+    count: counts.binItems,
+    transactions: counts.inventoryBalances,
+  };
+
+  return INVENTORY_TAB_ITEMS.map((item) => ({
+    ...item,
+    badge: badgeMap[item.key] ?? null,
+  }));
+}
+
+function getInventoryContext(activeTab, counts) {
+  switch (activeTab) {
+    case 'grand-master':
+      return {
+        eyebrow: 'Inventory Context',
+        title: 'Overview snapshot',
+        description: 'Use the overview to compare stock, value, and location coverage before drilling deeper into a workflow.',
+        stats: [
+          { label: 'Visible rows', value: counts.grandMasterRows },
+          { label: 'Active items', value: counts.activeItems },
+          { label: 'Balance rows', value: counts.inventoryBalances },
+        ],
+        bullets: [
+          'Filters stay inside the main table for fast operator comparison.',
+          'Selected rows use a soft red tint rather than a heavy dashboard-card treatment.',
+        ],
+      };
+    case 'storage':
+    case 'locations':
+    case 'scan':
+      return {
+        eyebrow: 'Storage Context',
+        title: 'Physical hierarchy',
+        description: 'These views stay anchored to the existing Storage Unit -> Shelf -> Bay -> Bin model and QR resolution rules.',
+        stats: [
+          { label: 'Units', value: counts.storageUnits },
+          { label: 'Shelves', value: counts.shelves },
+          { label: 'Bays', value: counts.bays },
+          { label: 'Bins', value: counts.bins },
+        ],
+        bullets: [
+          'Hierarchy navigation remains module-level; no new routes were introduced.',
+          'Scan pages still dispatch only into existing cart or count-correction flows.',
+        ],
+      };
+    case 'cart':
+      return {
+        eyebrow: 'Workflow Context',
+        title: 'Controlled cart flow',
+        description: 'Cart actions still route through the existing server RPCs and keep destination drafts local until checkout.',
+        stats: [
+          { label: 'Candidate rows', value: counts.inventoryBalances },
+          { label: 'Active items', value: counts.activeItems },
+          { label: 'Bins', value: counts.bins },
+        ],
+        bullets: [
+          'No direct balance writes were introduced.',
+          'Apply Destination to All and per-line checkout stay on their original handlers.',
+        ],
+      };
+    case 'count':
+      return {
+        eyebrow: 'Workflow Context',
+        title: 'Count and correction',
+        description: 'Count intake, quantity correction, and retirement remain fail-closed and permission-aware.',
+        stats: [
+          { label: 'Countable rows', value: counts.binItems },
+          { label: 'Balance rows', value: counts.inventoryBalances },
+          { label: 'Bins', value: counts.bins },
+        ],
+        bullets: [
+          'Physical count correction remains the only approved balance-setting mechanic.',
+          'Retirement still requires a zero ledger-derived balance first.',
+        ],
+      };
+    case 'transactions':
+      return {
+        eyebrow: 'Read Context',
+        title: 'Movement history',
+        description: 'Transactions remain read-only and continue using the existing filter and permission boundaries.',
+        stats: [
+          { label: 'Balance rows', value: counts.inventoryBalances },
+          { label: 'Active items', value: counts.activeItems },
+          { label: 'Bins', value: counts.bins },
+        ],
+        bullets: [
+          'Protected operational data stays omitted entirely where permissions do not allow it.',
+          'No ledger, audit, or destination semantics changed in this pass.',
+        ],
+      };
+    default:
+      return {
+        eyebrow: 'Section Context',
+        title: INVENTORY_TAB_META.get(activeTab)?.label ?? 'Inventory section',
+        description: INVENTORY_TAB_META.get(activeTab)?.description ?? 'This section remains on the existing live data path.',
+        stats: [
+          { label: 'Active items', value: counts.activeItems },
+          { label: 'Bins', value: counts.bins },
+          { label: 'Balance rows', value: counts.inventoryBalances },
+        ],
+        bullets: [
+          'The shell changed, but the data source and action wiring did not.',
+        ],
+      };
+  }
+}
 // Job-detail Issue to Job shortcut is intentionally hidden for now. Material movement should originate from Inventory / future Vehicle Inventory, with Job selected as the checkout destination. Keep the shortcut code available behind this toggle for possible future reactivation.
 const ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false;
 const JOB_BUDGET_CATEGORY_OPTIONS = [
@@ -1655,12 +1875,7 @@ function RepeatMatchChips({ matches }) {
 }
 
 function CountCard({ label, value }) {
-  return (
-    <div className="count-card">
-      <span className="count-card__value">{value}</span>
-      <span className="count-card__label">{label}</span>
-    </div>
-  );
+  return <SummaryCard label={label} value={value} tone="accent" />;
 }
 
 function EmptyState({ title, children }) {
@@ -8096,6 +8311,185 @@ function InventoryReadOnlyPanel({ permissions, navigateTo, requestedTab = '', sc
   );
 }
 
+function InventoryWorkspacePanel({ permissions, navigateTo, requestedTab = '', scanCartContext = null, scanCountContext = null, designPreviewEnabled = false }) {
+  const [activeTab, setActiveTab] = useState(INVENTORY_TABS.has(requestedTab) ? requestedTab : 'grand-master');
+  const [isPrimarySidebarCollapsed, setIsPrimarySidebarCollapsed] = useState(false);
+  const [isPrimarySidebarOpen, setIsPrimarySidebarOpen] = useState(false);
+  const [isSecondarySidebarOpen, setIsSecondarySidebarOpen] = useState(false);
+  const inventory = useInventoryReadModel({ enabled: permissions.permissionSource === 'server' });
+  const counts = inventory.model.counts;
+  const activeSection = INVENTORY_TAB_META.get(activeTab) ?? INVENTORY_TAB_ITEMS[0];
+  const inventorySidebarItems = useMemo(() => buildInventorySidebarItems(counts), [counts]);
+  const inventoryContext = useMemo(() => getInventoryContext(activeTab, counts), [activeTab, counts]);
+
+  useEffect(() => {
+    if (INVENTORY_TABS.has(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
+
+  useEffect(() => {
+    setIsPrimarySidebarOpen(false);
+    setIsSecondarySidebarOpen(false);
+  }, [activeTab]);
+
+  return (
+    <article className="card card--wide workspace-card inventory-workspace">
+      <WorkspaceHeader
+        eyebrow="Phase 1 shell / Inventory"
+        title="Inventory Command Center"
+        description="Inventory now sits inside the locked Northgate shell while keeping the same live Supabase reads, controlled cart flow, count tools, print surfaces, and permission-aware states."
+        status={(
+          <span className={permissions.permissionSource === 'server' ? 'status-pill status-pill--good' : 'status-pill status-pill--warn'}>
+            {permissions.permissionSource === 'server' ? 'Server permissions verified' : 'Waiting on server permissions'}
+          </span>
+        )}
+        actions={(
+          <>
+            <button
+              type="button"
+              className="workspace-toggle secondary-button"
+              onClick={() => setIsPrimarySidebarOpen(true)}
+            >
+              Sections
+            </button>
+            <button
+              type="button"
+              className="workspace-toggle secondary-button"
+              onClick={() => setIsSecondarySidebarOpen(true)}
+            >
+              Context
+            </button>
+          </>
+        )}
+      />
+
+      {inventory.error ? (
+        <div className="alert">
+          Inventory read failed. Stop before write-capable UI and resolve the read path first.
+        </div>
+      ) : null}
+
+      <div className="inventory-workspace__toolbar">
+        <div className="inventory-workspace__toolbar-meta">
+          <span className="inventory-workspace__meta-pill">
+            Active section: {activeSection.shortLabel}
+          </span>
+          <span className="inventory-workspace__meta-pill">
+            Rows visible to this session: {counts.grandMasterRows}
+          </span>
+          <span className="inventory-workspace__meta-pill">
+            Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}
+          </span>
+        </div>
+        <div className="inventory-workspace__toolbar-meta">
+          <span className="inventory-workspace__meta-pill">
+            Express checkout remains locked
+          </span>
+        </div>
+      </div>
+
+      <div className="count-grid">
+        <CountCard label="Active catalog items" value={counts.activeItems} />
+        <CountCard label="Storage units" value={counts.storageUnits} />
+        <CountCard label="Shelves" value={counts.shelves} />
+        <CountCard label="Bays" value={counts.bays} />
+        <CountCard label="Bins" value={counts.bins} />
+        <CountCard label="Bin items" value={counts.binItems} />
+        <CountCard label="Balance rows" value={counts.inventoryBalances} />
+        <CountCard label="Inventory Overview rows" value={counts.grandMasterRows} />
+      </div>
+
+      <div className="workspace-layout workspace-layout--with-secondary inventory-workspace__layout">
+        <PrimarySidebar
+          eyebrow="Inventory"
+          title="Module sections"
+          description="Use the module rail to move between the current live Inventory surfaces without changing the underlying workflows."
+          items={inventorySidebarItems}
+          activeKey={activeTab}
+          onSelect={setActiveTab}
+          collapsed={isPrimarySidebarCollapsed}
+          onToggleCollapse={() => setIsPrimarySidebarCollapsed((current) => !current)}
+          mobileOpen={isPrimarySidebarOpen}
+          onCloseMobile={() => setIsPrimarySidebarOpen(false)}
+          footer={(
+            <div className="inventory-workspace__sidebar-footer">
+              <p className="inventory-workspace__sidebar-note">
+                Northgate red marks the active section while the actual permission checks remain server-authoritative.
+              </p>
+              <span className="status-pill status-pill--warn">
+                Express checkout is still reserved
+              </span>
+            </div>
+          )}
+        />
+
+        <div className="workspace-surface">
+          <WorkspaceHeader
+            eyebrow="Active inventory section"
+            title={activeSection.label}
+            description={activeSection.description}
+          />
+
+          {inventory.isLoading ? <p className="muted">Loading live inventory data...</p> : null}
+          {activeTab === 'grand-master' ? <GrandMasterOverviewPanel permissions={permissions} /> : null}
+          {activeTab === 'accounting-export' ? <AccountingExportPreviewPanel permissions={permissions} /> : null}
+          {activeTab === 'catalog' ? <CatalogPreview rows={inventory.model.catalogPreview} /> : null}
+          {activeTab === 'storage' ? <StoragePreview storageUnits={inventory.model.storageUnitsPreview} bins={inventory.model.binsPreview} /> : null}
+          {activeTab === 'locations' ? <LocationManagementPanel permissions={permissions} /> : null}
+          {activeTab === 'scan' ? <LocationScannerPanel permissions={permissions} navigateTo={navigateTo} /> : null}
+          {activeTab === 'labels' ? <LabelTemplateDesignerPanel permissions={permissions} /> : null}
+          {activeTab === 'tools' ? <ToolCataloguePanel permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
+          {activeTab === 'cart' ? (
+            <CartScaffold
+              permissions={permissions}
+              cartCandidates={inventory.model.cartCandidates}
+              destinationReferences={inventory.model.destinationReferences}
+              onInventoryReload={inventory.reload}
+              scanCartContext={scanCartContext}
+            />
+          ) : null}
+          {activeTab === 'count' ? (
+            <InventoryCountIntakePanel permissions={permissions} scanCountContext={scanCountContext} />
+          ) : null}
+          {activeTab === 'transactions' ? <TransactionHistoryPanel permissions={permissions} /> : null}
+
+          <p className="build-note">
+            Last loaded: {inventory.lastLoadedAt ? new Date(inventory.lastLoadedAt).toLocaleString() : 'not loaded yet'}
+          </p>
+        </div>
+
+        <SecondarySidebar
+          eyebrow={inventoryContext.eyebrow}
+          title={inventoryContext.title}
+          description={inventoryContext.description}
+          mobileOpen={isSecondarySidebarOpen}
+          onCloseMobile={() => setIsSecondarySidebarOpen(false)}
+        >
+          <div className="inventory-context">
+            <div className="inventory-context__stats">
+              {inventoryContext.stats.map((stat) => (
+                <div className="inventory-context__stat" key={stat.label}>
+                  <span>{stat.label}</span>
+                  <strong>{stat.value}</strong>
+                </div>
+              ))}
+            </div>
+            <p className="inventory-context__note">
+              The visual shell changed in this phase, but the underlying Inventory actions still route through the same approved hooks, RPCs, and permission checks.
+            </p>
+            <ul className="inventory-context__list">
+              {inventoryContext.bullets.map((bullet) => (
+                <li key={bullet}>{bullet}</li>
+              ))}
+            </ul>
+          </div>
+        </SecondarySidebar>
+      </div>
+    </article>
+  );
+}
+
 function DevelopmentStatusCard() {
   return (
     <article className="card development-status-card">
@@ -11382,6 +11776,24 @@ function Dashboard() {
   const canAccessDeveloper = permissions.permissionSource === 'server' && permissions.canAccessDeveloper;
   const activeWorkspace = dashboardRouteContext.activeWorkspace;
   const devDashboardActive = activeWorkspace === 'developer' && showDevDashboard && canAccessDeveloper;
+  const workspaceNavItems = useMemo(
+    () => buildWorkspaceNavItems({ silasEnabled: silas.silasEnabled, canAccessDeveloper }),
+    [silas.silasEnabled, canAccessDeveloper],
+  );
+  const shellWorkspace = scanRoute.ok ? 'inventory' : activeWorkspace;
+  const identitySummary = useMemo(() => {
+    if (!permissions.isLoaded) {
+      return {
+        role: 'Loading access',
+        division: 'Resolving permissions',
+      };
+    }
+
+    return {
+      role: permissions.role ?? 'Authenticated user',
+      division: permissions.division ?? 'No division assigned',
+    };
+  }, [permissions.division, permissions.isLoaded, permissions.role]);
 
   useEffect(() => {
     writeDevDashboardVisibility(showDevDashboard);
@@ -11444,140 +11856,107 @@ function Dashboard() {
   }
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div className="app-header__inner">
-          <div className="app-brand">
-            <p className="eyebrow">Northgate HQ v2.0</p>
-            <h1 className="app-title">Operations Dashboard</h1>
-            <p className="build-note">{DEVELOPMENT_STATUS.buildMarker}</p>
-          </div>
-          <nav className="app-top-nav" aria-label="Primary workspace navigation">
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'dashboard' ? 'page' : undefined} onClick={() => openWorkspace('dashboard')}>
-              Dashboard
-            </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'inventory' ? 'page' : undefined} onClick={() => openWorkspace('inventory')}>
-              Inventory
-            </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'jobs' ? 'page' : undefined} onClick={() => openWorkspace('jobs')}>
-              Jobs
-            </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'estimating' ? 'page' : undefined} onClick={() => openWorkspace('estimating')}>
-              Estimating
-            </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'tools' ? 'page' : undefined} onClick={() => openWorkspace('tools')}>
-              Tools
-            </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'employees' ? 'page' : undefined} onClick={() => openWorkspace('employees')}>
-              Employees
-            </button>
-            <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'vehicles' ? 'page' : undefined} onClick={() => openWorkspace('vehicles')}>
-              Vehicles
-            </button>
-            {silas.silasEnabled ? (
-              <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'silas' ? 'page' : undefined} onClick={() => openWorkspace('silas')}>
-                Silas
-              </button>
-            ) : null}
-            {canAccessDeveloper ? (
-              <button className="app-nav-item" type="button" aria-current={activeWorkspace === 'developer' ? 'page' : undefined} onClick={() => openWorkspace('developer')}>
-                Developer
-              </button>
-            ) : null}
-          </nav>
-          {canAccessDeveloper ? (
-            <button
-              className="dev-dashboard-toggle"
-              type="button"
-              aria-pressed={devDashboardActive}
-              title="Hides development-only status cards in this browser."
-              onClick={() => {
-                if (devDashboardActive) {
-                  setShowDevDashboard(false);
-                } else {
-                  showDeveloperDashboard();
-                }
-              }}
-            >
-              {devDashboardActive ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
-            </button>
-          ) : null}
-          <UserButton afterSignOutUrl="/" />
-        </div>
-      </header>
-
-      {scanRoute.ok ? (
-        <section className="app-main">
-          <LocationScanResult
-            permissions={permissions}
-            locationId={scanRoute.locationId}
-            navigateTo={navigateTo}
-          />
-        </section>
-      ) : (
-      <section className="app-main">
-        {activeWorkspace === 'dashboard' ? (
-          <ComingSoonWorkspace title="Dashboard" description="A team-facing operations dashboard will live here. For now, use the Inventory workspace for live workflows." />
+    <>
+      <AppShell
+        eyebrow="Northgate HQ v2.0"
+        title="Operations Dashboard"
+        buildLabel={DEVELOPMENT_STATUS.buildMarker}
+        navItems={workspaceNavItems}
+        activeWorkspace={shellWorkspace}
+        onOpenWorkspace={openWorkspace}
+        identitySummary={identitySummary}
+        developerToggle={canAccessDeveloper ? (
+          <button
+            className="dev-dashboard-toggle"
+            type="button"
+            aria-pressed={devDashboardActive}
+            title="Hides development-only status cards in this browser."
+            onClick={() => {
+              if (devDashboardActive) {
+                setShowDevDashboard(false);
+              } else {
+                showDeveloperDashboard();
+              }
+            }}
+          >
+            {devDashboardActive ? 'Hide Dev Dashboard' : 'Show Dev Dashboard'}
+          </button>
         ) : null}
-        {activeWorkspace === 'inventory' ? (
-          <InventoryReadOnlyPanel
-            permissions={permissions}
-            navigateTo={navigateTo}
-            requestedTab={dashboardRouteContext.requestedInventoryTab}
-            scanCartContext={dashboardRouteContext.scanCartContext}
-            scanCountContext={dashboardRouteContext.scanCountContext}
-            designPreviewEnabled={designPreviewEnabled}
-          />
-        ) : null}
-        {activeWorkspace === 'jobs' ? <JobsWorkspace permissions={permissions} navigateTo={navigateTo} /> : null}
-        {activeWorkspace === 'silas' ? (
-          <SilasWorkspacePanel
-            enabled={silas.silasEnabled}
-            settingsLoading={silas.settingsLoading}
-            settingsError={silas.settingsError}
-            conversations={silas.conversations}
-            conversationsLoading={silas.conversationsLoading}
-            activeConversationId={silas.activeConversationId}
-            messages={silas.messages}
-            messagesLoading={silas.messagesLoading}
-            draftMessage={silas.draftMessage}
-            setDraftMessage={silas.setDraftMessage}
-            onSend={silas.sendMessage}
-            onSelectConversation={silas.setActiveConversationId}
-            onNewConversation={silas.startNewConversation}
-            statusMessage={silas.statusMessage}
-            chatError={silas.chatError}
-            isSending={silas.isSending}
-            responseSource={silas.responseSource}
-          />
-        ) : null}
-        {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
-        {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
-        {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}
-        {activeWorkspace === 'vehicles' ? <ComingSoonWorkspace title="Vehicles" description="Vehicle workspace is reserved for a future milestone." /> : null}
-        {activeWorkspace === 'developer' ? (
-          canAccessDeveloper ? (
-            <DeveloperDashboard
-              user={user}
+        profileControl={<UserButton afterSignOutUrl="/" userProfileMode="modal" />}
+      >
+        {scanRoute.ok ? (
+          <section className="app-main">
+            <LocationScanResult
               permissions={permissions}
-              showDevDashboard={showDevDashboard}
-              onShow={showDeveloperDashboard}
-              onHide={() => setShowDevDashboard(false)}
-              formattingTunerValues={formattingTunerValues}
-              setFormattingTunerValues={setFormattingTunerValues}
-              resetFormattingTunerValues={resetFormattingTunerValues}
-              silasEnabled={silas.silasEnabled}
-              silasSettingsLoading={silas.settingsLoading}
-              silasSettingsError={silas.settingsError}
-              silasTogglePending={silas.isUpdatingSettings}
-              onToggleSilas={silas.toggleSilasEnabled}
+              locationId={scanRoute.locationId}
+              navigateTo={navigateTo}
             />
-          ) : (
-            <DeveloperWorkspaceLocked />
-          )
-        ) : null}
-      </section>
-      )}
+          </section>
+        ) : (
+          <section className="app-main">
+            {activeWorkspace === 'dashboard' ? (
+              <ComingSoonWorkspace title="Dashboard" description="A team-facing operations dashboard will live here. For now, use the Inventory workspace for live workflows." />
+            ) : null}
+            {activeWorkspace === 'inventory' ? (
+              <InventoryWorkspacePanel
+                permissions={permissions}
+                navigateTo={navigateTo}
+                requestedTab={dashboardRouteContext.requestedInventoryTab}
+                scanCartContext={dashboardRouteContext.scanCartContext}
+                scanCountContext={dashboardRouteContext.scanCountContext}
+                designPreviewEnabled={designPreviewEnabled}
+              />
+            ) : null}
+            {activeWorkspace === 'jobs' ? <JobsWorkspace permissions={permissions} navigateTo={navigateTo} /> : null}
+            {activeWorkspace === 'silas' ? (
+              <SilasWorkspacePanel
+                enabled={silas.silasEnabled}
+                settingsLoading={silas.settingsLoading}
+                settingsError={silas.settingsError}
+                conversations={silas.conversations}
+                conversationsLoading={silas.conversationsLoading}
+                activeConversationId={silas.activeConversationId}
+                messages={silas.messages}
+                messagesLoading={silas.messagesLoading}
+                draftMessage={silas.draftMessage}
+                setDraftMessage={silas.setDraftMessage}
+                onSend={silas.sendMessage}
+                onSelectConversation={silas.setActiveConversationId}
+                onNewConversation={silas.startNewConversation}
+                statusMessage={silas.statusMessage}
+                chatError={silas.chatError}
+                isSending={silas.isSending}
+                responseSource={silas.responseSource}
+              />
+            ) : null}
+            {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
+            {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
+            {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}
+            {activeWorkspace === 'vehicles' ? <ComingSoonWorkspace title="Vehicles" description="Vehicle workspace is reserved for a future milestone." /> : null}
+            {activeWorkspace === 'developer' ? (
+              canAccessDeveloper ? (
+                <DeveloperDashboard
+                  user={user}
+                  permissions={permissions}
+                  showDevDashboard={showDevDashboard}
+                  onShow={showDeveloperDashboard}
+                  onHide={() => setShowDevDashboard(false)}
+                  formattingTunerValues={formattingTunerValues}
+                  setFormattingTunerValues={setFormattingTunerValues}
+                  resetFormattingTunerValues={resetFormattingTunerValues}
+                  silasEnabled={silas.silasEnabled}
+                  silasSettingsLoading={silas.settingsLoading}
+                  silasSettingsError={silas.settingsError}
+                  silasTogglePending={silas.isUpdatingSettings}
+                  onToggleSilas={silas.toggleSilasEnabled}
+                />
+              ) : (
+                <DeveloperWorkspaceLocked />
+              )
+            ) : null}
+          </section>
+        )}
+      </AppShell>
       <SilasBubble
         enabled={silas.silasEnabled}
         isOpen={silasBubbleOpen}
@@ -11595,7 +11974,7 @@ function Dashboard() {
         chatError={silas.chatError}
         isSending={silas.isSending}
       />
-    </main>
+    </>
   );
 }
 
