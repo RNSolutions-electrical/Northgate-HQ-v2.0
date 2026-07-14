@@ -14411,3 +14411,132 @@ No Claude review needed before commit/push - this implementation stayed within
 the locked Phase 1 UI shell + Inventory conversion scope from ARCHITECTURE
 v2.30 / HANDOFF Entry 139 and did not cross backend or architecture-sensitive
 boundaries.
+
+## Entry 141 - Theme alignment follow-up for Northgate UI shell and Jobs workspace
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Northgate UI System follow-up refinement
+**Session type:** implementation
+
+### Context
+Ryan supplied a new approved visual reference image after Entry 140 and asked
+for the same general shell direction to be retuned toward that lighter
+construction-dashboard aesthetic. The specific requested addition was a
+`Create Job` action on the far-left Jobs navigation rail.
+
+This pass was treated as a presentation-only refinement on top of the pushed
+Phase 1 shell commit. No architecture, schema, permission, RPC, auth, or
+business-rule work was authorized.
+
+### What Was Diagnosed
+- Confirmed the app repo was clean on `main` at starting commit
+  `f88db7402dae8fbd5e80e307b436dd06f7d8dd21`.
+- Confirmed the reference image emphasizes:
+  - flatter white header treatment
+  - red underline active navigation
+  - softer warm page background
+  - lighter panel borders and shadows
+  - dual-left-rail Jobs layout
+  - `Create Job` as a prominent far-left action
+- Confirmed the existing Jobs workspace already had real live create/edit/view
+  flows, so the new left-rail `Create Job` action should call the current
+  `startNewJob()` path instead of creating a parallel flow.
+- Confirmed the current Jobs schema/read model does **not** expose PM /
+  superintendent fields like the mockup image, so the visual adaptation had
+  to stay within actual available job fields.
+
+### What Was Completed
+- Retuned shared shell tokens and layout styling closer to the supplied
+  reference:
+  - warmer white / light-cream page background
+  - flatter white header
+  - slimmer top navigation with red underline active state
+  - lighter borders and softer shadows
+  - wider application content area
+- Updated the global shell branding treatment so the app header reads more like
+  a product wordmark than a page-title banner.
+- Reworked the Jobs workspace into a more reference-aligned dashboard layout:
+  - far-left utility rail
+  - left status/filter rail
+  - main jobs directory panel
+  - selected-job detail panel below / alongside existing detail tabs
+- Added the requested far-left `Create Job` action and wired it to the
+  existing `startNewJob()` behavior.
+- Added status-rail filters for:
+  - All Jobs
+  - Active Jobs
+  - On Hold
+  - Completed
+  - Cancelled
+- Restyled the selected-job header and overview summary to better match the
+  supplied design language while preserving the existing detail-tab pattern.
+- Kept all existing Jobs create/edit/archive/detail flows on their current
+  handlers and Supabase paths.
+
+### Code / File Changes
+- `HANDOFF.md`
+- `src/App.jsx`
+- `src/styles/layout.css`
+- `src/styles/tokens.css`
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
+- Prior HANDOFF checkpoint remained Entry 140; this entry appends Entry 141
+  only.
+
+### What Claude Needs to Know
+- This was a design-alignment follow-up, not a new architecture pass.
+- The Jobs workspace now visually borrows more from the supplied reference
+  image, but it still uses the same existing Jobs data fields and handlers.
+- The left-rail `Create Job` action is presentation-only and simply routes into
+  the already existing create-job flow.
+
+### Verification
+- Confirmed starting commit:
+  `f88db7402dae8fbd5e80e307b436dd06f7d8dd21`
+- `cmd /c npm run build` passed.
+- Confirmed only UI-layer files changed:
+  - `src/App.jsx`
+  - `src/styles/layout.css`
+  - `src/styles/tokens.css`
+  - `HANDOFF.md`
+- Confirmed no migrations, schema files, RLS files, RPC files, auth files, or
+  permission files changed in this pass.
+- Confirmed the requested `Create Job` left-rail action calls the existing Jobs
+  workspace create flow rather than introducing a new write path.
+- Manual logged-in runtime testing was not completed in this session.
+  Browser-authenticated verification of the refined Jobs layout and its mobile
+  interaction states remains pending.
+- The final implementation commit hash was not yet knowable at the moment this
+  entry was written; it is the commit that introduces Entry 141 and is
+  reported in the session summary / git history.
+
+### Next Steps (in order)
+1. Review the refined shell and Jobs workspace visually against the supplied
+   reference image.
+2. In a logged-in browser session, test:
+   - far-left `Create Job`
+   - status-rail filtering
+   - jobs search
+   - selected-job switching
+   - detail-tab navigation
+3. If the refined theme is approved, continue applying the same visual language
+   to later module phases without changing protected backend boundaries.
+
+### Open Questions / Concerns
+- The supplied reference image contains PM / superintendent / revenue-style
+  fields that are not all present in the current live Jobs foundation, so the
+  implementation matched the visual system rather than reproducing unavailable
+  fields literally.
+- Runtime browser verification is still needed for final confidence on mobile
+  and tablet Jobs interactions.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside the UI/presentation layer and did not
+  alter schema, RPCs, permissions, auth, or Section 42 detail-tab behavior.
+
+### Routing Verdict
+No Claude review needed before commit/push - this follow-up remained inside
+the locked Northgate UI presentation scope and did not cross backend or
+architecture-sensitive boundaries.

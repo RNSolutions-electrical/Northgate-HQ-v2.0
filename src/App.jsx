@@ -2841,6 +2841,22 @@ function formatJobType(value) {
   return 'Job';
 }
 
+function formatJobStatusLabel(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  switch (normalized) {
+    case 'on_hold':
+      return 'On Hold';
+    case 'complete':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'active':
+      return 'Active';
+    default:
+      return normalized ? normalized.replace(/_/g, ' ') : 'Unknown';
+  }
+}
+
 function getJobStatusBadgeClass(value) {
   const toneByValue = {
     active: 'ok',
@@ -8630,6 +8646,14 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const budgetFormCanSave = Boolean(selectedJobCanManageBudget && selectedJob && !isSavingBudgetLine);
   const documentFormCanSave = Boolean(selectedJobCanManageDocuments && selectedJob && documentDraft.file && !isSavingDocument);
   const scheduleFormCanSave = Boolean(selectedJobCanManageSchedule && selectedJob && !isSavingScheduleItem);
+  const jobStatusCounts = useMemo(() => ({
+    all: jobs.length,
+    active: jobs.filter((row) => row.status === 'active').length,
+    on_hold: jobs.filter((row) => row.status === 'on_hold').length,
+    complete: jobs.filter((row) => row.status === 'complete').length,
+    cancelled: jobs.filter((row) => row.status === 'cancelled').length,
+  }), [jobs]);
+  const jobsPanelTitle = filters.status ? formatJobStatusLabel(filters.status) : 'All Jobs';
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -9857,23 +9881,40 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
     return (
       <section className="job-detail-header">
-        <div className="job-detail-header__body">
-          <p className="eyebrow">Selected job</p>
-          <div className="job-detail-header__title-row">
-            <div>
-              <h3>{selectedJob.name || 'Unnamed job'}</h3>
-              <p>{addressSummary || 'No address recorded.'}</p>
-            </div>
-            <span className={getJobStatusBadgeClass(selectedJob.status)}>{selectedJob.status}</span>
+        <div className="job-detail-header__hero">
+          <div className="job-detail-header__icon" aria-hidden="true">
+            <Briefcase />
           </div>
-          <div className="job-detail-header__meta">
-            {metaChips.map((value) => <span key={value}>{value}</span>)}
+          <div className="job-detail-header__body">
+            <p className="eyebrow">Selected job</p>
+            <div className="job-detail-header__title-row">
+              <div>
+                <h3>{selectedJob.name || 'Unnamed job'}</h3>
+                <p>{addressSummary || 'No address recorded.'}</p>
+              </div>
+              <span className={getJobStatusBadgeClass(selectedJob.status)}>{formatJobStatusLabel(selectedJob.status)}</span>
+            </div>
+            <div className="job-detail-header__meta">
+              {metaChips.map((value) => <span key={value}>{value}</span>)}
+            </div>
           </div>
         </div>
-        <div className="job-detail-header__actions">
-          <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
-            <Plus aria-hidden="true" /> New Job
-          </button>
+        <div className="job-detail-header__aside">
+          <div className="job-detail-header__facts">
+            <div className="job-detail-header__fact">
+              <span>Division</span>
+              <strong>{selectedJob.division || 'Unassigned'}</strong>
+            </div>
+            <div className="job-detail-header__fact">
+              <span>Type</span>
+              <strong>{formatJobType(selectedJob.job_type)}</strong>
+            </div>
+          </div>
+          <div className="job-detail-header__actions">
+            <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
+              <Plus aria-hidden="true" /> New Job
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -9896,26 +9937,11 @@ function JobsWorkspace({ permissions, navigateTo }) {
         </div>
 
         <div className="job-overview-grid">
-          <article className="job-overview-card">
-            <strong>{jobMaterialSummary.count}</strong>
-            <span>Material lines</span>
-          </article>
-          <article className="job-overview-card">
-            <strong>{formatRequestedQuantity(jobMaterialSummary.total)}</strong>
-            <span>Total requested quantity</span>
-          </article>
-          <article className="job-overview-card">
-            <strong>{buyoutSummary.count}</strong>
-            <span>Buyout lines</span>
-          </article>
-          <article className="job-overview-card">
-            <strong>{buyoutSummary.pendingCount}</strong>
-            <span>Pending buyout lines</span>
-          </article>
-          <article className="job-overview-card">
-            <strong>{buyoutSummary.orderedCount + buyoutSummary.receivedCount}</strong>
-            <span>Ordered / received buyout lines</span>
-          </article>
+          <SummaryCard label="Material Lines" value={jobMaterialSummary.count} detail="Tracked against this job" tone="accent" />
+          <SummaryCard label="Requested Qty" value={formatRequestedQuantity(jobMaterialSummary.total)} detail="Material list total" />
+          <SummaryCard label="Buyout Lines" value={buyoutSummary.count} detail="Quoted or ordered items" />
+          <SummaryCard label="Pending Buyout" value={buyoutSummary.pendingCount} detail="Still awaiting action" />
+          <SummaryCard label="Ordered / Received" value={buyoutSummary.orderedCount + buyoutSummary.receivedCount} detail="Active procurement progress" />
         </div>
 
         <div className="job-overview-summary">
@@ -11197,257 +11223,299 @@ function JobsWorkspace({ permissions, navigateTo }) {
   }
 
   return (
-    <article className="card card--wide inventory-module-card">
-      <div className="card__header">
-        <div>
-          <p className="eyebrow">Workspace</p>
-          <h2>Jobs</h2>
-          <p>{JOBS_HELPER_COPY}</p>
-        </div>
-        <Briefcase className="card__icon" aria-hidden="true" />
-      </div>
-
-      <div className="inventory-module-shell">
-        <aside className="module-sidebar" aria-label="Jobs workspace navigation">
-          <div className="module-sidebar__header">
-            <p className="eyebrow">Workspace</p>
-            <h3>Jobs</h3>
-          </div>
-          <div className="module-tabs" role="tablist" aria-label="Jobs views">
-            <button className="module-tab" type="button" aria-selected="true">
-              Jobs Foundation
+    <article className="card card--wide workspace-card jobs-workspace-card">
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Jobs"
+        description={JOBS_HELPER_COPY}
+        status={<span className="status-pill">{filteredJobs.length} visible job{filteredJobs.length === 1 ? '' : 's'}</span>}
+        actions={(
+          <>
+            <button type="button" className="secondary-button" onClick={() => loadJobs()} disabled={isLoadingJobs}>
+              <RefreshCw aria-hidden="true" /> Refresh
             </button>
+            <button type="button" className="primary-button" onClick={startNewJob} disabled={!canCreateJobs || isSavingJob}>
+              <Plus aria-hidden="true" /> New Job
+            </button>
+          </>
+        )}
+      />
+
+      {jobsError ? <div className="alert">Jobs failed to load. Confirm server permissions and the `public.jobs` migration.</div> : null}
+      {!hasWritableDivision ? <div className="alert">Job create/edit is blocked because the current user division could not be determined from server permissions.</div> : null}
+      {jobMessage ? <div className="alert">{jobMessage}</div> : null}
+
+      <div className="jobs-dashboard-shell">
+        <aside className="jobs-utility-rail" aria-label="Jobs quick actions">
+          <button type="button" className="primary-button jobs-utility-rail__create" onClick={startNewJob} disabled={!canCreateJobs || isSavingJob}>
+            <Plus aria-hidden="true" /> Create Job
+          </button>
+          <div className="jobs-utility-rail__group">
+            <button type="button" className="jobs-utility-rail__item is-active" aria-current="page">
+              <Briefcase aria-hidden="true" />
+              <span>My Jobs</span>
+            </button>
+            <div className="jobs-utility-rail__meta">
+              <span>Current division</span>
+              <strong>{permissions.division ?? 'Unassigned'}</strong>
+            </div>
+            <div className="jobs-utility-rail__meta">
+              <span>Visible jobs</span>
+              <strong>{jobStatusCounts.all}</strong>
+            </div>
           </div>
         </aside>
 
-        <div className="module-content">
-          <section className="cart-panel tool-catalogue">
-            <div className="card__header">
+        <aside className="jobs-status-rail" aria-label="Jobs status navigation">
+          <div className="jobs-status-rail__header">
+            <p className="eyebrow">Status Views</p>
+            <h3>Jobs</h3>
+            <p>Filter the live list without changing the underlying Jobs reads or detail flows.</p>
+          </div>
+          <div className="jobs-status-rail__list">
+            {[
+              { key: '', label: 'All Jobs', badge: jobStatusCounts.all },
+              { key: 'active', label: 'Active Jobs', badge: jobStatusCounts.active },
+              { key: 'on_hold', label: 'On Hold', badge: jobStatusCounts.on_hold },
+              { key: 'complete', label: 'Completed', badge: jobStatusCounts.complete },
+              { key: 'cancelled', label: 'Cancelled', badge: jobStatusCounts.cancelled },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className="jobs-status-rail__item"
+                aria-current={filters.status === item.key ? 'page' : undefined}
+                onClick={() => setFilters((current) => ({ ...current, status: item.key }))}
+              >
+                <span className="jobs-status-rail__item-copy">
+                  <strong>{item.label}</strong>
+                  <small>{item.badge} job{item.badge === 1 ? '' : 's'}</small>
+                </span>
+                <span className="jobs-status-rail__badge">{item.badge}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <div className="jobs-dashboard-main">
+          <section className="cart-panel jobs-directory-panel">
+            <div className="jobs-directory-toolbar">
               <div>
-                <p className="eyebrow">Jobs</p>
-                <h3>Jobs Foundation</h3>
+                <p className="eyebrow">Directory</p>
+                <h3>{jobsPanelTitle}</h3>
+              </div>
+              <div className="jobs-directory-toolbar__actions">
+                <label className="jobs-directory-toolbar__search">
+                  <span className="sr-only">Search jobs</span>
+                  <input
+                    placeholder="Search jobs..."
+                    value={filters.search}
+                    onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setFilters({ search: '', status: '', division: '' })}
+                >
+                  Filters
+                </button>
+                <button type="button" className="primary-button" onClick={startNewJob} disabled={!canCreateJobs || isSavingJob}>
+                  <Plus aria-hidden="true" /> New Job
+                </button>
+              </div>
+            </div>
+
+            <div className="jobs-directory-filters">
+              <label>
+                Status
+                <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
+                  <option value="">All statuses</option>
+                  {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatJobStatusLabel(status)}</option>)}
+                </select>
+              </label>
+              {showDivisionFilter ? (
+                <label>
+                  Division
+                  <select value={filters.division} onChange={(event) => setFilters((current) => ({ ...current, division: event.target.value }))}>
+                    <option value="">All visible divisions</option>
+                    {divisionOptions.map((division) => <option key={division} value={division}>{division}</option>)}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+
+            {isLoadingJobs ? <p className="muted">Loading Jobs...</p> : null}
+            {!isLoadingJobs && !filteredJobs.length ? (
+              <div className="empty-state">
+                <strong>No jobs are visible for the current filter.</strong>
                 <p>{JOBS_HELPER_COPY}</p>
               </div>
-              <span className="status-pill">{filteredJobs.length} job{filteredJobs.length === 1 ? '' : 's'}</span>
-            </div>
+            ) : null}
 
-            <div className="location-note tool-catalogue__note">
-              <Briefcase aria-hidden="true" />
-              <span>{JOBS_HELPER_COPY}</span>
-            </div>
-
-            {jobsError ? <div className="alert">Jobs failed to load. Confirm server permissions and the `public.jobs` migration.</div> : null}
-            {!hasWritableDivision ? <div className="alert">Job create/edit is blocked because the current user division could not be determined from server permissions.</div> : null}
-            {jobMessage ? <div className="alert">{jobMessage}</div> : null}
-
-            <div className={`tool-catalogue__layout jobs-foundation-layout${selectedJob ? ' jobs-foundation-layout--detail' : ''}`}>
-              <section className="tool-catalogue__list-panel">
-                <div className="count-section-header">
-                  <div>
-                    <p className="eyebrow">Directory</p>
-                    <h3>Active jobs</h3>
-                  </div>
-                  <button type="button" className="secondary-button" onClick={() => loadJobs()} disabled={isLoadingJobs}>
-                    <RefreshCw aria-hidden="true" /> Refresh
-                  </button>
+            {filteredJobs.length ? (
+              <>
+                <div className="table-wrap">
+                  <table className="data-table jobs-table">
+                    <thead>
+                      <tr>
+                        <th>Job #</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Type</th>
+                        <th>Service Call #</th>
+                        <th>Division</th>
+                        <th>Address</th>
+                        <th>Updated</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredJobs.map((row) => (
+                        <tr key={row.id} className={selectedJobId === row.id ? 'is-selected' : undefined}>
+                          <td>{formatToolValue(row.job_number)}</td>
+                          <td>
+                            <strong>{row.name}</strong>
+                            {row.description ? <span>{row.description}</span> : null}
+                          </td>
+                          <td><span className={getJobStatusBadgeClass(row.status)}>{formatJobStatusLabel(row.status)}</span></td>
+                          <td>{formatJobType(row.job_type)}</td>
+                          <td>{formatToolValue(row.service_call_number)}</td>
+                          <td>{row.division || 'Unassigned'}</td>
+                          <td>{buildJobAddressSummary(row) || '-'}</td>
+                          <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
+                          <td>
+                            <div className="count-action-stack">
+                              <button type="button" className="secondary-button" onClick={() => viewJob(row)}>
+                                View
+                              </button>
+                              <button type="button" className="secondary-button" onClick={() => startEditJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                                <Pencil aria-hidden="true" /> Edit
+                              </button>
+                              <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                                <Archive aria-hidden="true" /> Archive
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
-                <div className="tool-toolbar">
-                  <label>
-                    Search
-                    <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} />
+                <div className="mobile-list tool-mobile-list">
+                  {filteredJobs.map((row) => (
+                    <article className={`mobile-item${selectedJobId === row.id ? ' is-selected' : ''}`} key={row.id}>
+                      <strong>{row.name}</strong>
+                      <div className="meta-grid">
+                        <span>Job #: {formatToolValue(row.job_number)}</span>
+                        <span>Status: <span className={getJobStatusBadgeClass(row.status)}>{formatJobStatusLabel(row.status)}</span></span>
+                        <span>Type: {formatJobType(row.job_type)}</span>
+                        <span>Service Call #: {formatToolValue(row.service_call_number)}</span>
+                        <span>Division: {row.division || 'Unassigned'}</span>
+                        <span>Address: {buildJobAddressSummary(row) || '-'}</span>
+                        <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
+                      </div>
+                      <div className="cart-actions">
+                        <button type="button" className="secondary-button" onClick={() => viewJob(row)}>
+                          View
+                        </button>
+                        <button type="button" className="secondary-button" onClick={() => startEditJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                          <Pencil aria-hidden="true" /> Edit
+                        </button>
+                        <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
+                          <Archive aria-hidden="true" /> Archive
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </section>
+
+          <section className="tool-catalogue__form-panel job-detail-panel jobs-detail-panel">
+            {selectedJob ? (
+              <div className="job-detail-shell">
+                {renderSelectedJobHeader()}
+
+                <div className="job-detail-tabs" role="tablist" aria-label="Job detail sections">
+                  {jobDetailTabs.map((tab) => {
+                    const isDisabled = tab.isDisabled;
+                    const isComingSoon = tab.isComingSoon;
+
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        className={`job-detail-tab${activeJobDetailTab === tab.key ? ' job-detail-tab--active' : ''}${isDisabled ? ' job-detail-tab--disabled' : ''}`}
+                        onClick={isDisabled ? undefined : () => handleJobDetailTabChange(tab.key)}
+                        aria-selected={activeJobDetailTab === tab.key}
+                        aria-disabled={isDisabled}
+                        disabled={isDisabled}
+                        title={isComingSoon ? `${tab.label} is coming soon.` : undefined}
+                      >
+                        <span>{tab.label}</span>
+                        {isComingSoon ? <small>Coming soon</small> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="job-detail-module">
+                  {renderActiveJobDetailTab()}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="count-section-header">
+                  <div>
+                    <p className="eyebrow">Create Job</p>
+                    <h3>Create job</h3>
+                  </div>
+                  <span>{canCreateJobs ? `Division: ${permissions.division ?? 'Unassigned'}` : 'can_create_jobs required'}</span>
+                </div>
+
+                <form className="tool-form" onSubmit={saveJob}>
+                  <label className="tool-form__wide">
+                    Name
+                    <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!formCanSave || isSavingJob} />
                   </label>
                   <label>
                     Status
-                    <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-                      <option value="">All statuses</option>
-                      {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                    <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!formCanSave || isSavingJob}>
+                      {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatJobStatusLabel(status)}</option>)}
                     </select>
                   </label>
-                  {showDivisionFilter ? (
-                    <label>
-                      Division
-                      <select value={filters.division} onChange={(event) => setFilters((current) => ({ ...current, division: event.target.value }))}>
-                        <option value="">All visible divisions</option>
-                        {divisionOptions.map((division) => <option key={division} value={division}>{division}</option>)}
-                      </select>
+                  <label>
+                    Job Type
+                    <select value={draft.job_type} onChange={(event) => updateDraft('job_type', event.target.value)} disabled={!formCanSave || isSavingJob}>
+                      {JOB_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{formatJobType(type)}</option>)}
+                    </select>
+                  </label>
+                  {JOB_TEXT_FORM_FIELDS.map((field) => (
+                    <label key={field.key}>
+                      {field.label}
+                      <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
                     </label>
-                  ) : null}
-                </div>
-
-                {isLoadingJobs ? <p className="muted">Loading Jobs...</p> : null}
-                {!isLoadingJobs && !filteredJobs.length ? (
-                  <div className="empty-state">
-                    <strong>No jobs have been added yet.</strong>
-                    <p>{JOBS_HELPER_COPY}</p>
+                  ))}
+                  {JOB_TEXTAREA_FORM_FIELDS.map((field) => (
+                    <label className="tool-form__wide" key={field.key}>
+                      {field.label}
+                      <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
+                    </label>
+                  ))}
+                  <div className="cart-actions tool-form__wide">
+                    <button type="submit" className="primary-button" disabled={!formCanSave || isSavingJob}>
+                      <Plus aria-hidden="true" /> {isSavingJob ? 'Saving...' : 'Create Job'}
+                    </button>
+                    <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
+                      Clear Form
+                    </button>
                   </div>
-                ) : null}
-
-                {filteredJobs.length ? (
-                  <>
-                    <div className="table-wrap">
-                      <table className="data-table jobs-table">
-                        <thead>
-                          <tr>
-                            <th>Job #</th>
-                            <th>Name</th>
-                            <th>Status</th>
-                            <th>Type</th>
-                            <th>Service Call #</th>
-                            <th>Division</th>
-                            <th>Address</th>
-                            <th>Updated</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredJobs.map((row) => (
-                            <tr key={row.id}>
-                              <td>{formatToolValue(row.job_number)}</td>
-                              <td>
-                                <strong>{row.name}</strong>
-                                {row.description ? <span>{row.description}</span> : null}
-                              </td>
-                              <td><span className={getJobStatusBadgeClass(row.status)}>{row.status}</span></td>
-                              <td>{formatJobType(row.job_type)}</td>
-                              <td>{formatToolValue(row.service_call_number)}</td>
-                              <td>{row.division || 'Unassigned'}</td>
-                              <td>{buildJobAddressSummary(row) || '-'}</td>
-                              <td>{formatJobDateTime(row.updated_at || row.created_at)}</td>
-                              <td>
-                                <div className="count-action-stack">
-                                  <button type="button" className="secondary-button" onClick={() => viewJob(row)}>
-                                    View
-                                  </button>
-                                  <button type="button" className="secondary-button" onClick={() => startEditJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
-                                    <Pencil aria-hidden="true" /> Edit
-                                  </button>
-                                  <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
-                                    <Archive aria-hidden="true" /> Archive
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="mobile-list tool-mobile-list">
-                      {filteredJobs.map((row) => (
-                        <article className="mobile-item" key={row.id}>
-                          <strong>{row.name}</strong>
-                          <div className="meta-grid">
-                            <span>Job #: {formatToolValue(row.job_number)}</span>
-                            <span>Status: <span className={getJobStatusBadgeClass(row.status)}>{row.status}</span></span>
-                            <span>Type: {formatJobType(row.job_type)}</span>
-                            <span>Service Call #: {formatToolValue(row.service_call_number)}</span>
-                            <span>Division: {row.division || 'Unassigned'}</span>
-                            <span>Address: {buildJobAddressSummary(row) || '-'}</span>
-                            <span>Updated: {formatJobDateTime(row.updated_at || row.created_at)}</span>
-                          </div>
-                          <div className="cart-actions">
-                            <button type="button" className="secondary-button" onClick={() => viewJob(row)}>
-                              View
-                            </button>
-                            <button type="button" className="secondary-button" onClick={() => startEditJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
-                              <Pencil aria-hidden="true" /> Edit
-                            </button>
-                            <button type="button" className="secondary-button secondary-button--danger" onClick={() => archiveJob(row)} disabled={!canManageJobs || isSavingJob || row.division !== permissions.division}>
-                              <Archive aria-hidden="true" /> Archive
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-              </section>
-
-              <section className="tool-catalogue__form-panel job-detail-panel">
-                {selectedJob ? (
-                  <div className="job-detail-shell">
-                    {renderSelectedJobHeader()}
-
-                    <div className="job-detail-tabs" role="tablist" aria-label="Job detail sections">
-                      {jobDetailTabs.map((tab) => {
-                        const isDisabled = tab.isDisabled;
-                        const isComingSoon = tab.isComingSoon;
-
-                        return (
-                          <button
-                            key={tab.key}
-                            type="button"
-                            className={`job-detail-tab${activeJobDetailTab === tab.key ? ' job-detail-tab--active' : ''}${isDisabled ? ' job-detail-tab--disabled' : ''}`}
-                            onClick={isDisabled ? undefined : () => handleJobDetailTabChange(tab.key)}
-                            aria-selected={activeJobDetailTab === tab.key}
-                            aria-disabled={isDisabled}
-                            disabled={isDisabled}
-                            title={isComingSoon ? `${tab.label} is coming soon.` : undefined}
-                          >
-                            <span>{tab.label}</span>
-                            {isComingSoon ? <small>Coming soon</small> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="job-detail-module">
-                      {renderActiveJobDetailTab()}
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="count-section-header">
-                      <div>
-                        <p className="eyebrow">Create Job</p>
-                        <h3>Create job</h3>
-                      </div>
-                      <span>{canCreateJobs ? `Division: ${permissions.division ?? 'Unassigned'}` : 'can_create_jobs required'}</span>
-                    </div>
-
-                    <form className="tool-form" onSubmit={saveJob}>
-                      <label className="tool-form__wide">
-                        Name
-                        <input required value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} disabled={!formCanSave || isSavingJob} />
-                      </label>
-                      <label>
-                        Status
-                        <select value={draft.status} onChange={(event) => updateDraft('status', event.target.value)} disabled={!formCanSave || isSavingJob}>
-                          {JOB_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
-                        </select>
-                      </label>
-                      <label>
-                        Job Type
-                        <select value={draft.job_type} onChange={(event) => updateDraft('job_type', event.target.value)} disabled={!formCanSave || isSavingJob}>
-                          {JOB_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{formatJobType(type)}</option>)}
-                        </select>
-                      </label>
-                      {JOB_TEXT_FORM_FIELDS.map((field) => (
-                        <label key={field.key}>
-                          {field.label}
-                          <input value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
-                        </label>
-                      ))}
-                      {JOB_TEXTAREA_FORM_FIELDS.map((field) => (
-                        <label className="tool-form__wide" key={field.key}>
-                          {field.label}
-                          <textarea value={draft[field.key]} onChange={(event) => updateDraft(field.key, event.target.value)} disabled={!formCanSave || isSavingJob} />
-                        </label>
-                      ))}
-                      <div className="cart-actions tool-form__wide">
-                        <button type="submit" className="secondary-button" disabled={!formCanSave || isSavingJob}>
-                          <Plus aria-hidden="true" /> {isSavingJob ? 'Saving...' : 'Create Job'}
-                        </button>
-                        <button type="button" className="secondary-button" onClick={startNewJob} disabled={isSavingJob}>
-                          Clear Form
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
-              </section>
-            </div>
+                </form>
+              </>
+            )}
           </section>
         </div>
       </div>
@@ -11859,7 +11927,7 @@ function Dashboard() {
     <>
       <AppShell
         eyebrow="Northgate HQ v2.0"
-        title="Operations Dashboard"
+        title="Northgate HQ"
         buildLabel={DEVELOPMENT_STATUS.buildMarker}
         navItems={workspaceNavItems}
         activeWorkspace={shellWorkspace}
