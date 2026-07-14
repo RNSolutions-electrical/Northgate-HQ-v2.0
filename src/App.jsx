@@ -8599,6 +8599,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
     status: '',
     division: '',
   });
+  const [jobsWorkspaceMode, setJobsWorkspaceMode] = useState('browse');
   const [isJobsUtilityRailCollapsed, setIsJobsUtilityRailCollapsed] = useState(false);
   const [isJobsStatusRailCollapsed, setIsJobsStatusRailCollapsed] = useState(false);
   const selectedJob = jobs.find((row) => row.id === selectedJobId) ?? null;
@@ -8668,6 +8669,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
     { key: 'complete', label: 'Completed', shortLabel: 'Done', badge: jobStatusCounts.complete },
     { key: 'cancelled', label: 'Cancelled', shortLabel: 'Off', badge: jobStatusCounts.cancelled },
   ]), [jobStatusCounts]);
+  const isCreateJobPanelOpen = jobsWorkspaceMode === 'create' && !selectedJob;
 
   async function loadJobs({ preserveMessage = false } = {}) {
     if (!canReadJobs) return;
@@ -9070,7 +9072,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((row) => row.id === selectedJobId)) {
-      startNewJob();
+      setSelectedJobId('');
+      setJobsWorkspaceMode('browse');
     }
   }, [selectedJobId, jobs]);
 
@@ -9098,8 +9101,16 @@ function JobsWorkspace({ permissions, navigateTo }) {
     setScheduleDraft((current) => ({ ...current, [key]: value }));
   }
 
+  function openJobsDirectory(status = '') {
+    setSelectedJobId('');
+    setJobsWorkspaceMode('browse');
+    setFilters((current) => ({ ...current, status }));
+    setJobMessage('');
+  }
+
   function startNewJob() {
     setSelectedJobId('');
+    setJobsWorkspaceMode('create');
     setActiveJobDetailTab('overview');
     setDraft(createJobDraft());
     setJobMessage('');
@@ -9112,6 +9123,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
   function viewJob(row, detailTab = 'overview') {
     setSelectedJobId(row.id);
+    setJobsWorkspaceMode('browse');
     handleJobDetailTabChange(detailTab);
     setDraft(createJobDraft(row));
     setJobMessage('');
@@ -9182,6 +9194,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
           .select('id')
           .single();
         if (error) throw error;
+        setJobsWorkspaceMode('browse');
         setSelectedJobId('');
         setDraft(createJobDraft());
         await loadJobs({ preserveMessage: true });
@@ -11277,7 +11290,13 @@ function JobsWorkspace({ permissions, navigateTo }) {
             <span>Create Job</span>
           </button>
           <div className="jobs-utility-rail__group">
-            <button type="button" className="jobs-utility-rail__item is-active" aria-current="page" title="My Jobs">
+            <button
+              type="button"
+              className={`jobs-utility-rail__item${jobsWorkspaceMode === 'browse' ? ' is-active' : ''}`}
+              aria-current={jobsWorkspaceMode === 'browse' ? 'page' : undefined}
+              title="My Jobs"
+              onClick={() => openJobsDirectory('')}
+            >
               <Briefcase aria-hidden="true" />
               <span>My Jobs</span>
             </button>
@@ -11316,7 +11335,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
                 type="button"
                 className="jobs-status-rail__item"
                 aria-current={filters.status === item.key ? 'page' : undefined}
-                onClick={() => setFilters((current) => ({ ...current, status: item.key }))}
+                onClick={() => openJobsDirectory(item.key)}
                 title={item.label}
               >
                 <span className="jobs-status-rail__glyph" aria-hidden="true">{item.shortLabel}</span>
@@ -11467,8 +11486,9 @@ function JobsWorkspace({ permissions, navigateTo }) {
             ) : null}
           </section>
 
-          <section className="tool-catalogue__form-panel job-detail-panel jobs-detail-panel">
-            {selectedJob ? (
+          {selectedJob || isCreateJobPanelOpen ? (
+            <section className="tool-catalogue__form-panel job-detail-panel jobs-detail-panel">
+              {selectedJob ? (
               <div className="job-detail-shell">
                 {renderSelectedJobHeader()}
 
@@ -11499,8 +11519,8 @@ function JobsWorkspace({ permissions, navigateTo }) {
                   {renderActiveJobDetailTab()}
                 </div>
               </div>
-            ) : (
-              <>
+              ) : (
+                <>
                 <div className="count-section-header">
                   <div>
                     <p className="eyebrow">Create Job</p>
@@ -11546,10 +11566,16 @@ function JobsWorkspace({ permissions, navigateTo }) {
                       Clear Form
                     </button>
                   </div>
+                  <div className="cart-actions tool-form__wide">
+                    <button type="button" className="secondary-button" onClick={() => openJobsDirectory('')} disabled={isSavingJob}>
+                      Back to All Jobs
+                    </button>
+                  </div>
                 </form>
-              </>
-            )}
-          </section>
+                </>
+              )}
+            </section>
+          ) : null}
         </div>
       </div>
     </article>

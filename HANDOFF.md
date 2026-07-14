@@ -14649,3 +14649,93 @@ was authorized.
 No Claude review needed before commit/push - this stayed inside the locked UI
 presentation scope and did not cross backend or architecture-sensitive
 boundaries.
+
+## Entry 143 - Jobs Create mode split from All Jobs browse view
+
+**Date:** 2026-07-14
+**Updated by:** Codex
+**Phase:** Northgate UI System refinement
+**Session type:** implementation
+
+### Context
+Ryan requested one behavior correction after Entry 142:
+
+- `Create Job` should operate as its own left-panel function
+- navigating to `All Jobs` should show only the jobs list, not the create form
+
+This was a UI behavior refinement only. No backend or permission work was
+authorized.
+
+### What Was Diagnosed
+- Confirmed the Jobs workspace still fell back to the create-job form whenever
+  no job was selected.
+- Confirmed that made `All Jobs` behave like a browse-plus-form state instead
+  of a pure directory view.
+- Confirmed the desired fix was to separate browse mode from create mode rather
+  than changing the existing save handler or introducing a new route.
+
+### What Was Completed
+- Added an explicit Jobs workspace mode split:
+  - `browse`
+  - `create`
+- Updated the left-rail `Create Job` action to open the create panel
+  intentionally instead of relying on the no-selection fallback.
+- Updated `All Jobs` / status navigation to:
+  - clear the selected job
+  - exit create mode
+  - return to a pure jobs directory view
+- Updated job row selection / edit flows to return the workspace to normal
+  browse mode before showing the selected-job detail surface.
+- Updated the create panel to include a direct `Back to All Jobs` action.
+- Removed the automatic behavior where `All Jobs` implicitly displayed the
+  create form when no job was selected.
+
+### Code / File Changes
+- `HANDOFF.md`
+- `src/App.jsx`
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
+- Prior HANDOFF checkpoint remained Entry 142; this entry appends Entry 143
+  only.
+
+### What Claude Needs to Know
+- This is a behavior correction inside the Jobs presentation layer, not a new
+  feature milestone.
+- `Create Job` now behaves as an explicit mode, while `All Jobs` behaves as a
+  pure browse state.
+- The existing job save path and write semantics were preserved exactly.
+
+### Verification
+- `cmd /c npm run build` passed.
+- Confirmed only `src/App.jsx` plus this HANDOFF entry changed in this pass.
+- Confirmed no schema, migration, RPC, RLS, auth, or permission files changed.
+- Confirmed the new behavior is local UI state only and does not alter existing
+  Jobs create/edit data writes.
+- Manual logged-in runtime testing was not completed in this session.
+  Browser verification of `Create Job`, `All Jobs`, and detail switching
+  remains pending.
+- The final implementation commit hash was not yet knowable at the moment this
+  entry was written; it is the commit that introduces Entry 143 and is
+  reported in the session summary / git history.
+
+### Next Steps (in order)
+1. In a logged-in browser session, test:
+   - left-rail `Create Job`
+   - `Back to All Jobs`
+   - `All Jobs` status selection
+   - job row selection after returning to browse mode
+2. If the browse/create separation feels correct, keep this state model for any
+   future Jobs workspace refinements.
+
+### Open Questions / Concerns
+- None blocking. This pass was a targeted state-model correction with no
+  backend impact.
+
+### Architecture Drift Warnings
+- None active. This pass stayed entirely within the Jobs UI state layer.
+
+### Routing Verdict
+No Claude review needed before commit/push - this remained inside locked UI
+presentation scope and did not cross backend or architecture-sensitive
+boundaries.
