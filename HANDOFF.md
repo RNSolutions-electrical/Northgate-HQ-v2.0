@@ -14911,3 +14911,168 @@ authorized.
 No Claude review needed before commit/push - this remained inside locked
 Northgate UI decisions (`ARCHITECTURE v2.30`, `HANDOFF Entry 143`) and did not
 cross backend or architecture-sensitive boundaries.
+
+## Entry 145 - Refine Dashboard Inventory and Jobs UI
+
+**Date:** 2026-07-15
+**Updated by:** Codex
+**Phase:** Northgate UI System Phase 3
+**Session type:** implementation
+
+### Context
+Ryan requested a focused UI refinement pass on top of Entry 144 to make the
+Dashboard behave like a personal work center, remove Inventory-heavy summary
+presentation from Dashboard and Inventory, and tighten the Jobs selected-record
+tab presentation without changing backend behavior or authorization rules.
+
+This remained a front-end presentation/layout pass only. No backend, schema,
+permission, RPC, authentication, ledger, audit, financial, inventory write, or
+business-rule changes were authorized.
+
+### Starting Point
+- Starting commit:
+  `3c85de48ab936e47df2743608011756a3a6c4d83`
+- Architecture version confirmed: `v2.30`
+- Previous HANDOFF checkpoint confirmed: `Entry 144`
+- `Section 50` remained present and authoritative
+- `Section 42` remained present and authoritative
+- `main` matched `origin/main` before edits and `git pull --ff-only origin main`
+  reported `Already up to date.`
+
+### What Was Diagnosed
+- Confirmed the Entry 144 Dashboard still behaved like a module overview with
+  Inventory-oriented metrics and quick links instead of a personal work-center
+  shell.
+- Confirmed the Inventory workspace still rendered a large top
+  `Inventory Command Center` summary region plus a right-side context rail that
+  Ryan explicitly wanted removed.
+- Confirmed the Inventory left module-sections rail needed a stronger sticky +
+  scroll container treatment so long section lists would remain usable.
+- Confirmed the Jobs selected-record tab strip was still too loose at common
+  desktop widths and could cause tabs to wrap or feel crowded.
+- Confirmed the repository exposes estimate permissions but does not expose an
+  approved Job-to-Estimate relationship or a production estimate read path in
+  the current UI layer.
+- Confirmed the current Jobs read model does not expose worker,
+  superintendent, or project-manager assignment fields that would safely power
+  a personalized `My Work` dashboard section.
+- Confirmed the current vehicle reference source does not expose direct
+  user-assignment or reporting relationships that would safely power
+  personalized `My Vehicles` views.
+- Confirmed the current tool catalogue exposes company tool rows but does not
+  provide an approved user-linked personal-tools data model for Dashboard use.
+- Confirmed universal Job visibility / authorization rules were left untouched
+  in this pass.
+
+### What Was Completed
+- Rebuilt Dashboard as a personal work-center layout with the left rail
+  sections:
+  - `My Info`
+  - `My Work`
+  - `My Vehicles`
+  - `My Tools`
+  - `My Estimates` only when estimate permissions apply
+  - `My Preferences`
+- Removed Inventory-specific counts, command-center summaries, quick-link
+  launch cards, and the right context rail from Dashboard.
+- Bound `My Info` only to approved current-user / permission context already
+  available in the application:
+  - authenticated name
+  - email
+  - phone when present
+  - role
+  - division
+- Kept `My Work`, `My Vehicles`, `My Tools`, `My Estimates`, and
+  `My Preferences` honest by rendering explicit deferred states where approved
+  live sources do not yet exist.
+- Added direct module launch actions from deferred dashboard states only where
+  the full module already exists:
+  - `Jobs`
+  - `Vehicles`
+  - `Tools`
+  - `Estimates`
+- Simplified Inventory by removing:
+  - the top `Inventory Command Center` header block
+  - toolbar meta chips
+  - count-summary cards
+  - the right `Inventory Context` rail
+- Kept the Inventory module content, existing navigation, read model, and
+  Silas entry behavior intact while moving the active section header into the
+  main workspace surface.
+- Added a direct Inventory `Refresh` action at the active section header.
+- Tightened sidebar layout CSS so the primary module-sections rail remains
+  sticky and independently scrollable on desktop while falling back cleanly on
+  mobile.
+- Compacted the Jobs selected-record tab strip so all eight tabs fit more
+  reliably at standard desktop widths.
+- Added an honest disabled selected-job estimate action only for users who can
+  estimate or approve estimates, explicitly indicating that no approved
+  Job-to-Estimate relationship exists yet.
+
+### Routes / Local UI State Affected
+- Preserved the existing top-level `workspace` query-string routing model.
+- Preserved existing Jobs routing / selection behavior and did not alter
+  authorization gates.
+- Reduced Dashboard dependency on the shared Inventory read model so Dashboard
+  no longer loads Inventory summary data just to render overview cards.
+- Added no new persisted preferences, no localStorage preference writes, and no
+  new routes.
+
+### Files Changed
+- `HANDOFF.md`
+- `src/App.jsx`
+- `src/styles/layout.css`
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained at `v2.30` and was not edited.
+- Prior HANDOFF checkpoint remained `Entry 144`; this entry appends
+  `Entry 145` only.
+
+### Verification
+- `git fetch origin` and `git pull --ff-only origin main` completed before the
+  refinement pass; local `main` was already current with `origin/main`.
+- `git status`, `git diff --stat`, and `git diff` were reviewed during the
+  pass.
+- `cmd /c npm run build` passed.
+- No repository test command existed beyond `build`; no additional automated
+  test suite was available to run in this repository.
+- Confirmed changed files stayed in the UI/presentation layer plus this
+  HANDOFF append.
+- Confirmed no schema, migration, RPC, RLS, auth, permission, ledger, audit,
+  financial, or business-rule files were edited in this pass.
+- Confirmed no Inventory write flow, cart behavior, count behavior, or
+  transaction behavior was intentionally changed in this pass.
+- Confirmed Job visibility authorization rules were deliberately not changed.
+- Confirmed the Job estimate action is presentational only and does not invent
+  an estimate relationship, read path, or write flow.
+- Logged-in browser runtime verification was not completed in this session.
+- Responsive inspection at common widths remains pending in a browser session,
+  although the updated sidebar and tab-strip CSS compiled successfully.
+- The final implementation commit hash was not yet knowable at the moment this
+  entry was written; it is the commit that introduces Entry 145 and is
+  reported in the session summary / git history.
+
+### Remaining Deferred Functionality
+- `My Work` still needs an approved assignment source for workers,
+  superintendents, and project managers before it can render personalized job
+  lists.
+- `My Vehicles` still needs approved assignment and reporting relationships
+  before it can render personal or direct-report vehicle lists.
+- `My Tools` still needs an approved personal-tools data model before the
+  dashboard can distinguish personal tools from the general company catalogue.
+- `My Estimates` still needs an approved estimate read model plus any approved
+  Job-to-Estimate relationship before dashboard or job-detail estimate views can
+  become live.
+- `My Preferences` still needs an approved persistence strategy before it can
+  move beyond layout reservation and deferred states.
+- Authenticated browser verification remains pending for the refined Dashboard,
+  Inventory, and Jobs presentation at desktop and mobile breakpoints.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside locked Northgate UI presentation
+  boundaries and did not alter protected backend behavior.
+
+### Routing Verdict
+No Claude review needed before commit/push for this pass because it remained
+inside locked UI presentation scope. Claude review is still required before any
+future change to universal Job visibility or authorization behavior.
