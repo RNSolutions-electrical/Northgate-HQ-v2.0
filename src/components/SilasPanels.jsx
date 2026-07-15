@@ -1,5 +1,7 @@
 import { MessageSquare, Sparkles, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { StatePanel } from './ui/StatePanel.jsx';
+import { WorkspaceHeader } from './ui/WorkspaceHeader.jsx';
 import { SILAS_DISABLED_HELPER_COPY, SILAS_EMPTY_HELPER_COPY } from '../hooks/useSilas.js';
 
 function formatTimestamp(value) {
@@ -200,14 +202,12 @@ export function SilasWorkspacePanel({
 }) {
   return (
     <article className="card card--wide silas-workspace">
-      <div className="card__header">
-        <div>
-          <p className="eyebrow">Silas</p>
-          <h2>Silas Workspace</h2>
-          <p>{enabled ? SILAS_EMPTY_HELPER_COPY : SILAS_DISABLED_HELPER_COPY}</p>
-        </div>
-        <Sparkles className="card__icon" />
-      </div>
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Silas"
+        description={enabled ? SILAS_EMPTY_HELPER_COPY : SILAS_DISABLED_HELPER_COPY}
+        status={<Sparkles className="card__icon" aria-hidden="true" />}
+      />
 
       {settingsError ? <div className="alert">Silas settings failed to load.</div> : null}
       {chatError ? <div className="alert">{chatError}</div> : null}
@@ -215,9 +215,12 @@ export function SilasWorkspacePanel({
       {settingsLoading ? <p className="muted">Loading Silas settings...</p> : null}
 
       {!enabled && !settingsLoading ? (
-        <div className="silas-disabled-state">
-          <p>{SILAS_DISABLED_HELPER_COPY}</p>
-        </div>
+        <StatePanel
+          eyebrow="Unavailable"
+          title="Silas is disabled"
+          description={SILAS_DISABLED_HELPER_COPY}
+          tone="warning"
+        />
       ) : !settingsLoading ? (
         <div className="silas-shell">
           <SilasConversationSidebar

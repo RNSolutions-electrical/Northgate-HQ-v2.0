@@ -14739,3 +14739,175 @@ authorized.
 No Claude review needed before commit/push - this remained inside locked UI
 presentation scope and did not cross backend or architecture-sensitive
 boundaries.
+
+## Entry 144 - Build remaining Northgate module layouts
+
+**Date:** 2026-07-15
+**Updated by:** Codex
+**Phase:** Northgate UI System Phase 3
+**Session type:** implementation
+
+### Context
+Ryan requested the application-wide layout foundation pass for the remaining
+top-level Northgate HQ modules while preserving the existing shell, Inventory,
+and Jobs behavior:
+
+- Dashboard
+- Estimates
+- Employees
+- Vehicles
+- Silas
+- Developer
+
+This remained a front-end presentation/layout pass only. No backend, schema,
+permission, RPC, authentication, ledger, audit, or business-rule changes were
+authorized.
+
+### Starting Point
+- Starting commit: `32ea81926781586b611f3a48d4c4d23ab366c858`
+- Architecture version confirmed: `v2.30`
+- Previous HANDOFF checkpoint confirmed: `Entry 143`
+- `Section 50` remained present and authoritative
+- `Section 42` remained present and authoritative
+- `main` matched `origin/main` before edits and `git pull --ff-only origin main`
+  reported `Already up to date.`
+
+### What Was Diagnosed
+- Confirmed the shared Northgate shell already existed in:
+  - `src/components/layout/AppShell.jsx`
+  - `src/components/layout/TopNavigation.jsx`
+  - `src/components/layout/PrimarySidebar.jsx`
+  - `src/components/layout/SecondarySidebar.jsx`
+- Confirmed `Jobs` already carried the explicit browse/create split from
+  Entry 143 and remained the correct structural reference for record-oriented
+  modules.
+- Confirmed `Dashboard`, `Estimates`, `Employees`, and `Vehicles` still
+  rendered placeholder workspace cards.
+- Confirmed `Silas` already had working chat behavior but needed a more
+  polished workspace wrapper only.
+- Confirmed `Developer` already had live status/utility content but was not
+  yet presented as a clearer Northgate module workspace.
+- Confirmed the existing Inventory read model already exposed live destination
+  user and destination vehicle references that could safely support
+  presentation-only Employees and Vehicles directory shells.
+
+### What Was Completed
+- Built a role-aware Dashboard workspace shell with:
+  - workspace header
+  - compact real-data summary cards
+  - quick links into real modules
+  - notices/attention region
+  - honest placeholders for activity/schedule regions that do not yet have an
+    approved live data source
+- Built an Estimates workspace foundation with:
+  - primary rail views
+  - explicit browse vs create state
+  - selected-record shell
+  - honest no-data / not-yet-implemented states
+  - no fabricated estimate records or financial values
+- Built an Employees workspace foundation with:
+  - directory/list shell
+  - selected employee detail shell
+  - horizontal detail tabs
+  - `My Information` view
+  - live destination-user reference rows where available
+  - no role, permission, or account-management editing
+- Built a Vehicles workspace foundation with:
+  - directory/list shell
+  - selected vehicle detail shell
+  - horizontal detail tabs
+  - live destination-vehicle reference rows where available
+  - no fabricated assignment, service, mileage, or maintenance records
+- Polished the Silas workspace presentation around the existing chat behavior:
+  - shared workspace header
+  - shared disabled-state presentation
+  - preserved existing conversation/message/composer behavior
+- Reframed the Developer module inside a clearer Developer workspace shell
+  around the already existing diagnostics and utilities.
+- Added reusable presentation primitives shared across the new workspaces:
+  - `src/components/ui/StatePanel.jsx`
+  - `src/components/ui/RecordHeader.jsx`
+  - `src/components/ui/WorkspaceTabs.jsx`
+- Extended shared layout CSS for:
+  - state panels
+  - selected-record headers
+  - horizontal tabs
+  - workspace summary grids
+  - directory/detail module panels
+  - quick-link cards
+  - responsive module behavior
+
+### Routes / Local UI State Affected
+- Preserved existing top-level workspace routing semantics using the existing
+  `workspace` query-string model.
+- Added local presentation state only for:
+  - Dashboard sidebar view selection
+  - Estimates sidebar view selection
+  - Estimates explicit create/browse mode
+  - Employees sidebar view selection
+  - Employees selected employee and active detail tab
+  - Vehicles sidebar view selection
+  - Vehicles selected vehicle and active detail tab
+  - shared sidebar mobile-open / collapsed presentation state
+- Added no database-backed UI preference persistence and no new routes.
+
+### Files Changed
+- `HANDOFF.md`
+- `src/App.jsx`
+- `src/components/SilasPanels.jsx`
+- `src/components/ui/RecordHeader.jsx`
+- `src/components/ui/StatePanel.jsx`
+- `src/components/ui/WorkspaceTabs.jsx`
+- `src/styles/layout.css`
+
+### Lock Document Changes
+- None. `docs/ARCHITECTURE.md` remained at `v2.30` and was not edited.
+- Prior HANDOFF checkpoint remained `Entry 143`; this entry appends
+  `Entry 144` only.
+
+### Verification
+- `git status` reviewed before and after implementation.
+- `git diff --stat` and `git diff` reviewed.
+- `cmd /c npm run build` passed.
+- No repository test command existed beyond `build`; no additional automated
+  test suite was available to run in this repository.
+- Confirmed changed files stayed in the UI/presentation layer plus this
+  HANDOFF append.
+- Confirmed no migration files were added.
+- Confirmed no schema, RPC, RLS, auth, permission, ledger, audit, financial,
+  or business-rule files were edited in this pass.
+- Confirmed no new direct Supabase writes were introduced for the new layout
+  foundations; new shared module shells either reused existing read-model data
+  or rendered honest placeholders.
+- Confirmed Inventory and Jobs were preserved as existing modules and were not
+  intentionally reworked in this pass.
+- Confirmed `Create Job` remains separate from `All Jobs` browse mode.
+- Logged-in browser runtime verification was not completed in this session.
+  Responsive inspection at `1440px`, `1024px`, `768px`, and `390px` remains
+  pending in a browser session.
+- Browser print-preview verification was not completed in this session.
+  Existing print-hiding rules were preserved and extended only at the shared
+  shell/layout layer.
+
+### Remaining Deferred Functionality
+- Dashboard recent activity, schedule/deadline surfaces, and richer notices
+  still need approved live sources before they can move beyond placeholders.
+- Estimates still needs its approved read path, create flow, selected-record
+  data source, and any permission-gated financial rendering.
+- Employees still needs approved employee source-of-truth detail surfaces such
+  as assignments, credentials, documents, and activity.
+- Vehicles still needs approved assignment, service, documents, and history
+  sources.
+- Silas still needs logged-in runtime verification for narrow-screen layout
+  polish after this presentation update.
+- Developer still needs browser-authenticated visual verification, but no new
+  backend utilities were introduced.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside locked Northgate UI presentation
+  boundaries and did not alter protected backend behavior.
+
+### Routing Verdict
+No Claude review needed before commit/push - this remained inside locked
+Northgate UI decisions (`ARCHITECTURE v2.30`, `HANDOFF Entry 143`) and did not
+cross backend or architecture-sensitive boundaries.

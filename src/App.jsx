@@ -1,14 +1,17 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Archive, Briefcase, Camera, CameraOff, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Copy, Database, Download, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Wrench } from 'lucide-react';
+import { AlertCircle, Archive, ArrowLeft, Briefcase, Camera, CameraOff, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Copy, Database, Download, FileText, HardHat, LayoutDashboard, MapPin, MessageSquare, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldAlert, ShieldCheck, ShoppingCart, SlidersHorizontal, Truck, Users, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { PrimarySidebar } from './components/layout/PrimarySidebar.jsx';
 import { SecondarySidebar } from './components/layout/SecondarySidebar.jsx';
 import { createSupabaseClient, supabase } from './services/supabaseClient.js';
 import { SilasBubble, SilasWorkspacePanel } from './components/SilasPanels.jsx';
+import { RecordHeader } from './components/ui/RecordHeader.jsx';
+import { StatePanel } from './components/ui/StatePanel.jsx';
 import { SummaryCard } from './components/ui/SummaryCard.jsx';
 import { WorkspaceHeader } from './components/ui/WorkspaceHeader.jsx';
+import { WorkspaceTabs } from './components/ui/WorkspaceTabs.jsx';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
@@ -8523,12 +8526,1164 @@ function DevelopmentStatusCard() {
   );
 }
 
+function DashboardWorkspace({
+  user,
+  permissions,
+  inventorySnapshot,
+  inventoryLoading,
+  inventoryError,
+  silasEnabled,
+  canAccessDeveloper,
+  onOpenWorkspace,
+}) {
+  const [activePanel, setActivePanel] = useState('overview');
+  const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
+  const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
+  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const counts = inventorySnapshot?.counts ?? {
+    activeItems: 0,
+    inventoryBalances: 0,
+  };
+  const destinationReferences = inventorySnapshot?.destinationReferences ?? { users: [], vehicles: [] };
+  const dashboardSidebarItems = [
+    { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Role-aware module snapshot.' },
+    { key: 'work', label: 'My Work', icon: Briefcase, description: 'Fast access to live workspaces.' },
+    { key: 'notices', label: 'Notices', icon: AlertCircle, description: 'Operational constraints and follow-ups.' },
+  ];
+  const quickLinks = [
+    {
+      key: 'inventory',
+      title: 'Inventory',
+      description: 'Open the live stock, cart, count, and transaction workflows.',
+      icon: Briefcase,
+    },
+    {
+      key: 'jobs',
+      title: 'Jobs',
+      description: 'Browse the active Jobs directory and selected-record workspace.',
+      icon: HardHat,
+    },
+    {
+      key: 'estimating',
+      title: 'Estimates',
+      description: 'Open the new layout foundation for browse, detail, and create states.',
+      icon: FileText,
+    },
+    {
+      key: 'employees',
+      title: 'Employees',
+      description: 'Review the employee directory shell and current-user information.',
+      icon: Users,
+    },
+    {
+      key: 'vehicles',
+      title: 'Vehicles',
+      description: 'Browse live destination vehicles and the new detail workspace.',
+      icon: Truck,
+    },
+  ];
+
+  if (silasEnabled) {
+    quickLinks.push({
+      key: 'silas',
+      title: 'Silas',
+      description: 'Jump directly into the existing chat workspace.',
+      icon: MessageSquare,
+    });
+  }
+
+  if (canAccessDeveloper) {
+    quickLinks.push({
+      key: 'developer',
+      title: 'Developer',
+      description: 'Open the Developer-only status and diagnostics workspace.',
+      icon: SlidersHorizontal,
+    });
+  }
+
+  const notices = [];
+  if (permissions.permissionSource !== 'server') {
+    notices.push('Server permissions are not fully resolved yet, so module access remains fail-closed.');
+  }
+  if (!permissions.division) {
+    notices.push('This user does not have a resolved division yet, so create/edit flows remain limited.');
+  }
+  if (inventoryError) {
+    notices.push('Inventory summary reads were unavailable, so dashboard metrics are reduced to account context only.');
+  }
+  if (!silasEnabled) {
+    notices.push('Silas is currently disabled, so chat entry points stay hidden outside the Developer workspace.');
+  }
+
+  const summaryCards = [
+    { label: 'Role', value: permissions.role ?? 'User', detail: 'Server-authoritative access profile' },
+    { label: 'Division', value: permissions.division ?? 'Unassigned', detail: 'Current workspace division' },
+    { label: 'Inventory items', value: counts.activeItems, detail: inventoryLoading ? 'Loading inventory read model...' : 'Live read-model count', tone: 'accent' },
+    { label: 'Visible vehicles', value: destinationReferences.vehicles.length, detail: 'Inventory destination references' },
+    { label: 'Visible people', value: destinationReferences.users.length, detail: 'Employee/contact references' },
+  ];
+
+  return (
+    <article className="card card--wide workspace-card module-workspace-card">
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Dashboard"
+        description="Northgate's application-wide landing workspace. It summarizes live access context, launches real modules, and keeps unfinished regions honest until their deeper workflows are built."
+        status={<span className="status-pill">{user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'Authenticated user'}</span>}
+        actions={(
+          <>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+              Views
+            </button>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsSecondaryOpen(true)}>
+              Context
+            </button>
+            <button type="button" className="primary-button" onClick={() => onOpenWorkspace('inventory')}>
+              Open Inventory
+            </button>
+          </>
+        )}
+      />
+
+      <div className="module-summary-grid">
+        {summaryCards.map((card) => (
+          <SummaryCard
+            key={card.label}
+            label={card.label}
+            value={card.value}
+            detail={card.detail}
+            tone={card.tone ?? 'default'}
+          />
+        ))}
+      </div>
+
+      <div className={`workspace-layout workspace-layout--with-secondary${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
+        <PrimarySidebar
+          eyebrow="Dashboard Views"
+          title="Dashboard"
+          description="Use the dashboard to orient quickly before dropping into a specific module."
+          items={dashboardSidebarItems}
+          activeKey={activePanel}
+          onSelect={setActivePanel}
+          collapsed={isPrimaryCollapsed}
+          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
+          mobileOpen={isPrimaryOpen}
+          onCloseMobile={() => setIsPrimaryOpen(false)}
+          footer={(
+            <div className="module-sidebar-note">
+              <strong>Live data only</strong>
+              <p>No fake counts, activity, or financial summaries are shown here.</p>
+            </div>
+          )}
+        />
+
+        <div className="workspace-surface">
+          {activePanel === 'overview' ? (
+            <div className="module-grid">
+              <article className="card workspace-card">
+                <div className="card__header">
+                  <div>
+                    <p className="eyebrow">Welcome</p>
+                    <h3>{user?.firstName ? `${user.firstName}'s dashboard` : 'Northgate overview'}</h3>
+                    <p>Start from the shell, then move directly into the module where the real work already exists.</p>
+                  </div>
+                </div>
+                <div className="quick-link-grid">
+                  {quickLinks.map((item) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className="quick-link-card"
+                        onClick={() => onOpenWorkspace(item.key)}
+                      >
+                        <span className="quick-link-card__icon">
+                          <Icon aria-hidden="true" />
+                        </span>
+                        <strong>{item.title}</strong>
+                        <span>{item.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </article>
+
+              <article className="card workspace-card">
+                <div className="card__header">
+                  <div>
+                    <p className="eyebrow">Assigned Work</p>
+                    <h3>Current focus areas</h3>
+                    <p>These cards expose real module entry points without pretending unfinished data feeds already exist.</p>
+                  </div>
+                </div>
+                <div className="state-panel-stack">
+                  <StatePanel
+                    eyebrow="Live workflow"
+                    title="Inventory remains the operational anchor"
+                    description="Inventory keeps the deepest live workflows today: read model, storage hierarchy, QR, cart, count correction, and transaction history."
+                    tone="info"
+                    compact
+                    actions={<button type="button" className="secondary-button" onClick={() => onOpenWorkspace('inventory')}>Open Inventory</button>}
+                  />
+                  <StatePanel
+                    eyebrow="Live workflow"
+                    title="Jobs keeps the browse/create/detail pattern"
+                    description="Jobs already models the explicit browse vs create split and remains the reference for record-oriented workspaces."
+                    tone="neutral"
+                    compact
+                    actions={<button type="button" className="secondary-button" onClick={() => onOpenWorkspace('jobs')}>Open Jobs</button>}
+                  />
+                </div>
+              </article>
+
+              <StatePanel
+                eyebrow="Recent Activity"
+                title="Activity feed is not wired yet"
+                description="This region is now structurally reserved for real recent activity once an approved source is available. No sample events are rendered in the meantime."
+                tone="neutral"
+              />
+
+              <StatePanel
+                eyebrow="Schedule"
+                title="Upcoming dates remain source-limited"
+                description="Upcoming schedule and deadline cards will appear here only after a real approved source exists. The layout is in place without inventing calendar data."
+                tone="neutral"
+              />
+            </div>
+          ) : null}
+
+          {activePanel === 'work' ? (
+            <div className="module-grid module-grid--single">
+              <article className="card workspace-card">
+                <div className="card__header">
+                  <div>
+                    <p className="eyebrow">Quick Links</p>
+                    <h3>Jump into work</h3>
+                    <p>The dashboard stays light on fake operations and instead routes directly into the modules that already own the real workflows.</p>
+                  </div>
+                </div>
+                <div className="quick-link-grid">
+                  {quickLinks.map((item) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className="quick-link-card"
+                        onClick={() => onOpenWorkspace(item.key)}
+                      >
+                        <span className="quick-link-card__icon">
+                          <Icon aria-hidden="true" />
+                        </span>
+                        <strong>{item.title}</strong>
+                        <span>{item.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </article>
+            </div>
+          ) : null}
+
+          {activePanel === 'notices' ? (
+            <div className="state-panel-stack">
+              {notices.length ? notices.map((notice) => (
+                <StatePanel
+                  key={notice}
+                  eyebrow="Notice"
+                  title="Attention item"
+                  description={notice}
+                  tone="warning"
+                  compact
+                />
+              )) : (
+                <StatePanel
+                  eyebrow="Notice"
+                  title="No blocking dashboard notices"
+                  description="Permissions, division context, and the current dashboard shell do not show any additional blocking issues in this session."
+                  tone="success"
+                />
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <SecondarySidebar
+          eyebrow="Session Context"
+          title="Dashboard context"
+          description="This side rail summarizes the live information sources available to the dashboard without inventing module metrics."
+          mobileOpen={isSecondaryOpen}
+          onCloseMobile={() => setIsSecondaryOpen(false)}
+        >
+          <div className="context-stat-grid">
+            <div className="context-stat">
+              <span>Permission source</span>
+              <strong>{permissions.permissionSource}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Inventory balances</span>
+              <strong>{counts.inventoryBalances}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Silas status</span>
+              <strong>{silasEnabled ? 'Enabled' : 'Disabled'}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Developer access</span>
+              <strong>{canAccessDeveloper ? 'Authorized' : 'Hidden'}</strong>
+            </div>
+          </div>
+          <StatePanel
+            eyebrow="Boundary"
+            title="Real-data rule stays active"
+            description="When a dashboard region lacks an approved source, it remains a clearly labeled placeholder instead of rendering synthetic metrics or activity."
+            tone="neutral"
+            compact
+          />
+        </SecondarySidebar>
+      </div>
+    </article>
+  );
+}
+
+function EstimatesWorkspace({ permissions }) {
+  const canAccessEstimates = permissions.permissionSource === 'server' && (permissions.canEstimate || permissions.canApproveEstimates);
+  const [activeView, setActiveView] = useState('all');
+  const [mode, setMode] = useState('browse');
+  const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
+  const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
+  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const [search, setSearch] = useState('');
+  const sidebarItems = [
+    { key: 'all', label: 'All Estimates', icon: FileText, description: 'Directory foundation for every visible estimate.' },
+    { key: 'mine', label: 'My Estimates', icon: HardHat, description: 'Reserved for the current estimator view.' },
+    { key: 'drafts', label: 'Drafts', icon: Pencil, description: 'Draft estimate layout foundation.' },
+    { key: 'submitted', label: 'Submitted', icon: ChevronUp, description: 'Submitted estimate queue foundation.' },
+    { key: 'approved', label: 'Approved', icon: ShieldCheck, description: 'Approved estimate archive foundation.' },
+  ];
+  const estimateTabs = [
+    { key: 'overview', label: 'Overview', disabled: true, meta: 'Needs a selected estimate' },
+    { key: 'pricing', label: 'Pricing', disabled: true, meta: 'Permission-gated when live' },
+    { key: 'documents', label: 'Documents', disabled: true, meta: 'Reserved' },
+    { key: 'approval', label: 'Approval', disabled: true, meta: 'Reserved' },
+    { key: 'history', label: 'History', disabled: true, meta: 'Reserved' },
+  ];
+
+  if (!canAccessEstimates) {
+    return (
+      <article className="card card--wide workspace-card module-workspace-card">
+        <WorkspaceHeader
+          eyebrow="Workspace"
+          title="Estimates"
+          description="The layout foundation is in place, but this session does not have estimate access through the existing permission model."
+        />
+        <StatePanel
+          eyebrow="Permission Denied"
+          title="Estimate access is not available in this session"
+          description="This workspace stays fail-closed until the existing estimate permissions grant access. No estimate data or financial detail is exposed without those checks."
+          tone="danger"
+        />
+      </article>
+    );
+  }
+
+  return (
+    <article className="card card--wide workspace-card module-workspace-card">
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Estimates"
+        description="Stable browse, create, and selected-record structure for estimates. Real estimate reads and write flows will drop into this shell later without redesigning the module."
+        status={<span className="status-pill">{activeView === 'mine' ? 'My queue' : 'Browse mode'}</span>}
+        actions={(
+          <>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+              Views
+            </button>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsSecondaryOpen(true)}>
+              Context
+            </button>
+            <button type="button" className="primary-button" onClick={() => setMode('create')}>
+              <Plus aria-hidden="true" /> Create Estimate
+            </button>
+          </>
+        )}
+      />
+
+      <div className="module-summary-grid">
+        <SummaryCard label="Estimate access" value={permissions.canEstimate ? 'Yes' : 'No'} detail="Existing estimate permission" />
+        <SummaryCard label="Approval access" value={permissions.canApproveEstimates ? 'Yes' : 'No'} detail="Approval boundary only" />
+        <SummaryCard label="Financial visibility" value={permissions.canViewFinancials ? 'Yes' : 'No'} detail="Protected fields stay gated" />
+      </div>
+
+      <div className={`workspace-layout workspace-layout--with-secondary${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
+        <PrimarySidebar
+          eyebrow="Estimate Views"
+          title="Estimates"
+          description="Use the same browse/create/detail pattern established by Jobs."
+          items={sidebarItems}
+          activeKey={activeView}
+          onSelect={(key) => {
+            setActiveView(key);
+            setMode('browse');
+          }}
+          collapsed={isPrimaryCollapsed}
+          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
+          mobileOpen={isPrimaryOpen}
+          onCloseMobile={() => setIsPrimaryOpen(false)}
+          footer={(
+            <div className="module-sidebar-note">
+              <strong>Foundation only</strong>
+              <p>No estimate records or create handlers are fabricated in this pass.</p>
+            </div>
+          )}
+        />
+
+        <div className="workspace-surface">
+          <article className="card workspace-card module-directory-panel">
+            <div className="module-toolbar">
+              <div>
+                <p className="eyebrow">Directory</p>
+                <h3>{sidebarItems.find((item) => item.key === activeView)?.label ?? 'Estimates'}</h3>
+              </div>
+              <div className="module-toolbar__actions">
+                <label className="module-search">
+                  <span className="sr-only">Search estimates</span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search estimates..."
+                  />
+                </label>
+                <button type="button" className="secondary-button" onClick={() => setSearch('')}>
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <StatePanel
+              eyebrow={search ? 'No Results' : 'Empty State'}
+              title={search ? 'No estimates match this search yet' : 'Estimate directory is structurally ready'}
+              description={search
+                ? 'Search is local UI state only for now because a real estimate dataset is not yet wired into this workspace.'
+                : 'The final list, filters, selected-record header, and protected financial tabs will live here once an approved estimate read path is available.'}
+              tone="neutral"
+            />
+          </article>
+
+          <article className="card workspace-card module-detail-panel">
+            {mode === 'create' ? (
+              <StatePanel
+                eyebrow="Create Mode"
+                title="Create Estimate will live here"
+                description="The create surface is explicit and separate from browse mode, but no estimate creation workflow is being invented in this pass."
+                tone="info"
+                actions={<button type="button" className="secondary-button" onClick={() => setMode('browse')}><ArrowLeft aria-hidden="true" /> Back to All Estimates</button>}
+              />
+            ) : (
+              <>
+                <RecordHeader
+                  eyebrow="Selected Estimate"
+                  title="No estimate selected"
+                  description="Browse mode remains separate from create mode, and the selected-estimate workspace waits for a real record selection."
+                  meta={[
+                    { label: 'View', value: sidebarItems.find((item) => item.key === activeView)?.label ?? 'All Estimates' },
+                    { label: 'Protected pricing', value: permissions.canViewFinancials ? 'Visible when live' : 'Hidden when live' },
+                  ]}
+                />
+                <WorkspaceTabs
+                  tabs={estimateTabs}
+                  activeKey="overview"
+                  onChange={() => {}}
+                  ariaLabel="Estimate detail sections"
+                />
+                <StatePanel
+                  eyebrow="No Selection"
+                  title="Select an estimate when a real directory is available"
+                  description="This panel is reserved for the persistent estimate header, tabs, and approved actions once a supported estimate record is selected."
+                  tone="neutral"
+                />
+              </>
+            )}
+          </article>
+        </div>
+
+        <SecondarySidebar
+          eyebrow="Estimate Context"
+          title="Permissions and boundaries"
+          description="The estimate module keeps protected financial data omitted entirely for users without the existing permission checks."
+          mobileOpen={isSecondaryOpen}
+          onCloseMobile={() => setIsSecondaryOpen(false)}
+        >
+          <div className="context-stat-grid">
+            <div className="context-stat">
+              <span>Estimate access</span>
+              <strong>{permissions.canEstimate ? 'Granted' : 'Not granted'}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Approval access</span>
+              <strong>{permissions.canApproveEstimates ? 'Granted' : 'Not granted'}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Create mode</span>
+              <strong>Explicit only</strong>
+            </div>
+          </div>
+          <StatePanel
+            eyebrow="Boundary"
+            title="No hidden estimate fallback form"
+            description="Browse mode does not silently drop into a form. Create mode remains an explicit state, matching the corrected Jobs pattern."
+            tone="neutral"
+            compact
+          />
+        </SecondarySidebar>
+      </div>
+    </article>
+  );
+}
+
+function EmployeesWorkspace({ permissions, user, people, isLoading, error }) {
+  const [activeView, setActiveView] = useState('directory');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [search, setSearch] = useState('');
+  const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
+  const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
+  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const employeeViews = [
+    { key: 'directory', label: 'Employee Directory', icon: Users, description: 'Live contact rows where available.', badge: people.length },
+    { key: 'mine', label: 'My Information', icon: ShieldCheck, description: 'Current user profile and division context.' },
+  ];
+  const employeeTabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'activity', label: 'Activity', meta: 'Deferred layout', disabled: false },
+  ];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredPeople = people.filter((person) => {
+    if (activeView === 'mine' && person.clerk_user_id !== permissions.userId) {
+      return false;
+    }
+    if (!normalizedSearch) return true;
+
+    return [
+      person.display_name,
+      person.email,
+      person.role,
+      person.division,
+    ].filter(Boolean).some((value) => value.toLowerCase().includes(normalizedSearch));
+  });
+  const selectedEmployee = filteredPeople.find((person) => person.clerk_user_id === selectedEmployeeId)
+    ?? people.find((person) => person.clerk_user_id === selectedEmployeeId)
+    ?? null;
+  const divisions = [...new Set(people.map((person) => person.division).filter(Boolean))];
+
+  useEffect(() => {
+    if (activeView === 'mine') {
+      setSelectedEmployeeId(permissions.userId ?? '');
+    }
+  }, [activeView, permissions.userId]);
+
+  useEffect(() => {
+    if (selectedEmployeeId && !people.some((person) => person.clerk_user_id === selectedEmployeeId)) {
+      setSelectedEmployeeId('');
+    }
+  }, [people, selectedEmployeeId]);
+
+  return (
+    <article className="card card--wide workspace-card module-workspace-card">
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Employees"
+        description="Directory and profile foundation for employee information. This workspace reuses the Northgate shell while keeping role changes, permission editing, and Clerk identity controls out of scope."
+        status={<span className="status-pill">{people.length} visible contact{people.length === 1 ? '' : 's'}</span>}
+        actions={(
+          <>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+              Views
+            </button>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsSecondaryOpen(true)}>
+              Context
+            </button>
+            <button type="button" className="primary-button" disabled={!permissions.canManageEmployees}>
+              <Plus aria-hidden="true" /> Create Employee
+            </button>
+          </>
+        )}
+      />
+
+      <div className="module-summary-grid">
+        <SummaryCard label="Visible people" value={people.length} detail={isLoading ? 'Loading directory...' : 'Live destination-user references'} tone="accent" />
+        <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
+        <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Yes' : 'No'} detail="No employee-management actions added here" />
+      </div>
+
+      <div className={`workspace-layout workspace-layout--with-secondary${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
+        <PrimarySidebar
+          eyebrow="Employee Views"
+          title="Employees"
+          description="Keep directory browsing and current-user profile context in one stable module shell."
+          items={employeeViews}
+          activeKey={activeView}
+          onSelect={setActiveView}
+          collapsed={isPrimaryCollapsed}
+          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
+          mobileOpen={isPrimaryOpen}
+          onCloseMobile={() => setIsPrimaryOpen(false)}
+          footer={(
+            <div className="module-sidebar-note">
+              <strong>Protected boundary</strong>
+              <p>This page does not edit roles, permissions, Clerk identities, or employee source-of-truth records.</p>
+            </div>
+          )}
+        />
+
+        <div className="workspace-surface">
+          <article className="card workspace-card module-directory-panel">
+            <div className="module-toolbar">
+              <div>
+                <p className="eyebrow">Directory</p>
+                <h3>{employeeViews.find((item) => item.key === activeView)?.label ?? 'Employees'}</h3>
+              </div>
+              <div className="module-toolbar__actions">
+                <label className="module-search">
+                  <span className="sr-only">Search employees</span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search employees..."
+                  />
+                </label>
+              </div>
+            </div>
+
+            {error ? <StatePanel eyebrow="Error" title="Employee references failed to load" description="The existing destination-user reference view was unavailable in this session, so the directory surface cannot show live rows right now." tone="danger" /> : null}
+            {isLoading ? <StatePanel eyebrow="Loading" title="Loading employee directory" description="The workspace shell is ready while the existing reference rows load." tone="info" /> : null}
+            {!isLoading && !error && !filteredPeople.length ? (
+              <StatePanel
+                eyebrow={search ? 'No Results' : 'Empty State'}
+                title={search ? 'No employees matched this search' : activeView === 'mine' ? 'My information is not available yet' : 'No employee rows are visible'}
+                description={search
+                  ? 'Try a different name, role, email, or division search.'
+                  : activeView === 'mine'
+                    ? 'The current user is not present in the existing reference view yet, so this module shows the layout foundation without inventing profile data.'
+                    : 'This workspace will render real employee directory rows when the existing read path has visible data.'}
+                tone="neutral"
+              />
+            ) : null}
+
+            {!isLoading && !error && filteredPeople.length ? (
+              <>
+                <div className="table-wrap">
+                  <table className="data-table module-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Division</th>
+                        <th>Email</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredPeople.map((person) => (
+                        <tr
+                          key={person.clerk_user_id || person.email}
+                          className={selectedEmployeeId === person.clerk_user_id ? 'is-selected' : undefined}
+                          onClick={() => {
+                            setSelectedEmployeeId(person.clerk_user_id);
+                            setActiveTab('overview');
+                          }}
+                        >
+                          <td><strong>{person.display_name || 'Unnamed user'}</strong></td>
+                          <td>{person.role || 'User'}</td>
+                          <td>{person.division || 'Unassigned'}</td>
+                          <td>{person.email || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mobile-list tool-mobile-list">
+                  {filteredPeople.map((person) => (
+                    <article
+                      className={`mobile-item${selectedEmployeeId === person.clerk_user_id ? ' is-selected' : ''}`}
+                      key={person.clerk_user_id || person.email}
+                    >
+                      <strong>{person.display_name || 'Unnamed user'}</strong>
+                      <div className="meta-grid">
+                        <span>Role: {person.role || 'User'}</span>
+                        <span>Division: {person.division || 'Unassigned'}</span>
+                        <span>Email: {person.email || '-'}</span>
+                      </div>
+                      <div className="cart-actions">
+                        <button type="button" className="secondary-button" onClick={() => {
+                          setSelectedEmployeeId(person.clerk_user_id);
+                          setActiveTab('overview');
+                        }}>
+                          View
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </article>
+
+          <article className="card workspace-card module-detail-panel">
+            {selectedEmployee ? (
+              <>
+                <RecordHeader
+                  eyebrow="Selected Employee"
+                  title={selectedEmployee.display_name || 'Unnamed user'}
+                  description="Employee detail remains read-oriented in this phase. The shell is ready for richer sections later without implying account or permission editing."
+                  meta={[
+                    { label: 'Role', value: selectedEmployee.role || 'User' },
+                    { label: 'Division', value: selectedEmployee.division || 'Unassigned' },
+                  ]}
+                />
+                <WorkspaceTabs
+                  tabs={employeeTabs}
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  ariaLabel="Employee detail sections"
+                />
+
+                {activeTab === 'overview' ? (
+                  <div className="module-grid module-grid--single">
+                    <div className="module-fact-grid">
+                      <SummaryCard label="Email" value={selectedEmployee.email || '-'} detail="Live contact field" />
+                      <SummaryCard label="Profile source" value="Reference view" detail="No source-of-truth mutation added" />
+                    </div>
+                    <StatePanel
+                      eyebrow="Overview"
+                      title="Employee workspace foundation is active"
+                      description="Overview, contact, assignment, credentials, and activity regions can be inserted into this selected-record shell later without revisiting the layout."
+                      tone="neutral"
+                    />
+                  </div>
+                ) : null}
+
+                {activeTab === 'contact' ? (
+                  <StatePanel
+                    eyebrow="Contact"
+                    title="Contact details"
+                    description={`Email: ${selectedEmployee.email || 'Unavailable'}. Additional contact fields such as phone or supervisor will appear here only when an approved live source exists.`}
+                    tone="info"
+                  />
+                ) : null}
+
+                {activeTab === 'activity' ? (
+                  <StatePanel
+                    eyebrow="Deferred"
+                    title="Employee activity is not implemented yet"
+                    description="This tab is structurally reserved without inventing assignments, credentials, documents, or activity history."
+                    tone="neutral"
+                  />
+                ) : null}
+              </>
+            ) : (
+              <StatePanel
+                eyebrow="No Selection"
+                title="Select an employee to open the detail workspace"
+                description={activeView === 'mine'
+                  ? `Use the current-user row once it is available in the live reference view. Signed in as ${user?.primaryEmailAddress?.emailAddress ?? user?.id ?? 'current user'}.`
+                  : 'The selected-employee header and tabs appear here when you choose a row from the directory.'}
+                tone="neutral"
+              />
+            )}
+          </article>
+        </div>
+
+        <SecondarySidebar
+          eyebrow="Employee Context"
+          title="Directory context"
+          description="This context rail stays presentation-only and does not expose role or permission mutation controls."
+          mobileOpen={isSecondaryOpen}
+          onCloseMobile={() => setIsSecondaryOpen(false)}
+        >
+          <div className="context-stat-grid">
+            <div className="context-stat">
+              <span>Visible contacts</span>
+              <strong>{people.length}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Current role</span>
+              <strong>{permissions.role ?? 'User'}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Current division</span>
+              <strong>{permissions.division ?? 'Unassigned'}</strong>
+            </div>
+          </div>
+          <StatePanel
+            eyebrow="Boundary"
+            title="No role or permission editor"
+            description="Profile and contact presentation can live here, but role changes, overrides, and permission management remain outside this pass."
+            tone="neutral"
+            compact
+          />
+        </SecondarySidebar>
+      </div>
+    </article>
+  );
+}
+
+function VehiclesWorkspace({ permissions, vehicles, isLoading, error }) {
+  const [activeView, setActiveView] = useState('all');
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [search, setSearch] = useState('');
+  const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
+  const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
+  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const vehicleViews = [
+    { key: 'all', label: 'All Vehicles', icon: Truck, description: 'Every visible destination vehicle.', badge: vehicles.length },
+    { key: 'stock', label: 'Stock Vehicles', icon: Briefcase, description: 'Vehicles flagged to hold inventory.', badge: vehicles.filter((vehicle) => vehicle.holds_stock).length },
+    { key: 'fleet', label: 'General Fleet', icon: MapPin, description: 'Visible vehicles not flagged as stock-holding.', badge: vehicles.filter((vehicle) => !vehicle.holds_stock).length },
+  ];
+  const vehicleTabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'assignment', label: 'Assignment' },
+    { key: 'service', label: 'Service' },
+    { key: 'history', label: 'History' },
+  ];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    if (activeView === 'stock' && !vehicle.holds_stock) return false;
+    if (activeView === 'fleet' && vehicle.holds_stock) return false;
+    if (!normalizedSearch) return true;
+
+    return [
+      vehicle.vehicle_number,
+      vehicle.make,
+      vehicle.model,
+      vehicle.classification,
+      vehicle.division,
+    ].filter(Boolean).some((value) => value.toLowerCase().includes(normalizedSearch));
+  });
+  const selectedVehicle = filteredVehicles.find((vehicle) => vehicle.id === selectedVehicleId)
+    ?? vehicles.find((vehicle) => vehicle.id === selectedVehicleId)
+    ?? null;
+  const divisions = [...new Set(vehicles.map((vehicle) => vehicle.division).filter(Boolean))];
+
+  useEffect(() => {
+    if (selectedVehicleId && !vehicles.some((vehicle) => vehicle.id === selectedVehicleId)) {
+      setSelectedVehicleId('');
+    }
+  }, [selectedVehicleId, vehicles]);
+
+  return (
+    <article className="card card--wide workspace-card module-workspace-card">
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Vehicles"
+        description="Fleet layout foundation using the live vehicle destination-reference path where available. Assignment, service, and history remain honest placeholders until their approved data surfaces are added."
+        status={<span className="status-pill">{vehicles.length} visible vehicle{vehicles.length === 1 ? '' : 's'}</span>}
+        actions={(
+          <>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+              Views
+            </button>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsSecondaryOpen(true)}>
+              Context
+            </button>
+            <button type="button" className="primary-button" disabled={!permissions.canManageVehicles}>
+              <Plus aria-hidden="true" /> Add Vehicle
+            </button>
+          </>
+        )}
+      />
+
+      <div className="module-summary-grid">
+        <SummaryCard label="Visible vehicles" value={vehicles.length} detail={isLoading ? 'Loading vehicle references...' : 'Live destination-vehicle references'} tone="accent" />
+        <SummaryCard label="Stock vehicles" value={vehicles.filter((vehicle) => vehicle.holds_stock).length} detail="Vehicles marked as inventory-capable" />
+        <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
+      </div>
+
+      <div className={`workspace-layout workspace-layout--with-secondary${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
+        <PrimarySidebar
+          eyebrow="Vehicle Views"
+          title="Vehicles"
+          description="The shell is ready for browse, selected-record, and deferred assignment/service tabs."
+          items={vehicleViews}
+          activeKey={activeView}
+          onSelect={setActiveView}
+          collapsed={isPrimaryCollapsed}
+          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
+          mobileOpen={isPrimaryOpen}
+          onCloseMobile={() => setIsPrimaryOpen(false)}
+          footer={(
+            <div className="module-sidebar-note">
+              <strong>Foundation only</strong>
+              <p>No assignment writes, maintenance records, or service workflows are fabricated here.</p>
+            </div>
+          )}
+        />
+
+        <div className="workspace-surface">
+          <article className="card workspace-card module-directory-panel">
+            <div className="module-toolbar">
+              <div>
+                <p className="eyebrow">Directory</p>
+                <h3>{vehicleViews.find((item) => item.key === activeView)?.label ?? 'Vehicles'}</h3>
+              </div>
+              <div className="module-toolbar__actions">
+                <label className="module-search">
+                  <span className="sr-only">Search vehicles</span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search vehicles..."
+                  />
+                </label>
+              </div>
+            </div>
+
+            {error ? <StatePanel eyebrow="Error" title="Vehicle references failed to load" description="The existing destination-vehicle reference view was unavailable, so the workspace cannot show live fleet rows right now." tone="danger" /> : null}
+            {isLoading ? <StatePanel eyebrow="Loading" title="Loading vehicles" description="The layout foundation is ready while live vehicle references load." tone="info" /> : null}
+            {!isLoading && !error && !filteredVehicles.length ? (
+              <StatePanel
+                eyebrow={search ? 'No Results' : 'Empty State'}
+                title={search ? 'No vehicles matched this search' : 'No vehicles are visible'}
+                description={search
+                  ? 'Try searching by unit number, make, model, classification, or division.'
+                  : 'This directory stays honest when the existing read path has no visible vehicles.'}
+                tone="neutral"
+              />
+            ) : null}
+
+            {!isLoading && !error && filteredVehicles.length ? (
+              <>
+                <div className="table-wrap">
+                  <table className="data-table module-table">
+                    <thead>
+                      <tr>
+                        <th>Unit #</th>
+                        <th>Classification</th>
+                        <th>Make</th>
+                        <th>Model</th>
+                        <th>Division</th>
+                        <th>Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredVehicles.map((vehicle) => (
+                        <tr
+                          key={vehicle.id}
+                          className={selectedVehicleId === vehicle.id ? 'is-selected' : undefined}
+                          onClick={() => {
+                            setSelectedVehicleId(vehicle.id);
+                            setActiveTab('overview');
+                          }}
+                        >
+                          <td><strong>{vehicle.vehicle_number || vehicle.id}</strong></td>
+                          <td>{vehicle.classification || 'Vehicle'}</td>
+                          <td>{vehicle.make || '-'}</td>
+                          <td>{vehicle.model || '-'}</td>
+                          <td>{vehicle.division || 'Unassigned'}</td>
+                          <td>{vehicle.holds_stock ? 'Holds stock' : 'Fleet only'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mobile-list tool-mobile-list">
+                  {filteredVehicles.map((vehicle) => (
+                    <article className={`mobile-item${selectedVehicleId === vehicle.id ? ' is-selected' : ''}`} key={vehicle.id}>
+                      <strong>{vehicle.vehicle_number || vehicle.id}</strong>
+                      <div className="meta-grid">
+                        <span>Classification: {vehicle.classification || 'Vehicle'}</span>
+                        <span>Make/Model: {[vehicle.make, vehicle.model].filter(Boolean).join(' ') || '-'}</span>
+                        <span>Division: {vehicle.division || 'Unassigned'}</span>
+                        <span>Stock: {vehicle.holds_stock ? 'Holds stock' : 'Fleet only'}</span>
+                      </div>
+                      <div className="cart-actions">
+                        <button type="button" className="secondary-button" onClick={() => {
+                          setSelectedVehicleId(vehicle.id);
+                          setActiveTab('overview');
+                        }}>
+                          View
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </article>
+
+          <article className="card workspace-card module-detail-panel">
+            {selectedVehicle ? (
+              <>
+                <RecordHeader
+                  eyebrow="Selected Vehicle"
+                  title={selectedVehicle.vehicle_number || selectedVehicle.id}
+                  description="This selected-record shell preserves a persistent header and horizontal tabs without inventing assignment or maintenance workflows."
+                  meta={[
+                    { label: 'Classification', value: selectedVehicle.classification || 'Vehicle' },
+                    { label: 'Division', value: selectedVehicle.division || 'Unassigned' },
+                  ]}
+                />
+                <WorkspaceTabs
+                  tabs={vehicleTabs}
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  ariaLabel="Vehicle detail sections"
+                />
+
+                {activeTab === 'overview' ? (
+                  <div className="module-fact-grid">
+                    <SummaryCard label="Make" value={selectedVehicle.make || '-'} detail="Live vehicle reference field" />
+                    <SummaryCard label="Model" value={selectedVehicle.model || '-'} detail="Live vehicle reference field" />
+                    <SummaryCard label="Stock capable" value={selectedVehicle.holds_stock ? 'Yes' : 'No'} detail="Destination-reference flag" />
+                  </div>
+                ) : null}
+
+                {activeTab === 'assignment' ? (
+                  <StatePanel
+                    eyebrow="Deferred"
+                    title="Assignment details are not wired yet"
+                    description="This region is reserved for real assignment data only when an approved source-of-truth path exists."
+                    tone="neutral"
+                  />
+                ) : null}
+
+                {activeTab === 'service' ? (
+                  <StatePanel
+                    eyebrow="Deferred"
+                    title="Service records are not wired yet"
+                    description="No maintenance history, mileage, inspections, or service alerts are fabricated in this pass."
+                    tone="neutral"
+                  />
+                ) : null}
+
+                {activeTab === 'history' ? (
+                  <StatePanel
+                    eyebrow="Deferred"
+                    title="Vehicle history is not wired yet"
+                    description="This tab remains reserved for real history once an approved read source exists."
+                    tone="neutral"
+                  />
+                ) : null}
+              </>
+            ) : (
+              <StatePanel
+                eyebrow="No Selection"
+                title="Select a vehicle to open the detail workspace"
+                description="The persistent vehicle header and horizontal detail tabs appear here when you choose a row from the live vehicle directory."
+                tone="neutral"
+              />
+            )}
+          </article>
+        </div>
+
+        <SecondarySidebar
+          eyebrow="Vehicle Context"
+          title="Fleet context"
+          description="This side rail keeps the module grounded in live fields that already exist."
+          mobileOpen={isSecondaryOpen}
+          onCloseMobile={() => setIsSecondaryOpen(false)}
+        >
+          <div className="context-stat-grid">
+            <div className="context-stat">
+              <span>Visible vehicles</span>
+              <strong>{vehicles.length}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Stock-capable</span>
+              <strong>{vehicles.filter((vehicle) => vehicle.holds_stock).length}</strong>
+            </div>
+            <div className="context-stat">
+              <span>Can manage vehicles</span>
+              <strong>{permissions.canManageVehicles ? 'Yes' : 'No'}</strong>
+            </div>
+          </div>
+          <StatePanel
+            eyebrow="Boundary"
+            title="No assignment or service mutations"
+            description="This layout exposes real rows where available, but assignment changes and service workflows remain outside this front-end foundation pass."
+            tone="neutral"
+            compact
+          />
+        </SecondarySidebar>
+      </div>
+    </article>
+  );
+}
+
+function DeveloperWorkspace({
+  user,
+  permissions,
+  showDevDashboard,
+  onShow,
+  onHide,
+  formattingTunerValues,
+  setFormattingTunerValues,
+  resetFormattingTunerValues,
+  silasEnabled,
+  silasSettingsLoading,
+  silasSettingsError,
+  silasTogglePending,
+  onToggleSilas,
+}) {
+  return (
+    <article className="card card--wide workspace-card module-workspace-card">
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Developer"
+        description="Developer-only status, diagnostics, and approved utilities. This workspace remains gated by the existing server-authoritative developer access check."
+        status={<span className="status-pill">{permissions.canAccessDeveloper ? 'Developer access confirmed' : 'Developer access required'}</span>}
+      />
+
+      <div className="module-summary-grid">
+        <SummaryCard label="Role" value={permissions.role ?? 'User'} detail="Server-authoritative role" />
+        <SummaryCard label="Division" value={permissions.division ?? 'Unassigned'} detail="Current operator division" />
+        <SummaryCard label="Silas" value={silasEnabled ? 'Enabled' : 'Disabled'} detail="Developer-controlled global state" />
+        <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Must remain server-derived" />
+      </div>
+
+      <StatePanel
+        eyebrow="Boundary"
+        title="Developer scope remains status-oriented"
+        description="This module does not add granular permission editors, SQL consoles, service-role access, environment secret views, or target-user effective-permission viewers."
+        tone="neutral"
+        compact
+      />
+
+      <DeveloperDashboard
+        user={user}
+        permissions={permissions}
+        showDevDashboard={showDevDashboard}
+        onShow={onShow}
+        onHide={onHide}
+        formattingTunerValues={formattingTunerValues}
+        setFormattingTunerValues={setFormattingTunerValues}
+        resetFormattingTunerValues={resetFormattingTunerValues}
+        silasEnabled={silasEnabled}
+        silasSettingsLoading={silasSettingsLoading}
+        silasSettingsError={silasSettingsError}
+        silasTogglePending={silasTogglePending}
+        onToggleSilas={onToggleSilas}
+      />
+    </article>
+  );
+}
+
 function ComingSoonWorkspace({ title, description }) {
   return (
-    <article className="card card--wide workspace-placeholder">
-      <p className="eyebrow">{title}</p>
-      <h2>{title} - Coming soon</h2>
-      <p>{description}</p>
+    <article className="card card--wide workspace-card module-workspace-card">
+      <WorkspaceHeader eyebrow="Workspace" title={title} description={description} />
+      <StatePanel
+        eyebrow="Not Implemented"
+        title={`${title} foundation is still deferred`}
+        description={description}
+        tone="neutral"
+      />
     </article>
   );
 }
@@ -11902,6 +13057,9 @@ function Dashboard() {
   const designPreviewEnabled = hasDesignPreviewFlag(browserPath);
   const canAccessDeveloper = permissions.permissionSource === 'server' && permissions.canAccessDeveloper;
   const activeWorkspace = dashboardRouteContext.activeWorkspace;
+  const sharedLayoutReadModel = useInventoryReadModel({
+    enabled: permissions.permissionSource === 'server' && ['dashboard', 'employees', 'vehicles'].includes(activeWorkspace),
+  });
   const devDashboardActive = activeWorkspace === 'developer' && showDevDashboard && canAccessDeveloper;
   const workspaceNavItems = useMemo(
     () => buildWorkspaceNavItems({ silasEnabled: silas.silasEnabled, canAccessDeveloper }),
@@ -12022,7 +13180,16 @@ function Dashboard() {
         ) : (
           <section className="app-main">
             {activeWorkspace === 'dashboard' ? (
-              <ComingSoonWorkspace title="Dashboard" description="A team-facing operations dashboard will live here. For now, use the Inventory workspace for live workflows." />
+              <DashboardWorkspace
+                user={user}
+                permissions={permissions}
+                inventorySnapshot={sharedLayoutReadModel.model}
+                inventoryLoading={sharedLayoutReadModel.isLoading}
+                inventoryError={sharedLayoutReadModel.error}
+                silasEnabled={silas.silasEnabled}
+                canAccessDeveloper={canAccessDeveloper}
+                onOpenWorkspace={openWorkspace}
+              />
             ) : null}
             {activeWorkspace === 'inventory' ? (
               <InventoryWorkspacePanel
@@ -12056,13 +13223,28 @@ function Dashboard() {
                 responseSource={silas.responseSource}
               />
             ) : null}
-            {activeWorkspace === 'estimating' ? <ComingSoonWorkspace title="Estimating" description="Estimating workspace is reserved for a future milestone." /> : null}
+            {activeWorkspace === 'estimating' ? <EstimatesWorkspace permissions={permissions} /> : null}
             {activeWorkspace === 'tools' ? <ToolsWorkspace permissions={permissions} designPreviewEnabled={designPreviewEnabled} /> : null}
-            {activeWorkspace === 'employees' ? <ComingSoonWorkspace title="Employees" description="Employee workspace is reserved for a future milestone." /> : null}
-            {activeWorkspace === 'vehicles' ? <ComingSoonWorkspace title="Vehicles" description="Vehicle workspace is reserved for a future milestone." /> : null}
+            {activeWorkspace === 'employees' ? (
+              <EmployeesWorkspace
+                permissions={permissions}
+                user={user}
+                people={sharedLayoutReadModel.model.destinationReferences.users}
+                isLoading={sharedLayoutReadModel.isLoading}
+                error={sharedLayoutReadModel.error}
+              />
+            ) : null}
+            {activeWorkspace === 'vehicles' ? (
+              <VehiclesWorkspace
+                permissions={permissions}
+                vehicles={sharedLayoutReadModel.model.destinationReferences.vehicles}
+                isLoading={sharedLayoutReadModel.isLoading}
+                error={sharedLayoutReadModel.error}
+              />
+            ) : null}
             {activeWorkspace === 'developer' ? (
               canAccessDeveloper ? (
-                <DeveloperDashboard
+                <DeveloperWorkspace
                   user={user}
                   permissions={permissions}
                   showDevDashboard={showDevDashboard}
