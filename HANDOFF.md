@@ -15449,3 +15449,109 @@ None. `docs/ARCHITECTURE.md` remains v2.30 and was not edited.
 No Claude review needed for Phase 1 implementation — explicitly authorized as a
 read-only visual port by ARCHITECTURE v2.30 / HANDOFF Entry 146. Phases 2 and 3
 remain blocked pending architecture lock and ChatGPT Rule 20 cross-clearance.
+
+## Entry 148 - Fix Jobs tabs and Inventory navigation layout
+
+**Date:** 2026-08-03
+**Updated by:** Codex
+**Phase:** Northgate UI defect correction
+**Session type:** implementation
+
+### Context
+Ryan completed available manual review after the Phase 1 NGG-PM read-only
+preview and reported two presentation defects only:
+
+1. Production selected-Job tabs were still oversized and produced an
+   unnecessary horizontal scrollbar at desktop width.
+2. The Inventory Module Sections rail had overlapping navigation text and
+   cramped item spacing.
+
+This pass was limited to CSS/layout correction only. No user provisioning,
+backend, schema, permission, auth, financial, inventory workflow, Jobs data, PM
+preview data, or architecture work was authorized.
+
+Starting commit: `d416a66` (`Add read-only NGG-PM Jobs preview`).
+Architecture version confirmed: `v2.30`.
+Prior HANDOFF checkpoint confirmed: `Entry 147`.
+
+### What Was Completed
+- Corrected the production selected-Job tab strip layout.
+- Corrected the Inventory Module Sections rail item layout.
+- Preserved the existing eight canonical selected-Job tabs:
+  Overview, Details, Materials, Buyout, Transactions, Financials, Documents,
+  Schedule.
+- Preserved the NGG-PM preview as additive, Developer-only, feature-flagged,
+  and non-default.
+
+### Root Cause
+- Jobs tabs: the production tab strip always allowed horizontal scrolling and
+  did not explicitly constrain the desktop row as a compact, content-sized,
+  non-growing tab list.
+- Inventory rail: sidebar items had insufficient explicit line-height,
+  top-alignment, scrollbar gutter, and auto-height spacing for a title plus
+  description plus optional badge.
+
+### Code / File Changes
+- `src/styles/layout.css`
+- `HANDOFF.md`
+
+### CSS Corrections
+- Jobs tab strip now:
+  - uses compact content-based tab widths
+  - keeps `flex: 0 0 auto`
+  - prevents desktop horizontal scrolling
+  - avoids oversized equal-width behavior
+  - keeps labels on one line
+  - restores contained scrolling only at narrow/mobile widths
+- Inventory rail items now:
+  - use a three-column grid: fixed icon, flexible text, fixed badge
+  - align icon and badge near the top of wrapped text
+  - use readable title and description line heights
+  - let each row size naturally with a minimum height as a floor only
+  - reserve scrollbar gutter space so scrollbars do not cover text or badges
+  - keep collapse behavior intact
+
+### Verification
+- Required preflight passed:
+  - branch `main`
+  - working tree clean before edits
+  - local `main` matched `origin/main`
+  - current commit `d416a66`
+  - ARCHITECTURE v2.30 present
+  - HANDOFF gapless through Entry 147
+- `npm run build` passed.
+- `git diff --check` passed.
+- Diff reviewed; only CSS plus this HANDOFF append changed.
+- No file under `supabase/migrations` changed.
+- `docs/ARCHITECTURE.md` was not edited.
+- No RPC, RLS, permission, auth, financial, inventory workflow, Jobs data
+  binding, PM preview data binding, or business-rule change was introduced.
+- Authenticated browser runtime verification was not completed in this session.
+  Ryan should verify the corrected screens at 1440px, 1024px, 768px, and 390px.
+- Final implementation commit hash was not knowable when this entry was
+  written; it is the commit that introduces Entry 148 and is reported in the
+  session summary / git history.
+
+### Next Steps (in order)
+1. Verify production selected-Job tabs at 1440px with all eight tabs visible
+   and no desktop tab-strip scrollbar.
+2. Verify selected-Job tabs at 1024px, 768px, and 390px with contained
+   scrolling only where genuinely needed.
+3. Verify the Inventory Module Sections rail at 1440px and 1024px with no
+   overlapping labels/descriptions or badge collision.
+4. Verify Inventory drawer behavior at 768px and 390px.
+5. Complete the separate normal non-Developer PM preview visibility test when
+   a suitable test account is available.
+
+### Open Questions / Concerns
+- Logged-in runtime visual verification remains pending from Ryan's browser.
+- Normal non-Developer preview visibility still needs a separate test account,
+  carried forward from Entry 147.
+
+### Architecture Drift Warnings
+- None active. This pass stayed strictly inside UI/CSS presentation scope and
+  did not alter protected application behavior.
+
+### Routing Verdict
+No Claude review needed — UI defect corrections remained within ARCHITECTURE
+v2.30 / HANDOFF Entry 148.

@@ -360,6 +360,7 @@
 .workspace-sidebar__body {
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .workspace-sidebar__footer {
@@ -368,17 +369,17 @@
 
 .workspace-sidebar__item {
   width: 100%;
-  min-height: 0;
+  min-height: 64px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.72rem;
   border: 1px solid transparent;
   border-left: 3px solid transparent;
   border-radius: 12px;
   background: transparent;
   color: var(--ng-text);
-  padding: 0.8rem 0.9rem;
+  padding: 0.78rem 0.82rem;
   text-align: left;
 }
 
@@ -396,9 +397,11 @@
 .workspace-sidebar__item-icon {
   width: 1.9rem;
   height: 1.9rem;
+  margin-top: 0.05rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
   border-radius: 8px;
   background: rgba(24, 33, 43, 0.05);
 }
@@ -415,30 +418,40 @@
 .workspace-sidebar__item-copy {
   min-width: 0;
   display: grid;
-  gap: 0.15rem;
+  gap: 0.22rem;
 }
 
 .workspace-sidebar__item-copy strong,
 .workspace-sidebar__item-copy small {
   overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.workspace-sidebar__item-copy strong {
+  line-height: 1.22;
 }
 
 .workspace-sidebar__item-copy small {
   color: var(--ng-muted);
   font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .workspace-sidebar__item-badge {
+  align-self: start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 2rem;
+  max-width: 3.75rem;
   border-radius: 999px;
   background: var(--ng-panel-bg-alt);
   color: var(--ng-muted);
   padding: 0.24rem 0.5rem;
   font-size: 0.74rem;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .workspace-sidebar.is-collapsed .workspace-sidebar__heading p:last-child,
@@ -1261,37 +1274,45 @@ textarea:focus-visible {
 
 .job-detail-tabs {
   display: flex;
-  gap: 0.35rem;
-  overflow-x: auto;
-  padding: 0 0 0.15rem;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.58rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  padding: 0 0 0.1rem;
   border-bottom: 1px solid var(--ng-divider);
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .job-detail-tab {
-  min-height: 48px;
+  min-height: 44px;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 0.18rem;
+  gap: 0.12rem;
   flex: 0 0 auto;
+  min-width: 0;
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--ng-muted);
-  padding: 0 0.18rem 0.72rem;
+  padding: 0 0.08rem 0.62rem;
   text-align: left;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  line-height: 1.15;
 }
 
 .job-detail-tab small {
   color: var(--ng-faint);
   font-size: 0.68rem;
   font-weight: 700;
+  line-height: 1.1;
 }
 
 .job-detail-tab:hover:not(:disabled) {
@@ -1577,6 +1598,15 @@ textarea:focus-visible {
 
   .job-detail-header__hero {
     grid-template-columns: 1fr;
+  }
+
+  .job-detail-tabs {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .job-detail-tabs::-webkit-scrollbar {
+    height: 0.35rem;
   }
 }
 
