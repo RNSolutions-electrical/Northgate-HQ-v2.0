@@ -15555,3 +15555,106 @@ Prior HANDOFF checkpoint confirmed: `Entry 147`.
 ### Routing Verdict
 No Claude review needed — UI defect corrections remained within ARCHITECTURE
 v2.30 / HANDOFF Entry 148.
+
+## Entry 149 - Correct unresolved Jobs tabs and Inventory navigation defects
+
+### Scope
+- Corrected the two remaining UI defects reported after commit `66d3130`.
+- Stayed strictly inside UI/CSS presentation scope.
+- Did not add Developer Helpful Links.
+- Did not alter Jobs data binding, Inventory workflows, NGG-PM preview behavior,
+  permissions, RPCs, RLS, auth, financial rules, or database migrations.
+
+### Required Preflight
+- Repository was pulled from `origin/main`; local `main` was already up to date.
+- Working tree was clean before edits.
+- Current branch: `main`.
+- Current HEAD before edits: `d416a66`.
+- `origin/main` before edits: `d416a66`.
+- ARCHITECTURE v2.30 confirmed present.
+- HANDOFF confirmed gapless through Entry 148.
+
+### Root Cause
+- Jobs selected-record tabs: `src/styles.css` still contained older grid /
+  equal-width tab rules, including `width: 100%` on `.job-detail-tab`. Because
+  `src/main.jsx` imports `src/styles/layout.css` after `src/styles.css`, the
+  correct fix needed explicit later overrides in `layout.css` for width,
+  flex-growth, shrink behavior, and overflow.
+- Inventory Module Sections navigation: the active production DOM uses
+  `PrimarySidebar` (`workspace-sidebar__nav` and `workspace-sidebar__item`),
+  not the older `module-tabs` path. The previous spacing fix did not fully lock
+  the active sidebar item rows into natural-height stacked rows with explicit
+  visible overflow and separated text/badge columns.
+
+### Code / File Changes
+- `src/styles/layout.css`
+- `HANDOFF.md`
+
+### CSS Corrections
+- Jobs selected-record tabs now:
+  - use a non-wrapping flex row
+  - use compact content-based tab widths
+  - explicitly reset tab width to `auto`
+  - explicitly prevent flex growth and shrink compression
+  - keep `min-width: max-content` so labels do not collapse
+  - retain contained horizontal scrolling fallback instead of hiding overflow
+- Inventory Module Sections nav now:
+  - stacks nav items vertically with a computed 12px gap
+  - keeps each nav item `height: auto` with a minimum-height floor only
+  - uses a fixed icon / flexible copy / fixed badge grid
+  - keeps title and description in a flex column
+  - allows visible overflow inside each item
+  - preserves nav-list scrolling separately from the header/footer shell
+
+### Verification
+- `npm run build` passed before and after this HANDOFF append.
+- `git diff --check` passed before this HANDOFF append.
+- Headless Chrome fixture using the built CSS verified the actual cascade at:
+  - 1440px: Jobs tabs `clientWidth=728`, `scrollWidth=728`, compact max tab
+    width `93.97px`; Inventory nav flex column, 12px item gap.
+  - 1024px: Jobs tabs `clientWidth=728`, `scrollWidth=728`, compact max tab
+    width `93.97px`; Inventory nav flex column, 12px item gap.
+  - 768px: Jobs tabs `clientWidth=728`, `scrollWidth=728`, compact max tab
+    width `93.97px`; Inventory nav flex column, 12px item gap.
+  - 390px: Jobs tabs `clientWidth=354`, `scrollWidth=624`, contained
+    horizontal scroll active; Inventory nav flex column, 12px item gap.
+- Fixture confirmed `.job-detail-tabs` computes to `display:flex` and
+  `overflow-x:auto`.
+- Fixture confirmed each `.job-detail-tab` computes to `flex: 0 0 auto` and
+  `min-width: max-content`.
+- Fixture confirmed `.workspace-sidebar__nav` computes to a vertical flex
+  column with 12px gaps.
+- Fixture confirmed `.workspace-sidebar__item` computes to grid layout with
+  visible overflow and natural row heights for wrapped labels/descriptions.
+- Authenticated production browser verification was not available in this
+  session. Ryan should perform the final live UI verification below.
+
+### Next Steps (in order)
+1. Open the production app with a logged-in account.
+2. Navigate to Jobs and open any selected Job record.
+3. At 1440px, verify all eight selected-record tabs are visible without an
+   unusable clipped row: Overview, Details, Materials, Buyout, Transactions,
+   Financials, Documents, Schedule.
+4. At 1024px and 768px, verify the same tab row remains compact and reachable.
+5. At 390px, verify the selected-record tabs use contained horizontal scrolling
+   and that later tabs are reachable.
+6. Navigate to Inventory.
+7. At 1440px and 1024px, verify Module Sections items do not overlap titles,
+   descriptions, icons, or badges.
+8. At 768px and 390px, open the Inventory drawer and verify items stack with
+   clear vertical separation and no text/badge collision.
+9. Complete the separate normal non-Developer PM preview visibility test when
+   a suitable test account is available.
+
+### Open Questions / Concerns
+- Logged-in runtime verification remains pending from Ryan's browser.
+- Normal non-Developer preview visibility still needs a separate test account,
+  carried forward from Entry 147.
+
+### Architecture Drift Warnings
+- None active. This pass stayed within ARCHITECTURE v2.30 and corrected only
+  unresolved UI presentation defects.
+
+### Routing Verdict
+No Claude review needed - corrective UI work remained within ARCHITECTURE v2.30
+/ HANDOFF Entry 149.
