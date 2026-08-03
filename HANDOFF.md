@@ -15076,3 +15076,178 @@ business-rule changes were authorized.
 No Claude review needed before commit/push for this pass because it remained
 inside locked UI presentation scope. Claude review is still required before any
 future change to universal Job visibility or authorization behavior.
+
+## Entry 146 - NGG-PM Integration: Architecture Review Complete, Decisions Captured, Lock Pending Cross-Clearance
+
+**Date:** 2026-08-02
+**Updated by:** Claude
+**Phase:** Architecture Review (pre-lock)
+**Session type:** Decision Capture / Review â€” NO architecture change made
+
+### Context
+
+Ryan directed a review of using the standalone NGG-PM app
+(`RNSolutions-electrical/NGG-PM`, deployed at
+`rnsolutions-electrical.github.io/NGG-PM/`) as the basis for the selected-Job
+workspace inside Northgate HQ. Claude inspected the NGG-PM source directly
+(`index.html`, 53,781 bytes, single file, no external scripts) alongside the
+full ARCHITECTURE v2.30 and HANDOFF through Entry 145.
+
+The complete review is captured in
+`NGG-PM_Integration_Architecture_Review.md` (delivered to Ryan this session).
+
+**This entry records decisions only. No ARCHITECTURE.md change has been made
+and none is authorized yet.** All schema-affecting decisions below are pending
+Rule 20 cross-clearance.
+
+### Findings â€” four conflicts with locked architecture
+
+1. **Multi-division projects (structural).** NGG-PM projects span Electrical
+   and Construction simultaneously â€” budget lines, schedule tasks, permits,
+   and checklists each carry their own division inside one project. Northgate
+   `jobs.division` is single-valued NOT NULL and is the RLS access gate
+   (Â§38.1, Â§38.4). A single NGG-PM project cannot be represented as one
+   Northgate Job under current architecture.
+2. **Budget columns.** NGG-PM stores Actual / Committed / Forecast. Â§44.2
+   explicitly excludes `actual_amount` and `committed_amount`; Â§44.9 reserves
+   actual and committed cost.
+3. **Schedule dependencies.** NGG-PM has predecessor, lag, duration, computed
+   dates, and Gantt. Â§47.0 locks Schedule v1 as "flat milestone/task list
+   onlyâ€¦ does not model dependencies"; Â§47.5 explicitly reserves Dependencies.
+4. **No owner exists** for PM Checklist, Permits, or Inspections.
+
+### Defects identified in NGG-PM (must not be ported)
+
+- **Checklist completion is positionally keyed** (`phaseIndex_taskIndex`
+  against a template hardcoded in source). Inserting one item silently
+  re-maps every subsequent completion to the wrong task.
+- **JSON import is a blind whole-state overwrite** â€” no validation, no
+  version check, no diff, no confirmation.
+- **Client-side PIN gate** (`requestPin()`) guards edit mode. Incompatible
+  with Â§17's server-authoritative rule; must not survive in any form.
+- Schedule task IDs are sequential integers referenced as free text by
+  `predecessor`; migration to UUID requires a stable display sequence.
+
+### Ryan's Decisions (16 of 16, all captured)
+
+**Authorization model:**
+1. Any authenticated user may open any Job and see basic operational
+   information. Financial values remain gated. *(This collapses the
+   multi-division conflict â€” the job header stops being a division access
+   gate.)*
+2. Permission checks are wired in from day one, with flags granted broadly via
+   `user_permission_overrides` (Â§17b) initially. Tightening later is a data
+   change, not a code change. **Deferring the checks themselves was
+   explicitly rejected.**
+3. Financial queries are division-scoped **at the query layer** from the
+   start â€” not fetched broadly and filtered client-side.
+
+**Budget (Conflict 2):**
+4. Add `budget_changes`, `actual_amount`, `committed_amount`,
+   `forecast_to_complete` as **manual PM planning inputs**, explicitly
+   labeled non-accounting. Auto-derivation from the ledger was rejected as
+   materially incomplete (material only â€” no labor, no subs).
+5. Budget category remains required (Â§44.3 CHECK constraint unchanged).
+6. Summary card totals show the viewer's own division.
+
+**Schedule (Conflict 3):**
+7. Add `duration`, `predecessor`, `lag`, `trade` plus computed dates and
+   Gantt.
+8. Northgate's existing status vocabulary is retained
+   (`pending`/`in_progress`/`complete`/`delayed`); NGG-PM's four map onto it.
+
+**Checklist (Conflict 4):**
+9. Master template editing is Developer-only.
+10. PMs may add job-specific items on top of the template.
+
+**Structure:**
+11. Permits & Inspections get their own tab.
+12. `jobs` gains `pm_user_id`, `superintendent_user_id`, `foreman_user_id`
+    (Clerk TEXT per Â§17b identity model) and `gc_company`.
+13. Export: Job info, contacts, permits, inspections, schedule, checklist,
+    document metadata (names only). Budget only with `can_view_financials`.
+    **No materials, buyout, or transaction data** â€” ledger-adjacent data must
+    not be duplicated into a portable file.
+14. **No JSON import in this integration.** Export only.
+15. Codex Phase 1 is a read-only visual port.
+16. Existing Jobs workspace retained behind a feature flag until parity is
+    confirmed.
+
+**Navigation:** Option B extended â€” Northgate's eight locked tabs remain
+canonical (Â§42 unchanged), plus PM Checklist and Permits & Inspections.
+NGG-PM's four-tab structure is absorbed, not adopted; this avoids the
+Budgets/Financials and Schedules/Schedule duplication.
+
+### Anticipated ARCHITECTURE changes (NOT YET APPLIED)
+
+Pending cross-clearance, the lock is expected to require:
+
+- Â§38 delta â€” job assignment columns, `gc_company`, and the changed meaning of
+  `jobs.division` (label rather than access gate)
+- Â§44 delta â€” the four manual budget columns
+- Â§47 delta â€” the four schedule columns + computed dates
+- New sections â€” PM Checklist (templates + instances), Job Permits &
+  Inspections, Job Contacts, JSON Export
+- Â§42 note â€” two added tabs
+- Â§50 note â€” PM workspace visual integration
+- New tables â€” `job_contacts`, `job_permits`, `job_inspections`,
+  `checklist_templates`, `checklist_template_items`, `job_checklist_items`
+- **No new permission flags.** Everything maps to existing `can_manage_jobs`,
+  `can_approve_budget`, `can_view_financials`, `can_view_all_divisions`.
+
+### What Codex is authorized to do NOW
+
+**Phase 1 only â€” read-only visual port.** This requires no architecture change
+and may proceed in parallel with cross-clearance:
+
+- Build NGG-PM's screens as React components inside the existing Northgate
+  shell, restyled to Northgate red/white/gray
+- Bind read-only to data that already exists; render unlocked columns as
+  visibly disabled placeholders, never fabricated values
+- Reuse existing shell components; no second design system
+- Responsive from this pass (Constitutional Rule 18)
+- Route behind a feature flag, Developer-only; existing Jobs workspace stays
+  default and untouched
+
+**Codex must NOT, in Phase 1:** create or alter any table, column, migration,
+RLS policy, or RPC; add or modify any permission flag or check; write to any
+table; modify the existing Jobs workspace; port the PIN gate, localStorage
+persistence, HTML-save, dark theme, mobile-preview toggle, or JSON import.
+
+### Next Steps (in order)
+
+1. ChatGPT Rule 20 cross-clearance on the direction above
+2. Claude corrects per findings
+3. Claude writes the ARCHITECTURE lock (expected v2.31) and the next HANDOFF
+   entry
+4. Codex Phase 1 (read-only visual port) â€” may run in parallel with 1â€“3
+5. Codex Phases 2+ (schema deltas) â€” blocked until the lock exists
+
+### Open Questions / Concerns
+
+Cross-clearance should specifically examine: whether `jobs.division` changing
+from access gate to label creates problems in any locked section; whether
+universal Job visibility conflicts with Â§17a's division-scoping principle as
+applied elsewhere; whether manual budget actuals create a competing source of
+truth against Â§37/Â§43 ledger rules; whether the new tables' soft-archive RLS
+requires the Entries 124â€“125 two-policy pattern; and whether any of this
+requires a permission flag not already canonical.
+
+### Architecture Drift Warnings
+
+None active. No architecture change was made in this session.
+
+---
+
+## Routing Verdict
+
+**ChatGPT Rule 20 cross-clearance required before any ARCHITECTURE.md edit.**
+Decisions are captured and internally consistent, but every schema-affecting
+item above is pending review.
+
+**For Codex:** Phase 1 (read-only visual port) is authorized now and requires
+no lock. All schema work is blocked until the ARCHITECTURE lock is written and
+cross-cleared.
+
+**For Claude:** Write the ARCHITECTURE lock only after cross-clearance findings
+are returned and corrected.
