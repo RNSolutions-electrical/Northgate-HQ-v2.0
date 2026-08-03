@@ -1870,6 +1870,239 @@ textarea:focus-visible {
   height: 1.1rem;
 }
 
+.job-pm-preview,
+.job-pm-preview-section,
+.job-pm-preview__panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.job-pm-preview .workspace-tabs {
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--ng-divider);
+}
+
+.job-pm-preview .workspace-tab {
+  min-height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 0.55rem 0.2rem 0.65rem;
+  background: transparent;
+}
+
+.job-pm-preview .workspace-tab--active {
+  border-color: var(--ng-brand-red);
+  background: transparent;
+}
+
+.pm-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+
+.pm-preview-grid--overview {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.85fr);
+}
+
+.pm-preview-panel {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  border: 1px solid var(--ng-border);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: var(--card-padding);
+}
+
+.pm-readonly-grid,
+.pm-note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.pm-readonly-field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  border: 1px solid var(--ng-border);
+  border-radius: 10px;
+  background: var(--ng-panel-bg);
+  padding: 0.85rem;
+}
+
+.pm-readonly-field span {
+  color: var(--ng-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pm-readonly-field strong,
+.pm-readonly-field small {
+  overflow-wrap: anywhere;
+}
+
+.pm-unavailable-cell {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  border: 1px dashed rgba(24, 33, 43, 0.18);
+  border-radius: 999px;
+  background: #f7f8fa;
+  color: var(--ng-muted);
+  padding: 0.1rem 0.55rem;
+  font-weight: 800;
+}
+
+.pm-table-wrap,
+.pm-gantt {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--ng-border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.pm-budget-table,
+.pm-schedule-table {
+  min-width: 1180px;
+}
+
+.pm-budget-table th:first-child,
+.pm-budget-table td:first-child,
+.pm-schedule-table th:nth-child(2),
+.pm-schedule-table td:nth-child(2) {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #ffffff;
+}
+
+.pm-budget-table th:first-child,
+.pm-schedule-table th:nth-child(2) {
+  z-index: 3;
+  background: #f6f7f8;
+}
+
+.pm-mobile-card-list {
+  display: none;
+}
+
+.pm-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pm-list-item {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--ng-border);
+  border-radius: 10px;
+  background: var(--ng-panel-bg);
+  padding: 0.85rem;
+}
+
+.pm-gantt {
+  padding: 0.75rem;
+}
+
+.pm-gantt__canvas {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pm-gantt__row {
+  display: grid;
+  grid-template-columns: 220px minmax(420px, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.pm-gantt__label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  background: #ffffff;
+  padding: 0.35rem 0.5rem 0.35rem 0;
+}
+
+.pm-gantt__label strong,
+.pm-gantt__label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-gantt__track {
+  position: relative;
+  min-height: 2.2rem;
+  border-radius: 8px;
+  background: repeating-linear-gradient(90deg, #ffffff 0, #ffffff 25px, #f0f1f3 26px);
+}
+
+.pm-gantt__milestone {
+  position: absolute;
+  top: 50%;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+  background: var(--ng-brand-red);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.pm-checklist {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.pm-checklist__phase {
+  overflow: hidden;
+  border: 1px solid var(--ng-border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.pm-checklist__phase-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--ng-divider);
+  background: var(--ng-panel-bg);
+  padding: 0.9rem 1rem;
+}
+
+.pm-checklist__items {
+  display: grid;
+}
+
+.pm-checklist__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: start;
+  border-bottom: 1px solid var(--ng-divider);
+  padding: 0.8rem 1rem;
+}
+
+.pm-checklist__item:last-child {
+  border-bottom: 0;
+}
+
+.pm-checklist__item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .context-stat-grid {
   margin-bottom: 1rem;
 }
@@ -1918,6 +2151,11 @@ textarea:focus-visible {
   .record-header__aside {
     justify-items: stretch;
   }
+
+  .pm-preview-grid,
+  .pm-preview-grid--overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -1943,6 +2181,25 @@ textarea:focus-visible {
     width: 100%;
     min-width: 0;
   }
+
+  .pm-budget-table,
+  .pm-schedule-table {
+    display: none;
+  }
+
+  .pm-table-wrap {
+    border: 0;
+    overflow: visible;
+  }
+
+  .pm-mobile-card-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .pm-gantt__row {
+    grid-template-columns: 160px minmax(320px, 1fr);
+  }
 }
 
 @media print {
@@ -1954,7 +2211,11 @@ textarea:focus-visible {
   .inventory-workspace__toolbar,
   .ng-shell__actions,
   .silas-bubble,
-  .silas-bubble__panel {
+  .silas-bubble__panel,
+  .job-detail-tabs,
+  .job-pm-preview .workspace-tabs,
+  .pm-preview-back,
+  .job-pm-preview > .state-panel {
     display: none !important;
   }
 
@@ -1962,7 +2223,10 @@ textarea:focus-visible {
   .ng-shell__content,
   .app-main,
   .workspace-card,
-  .workspace-surface {
+  .workspace-surface,
+  .job-detail-panel,
+  .job-pm-preview,
+  .job-pm-preview__panel {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
@@ -1975,5 +2239,29 @@ textarea:focus-visible {
   .workspace-layout.is-primary-collapsed,
   .workspace-layout.is-primary-collapsed.workspace-layout--with-secondary {
     display: block !important;
+  }
+
+  .pm-preview-grid,
+  .pm-preview-grid--overview,
+  .module-summary-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .pm-table-wrap,
+  .pm-gantt,
+  .pm-preview-panel,
+  .pm-checklist__phase {
+    overflow: visible !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .pm-gantt {
+    display: none !important;
+  }
+
+  .data-table {
+    min-width: 0 !important;
+    font-size: 10px;
   }
 }

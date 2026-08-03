@@ -502,6 +502,82 @@ const BASE_JOB_DETAIL_TABS = [
   { key: 'documents', label: 'Documents', isDisabled: false, isComingSoon: false },
   { key: 'schedule', label: 'Schedule', isDisabled: false, isComingSoon: false },
 ];
+const ENABLE_NGG_PM_READ_ONLY_PREVIEW = true;
+const JOB_PM_PREVIEW_TABS = [
+  { key: 'overview', label: 'Overview', meta: 'Read only' },
+  { key: 'budgets', label: 'Budgets', meta: 'Planning grid' },
+  { key: 'schedules', label: 'Schedules', meta: 'Tasks + Gantt' },
+  { key: 'checklist', label: 'PM Checklist', meta: 'Disabled' },
+  { key: 'permits', label: 'Permits & Inspections', meta: 'Empty' },
+];
+const JOB_PM_CHECKLIST_TEMPLATE = [
+  {
+    title: 'Phase 1 - Estimating',
+    tasks: [
+      'Respond within one business day and request plans, permit status, budget, and bidder information.',
+      'Complete Go/No Go review and save the decision.',
+      'Outline complete electrical scope, exclusions, and long-lead items.',
+      'Complete takeoff, labor estimate, material pricing, subcontractor pricing, and internal review.',
+      'Prepare and issue formal proposal.',
+    ],
+  },
+  {
+    title: 'Phase 2 - Award & Contract',
+    tasks: [
+      'Review contract, retainage, billing schedule, change-order procedure, and insurance requirements.',
+      'Confirm awarded scope matches estimate.',
+      'Collect signed contract and required documentation before mobilization.',
+    ],
+  },
+  {
+    title: 'Phase 3 - Buyout',
+    tasks: [
+      'Order long-lead service equipment, switchgear, lighting, generators, and specialty gear.',
+      'Issue required purchase orders and subcontracts.',
+      'Map delivery dates to the project schedule and identify conflicts.',
+    ],
+  },
+  {
+    title: 'Phase 4 - Preconstruction',
+    tasks: [
+      'Confirm permit responsibility and obtain permit documentation.',
+      'Submit required shop drawings and equipment submittals.',
+      'Assign field leadership and brief the team on scope, budget, milestones, and inspection sequence.',
+      'Establish material staging, job-board, and daily-report procedures.',
+    ],
+  },
+  {
+    title: 'Phase 5 - Construction',
+    tasks: [
+      'Review daily reports, manpower, job-board photos, and material deliveries.',
+      'Attend coordination meetings and track action items.',
+      'Review labor and cost performance weekly.',
+      'Document, price, and obtain approval for change-order work before proceeding.',
+      'Schedule inspections and resolve corrections promptly.',
+      'Keep billing current with work in place.',
+    ],
+  },
+  {
+    title: 'Phase 6 - Closeout',
+    tasks: [
+      'Conduct internal pre-punch and complete final trim, labeling, and testing.',
+      'Pass final electrical inspection.',
+      'Compile as-builts, O&M manuals, warranties, lien waivers, and commissioning records.',
+      'Complete financial closeout and final job-cost review.',
+      'Provide client handoff and team debrief.',
+    ],
+  },
+  {
+    title: 'Monthly Forecasting',
+    tasks: [
+      'Review current job cost report against original budget by phase.',
+      'Review labor hours burned versus estimated hours.',
+      'Update cost-to-complete and projected completion date.',
+      'Confirm billing, retainage, approved change orders, and next draw timing.',
+      'Submit forecast report by the 20th and archive it in the project folder.',
+    ],
+  },
+];
 
 function getJobDetailTabs(canViewFinancials) {
   return BASE_JOB_DETAIL_TABS.filter((tab) => tab.key !== 'financials' || canViewFinancials);
@@ -3227,6 +3303,651 @@ function getJobBudgetSummary(rows) {
     totalBudget,
     categoryTotals,
   };
+}
+
+function normalizePmNumeric(value) {
+  if (value === null || value === undefined || value === '') {
+    return { available: false, value: null };
+  }
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return { available: false, value: null };
+  }
+  return { available: true, value: numericValue };
+}
+
+function calculatePmBudgetLine(row) {
+  const original = normalizePmNumeric(row.budget_amount);
+  const changes = normalizePmNumeric(row.budget_changes);
+  const actual = normalizePmNumeric(row.actual_amount);
+  const committed = normalizePmNumeric(row.committed_amount);
+  const forecast = normalizePmNumeric(row.forecast_to_complete);
+  const revised = original.available && changes.available
+    ? { available: true, value: original.value + changes.value }
+    : { available: false, value: null };
+  const forecastFinal = actual.available && committed.available && forecast.available
+    ? { available: true, value: actual.value + committed.value + forecast.value }
+    : { available: false, value: null };
+  const remaining = revised.available && forecastFinal.available
+    ? { available: true, value: revised.value - forecastFinal.value }
+    : { available: false, value: null };
+
+  return {
+    original,
+    changes,
+    revised,
+    actual,
+    committed,
+    forecast,
+    forecastFinal,
+    remaining,
+  };
+}
+
+function formatPmMoney(cell) {
+  if (!cell?.available) return '-';
+  return formatBudgetCurrency(cell.value);
+}
+
+function calculatePmBudgetSummary(rows) {
+  const originalTotal = rows.reduce((sum, row) => {
+    const original = normalizePmNumeric(row.budget_amount);
+    return original.available ? sum + original.value : sum;
+  }, 0);
+
+  return {
+    lineCount: rows.length,
+    originalTotal,
+    revisedTotal: null,
+    actualTotal: null,
+    committedTotal: null,
+    forecastFinalTotal: null,
+    remainingTotal: null,
+  };
+}
+
+function calculatePmScheduleRows(rows) {
+  const ids = new Set(rows.map((row) => String(row.id ?? '')).filter(Boolean));
+  return rows.map((row, index) => ({
+    ...row,
+    displayId: row.sort_order ?? index + 1,
+    duration: null,
+    predecessor: null,
+    lag: null,
+    trade: null,
+    manualStart: row.target_date ?? null,
+    computedStart: row.target_date ?? null,
+    computedFinish: null,
+    hasDependencyCycle: false,
+    predecessorMissing: false,
+    knownIds: ids,
+  }));
+}
+
+function getPmThisWeekTasks(scheduleRows, today = new Date()) {
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  return scheduleRows
+    .filter((row) => row.target_date)
+    .map((row) => ({ row, date: new Date(`${row.target_date}T00:00:00`) }))
+    .filter(({ date }) => !Number.isNaN(date.getTime()) && date >= start && date <= end)
+    .sort((left, right) => left.date - right.date)
+    .map(({ row }) => row);
+}
+
+function UnavailableCell({ label = 'Not yet connected' }) {
+  return (
+    <span className="pm-unavailable-cell" aria-label={label} title={label}>
+      -
+    </span>
+  );
+}
+
+function ReadOnlyValue({ label, value, detail = null }) {
+  return (
+    <article className="pm-readonly-field">
+      <span>{label}</span>
+      <strong>{value || '-'}</strong>
+      {detail ? <small>{detail}</small> : null}
+    </article>
+  );
+}
+
+function JobPmPreviewWorkspace({
+  selectedJob,
+  permissions,
+  activeTab,
+  onTabChange,
+  onBackToCurrentJob,
+  onBackToAllJobs,
+  budgetLines,
+  budgetLinesError,
+  isLoadingBudgetLines,
+  scheduleItems,
+  scheduleItemsError,
+  isLoadingScheduleItems,
+  budgetSummary,
+  scheduleSummary,
+}) {
+  const orderedBudgetRows = useMemo(() => sortJobBudgetRows(budgetLines), [budgetLines]);
+  const orderedScheduleRows = useMemo(() => calculatePmScheduleRows(sortJobScheduleRows(scheduleItems)), [scheduleItems]);
+  const pmBudgetSummary = useMemo(() => calculatePmBudgetSummary(orderedBudgetRows), [orderedBudgetRows]);
+  const thisWeekTasks = useMemo(() => getPmThisWeekTasks(orderedScheduleRows), [orderedScheduleRows]);
+  const activeTabPanelId = `job-pm-preview-${activeTab}`;
+
+  function renderTabPanel() {
+    switch (activeTab) {
+      case 'budgets':
+        return (
+          <JobPmBudgetGrid
+            rows={orderedBudgetRows}
+            summary={pmBudgetSummary}
+            canViewFinancials={permissions.canViewFinancials}
+            isLoading={isLoadingBudgetLines}
+            error={budgetLinesError}
+          />
+        );
+      case 'schedules':
+        return (
+          <JobPmScheduleGrid
+            rows={orderedScheduleRows}
+            summary={scheduleSummary}
+            isLoading={isLoadingScheduleItems}
+            error={scheduleItemsError}
+          />
+        );
+      case 'checklist':
+        return <JobPmChecklist />;
+      case 'permits':
+        return <JobPmPermitsInspections />;
+      case 'overview':
+      default:
+        return (
+          <JobPmOverview
+            selectedJob={selectedJob}
+            permissions={permissions}
+            budgetSummary={budgetSummary}
+            scheduleSummary={scheduleSummary}
+            thisWeekTasks={thisWeekTasks}
+          />
+        );
+    }
+  }
+
+  return (
+    <section className="job-pm-preview" aria-label="Read-only PM Workspace Preview">
+      <RecordHeader
+        eyebrow="Developer Preview"
+        title="PM Workspace Preview"
+        description="Read-only visual port of the NGG-PM workflow using only currently approved Northgate data."
+        meta={[
+          { label: 'Job', value: selectedJob?.job_number ? `#${selectedJob.job_number}` : 'No number' },
+          { label: 'Mode', value: 'Read only' },
+          { label: 'Flag', value: ENABLE_NGG_PM_READ_ONLY_PREVIEW ? 'Enabled' : 'Disabled' },
+        ]}
+        actions={(
+          <>
+            <button type="button" className="secondary-button pm-preview-back" onClick={onBackToCurrentJob}>
+              <ArrowLeft aria-hidden="true" /> Current Job Workspace
+            </button>
+            <button type="button" className="secondary-button pm-preview-back" onClick={onBackToAllJobs}>
+              All Jobs
+            </button>
+          </>
+        )}
+      />
+
+      <StatePanel
+        eyebrow="Phase 1 Boundary"
+        title="Preview only"
+        description="Unsupported PM fields are disabled placeholders. This preview introduces no writes, persistence, schema, permission, RPC, or RLS changes."
+        tone="info"
+      />
+
+      <WorkspaceTabs
+        tabs={JOB_PM_PREVIEW_TABS}
+        activeKey={activeTab}
+        onChange={onTabChange}
+        ariaLabel="PM preview sections"
+      />
+
+      <div id={activeTabPanelId} className="job-pm-preview__panel" role="tabpanel" tabIndex={0}>
+        {renderTabPanel()}
+      </div>
+    </section>
+  );
+}
+
+function JobPmOverview({ selectedJob, permissions, budgetSummary, scheduleSummary, thisWeekTasks }) {
+  const addressSummary = buildJobAddressSummary(selectedJob);
+  const canViewFinancials = Boolean(permissions.canViewFinancials);
+
+  return (
+    <section className="job-pm-preview-section">
+      <div className="pm-preview-grid pm-preview-grid--overview">
+        <div className="pm-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Project Overview</p>
+              <h3>{selectedJob.name || 'Unnamed job'}</h3>
+              <p>{addressSummary || 'No address recorded.'}</p>
+            </div>
+            <span className={getJobStatusBadgeClass(selectedJob.status)}>{formatJobStatusLabel(selectedJob.status)}</span>
+          </div>
+          <div className="pm-readonly-grid">
+            <ReadOnlyValue label="Job number" value={selectedJob.job_number} />
+            <ReadOnlyValue label="Job name" value={selectedJob.name} />
+            <ReadOnlyValue label="Address" value={addressSummary} />
+            <ReadOnlyValue label="Status" value={formatJobStatusLabel(selectedJob.status)} />
+            <ReadOnlyValue label="Division" value={selectedJob.division || 'Unassigned'} />
+            <ReadOnlyValue label="General Contractor / Client" value="" detail="Not yet connected" />
+            <ReadOnlyValue label="Project Manager" value="" detail="Not yet connected" />
+            <ReadOnlyValue label="Superintendent" value="" detail="Not yet connected" />
+          </div>
+          {selectedJob.description || selectedJob.notes ? (
+            <div className="pm-note-grid">
+              {selectedJob.description ? <ReadOnlyValue label="Description" value={selectedJob.description} /> : null}
+              {selectedJob.notes ? <ReadOnlyValue label="Notes" value={selectedJob.notes} /> : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="pm-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Budget Summary</p>
+              <h3>Authorized financial view</h3>
+            </div>
+            <span>{canViewFinancials ? 'Visible' : 'Hidden'}</span>
+          </div>
+          {canViewFinancials ? (
+            <div className="module-summary-grid">
+              <SummaryCard label="Budget Lines" value={budgetSummary.count} detail="Existing approved rows" />
+              <SummaryCard label="Original Budget" value={formatBudgetCurrency(budgetSummary.totalBudget)} detail="From budget_amount only" tone="accent" />
+              <SummaryCard label="Actual / Forecast" value="-" detail="Not yet connected" />
+            </div>
+          ) : (
+            <StatePanel
+              eyebrow="Protected"
+              title="Financials hidden"
+              description="Budget summary is omitted because this session does not have can_view_financials."
+              tone="warning"
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="pm-preview-grid">
+        <div className="pm-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">This Week</p>
+              <h3>Schedule items</h3>
+            </div>
+            <span>{scheduleSummary.count} total</span>
+          </div>
+          {thisWeekTasks.length ? (
+            <div className="pm-list">
+              {thisWeekTasks.map((row) => (
+                <article className="pm-list-item" key={row.id}>
+                  <strong>{row.title}</strong>
+                  <span>{formatJobDate(row.target_date)} / {getJobScheduleStatusLabel(row.status)}</span>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <strong>No schedule items due in the next seven days.</strong>
+              <p>This uses only existing target dates.</p>
+            </div>
+          )}
+        </div>
+        <div className="pm-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Contacts / Permits / Inspections</p>
+              <h3>Reserved PM records</h3>
+            </div>
+          </div>
+          <div className="state-panel-stack">
+            <StatePanel title="Project contacts not yet connected" description="No approved contacts persistence owner exists in Phase 1." tone="neutral" />
+            <StatePanel title="Permits not yet connected" description="No fake permit records are shown." tone="neutral" />
+            <StatePanel title="Inspections not yet connected" description="No fake inspection records are shown." tone="neutral" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function JobPmBudgetGrid({ rows, summary, canViewFinancials, isLoading, error }) {
+  if (!canViewFinancials) {
+    return (
+      <StatePanel
+        eyebrow="Protected"
+        title="Budget preview hidden"
+        description="The PM budget grid uses existing Job Financials rows and remains gated by can_view_financials."
+        tone="warning"
+      />
+    );
+  }
+
+  return (
+    <section className="job-pm-preview-section">
+      <div className="module-summary-grid">
+        <SummaryCard label="Lines" value={summary.lineCount} detail="Existing budget lines" />
+        <SummaryCard label="Original" value={formatBudgetCurrency(summary.originalTotal)} detail="budget_amount total" tone="accent" />
+        <SummaryCard label="Revised" value="-" detail="Budget Changes not connected" />
+        <SummaryCard label="Remaining" value="-" detail="Actual/Committed/Forecast unavailable" />
+      </div>
+      {error ? <div className="alert">Budget preview failed to load existing Job Financials rows.</div> : null}
+      {isLoading ? <p className="muted">Loading budget preview...</p> : null}
+      {!isLoading && !rows.length ? (
+        <div className="empty-state">
+          <strong>No budget cost codes for this job.</strong>
+          <p>The grid structure is ready, but it will not create or edit budget lines in Phase 1.</p>
+        </div>
+      ) : null}
+      {rows.length ? (
+        <>
+          <div className="pm-table-wrap">
+            <table className="data-table pm-budget-table">
+              <thead>
+                <tr>
+                  <th>Division</th>
+                  <th>Cost Code</th>
+                  <th>Description</th>
+                  <th>Original</th>
+                  <th>Budget Changes</th>
+                  <th>Revised</th>
+                  <th>Actual</th>
+                  <th>Committed</th>
+                  <th>Forecast to Complete</th>
+                  <th>Forecast Final</th>
+                  <th>Remaining</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const calc = calculatePmBudgetLine(row);
+                  return (
+                    <tr key={row.id}>
+                      <td>{row.division || '-'}</td>
+                      <td>{row.cost_code || '-'}</td>
+                      <td><strong>{row.description || '-'}</strong></td>
+                      <td>{formatPmMoney(calc.original)}</td>
+                      <td><UnavailableCell /></td>
+                      <td>{formatPmMoney(calc.revised)}</td>
+                      <td><UnavailableCell /></td>
+                      <td><UnavailableCell /></td>
+                      <td><UnavailableCell /></td>
+                      <td>{formatPmMoney(calc.forecastFinal)}</td>
+                      <td>{formatPmMoney(calc.remaining)}</td>
+                      <td>{row.note || '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="pm-mobile-card-list">
+            {rows.map((row) => {
+              const calc = calculatePmBudgetLine(row);
+              return (
+                <article className="mobile-item pm-budget-card" key={row.id}>
+                  <strong>{row.description || 'Budget line'}</strong>
+                  <div className="meta-grid">
+                    <span>Division: {row.division || '-'}</span>
+                    <span>Cost Code: {row.cost_code || '-'}</span>
+                    <span>Original: {formatPmMoney(calc.original)}</span>
+                    <span>Budget Changes: <UnavailableCell /></span>
+                    <span>Revised: {formatPmMoney(calc.revised)}</span>
+                    <span>Actual: <UnavailableCell /></span>
+                    <span>Committed: <UnavailableCell /></span>
+                    <span>Forecast to Complete: <UnavailableCell /></span>
+                    <span>Forecast Final: {formatPmMoney(calc.forecastFinal)}</span>
+                    <span>Remaining: {formatPmMoney(calc.remaining)}</span>
+                    <span>Notes: {row.note || '-'}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function JobPmScheduleGrid({ rows, summary, isLoading, error }) {
+  return (
+    <section className="job-pm-preview-section">
+      <div className="module-summary-grid">
+        <SummaryCard label="Tasks" value={summary.count} detail="Existing schedule rows" />
+        <SummaryCard label="Complete" value={summary.completeCount} detail="Current status field" />
+        <SummaryCard label="Dated" value={summary.withDateCount} detail="target_date rows" tone="accent" />
+        <SummaryCard label="Dependencies" value="-" detail="Not yet connected" />
+      </div>
+      {error ? <div className="alert">Schedule preview failed to load existing Job Schedule rows.</div> : null}
+      {isLoading ? <p className="muted">Loading schedule preview...</p> : null}
+      {!isLoading && !rows.length ? (
+        <div className="empty-state">
+          <strong>No schedule items yet.</strong>
+          <p>Phase 1 does not create schedule tasks or dependency records.</p>
+        </div>
+      ) : null}
+      {rows.length ? (
+        <>
+          <div className="pm-table-wrap">
+            <table className="data-table pm-schedule-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Task</th>
+                  <th>Division</th>
+                  <th>Trade</th>
+                  <th>Status</th>
+                  <th>Duration</th>
+                  <th>Predecessor</th>
+                  <th>Lag</th>
+                  <th>Manual Start</th>
+                  <th>Computed Start</th>
+                  <th>Computed Finish</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.displayId}</td>
+                    <td><strong>{row.title || '-'}</strong></td>
+                    <td>{row.division || '-'}</td>
+                    <td><UnavailableCell /></td>
+                    <td><span className={getJobScheduleStatusBadgeClass(row.status)}>{getJobScheduleStatusLabel(row.status)}</span></td>
+                    <td><UnavailableCell /></td>
+                    <td><UnavailableCell /></td>
+                    <td><UnavailableCell /></td>
+                    <td>{formatJobDate(row.manualStart)}</td>
+                    <td>{formatJobDate(row.computedStart)}</td>
+                    <td><UnavailableCell /></td>
+                    <td>{row.note || row.description || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <JobPmGantt rows={rows} />
+          <div className="pm-mobile-card-list">
+            {rows.map((row) => (
+              <article className="mobile-item pm-schedule-card" key={row.id}>
+                <strong>{row.title || 'Schedule item'}</strong>
+                <div className="meta-grid">
+                  <span>ID: {row.displayId}</span>
+                  <span>Division: {row.division || '-'}</span>
+                  <span>Status: {getJobScheduleStatusLabel(row.status)}</span>
+                  <span>Manual Start: {formatJobDate(row.manualStart)}</span>
+                  <span>Duration: <UnavailableCell /></span>
+                  <span>Predecessor: <UnavailableCell /></span>
+                  <span>Lag: <UnavailableCell /></span>
+                  <span>Trade: <UnavailableCell /></span>
+                  <span>Notes: {row.note || row.description || '-'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function JobPmGantt({ rows }) {
+  const datedRows = rows
+    .map((row) => ({ row, date: row.target_date ? new Date(`${row.target_date}T00:00:00`) : null }))
+    .filter(({ date }) => date && !Number.isNaN(date.getTime()))
+    .sort((left, right) => left.date - right.date);
+
+  if (!datedRows.length) {
+    return (
+      <div className="pm-gantt" aria-label="Schedule Gantt preview">
+        <div className="empty-state">
+          <strong>No dated schedule rows for Gantt preview.</strong>
+          <p>Phase 1 does not fabricate duration bars.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const minDate = datedRows[0].date;
+  const maxDate = datedRows[datedRows.length - 1].date;
+  const totalDays = Math.max(1, Math.round((maxDate - minDate) / 86400000) + 1);
+
+  return (
+    <div className="pm-gantt" role="img" aria-label="Read-only Gantt milestone preview using existing target dates">
+      <div className="pm-gantt__canvas" style={{ minWidth: `${Math.max(640, totalDays * 26 + 260)}px` }}>
+        {datedRows.map(({ row, date }, index) => {
+          const offset = Math.round((date - minDate) / 86400000);
+          return (
+            <div className="pm-gantt__row" key={row.id}>
+              <div className="pm-gantt__label">
+                <strong>{row.title || 'Schedule item'}</strong>
+                <span>{formatJobDate(row.target_date)}</span>
+              </div>
+              <div className="pm-gantt__track">
+                <span
+                  className="pm-gantt__milestone"
+                  style={{ left: `${Math.max(0, offset) * 26}px` }}
+                  title={`${row.title || 'Schedule item'} - ${formatJobDate(row.target_date)}`}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function JobPmChecklist() {
+  const totalTasks = JOB_PM_CHECKLIST_TEMPLATE.reduce((sum, phase) => sum + phase.tasks.length, 0);
+  return (
+    <section className="job-pm-preview-section">
+      <StatePanel
+        eyebrow="Read-only Template"
+        title="PM Checklist persistence is pending"
+        description={`${totalTasks} template items are shown from an isolated Phase 1 constant. Controls are disabled and no completion state is stored.`}
+        tone="warning"
+      />
+      <div className="pm-checklist">
+        {JOB_PM_CHECKLIST_TEMPLATE.map((phase) => (
+          <article className="pm-checklist__phase" key={phase.title}>
+            <div className="pm-checklist__phase-header">
+              <strong>{phase.title}</strong>
+              <span>{phase.tasks.length} item{phase.tasks.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className="pm-checklist__items" aria-label={`${phase.title} disabled checklist items`}>
+              {phase.tasks.map((task) => (
+                <label className="pm-checklist__item" key={task}>
+                  <input type="checkbox" disabled aria-label={`${task} - not yet connected`} />
+                  <span>{task}</span>
+                </label>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function JobPmPermitsInspections() {
+  return (
+    <section className="job-pm-preview-section">
+      <div className="pm-preview-grid">
+        <div className="pm-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Permits</p>
+              <h3>Permit log</h3>
+              <p>No permit persistence owner exists in Phase 1.</p>
+            </div>
+          </div>
+          <div className="pm-table-wrap">
+            <table className="data-table pm-permits-table">
+              <thead>
+                <tr>
+                  <th>Division</th>
+                  <th>Type</th>
+                  <th>Number</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan="5" className="empty">No permit records are connected yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="pm-preview-panel">
+          <div className="count-section-header">
+            <div>
+              <p className="eyebrow">Inspections</p>
+              <h3>Inspection log</h3>
+              <p>No inspection persistence owner exists in Phase 1.</p>
+            </div>
+          </div>
+          <div className="pm-table-wrap">
+            <table className="data-table pm-inspections-table">
+              <thead>
+                <tr>
+                  <th>Division</th>
+                  <th>Type</th>
+                  <th>Number</th>
+                  <th>Scheduled</th>
+                  <th>Completed</th>
+                  <th>Result</th>
+                  <th>Inspector</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan="8" className="empty">No inspection records are connected yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function buildJobBudgetMutationPayload(draft) {
@@ -9549,6 +10270,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const [scheduleItemMessage, setScheduleItemMessage] = useState('');
   const [scheduleSearch, setScheduleSearch] = useState('');
   const [scheduleDraft, setScheduleDraft] = useState(() => createJobScheduleDraft());
+  const [activePmPreviewTab, setActivePmPreviewTab] = useState('overview');
   const [filters, setFilters] = useState({
     search: '',
     status: '',
@@ -9562,6 +10284,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   const selectedJobCanManageBudget = Boolean(selectedJob && canApproveBudget && selectedJob.division === permissions.division);
   const selectedJobCanManageDocuments = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
   const selectedJobCanManageSchedule = Boolean(selectedJob && canManageJobs && selectedJob.division === permissions.division);
+  const canLaunchPmPreview = Boolean(ENABLE_NGG_PM_READ_ONLY_PREVIEW && permissions.canAccessDeveloper && selectedJob);
   const formCanSave = selectedJob ? selectedJobCanEdit : canCreateJobs && hasWritableDivision;
   const jobDetailTabs = useMemo(() => getJobDetailTabs(canViewFinancials), [canViewFinancials]);
   const divisionOptions = useMemo(
@@ -10059,6 +10782,7 @@ function JobsWorkspace({ permissions, navigateTo }) {
   function openJobsDirectory(status = '') {
     setSelectedJobId('');
     setJobsWorkspaceMode('browse');
+    setActivePmPreviewTab('overview');
     setFilters((current) => ({ ...current, status }));
     setJobMessage('');
   }
@@ -10079,9 +10803,22 @@ function JobsWorkspace({ permissions, navigateTo }) {
   function viewJob(row, detailTab = 'overview') {
     setSelectedJobId(row.id);
     setJobsWorkspaceMode('browse');
+    setActivePmPreviewTab('overview');
     handleJobDetailTabChange(detailTab);
     setDraft(createJobDraft(row));
     setJobMessage('');
+  }
+
+  function openPmPreview() {
+    if (!canLaunchPmPreview) return;
+    setJobsWorkspaceMode('pm-preview');
+    setActivePmPreviewTab('overview');
+    setJobMessage('');
+  }
+
+  function backToCurrentJobWorkspace() {
+    setJobsWorkspaceMode('browse');
+    setActivePmPreviewTab('overview');
   }
 
   function startNewJobMaterial() {
@@ -10894,6 +11631,16 @@ function JobsWorkspace({ permissions, navigateTo }) {
             </div>
           </div>
           <div className="job-detail-header__actions">
+            {canLaunchPmPreview ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={openPmPreview}
+                title="Open the read-only NGG-PM visual preview for this selected job."
+              >
+                <LayoutDashboard aria-hidden="true" /> PM Workspace Preview
+              </button>
+            ) : null}
             {canSeeEstimateActions ? (
               <button type="button" className="secondary-button" disabled title="An approved Job-to-Estimate relationship is not available in the current read model yet.">
                 <FileText aria-hidden="true" /> Estimate not linked yet
@@ -12449,7 +13196,24 @@ function JobsWorkspace({ permissions, navigateTo }) {
 
           {selectedJob || isCreateJobPanelOpen ? (
             <section className="tool-catalogue__form-panel job-detail-panel jobs-detail-panel">
-              {selectedJob ? (
+              {selectedJob && jobsWorkspaceMode === 'pm-preview' ? (
+                <JobPmPreviewWorkspace
+                  selectedJob={selectedJob}
+                  permissions={permissions}
+                  activeTab={activePmPreviewTab}
+                  onTabChange={setActivePmPreviewTab}
+                  onBackToCurrentJob={backToCurrentJobWorkspace}
+                  onBackToAllJobs={() => openJobsDirectory('')}
+                  budgetLines={budgetLines}
+                  budgetLinesError={budgetLinesError}
+                  isLoadingBudgetLines={isLoadingBudgetLines}
+                  scheduleItems={scheduleItems}
+                  scheduleItemsError={scheduleItemsError}
+                  isLoadingScheduleItems={isLoadingScheduleItems}
+                  budgetSummary={budgetSummary}
+                  scheduleSummary={scheduleSummary}
+                />
+              ) : selectedJob ? (
               <div className="job-detail-shell">
                 {renderSelectedJobHeader()}
 

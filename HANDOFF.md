@@ -15251,3 +15251,201 @@ cross-cleared.
 
 **For Claude:** Write the ARCHITECTURE lock only after cross-clearance findings
 are returned and corrected.
+
+## Entry 147 - Add read-only NGG-PM Jobs preview
+
+**Date:** 2026-08-03
+**Updated by:** Codex
+**Phase:** NGG-PM Integration Phase 1
+**Session type:** implementation
+
+### Context
+Ryan requested Phase 1 of the NGG-PM integration into Northgate HQ v2 and
+provided the missing Entry 146 HANDOFF artifact. Before implementation, Codex
+confirmed the downloaded HANDOFF matched the repository through Entry 145 and
+appended Entry 146 exactly as the required authorization baseline. Entry 146 was
+then committed and pushed as a documentation-only checkpoint before application
+work began.
+
+Starting commit for the implementation pass:
+`63b60d5` (`Document NGG-PM integration architecture review`).
+
+Prior application-code checkpoint remained:
+`8c5c490` (`Refine Dashboard Inventory and Jobs UI`).
+
+Architecture version confirmed: `v2.30`.
+Prior HANDOFF checkpoint confirmed: `Entry 146`.
+Entry 146 was physically present in the repository before implementation and
+explicitly authorized Phase 1 only: a read-only visual port, Developer-only,
+feature-flagged, with no schema, persistence, permission, RLS, RPC, backend, or
+write-path changes.
+
+The complete NGG-PM source inspected for this pass was the standalone
+`RNSolutions-electrical/NGG-PM/index.html` downloaded from GitHub raw source.
+`NGG-PM_Integration_Architecture_Review.md` was searched for in the repository
+and was absent.
+
+### What Was Completed
+- Added source-controlled feature flag:
+  `ENABLE_NGG_PM_READ_ONLY_PREVIEW`.
+- Added a Developer-only selected-job launch action:
+  `PM Workspace Preview`.
+- Kept the existing selected-Job workspace as the default experience.
+- Added a read-only `pm-preview` Jobs workspace mode separate from:
+  - All Jobs browse mode
+  - Create Job mode
+  - the existing selected-Job detail tabs
+- Added clear back paths from the preview to:
+  - Current Job Workspace
+  - All Jobs
+- Built the PM preview sections:
+  - Overview
+  - Budgets
+  - Schedules
+  - PM Checklist
+  - Permits & Inspections
+- Reused the existing Northgate shell, `RecordHeader`, `StatePanel`,
+  `SummaryCard`, and `WorkspaceTabs`.
+- Kept the Northgate red / white / gray visual identity and did not port the
+  standalone NGG-PM blue/navy theme.
+
+### Schema Changes
+None.
+
+### Code / File Changes
+- `src/App.jsx`
+- `src/styles/layout.css`
+- `HANDOFF.md`
+
+### Lock Document Changes
+None. `docs/ARCHITECTURE.md` remains v2.30 and was not edited.
+
+### What Was Implemented
+- Overview binds only to existing selected Job fields:
+  - job number
+  - job name
+  - address
+  - status
+  - division
+  - description
+  - notes
+- General Contractor / client, Project Manager, Superintendent, contacts,
+  permits, and inspections render as honest not-yet-connected states.
+- Budget preview uses existing authorized `job_budget_lines` rows only.
+- Budget columns render in the requested NGG-PM order:
+  Division, Cost Code, Description, Original, Budget Changes, Revised, Actual,
+  Committed, Forecast to Complete, Forecast Final, Remaining, Notes.
+- Existing available Budget values bind from current rows:
+  - division
+  - cost_code
+  - description
+  - budget_amount as Original
+  - note as Notes
+- Unavailable Budget fields render as disabled placeholder cells, not zero:
+  - Budget Changes
+  - Actual
+  - Committed
+  - Forecast to Complete
+- Budget calculation utilities distinguish unavailable values from real zero and
+  only calculate derived values when every required input is available.
+- Schedule preview uses existing `job_schedule_items` rows only.
+- Existing available Schedule values bind from current rows:
+  - title/task
+  - division
+  - status
+  - target_date as Manual Start
+  - description/note
+- Unavailable Schedule fields render as disabled placeholder cells:
+  - duration
+  - predecessor
+  - lag
+  - trade
+  - computed finish
+- Schedule calculation utilities stay pure and do not fabricate dependencies or
+  duration bars.
+- Gantt preview renders only real dated schedule rows as milestone markers.
+  It does not fabricate duration bars.
+- PM Checklist renders from an isolated temporary constant copied as a
+  read-only Phase 1 presentation template.
+- PM Checklist controls are real disabled checkboxes; no completion state is
+  stored.
+- Permits and Inspections render empty table structures with honest empty
+  states and no add/save controls.
+- Added responsive safeguards:
+  - `min-width: 0` grid/flex containment
+  - contained table overflow
+  - compact preview tabs
+  - mobile card conversion for Budget and Schedule
+  - sticky identifying columns where practical
+  - contained Gantt horizontal scroll
+- Added print behavior so preview controls, back controls, shell navigation,
+  sidebars, and Silas bubble are hidden in print. The active preview section is
+  what prints.
+
+### What Codex Needs to Know
+- This is a Developer-only preview behind a source-controlled feature flag.
+- It does not replace the production selected-Job workspace.
+- It does not add production PM Checklist or Permits tabs.
+- It does not widen Job visibility.
+- It does not add a new permission flag.
+- It does not modify any Supabase table, migration, RPC, RLS policy, auth,
+  audit, inventory, financial, or business rule.
+- It does not write to Supabase and does not add local browser persistence.
+- The existing Jobs workspace remains default and intact.
+
+### Verification
+- Required preflight passed after Entry 146 was appended, committed, and pushed:
+  - branch `main`
+  - local `main` matched `origin/main`
+  - working tree clean before implementation
+  - `8c5c490` present in lineage
+  - Entry 146 present in repository
+  - ARCHITECTURE v2.30 present
+- `npm ci` was run because `node_modules` was missing on this machine.
+- `npm run build` passed.
+- `git diff --check` passed.
+- Repository has no existing test script beyond `build`; no unit test framework
+  is configured, so no focused automated utility tests were added in this pass.
+- Safety scans of the diff found no new Supabase write calls:
+  `.insert(`, `.update(`, `.delete(`, `.upsert(`.
+- Safety scans found no new browser persistence:
+  `localStorage`, `sessionStorage`, `indexedDB`.
+- Safety scans found no PIN gate, JSON import, JSON restore, HTML save, dark
+  theme toggle, mobile-preview toggle, migration change, RPC change, RLS change,
+  permission change, or architecture change introduced by this pass.
+- Only UI/application files plus this HANDOFF append changed.
+- Authenticated browser runtime verification was not completed in this session.
+  Manual verification remains required for Developer vs normal-user visibility,
+  live selected-job data, responsive widths, and print output.
+- Final implementation commit hash was not knowable at the moment this entry was
+  written; it is the commit that introduces Entry 147 and is reported in the
+  session summary / git history.
+
+### Next Steps (in order)
+1. Ryan performs logged-in runtime verification with a Developer account.
+2. Verify a normal user does not see `PM Workspace Preview`.
+3. Verify the current selected-Job workspace remains the default.
+4. Verify the preview at 1440px, 1024px, 768px, and 390px.
+5. Verify browser print output for each PM preview section.
+6. Continue Rule 20 cross-clearance for schema-affecting Phase 2/3 decisions.
+
+### Open Questions / Concerns
+- Runtime visual QA is still pending because authenticated browser testing was
+  not available in this implementation session.
+- `NGG-PM_Integration_Architecture_Review.md` was referenced by Entry 146 but
+  was not present in the repository.
+- `npm ci` reported existing dependency warnings, including high-severity audit
+  findings and an `@clerk/clerk-react` deprecation warning. These were not
+  changed in this Phase 1 UI pass.
+
+### Architecture Drift Warnings
+- Phases 2 and 3 remain blocked until the architecture lock is written and
+  ChatGPT Rule 20 cross-clearance is complete.
+- Do not implement universal Job visibility, schema deltas, PM Checklist
+  persistence, Permits persistence, Inspections persistence, Job Contacts,
+  JSON export/import, or any PM write path from this preview.
+
+### Routing Verdict
+No Claude review needed for Phase 1 implementation — explicitly authorized as a
+read-only visual port by ARCHITECTURE v2.30 / HANDOFF Entry 146. Phases 2 and 3
+remain blocked pending architecture lock and ChatGPT Rule 20 cross-clearance.
