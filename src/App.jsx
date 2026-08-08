@@ -1,6 +1,6 @@
 import { SignedIn, SignedOut, SignInButton, UserButton, useAuth, useUser } from '@clerk/clerk-react';
 import jsQR from 'jsqr';
-import { Archive, ArrowLeft, Briefcase, Camera, CameraOff, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Copy, Database, Download, FileText, HardHat, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Truck, Users, Wrench } from 'lucide-react';
+import { Archive, ArrowLeft, Briefcase, Camera, CameraOff, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ClipboardCheck, Cloud, Copy, Database, Download, ExternalLink, FileText, GitBranch, HardHat, LayoutDashboard, MapPin, Pencil, Plus, Printer, QrCode, RefreshCw, RotateCcw, ShieldCheck, ShoppingCart, SlidersHorizontal, Truck, Users, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { PrimarySidebar } from './components/layout/PrimarySidebar.jsx';
@@ -12,6 +12,7 @@ import { StatePanel } from './components/ui/StatePanel.jsx';
 import { SummaryCard } from './components/ui/SummaryCard.jsx';
 import { WorkspaceHeader } from './components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from './components/ui/WorkspaceTabs.jsx';
+import { DEVELOPER_HELPFUL_LINKS, FUTURE_USER_MANAGEMENT_CAPABILITIES, SUPABASE_PROJECT_REFERENCE } from './config/developerHelpfulLinks.js';
 import { useBinItemRetirement } from './hooks/useBinItemRetirement.js';
 import { useInventoryCountIntake } from './hooks/useInventoryCountIntake.js';
 import { useInventoryCountSheet } from './hooks/useInventoryCountSheet.js';
@@ -10191,6 +10192,8 @@ function DeveloperWorkspace({
         silasTogglePending={silasTogglePending}
         onToggleSilas={onToggleSilas}
       />
+
+      <DeveloperHelpfulLinks />
     </article>
   );
 }
@@ -13592,6 +13595,111 @@ function DeveloperDashboard({
           <ShoppingCart className="card__icon" />
         </div>
       </article>
+    </section>
+  );
+}
+
+const DEVELOPER_HELPFUL_LINK_ICONS = {
+  supabase: Database,
+  clerk: Users,
+  github: GitBranch,
+  netlify: Cloud,
+};
+
+function DeveloperHelpfulLinks() {
+  const [copyStatus, setCopyStatus] = useState('');
+
+  async function copyProjectReference() {
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable');
+      }
+
+      await navigator.clipboard.writeText(SUPABASE_PROJECT_REFERENCE);
+      setCopyStatus('Supabase project reference copied.');
+    } catch {
+      setCopyStatus('Copy failed. Select the project reference and copy it manually.');
+    }
+  }
+
+  return (
+    <section className="developer-helpful-links" aria-labelledby="developer-helpful-links-title">
+      <div className="developer-helpful-links__header">
+        <div>
+          <p className="eyebrow">Developer Console</p>
+          <h2 id="developer-helpful-links-title">Helpful Links</h2>
+          <p>Administrative systems used to maintain Northgate HQ, with a short checklist for each destination.</p>
+        </div>
+      </div>
+
+      <div className="developer-helpful-links__grid">
+        {DEVELOPER_HELPFUL_LINKS.map((link) => {
+          const ServiceIcon = DEVELOPER_HELPFUL_LINK_ICONS[link.id] ?? ExternalLink;
+
+          return (
+            <article className="developer-helpful-link-card" key={link.id}>
+              <div className="developer-helpful-link-card__heading">
+                <span className="developer-helpful-link-card__icon" aria-hidden="true">
+                  <ServiceIcon />
+                </span>
+                <div>
+                  <h3>{link.title}</h3>
+                  <p>{link.purpose}</p>
+                </div>
+              </div>
+
+              {link.reference ? (
+                <div className="developer-helpful-link-card__reference">
+                  <span>Project reference</span>
+                  <code>{link.reference}</code>
+                </div>
+              ) : null}
+
+              <div className="developer-helpful-link-card__actions">
+                <a
+                  className="primary-button"
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${link.actionLabel} in a new tab`}
+                >
+                  <ExternalLink aria-hidden="true" /> {link.actionLabel}
+                </a>
+                {link.id === 'supabase' ? (
+                  <button type="button" className="secondary-button" onClick={copyProjectReference}>
+                    <Copy aria-hidden="true" /> Copy Project Reference
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="developer-helpful-link-card__instructions">
+                <h4>What to do</h4>
+                <ol>
+                  {link.instructions.map((instruction) => <li key={instruction}>{instruction}</li>)}
+                </ol>
+              </div>
+
+              <div className="developer-helpful-link-card__caution">
+                <strong>Important</strong>
+                <p>{link.caution}</p>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <p className="developer-helpful-links__copy-status" role="status" aria-live="polite">{copyStatus}</p>
+
+      <aside className="developer-future-note" aria-labelledby="developer-future-note-title">
+        <div>
+          <p className="eyebrow">Planned - not yet implemented</p>
+          <h3 id="developer-future-note-title">Future: User Management</h3>
+          <p>User invitation and permission setup will eventually move into a controlled Northgate workflow.</p>
+        </div>
+        <ul>
+          {FUTURE_USER_MANAGEMENT_CAPABILITIES.map((capability) => <li key={capability}>{capability}</li>)}
+        </ul>
+      </aside>
     </section>
   );
 }

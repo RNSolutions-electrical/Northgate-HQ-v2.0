@@ -15658,3 +15658,109 @@ v2.30 / HANDOFF Entry 148.
 ### Routing Verdict
 No Claude review needed - corrective UI work remained within ARCHITECTURE v2.30
 / HANDOFF Entry 149.
+
+## Entry 150 - Add Developer Console helpful links
+
+**Date:** 2026-08-08
+**Updated by:** Codex
+**Phase:** Developer Console usability
+**Session type:** implementation
+
+### Context
+- Starting commit: `e7cb202` (`Correct unresolved Jobs and Inventory navigation defects`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 149`.
+- Ryan reported that he manually force deployed production before this milestone
+  because the prior deployment status was uncertain. The user-reported checkpoint
+  was `main @ e7cb202`.
+- Codex independently confirmed that the public production bundle at
+  `https://rnsolutions.net/` embedded build marker `e7cb202` during preflight.
+- No additional manual or force deploy was triggered by this milestone.
+
+### What Was Completed
+- Added a `Helpful Links` section to the existing Developer workspace.
+- Preserved the current server-resolved `canAccessDeveloper` gate; the section is
+  rendered only inside the already protected Developer workspace.
+- Added source-controlled definitions for four administrative destinations:
+  - Supabase - Northgate HQ v2
+  - Clerk - User Accounts
+  - GitHub - Northgate HQ v2
+  - Netlify - Production Deployment
+- Added concise purpose, instruction, and caution content for each service.
+- Added a non-interactive `Future: User Management` callout labeled
+  `Planned - not yet implemented`.
+
+### Link And Safety Behavior
+- Supabase opens the stable project dashboard URL built from public project
+  reference `keogysnoukbendfkfjcn`.
+- The Supabase card displays that reference and provides a copy button with an
+  accessible success or failure status message.
+- Clerk opens the general Clerk dashboard because no application-specific Clerk
+  dashboard URL was present in source-controlled configuration.
+- GitHub opens `RNSolutions-electrical/Northgate-HQ-v2.0` directly.
+- Netlify opens the general Netlify dashboard because the repository contains the
+  `npm run build` / `dist` configuration but no source-controlled site ID or
+  dashboard slug.
+- Every external destination uses a semantic anchor, opens in a new tab, uses
+  `rel="noopener noreferrer"`, and has an accessible label stating that behavior.
+- No administrative API was called and no credentials were placed in a URL.
+
+### Code / File Changes
+- `src/config/developerHelpfulLinks.js`
+- `src/App.jsx`
+- `src/styles/layout.css`
+- `HANDOFF.md`
+
+### Secret And Architecture Review
+- Helpful Links contains only public dashboard URLs, the GitHub repository name,
+  explanatory text, and the non-secret Supabase project reference.
+- No Supabase service-role key, Clerk Secret Key, database password, Netlify
+  access token, GitHub PAT, bearer token, JWT, invitation token, or private
+  environment value was added.
+- No schema, migration, RPC, RLS, auth, permission, backend, or Developer-access
+  resolution change occurred.
+- `docs/ARCHITECTURE.md` was not modified.
+- User Management remains future work; no invitation, role, division, status,
+  override, or audit backend was added.
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- `git diff --check` passed.
+- The repository has no test script beyond `build`, so no additional automated
+  test suite was available.
+- A rendered fixture using the compiled application CSS was checked at 1440px,
+  1024px, 768px, and 390px.
+- All four cards rendered at every checked width with no card clipping, no caution
+  clipping, and no page-level horizontal overflow.
+- The grid rendered in two columns at 1440px and 1024px, then one column at 768px
+  and 390px. Mobile actions stacked vertically at 390px.
+- Authenticated Developer runtime verification was not available in this session.
+  Ryan should verify live Developer and normal-user visibility after deployment.
+- The final implementation commit was not knowable when this entry was written;
+  it is the commit that introduces Entry 150 and is reported in git history.
+
+### Next Steps (in order)
+1. Deploy through the normal Git-connected Netlify process; do not force deploy
+   unless the normal deployment fails.
+2. Sign in as a Developer and open Developer, then verify Helpful Links appears.
+3. Confirm all four external links open the intended destinations in new tabs.
+4. Confirm Copy Project Reference copies `keogysnoukbendfkfjcn` and announces
+   success.
+5. Verify the section at 1440px, 1024px, 768px, and 390px in the authenticated
+   application.
+6. Sign in as a normal non-Developer user and confirm Developer navigation and
+   Helpful Links remain unavailable.
+7. Confirm the production build marker matches the new implementation commit.
+
+### Open Questions / Concerns
+- Authenticated live UI verification remains pending from Ryan's browser.
+- The repository does not provide a Netlify site ID or dashboard slug, so the
+  Netlify card intentionally opens the general dashboard.
+
+### Architecture Drift Warnings
+- None active. This milestone stayed inside Developer-only, source-controlled UI,
+  external navigation, documentation, and responsive presentation scope.
+
+### Routing Verdict
+No Claude review needed - Developer Helpful Links remained a Developer-only
+source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 150.
