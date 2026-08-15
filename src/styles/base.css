@@ -726,8 +726,158 @@ textarea {
 }
 .summary-grid { margin-top: 16px; }
 
+.developer-grid,
+.developer-links,
+.developer-future-note {
+  margin-left: var(--app-page-gutter);
+  margin-right: var(--app-page-gutter);
+}
+
+.developer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: var(--card-gap);
+  align-items: start;
+  margin-top: var(--card-gap);
+}
+
+.developer-links {
+  display: grid;
+  gap: var(--card-gap);
+  margin-top: var(--card-gap);
+}
+
+.developer-links__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--card-gap);
+}
+
+.developer-link-card {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow);
+  padding: var(--card-padding);
+}
+
+.developer-link-card__heading {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.developer-link-card__heading h3 {
+  margin: 0;
+}
+
+.developer-link-card__heading p,
+.developer-link-card__caution p {
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.developer-link-card__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-brand-red-soft);
+  color: var(--ng-brand-red);
+}
+
+.developer-link-card__icon svg,
+.developer-future-note > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.developer-link-card__reference {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+  padding: 0.7rem;
+}
+
+.developer-link-card__reference span,
+.developer-link-card__instructions h4,
+.developer-link-card__caution strong {
+  color: var(--ng-faint);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.developer-link-card__reference code {
+  overflow-wrap: anywhere;
+  color: var(--ng-text);
+}
+
+.developer-link-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.developer-link-card__instructions {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.developer-link-card__instructions ol,
+.developer-future-note ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.developer-link-card__instructions li + li,
+.developer-future-note li + li {
+  margin-top: 0.25rem;
+}
+
+.developer-link-card__caution {
+  border-left: 3px solid var(--ng-warn);
+  background: var(--ng-warn-bg);
+  padding: 0.75rem;
+}
+
+.developer-links__copy-status {
+  min-height: 1.2rem;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.developer-future-note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr) auto;
+  gap: var(--card-gap);
+  align-items: start;
+  margin-top: var(--card-gap);
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.developer-future-note > svg {
+  color: var(--ng-brand-red);
+}
+
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
+  .developer-grid,
+  .developer-future-note { grid-template-columns: minmax(0, 1fr); }
   .workspace-surface { padding-left: 0; }
 }
 .profile-field span {

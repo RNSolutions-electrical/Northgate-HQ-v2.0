@@ -25,7 +25,9 @@
  *   export const MODULE_SCREENS = { dashboard: DashboardWorkspace };
  */
 import { DashboardWorkspace } from './dashboard/DashboardWorkspace.jsx';
+import { DeveloperWorkspace } from './developer/DeveloperWorkspace.jsx';
 
 export const MODULE_SCREENS = {
   dashboard: DashboardWorkspace,
+  developer: DeveloperWorkspace,
 };

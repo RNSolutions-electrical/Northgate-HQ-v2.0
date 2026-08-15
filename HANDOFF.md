@@ -15764,3 +15764,91 @@ No Claude review needed - corrective UI work remained within ARCHITECTURE v2.30
 ### Routing Verdict
 No Claude review needed - Developer Helpful Links remained a Developer-only
 source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 150.
+
+## Entry 151 - Port Developer workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Developer module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `f5a26d5` (`Allow root production router path`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 150`.
+- Northgate HQ v3.0 is live on the existing GitHub / Netlify / Supabase
+  infrastructure, so the v3 rebuild continues inside the same repository and
+  project connections.
+- `MIGRATION_MAP.md` identifies Dashboard as the first migrated module and
+  Developer as the second lowest-risk module. Inventory remains intentionally
+  late because cart, checkout, ledger, count, overdraw, and concurrency behavior
+  carry the highest invariant load.
+
+### What Was Completed
+- Added a v3 `DeveloperWorkspace` module under `src/modules/developer/`.
+- Registered the Developer screen in `src/modules/screens.js`.
+- Changed the Developer module registry status from `stub` to `live` while
+  preserving the existing `canAccessDeveloper` route/nav gate.
+- Reintroduced source-controlled Developer Helpful Links in the v3 module
+  structure using `src/config/developerHelpfulLinks.js`.
+- Added read-only session diagnostics for:
+  - signed-in Clerk email / user id
+  - effective server role and division
+  - permission source
+  - current Vite mode
+  - v3 build label
+- Added a read-only effective-permission snapshot table using the existing
+  server-backed `usePermissions` hook.
+- Added responsive Developer card, helpful-link, caution, and future-user-
+  management presentation styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, permission flag, checkout,
+  inventory ledger, Jobs, Financials, or backend behavior changed.
+- No Developer permission editor, SQL console, service-role access, target-user
+  effective-permission lookup, invitation flow, or secret/environment viewer was
+  added.
+- Helpful Links contain only public dashboard URLs, the GitHub repository name,
+  explanatory text, and the non-secret Supabase project reference
+  `keogysnoukbendfkfjcn`.
+- Visible labels now say `Northgate HQ` rather than `Northgate HQ v2` where the
+  underlying project name would otherwise make the v3 rebuild appear stale. The
+  exact GitHub / Netlify / Supabase destinations remain unchanged.
+
+### Code / File Changes
+- `src/config/developerHelpfulLinks.js`
+- `src/modules/developer/DeveloperWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Developer runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Developer-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in as a Developer and open the Developer workspace.
+4. Confirm the Developer module no longer shows the v3 placeholder.
+5. Confirm Helpful Links render and external links open in new tabs.
+6. Confirm Copy reference copies `keogysnoukbendfkfjcn`.
+7. Confirm normal non-Developer users still cannot see or route into Developer.
+8. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- The v3 Developer workspace is intentionally status/read-only in this pass; the
+  prior v2 Silas kill-switch control was not ported here yet.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside Developer-only, source-controlled UI,
+  external navigation, diagnostics, and responsive presentation scope.
+
+### Routing Verdict
+No Claude review needed - Developer v3 migration remained a Developer-only
+source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 151.

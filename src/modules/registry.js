@@ -140,7 +140,7 @@ export const MODULES = [
     label: 'Developer',
     icon: Settings,
     requires: ['canAccessDeveloper'],
-    status: 'stub',
+    status: 'live',
     description: 'Accounts, effective access, audit, and diagnostics.',
   },
 ];
