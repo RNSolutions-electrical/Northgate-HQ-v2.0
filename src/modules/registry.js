@@ -53,7 +53,7 @@ export const MODULES = [
     label: 'Inventory',
     icon: Boxes,
     requiresAny: ['canInventoryTransactions', 'canManageInventory'],
-    status: 'stub',
+    status: 'live',
     description: 'Catalogue, storage, cart, checkout, counts, and the ledger.',
   },
   {

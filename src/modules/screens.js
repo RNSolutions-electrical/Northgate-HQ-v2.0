@@ -29,6 +29,7 @@ import { DeveloperWorkspace } from './developer/DeveloperWorkspace.jsx';
 import { DocumentsWorkspace } from './documents/DocumentsWorkspace.jsx';
 import { EmployeesWorkspace } from './employees/EmployeesWorkspace.jsx';
 import { EstimatesWorkspace } from './estimates/EstimatesWorkspace.jsx';
+import { InventoryWorkspace } from './inventory/InventoryWorkspace.jsx';
 import { JobsWorkspace } from './jobs/JobsWorkspace.jsx';
 import { ReportsWorkspace } from './reports/ReportsWorkspace.jsx';
 import { SilasWorkspace } from './silas/SilasWorkspace.jsx';
@@ -41,6 +42,7 @@ export const MODULE_SCREENS = {
   documents: DocumentsWorkspace,
   employees: EmployeesWorkspace,
   estimates: EstimatesWorkspace,
+  inventory: InventoryWorkspace,
   jobs: JobsWorkspace,
   reports: ReportsWorkspace,
   silas: SilasWorkspace,

@@ -16602,3 +16602,123 @@ No Claude review needed - Jobs v3 migration made only the read-only Jobs
 foundation slice live and did not change schema, RLS, permissions, writes,
 inventory movement, checkout behavior, financials, documents, schedule, or
 Issue to Job under ARCHITECTURE v2.30 / HANDOFF Entry 159.
+
+## Entry 160 - Port Inventory read workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `b49001f` (`Port Jobs foundation workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 159`.
+- `MIGRATION_MAP.md` identifies Inventory as the eleventh module and calls out
+  cart, checkout, ledger, counts, and overdraw locks as the densest invariant
+  load in the app.
+- The preserved v2 front end already retained the critical inventory hooks:
+  `useInventoryReadModel`, `useInventoryTransactionHistory`,
+  `useInventoryCart`, count hooks, and bin-item retirement.
+
+### What Was Completed
+- Added a v3 `InventoryWorkspace` module under `src/modules/inventory/`.
+- Registered the Inventory screen in `src/modules/screens.js`.
+- Changed the Inventory module registry status from `stub` to `live` while
+  preserving the existing `canInventoryTransactions` / `canManageInventory`
+  route/nav gate.
+- Reused the retained `useInventoryReadModel` hook for authenticated read-model
+  data.
+- Reused the retained `useInventoryTransactionHistory` hook for the read-only
+  transaction history surface.
+- Added Inventory views:
+  - Catalogue
+  - Storage
+  - Checkout Candidates
+  - Destinations
+  - Transaction History
+  - Reserved Controls
+- Added summary cards for active items, storage/bin counts, bin-item/balance
+  counts, and cart-candidate preview rows.
+- Added bounded client-side filtering over current preview rows.
+- Added read-only tables for:
+  - active catalogue preview
+  - storage unit preview
+  - bin preview
+  - checkout candidates
+  - user destination references
+  - vehicle destination references
+  - transaction history through `read_inventory_transaction_history`
+- Added explicit boundary panels for cart/checkout, count correction, and
+  transaction-derived balances.
+- Added minimal responsive Inventory layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
+  cart, checkout, count, bin retirement, inventory transaction, balance,
+  destination, QR, accounting, or backend behavior changed.
+- No `useInventoryCart`, count, count-correction, count-intake, count-sheet, or
+  bin-item-retirement write surface was wired in this pass.
+- No cart open, cart add/remove, checkout finalize, count correction, count
+  intake, bin-item retirement, archive, label generation, transfer, or QR scan
+  action was added.
+- No direct `inventory_balances` write path was added. Balance data remains
+  transaction-derived and server-controlled.
+- The only active data paths are the existing retained inventory read hooks and
+  the existing `read_inventory_transaction_history` RPC.
+
+### Code / File Changes
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- Static scan of `src/modules/inventory/InventoryWorkspace.jsx` found no
+  insert, update, delete, upsert, cart-finalize/open/add/remove RPC, physical
+  count write, count-intake write, bin-retirement write, or
+  `inventory_balances` mutation path.
+- Static scan confirmed Inventory data access stays in retained hooks:
+  `useInventoryReadModel` and `useInventoryTransactionHistory`.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables, but this pass
+  only reuses existing inventory tables/views/RPCs and adds no migration.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Inventory runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Inventory read-workspace migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has inventory access and open Inventory.
+4. Confirm Inventory no longer shows the v3 placeholder.
+5. Confirm Catalogue, Storage, Checkout Candidates, Destinations, Transaction
+   History, and Reserved Controls render correctly.
+6. Confirm cart/checkout/count/retirement controls are not exposed yet.
+7. Decide whether to port Inventory writes in smaller follow-up slices or move
+   to Accounting first.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future Inventory write work should be split deliberately:
+  - cart open/read/add/remove;
+  - checkout finalization;
+  - count sheet;
+  - count intake;
+  - physical count correction;
+  - bin-item retirement;
+  - scan/QR entry surfaces.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside retained inventory read hooks and
+  preserved all cart, checkout, count, retirement, and balance invariants.
+
+### Routing Verdict
+No Claude review needed - Inventory v3 migration made only the read-first
+workspace live and did not change schema, RLS, permissions, writes, cart,
+checkout, count correction, count intake, bin retirement, ledger derivation, or
+`inventory_balances` behavior under ARCHITECTURE v2.30 / HANDOFF Entry 160.
