@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   Archive,
   BriefcaseBusiness,
@@ -23,6 +23,16 @@ import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/doc
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_JOBS = Object.freeze([]);
+const DOCUMENT_BUCKET = 'northgate-files';
+const DEFAULT_DOCUMENT_CATEGORY = 'contracts';
+const DEFAULT_UPLOAD_STATE = Object.freeze({
+  category: DEFAULT_DOCUMENT_CATEGORY,
+  description: '',
+  file: null,
+  isUploading: false,
+  error: null,
+  success: '',
+});
 
 const JOB_SELECT_FIELDS = [
   'id',
@@ -156,6 +166,16 @@ function jobSearchText(job) {
     job.postal_code,
     job.service_call_number,
   ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function sanitizeDocumentFileName(fileName) {
+  const cleaned = String(fileName || 'document')
+    .normalize('NFKD')
+    .replace(/[^\w.\-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return cleaned || 'document';
 }
 
 const JOB_COLUMNS = [
@@ -311,12 +331,15 @@ function renderFact(label, value) {
 }
 
 export function JobsWorkspace({ permissions }) {
+  const { getToken } = useAuth();
+  const { user } = useUser();
   const directory = useJobsDirectory({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('active');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedJobId, setSelectedJobId] = useState('');
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('browse');
+  const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -382,6 +405,85 @@ export function JobsWorkspace({ permissions }) {
     setSelectedJobId(job.id);
     setActiveTab('overview');
     setMode('browse');
+    setUploadState(DEFAULT_UPLOAD_STATE);
+  }
+
+  async function handleDocumentUpload(event) {
+    event.preventDefault();
+
+    if (!selectedJob || !canManageJobs || uploadState.isUploading) return;
+
+    const file = uploadState.file;
+    if (!file) {
+      setUploadState((current) => ({ ...current, error: new Error('Choose a file before uploading.') }));
+      return;
+    }
+
+    if (!selectedJob.division) {
+      setUploadState((current) => ({ ...current, error: new Error('This job does not have a division, so document upload is blocked.') }));
+      return;
+    }
+
+    const category = JOB_DOCUMENT_CATEGORIES.some((item) => item.key === uploadState.category)
+      ? uploadState.category
+      : DEFAULT_DOCUMENT_CATEGORY;
+    const documentId = crypto.randomUUID();
+    const storagePath = `documents/job/${selectedJob.id}/${documentId}/${sanitizeDocumentFileName(file.name)}`;
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+
+    setUploadState((current) => ({ ...current, isUploading: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const insertPayload = {
+        id: documentId,
+        division: selectedJob.division,
+        owner_type: 'job',
+        owner_id: selectedJob.id,
+        storage_path: storagePath,
+        file_name: file.name,
+        document_type: category,
+        description: uploadState.description.trim() || null,
+        file_size_bytes: file.size,
+        mime_type: file.type || null,
+        created_by: createdBy,
+      };
+
+      const { error: insertError } = await client
+        .from('documents')
+        .insert(insertPayload);
+
+      if (insertError) throw insertError;
+
+      const { error: uploadError } = await client.storage
+        .from(DOCUMENT_BUCKET)
+        .upload(storagePath, file, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        await client
+          .from('documents')
+          .update({
+            archived_at: new Date().toISOString(),
+            archived_by: createdBy,
+            archive_reason: `Upload failed: ${uploadError.message}`,
+          })
+          .eq('id', documentId);
+        throw uploadError;
+      }
+
+      setUploadState({
+        ...DEFAULT_UPLOAD_STATE,
+        success: `${file.name} uploaded to ${documentCategoryLabel(category)}.`,
+      });
+      jobDocuments.reload();
+    } catch (error) {
+      console.error('Job document upload failed', error);
+      setUploadState((current) => ({ ...current, isUploading: false, error, success: '' }));
+    }
   }
 
   function renderActiveTab() {
@@ -458,6 +560,80 @@ export function JobsWorkspace({ permissions }) {
             emptyTitle="No documents uploaded for this job"
             emptyDescription="The checklist can still show required categories before files exist. Upload/archive actions are the next Documents slice."
           />
+
+          {canManageJobs ? (
+            <form className="job-document-upload" onSubmit={handleDocumentUpload}>
+              <Toolbar
+                eyebrow="Upload"
+                title="Add job document"
+                description="Uploads are job-owned and use the selected category to update the visual checklist."
+              />
+              <div className="job-document-upload__grid">
+                <label>
+                  <span>Category</span>
+                  <select
+                    value={uploadState.category}
+                    onChange={(event) => setUploadState((current) => ({ ...current, category: event.target.value, error: null, success: '' }))}
+                    disabled={uploadState.isUploading}
+                  >
+                    {JOB_DOCUMENT_CATEGORIES.map((category) => (
+                      <option key={category.key} value={category.key}>{category.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>File</span>
+                  <input
+                    key={`${selectedJob.id}-${uploadState.success || 'ready'}`}
+                    type="file"
+                    onChange={(event) => setUploadState((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
+                    disabled={uploadState.isUploading}
+                  />
+                </label>
+                <label className="job-document-upload__description">
+                  <span>Description</span>
+                  <input
+                    type="text"
+                    value={uploadState.description}
+                    onChange={(event) => setUploadState((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
+                    placeholder="Optional note"
+                    disabled={uploadState.isUploading}
+                  />
+                </label>
+              </div>
+              {uploadState.error ? (
+                <StatePanel
+                  tone="danger"
+                  eyebrow="Upload Failed"
+                  title="Document was not uploaded"
+                  description={uploadState.error.message || 'Unexpected upload error.'}
+                  compact
+                />
+              ) : null}
+              {uploadState.success ? (
+                <StatePanel
+                  tone="success"
+                  eyebrow="Uploaded"
+                  title="Document saved"
+                  description={uploadState.success}
+                  compact
+                />
+              ) : null}
+              <div className="job-document-upload__actions">
+                <button type="submit" className="primary-button" disabled={uploadState.isUploading || !uploadState.file}>
+                  <Plus aria-hidden="true" /> {uploadState.isUploading ? 'Uploading...' : 'Upload Document'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Read Only"
+              title="Document uploads require job management permission"
+              description="You can view documents for jobs you can see. Uploading and editing follows the job management permission boundary."
+              compact
+            />
+          )}
         </>
       );
     }

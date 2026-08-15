@@ -1163,6 +1163,50 @@ textarea {
   border-color: color-mix(in srgb, var(--ng-ok) 38%, var(--ng-divider));
 }
 
+.job-document-upload {
+  display: grid;
+  gap: 1rem;
+  margin-top: var(--card-gap);
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.job-document-upload__grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) minmax(240px, 1.2fr);
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.job-document-upload label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.job-document-upload label span {
+  color: var(--ng-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.job-document-upload__description {
+  min-width: 0;
+}
+
+.job-document-upload__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 920px) {
+  .job-document-upload__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .inventory-boundary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

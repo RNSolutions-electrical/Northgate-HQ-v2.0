@@ -17804,3 +17804,71 @@ Ryan locked the Jobs Documents direction:
 ### Architecture Drift Warnings
 - None. This pass reused the existing job-owned `public.documents` foundation
   and did not create a new document table or user-owned document model.
+
+---
+
+## Entry 173 — Jobs Document Upload Flow
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+After verifying the visual checklist looked good, Ryan approved proceeding with
+the next Documents slice. The target was selected-job document upload using the
+shared category keys from Entry 172.
+
+### What Was Completed
+- Added an upload form to the selected Job `Documents` tab.
+- Upload is only visible when the viewer has `canManageJobs`.
+- Uploads require:
+  - selected category
+  - selected file
+  - selected job with a division
+- Inserted the `public.documents` row first with the final storage path.
+- Uploaded the file to the existing private `northgate-files` bucket at:
+  `documents/job/{jobId}/{documentId}/{sanitizedFileName}`.
+- Stored metadata on the document row:
+  - `owner_type = 'job'`
+  - `owner_id = selectedJob.id`
+  - `division = selectedJob.division`
+  - `document_type = shared category key`
+  - original file name, file size, MIME type, optional description, created by
+- If object upload fails after row creation, the row is soft-archived with an
+  upload-failed archive reason before surfacing the error.
+- Successful upload resets the form, shows confirmation, and reloads the Job
+  document list/checklist.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- Upload uses the existing Supabase Storage policy from the Job Documents
+  foundation. No service role, backend function, or public bucket behavior was
+  introduced.
+- This pass creates document rows before object upload so the storage read
+  policy can later authorize object reads by matching `documents.storage_path`.
+- The upload path uses sanitized file names but preserves the original file name
+  in `documents.file_name`.
+
+### Next Steps (in order)
+1. Ryan verifies upload from a real selected job and confirms checklist status
+   updates by category.
+2. Add open/download signed URL behavior from the selected Job Documents tab.
+3. Add soft archive controls for uploaded job documents.
+4. Proceed to Buyout schema extension and live checklist UI.
+
+### Open Questions / Concerns
+- Authenticated runtime upload still needs verification from Ryan's browser.
+- If upload succeeds but the app loses connectivity before refresh, the row and
+  file should still exist; a manual Refresh should show it.
+
+### Architecture Drift Warnings
+- None. This pass used the existing job-owned document model and private storage
+  bucket without changing RLS, storage policies, schema, or permission flags.
