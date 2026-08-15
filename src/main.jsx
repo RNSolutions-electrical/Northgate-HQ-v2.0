@@ -13,9 +13,16 @@ if (!clerkPublishableKey) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
 }
 
-// Router basename must match vite.config.js `base`.
-// Deployed at rnsolutions.net/northgate.
-const basename = import.meta.env.VITE_BASE_PATH || '/northgate';
+const configuredBasePath = import.meta.env.VITE_BASE_PATH || '/northgate';
+const normalizedBasePath = configuredBasePath.replace(/\/$/, '');
+const currentPath = window.location.pathname;
+const basename =
+  normalizedBasePath && (
+    currentPath === normalizedBasePath ||
+    currentPath.startsWith(`${normalizedBasePath}/`)
+  )
+    ? normalizedBasePath
+    : undefined;
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
