@@ -1,18 +1,14 @@
-import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-function resolveBuildSha() {
-  try {
-    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-  } catch {
-    return 'git-unavailable';
-  }
-}
+// Deployed at rnsolutions.net/northgate — assets must resolve under that path.
+// Override with VITE_BASE_PATH if the address ever changes.
+const base = process.env.VITE_BASE_PATH
+  ? `${process.env.VITE_BASE_PATH.replace(/\/$/, '')}/`
+  : '/northgate/';
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    __APP_BUILD_SHA__: JSON.stringify(resolveBuildSha()),
-  },
+  base,
+  build: { outDir: 'dist', sourcemap: false },
 });

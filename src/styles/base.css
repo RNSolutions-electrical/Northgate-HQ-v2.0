@@ -1,0 +1,521 @@
+/*
+ * Northgate HQ v3 — base stylesheet.
+ *
+ * Replaces v2's two stacked themes (styles.css legacy dark, partially
+ * overridden to light by styles/layout.css — ~4,200 lines between them) with
+ * one light theme built directly on tokens.css.
+ *
+ * Load order: tokens.css -> base.css -> primitives.css
+ * Every value resolves from var(--ng-*) or var(--app-*). Nothing hardcoded.
+ */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ng-page-bg);
+  color: var(--ng-text);
+  font-size: var(--base-font-size);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; letter-spacing: -0.01em; line-height: 1.2; }
+h1 { font-size: 1.45rem; font-weight: 800; }
+h2 { font-size: 1.2rem; font-weight: 800; }
+h3 { font-size: 1.02rem; font-weight: 750; }
+p { margin: 0.4rem 0 0; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+svg { stroke-width: 1.8; }
+
+:focus-visible { outline: none; box-shadow: var(--ng-focus-ring); border-radius: var(--ui-radius); }
+
+.eyebrow {
+  margin: 0;
+  color: var(--ng-brand-red);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.build-note { margin: 0; color: var(--ng-faint); font-size: 0.68rem; font-weight: 700; }
+
+/* ------------------------------------------------------------------ boot */
+
+.ng-boot { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
+.ng-boot .state-panel { max-width: 460px; }
+
+/* ----------------------------------------------------------------- shell */
+
+.ng-shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+.ng-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--ng-card-bg);
+  border-bottom: 1px solid var(--ng-border);
+  box-shadow: 0 1px 6px rgba(29, 36, 48, 0.03);
+}
+
+.ng-shell__header-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: var(--app-header-height);
+  padding: 0 var(--app-page-gutter);
+}
+
+.ng-shell__brand { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; min-width: 0; }
+
+.ng-shell__brand-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border: 2px solid var(--ng-brand-red);
+  border-radius: var(--ng-radius-control);
+  color: var(--ng-brand-red);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.ng-shell__brand-copy { min-width: 0; }
+.ng-shell__title { font-size: 1.05rem; font-weight: 800; margin: 0.1rem 0; }
+
+.ng-shell__menu-button {
+  display: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+}
+
+.ng-shell__actions { display: flex; align-items: center; gap: 10px; margin-left: auto; flex: 0 0 auto; }
+
+.ng-shell__identity { display: none; flex-direction: column; text-align: right; line-height: 1.25; }
+.ng-shell__identity strong { font-size: 0.78rem; }
+.ng-shell__identity span { font-size: 0.68rem; color: var(--ng-muted); }
+
+.ng-shell__notice-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+}
+.ng-shell__notice-button:hover { background: var(--ng-panel-bg-alt); }
+.ng-shell__notice-button svg { width: 17px; height: 17px; }
+
+.ng-shell__profile { display: flex; align-items: center; }
+
+.ng-shell__content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--app-content-max);
+  margin: 0 auto;
+  padding: var(--app-page-gutter);
+  display: grid;
+  gap: var(--card-gap);
+  align-content: start;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ top nav */
+
+.top-nav { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.top-nav::-webkit-scrollbar { display: none; }
+
+.top-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--ng-radius-control);
+  background: transparent;
+  color: var(--ng-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.top-nav__icon { width: 16px; height: 16px; }
+.top-nav__item:hover { background: var(--ng-panel-bg-alt); color: var(--ng-text); }
+.top-nav__item[aria-current='page'] { background: var(--ng-brand-red-soft); color: var(--ng-brand-red); }
+
+/* ------------------------------------------------------------- surfaces */
+
+.card {
+  min-width: 0;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow);
+  padding: var(--card-padding);
+}
+
+.workspace-header,
+.record-header,
+.state-panel,
+.module-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  padding: var(--card-padding);
+}
+
+.workspace-header { box-shadow: var(--ng-shadow); }
+.workspace-header__copy, .record-header__main { min-width: 0; }
+.workspace-header__copy p, .record-header__main p, .state-panel__copy p {
+  color: var(--ng-muted);
+  font-size: 0.92rem;
+}
+
+.workspace-header__actions,
+.record-header__actions,
+.state-panel__actions,
+.module-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex: 0 0 auto;
+}
+
+.record-header__aside { display: flex; align-items: flex-start; gap: 1.25rem; flex-wrap: wrap; }
+.record-header__facts { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+.record-header__fact { display: flex; flex-direction: column; }
+.record-header__fact span { font-size: 0.68rem; color: var(--ng-faint); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.record-header__fact strong { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+
+.state-panel--info { border-color: rgba(43, 94, 168, 0.2); background: var(--ng-info-bg); }
+.state-panel--success { border-color: rgba(31, 122, 69, 0.2); background: var(--ng-ok-bg); }
+.state-panel--warning { border-color: rgba(164, 90, 17, 0.22); background: var(--ng-warn-bg); }
+.state-panel--danger { border-color: rgba(180, 35, 24, 0.22); background: var(--ng-err-bg); }
+.state-panel--compact { padding: 0.9rem 1rem; }
+
+/* ---------------------------------------------------------- summary card */
+
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--card-gap); }
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow);
+  padding: var(--card-padding);
+}
+.summary-card__label { font-size: 0.68rem; color: var(--ng-faint); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.summary-card__value { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.summary-card__detail { font-size: 0.8rem; color: var(--ng-muted); }
+.summary-card--good .summary-card__value { color: var(--ng-ok); }
+.summary-card--warn .summary-card__value { color: var(--ng-warn); }
+.summary-card--danger .summary-card__value { color: var(--ng-err); }
+
+/* ----------------------------------------------------------------- tabs */
+
+.workspace-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--ng-border);
+}
+.workspace-tabs::-webkit-scrollbar { display: none; }
+
+.workspace-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ng-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+  justify-content: center;
+}
+.workspace-tab:hover:not(.workspace-tab--disabled) { color: var(--ng-text); background: var(--ng-panel-bg-alt); }
+.workspace-tab--active { color: var(--ng-brand-red); border-bottom-color: var(--ng-brand-red); }
+.workspace-tab--disabled { opacity: 0.45; cursor: not-allowed; }
+.workspace-tab small { font-size: 0.65rem; color: var(--ng-faint); font-weight: 700; }
+
+/* ---------------------------------------------------------------- table */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+  font-size: var(--table-font-size);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+  border-bottom: 1px solid var(--ng-divider);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: var(--ng-panel-bg);
+  color: var(--ng-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background: var(--ng-panel-bg); }
+
+/* ----------------------------------------------------------- status pill */
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  border: 1px solid rgba(43, 94, 168, 0.18);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  background: var(--ng-info-bg);
+  color: var(--ng-info);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.status-pill--good { border-color: rgba(31, 122, 69, 0.18); background: var(--ng-ok-bg); color: var(--ng-ok); }
+.status-pill--warn { border-color: rgba(164, 90, 17, 0.22); background: var(--ng-warn-bg); color: var(--ng-warn); }
+
+/* ----------------------------------------------------------------- forms */
+
+.button,
+.ng-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+.button:hover, .ng-button:hover { background: var(--ng-panel-bg-alt); }
+.button--primary, .ng-button--primary {
+  border-color: var(--ng-brand-red);
+  background: var(--ng-brand-red);
+  color: var(--ng-card-bg);
+}
+.button--primary:hover, .ng-button--primary:hover { background: var(--ng-brand-red-strong); }
+
+input[type='text'],
+input[type='search'],
+input[type='number'],
+input[type='email'],
+select,
+textarea {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  padding: 0.35rem 0.65rem;
+}
+
+/* ------------------------------------------------------------ responsive */
+
+@media (min-width: 900px) {
+  .ng-shell__identity { display: flex; }
+}
+
+@media (max-width: 899px) {
+  .ng-shell__menu-button { display: grid; }
+
+  .top-nav {
+    display: none;
+    position: absolute;
+    top: var(--app-header-height);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    background: var(--ng-card-bg);
+    border-bottom: 1px solid var(--ng-border);
+    box-shadow: var(--ng-shadow-raised);
+    padding: 10px var(--app-page-gutter) 16px;
+  }
+  .top-nav.is-open { display: flex; }
+  .top-nav__item { min-height: 44px; }
+
+  .workspace-header,
+  .record-header,
+  .module-toolbar { flex-direction: column; }
+
+  .workspace-header__actions,
+  .record-header__actions,
+  .module-toolbar__actions { justify-content: flex-start; width: 100%; }
+}
+
+@media print {
+  .ng-shell__header,
+  .top-nav,
+  .module-toolbar__actions,
+  .workspace-header__actions { display: none !important; }
+  .ng-shell__content { padding: 0; }
+  .card, .table-wrap { box-shadow: none; border-color: #ccc; }
+}
+
+/* --------------------------------------------------- workspace sidebars */
+/* Ported PrimarySidebar / SecondarySidebar. Not wired into AppLayout yet —
+   modules opt in when they need a rail. Styles live here so they work the
+   moment a module does. */
+
+.workspace-sidebar-scrim,
+.top-nav-scrim {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(29, 36, 48, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 35;
+}
+.workspace-sidebar-scrim.is-open,
+.top-nav-scrim.is-open { opacity: 1; pointer-events: auto; }
+
+@media (min-width: 900px) {
+  .workspace-sidebar-scrim,
+  .top-nav-scrim { display: none; }
+}
+
+.workspace-sidebar {
+  min-width: 0;
+  width: var(--app-sidebar-width);
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow);
+  overflow: hidden;
+  align-self: start;
+}
+.workspace-sidebar--collapsed { width: var(--app-sidebar-collapsed-width); }
+
+.workspace-sidebar__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: var(--card-padding);
+  border-bottom: 1px solid var(--ng-divider);
+  background: var(--ng-panel-bg);
+}
+.workspace-sidebar__header-actions { display: flex; gap: 0.35rem; flex: 0 0 auto; }
+.workspace-sidebar__heading { min-width: 0; }
+.workspace-sidebar__nav { display: grid; gap: 2px; padding: 10px; }
+
+.workspace-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 40px;
+  padding: 0 0.65rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: var(--ng-radius-control);
+  background: transparent;
+  color: var(--ng-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: left;
+}
+.workspace-sidebar__item:hover { background: var(--ng-panel-bg-alt); color: var(--ng-text); }
+.workspace-sidebar__item[aria-current='true'],
+.workspace-sidebar__item.is-active {
+  border-left-color: var(--ng-brand-red);
+  background: var(--ng-brand-red-soft);
+  color: var(--ng-brand-red);
+}
+.workspace-sidebar__item-copy { min-width: 0; display: flex; flex-direction: column; }
+.workspace-sidebar__item-icon { flex: 0 0 auto; width: 17px; height: 17px; }
+.workspace-sidebar__item-badge {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--ng-soft);
+  color: var(--ng-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-align: center;
+}
+.workspace-sidebar__body { padding: 10px; }
+.workspace-sidebar__footer { padding: var(--card-padding); border-top: 1px solid var(--ng-divider); }
+
+.workspace-sidebar__icon-button,
+.workspace-sidebar__collapse-toggle,
+.workspace-sidebar__close-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+}
+.workspace-sidebar__icon-button svg,
+.workspace-sidebar__collapse-toggle svg,
+.workspace-sidebar__close-button svg { width: 16px; height: 16px; }
+
+.workspace-header__status { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Two-column workspace: rail + content. Modules opt in. */
+.workspace-split {
+  display: grid;
+  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+  gap: var(--card-gap);
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .workspace-split { grid-template-columns: minmax(0, 1fr); }
+  .workspace-sidebar { width: 100%; }
+}

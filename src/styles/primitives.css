@@ -1,0 +1,492 @@
+/*
+ * Northgate HQ — shared UI primitives.
+ *
+ * Imported last in main.jsx so it layers over styles.css (legacy base) and
+ * styles/layout.css (light-theme overrides).
+ *
+ * RULE: every value here resolves from a var(--ng-*) or var(--app-*) token.
+ * No hardcoded colors, radii, or dimensions. The palette is under active
+ * dispute (03_OPEN_DECISIONS.md, Decision 1) and must stay a one-file change
+ * in styles/tokens.css whichever way it resolves.
+ *
+ * This file only ADDS classes and modifiers. It does not restyle existing
+ * shipped classes.
+ */
+
+/* ---------------------------------------------------------------- DataTable */
+
+.data-table__caption {
+  caption-side: top;
+  padding: 0 0 0.6rem;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+  text-align: left;
+}
+
+.data-table--dense th,
+.data-table--dense td {
+  padding: calc(var(--table-cell-padding-y) * 0.7) var(--table-cell-padding-x);
+}
+
+.data-table__cell--right {
+  text-align: right;
+}
+
+.data-table__cell--center {
+  text-align: center;
+}
+
+.data-table__cell--numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.data-table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.data-table__sort:hover {
+  color: var(--ng-text);
+}
+
+.data-table__sort:focus-visible {
+  outline: none;
+  box-shadow: var(--ng-focus-ring);
+  border-radius: var(--ui-radius);
+}
+
+.data-table th[aria-sort='ascending'] .data-table__sort::after {
+  content: '\2191';
+}
+
+.data-table th[aria-sort='descending'] .data-table__sort::after {
+  content: '\2193';
+}
+
+.data-table__row--clickable {
+  cursor: pointer;
+}
+
+.data-table__row--selected td {
+  background: var(--ng-brand-red-soft);
+  box-shadow: inset 3px 0 0 var(--ng-brand-red);
+}
+
+.data-table tbody tr:focus-visible {
+  outline: none;
+  box-shadow: var(--ng-focus-ring);
+}
+
+.data-table tfoot td {
+  border-top: 1px solid var(--ng-border);
+  background: var(--ng-panel-bg);
+  font-weight: 700;
+}
+
+.data-table__note {
+  margin: 0.6rem 0 0;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+/* -------------------------------------------------------------- StatusBadge */
+
+.status-pill--danger {
+  border-color: var(--ng-err);
+  background: var(--ng-err-bg);
+  color: var(--ng-err);
+}
+
+.status-pill--neutral {
+  border-color: var(--ng-border);
+  background: var(--ng-soft);
+  color: var(--ng-muted);
+}
+
+.status-pill__icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-pill__icon svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+.status-pill__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------ Toolbar */
+
+.module-toolbar__main {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.module-toolbar__copy {
+  min-width: 0;
+}
+
+.module-toolbar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.module-toolbar__search {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.module-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.module-toolbar__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.module-toolbar__meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.module-toolbar__meta-item strong {
+  color: var(--ng-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.module-toolbar--dense {
+  gap: 0.6rem;
+}
+
+/* ------------------------------------------------------------------- Drawer */
+
+.ng-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.ng-drawer-scrim,
+.ng-dialog-scrim {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(29, 36, 48, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.ng-drawer-scrim.is-open,
+.ng-dialog-scrim.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ng-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  max-width: 100%;
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow-raised);
+  overflow: hidden;
+}
+
+.ng-drawer--right {
+  right: 0;
+  border-left: 1px solid var(--ng-border);
+  animation: ng-drawer-in-right 0.18s ease;
+}
+
+.ng-drawer--left {
+  left: 0;
+  border-right: 1px solid var(--ng-border);
+  animation: ng-drawer-in-left 0.18s ease;
+}
+
+.ng-drawer:focus-visible {
+  outline: none;
+}
+
+.ng-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: var(--card-padding);
+  border-bottom: 1px solid var(--ng-border);
+  background: var(--ng-panel-bg);
+}
+
+.ng-drawer__header-copy {
+  min-width: 0;
+}
+
+.ng-drawer__header-copy h3 {
+  margin: 0.15rem 0 0;
+}
+
+.ng-drawer__description {
+  margin: 0.35rem 0 0;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.ng-drawer__close,
+.ng-dialog__button {
+  min-height: 36px;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  color: var(--ng-text);
+  padding: 0 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ng-drawer__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.ng-drawer__close:hover,
+.ng-dialog__button:hover:not(:disabled) {
+  background: var(--ng-panel-bg-alt);
+}
+
+.ng-drawer__close:focus-visible,
+.ng-dialog__button:focus-visible {
+  outline: none;
+  box-shadow: var(--ng-focus-ring);
+}
+
+.ng-drawer__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ng-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--card-padding);
+}
+
+.ng-drawer__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: var(--card-padding);
+  border-top: 1px solid var(--ng-border);
+  background: var(--ng-panel-bg);
+}
+
+@keyframes ng-drawer-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes ng-drawer-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+/* ------------------------------------------------------------ ConfirmDialog */
+
+.ng-dialog-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.ng-dialog {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  display: grid;
+  gap: 0.9rem;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow-raised);
+  padding: var(--card-padding);
+}
+
+.ng-dialog:focus-visible {
+  outline: none;
+}
+
+.ng-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.ng-dialog__header h3 {
+  margin: 0;
+}
+
+.ng-dialog__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-err-bg);
+  color: var(--ng-err);
+}
+
+.ng-dialog__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ng-dialog__description {
+  margin: 0.35rem 0 0;
+  color: var(--ng-muted);
+}
+
+.ng-dialog__reason {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ng-dialog__reason label {
+  font-size: var(--table-font-size);
+  font-weight: 700;
+}
+
+.ng-dialog__required {
+  color: var(--ng-err);
+}
+
+.ng-dialog__reason textarea {
+  width: 100%;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  color: var(--ng-text);
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.ng-dialog__reason textarea:focus-visible {
+  outline: none;
+  border-color: var(--ng-brand-red);
+  box-shadow: var(--ng-focus-ring);
+}
+
+.ng-dialog__hint {
+  margin: 0;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.ng-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.ng-dialog__button--primary {
+  border-color: var(--ng-brand-red);
+  background: var(--ng-brand-red);
+  color: var(--ng-card-bg);
+}
+
+.ng-dialog__button--primary:hover:not(:disabled) {
+  background: var(--ng-brand-red-strong);
+}
+
+.ng-dialog__button--danger {
+  border-color: var(--ng-err);
+  background: var(--ng-err);
+  color: var(--ng-card-bg);
+}
+
+.ng-dialog__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* -------------------------------------------------------------- Responsive */
+
+@media (max-width: 768px) {
+  .ng-drawer {
+    width: 100%;
+  }
+
+  .module-toolbar__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ng-dialog__actions {
+    flex-direction: column-reverse;
+  }
+
+  .ng-dialog__actions .ng-dialog__button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ng-drawer--right,
+  .ng-drawer--left {
+    animation: none;
+  }
+
+  .ng-drawer-scrim,
+  .ng-dialog-scrim {
+    transition: none;
+  }
+}
+
+@media print {
+  .ng-drawer-root,
+  .ng-dialog-root {
+    display: none !important;
+  }
+}

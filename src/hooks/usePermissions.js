@@ -22,6 +22,9 @@ const DENY_ALL = Object.freeze({
   can_field_access: false,
   can_archive_records: false,
   can_manage_change_orders: false,
+  can_express_checkout: false,
+  can_approve_express_checkout: false,
+  can_defer_completion: false,
 });
 
 function camel(flags) {
@@ -45,6 +48,9 @@ function camel(flags) {
     canFieldAccess: flags.can_field_access,
     canArchiveRecords: flags.can_archive_records,
     canManageChangeOrders: flags.can_manage_change_orders,
+    canExpressCheckout: flags.can_express_checkout,
+    canApproveExpressCheckout: flags.can_approve_express_checkout,
+    canDeferCompletion: flags.can_defer_completion,
   };
 }
 
