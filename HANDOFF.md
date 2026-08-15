@@ -18061,3 +18061,39 @@ the next Jobs slice: Buyout.
 ### Architecture Drift Warnings
 - None. Buyout remains planning/checklist only and does not create purchase
   orders, accounting posts, or inventory movements.
+
+---
+
+## Entry 177 — Buyout Edit And Audit Follow-Up
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** decision
+
+### Context
+Ryan verified the Jobs Buyout checklist slice works.
+
+### Decisions Made This Session (locked)
+- Buyout items should be editable after creation.
+- Editing Buyout items is not part of the current slice and should be added
+  later.
+- Buyout item edits must write to the audit log when implemented.
+
+### What Codex Needs to Know
+- The current Buyout tab supports add and status changes only.
+- Future edit behavior should cover Buyout item fields such as item
+  description, vendor/source, budget, initial value, actual value, initial lead
+  time, actual lead time, quantity, and notes.
+- The audit-log requirement applies to edits, not only status changes.
+
+### Next Steps (in order)
+1. Continue with the next Jobs slice.
+2. During the final Jobs hardening pass, add Buyout edit controls and audit-log
+   writes.
+3. Verify audit entries include before/after values, acting user, timestamp,
+   job id, and buyout line id.
+
+### Open Questions / Concerns
+- Confirm which table/function should serve as the canonical audit log for
+  Buyout edits during the final wiring pass.
