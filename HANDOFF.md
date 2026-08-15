@@ -16478,3 +16478,127 @@ No Claude review needed - Estimates v3 migration made the already accepted
 foundation shell live and did not change schema, RLS, read models, write paths,
 approval behavior, or snapshot immutability under ARCHITECTURE v2.30 /
 HANDOFF Entry 158.
+
+## Entry 159 - Port Jobs workspace foundation into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Jobs module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `87e3182` (`Port Estimates workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 158`.
+- `MIGRATION_MAP.md` identifies Jobs as the tenth module and the largest
+  migration slice.
+- ARCHITECTURE Sections 38-47 lock a broad Jobs surface. This pass intentionally
+  ports the first safe v3 slice only: Jobs foundation read/presentation.
+
+### What Was Completed
+- Added a v3 `JobsWorkspace` module under `src/modules/jobs/`.
+- Registered the Jobs screen in `src/modules/screens.js`.
+- Changed the Jobs module registry status from `stub` to `live` while
+  preserving the ungated authenticated-user route/nav model noted in the
+  registry.
+- Added an authenticated read-only directory hook using the existing
+  `public.jobs` table and the caller's Clerk/Supabase token.
+- Added Jobs views:
+  - Active Jobs
+  - On Hold
+  - Completed
+  - Cancelled
+  - All Visible
+- Added search across visible Jobs foundation fields.
+- Added selected-job detail shell with the locked Section 42 horizontal tab
+  shape:
+  - Overview
+  - Details
+  - Materials
+  - Buyout
+  - Transactions
+  - Financials, only when `canViewFinancials` is true
+  - Documents
+  - Schedule
+- Made Overview and Details render existing `public.jobs` fields.
+- Kept Materials, Buyout, Transactions, Financials, Documents, and Schedule
+  source-honest with reserved-state panels rather than porting their reads or
+  writes in this first Jobs slice.
+- Added explicit Create Job mode as a non-writing state that documents whether
+  the session has `canCreateJobs`.
+- Added boundary panels documenting that Issue to Job, budget/financial values,
+  documents, and schedule remain deferred.
+- Added minimal responsive Jobs layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
+  inventory, checkout, transaction, budget, document, schedule, material,
+  buyout, estimate, or backend behavior changed.
+- The only Supabase access added is a SELECT from existing `public.jobs` with
+  the caller's Clerk/Supabase token.
+- No job create, edit, archive, delete, material, buyout, checkout handoff,
+  transaction, financial, document, schedule, or estimate-link write path was
+  added.
+- No `job_materials`, `job_buyout_lines`, `job_budget_lines`,
+  `job_transaction_log`, `documents`, `job_schedule_items`,
+  `transaction_items`, `inventory_transactions`, or `inventory_balances` reads
+  were added.
+- `Issue to Job` remains unimplemented in v3; cart/checkout behavior and
+  inventory balance derivation are untouched.
+- Financial values remain omitted entirely because this first Jobs slice does
+  not select any budget/actual/accounting table.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- Static scan confirmed `src/modules/jobs/JobsWorkspace.jsx` only calls
+  `from('jobs')` for SELECT and contains no insert, update, delete, upsert,
+  RPC, storage, fetch, inventory balance, transaction, material, buyout,
+  budget, document, or schedule data access.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables, but this pass
+  only reuses the existing `public.jobs` table and adds no migration.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Jobs runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Jobs foundation migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in and open Jobs.
+4. Confirm Jobs no longer shows the v3 placeholder.
+5. Confirm job rows load, view filters/search work, and selected-job
+   Overview/Details render correctly.
+6. Confirm Create Job is non-writing and heavier submodule tabs show deferred
+   states only.
+7. Decide the next Jobs slice before porting writes or submodule reads.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future Jobs work should be split deliberately:
+  - controlled create/edit/archive;
+  - Job Material List;
+  - Buyout;
+  - Transactions read-only log;
+  - Financials/Budget Foundation;
+  - Documents;
+  - Schedule;
+  - Issue to Job handoff only after its required live preflight.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside the existing Jobs foundation table read
+  path and selected-record presentation scope.
+
+### Routing Verdict
+No Claude review needed - Jobs v3 migration made only the read-only Jobs
+foundation slice live and did not change schema, RLS, permissions, writes,
+inventory movement, checkout behavior, financials, documents, schedule, or
+Issue to Job under ARCHITECTURE v2.30 / HANDOFF Entry 159.

@@ -61,7 +61,7 @@ export const MODULES = [
     path: '/jobs',
     label: 'Jobs',
     icon: BriefcaseBusiness,
-    status: 'stub',
+    status: 'live',
     description: 'Job register, budgets, schedule, materials, and buyout.',
   },
   {

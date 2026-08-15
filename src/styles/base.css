@@ -732,6 +732,7 @@ textarea {
 .documents-workspace,
 .employees-workspace,
 .estimates-workspace,
+.jobs-workspace,
 .reports-workspace,
 .silas-workspace,
 .tools-workspace,
@@ -884,6 +885,7 @@ textarea {
 .documents-workspace,
 .employees-workspace,
 .estimates-workspace,
+.jobs-workspace,
 .reports-workspace,
 .silas-workspace,
 .tools-workspace,
@@ -1065,6 +1067,7 @@ textarea {
 .employees-boundary-grid,
 .employees-fact-grid,
 .estimates-boundary-grid,
+.jobs-boundary-grid,
 .reports-source-grid,
 .tools-boundary-grid,
 .tools-fact-grid,
@@ -1095,6 +1098,20 @@ textarea {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.75rem;
+}
+
+.jobs-boundary-grid,
+.jobs-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--card-gap);
+  margin-top: var(--card-gap);
+}
+
+.jobs-boundary-grid .state-panel__actions svg {
+  width: 20px;
+  height: 20px;
+  color: var(--ng-brand-red);
 }
 
 @media (max-width: 900px) {
