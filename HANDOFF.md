@@ -17245,3 +17245,105 @@ No Claude review needed - Inventory count workflows reused the existing
 approved count RPC wrappers and did not change schema, RLS, permissions,
 retirement, direct balance writes, or ledger derivation under ARCHITECTURE
 v2.30 / HANDOFF Entry 165.
+
+## Entry 166 - Restore Inventory bin/material retirement in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory bin-material retirement
+**Session type:** implementation
+
+### Context
+- Starting commit: `b219801` (`Restore Inventory count workflows in v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 165`.
+- Ryan verified Inventory count workflows in production and replied "good to
+  go. proceed."
+- Bin/material retirement is already locked as a soft-retirement workflow for
+  mistaken structural links.
+- The preserved hook already calls the locked `retire_bin_item` RPC.
+
+### What Was Completed
+- Added guarded retirement controls to the Inventory `Count` table.
+- Added `Retire` action per count row.
+- Added zero-system-quantity UI enforcement before retirement can be started.
+- Added inline reason capture and confirm/cancel controls for the selected
+  retirement row.
+- Matched the UI write gate to the server RPC contract:
+  - Developer/Admin role;
+  - `can_archive_records`;
+  - zero balance;
+  - required reason.
+- Wired retirement through the preserved
+  `useBinItemRetirement.retireBinItem` hook.
+- Refreshed count sheet, inventory read model, and transaction history after a
+  successful retirement.
+- Updated Inventory boundary copy to show zero-balance retirement is live while
+  scanner dispatch remains deferred.
+- Added focused CSS for retirement cells and confirm/cancel controls.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, or RPC definition changed.
+- Retirement writes are performed only through the preserved `retire_bin_item`
+  RPC wrapper.
+- The v3 UI does not write `inventory_balances` directly.
+- Retirement is disabled unless the row's displayed system quantity is zero;
+  the RPC still recalculates ledger-derived balance and remains authoritative.
+- Retirement archives the bin/material link only and does not write a ledger
+  quantity transaction.
+- QR scan dispatch remains unimplemented in this v3 slice.
+- Express checkout and return-from-job remain separate future slices.
+
+### Code / File Changes
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Static scan confirmed retirement is routed only through the preserved
+  `useBinItemRetirement` hook and `retire_bin_item` RPC.
+- Static scan confirmed count writes remain routed only through:
+  - `set_inventory_count_quantity`
+  - `intake_inventory_count`
+  - `retire_bin_item`
+- Static scan confirmed the v3 Inventory workspace and count hooks do not
+  directly call `insert`, `update`, `delete`, `upsert`, or
+  `inventory_balances`.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables/functions, but
+  this pass adds no new table, function, migration, or grant and reuses the
+  existing retirement RPC.
+- Authenticated live retirement runtime verification remains pending from
+  Ryan's browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Inventory retirement slice.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a Developer/Admin user that also has `can_archive_records`.
+4. Open Inventory > Count.
+5. Confirm non-zero rows show "Zero count required first" and cannot be
+   retired.
+6. Confirm a zero-count row exposes Retire, reason, Confirm, and Cancel.
+7. Retire only a known mistaken zero-balance bin/material link.
+8. Confirm the retired row leaves active count views after refresh.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- The next Inventory slice should likely be QR scan dispatch into existing
+  cart/count flows or return-from-job depending on operational priority.
+
+### Architecture Drift Warnings
+- None active. This pass reintroduced only the preserved retirement RPC wrapper
+  and did not change schema, RLS, permissions, direct balance writes, or ledger
+  derivation.
+
+### Routing Verdict
+No Claude review needed - Inventory bin/material retirement reused the existing
+approved `retire_bin_item` RPC wrapper and did not change schema, RLS,
+permissions, direct balance writes, or ledger derivation under ARCHITECTURE
+v2.30 / HANDOFF Entry 166.

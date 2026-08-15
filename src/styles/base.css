@@ -1234,7 +1234,8 @@ textarea {
 }
 
 .inventory-count-reason-cell,
-.inventory-count-action-cell {
+.inventory-count-action-cell,
+.inventory-count-retire-cell {
   display: grid;
   gap: 0.45rem;
   min-width: 170px;
@@ -1242,8 +1243,20 @@ textarea {
 
 .inventory-count-reason-cell input,
 .inventory-count-reason-cell select,
-.inventory-count-action-cell button {
+.inventory-count-action-cell button,
+.inventory-count-retire-cell input,
+.inventory-count-retire-cell button {
   min-height: 34px;
+}
+
+.inventory-count-retire-cell--active {
+  min-width: 240px;
+}
+
+.inventory-count-retire-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
 .inventory-count-intake-grid {

@@ -20,6 +20,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { useBinItemRetirement } from '../../hooks/useBinItemRetirement.js';
 import { useInventoryCart } from '../../hooks/useInventoryCart.js';
 import { useInventoryCountCorrection } from '../../hooks/useInventoryCountCorrection.js';
 import { useInventoryCountIntake } from '../../hooks/useInventoryCountIntake.js';
@@ -216,6 +217,7 @@ export function InventoryWorkspace({ permissions }) {
   const canManageInventory = permissions?.canManageInventory === true;
   const canReadCounts = canLoadInventory && canManageInventory;
   const canWriteCounts = canReadCounts && isDeveloperOrAdminRole(permissions?.role);
+  const canRetireBinItems = canWriteCounts && permissions?.canArchiveRecords === true;
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState('catalog');
@@ -242,6 +244,10 @@ export function InventoryWorkspace({ permissions }) {
     reason: 'initial shelf count',
     customReason: '',
   });
+  const [retirementDraft, setRetirementDraft] = useState({
+    binItemId: '',
+    reason: '',
+  });
 
   const history = useInventoryTransactionHistory({
     enabled: canLoadInventory && activeView === 'history',
@@ -252,6 +258,7 @@ export function InventoryWorkspace({ permissions }) {
   const countSheet = useInventoryCountSheet({ enabled: canReadCounts && activeView === 'count' });
   const countCorrection = useInventoryCountCorrection();
   const countIntake = useInventoryCountIntake();
+  const retirement = useBinItemRetirement();
 
   const model = readModel.model;
   const counts = model.counts;
@@ -496,7 +503,70 @@ export function InventoryWorkspace({ permissions }) {
         );
       },
     },
-  ], [canWriteCounts, countCorrection.isSettingQuantity, countDrafts, countMessages]);
+    {
+      key: 'retire',
+      header: 'Retire',
+      render: (row) => {
+        const systemQuantity = Number(row.system_quantity ?? 0);
+        const isRetiringThisRow = retirementDraft.binItemId === row.bin_item_id;
+        const message = countMessages[`retire:${row.bin_item_id}`];
+
+        if (!isRetiringThisRow) {
+          return (
+            <div className="inventory-count-retire-cell">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!canRetireBinItems || retirement.isRetiring || systemQuantity !== 0}
+                title={systemQuantity === 0 ? 'Retire this bin/material link' : 'Set count to zero before retiring'}
+                onClick={() => startRetirement(row)}
+              >
+                <Trash2 aria-hidden="true" /> Retire
+              </button>
+              {systemQuantity !== 0 ? (
+                <span className="inventory-cart-row-message inventory-cart-row-message--error">Zero count required first</span>
+              ) : null}
+              {message ? (
+                <span className={`inventory-cart-row-message inventory-cart-row-message--${message.tone}`}>
+                  {message.text}
+                </span>
+              ) : null}
+            </div>
+          );
+        }
+
+        return (
+          <div className="inventory-count-retire-cell inventory-count-retire-cell--active">
+            <input
+              type="text"
+              value={retirementDraft.reason}
+              disabled={retirement.isRetiring}
+              placeholder="Required retirement reason"
+              onChange={(event) => setRetirementDraft((current) => ({ ...current, reason: event.target.value }))}
+            />
+            <div className="inventory-count-retire-actions">
+              <button
+                type="button"
+                className="primary-button"
+                disabled={retirement.isRetiring || !retirementDraft.reason.trim()}
+                onClick={() => confirmRetirement(row)}
+              >
+                {retirement.isRetiring ? 'Retiring...' : 'Confirm'}
+              </button>
+              <button type="button" className="secondary-button" disabled={retirement.isRetiring} onClick={cancelRetirement}>
+                Cancel
+              </button>
+            </div>
+            {message ? (
+              <span className={`inventory-cart-row-message inventory-cart-row-message--${message.tone}`}>
+                {message.text}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ], [canRetireBinItems, canWriteCounts, countCorrection.isSettingQuantity, countDrafts, countMessages, retirement.isRetiring, retirementDraft]);
 
   function getLineDestination(cartItem) {
     const savedLine = lineDestinations[cartItem.cart_item_id];
@@ -658,6 +728,13 @@ export function InventoryWorkspace({ permissions }) {
     setCountMessages((current) => ({ ...current, new: null }));
   }
 
+  function setCountMessage(key, tone, text) {
+    setCountMessages((current) => ({
+      ...current,
+      [key]: { tone, text },
+    }));
+  }
+
   async function handleOpenCart() {
     await cartState.openCart();
   }
@@ -803,6 +880,58 @@ export function InventoryWorkspace({ permissions }) {
       countedQuantity: '',
       reason: 'initial shelf count',
       customReason: '',
+    });
+    countSheet.reload();
+    readModel.reload();
+    history.reload();
+  }
+
+  function startRetirement(row) {
+    const systemQuantity = Number(row.system_quantity ?? 0);
+    if (!canRetireBinItems) {
+      setCountMessage(`retire:${row.bin_item_id}`, 'error', 'Developer/Admin and archive permission required.');
+      return;
+    }
+    if (systemQuantity !== 0) {
+      setCountMessage(`retire:${row.bin_item_id}`, 'error', 'Set count to zero before retiring.');
+      return;
+    }
+
+    setRetirementDraft({
+      binItemId: row.bin_item_id,
+      reason: '',
+    });
+    setCountMessages((current) => ({ ...current, [`retire:${row.bin_item_id}`]: null }));
+  }
+
+  function cancelRetirement() {
+    setRetirementDraft({
+      binItemId: '',
+      reason: '',
+    });
+  }
+
+  async function confirmRetirement(row) {
+    const reason = retirementDraft.reason.trim();
+    if (!canRetireBinItems || retirementDraft.binItemId !== row.bin_item_id || !reason) {
+      setCountMessage(`retire:${row.bin_item_id}`, 'error', 'Retirement reason required.');
+      return;
+    }
+
+    const result = await retirement.retireBinItem({
+      binItemId: row.bin_item_id,
+      reason,
+    });
+
+    if (!result) {
+      setCountMessage(`retire:${row.bin_item_id}`, 'error', 'Retirement failed. Confirm zero balance and permissions.');
+      return;
+    }
+
+    setCountMessage(`retire:${row.bin_item_id}`, 'success', 'Retired from active bin views.');
+    setRetirementDraft({
+      binItemId: '',
+      reason: '',
     });
     countSheet.reload();
     readModel.reload();
@@ -1082,6 +1211,15 @@ export function InventoryWorkspace({ permissions }) {
                 compact
               />
             ) : null}
+            {canWriteCounts && !canRetireBinItems ? (
+              <StatePanel
+                eyebrow="Retirement"
+                title="Archive permission required"
+                description="Physical counts are available, but retiring a zero-balance bin/material link also requires can_archive_records."
+                tone="warning"
+                compact
+              />
+            ) : null}
             {countCorrection.error ? (
               <StatePanel
                 eyebrow="Count Error"
@@ -1125,6 +1263,15 @@ export function InventoryWorkspace({ permissions }) {
                 eyebrow="Intake Error"
                 title="Count intake failed"
                 description={countIntake.error.message || 'Check role, bin, item, count, and deployed RPC.'}
+                tone="danger"
+                compact
+              />
+            ) : null}
+            {retirement.error ? (
+              <StatePanel
+                eyebrow="Retirement Error"
+                title="Bin/material retirement failed"
+                description={retirement.error.message || 'Confirm Developer/Admin role, archive permission, zero balance, and deployed RPC.'}
                 tone="danger"
                 compact
               />
@@ -1278,7 +1425,7 @@ export function InventoryWorkspace({ permissions }) {
           <StatePanel
             eyebrow="Counts"
             title="Physical count correction is live"
-            description="Count sheet, existing row correction, and new bin/material count intake now use the preserved count RPCs."
+            description="Count sheet, existing row correction, new bin/material count intake, and zero-balance retirement now use preserved RPCs."
             tone="good"
             compact
             actions={<Scale aria-hidden="true" />}
@@ -1324,7 +1471,7 @@ export function InventoryWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Inventory"
-        description="Inventory surface using preserved read hooks plus restored cart staging, checkout, and physical count workflows. Archive actions remain deferred until their controls can be ported deliberately."
+        description="Inventory surface using preserved read hooks plus restored cart staging, checkout, physical count, and zero-balance retirement workflows. Scanner dispatch remains deferred until its controls can be ported deliberately."
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -1363,7 +1510,7 @@ export function InventoryWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Guardrails</strong>
-              <p>Cart staging, normal checkout, and count correction are live. Retirement remains a separate slice.</p>
+              <p>Cart staging, normal checkout, count correction, and zero-balance retirement are live. Scanner dispatch remains separate.</p>
             </div>
           )}
         />
@@ -1410,7 +1557,7 @@ export function InventoryWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Data Contract"
               title="No direct balance writes"
-              description="Cart, checkout, and count workflows write only through approved RPCs and do not write `inventory_balances` directly."
+              description="Cart, checkout, count, and retirement workflows write only through approved RPCs and do not write `inventory_balances` directly."
               tone="good"
               compact
               actions={<Boxes aria-hidden="true" />}
