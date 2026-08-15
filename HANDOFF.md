@@ -16109,3 +16109,98 @@ within ARCHITECTURE v2.30 / HANDOFF Entry 153.
 ### Routing Verdict
 No Claude review needed - Vehicles v3 migration reused existing read paths and
 remained within ARCHITECTURE v2.30 / HANDOFF Entry 154.
+
+## Entry 155 - Port Tools workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Tools module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `d8c3b61` (`Port Vehicles workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 154`.
+- `MIGRATION_MAP.md` identifies Tools as the sixth low-risk module.
+- ARCHITECTURE Section 36 locks this feature as **Tool Catalogue**, not Tool
+  Inventory. Checkout, assignment history, QR labels, vehicle/bin linkage, job
+  linkage, tracking history, audit table, tool-specific permission flags, and
+  purchase accounting remain reserved.
+
+### What Was Completed
+- Added a v3 `ToolsWorkspace` module under `src/modules/tools/`.
+- Registered the Tools screen in `src/modules/screens.js`.
+- Changed the Tools module registry status from `stub` to `live` while
+  preserving the existing `canManageTools` route/nav gate.
+- Added an authenticated read-only catalogue hook using the existing
+  `public.tools` table.
+- Added Tool Catalogue views:
+  - Active Tools
+  - Missing
+  - Archived
+- Added search across visible tool catalogue fields.
+- Added selected-record detail shell with tabs for:
+  - Overview
+  - Location
+  - Assignment
+  - History
+- Kept Location, Assignment, and History source-honest by showing current
+  catalogue placeholder fields and reserved-state panels rather than inventing
+  custody, storage, transfer, or history behavior.
+- Added disabled Add Tool affordance and boundary panels documenting that
+  create/edit/archive, checkout/custody, and financial fields are not part of
+  this pass.
+- Added minimal responsive Tools layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, permission flag, storage,
+  checkout, assignment, QR, vehicle/bin linkage, tracking history, audit,
+  purchase accounting, or backend behavior changed.
+- The only Supabase access added is a SELECT from existing `public.tools` with
+  the caller's Clerk/Supabase token.
+- No tool create, edit, archive, checkout, assignment, or history mutation path
+  was added.
+- The v3 copy explicitly preserves Section 36's catalogue-only boundary.
+
+### Code / File Changes
+- `src/modules/tools/ToolsWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- Static scan confirmed the Tools module only calls `from('tools')` for SELECT
+  and contains no insert/update/delete/upsert/rpc/storage/upload/download signed
+  URL calls.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Tools runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Tools-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_manage_tools` and open Tools.
+4. Confirm Tools no longer shows the v3 placeholder.
+5. Confirm active/missing/archived views and search render correctly.
+6. Confirm Add Tool is disabled and no checkout/assignment/history mutations are
+   exposed.
+7. Continue the v3 rebuild with the next low-risk module from
+   `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future Tool Catalogue writes should be ported only after deciding whether v3
+  should preserve the existing `can_manage_inventory` RLS write gate or align UI
+  routing/copy with a later tool-specific permission model.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside read-only Tool Catalogue UI, existing
+  `public.tools` reads, selected-record presentation, and responsive
+  presentation scope.
+
+### Routing Verdict
+No Claude review needed - Tools v3 migration reused existing read paths and
+remained within ARCHITECTURE v2.30 / HANDOFF Entry 155.

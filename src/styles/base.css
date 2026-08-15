@@ -731,6 +731,7 @@ textarea {
 .developer-future-note,
 .documents-workspace,
 .reports-workspace,
+.tools-workspace,
 .vehicles-workspace {
   margin-left: var(--app-page-gutter);
   margin-right: var(--app-page-gutter);
@@ -879,12 +880,15 @@ textarea {
 
 .documents-workspace,
 .reports-workspace,
+.tools-workspace,
 .vehicles-workspace {
   margin-top: var(--card-gap);
 }
 
 .documents-action-map,
 .reports-source-grid,
+.tools-boundary-grid,
+.tools-fact-grid,
 .vehicles-boundary-grid,
 .vehicles-fact-grid {
   display: grid;

@@ -97,7 +97,7 @@ export const MODULES = [
     label: 'Tools',
     icon: Wrench,
     requires: ['canManageTools'],
-    status: 'stub',
+    status: 'live',
     description: 'Tool catalogue and custody.',
   },
   {
