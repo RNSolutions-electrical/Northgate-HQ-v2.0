@@ -730,6 +730,7 @@ textarea {
 .developer-links,
 .developer-future-note,
 .documents-workspace,
+.employees-workspace,
 .reports-workspace,
 .tools-workspace,
 .vehicles-workspace {
@@ -879,6 +880,7 @@ textarea {
 }
 
 .documents-workspace,
+.employees-workspace,
 .reports-workspace,
 .tools-workspace,
 .vehicles-workspace {
@@ -886,6 +888,8 @@ textarea {
 }
 
 .documents-action-map,
+.employees-boundary-grid,
+.employees-fact-grid,
 .reports-source-grid,
 .tools-boundary-grid,
 .tools-fact-grid,

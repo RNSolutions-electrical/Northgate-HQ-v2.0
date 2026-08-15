@@ -16204,3 +16204,95 @@ remained within ARCHITECTURE v2.30 / HANDOFF Entry 154.
 ### Routing Verdict
 No Claude review needed - Tools v3 migration reused existing read paths and
 remained within ARCHITECTURE v2.30 / HANDOFF Entry 155.
+
+## Entry 156 - Port Employees workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Employees module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `ce8f9ef` (`Port Tools workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 155`.
+- `MIGRATION_MAP.md` identifies Employees as the seventh module and notes that
+  PII needs a presentation-contract audit.
+- The preserved v2 Employees workspace used the existing
+  `inventory_destination_users_view` read path. This v3 port reuses that
+  authenticated reference view and does not create a new HR or identity data
+  contract.
+
+### What Was Completed
+- Added a v3 `EmployeesWorkspace` module under `src/modules/employees/`.
+- Registered the Employees screen in `src/modules/screens.js`.
+- Changed the Employees module registry status from `stub` to `live` while
+  preserving the existing `canManageEmployees` route/nav gate.
+- Added an authenticated read-only directory hook using
+  `inventory_destination_users_view`.
+- Added Employee Directory and My Information views.
+- Added search across visible display name, email, role, and division fields.
+- Added selected-record detail shell with tabs for:
+  - Overview
+  - Contact
+  - Assignments
+  - Activity
+- Kept contact, assignment, and activity regions source-honest by showing only
+  fields exposed by the existing reference view and reserving other sections.
+- Added disabled Create Employee affordance and boundary panels documenting that
+  HR records, account creation, role edits, permission edits, and additional PII
+  fields are not part of this pass.
+- Added minimal responsive Employees layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, permission flag, Clerk identity,
+  HR source record, role, permission override, vehicle/tool/job assignment,
+  document, activity-history, or backend behavior changed.
+- The only Supabase access added is a SELECT from existing
+  `inventory_destination_users_view` with the caller's Clerk/Supabase token.
+- No employee create, edit, archive, role, permission, Clerk, invitation, or
+  identity mutation path was added.
+- Only the fields exposed by the existing reference view are rendered:
+  `clerk_user_id`, `display_name`, `email`, `role`, and `division`.
+
+### Code / File Changes
+- `src/modules/employees/EmployeesWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- Static scan confirmed the Employees module only calls
+  `from('inventory_destination_users_view')` for SELECT and contains no
+  insert/update/delete/upsert/rpc/storage/upload/download signed URL calls.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Employees runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Employees-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_manage_employees` and open Employees.
+4. Confirm Employees no longer shows the v3 placeholder.
+5. Confirm Employee Directory, My Information, and search render correctly.
+6. Confirm Create Employee is disabled and no role/permission/Clerk/identity
+   mutations are exposed.
+7. Continue the v3 rebuild with the next low-risk module from
+   `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future employee create/edit and richer PII fields need an explicit source and
+  visibility contract before being ported.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside read-only Employees UI, existing
+  user-reference reads, selected-record presentation, and responsive
+  presentation scope.
+
+### Routing Verdict
+No Claude review needed - Employees v3 migration reused existing read paths and
+remained within ARCHITECTURE v2.30 / HANDOFF Entry 156.

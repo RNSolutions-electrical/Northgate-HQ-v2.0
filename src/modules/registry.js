@@ -79,7 +79,7 @@ export const MODULES = [
     label: 'Employees',
     icon: Users,
     requires: ['canManageEmployees'],
-    status: 'stub',
+    status: 'live',
     description: 'Directory, credentials, and assignments.',
   },
   {
