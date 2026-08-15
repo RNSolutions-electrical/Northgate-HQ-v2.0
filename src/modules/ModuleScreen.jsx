@@ -24,6 +24,18 @@ export function ModuleScreen({ moduleKey }) {
 
   if (!module) return <Navigate to="/dashboard" replace />;
 
+  if (permissions.isLoading) {
+    return (
+      <StatePanel
+        eyebrow="Northgate HQ"
+        title="Checking your access..."
+        description="Hold tight while the server permission record loads."
+        tone="neutral"
+        compact
+      />
+    );
+  }
+
   if (!isModulePermitted(module, permissions)) {
     return <Navigate to="/dashboard" replace />;
   }

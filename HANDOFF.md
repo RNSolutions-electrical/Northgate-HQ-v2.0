@@ -17517,3 +17517,53 @@ v2.30 / HANDOFF Entry 167.
 No Claude review needed - this is a QR parser/manual lookup hotfix only and
 does not change schema, RLS, permissions, write paths, balance writes, or
 ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 168.
+
+## Entry 169 - Fix scan dispatch route guard race in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory QR dispatch hotfix
+**Session type:** bug fix
+
+### Context
+- Starting commit: `513daef` (`Fix Inventory QR scan input acceptance`).
+- Ryan reported opening Cart from the material scan component redirected back
+  to Dashboard.
+- The scan result dispatch navigates to `/inventory?view=cart&scanBinId=...`.
+- `ModuleScreen` was re-checking permissions immediately and redirecting if
+  inventory permission flags were still at their default loading/deny state.
+
+### What Was Completed
+- Updated `ModuleScreen` to wait while `usePermissions()` is loading before
+  applying the module authorization redirect.
+- Added a compact access-checking state instead of redirecting during the
+  permission refresh window.
+- Left the server-authoritative route permission check intact once permissions
+  finish loading.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, RPC definition, or inventory workflow changed.
+- This fix affects route-guard timing only.
+- Unauthorized users are still redirected after permissions load.
+
+### Code / File Changes
+- `src/modules/ModuleScreen.jsx`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live scan-to-cart verification remains pending from Ryan's
+  browser after deployment.
+
+### Next Steps
+1. Commit and push this route-guard hotfix.
+2. Deploy to production.
+3. Re-test opening Cart and Count from the scan result.
+
+### Routing Verdict
+No Claude review needed - this is a route-guard loading-state fix only and
+does not change schema, RLS, permissions, write paths, balance writes, or
+ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 169.
