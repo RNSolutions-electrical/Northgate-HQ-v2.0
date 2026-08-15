@@ -123,7 +123,7 @@ export const MODULES = [
     label: 'Accounting',
     icon: CircleDollarSign,
     requires: ['canViewFinancials'],
-    status: 'stub',
+    status: 'live',
     description: 'Review queue, pricing controls, and approved exports.',
   },
   {

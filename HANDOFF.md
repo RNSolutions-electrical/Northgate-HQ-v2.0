@@ -16722,3 +16722,110 @@ No Claude review needed - Inventory v3 migration made only the read-first
 workspace live and did not change schema, RLS, permissions, writes, cart,
 checkout, count correction, count intake, bin retirement, ledger derivation, or
 `inventory_balances` behavior under ARCHITECTURE v2.30 / HANDOFF Entry 160.
+
+## Entry 161 - Port Accounting review workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Accounting module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `d946144` (`Port Inventory read workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 160`.
+- `MIGRATION_MAP.md` identifies Accounting as the twelfth module and notes
+  that it depends on Jobs and Inventory being migrated first.
+- ARCHITECTURE v2.26 Section 44 locks the Job Financials Budget Foundation as
+  `job_budget_lines` only; actual cost, committed cost, issued inventory
+  value, contract value, revenue, profit, PO, invoice, change order, and
+  accounting integration remain reserved.
+
+### What Was Completed
+- Added a v3 `AccountingWorkspace` module under `src/modules/accounting/`.
+- Registered the Accounting screen in `src/modules/screens.js`.
+- Changed the Accounting module registry status from `stub` to `live` while
+  preserving the existing `canViewFinancials` route/nav gate.
+- Added an authenticated read-only Accounting review surface over the existing
+  `job_budget_lines` table.
+- Added Accounting views:
+  - Budget Review
+  - Category Totals
+  - Export Readiness
+  - Reserved Controls
+- Added summary cards for active authorized budget lines, total budget
+  foundation amount, distinct jobs, and visible divisions.
+- Added bounded client-side filtering over authorized budget review rows.
+- Added category totals derived client-side from already-authorized budget
+  rows.
+- Added explicit reserved-state panels for export behavior, pricing controls,
+  actuals, purchase orders, invoices, and accounting posting.
+- Added minimal responsive Accounting layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
+  export, invoice, purchase order, pricing, inventory, job, estimate, budget
+  write, or backend behavior changed.
+- No accounting export file is generated.
+- No pricing-control write path was added.
+- No actuals, committed cost, issued inventory value, contract value, revenue,
+  profit, PO, invoice, change order, reconciliation, or external accounting
+  integration was added.
+- The only active data path is a caller-token SELECT from existing
+  `job_budget_lines`, filtered to active rows with `archived_at IS NULL`.
+- The Accounting route remains hidden unless `canViewFinancials` is true, and
+  Supabase RLS remains authoritative for every returned budget row.
+
+### Code / File Changes
+- `src/modules/accounting/AccountingWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- Static scan of `src/modules/accounting/AccountingWorkspace.jsx` confirmed the
+  only Supabase data call is `from('job_budget_lines')`.
+- Static scan confirmed no insert, update, delete, upsert, RPC, storage, fetch,
+  invoice, purchase-order, export-generation, inventory, job, estimate, or
+  pricing-write path was added.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables, but this pass
+  only reuses the existing `public.job_budget_lines` table and adds no
+  migration.
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Accounting runtime verification remains pending from
+  Ryan's browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Accounting review-workspace migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_view_financials` and open Accounting.
+4. Confirm Accounting no longer shows the v3 placeholder.
+5. Confirm Budget Review, Category Totals, Export Readiness, and Reserved
+   Controls render correctly.
+6. Confirm no export, invoice, purchase order, pricing, approval, or accounting
+   posting action is exposed.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future Accounting work should be split deliberately:
+  - controlled exports;
+  - job-cost/accounting approval mechanism;
+  - invoice review;
+  - purchase-order integration;
+  - external accounting-system integration.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside the existing Budget Foundation read path
+  and did not add accounting semantics beyond read-only review.
+
+### Routing Verdict
+No Claude review needed - Accounting v3 migration made only a read-only review
+workspace live over the existing Budget Foundation and did not change schema,
+RLS, permissions, writes, exports, invoices, purchase orders, pricing controls,
+actuals, inventory, jobs, estimates, or accounting posting under ARCHITECTURE
+v2.30 / HANDOFF Entry 161.

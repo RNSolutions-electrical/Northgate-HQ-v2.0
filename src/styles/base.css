@@ -729,6 +729,7 @@ textarea {
 .developer-grid,
 .developer-links,
 .developer-future-note,
+.accounting-workspace,
 .documents-workspace,
 .employees-workspace,
 .estimates-workspace,
@@ -884,6 +885,7 @@ textarea {
 }
 
 .documents-workspace,
+.accounting-workspace,
 .employees-workspace,
 .estimates-workspace,
 .inventory-workspace,
@@ -1066,6 +1068,8 @@ textarea {
 }
 
 .documents-action-map,
+.accounting-boundary-grid,
+.accounting-category-grid,
 .employees-boundary-grid,
 .employees-fact-grid,
 .estimates-boundary-grid,
@@ -1082,6 +1086,12 @@ textarea {
 }
 
 .documents-action-map .state-panel__actions svg {
+  width: 20px;
+  height: 20px;
+  color: var(--ng-brand-red);
+}
+
+.accounting-boundary-grid .state-panel__actions svg {
   width: 20px;
   height: 20px;
   color: var(--ng-brand-red);
