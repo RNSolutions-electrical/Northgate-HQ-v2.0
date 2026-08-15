@@ -16829,3 +16829,89 @@ workspace live over the existing Budget Foundation and did not change schema,
 RLS, permissions, writes, exports, invoices, purchase orders, pricing controls,
 actuals, inventory, jobs, estimates, or accounting posting under ARCHITECTURE
 v2.30 / HANDOFF Entry 161.
+
+## Entry 162 - Northgate HQ v3 top-level module migration complete
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / top-level module migration checkpoint
+**Session type:** coordination checkpoint
+
+### Context
+- Starting commit: `2da86e1` (`Port Accounting review workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 161`.
+- Ryan verified Accounting in production and replied "good to go. proceed."
+- Accounting was the twelfth and final module listed in `MIGRATION_MAP.md`.
+
+### What Was Confirmed
+- All twelve top-level v3 modules listed in `MIGRATION_MAP.md` have now been
+  migrated out of the not-yet-migrated placeholder route:
+  - Dashboard
+  - Developer
+  - Reports
+  - Documents
+  - Vehicles
+  - Tools
+  - Employees
+  - Silas
+  - Estimates
+  - Jobs
+  - Inventory
+  - Accounting
+- `src/modules/registry.js` now marks every top-level module as `status:
+  'live'`.
+- `src/modules/screens.js` now registers all twelve top-level module screens.
+- Static search found no active `status: 'stub'` module entries. The only
+  remaining `status: 'stub'` hit is the registry comment explaining the
+  migration pattern.
+- Ryan has browser-verified each migrated module in production through the
+  Accounting checkpoint.
+
+### Safety And Boundary Notes
+- This checkpoint made no app-code, schema, RLS, permission, auth, storage,
+  RPC, Netlify function, Supabase, or runtime behavior change.
+- Existing deferred/reserved feature panels remain intentionally deferred. This
+  checkpoint only closes the top-level placeholder migration.
+- The known non-blocking Silas UI bug remains carried forward: when a new chat
+  is sent, the screen can jump to the top. Ryan explicitly asked to track this
+  for later rather than fix it during the module migration pass.
+
+### Verification
+- `git status --short` was clean before this checkpoint entry.
+- `MIGRATION_MAP.md` was reviewed and Accounting was confirmed as the final
+  planned top-level module.
+- `src/modules/registry.js` was inspected and all module registry entries are
+  live.
+- `src/modules/screens.js` was inspected and all twelve module screens are
+  registered.
+- Static search confirmed no active `status: 'stub'` module entries remain.
+
+### Next Steps (in order)
+1. Commit and push this completion checkpoint.
+2. Start the next v3 rebuild phase from the carried-forward functional slices,
+   not from placeholder removal.
+3. Recommended next slice: Inventory write-flow restoration in small bounded
+   passes, beginning with cart open/read/add/remove before checkout
+   finalization, count workflows, or bin-item retirement.
+4. Separately schedule the known Silas scroll-jump bug as a focused UI fix.
+
+### Open Questions / Concerns
+- Top-level module placeholders are complete, but several intentionally
+  deferred sub-features remain:
+  - Inventory cart/checkout/count/retirement writes;
+  - Jobs materials, buyout, transactions, financials, documents, and schedule
+    deeper slices;
+  - Accounting controlled exports, approvals, invoices, POs, and external
+    integration;
+  - Silas floating bubble reintroduction and scroll polish.
+- Each deferred feature should still get its own architecture/boundary preflight
+  before implementation.
+
+### Architecture Drift Warnings
+- None active. This is a documentation checkpoint only.
+
+### Routing Verdict
+No Claude review needed - this checkpoint only records that the top-level v3
+module migration is complete and does not modify application behavior under
+ARCHITECTURE v2.30 / HANDOFF Entry 162.
