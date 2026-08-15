@@ -1145,6 +1145,52 @@ textarea {
   gap: var(--card-gap);
 }
 
+.inventory-cart-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.6rem;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.inventory-cart-facts span {
+  min-width: 0;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+  padding: 0.65rem;
+}
+
+.inventory-cart-facts strong {
+  color: var(--ng-text);
+  overflow-wrap: anywhere;
+}
+
+.inventory-cart-action-cell {
+  display: grid;
+  grid-template-columns: minmax(74px, 92px) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.inventory-cart-action-cell input {
+  min-width: 0;
+  min-height: 34px;
+}
+
+.inventory-cart-row-message {
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.inventory-cart-row-message--success {
+  color: var(--ng-ok);
+}
+
+.inventory-cart-row-message--error {
+  color: var(--ng-err);
+}
+
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
   .developer-grid,

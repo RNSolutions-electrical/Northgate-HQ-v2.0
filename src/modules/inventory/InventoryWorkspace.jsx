@@ -4,9 +4,11 @@ import {
   History,
   MapPinned,
   PackageSearch,
+  Plus,
   RefreshCw,
   Scale,
   ShoppingCart,
+  Trash2,
   Truck,
   Users,
 } from 'lucide-react';
@@ -18,13 +20,14 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { useInventoryCart } from '../../hooks/useInventoryCart.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
 
 const INVENTORY_VIEWS = [
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
   { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units and bin previews.' },
-  { key: 'checkout', label: 'Checkout Candidates', icon: ShoppingCart, description: 'Rows currently available to add to cart.' },
+  { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
   { key: 'destinations', label: 'Destinations', icon: Truck, description: 'Approved user and vehicle destination references.' },
   { key: 'history', label: 'Transaction History', icon: History, description: 'Read-only ledger history through the preserved RPC.' },
   { key: 'controls', label: 'Reserved Controls', icon: ClipboardList, description: 'Cart, checkout, count, and archive boundaries.' },
@@ -72,6 +75,15 @@ const CANDIDATE_COLUMNS = [
   { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
 ];
 
+const CART_COLUMNS = [
+  { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
+  { key: 'item_name', header: 'Item' },
+  { key: 'bin_code', header: 'Bin' },
+  { key: 'quantity', header: 'Qty', numeric: true, render: (row) => formatQuantity(row.quantity) },
+  { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
+  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand) },
+];
+
 const USER_COLUMNS = [
   { key: 'display_name', header: 'Name', render: (row) => <strong>{row.display_name || row.email || row.clerk_user_id}</strong> },
   { key: 'email', header: 'Email', fallback: '-' },
@@ -109,6 +121,12 @@ function formatMoney(value) {
   return numeric.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 }
 
+function formatQuantity(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '-';
+  return numeric.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 function formatDateTime(value) {
   if (!value) return '-';
   const date = new Date(value);
@@ -134,10 +152,13 @@ function filterRows(rows, search, fields) {
 export function InventoryWorkspace({ permissions }) {
   const canLoadInventory = permissions.permissionSource === 'server';
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
+  const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState('catalog');
   const [search, setSearch] = useState('');
   const [historyType, setHistoryType] = useState('');
   const [historySearch, setHistorySearch] = useState('');
+  const [candidateQuantities, setCandidateQuantities] = useState({});
+  const [candidateMessages, setCandidateMessages] = useState({});
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -152,6 +173,13 @@ export function InventoryWorkspace({ permissions }) {
   const counts = model.counts;
   const canTransact = permissions?.canInventoryTransactions === true;
   const canManageInventory = permissions?.canManageInventory === true;
+  const cart = cartState.cart;
+  const cartIsActive = cart?.status === 'active';
+  const cartActionInProgress =
+    cartState.isOpening ||
+    cartState.isAddingItem ||
+    cartState.isRemovingItem ||
+    cartState.isReadingItems;
 
   const visibleCatalogue = useMemo(
     () => filterRows(model.catalogPreview, search, ['material_code', 'name', 'broad_category', 'sub_category', 'division']),
@@ -182,13 +210,122 @@ export function InventoryWorkspace({ permissions }) {
     const badge = {
       catalog: counts.activeItems,
       storage: counts.bins,
-      checkout: model.cartCandidates.length,
+      cart: cartState.cartItems.length || model.cartCandidates.length,
       destinations: model.destinationReferences.users.length + model.destinationReferences.vehicles.length,
       history: history.rows.length,
       controls: null,
     }[view.key];
     return { ...view, badge };
   });
+
+  const candidateColumns = useMemo(() => [
+    ...CANDIDATE_COLUMNS,
+    {
+      key: 'stage_quantity',
+      header: 'Stage',
+      render: (row) => (
+        <div className="inventory-cart-action-cell">
+          <label>
+            <span className="sr-only">Quantity for {row.item_name}</span>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={candidateQuantities[row.bin_item_id] ?? '1'}
+              onChange={(event) => updateCandidateQuantity(row.bin_item_id, event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={!canTransact || !cartIsActive || cartActionInProgress}
+            onClick={() => handleAddCandidate(row)}
+          >
+            <Plus aria-hidden="true" /> Add
+          </button>
+        </div>
+      ),
+    },
+    {
+      key: 'message',
+      header: 'Result',
+      render: (row) => candidateMessages[row.bin_item_id] ? (
+        <span className={`inventory-cart-row-message inventory-cart-row-message--${candidateMessages[row.bin_item_id].tone}`}>
+          {candidateMessages[row.bin_item_id].text}
+        </span>
+      ) : '-',
+    },
+  ], [canTransact, candidateMessages, candidateQuantities, cartActionInProgress, cartIsActive]);
+
+  const cartColumns = useMemo(() => [
+    ...CART_COLUMNS,
+    {
+      key: 'remove',
+      header: 'Remove',
+      render: (row) => (
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={!cartIsActive || cartActionInProgress}
+          onClick={() => handleRemoveCartItem(row.cart_item_id)}
+        >
+          <Trash2 aria-hidden="true" /> Remove
+        </button>
+      ),
+    },
+  ], [cartActionInProgress, cartIsActive]);
+
+  function updateCandidateQuantity(binItemId, value) {
+    setCandidateQuantities((current) => ({
+      ...current,
+      [binItemId]: value,
+    }));
+  }
+
+  function setCandidateMessage(binItemId, tone, text) {
+    setCandidateMessages((current) => ({
+      ...current,
+      [binItemId]: { tone, text },
+    }));
+  }
+
+  function getCandidateQuantity(candidate) {
+    const rawValue = candidateQuantities[candidate.bin_item_id] ?? '1';
+    const numeric = Number(rawValue);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  async function handleOpenCart() {
+    await cartState.openCart();
+  }
+
+  async function handleAddCandidate(candidate) {
+    if (!cart?.cart_id || !cartIsActive) return;
+
+    const quantity = getCandidateQuantity(candidate);
+    if (quantity <= 0) {
+      setCandidateMessage(candidate.bin_item_id, 'error', 'Enter a quantity greater than 0.');
+      return;
+    }
+
+    const result = await cartState.addItem({
+      cartId: cart.cart_id,
+      binItemId: candidate.bin_item_id,
+      quantity,
+    });
+
+    if (result) {
+      updateCandidateQuantity(candidate.bin_item_id, '1');
+      setCandidateMessage(candidate.bin_item_id, 'success', `Added ${formatQuantity(quantity)}.`);
+    } else {
+      setCandidateMessage(candidate.bin_item_id, 'error', 'Add failed. Check balance or permissions.');
+    }
+  }
+
+  async function handleRemoveCartItem(cartItemId) {
+    if (!cart?.cart_id || !cartIsActive) return;
+    await cartState.removeItem({ cartId: cart.cart_id, cartItemId });
+  }
 
   function renderActiveView() {
     if (activeView === 'storage') {
@@ -238,28 +375,73 @@ export function InventoryWorkspace({ permissions }) {
       );
     }
 
-    if (activeView === 'checkout') {
+    if (activeView === 'cart') {
       return (
-        <article className="card workspace-card">
-          <Toolbar
-            eyebrow="Checkout"
-            title="Checkout Candidates"
-            description="Read-only list of rows currently available to add to a cart. Cart open/add/remove/finalize is deferred in this v3 slice."
-            dense
-          />
-          <DataTable
-            columns={CANDIDATE_COLUMNS}
-            rows={visibleCandidates}
-            getRowKey={(row) => row.bin_item_id}
-            permissions={permissions}
-            isLoading={readModel.isLoading}
-            error={readModel.error}
-            dense
-            minWidth="860px"
-            emptyTitle="No checkout candidates in preview"
-            emptyDescription="Only positive on-hand rows from the preserved read model appear here."
-          />
-        </article>
+        <div className="inventory-section-stack">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Cart"
+              title="Active Inventory Cart"
+              description="Open or reuse your active server cart. Staging material here does not change inventory balances; checkout remains a separate future slice."
+              actions={(
+                <button type="button" className="primary-button" onClick={handleOpenCart} disabled={!canTransact || cartActionInProgress || cartIsActive}>
+                  <ShoppingCart aria-hidden="true" /> {cartState.isOpening ? 'Opening...' : cartIsActive ? 'Cart Open' : 'Open Cart'}
+                </button>
+              )}
+              dense
+            />
+
+            {cartState.error ? (
+              <StatePanel
+                eyebrow="Cart Error"
+                title="Cart action failed"
+                description={cartState.error.message || 'Check permissions, available balance, or deployment status.'}
+                tone="danger"
+                compact
+              />
+            ) : null}
+
+            <div className="inventory-cart-facts">
+              <span>Status: <strong>{cart?.status ?? 'Not opened'}</strong></span>
+              <span>Rows: <strong>{cartState.cartItems.length}</strong></span>
+              <span>Cart ID: <strong>{cart?.cart_id ? `${cart.cart_id.slice(0, 8)}...` : 'None'}</strong></span>
+              <span>Expires: <strong>{cart?.expires_at ? formatDateTime(cart.expires_at) : '-'}</strong></span>
+            </div>
+
+            <DataTable
+              columns={cartColumns}
+              rows={cartState.cartItems}
+              getRowKey={(row) => row.cart_item_id}
+              permissions={permissions}
+              isLoading={cartState.isReadingItems}
+              dense
+              minWidth="900px"
+              emptyTitle="No staged cart lines"
+              emptyDescription="Open a cart, then add stocked candidate rows below. Checkout finalization is not exposed in this slice."
+            />
+          </article>
+
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Candidates"
+              title="Add Stocked Rows"
+              description="Rows come from the existing cart-candidates read model. Add-to-cart uses the preserved server RPC and respects current available balance."
+              dense
+            />
+            <DataTable
+              columns={candidateColumns}
+              rows={visibleCandidates}
+              getRowKey={(row) => row.bin_item_id}
+              permissions={permissions}
+              isLoading={readModel.isLoading}
+              error={readModel.error}
+              dense
+              minWidth="1080px"
+              emptyTitle="No checkout candidates in preview"
+              emptyDescription="Only positive on-hand rows from the preserved read model appear here."
+            />
+          </article>
+        </div>
       );
     }
 
@@ -362,9 +544,9 @@ export function InventoryWorkspace({ permissions }) {
         <section className="inventory-boundary-grid">
           <StatePanel
             eyebrow="Cart / Checkout"
-            title="Cart mutations stay deferred"
-            description="The preserved cart hook and RPCs remain untouched. This pass does not open carts, add/remove items, finalize checkout, or change destination handling."
-            tone="warning"
+            title="Cart staging is live"
+            description="Open cart, read cart lines, add stocked candidates, and remove staged lines now use the preserved server RPCs. Checkout finalization remains deferred."
+            tone="good"
             compact
             actions={<ShoppingCart aria-hidden="true" />}
           />
@@ -417,7 +599,7 @@ export function InventoryWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Inventory"
-        description="Read-first v3 Inventory surface using preserved inventory hooks. Cart, checkout, counts, and archive actions remain deferred until their controls can be ported deliberately."
+        description="Inventory surface using preserved read hooks plus the first restored cart-staging flow. Checkout finalization, counts, and archive actions remain deferred until their controls can be ported deliberately."
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -435,7 +617,7 @@ export function InventoryWorkspace({ permissions }) {
         <SummaryCard label="Active items" value={counts.activeItems} detail="Current catalogue count" />
         <SummaryCard label="Bins" value={counts.bins} detail={`${counts.storageUnits} units / ${counts.shelves} shelves / ${counts.bays} bays`} />
         <SummaryCard label="Bin items" value={counts.binItems} detail={`${counts.inventoryBalances} balance rows`} />
-        <SummaryCard label="Cart candidates" value={model.cartCandidates.length} detail="Positive on-hand preview rows" />
+        <SummaryCard label="Cart rows" value={cartState.cartItems.length} detail={`${model.cartCandidates.length} stocked candidate rows`} />
       </div>
 
       <div className={`workspace-split inventory-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -456,7 +638,7 @@ export function InventoryWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Guardrails</strong>
-              <p>Cart, checkout, count correction, and retirement flows are preserved but not reintroduced in this first v3 slice.</p>
+              <p>Cart staging is live. Checkout finalization, count correction, and retirement flows remain separate slices.</p>
             </div>
           )}
         />
@@ -503,7 +685,7 @@ export function InventoryWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Data Contract"
               title="No direct balance writes"
-              description="This v3 pass reads the existing model and transaction history only; it does not write `inventory_balances` or reimplement ledger derivation."
+              description="Cart staging writes only through approved cart RPCs and does not write `inventory_balances`; balances still change only on checkout finalization."
               tone="good"
               compact
               actions={<Boxes aria-hidden="true" />}

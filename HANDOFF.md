@@ -16915,3 +16915,111 @@ v2.30 / HANDOFF Entry 161.
 No Claude review needed - this checkpoint only records that the top-level v3
 module migration is complete and does not modify application behavior under
 ARCHITECTURE v2.30 / HANDOFF Entry 162.
+
+## Entry 163 - Restore Inventory cart staging in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory cart staging
+**Session type:** implementation
+
+### Context
+- Starting commit: `f99f940` (`Record v3 module migration completion`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 162`.
+- Ryan approved proceeding after the top-level module migration was completed.
+- Entry 162 recommended the next slice as Inventory write-flow restoration,
+  beginning with cart open/read/add/remove before checkout finalization, count
+  workflows, or bin-item retirement.
+- The preserved `useInventoryCart` hook already wraps the approved cart RPCs:
+  `open_inventory_cart`, `read_inventory_cart_items`,
+  `add_inventory_cart_item`, and `remove_inventory_cart_item`.
+
+### What Was Completed
+- Updated the v3 Inventory workspace Cart view from read-only checkout
+  candidates to the first live cart-staging surface.
+- Added `useInventoryCart` to `InventoryWorkspace`.
+- Replaced the old `Checkout Candidates` sidebar item with `Cart`.
+- Added an `Open Cart` action that calls the preserved `open_inventory_cart`
+  RPC through `useInventoryCart`.
+- Added active cart facts for status, row count, cart ID, and expiration.
+- Added a staged cart-lines table sourced from
+  `read_inventory_cart_items`.
+- Added remove buttons for staged cart lines that call
+  `remove_inventory_cart_item` through `useInventoryCart`.
+- Added stocked candidate quantity inputs and Add buttons that call
+  `add_inventory_cart_item` through `useInventoryCart`.
+- Added per-candidate success/error messages after add attempts.
+- Updated Inventory copy and summary cards to show cart staging is live while
+  checkout finalization, counts, and retirement remain deferred.
+- Added focused CSS for cart facts, action cells, and row messages.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, or RPC definition changed.
+- No direct `inventory_carts`, `inventory_cart_items`, `inventory_balances`,
+  `inventory_transactions`, or `transaction_items` client mutation was added.
+- Cart open, add, remove, and read are performed only through the preserved
+  server RPC wrappers in `useInventoryCart`.
+- Checkout/finalization remains deferred. The v3 Inventory module does not call
+  `checkoutCart` or expose `finalize_inventory_cart`.
+- Staging cart lines does not change inventory balances. Balances remain
+  transaction-derived and change only through future checkout finalization.
+- Count intake, count correction, bin-item retirement, QR scan dispatch, and
+  checkout destination handling remain separate future slices.
+
+### Code / File Changes
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Static scan confirmed the v3 Inventory workspace imports and uses
+  `useInventoryCart`.
+- Static scan confirmed the v3 Inventory workspace calls only:
+  - `cartState.openCart`
+  - `cartState.addItem`
+  - `cartState.removeItem`
+- Static scan confirmed the v3 Inventory workspace does not call
+  `cartState.checkoutCart`, `checkoutCart`, `finalize_inventory_cart`, or a
+  checkout handler.
+- Static scan confirmed the v3 Inventory workspace does not contain direct
+  insert, update, delete, or upsert calls.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables/functions, but
+  this pass adds no new table, function, migration, or grant and reuses
+  existing cart RPCs.
+- Authenticated live cart-staging runtime verification remains pending from
+  Ryan's browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Inventory cart-staging slice.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_inventory_transactions`.
+4. Open Inventory > Cart.
+5. Confirm Open Cart works and shows an active cart.
+6. Add one stocked candidate row with a small quantity and confirm it appears
+   in the staged cart table.
+7. Remove that staged cart line and confirm the row disappears.
+8. Confirm no checkout/finalize action is exposed yet.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- The next Inventory slice should be decided after cart staging is verified:
+  likely checkout destination UI/finalization, then count workflows, then
+  bin-item retirement.
+
+### Architecture Drift Warnings
+- None active. This pass reintroduced only the preserved cart-staging RPC
+  wrappers and did not change checkout, ledger derivation, count correction, or
+  balance behavior.
+
+### Routing Verdict
+No Claude review needed - Inventory cart staging reused existing approved RPCs
+and did not change schema, RLS, permissions, checkout finalization, count
+workflows, bin retirement, direct balance writes, or ledger derivation under
+ARCHITECTURE v2.30 / HANDOFF Entry 163.
