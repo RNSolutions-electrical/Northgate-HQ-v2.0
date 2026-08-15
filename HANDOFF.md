@@ -18236,3 +18236,84 @@ controls, audit behavior, cost report import, and permission model.
 - Confirm whether Developer Console helper assignment should be per job, per
   division, or time-limited.
 - Confirm which audit-log table/function is canonical for Financials changes.
+
+---
+
+## Entry 180 — Jobs Schedule v3 Port
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan said to proceed after Financials was live and the Financials edit/import
+requirements were captured. The next Jobs cleanup slice was Schedule. The v2
+schema and architecture already contained the locked `job_schedule_items`
+foundation and archive RLS fixes, so this v3 pass reused that table rather than
+creating new schema.
+
+### What Was Completed
+- Activated the selected Job `Schedule` tab in v3.
+- Added live Supabase reads from `public.job_schedule_items`.
+- Active Schedule reads explicitly filter `archived_at IS NULL`.
+- Added Schedule summary cards:
+  - active items
+  - complete count
+  - delayed count
+  - overdue count
+  - next dated open item
+- Added Schedule table columns for:
+  - sort order
+  - milestone/task title
+  - status
+  - target date
+  - timing
+  - description
+  - notes
+- Added Schedule add/edit form for:
+  - title
+  - description
+  - target date
+  - status
+  - sort order
+  - note
+- Added soft-archive control with required archive reason prompt.
+- Added up/down ordering controls that renumber visible items in 10-point
+  increments after each move.
+- Updated Jobs overview/boundary copy so Schedule no longer presents as
+  deferred.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice.
+- No production DDL was applied in this slice.
+- Production table inspection confirmed `public.job_schedule_items` already
+  exists with RLS enabled.
+- Schedule remains the locked flat milestone/task list only.
+- This slice does not add calendar sync, dependency management, assignments,
+  reminders, notifications, recurring events, or any broader scheduling engine.
+- Archive uses the existing soft-archive columns:
+  `archived_at`, `archived_by`, and `archive_reason`.
+
+### Next Steps (in order)
+1. Ryan verifies the Schedule tab loads for a selected job.
+2. Ryan adds a schedule item and confirms it appears in the table.
+3. Ryan edits a schedule item.
+4. Ryan tests up/down ordering.
+5. Ryan archives a test schedule item with a reason.
+6. Proceed to the next Jobs slice after Schedule is verified.
+
+### Open Questions / Concerns
+- Archive is prompted with `window.prompt` for now. A polished modal can replace
+  it during final hardening if desired.
+- Schedule edit/archive actions currently rely on the existing table policies;
+  no new audit-log behavior was introduced in this slice.
+- Calendar sync, dependency logic, and assignments remain reserved.

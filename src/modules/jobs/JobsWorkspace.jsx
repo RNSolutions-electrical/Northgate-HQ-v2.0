@@ -1,6 +1,8 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   Archive,
+  ArrowDown,
+  ArrowUp,
   BriefcaseBusiness,
   CircleDollarSign,
   ClipboardList,
@@ -60,6 +62,20 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   actual_cost_amount: '',
   committed_cost_amount: '',
   forecast_to_complete_amount: '',
+  note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+const EMPTY_SCHEDULE_ITEMS = Object.freeze([]);
+const SCHEDULE_STATUS_OPTIONS = ['pending', 'in_progress', 'complete', 'delayed'];
+const DEFAULT_SCHEDULE_FORM = Object.freeze({
+  id: '',
+  title: '',
+  description: '',
+  target_date: '',
+  status: 'pending',
+  sort_order: '',
   note: '',
   isSaving: false,
   error: null,
@@ -143,6 +159,21 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'created_by',
 ].join(', ');
 
+const JOB_SCHEDULE_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'title',
+  'description',
+  'target_date',
+  'status',
+  'sort_order',
+  'note',
+  'created_by',
+].join(', ');
+
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 
 const JOB_VIEWS = [
@@ -181,8 +212,8 @@ const RESERVED_TABS = Object.freeze({
   },
   schedule: {
     eyebrow: 'Schedule',
-    title: 'Schedule remains deferred in v3 Jobs',
-    description: 'The locked schedule model is a flat milestone/task list only. This pass does not read or write job_schedule_items or calendar data.',
+    title: 'Schedule is available for key milestones',
+    description: 'Schedule tracks key milestones and tasks for this job. It does not sync with a calendar or manage dependencies between items.',
   },
 });
 
@@ -235,6 +266,21 @@ function formatBudgetCategory(value) {
   }
 }
 
+function formatScheduleStatus(value) {
+  switch (value) {
+    case 'in_progress':
+      return 'In Progress';
+    case 'complete':
+      return 'Complete';
+    case 'delayed':
+      return 'Delayed';
+    case 'pending':
+      return 'Pending';
+    default:
+      return value || '-';
+  }
+}
+
 function formatJobType(value) {
   return value === 'service_call' ? 'Service Call' : 'Job';
 }
@@ -243,6 +289,12 @@ function formatDateTime(value) {
   if (!value) return '-';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatDate(value) {
+  if (!value) return '-';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
 }
 
 function jobLabel(job) {
@@ -322,6 +374,15 @@ function budgetRemaining(row) {
   return revisedBudget(row) - forecastFinal(row);
 }
 
+function daysUntil(value) {
+  if (!value) return null;
+  const target = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
+}
+
 const JOB_COLUMNS = [
   { key: 'name', header: 'Job', render: (row) => <strong>{jobLabel(row)}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatStatus(row.status)}</StatusBadge> },
@@ -362,6 +423,26 @@ const JOB_BUDGET_COLUMNS = [
   { key: 'forecast_to_complete_amount', header: 'Forecast', render: (row) => formatMoney(row.forecast_to_complete_amount), align: 'right' },
   { key: 'forecast_final', header: 'Forecast final', render: (row) => formatMoney(forecastFinal(row)), align: 'right' },
   { key: 'remaining', header: 'Remaining', render: (row) => formatMoney(budgetRemaining(row)), align: 'right' },
+  { key: 'note', header: 'Notes', fallback: '-' },
+];
+
+const JOB_SCHEDULE_COLUMNS = [
+  { key: 'sort_order', header: '#', render: (row) => Number(row.sort_order) || 0, align: 'right' },
+  { key: 'title', header: 'Milestone / task', render: (row) => <strong>{row.title || 'Untitled schedule item'}</strong> },
+  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatScheduleStatus(row.status)}</StatusBadge> },
+  { key: 'target_date', header: 'Target', render: (row) => formatDate(row.target_date) },
+  {
+    key: 'timing',
+    header: 'Timing',
+    render: (row) => {
+      const remaining = daysUntil(row.target_date);
+      if (remaining === null) return 'No date';
+      if (remaining < 0) return `${Math.abs(remaining)} day${Math.abs(remaining) === 1 ? '' : 's'} late`;
+      if (remaining === 0) return 'Due today';
+      return `${remaining} day${remaining === 1 ? '' : 's'} out`;
+    },
+  },
+  { key: 'description', header: 'Description', fallback: '-' },
   { key: 'note', header: 'Notes', fallback: '-' },
 ];
 
@@ -620,6 +701,72 @@ function useJobBudgetLines({ enabled, jobId }) {
   };
 }
 
+function useJobScheduleItems({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    items: EMPTY_SCHEDULE_ITEMS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, items: EMPTY_SCHEDULE_ITEMS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_schedule_items')
+          .select(JOB_SCHEDULE_SELECT_FIELDS)
+          .eq('job_id', jobId)
+          .is('archived_at', null)
+          .order('sort_order', { ascending: true })
+          .order('target_date', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            items: data ?? EMPTY_SCHEDULE_ITEMS,
+          });
+        }
+      } catch (error) {
+        console.error('Job schedule failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            items: EMPTY_SCHEDULE_ITEMS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function renderFact(label, value) {
   return (
     <div className="profile-field">
@@ -643,6 +790,8 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
+  const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
+  const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -693,6 +842,10 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'financials' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const jobSchedule = useJobScheduleItems({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'schedule' && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((job) => job.id === selectedJobId)) {
@@ -708,7 +861,7 @@ export function JobsWorkspace({ permissions }) {
     { key: 'transactions', label: 'Transactions', meta: 'Deferred' },
     ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Live' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Deferred' },
-    { key: 'schedule', label: 'Schedule', meta: 'Deferred' },
+    { key: 'schedule', label: 'Schedule', meta: 'Live' },
   ];
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false), [canViewFinancials]);
 
@@ -725,6 +878,7 @@ export function JobsWorkspace({ permissions }) {
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
+    setScheduleForm(DEFAULT_SCHEDULE_FORM);
   }
 
   async function handleDocumentUpload(event) {
@@ -966,6 +1120,146 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Job budget add failed', error);
       setBudgetForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  function nextScheduleSortOrder() {
+    if (!jobSchedule.items.length) return 10;
+    return Math.max(...jobSchedule.items.map((item) => Number(item.sort_order) || 0)) + 10;
+  }
+
+  function startScheduleEdit(row) {
+    setScheduleForm({
+      id: row.id,
+      title: row.title || '',
+      description: row.description || '',
+      target_date: row.target_date || '',
+      status: SCHEDULE_STATUS_OPTIONS.includes(row.status) ? row.status : 'pending',
+      sort_order: String(Number(row.sort_order) || 0),
+      note: row.note || '',
+      isSaving: false,
+      error: null,
+      success: '',
+    });
+  }
+
+  function resetScheduleForm() {
+    setScheduleForm(DEFAULT_SCHEDULE_FORM);
+  }
+
+  async function handleScheduleSave(event) {
+    event.preventDefault();
+
+    if (!selectedJob || !canManageSelectedJob || scheduleForm.isSaving) return;
+
+    if (!scheduleForm.title.trim()) {
+      setScheduleForm((current) => ({ ...current, error: new Error('Enter a schedule title before saving.') }));
+      return;
+    }
+
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const payload = {
+      job_id: selectedJob.id,
+      division: selectedJob.division,
+      title: scheduleForm.title.trim(),
+      description: scheduleForm.description.trim() || null,
+      target_date: scheduleForm.target_date || null,
+      status: SCHEDULE_STATUS_OPTIONS.includes(scheduleForm.status) ? scheduleForm.status : 'pending',
+      sort_order: parseOptionalNumber(scheduleForm.sort_order) ?? nextScheduleSortOrder(),
+      note: scheduleForm.note.trim() || null,
+    };
+
+    setScheduleForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const query = scheduleForm.id
+        ? client
+          .from('job_schedule_items')
+          .update(payload)
+          .eq('id', scheduleForm.id)
+          .eq('job_id', selectedJob.id)
+        : client
+          .from('job_schedule_items')
+          .insert({ ...payload, created_by: createdBy });
+      const { error } = await query;
+
+      if (error) throw error;
+
+      setScheduleForm({
+        ...DEFAULT_SCHEDULE_FORM,
+        success: `${payload.title} ${scheduleForm.id ? 'updated' : 'added'} in Schedule.`,
+      });
+      jobSchedule.reload();
+    } catch (error) {
+      console.error('Job schedule save failed', error);
+      setScheduleForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleScheduleArchive(row) {
+    if (!row?.id || !selectedJob?.id || !canManageSelectedJob || scheduleAction.id) return;
+
+    const reason = window.prompt(`Archive "${row.title || 'this schedule item'}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    setScheduleAction({ id: row.id, action: 'archive', error: null });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_schedule_items')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: archivedBy,
+          archive_reason: reason.trim(),
+        })
+        .eq('id', row.id)
+        .eq('job_id', selectedJob.id);
+
+      if (error) throw error;
+
+      setScheduleAction({ id: '', action: '', error: null });
+      if (scheduleForm.id === row.id) resetScheduleForm();
+      jobSchedule.reload();
+    } catch (error) {
+      console.error('Job schedule archive failed', error);
+      setScheduleAction({ id: '', action: '', error });
+    }
+  }
+
+  async function handleScheduleMove(row, direction) {
+    if (!row?.id || !selectedJob?.id || !canManageSelectedJob || scheduleAction.id) return;
+
+    const currentIndex = jobSchedule.items.findIndex((item) => item.id === row.id);
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const neighbor = jobSchedule.items[nextIndex];
+    if (currentIndex < 0 || !neighbor) return;
+
+    setScheduleAction({ id: row.id, action: direction, error: null });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const reorderedItems = [...jobSchedule.items];
+      [reorderedItems[currentIndex], reorderedItems[nextIndex]] = [reorderedItems[nextIndex], reorderedItems[currentIndex]];
+      const results = await Promise.all(reorderedItems.map((item, index) => client
+        .from('job_schedule_items')
+        .update({ sort_order: (index + 1) * 10 })
+        .eq('id', item.id)
+        .eq('job_id', selectedJob.id)));
+      const failedResult = results.find((result) => result.error);
+      if (failedResult?.error) throw failedResult.error;
+
+      setScheduleAction({ id: '', action: '', error: null });
+      jobSchedule.reload();
+    } catch (error) {
+      console.error('Job schedule reorder failed', error);
+      setScheduleAction({ id: '', action: '', error });
+      jobSchedule.reload();
     }
   }
 
@@ -1447,6 +1741,191 @@ export function JobsWorkspace({ permissions }) {
       );
     }
 
+    if (activeTab === 'schedule') {
+      const completeCount = jobSchedule.items.filter((item) => item.status === 'complete').length;
+      const delayedCount = jobSchedule.items.filter((item) => item.status === 'delayed').length;
+      const datedItems = jobSchedule.items.filter((item) => item.target_date);
+      const overdueCount = jobSchedule.items.filter((item) => {
+        const remaining = daysUntil(item.target_date);
+        return remaining !== null && remaining < 0 && item.status !== 'complete';
+      }).length;
+      const nextItem = datedItems
+        .filter((item) => item.status !== 'complete')
+        .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))[0] ?? null;
+      const scheduleColumns = [
+        ...JOB_SCHEDULE_COLUMNS,
+        {
+          key: 'actions',
+          header: 'Actions',
+          render: (row) => {
+            if (!canManageSelectedJob) return 'Read only';
+            const isBusy = scheduleAction.id === row.id;
+            const currentIndex = jobSchedule.items.findIndex((item) => item.id === row.id);
+            return (
+              <div className="job-schedule-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => handleScheduleMove(row, 'up')}
+                  disabled={isBusy || currentIndex <= 0}
+                  title="Move up"
+                >
+                  <ArrowUp aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => handleScheduleMove(row, 'down')}
+                  disabled={isBusy || currentIndex === jobSchedule.items.length - 1}
+                  title="Move down"
+                >
+                  <ArrowDown aria-hidden="true" />
+                </button>
+                <button type="button" className="secondary-button" onClick={() => startScheduleEdit(row)} disabled={isBusy}>
+                  Edit
+                </button>
+                <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleScheduleArchive(row)} disabled={isBusy}>
+                  {isBusy && scheduleAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+                </button>
+              </div>
+            );
+          },
+        },
+      ];
+
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Items" value={jobSchedule.items.length} detail="Active schedule rows" />
+            <SummaryCard label="Complete" value={`${completeCount}/${jobSchedule.items.length}`} detail="Finished milestones" tone={completeCount && completeCount === jobSchedule.items.length ? 'good' : 'default'} />
+            <SummaryCard label="Delayed" value={delayedCount} detail="Marked delayed" tone={delayedCount ? 'warn' : 'good'} />
+            <SummaryCard label="Overdue" value={overdueCount} detail="Past target and not complete" tone={overdueCount ? 'warn' : 'good'} />
+            <SummaryCard label="Next" value={nextItem ? formatDate(nextItem.target_date) : '-'} detail={nextItem?.title || 'No dated open item'} />
+          </div>
+
+          <DataTable
+            columns={scheduleColumns}
+            rows={jobSchedule.items}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={jobSchedule.isLoading}
+            error={jobSchedule.error}
+            dense
+            minWidth="1180px"
+            emptyTitle="No schedule items for this job"
+            emptyDescription="Add flat milestones or tasks to track key target dates. No calendar sync, dependencies, assignments, or reminders are created."
+          />
+          {scheduleAction.error ? (
+            <StatePanel
+              tone="danger"
+              eyebrow="Schedule Action Failed"
+              title="Could not update this schedule item"
+              description={scheduleAction.error.message || 'Unexpected schedule action error.'}
+              compact
+            />
+          ) : null}
+
+          {canManageSelectedJob ? (
+            <form className="job-schedule-form" onSubmit={handleScheduleSave}>
+              <Toolbar
+                eyebrow={scheduleForm.id ? 'Edit' : 'Add'}
+                title={scheduleForm.id ? 'Edit schedule item' : 'Add schedule item'}
+                description="Schedule tracks key milestones and tasks for this job. It does not sync with a calendar or manage dependencies between items."
+                actions={scheduleForm.id ? (
+                  <button type="button" className="secondary-button" onClick={resetScheduleForm} disabled={scheduleForm.isSaving}>
+                    Cancel Edit
+                  </button>
+                ) : null}
+              />
+              <div className="job-schedule-form__grid">
+                <label className="job-schedule-form__wide">
+                  <span>Title</span>
+                  <input
+                    type="text"
+                    value={scheduleForm.title}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, title: event.target.value, error: null, success: '' }))}
+                    placeholder="Rough-in, inspection, trim-out..."
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={scheduleForm.status}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value, error: null, success: '' }))}
+                    disabled={scheduleForm.isSaving}
+                  >
+                    {SCHEDULE_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{formatScheduleStatus(status)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Target date</span>
+                  <input
+                    type="date"
+                    value={scheduleForm.target_date}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, target_date: event.target.value, error: null, success: '' }))}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label>
+                  <span>Sort order</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={scheduleForm.sort_order}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, sort_order: event.target.value, error: null, success: '' }))}
+                    placeholder={String(nextScheduleSortOrder())}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Description</span>
+                  <input
+                    type="text"
+                    value={scheduleForm.description}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
+                    placeholder="Optional short description"
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Notes</span>
+                  <input
+                    type="text"
+                    value={scheduleForm.note}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))}
+                    placeholder="Optional schedule note"
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+              </div>
+              {scheduleForm.error ? (
+                <StatePanel tone="danger" eyebrow="Schedule Save Failed" title="Item was not saved" description={scheduleForm.error.message || 'Unexpected schedule error.'} compact />
+              ) : null}
+              {scheduleForm.success ? (
+                <StatePanel tone="success" eyebrow="Saved" title="Schedule item saved" description={scheduleForm.success} compact />
+              ) : null}
+              <div className="job-schedule-form__actions">
+                <button type="submit" className="primary-button" disabled={scheduleForm.isSaving || !scheduleForm.title.trim()}>
+                  <Plus aria-hidden="true" /> {scheduleForm.isSaving ? 'Saving...' : scheduleForm.id ? 'Save Schedule Item' : 'Add Schedule Item'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Read Only"
+              title="Schedule writes require selected-job management permission"
+              description="You can view schedule items for jobs you can see. Adding, editing, archiving, and ordering follow the selected job division boundary."
+              compact
+            />
+          )}
+        </>
+      );
+    }
+
     if (activeTab !== 'overview') {
       const reserved = RESERVED_TABS[activeTab] ?? RESERVED_TABS.materials;
       return (
@@ -1485,7 +1964,7 @@ export function JobsWorkspace({ permissions }) {
           <StatePanel
             eyebrow="Boundaries"
             title="Controlled Jobs workspace"
-            description="Materials are hidden for now. Transactions, external accounting, job schedule writes, and final RLS cleanup stay deferred."
+            description="Materials are hidden for now. Transactions, external accounting, calendar sync, dependency logic, and final RLS cleanup stay deferred."
             tone="warning"
             compact
           />
@@ -1647,8 +2126,8 @@ export function JobsWorkspace({ permissions }) {
             />
             <StatePanel
               eyebrow="Reserved Surfaces"
-              title="Documents and schedule stay separate"
-              description="Job documents and schedule tables are not queried or mutated by this first v3 Jobs slice."
+              title="Calendar and dependency engines stay separate"
+              description="Schedule uses the locked flat task list only. Documents are job-owned, while external calendar sync and dependency management remain reserved."
               tone="neutral"
               compact
               actions={<FolderOpen aria-hidden="true" />}
