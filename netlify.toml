@@ -5,6 +5,15 @@
 [build.environment]
   VITE_BASE_PATH = "/northgate"
 
+# Vite emits files into dist/assets, while the app is mounted at /northgate.
+# Rewrite asset requests before the SPA fallback or browsers receive index.html
+# for module scripts and reject them due to MIME type.
+[[redirects]]
+  from = "/northgate/assets/*"
+  to = "/assets/:splat"
+  status = 200
+  force = true
+
 # SPA fallback — every route serves index.html so deep links resolve.
 # This site sits behind the rnsolutions.net proxy; see DEPLOY.md.
 [[redirects]]
