@@ -18097,3 +18097,81 @@ Ryan verified the Jobs Buyout checklist slice works.
 ### Open Questions / Concerns
 - Confirm which table/function should serve as the canonical audit log for
   Buyout edits during the final wiring pass.
+
+---
+
+## Entry 178 — Jobs Financials Forecast Foundation
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the Buyout slice and asked to proceed. The next Jobs cleanup
+slice was Financials, rebuilt from the standalone HTML reference while keeping
+the existing Supabase project, repo, and permission gates.
+
+### What Was Completed
+- Extended the existing `public.job_budget_lines` model with forecast fields:
+  - `budget_change_amount`
+  - `actual_cost_amount`
+  - `committed_cost_amount`
+  - `forecast_to_complete_amount`
+- Added nonnegative constraints for the new numeric fields.
+- Added a partial active-row index on `job_budget_lines(job_id)`.
+- Rebuilt the selected Job `Financials` tab as a live Supabase-backed surface.
+- Financials now shows summary totals for:
+  - original budget
+  - revised budget
+  - actual cost
+  - committed cost
+  - forecast final
+  - remaining budget
+- Financials table now shows budget, change, revised, actual, committed,
+  forecast-to-complete, forecast-final, remaining, category, cost code, and
+  notes.
+- Authorized users with selected-job budget approval permission can add
+  financial lines.
+- View-only users with financial visibility can read Financials without write
+  controls.
+- Jobs shell copy was updated so Financials no longer presents as a deferred
+  placeholder.
+
+### Schema Changes
+- `supabase/migrations/20260815205345_extend_job_budget_forecast_fields.sql`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice, per Ryan's preference to defer
+  RLS changes until the end.
+- Production DDL was applied through the Supabase connector before this handoff
+  entry was written.
+- Financials remains planning/forecasting only. It does not create purchase
+  orders, invoices, accounting exports, or accounting sync.
+- The formula ported from the HTML reference is:
+  - revised budget = original budget + changes
+  - forecast final = actual cost + committed cost + forecast to complete
+  - remaining = revised budget - forecast final
+- Supabase advisors were run after DDL; they surfaced broad pre-existing
+  findings that should be revisited during the final security/RLS pass.
+
+### Next Steps (in order)
+1. Ryan verifies the Financials tab appears for a user with
+   `can_view_financials`.
+2. Ryan adds a Financials line and verifies the table refreshes.
+3. Ryan confirms totals calculate correctly against the standalone HTML
+   reference.
+4. Proceed to the next Jobs slice: Schedule.
+5. Final RLS/security pass should include Job document Archive, Financials
+   write boundaries, and any advisor findings that are still relevant.
+
+### Open Questions / Concerns
+- Financial line editing/archive controls are not added yet.
+- Dashboard attention wiring is not added yet.
+- External accounting, pay apps, invoices, and purchase order workflows remain
+  out of scope for this slice.

@@ -49,6 +49,22 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
   error: null,
   success: '',
 });
+const EMPTY_BUDGET_LINES = Object.freeze([]);
+const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'other'];
+const DEFAULT_BUDGET_FORM = Object.freeze({
+  category: 'material',
+  cost_code: '',
+  description: '',
+  budget_amount: '',
+  budget_change_amount: '',
+  actual_cost_amount: '',
+  committed_cost_amount: '',
+  forecast_to_complete_amount: '',
+  note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
 
 const JOB_SELECT_FIELDS = [
   'id',
@@ -109,6 +125,24 @@ const JOB_BUYOUT_SELECT_FIELDS = [
   'created_by',
 ].join(', ');
 
+const JOB_BUDGET_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'category',
+  'cost_code',
+  'description',
+  'budget_amount',
+  'budget_change_amount',
+  'actual_cost_amount',
+  'committed_cost_amount',
+  'forecast_to_complete_amount',
+  'note',
+  'created_by',
+].join(', ');
+
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 
 const JOB_VIEWS = [
@@ -137,8 +171,8 @@ const RESERVED_TABS = Object.freeze({
   },
   financials: {
     eyebrow: 'Financials',
-    title: 'Budget Foundation is reserved for a later port',
-    description: 'Financials stay gated by can_view_financials. This pass does not read job_budget_lines or expose budget amounts, actuals, purchase orders, invoices, or accounting data.',
+    title: 'Financials are available when permitted',
+    description: 'The live Financials tab reads job_budget_lines and stays gated by can_view_financials. Accounting exports, invoices, purchase orders, and external accounting sync remain separate.',
   },
   documents: {
     eyebrow: 'Documents',
@@ -177,6 +211,25 @@ function formatBuyoutStatus(value) {
       return 'Cancelled';
     case 'pending':
       return 'Pending';
+    default:
+      return value || '-';
+  }
+}
+
+function formatBudgetCategory(value) {
+  switch (value) {
+    case 'material':
+      return 'Material';
+    case 'labor':
+      return 'Labor';
+    case 'subcontractor':
+      return 'Subcontractor';
+    case 'equipment':
+      return 'Equipment';
+    case 'permit':
+      return 'Permit';
+    case 'other':
+      return 'Other';
     default:
       return value || '-';
   }
@@ -253,6 +306,22 @@ function sumField(rows, field) {
   return rows.reduce((total, row) => total + (Number(row[field]) || 0), 0);
 }
 
+function revisedBudget(row) {
+  return (Number(row.budget_amount) || 0) + (Number(row.budget_change_amount) || 0);
+}
+
+function forecastFinal(row) {
+  return (
+    (Number(row.actual_cost_amount) || 0)
+    + (Number(row.committed_cost_amount) || 0)
+    + (Number(row.forecast_to_complete_amount) || 0)
+  );
+}
+
+function budgetRemaining(row) {
+  return revisedBudget(row) - forecastFinal(row);
+}
+
 const JOB_COLUMNS = [
   { key: 'name', header: 'Job', render: (row) => <strong>{jobLabel(row)}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatStatus(row.status)}</StatusBadge> },
@@ -279,6 +348,21 @@ const JOB_BUYOUT_COLUMNS = [
   { key: 'actual_value', header: 'Actual value', render: (row) => formatMoney(row.actual_value), align: 'right' },
   { key: 'initial_lead_time_days', header: 'Initial lead', render: (row) => formatLeadTime(row.initial_lead_time_days), align: 'right' },
   { key: 'actual_lead_time_days', header: 'Actual lead', render: (row) => formatLeadTime(row.actual_lead_time_days), align: 'right' },
+];
+
+const JOB_BUDGET_COLUMNS = [
+  { key: 'category', header: 'Category', render: (row) => formatBudgetCategory(row.category) },
+  { key: 'cost_code', header: 'Cost code', fallback: '-' },
+  { key: 'description', header: 'Description', render: (row) => <strong>{row.description || 'Untitled budget line'}</strong> },
+  { key: 'budget_amount', header: 'Original', render: (row) => formatMoney(row.budget_amount), align: 'right' },
+  { key: 'budget_change_amount', header: 'Changes', render: (row) => formatMoney(row.budget_change_amount), align: 'right' },
+  { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(revisedBudget(row)), align: 'right' },
+  { key: 'actual_cost_amount', header: 'Actual', render: (row) => formatMoney(row.actual_cost_amount), align: 'right' },
+  { key: 'committed_cost_amount', header: 'Committed', render: (row) => formatMoney(row.committed_cost_amount), align: 'right' },
+  { key: 'forecast_to_complete_amount', header: 'Forecast', render: (row) => formatMoney(row.forecast_to_complete_amount), align: 'right' },
+  { key: 'forecast_final', header: 'Forecast final', render: (row) => formatMoney(forecastFinal(row)), align: 'right' },
+  { key: 'remaining', header: 'Remaining', render: (row) => formatMoney(budgetRemaining(row)), align: 'right' },
+  { key: 'note', header: 'Notes', fallback: '-' },
 ];
 
 function useJobsDirectory({ enabled }) {
@@ -472,6 +556,70 @@ function useJobBuyoutLines({ enabled, jobId }) {
   };
 }
 
+function useJobBudgetLines({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    lines: EMPTY_BUDGET_LINES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, lines: EMPTY_BUDGET_LINES });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_budget_lines')
+          .select(JOB_BUDGET_SELECT_FIELDS)
+          .eq('job_id', jobId)
+          .order('cost_code', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            lines: data ?? EMPTY_BUDGET_LINES,
+          });
+        }
+      } catch (error) {
+        console.error('Job financials failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            lines: EMPTY_BUDGET_LINES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function renderFact(label, value) {
   return (
     <div className="profile-field">
@@ -494,6 +642,7 @@ export function JobsWorkspace({ permissions }) {
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
+  const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -529,12 +678,19 @@ export function JobsWorkspace({ permissions }) {
   const canManageSelectedJob = canManageJobs
     && Boolean(selectedJob?.division)
     && permissions?.division === selectedJob.division;
+  const canApproveSelectedBudget = permissions?.canApproveBudget === true
+    && Boolean(selectedJob?.division)
+    && permissions?.division === selectedJob.division;
   const jobDocuments = useJobDocuments({
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobBuyout = useJobBuyoutLines({
     enabled: permissions.permissionSource === 'server' && activeTab === 'buyout' && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
+  const jobBudget = useJobBudgetLines({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'financials' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
 
@@ -550,7 +706,7 @@ export function JobsWorkspace({ permissions }) {
     { key: 'materials', label: 'Materials', meta: 'Deferred', visible: false },
     { key: 'buyout', label: 'Buyout', meta: 'Deferred' },
     { key: 'transactions', label: 'Transactions', meta: 'Deferred' },
-    ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Deferred' }] : []),
+    ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Live' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Deferred' },
     { key: 'schedule', label: 'Schedule', meta: 'Deferred' },
   ];
@@ -568,6 +724,7 @@ export function JobsWorkspace({ permissions }) {
     setMode('browse');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
+    setBudgetForm(DEFAULT_BUDGET_FORM);
   }
 
   async function handleDocumentUpload(event) {
@@ -763,6 +920,52 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Job buyout status update failed', error);
       setBuyoutAction({ id: '', action: '', error });
+    }
+  }
+
+  async function handleBudgetAdd(event) {
+    event.preventDefault();
+
+    if (!selectedJob || !canApproveSelectedBudget || budgetForm.isSaving) return;
+
+    if (!budgetForm.description.trim()) {
+      setBudgetForm((current) => ({ ...current, error: new Error('Enter a budget description before saving.') }));
+      return;
+    }
+
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    setBudgetForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_budget_lines')
+        .insert({
+          job_id: selectedJob.id,
+          division: selectedJob.division,
+          category: BUDGET_CATEGORY_OPTIONS.includes(budgetForm.category) ? budgetForm.category : 'other',
+          cost_code: budgetForm.cost_code.trim() || null,
+          description: budgetForm.description.trim(),
+          budget_amount: parseOptionalNumber(budgetForm.budget_amount) || 0,
+          budget_change_amount: parseOptionalNumber(budgetForm.budget_change_amount) || 0,
+          actual_cost_amount: parseOptionalNumber(budgetForm.actual_cost_amount) || 0,
+          committed_cost_amount: parseOptionalNumber(budgetForm.committed_cost_amount) || 0,
+          forecast_to_complete_amount: parseOptionalNumber(budgetForm.forecast_to_complete_amount) || 0,
+          note: budgetForm.note.trim() || null,
+          created_by: createdBy,
+        });
+
+      if (error) throw error;
+
+      setBudgetForm({
+        ...DEFAULT_BUDGET_FORM,
+        success: `${budgetForm.description.trim()} added to Financials.`,
+      });
+      jobBudget.reload();
+    } catch (error) {
+      console.error('Job budget add failed', error);
+      setBudgetForm((current) => ({ ...current, isSaving: false, error, success: '' }));
     }
   }
 
@@ -1115,6 +1318,135 @@ export function JobsWorkspace({ permissions }) {
       );
     }
 
+    if (activeTab === 'financials') {
+      const originalTotal = sumField(jobBudget.lines, 'budget_amount');
+      const changeTotal = sumField(jobBudget.lines, 'budget_change_amount');
+      const revisedTotal = jobBudget.lines.reduce((total, line) => total + revisedBudget(line), 0);
+      const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
+      const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
+      const forecastToCompleteTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
+      const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
+      const remainingTotal = revisedTotal - forecastFinalTotal;
+
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Original Budget" value={formatMoney(originalTotal)} detail="Approved budget lines" />
+            <SummaryCard label="Revised Budget" value={formatMoney(revisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
+            <SummaryCard label="Actual Cost" value={formatMoney(actualTotal)} detail="Tracked cost only" />
+            <SummaryCard label="Committed" value={formatMoney(committedTotal)} detail="Committed cost" />
+            <SummaryCard label="Forecast Final" value={formatMoney(forecastFinalTotal)} detail={`${formatMoney(forecastToCompleteTotal)} to complete`} />
+            <SummaryCard label="Remaining" value={formatMoney(remainingTotal)} detail="Revised minus forecast final" tone={remainingTotal < 0 ? 'warn' : 'good'} />
+          </div>
+
+          <DataTable
+            columns={JOB_BUDGET_COLUMNS}
+            rows={jobBudget.lines}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={jobBudget.isLoading}
+            error={jobBudget.error}
+            dense
+            minWidth="1320px"
+            emptyTitle="No financial lines for this job"
+            emptyDescription="Add budget lines to track original budget, changes, actuals, commitments, forecast, and remaining value."
+          />
+
+          {canApproveSelectedBudget ? (
+            <form className="job-financials-form" onSubmit={handleBudgetAdd}>
+              <Toolbar
+                eyebrow="Add"
+                title="Add financial line"
+                description="Financials are job planning and forecasting only. This does not post to accounting or create purchase orders."
+              />
+              <div className="job-financials-form__grid">
+                <label>
+                  <span>Category</span>
+                  <select
+                    value={budgetForm.category}
+                    onChange={(event) => setBudgetForm((current) => ({ ...current, category: event.target.value, error: null, success: '' }))}
+                    disabled={budgetForm.isSaving}
+                  >
+                    {BUDGET_CATEGORY_OPTIONS.map((category) => (
+                      <option key={category} value={category}>{formatBudgetCategory(category)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Cost code</span>
+                  <input
+                    type="text"
+                    value={budgetForm.cost_code}
+                    onChange={(event) => setBudgetForm((current) => ({ ...current, cost_code: event.target.value, error: null, success: '' }))}
+                    disabled={budgetForm.isSaving}
+                  />
+                </label>
+                <label className="job-financials-form__wide">
+                  <span>Description</span>
+                  <input
+                    type="text"
+                    value={budgetForm.description}
+                    onChange={(event) => setBudgetForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
+                    placeholder="Electrical labor, fixtures, OH&P..."
+                    disabled={budgetForm.isSaving}
+                  />
+                </label>
+                <label>
+                  <span>Original</span>
+                  <input type="number" min="0" step="0.01" value={budgetForm.budget_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                </label>
+                <label>
+                  <span>Changes</span>
+                  <input type="number" min="0" step="0.01" value={budgetForm.budget_change_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_change_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                </label>
+                <label>
+                  <span>Actual</span>
+                  <input type="number" min="0" step="0.01" value={budgetForm.actual_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, actual_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                </label>
+                <label>
+                  <span>Committed</span>
+                  <input type="number" min="0" step="0.01" value={budgetForm.committed_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, committed_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                </label>
+                <label>
+                  <span>Forecast</span>
+                  <input type="number" min="0" step="0.01" value={budgetForm.forecast_to_complete_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_to_complete_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                </label>
+                <label className="job-financials-form__wide">
+                  <span>Notes</span>
+                  <input
+                    type="text"
+                    value={budgetForm.note}
+                    onChange={(event) => setBudgetForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))}
+                    placeholder="Optional note"
+                    disabled={budgetForm.isSaving}
+                  />
+                </label>
+              </div>
+              {budgetForm.error ? (
+                <StatePanel tone="danger" eyebrow="Financial Save Failed" title="Line was not saved" description={budgetForm.error.message || 'Unexpected financials error.'} compact />
+              ) : null}
+              {budgetForm.success ? (
+                <StatePanel tone="success" eyebrow="Saved" title="Financial line added" description={budgetForm.success} compact />
+              ) : null}
+              <div className="job-financials-form__actions">
+                <button type="submit" className="primary-button" disabled={budgetForm.isSaving || !budgetForm.description.trim()}>
+                  <Plus aria-hidden="true" /> {budgetForm.isSaving ? 'Saving...' : 'Add Financial Line'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Read Only"
+              title="Financial writes require selected-job budget approval permission"
+              description="You can view financial lines when allowed by financial permissions. Adding budget lines follows the selected job division and budget approval boundary."
+              compact
+            />
+          )}
+        </>
+      );
+    }
+
     if (activeTab !== 'overview') {
       const reserved = RESERVED_TABS[activeTab] ?? RESERVED_TABS.materials;
       return (
@@ -1133,7 +1465,7 @@ export function JobsWorkspace({ permissions }) {
           <SummaryCard label="Status" value={formatStatus(selectedJob.status)} detail="Foundation job state" />
           <SummaryCard label="Type" value={formatJobType(selectedJob.job_type)} detail={selectedJob.service_call_number || 'No service call number'} />
           <SummaryCard label="Division" value={selectedJob.division || 'Unassigned'} detail="Read scope is enforced by RLS" />
-          <SummaryCard label="Financials" value={canViewFinancials ? 'Gated' : 'Hidden'} detail="Budget data is not loaded in this pass" />
+          <SummaryCard label="Financials" value={canViewFinancials ? 'Available' : 'Hidden'} detail="Gated by financial permission" />
         </div>
         <section className="jobs-overview-grid">
           <StatePanel
@@ -1152,8 +1484,8 @@ export function JobsWorkspace({ permissions }) {
           />
           <StatePanel
             eyebrow="Boundaries"
-            title="Read-only v3 slice"
-            description="Create, edit, archive, materials, buyout, checkout handoffs, financials, documents, and schedule writes stay deferred in this pass."
+            title="Controlled Jobs workspace"
+            description="Materials are hidden for now. Transactions, external accounting, job schedule writes, and final RLS cleanup stay deferred."
             tone="warning"
             compact
           />
@@ -1167,7 +1499,7 @@ export function JobsWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Jobs"
-        description="Live read-only Jobs foundation using the existing jobs table. Heavier job submodules remain reserved until their v3 ports are handled deliberately."
+        description="Live Jobs foundation with selected v3 modules restored against the existing Supabase tables and permission gates."
         status={<span className="status-pill">{jobs.length} visible job{jobs.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -1209,7 +1541,7 @@ export function JobsWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Foundation first</strong>
-              <p>This v3 pass reads jobs only. Materials, buyout, transactions, financials, documents, and schedule stay bounded.</p>
+              <p>Jobs now carries Details, Buyout, Financials, and Documents slices while the remaining modules stay bounded.</p>
             </div>
           )}
         />
@@ -1307,8 +1639,8 @@ export function JobsWorkspace({ permissions }) {
             />
             <StatePanel
               eyebrow="Financial Boundary"
-              title="Budget data is not loaded"
-              description="Financials stay fully gated and deferred. No budget, actual, PO, invoice, or accounting values are selected."
+              title="Financials are permission gated"
+              description="Budget forecast fields are live for authorized users. Purchase orders, invoices, and accounting sync remain outside this slice."
               tone="neutral"
               compact
               actions={<CircleDollarSign aria-hidden="true" />}

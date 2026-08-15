@@ -1270,13 +1270,54 @@ textarea {
   justify-content: flex-end;
 }
 
+.job-financials-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: var(--card-gap);
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.job-financials-form__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.job-financials-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.job-financials-form label span {
+  color: var(--ng-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.job-financials-form__wide {
+  grid-column: span 2;
+}
+
+.job-financials-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 920px) {
   .job-document-upload__grid,
-  .job-buyout-form__grid {
+  .job-buyout-form__grid,
+  .job-financials-form__grid {
     grid-template-columns: 1fr;
   }
 
-  .job-buyout-form__wide {
+  .job-buyout-form__wide,
+  .job-financials-form__wide {
     grid-column: span 1;
   }
 }
