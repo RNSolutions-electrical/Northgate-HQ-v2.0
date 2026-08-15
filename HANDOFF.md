@@ -16373,6 +16373,8 @@ remained within ARCHITECTURE v2.30 / HANDOFF Entry 156.
   bubble globally in v3.
 - Silas live-response behavior depends on the current Netlify
   `SILAS_ANTHROPIC_API_KEY` environment variable.
+- Ryan confirmed Silas is good to go in production, but noted a non-blocking UI
+  bug for later: when a new chat is sent, the screen jumps to the top.
 
 ### Architecture Drift Warnings
 - None active. This pass stayed inside the existing Silas hook, existing
