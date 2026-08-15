@@ -35,6 +35,23 @@ const DEFAULT_UPLOAD_STATE = Object.freeze({
   error: null,
   success: '',
 });
+const DEFAULT_JOB_FORM = Object.freeze({
+  job_number: '',
+  name: '',
+  status: 'active',
+  job_type: 'job',
+  service_call_number: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  state: '',
+  postal_code: '',
+  description: '',
+  notes: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
 const EMPTY_BUYOUT_LINES = Object.freeze([]);
 const BUYOUT_STATUS_OPTIONS = ['pending', 'ordered', 'received', 'cancelled'];
 const DEFAULT_BUYOUT_FORM = Object.freeze({
@@ -228,8 +245,8 @@ const RESERVED_TABS = Object.freeze({
   },
   buyout: {
     eyebrow: 'Buyout',
-    title: 'Buyout planning remains deferred in v3',
-    description: 'Buyout is a planning checklist only. This pass does not read or write job_buyout_lines, purchase orders, vendors, prices, or accounting records.',
+    title: 'Buyout planning checklist is live',
+    description: 'Buyout rows track budget, value, lead-time, and checklist status. Purchase orders, vendors, and accounting automation remain separate.',
   },
   transactions: {
     eyebrow: 'Transactions',
@@ -243,8 +260,8 @@ const RESERVED_TABS = Object.freeze({
   },
   documents: {
     eyebrow: 'Documents',
-    title: 'Job documents remain in the Documents module for now',
-    description: 'This pass does not read or write job documents, storage paths, signed URLs, uploads, archives, or document exports.',
+    title: 'Job document checklist is live',
+    description: 'Documents are attached to the job record and visible to users who can view the job. Archive RLS cleanup remains deferred.',
   },
   schedule: {
     eyebrow: 'Schedule',
@@ -983,6 +1000,7 @@ export function JobsWorkspace({ permissions }) {
   const [selectedJobId, setSelectedJobId] = useState('');
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('browse');
+  const [jobForm, setJobForm] = useState(DEFAULT_JOB_FORM);
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
@@ -998,6 +1016,7 @@ export function JobsWorkspace({ permissions }) {
   const canCreateJobs = permissions?.canCreateJobs === true;
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
+  const createJobDivision = permissions?.division || '';
 
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
@@ -1060,10 +1079,10 @@ export function JobsWorkspace({ permissions }) {
     { key: 'overview', label: 'Overview' },
     { key: 'details', label: 'Details' },
     { key: 'materials', label: 'Materials', meta: 'Deferred', visible: false },
-    { key: 'buyout', label: 'Buyout', meta: 'Deferred' },
+    { key: 'buyout', label: 'Buyout', meta: 'Live' },
     { key: 'transactions', label: 'Transactions', meta: 'Live' },
     ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Live' }] : []),
-    { key: 'documents', label: 'Documents', meta: 'Deferred' },
+    { key: 'documents', label: 'Documents', meta: 'Live' },
     { key: 'schedule', label: 'Schedule', meta: 'Live' },
   ];
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false), [canViewFinancials]);
@@ -1096,10 +1115,79 @@ export function JobsWorkspace({ permissions }) {
     setSelectedJobId(job.id);
     setActiveTab('overview');
     setMode('browse');
+    setJobForm(DEFAULT_JOB_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
+  }
+
+  function startJobCreate() {
+    setMode('create');
+    setJobForm(DEFAULT_JOB_FORM);
+  }
+
+  async function handleJobCreate(event) {
+    event.preventDefault();
+
+    if (!canCreateJobs || jobForm.isSaving) return;
+
+    const name = jobForm.name.trim();
+    if (!name) {
+      setJobForm((current) => ({ ...current, error: new Error('Enter a job name before saving.') }));
+      return;
+    }
+
+    if (!createJobDivision) {
+      setJobForm((current) => ({ ...current, error: new Error('Your session does not include a division, so job creation is blocked.') }));
+      return;
+    }
+
+    setJobForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+      const jobType = jobForm.job_type === 'service_call' ? 'service_call' : 'job';
+      const payload = {
+        division: createJobDivision,
+        job_number: jobForm.job_number.trim() || null,
+        name,
+        status: JOB_STATUS_OPTIONS.includes(jobForm.status) ? jobForm.status : 'active',
+        description: jobForm.description.trim() || null,
+        notes: jobForm.notes.trim() || null,
+        address_line1: jobForm.address_line1.trim() || null,
+        address_line2: jobForm.address_line2.trim() || null,
+        city: jobForm.city.trim() || null,
+        state: jobForm.state.trim() || null,
+        postal_code: jobForm.postal_code.trim() || null,
+        job_type: jobType,
+        service_call_number: jobType === 'service_call' ? jobForm.service_call_number.trim() || null : null,
+        created_by: createdBy,
+      };
+
+      const { data, error } = await client
+        .from('jobs')
+        .insert(payload)
+        .select(JOB_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      setJobForm({
+        ...DEFAULT_JOB_FORM,
+        success: `${data?.name || name} created.`,
+      });
+      setSelectedJobId(data?.id || '');
+      setActiveView(data?.status || 'active');
+      setActiveTab('overview');
+      setMode('browse');
+      directory.reload();
+    } catch (error) {
+      console.error('Job create failed', error);
+      setJobForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
   }
 
   async function handleDocumentUpload(event) {
@@ -2414,7 +2502,7 @@ export function JobsWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={() => setMode('create')}>
+            <button type="button" className="primary-button" onClick={startJobCreate} disabled={!canCreateJobs}>
               <Plus aria-hidden="true" /> Create Job
             </button>
           </>
@@ -2495,19 +2583,171 @@ export function JobsWorkspace({ permissions }) {
 
           <article className="card workspace-card">
             {mode === 'create' ? (
-              <StatePanel
-                eyebrow="Create Mode"
-                title="Create Job remains deferred in this v3 pass"
-                description={canCreateJobs
-                  ? 'Your permission can create jobs, but this migration slice intentionally does not add insert behavior. The next Jobs pass can port the controlled create form.'
-                  : 'This session does not have can_create_jobs. No create form or hidden insert path is exposed.'}
-                tone="info"
-                actions={(
-                  <button type="button" className="secondary-button" onClick={() => setMode('browse')}>
-                    Back to All Jobs
-                  </button>
-                )}
-              />
+              canCreateJobs ? (
+                <form className="job-create-form" onSubmit={handleJobCreate}>
+                  <Toolbar
+                    eyebrow="Create Mode"
+                    title="Create job"
+                    description="New jobs are created in your current division and inherit the existing jobs RLS."
+                    dense
+                    actions={(
+                      <button type="button" className="secondary-button" onClick={() => setMode('browse')} disabled={jobForm.isSaving}>
+                        Back to All Jobs
+                      </button>
+                    )}
+                  />
+                  <div className="job-create-form__grid">
+                    <label className="job-create-form__wide">
+                      <span>Job name</span>
+                      <input
+                        type="text"
+                        value={jobForm.name}
+                        onChange={(event) => setJobForm((current) => ({ ...current, name: event.target.value, error: null, success: '' }))}
+                        placeholder="Northgate HQ"
+                        disabled={jobForm.isSaving}
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Job number</span>
+                      <input
+                        type="text"
+                        value={jobForm.job_number}
+                        onChange={(event) => setJobForm((current) => ({ ...current, job_number: event.target.value, error: null, success: '' }))}
+                        placeholder="Optional"
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label>
+                      <span>Division</span>
+                      <input type="text" value={createJobDivision || 'No division'} disabled readOnly />
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select
+                        value={jobForm.status}
+                        onChange={(event) => setJobForm((current) => ({ ...current, status: event.target.value, error: null, success: '' }))}
+                        disabled={jobForm.isSaving}
+                      >
+                        {JOB_STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>{formatStatus(status)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Type</span>
+                      <select
+                        value={jobForm.job_type}
+                        onChange={(event) => setJobForm((current) => ({ ...current, job_type: event.target.value, error: null, success: '' }))}
+                        disabled={jobForm.isSaving}
+                      >
+                        <option value="job">Job</option>
+                        <option value="service_call">Service Call</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Service call #</span>
+                      <input
+                        type="text"
+                        value={jobForm.service_call_number}
+                        onChange={(event) => setJobForm((current) => ({ ...current, service_call_number: event.target.value, error: null, success: '' }))}
+                        placeholder="Optional"
+                        disabled={jobForm.isSaving || jobForm.job_type !== 'service_call'}
+                      />
+                    </label>
+                    <label className="job-create-form__wide">
+                      <span>Address line 1</span>
+                      <input
+                        type="text"
+                        value={jobForm.address_line1}
+                        onChange={(event) => setJobForm((current) => ({ ...current, address_line1: event.target.value, error: null, success: '' }))}
+                        placeholder="Street address"
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label className="job-create-form__wide">
+                      <span>Address line 2</span>
+                      <input
+                        type="text"
+                        value={jobForm.address_line2}
+                        onChange={(event) => setJobForm((current) => ({ ...current, address_line2: event.target.value, error: null, success: '' }))}
+                        placeholder="Suite, floor, or unit"
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label>
+                      <span>City</span>
+                      <input
+                        type="text"
+                        value={jobForm.city}
+                        onChange={(event) => setJobForm((current) => ({ ...current, city: event.target.value, error: null, success: '' }))}
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label>
+                      <span>State</span>
+                      <input
+                        type="text"
+                        value={jobForm.state}
+                        onChange={(event) => setJobForm((current) => ({ ...current, state: event.target.value, error: null, success: '' }))}
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label>
+                      <span>Postal code</span>
+                      <input
+                        type="text"
+                        value={jobForm.postal_code}
+                        onChange={(event) => setJobForm((current) => ({ ...current, postal_code: event.target.value, error: null, success: '' }))}
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label className="job-create-form__wide">
+                      <span>Description</span>
+                      <textarea
+                        rows={3}
+                        value={jobForm.description}
+                        onChange={(event) => setJobForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
+                        placeholder="Scope summary"
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                    <label className="job-create-form__wide">
+                      <span>Notes</span>
+                      <textarea
+                        rows={3}
+                        value={jobForm.notes}
+                        onChange={(event) => setJobForm((current) => ({ ...current, notes: event.target.value, error: null, success: '' }))}
+                        placeholder="Internal notes"
+                        disabled={jobForm.isSaving}
+                      />
+                    </label>
+                  </div>
+                  {jobForm.error ? (
+                    <StatePanel tone="danger" eyebrow="Create Failed" title="Job was not created" description={jobForm.error.message || 'Unexpected job create error.'} compact />
+                  ) : null}
+                  {jobForm.success ? (
+                    <StatePanel tone="success" eyebrow="Saved" title="Job created" description={jobForm.success} compact />
+                  ) : null}
+                  <div className="job-create-form__actions">
+                    <button type="submit" className="primary-button" disabled={jobForm.isSaving || !jobForm.name.trim() || !createJobDivision}>
+                      <Plus aria-hidden="true" /> {jobForm.isSaving ? 'Saving...' : 'Create Job'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <StatePanel
+                  eyebrow="Create Locked"
+                  title="Job creation requires can_create_jobs"
+                  description="This session can browse visible jobs but cannot submit a hidden insert path."
+                  tone="warning"
+                  actions={(
+                    <button type="button" className="secondary-button" onClick={() => setMode('browse')}>
+                      Back to All Jobs
+                    </button>
+                  )}
+                />
+              )
             ) : (
               <>
                 <RecordHeader

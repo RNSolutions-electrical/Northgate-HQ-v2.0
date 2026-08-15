@@ -18457,3 +18457,72 @@ to a job through Inventory Checkout, sourced from `public.job_transaction_log`.
   this tab.
 - Final RLS/security pass still needs to address older public tables/views,
   including the known broad RLS-disabled advisory findings.
+
+---
+
+## Entry 183 — Jobs Create Form Activation
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+After Ryan verified the Transactions tab, the next Jobs cleanup/hardening step
+was to remove the last obvious placeholder in the Jobs shell: `Create Job`.
+The existing `public.jobs` table and RLS policy already support inserts gated
+by `can_create_jobs` and the user's own division.
+
+### What Was Completed
+- Replaced the deferred Create Job placeholder with a live controlled form.
+- Added form fields for:
+  - job name
+  - job number
+  - locked current division
+  - status
+  - job type
+  - service call number
+  - address lines
+  - city/state/postal code
+  - description
+  - notes
+- Wired create submits to the existing Supabase `jobs` table.
+- Kept division locked to the server permission division so inserts satisfy
+  the existing `jobs_insert` RLS policy.
+- Added create error handling for missing job name, missing division, duplicate
+  or rejected inserts, and unexpected Supabase failures.
+- After a successful insert, the Jobs directory reloads, browse mode resumes,
+  and the new job is selected.
+- Updated stale Jobs tab metadata so Buyout and Documents show as live.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice.
+- No production DDL was applied in this slice.
+- No new permission flag, RPC, audit table, or job edit/archive workflow was
+  added.
+- Create remains gated by the existing `can_create_jobs` permission and
+  `public.jobs` RLS.
+- Job edit/archive remains a future Jobs hardening step.
+
+### Next Steps (in order)
+1. Ryan verifies the Create Job button opens the form.
+2. Ryan creates a test job in the browser.
+3. Ryan verifies the new job appears in the directory and opens in the selected
+   job panel.
+4. Continue Jobs hardening with edit/archive controls, audit-log coverage, and
+   the deferred final RLS/security cleanup.
+
+### Open Questions / Concerns
+- If a user needs cross-division job creation later, that should be designed as
+  an explicit developer/admin workflow instead of relaxing the current insert
+  path.
+- Final RLS/security pass still needs to address older public tables/views,
+  including the known broad RLS-disabled advisory findings.
