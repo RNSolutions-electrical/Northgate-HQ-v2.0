@@ -21,6 +21,9 @@ import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { useInventoryCart } from '../../hooks/useInventoryCart.js';
+import { useInventoryCountCorrection } from '../../hooks/useInventoryCountCorrection.js';
+import { useInventoryCountIntake } from '../../hooks/useInventoryCountIntake.js';
+import { useInventoryCountSheet } from '../../hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
 
@@ -28,6 +31,7 @@ const INVENTORY_VIEWS = [
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
   { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units and bin previews.' },
   { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
+  { key: 'count', label: 'Count', icon: Scale, description: 'Count sheet, correction, and new bin/material intake.' },
   { key: 'destinations', label: 'Destinations', icon: Truck, description: 'Approved user and vehicle destination references.' },
   { key: 'history', label: 'Transaction History', icon: History, description: 'Read-only ledger history through the preserved RPC.' },
   { key: 'controls', label: 'Reserved Controls', icon: ClipboardList, description: 'Cart, checkout, count, and archive boundaries.' },
@@ -55,6 +59,13 @@ const DESTINATION_OPTIONS = [
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
 const VALID_DESTINATION_TYPES = new Set(DESTINATION_OPTIONS.map((option) => option.value));
+
+const COUNT_REASON_OPTIONS = [
+  { value: 'cycle count', label: 'Cycle Count' },
+  { value: 'initial shelf count', label: 'Initial Shelf Count' },
+  { value: 'correction', label: 'Correction' },
+  { value: 'custom', label: 'Custom Note' },
+];
 
 const CATALOG_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
@@ -128,6 +139,15 @@ const HISTORY_COLUMNS = [
   { key: 'actor_name', header: 'Actor', fallback: '-' },
 ];
 
+const COUNT_COLUMNS = [
+  { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
+  { key: 'item_name', header: 'Item' },
+  { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
+  { key: 'system_quantity', header: 'System Qty', numeric: true, render: (row) => formatQuantity(row.system_quantity) },
+  { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
+  { key: 'min_quantity', header: 'Min', numeric: true, render: (row) => formatQuantity(row.min_quantity) },
+];
+
 function formatMoney(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
@@ -148,6 +168,15 @@ function formatDateTime(value) {
 
 function formatTransactionType(value) {
   return String(value || '-').replaceAll('_', ' ');
+}
+
+function buildStoragePath(row) {
+  return [
+    row.storage_unit_code,
+    row.shelf_code,
+    row.bay_code,
+    row.bin_code,
+  ].filter(Boolean).join(' / ');
 }
 
 function filterRows(rows, search, fields) {
@@ -177,8 +206,16 @@ function isDestinationValid(destination) {
   return true;
 }
 
+function isDeveloperOrAdminRole(role) {
+  return ['Developer', 'Administrator', 'Admin'].includes(role);
+}
+
 export function InventoryWorkspace({ permissions }) {
   const canLoadInventory = permissions.permissionSource === 'server';
+  const canTransact = permissions?.canInventoryTransactions === true;
+  const canManageInventory = permissions?.canManageInventory === true;
+  const canReadCounts = canLoadInventory && canManageInventory;
+  const canWriteCounts = canReadCounts && isDeveloperOrAdminRole(permissions?.role);
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState('catalog');
@@ -195,6 +232,16 @@ export function InventoryWorkspace({ permissions }) {
   });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const [countSearch, setCountSearch] = useState('');
+  const [countDrafts, setCountDrafts] = useState({});
+  const [countMessages, setCountMessages] = useState({});
+  const [countIntakeDraft, setCountIntakeDraft] = useState({
+    bin_id: '',
+    item_id: '',
+    countedQuantity: '',
+    reason: 'initial shelf count',
+    customReason: '',
+  });
 
   const history = useInventoryTransactionHistory({
     enabled: canLoadInventory && activeView === 'history',
@@ -202,11 +249,12 @@ export function InventoryWorkspace({ permissions }) {
     search: historySearch,
     limit: 75,
   });
+  const countSheet = useInventoryCountSheet({ enabled: canReadCounts && activeView === 'count' });
+  const countCorrection = useInventoryCountCorrection();
+  const countIntake = useInventoryCountIntake();
 
   const model = readModel.model;
   const counts = model.counts;
-  const canTransact = permissions?.canInventoryTransactions === true;
-  const canManageInventory = permissions?.canManageInventory === true;
   const cart = cartState.cart;
   const cartIsActive = cart?.status === 'active';
   const cartActionInProgress =
@@ -240,6 +288,29 @@ export function InventoryWorkspace({ permissions }) {
     () => filterRows(model.destinationReferences.vehicles, search, ['vehicle_number', 'make', 'model', 'classification', 'division']),
     [model.destinationReferences.vehicles, search],
   );
+  const visibleCountRows = useMemo(
+    () => filterRows(countSheet.rows, countSearch, [
+      'material_code',
+      'item_name',
+      'bin_code',
+      'bin_label',
+      'storage_unit_code',
+      'shelf_code',
+      'bay_code',
+      'division',
+    ]),
+    [countSearch, countSheet.rows],
+  );
+  const countIntakeItems = useMemo(() => {
+    const existingInBin = new Set(
+      countSheet.rows
+        .filter((row) => row.bin_id === countIntakeDraft.bin_id)
+        .map((row) => row.item_id),
+    );
+    return countSheet.catalogItems
+      .filter((item) => !existingInBin.has(item.id))
+      .slice(0, 200);
+  }, [countIntakeDraft.bin_id, countSheet.catalogItems, countSheet.rows]);
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isDestinationValid(getLineDestination(item)));
   const applyAllDestinationIsValid = isDestinationValid(applyAllDestination);
 
@@ -254,6 +325,7 @@ export function InventoryWorkspace({ permissions }) {
       catalog: counts.activeItems,
       storage: counts.bins,
       cart: cartState.cartItems.length || model.cartCandidates.length,
+      count: countSheet.rows.length || counts.binItems,
       destinations: model.destinationReferences.users.length + model.destinationReferences.vehicles.length,
       history: history.rows.length,
       controls: null,
@@ -350,6 +422,81 @@ export function InventoryWorkspace({ permissions }) {
       ),
     },
   ], [cartActionInProgress, cartIsActive, lineDestinations, model.destinationReferences]);
+
+  const countColumns = useMemo(() => [
+    ...COUNT_COLUMNS,
+    {
+      key: 'counted_quantity',
+      header: 'Counted Qty',
+      render: (row) => {
+        const draft = getCountDraft(row);
+        return (
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={draft.countedQuantity}
+            disabled={!canWriteCounts || countCorrection.isSettingQuantity}
+            onChange={(event) => updateCountDraft(row.bin_item_id, { countedQuantity: event.target.value })}
+            placeholder="0"
+          />
+        );
+      },
+    },
+    {
+      key: 'reason',
+      header: 'Reason',
+      render: (row) => {
+        const draft = getCountDraft(row);
+        return (
+          <div className="inventory-count-reason-cell">
+            <select
+              value={draft.reason}
+              disabled={!canWriteCounts || countCorrection.isSettingQuantity}
+              onChange={(event) => updateCountDraft(row.bin_item_id, { reason: event.target.value })}
+            >
+              {COUNT_REASON_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {draft.reason === 'custom' ? (
+              <input
+                type="text"
+                value={draft.customReason}
+                disabled={!canWriteCounts || countCorrection.isSettingQuantity}
+                placeholder="Required note"
+                onChange={(event) => updateCountDraft(row.bin_item_id, { customReason: event.target.value })}
+              />
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'action',
+      header: 'Set Count',
+      render: (row) => {
+        const message = countMessages[row.bin_item_id];
+        return (
+          <div className="inventory-count-action-cell">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!canWriteCounts || countCorrection.isSettingQuantity || !isCountDraftReady(getCountDraft(row))}
+              onClick={() => handleSetCount(row)}
+            >
+              <Scale aria-hidden="true" /> Set Count
+            </button>
+            {message ? (
+              <span className={`inventory-cart-row-message inventory-cart-row-message--${message.tone}`}>
+                {message.text}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ], [canWriteCounts, countCorrection.isSettingQuantity, countDrafts, countMessages]);
 
   function getLineDestination(cartItem) {
     const savedLine = lineDestinations[cartItem.cart_item_id];
@@ -467,6 +614,50 @@ export function InventoryWorkspace({ permissions }) {
     return Number.isFinite(numeric) ? numeric : 0;
   }
 
+  function getCountDraft(row) {
+    return countDrafts[row.bin_item_id] ?? {
+      countedQuantity: '',
+      reason: 'cycle count',
+      customReason: '',
+    };
+  }
+
+  function updateCountDraft(binItemId, updates) {
+    setCountDrafts((current) => ({
+      ...current,
+      [binItemId]: {
+        countedQuantity: '',
+        reason: 'cycle count',
+        customReason: '',
+        ...(current[binItemId] ?? {}),
+        ...updates,
+      },
+    }));
+    setCountMessages((current) => ({ ...current, [binItemId]: null }));
+  }
+
+  function resolveCountReason(draft) {
+    return draft.reason === 'custom' ? draft.customReason.trim() : draft.reason;
+  }
+
+  function isCountDraftReady(draft) {
+    const countedQuantity = Number(draft.countedQuantity);
+    return (
+      draft.countedQuantity !== '' &&
+      Number.isFinite(countedQuantity) &&
+      countedQuantity >= 0 &&
+      resolveCountReason(draft).length > 0
+    );
+  }
+
+  function updateCountIntakeDraft(updates) {
+    setCountIntakeDraft((current) => ({
+      ...current,
+      ...updates,
+    }));
+    setCountMessages((current) => ({ ...current, new: null }));
+  }
+
   async function handleOpenCart() {
     await cartState.openCart();
   }
@@ -531,6 +722,91 @@ export function InventoryWorkspace({ permissions }) {
       readModel.reload();
       history.reload();
     }
+  }
+
+  async function handleSetCount(row) {
+    const draft = getCountDraft(row);
+    if (!canWriteCounts || !isCountDraftReady(draft)) {
+      setCountMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { tone: 'error', text: 'Count and reason required.' },
+      }));
+      return;
+    }
+
+    const targetQuantity = Number(draft.countedQuantity);
+    const result = await countCorrection.setCountQuantity({
+      binItemId: row.bin_item_id,
+      targetQuantity,
+      reason: resolveCountReason(draft),
+    });
+
+    if (!result) {
+      setCountMessages((current) => ({
+        ...current,
+        [row.bin_item_id]: { tone: 'error', text: 'Count failed. Check role or server validation.' },
+      }));
+      return;
+    }
+
+    setCountMessages((current) => ({
+      ...current,
+      [row.bin_item_id]: { tone: 'success', text: `Set to ${formatQuantity(result.quantity_on_hand ?? targetQuantity)}.` },
+    }));
+    setCountDrafts((current) => ({
+      ...current,
+      [row.bin_item_id]: {
+        countedQuantity: '',
+        reason: 'cycle count',
+        customReason: '',
+      },
+    }));
+    countSheet.reload();
+    readModel.reload();
+    history.reload();
+  }
+
+  async function handleRecordCountIntake() {
+    if (!canWriteCounts || !isCountDraftReady(countIntakeDraft) || !countIntakeDraft.bin_id || !countIntakeDraft.item_id) {
+      setCountMessages((current) => ({
+        ...current,
+        new: { tone: 'error', text: 'Bin, item, count, and reason required.' },
+      }));
+      return;
+    }
+
+    const result = await countIntake.recordCount({
+      binId: countIntakeDraft.bin_id,
+      itemId: countIntakeDraft.item_id,
+      countedQuantity: Number(countIntakeDraft.countedQuantity),
+      reason: resolveCountReason(countIntakeDraft),
+    });
+
+    if (!result) {
+      setCountMessages((current) => ({
+        ...current,
+        new: { tone: 'error', text: 'Intake failed. Check role or server validation.' },
+      }));
+      return;
+    }
+
+    setCountMessages((current) => ({
+      ...current,
+      new: {
+        tone: 'success',
+        text: `Recorded ${formatQuantity(result.counted_quantity)}. Variance ${formatQuantity(result.variance)}.`,
+      },
+    }));
+    setCountIntakeDraft({
+      bin_id: countIntakeDraft.bin_id,
+      item_id: '',
+      countedQuantity: '',
+      reason: 'initial shelf count',
+      customReason: '',
+    });
+    countSheet.reload();
+    readModel.reload();
+    history.reload();
   }
 
   function renderActiveView() {
@@ -760,6 +1036,187 @@ export function InventoryWorkspace({ permissions }) {
       );
     }
 
+    if (activeView === 'count') {
+      const intakeMessage = countMessages.new;
+      return (
+        <div className="inventory-section-stack">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Count"
+              title="Inventory Count"
+              description="Set physical quantities through the preserved count correction RPC. Zero is valid; balance writes remain server-controlled."
+              search={(
+                <label>
+                  <span className="sr-only">Search inventory count rows</span>
+                  <input
+                    type="search"
+                    value={countSearch}
+                    onChange={(event) => setCountSearch(event.target.value)}
+                    placeholder="Search code, item, bin, location..."
+                  />
+                </label>
+              )}
+              actions={(
+                <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
+                  <RefreshCw aria-hidden="true" /> Refresh Counts
+                </button>
+              )}
+              dense
+            />
+
+            {!canManageInventory ? (
+              <StatePanel
+                eyebrow="Count Access"
+                title="Management permission required"
+                description="This screen reads only after server permissions include inventory management. RPC authorization still decides every count write."
+                tone="warning"
+                compact
+              />
+            ) : null}
+            {canReadCounts && !canWriteCounts ? (
+              <StatePanel
+                eyebrow="Count Writes"
+                title="Developer/Admin role required"
+                description="The count sheet can be reviewed here, but physical count corrections remain disabled until the server role matches the RPC contract."
+                tone="warning"
+                compact
+              />
+            ) : null}
+            {countCorrection.error ? (
+              <StatePanel
+                eyebrow="Count Error"
+                title="Correction failed"
+                description={countCorrection.error.message || 'Check role, quantity, reason, and deployed RPC.'}
+                tone="danger"
+                compact
+              />
+            ) : null}
+
+            <div className="inventory-cart-facts">
+              <span>Loaded rows: <strong>{countSheet.rows.length}</strong></span>
+              <span>Visible rows: <strong>{visibleCountRows.length}</strong></span>
+              <span>Bins: <strong>{countSheet.bins.length}</strong></span>
+              <span>Last loaded: <strong>{countSheet.lastLoadedAt ? formatDateTime(countSheet.lastLoadedAt) : '-'}</strong></span>
+            </div>
+
+            <DataTable
+              columns={countColumns}
+              rows={visibleCountRows}
+              getRowKey={(row) => row.bin_item_id}
+              permissions={permissions}
+              isLoading={countSheet.isLoading}
+              error={countSheet.error}
+              dense
+              minWidth="1120px"
+              emptyTitle="No count rows"
+              emptyDescription="Count rows come from the existing inventory count sheet read model."
+            />
+          </article>
+
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Intake"
+              title="Record Count Intake"
+              description="Use this when a catalog item belongs in a bin but has no active bin/material row yet. The server finds or creates the link, then records a physical count correction."
+              dense
+            />
+            {countIntake.error ? (
+              <StatePanel
+                eyebrow="Intake Error"
+                title="Count intake failed"
+                description={countIntake.error.message || 'Check role, bin, item, count, and deployed RPC.'}
+                tone="danger"
+                compact
+              />
+            ) : null}
+            <div className="inventory-count-intake-grid">
+              <label>
+                <span>Bin</span>
+                <select
+                  value={countIntakeDraft.bin_id}
+                  disabled={!canWriteCounts || countIntake.isRecording}
+                  onChange={(event) => updateCountIntakeDraft({ bin_id: event.target.value, item_id: '' })}
+                >
+                  <option value="">Select bin</option>
+                  {countSheet.bins.map((bin) => (
+                    <option key={bin.id} value={bin.id}>
+                      {bin.bin_code || bin.label || bin.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Catalog Item</span>
+                <select
+                  value={countIntakeDraft.item_id}
+                  disabled={!canWriteCounts || countIntake.isRecording || !countIntakeDraft.bin_id}
+                  onChange={(event) => updateCountIntakeDraft({ item_id: event.target.value })}
+                >
+                  <option value="">Select item</option>
+                  {countIntakeItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.material_code ? `${item.material_code} / ` : ''}{item.name || item.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Counted Qty</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={countIntakeDraft.countedQuantity}
+                  disabled={!canWriteCounts || countIntake.isRecording}
+                  onChange={(event) => updateCountIntakeDraft({ countedQuantity: event.target.value })}
+                  placeholder="0"
+                />
+              </label>
+              <label>
+                <span>Reason</span>
+                <select
+                  value={countIntakeDraft.reason}
+                  disabled={!canWriteCounts || countIntake.isRecording}
+                  onChange={(event) => updateCountIntakeDraft({ reason: event.target.value })}
+                >
+                  {COUNT_REASON_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              {countIntakeDraft.reason === 'custom' ? (
+                <label>
+                  <span>Custom Note</span>
+                  <input
+                    type="text"
+                    value={countIntakeDraft.customReason}
+                    disabled={!canWriteCounts || countIntake.isRecording}
+                    onChange={(event) => updateCountIntakeDraft({ customReason: event.target.value })}
+                    placeholder="Required note"
+                  />
+                </label>
+              ) : null}
+              <div className="inventory-count-intake-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={!canWriteCounts || countIntake.isRecording || !countIntakeDraft.bin_id || !countIntakeDraft.item_id || !isCountDraftReady(countIntakeDraft)}
+                  onClick={handleRecordCountIntake}
+                >
+                  <Plus aria-hidden="true" /> {countIntake.isRecording ? 'Recording...' : 'Record Count Intake'}
+                </button>
+                {intakeMessage ? (
+                  <span className={`inventory-cart-row-message inventory-cart-row-message--${intakeMessage.tone}`}>
+                    {intakeMessage.text}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </article>
+        </div>
+      );
+    }
+
     if (activeView === 'history') {
       return (
         <article className="card workspace-card">
@@ -820,16 +1277,16 @@ export function InventoryWorkspace({ permissions }) {
           />
           <StatePanel
             eyebrow="Counts"
-            title="Physical count correction is not ported yet"
-            description="Quantity reconciliation must continue through the approved physical_count_correction path. This v3 surface adds no count writes."
-            tone="warning"
+            title="Physical count correction is live"
+            description="Count sheet, existing row correction, and new bin/material count intake now use the preserved count RPCs."
+            tone="good"
             compact
             actions={<Scale aria-hidden="true" />}
           />
           <StatePanel
             eyebrow="Balances"
             title="Balances remain transaction-derived"
-            description="No UI path here writes inventory_balances directly. Counts and checkout remain server-controlled future slices."
+            description="No UI path here writes inventory_balances directly. Counts and checkout stay on approved server-controlled RPC paths."
             tone="good"
             compact
             actions={<Boxes aria-hidden="true" />}
@@ -867,7 +1324,7 @@ export function InventoryWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Inventory"
-        description="Inventory surface using preserved read hooks plus restored cart staging and normal checkout finalization. Counts and archive actions remain deferred until their controls can be ported deliberately."
+        description="Inventory surface using preserved read hooks plus restored cart staging, checkout, and physical count workflows. Archive actions remain deferred until their controls can be ported deliberately."
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -885,7 +1342,7 @@ export function InventoryWorkspace({ permissions }) {
         <SummaryCard label="Active items" value={counts.activeItems} detail="Current catalogue count" />
         <SummaryCard label="Bins" value={counts.bins} detail={`${counts.storageUnits} units / ${counts.shelves} shelves / ${counts.bays} bays`} />
         <SummaryCard label="Bin items" value={counts.binItems} detail={`${counts.inventoryBalances} balance rows`} />
-        <SummaryCard label="Cart rows" value={cartState.cartItems.length} detail={`${model.cartCandidates.length} stocked candidate rows`} />
+        <SummaryCard label="Cart / Count" value={cartState.cartItems.length} detail={`${model.cartCandidates.length} stocked candidates / ${countSheet.rows.length || counts.binItems} count rows`} />
       </div>
 
       <div className={`workspace-split inventory-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -906,7 +1363,7 @@ export function InventoryWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Guardrails</strong>
-              <p>Cart staging and normal checkout are live. Count correction and retirement remain separate slices.</p>
+              <p>Cart staging, normal checkout, and count correction are live. Retirement remains a separate slice.</p>
             </div>
           )}
         />
@@ -953,7 +1410,7 @@ export function InventoryWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Data Contract"
               title="No direct balance writes"
-              description="Cart and checkout write only through approved RPCs and do not write `inventory_balances` directly; balance derivation remains server-controlled."
+              description="Cart, checkout, and count workflows write only through approved RPCs and do not write `inventory_balances` directly."
               tone="good"
               compact
               actions={<Boxes aria-hidden="true" />}

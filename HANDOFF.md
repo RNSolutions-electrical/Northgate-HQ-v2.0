@@ -17134,3 +17134,114 @@ No Claude review needed - Inventory normal checkout reused the existing
 approved `finalize_inventory_cart` RPC wrapper and did not change schema, RLS,
 permissions, express checkout, count correction, bin retirement, direct balance
 writes, or ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 164.
+
+## Entry 165 - Restore Inventory count workflows in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory count workflows
+**Session type:** implementation
+
+### Context
+- Starting commit: `816e418` (`Restore Inventory normal checkout in v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 164`.
+- Ryan verified Inventory normal checkout in production and replied "good to
+  go. proceed."
+- Count Intake is locked as the approved physical quantity establishment path.
+- The preserved hooks already call the locked RPCs:
+  - `set_inventory_count_quantity`
+  - `intake_inventory_count`
+
+### What Was Completed
+- Added an Inventory `Count` view to the v3 sidebar.
+- Restored count sheet loading through `useInventoryCountSheet`.
+- Added searchable count rows with material, location, system quantity, unit,
+  and minimum quantity.
+- Added existing-row physical count correction controls:
+  - counted quantity input;
+  - reason selector;
+  - custom reason field;
+  - `Set Count` action.
+- Wired existing-row count writes through the preserved
+  `useInventoryCountCorrection.setCountQuantity` hook.
+- Added new bin/material count intake controls:
+  - bin selector;
+  - catalog item selector excluding items already active in the selected bin;
+  - counted quantity input;
+  - reason selector;
+  - custom reason field;
+  - `Record Count Intake` action.
+- Wired new bin/material count intake through the preserved
+  `useInventoryCountIntake.recordCount` hook.
+- Preserved zero as a valid physical count quantity.
+- Matched the UI write gate to the server RPC contract: inventory management
+  can read the count sheet, while count writes require Developer/Admin role.
+- Updated Inventory boundary copy to show cart, checkout, and count workflows
+  are live while retirement remains deferred.
+- Added focused responsive CSS for count reason/action cells and the intake
+  controls.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, or RPC definition changed.
+- Count writes are performed only through the preserved count RPC wrappers.
+- The v3 UI does not write `inventory_balances` directly.
+- No direct `inventory_balances`, `inventory_transactions`,
+  `transaction_items`, or `bin_items` client mutation was added.
+- Bin-item retirement remains unimplemented in v3.
+- QR scan dispatch remains unimplemented in this v3 slice.
+- Express checkout and return-from-job remain separate future slices.
+
+### Code / File Changes
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Static scan confirmed the v3 Inventory workspace does not directly call
+  `insert`, `update`, `delete`, `upsert`, `retire_bin_item`, or
+  `inventory_balances`.
+- Static scan confirmed count writes appear only in the preserved hooks via:
+  - `set_inventory_count_quantity`
+  - `intake_inventory_count`
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables/functions, but
+  this pass adds no new table, function, migration, or grant and reuses
+  existing count RPCs and tables.
+- Authenticated live count runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Inventory count-workflows slice.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_manage_inventory`.
+4. Open Inventory > Count.
+5. Confirm count rows load and can be searched.
+6. With a Developer/Admin user, set one existing row count to its current
+   system quantity and confirm the success message appears.
+7. With a Developer/Admin user, optionally test a new bin/material count intake
+   for a catalog item that is not already active in that bin.
+8. Confirm no bin-item retirement or direct archive action is exposed in this
+   slice.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- The next Inventory slice should likely be bin-item retirement after the count
+  workflow is verified, then QR scan dispatch or return-from-job depending on
+  operational priority.
+
+### Architecture Drift Warnings
+- None active. This pass reintroduced only the preserved count RPC wrappers and
+  did not change schema, RLS, permissions, retirement, direct balance writes, or
+  ledger derivation.
+
+### Routing Verdict
+No Claude review needed - Inventory count workflows reused the existing
+approved count RPC wrappers and did not change schema, RLS, permissions,
+retirement, direct balance writes, or ledger derivation under ARCHITECTURE
+v2.30 / HANDOFF Entry 165.

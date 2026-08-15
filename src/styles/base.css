@@ -1233,6 +1233,44 @@ textarea {
   justify-content: flex-end;
 }
 
+.inventory-count-reason-cell,
+.inventory-count-action-cell {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 170px;
+}
+
+.inventory-count-reason-cell input,
+.inventory-count-reason-cell select,
+.inventory-count-action-cell button {
+  min-height: 34px;
+}
+
+.inventory-count-intake-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.inventory-count-intake-grid label,
+.inventory-count-intake-actions {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.inventory-count-intake-grid label span {
+  color: var(--ng-faint);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inventory-count-intake-actions {
+  align-content: end;
+}
+
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
   .developer-grid,
@@ -1241,7 +1279,8 @@ textarea {
   .workspace-surface { padding-left: 0; }
   .inventory-cart-checkout-panel,
   .inventory-cart-checkout-controls,
-  .inventory-cart-destination-cell { grid-template-columns: minmax(0, 1fr); }
+  .inventory-cart-destination-cell,
+  .inventory-count-intake-grid { grid-template-columns: minmax(0, 1fr); }
   .inventory-cart-destination-cell { min-width: 260px; }
 }
 .profile-field span {
