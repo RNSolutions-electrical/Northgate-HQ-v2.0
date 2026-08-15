@@ -105,7 +105,7 @@ export const MODULES = [
     path: '/documents',
     label: 'Documents',
     icon: FolderOpen,
-    status: 'stub',
+    status: 'live',
     description: 'Job documents, versions, and required-document queues.',
   },
   {

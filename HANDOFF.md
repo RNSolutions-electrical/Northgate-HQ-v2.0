@@ -15935,3 +15935,86 @@ source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 151.
 ### Routing Verdict
 No Claude review needed - Reports v3 migration remained read-only UI within
 ARCHITECTURE v2.30 / HANDOFF Entry 152.
+
+## Entry 153 - Port Documents workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Documents module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `42eb641` (`Port Reports workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 152`.
+- `MIGRATION_MAP.md` identifies Documents as the fourth low-risk module, with
+  storage paths and RLS unchanged.
+- The existing live Documents implementation is Job Documents v1 inside the
+  Jobs detail Documents tab. Jobs has not been migrated into v3 yet, so this
+  pass did not relocate upload/archive/download actions into a top-level module.
+
+### What Was Completed
+- Added a v3 `DocumentsWorkspace` module under `src/modules/documents/`.
+- Registered the Documents screen in `src/modules/screens.js`.
+- Changed the Documents module registry status from `stub` to `live`.
+- Added a top-level Documents center with:
+  - Overview
+  - Owner Scopes
+  - Controls
+- Documented the approved generic owner vocabulary and storage path convention
+  for job, estimate, vehicle, tool, employee, change-order, report, and snapshot
+  owner types.
+- Marked Job documents as the only job-scoped live owner path today.
+- Added read-oriented summaries for live/reserved scopes, existing
+  `can_manage_jobs` context, and the locked `northgate-files` storage boundary.
+- Added minimal responsive Documents layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase query, schema, migration, RPC, RLS, auth, permission flag, storage
+  policy, upload, archive, download, signed URL, Jobs, Financials, export, or
+  backend behavior changed.
+- No top-level document mutation path was added.
+- The existing Job Documents v1 owner workflow remains the approved place for
+  job document upload/open/download/archive until Jobs is migrated into v3.
+- Non-job owner types remain reserved until their source modules and RLS/read
+  behavior are explicitly implemented.
+- Change orders remain financial records, not documents.
+
+### Code / File Changes
+- `src/modules/documents/DocumentsWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Documents runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Documents-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in and open Documents.
+4. Confirm Documents no longer shows the v3 placeholder.
+5. Confirm Overview, Owner Scopes, and Controls render without overflow at
+   desktop and mobile widths.
+6. Confirm no top-level upload/archive/download actions are exposed.
+7. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Top-level document row listing should be added only after owner-specific read
+  filters are explicit, or after Jobs is migrated and job document context can
+  be preserved.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside read-oriented Documents UI,
+  source-readiness presentation, owner-scope mapping, and responsive
+  presentation scope.
+
+### Routing Verdict
+No Claude review needed - Documents v3 migration remained read-oriented UI
+within ARCHITECTURE v2.30 / HANDOFF Entry 153.

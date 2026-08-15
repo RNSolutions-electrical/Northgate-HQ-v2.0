@@ -729,6 +729,7 @@ textarea {
 .developer-grid,
 .developer-links,
 .developer-future-note,
+.documents-workspace,
 .reports-workspace {
   margin-left: var(--app-page-gutter);
   margin-right: var(--app-page-gutter);
@@ -875,14 +876,22 @@ textarea {
   color: var(--ng-brand-red);
 }
 
+.documents-workspace,
 .reports-workspace {
   margin-top: var(--card-gap);
 }
 
+.documents-action-map,
 .reports-source-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--card-gap);
+}
+
+.documents-action-map .state-panel__actions svg {
+  width: 20px;
+  height: 20px;
+  color: var(--ng-brand-red);
 }
 
 @media (max-width: 900px) {
