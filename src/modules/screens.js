@@ -28,10 +28,12 @@ import { DashboardWorkspace } from './dashboard/DashboardWorkspace.jsx';
 import { DeveloperWorkspace } from './developer/DeveloperWorkspace.jsx';
 import { DocumentsWorkspace } from './documents/DocumentsWorkspace.jsx';
 import { ReportsWorkspace } from './reports/ReportsWorkspace.jsx';
+import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
 
 export const MODULE_SCREENS = {
   dashboard: DashboardWorkspace,
   developer: DeveloperWorkspace,
   documents: DocumentsWorkspace,
   reports: ReportsWorkspace,
+  vehicles: VehiclesWorkspace,
 };

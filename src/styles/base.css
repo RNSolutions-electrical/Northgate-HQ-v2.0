@@ -730,7 +730,8 @@ textarea {
 .developer-links,
 .developer-future-note,
 .documents-workspace,
-.reports-workspace {
+.reports-workspace,
+.vehicles-workspace {
   margin-left: var(--app-page-gutter);
   margin-right: var(--app-page-gutter);
 }
@@ -877,12 +878,15 @@ textarea {
 }
 
 .documents-workspace,
-.reports-workspace {
+.reports-workspace,
+.vehicles-workspace {
   margin-top: var(--card-gap);
 }
 
 .documents-action-map,
-.reports-source-grid {
+.reports-source-grid,
+.vehicles-boundary-grid,
+.vehicles-fact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--card-gap);

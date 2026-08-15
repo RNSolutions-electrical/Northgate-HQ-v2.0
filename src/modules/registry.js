@@ -88,7 +88,7 @@ export const MODULES = [
     label: 'Vehicles',
     icon: Truck,
     requires: ['canManageVehicles'],
-    status: 'stub',
+    status: 'live',
     description: 'Fleet register, assignments, and vehicle stock.',
   },
   {

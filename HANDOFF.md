@@ -16018,3 +16018,94 @@ ARCHITECTURE v2.30 / HANDOFF Entry 152.
 ### Routing Verdict
 No Claude review needed - Documents v3 migration remained read-oriented UI
 within ARCHITECTURE v2.30 / HANDOFF Entry 153.
+
+## Entry 154 - Port Vehicles workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Vehicles module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `c067c5e` (`Port Documents workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 153`.
+- `MIGRATION_MAP.md` identifies Vehicles as the fifth low-risk module because it
+  is self-contained.
+- The preserved v2 Vehicles workspace used the existing
+  `inventory_destination_vehicles_view` read path. This v3 port reuses that
+  authenticated read path and does not create a new vehicle data contract.
+
+### What Was Completed
+- Added a v3 `VehiclesWorkspace` module under `src/modules/vehicles/`.
+- Registered the Vehicles screen in `src/modules/screens.js`.
+- Changed the Vehicles module registry status from `stub` to `live` while
+  preserving the existing `canManageVehicles` route/nav gate.
+- Added an authenticated read-only vehicle reference hook using
+  `inventory_destination_vehicles_view`.
+- Added vehicle directory views:
+  - All Vehicles
+  - Stock Vehicles
+  - General Fleet
+- Added search across visible vehicle reference fields.
+- Added selected-record detail shell with tabs for:
+  - Overview
+  - Assignment
+  - Service
+  - History
+- Kept Assignment, Service, and History as deferred source-honest panels.
+- Added disabled Add Vehicle affordance and boundary panels documenting that
+  create/edit, assignment mutations, service workflow, and history rows are not
+  part of this pass.
+- Added minimal responsive Vehicles layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, permission flag, storage,
+  vehicle assignment, cart-open snapshot, inventory, checkout, ledger, service,
+  maintenance, document, history, or backend behavior changed.
+- The only Supabase access added is a SELECT from the existing
+  `inventory_destination_vehicles_view` with the caller's Clerk/Supabase token.
+- No vehicle create, edit, archive, assignment, service, or history mutation path
+  was added.
+- The existing vehicle assignment model and cart-open vehicle snapshot behavior
+  remain unchanged.
+
+### Code / File Changes
+- `src/modules/vehicles/VehiclesWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Vehicles runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Vehicles-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_manage_vehicles` and open Vehicles.
+4. Confirm Vehicles no longer shows the v3 placeholder.
+5. Confirm visible vehicle rows load where the existing reference view permits
+   them.
+6. Confirm All / Stock / General Fleet filters and search work.
+7. Confirm Add Vehicle is disabled and no assignment/service/history mutations
+   are exposed.
+8. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future vehicle create/edit and assignment management need an explicit write
+  contract before being ported.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside read-only Vehicles UI, existing
+  vehicle-reference reads, selected-record presentation, and responsive
+  presentation scope.
+
+### Routing Verdict
+No Claude review needed - Vehicles v3 migration reused existing read paths and
+remained within ARCHITECTURE v2.30 / HANDOFF Entry 154.
