@@ -5,6 +5,7 @@ import {
   MapPinned,
   PackageSearch,
   Plus,
+  QrCode,
   RefreshCw,
   Scale,
   ShoppingCart,
@@ -13,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -27,10 +29,13 @@ import { useInventoryCountIntake } from '../../hooks/useInventoryCountIntake.js'
 import { useInventoryCountSheet } from '../../hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
 const INVENTORY_VIEWS = [
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
   { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units and bin previews.' },
+  { key: 'scan', label: 'Scan', icon: QrCode, description: 'Resolve location QR codes and dispatch to cart or count.' },
   { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
   { key: 'count', label: 'Count', icon: Scale, description: 'Count sheet, correction, and new bin/material intake.' },
   { key: 'destinations', label: 'Destinations', icon: Truck, description: 'Approved user and vehicle destination references.' },
@@ -149,6 +154,14 @@ const COUNT_COLUMNS = [
   { key: 'min_quantity', header: 'Min', numeric: true, render: (row) => formatQuantity(row.min_quantity) },
 ];
 
+const SCAN_CONTENT_COLUMNS = [
+  { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
+  { key: 'item_name', header: 'Item' },
+  { key: 'bin_code', header: 'Bin' },
+  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
+  { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
+];
+
 function formatMoney(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
@@ -178,6 +191,164 @@ function buildStoragePath(row) {
     row.bay_code,
     row.bin_code,
   ].filter(Boolean).join(' / ');
+}
+
+function sortByPositionThenCode(first, second, codeKey) {
+  return Number(first.position ?? 0) - Number(second.position ?? 0)
+    || String(first[codeKey] ?? '').localeCompare(String(second[codeKey] ?? ''));
+}
+
+function buildLocationRecords(locationSheet) {
+  const unitById = new Map(locationSheet.storageUnits.map((unit) => [unit.id, unit]));
+  const shelfById = new Map(locationSheet.shelves.map((shelf) => [shelf.id, shelf]));
+  const bayById = new Map(locationSheet.bays.map((bay) => [bay.id, bay]));
+
+  const unitRecords = locationSheet.storageUnits.map((unit) => ({
+    id: unit.id,
+    type: 'unit',
+    typeLabel: 'Unit',
+    code: unit.unit_code,
+    label: unit.name,
+    path: unit.unit_code,
+  }));
+
+  const shelfRecords = locationSheet.shelves.map((shelf) => {
+    const unit = unitById.get(shelf.unit_id);
+    return {
+      id: shelf.id,
+      type: 'shelf',
+      typeLabel: 'Shelf',
+      code: shelf.shelf_code,
+      label: shelf.label,
+      path: [unit?.unit_code, shelf.shelf_code].filter(Boolean).join(' / '),
+    };
+  });
+
+  const bayRecords = locationSheet.bays.map((bay) => {
+    const shelf = shelfById.get(bay.shelf_id);
+    const unit = shelf ? unitById.get(shelf.unit_id) : null;
+    return {
+      id: bay.id,
+      type: 'bay',
+      typeLabel: 'Bay',
+      code: bay.bay_code,
+      label: bay.label,
+      path: [unit?.unit_code, shelf?.shelf_code, bay.bay_code].filter(Boolean).join(' / '),
+    };
+  });
+
+  const binRecords = locationSheet.bins.map((bin) => {
+    const bay = bayById.get(bin.bay_id);
+    const shelf = bay ? shelfById.get(bay.shelf_id) : null;
+    const unit = shelf ? unitById.get(shelf.unit_id) : null;
+    return {
+      id: bin.id,
+      type: 'bin',
+      typeLabel: 'Bin',
+      code: bin.bin_code,
+      label: bin.label,
+      path: [unit?.unit_code, shelf?.shelf_code, bay?.bay_code, bin.bin_code].filter(Boolean).join(' / '),
+    };
+  });
+
+  return [...unitRecords, ...shelfRecords, ...bayRecords, ...binRecords];
+}
+
+function getLocationDisplay(record) {
+  if (!record) return 'Unknown location';
+  return record.path || record.code || record.label || record.id;
+}
+
+function buildScanDestinationModel(locationId, locationSheet) {
+  const unitById = new Map(locationSheet.storageUnits.map((unit) => [unit.id, unit]));
+  const shelfById = new Map(locationSheet.shelves.map((shelf) => [shelf.id, shelf]));
+  const bayById = new Map(locationSheet.bays.map((bay) => [bay.id, bay]));
+  const binById = new Map(locationSheet.bins.map((bin) => [bin.id, bin]));
+
+  const shelvesByUnitId = new Map();
+  locationSheet.shelves.forEach((shelf) => {
+    const shelves = shelvesByUnitId.get(shelf.unit_id) ?? [];
+    shelves.push(shelf);
+    shelvesByUnitId.set(shelf.unit_id, shelves);
+  });
+
+  const baysByShelfId = new Map();
+  locationSheet.bays.forEach((bay) => {
+    const bays = baysByShelfId.get(bay.shelf_id) ?? [];
+    bays.push(bay);
+    baysByShelfId.set(bay.shelf_id, bays);
+  });
+
+  const binsByBayId = new Map();
+  locationSheet.bins.forEach((bin) => {
+    const bins = binsByBayId.get(bin.bay_id) ?? [];
+    bins.push(bin);
+    binsByBayId.set(bin.bay_id, bins);
+  });
+
+  const getSortedShelves = (unitId) =>
+    [...(shelvesByUnitId.get(unitId) ?? [])].sort((first, second) => sortByPositionThenCode(first, second, 'shelf_code'));
+  const getSortedBays = (shelfId) =>
+    [...(baysByShelfId.get(shelfId) ?? [])].sort((first, second) => sortByPositionThenCode(first, second, 'bay_code'));
+  const getSortedBins = (bayId) =>
+    [...(binsByBayId.get(bayId) ?? [])].sort((first, second) => sortByPositionThenCode(first, second, 'bin_code'));
+
+  let scopeType = '';
+  let unit = null;
+  let shelf = null;
+  let bay = null;
+  let bin = null;
+
+  if (unitById.has(locationId)) {
+    scopeType = 'unit';
+    unit = unitById.get(locationId);
+  } else if (shelfById.has(locationId)) {
+    scopeType = 'shelf';
+    shelf = shelfById.get(locationId);
+    unit = unitById.get(shelf.unit_id) ?? null;
+  } else if (bayById.has(locationId)) {
+    scopeType = 'bay';
+    bay = bayById.get(locationId);
+    shelf = shelfById.get(bay.shelf_id) ?? null;
+    unit = shelf ? unitById.get(shelf.unit_id) ?? null : null;
+  } else if (binById.has(locationId)) {
+    scopeType = 'bin';
+    bin = binById.get(locationId);
+    bay = bayById.get(bin.bay_id) ?? null;
+    shelf = bay ? shelfById.get(bay.shelf_id) ?? null : null;
+    unit = shelf ? unitById.get(shelf.unit_id) ?? null : null;
+  }
+
+  if (!scopeType) return null;
+
+  const shelves = scopeType === 'unit' ? getSortedShelves(unit.id) : shelf ? [shelf] : [];
+  const bays = scopeType === 'unit' || scopeType === 'shelf' ? shelves.flatMap((row) => getSortedBays(row.id)) : bay ? [bay] : [];
+  const bins = scopeType === 'unit' || scopeType === 'shelf' || scopeType === 'bay' ? bays.flatMap((row) => getSortedBins(row.id)) : bin ? [bin] : [];
+  const locationRecord = buildLocationRecords(locationSheet).find((record) => record.id === locationId) ?? null;
+
+  return {
+    scopeType,
+    locationRecord,
+    bins,
+    bin,
+  };
+}
+
+function getRowsForScanScope(model, rows) {
+  if (!model?.locationRecord) return [];
+  if (model.scopeType === 'bin') {
+    return rows.filter((row) => row.bin_id === model.bin?.id);
+  }
+  const binIds = new Set(model.bins.map((bin) => bin.id));
+  return rows.filter((row) => binIds.has(row.bin_id));
+}
+
+function getScanQuery(bin) {
+  const params = new URLSearchParams();
+  if (bin?.id) params.set('scanBinId', bin.id);
+  const label = bin?.bin_code || bin?.label || '';
+  if (label) params.set('scanBinCode', label);
+  return params;
 }
 
 function filterRows(rows, search, fields) {
@@ -212,6 +383,13 @@ function isDeveloperOrAdminRole(role) {
 }
 
 export function InventoryWorkspace({ permissions }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const requestedView = searchParams.get('view') ?? '';
+  const scanBinId = searchParams.get('scanBinId') ?? '';
+  const scanBinCode = searchParams.get('scanBinCode') ?? '';
+  const scanContext = scanBinId ? { binId: scanBinId, binCode: scanBinCode } : null;
   const canLoadInventory = permissions.permissionSource === 'server';
   const canTransact = permissions?.canInventoryTransactions === true;
   const canManageInventory = permissions?.canManageInventory === true;
@@ -220,7 +398,9 @@ export function InventoryWorkspace({ permissions }) {
   const canRetireBinItems = canWriteCounts && permissions?.canArchiveRecords === true;
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
-  const [activeView, setActiveView] = useState('catalog');
+  const [activeView, setActiveView] = useState(
+    INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : 'catalog',
+  );
   const [search, setSearch] = useState('');
   const [historyType, setHistoryType] = useState('');
   const [historySearch, setHistorySearch] = useState('');
@@ -248,6 +428,9 @@ export function InventoryWorkspace({ permissions }) {
     binItemId: '',
     reason: '',
   });
+  const [manualScanPayload, setManualScanPayload] = useState('');
+  const [scanMessage, setScanMessage] = useState('');
+  const [scanMatches, setScanMatches] = useState([]);
 
   const history = useInventoryTransactionHistory({
     enabled: canLoadInventory && activeView === 'history',
@@ -255,7 +438,7 @@ export function InventoryWorkspace({ permissions }) {
     search: historySearch,
     limit: 75,
   });
-  const countSheet = useInventoryCountSheet({ enabled: canReadCounts && activeView === 'count' });
+  const countSheet = useInventoryCountSheet({ enabled: canReadCounts && ['count', 'scan'].includes(activeView) });
   const countCorrection = useInventoryCountCorrection();
   const countIntake = useInventoryCountIntake();
   const retirement = useBinItemRetirement();
@@ -284,8 +467,13 @@ export function InventoryWorkspace({ permissions }) {
     [model.binsPreview, search],
   );
   const visibleCandidates = useMemo(
-    () => filterRows(model.cartCandidates, search, ['material_code', 'item_name', 'bin_code', 'bin_label', 'division']),
-    [model.cartCandidates, search],
+    () => {
+      const rows = scanContext?.binId
+        ? model.cartCandidates.filter((row) => row.bin_id === scanContext.binId)
+        : model.cartCandidates;
+      return filterRows(rows, search, ['material_code', 'item_name', 'bin_code', 'bin_label', 'division']);
+    },
+    [model.cartCandidates, scanContext?.binId, search],
   );
   const visibleUsers = useMemo(
     () => filterRows(model.destinationReferences.users, search, ['display_name', 'email', 'role', 'division']),
@@ -296,17 +484,22 @@ export function InventoryWorkspace({ permissions }) {
     [model.destinationReferences.vehicles, search],
   );
   const visibleCountRows = useMemo(
-    () => filterRows(countSheet.rows, countSearch, [
-      'material_code',
-      'item_name',
-      'bin_code',
-      'bin_label',
-      'storage_unit_code',
-      'shelf_code',
-      'bay_code',
-      'division',
-    ]),
-    [countSearch, countSheet.rows],
+    () => {
+      const rows = scanContext?.binId
+        ? countSheet.rows.filter((row) => row.bin_id === scanContext.binId)
+        : countSheet.rows;
+      return filterRows(rows, countSearch, [
+        'material_code',
+        'item_name',
+        'bin_code',
+        'bin_label',
+        'storage_unit_code',
+        'shelf_code',
+        'bay_code',
+        'division',
+      ]);
+    },
+    [countSearch, countSheet.rows, scanContext?.binId],
   );
   const countIntakeItems = useMemo(() => {
     const existingInBin = new Set(
@@ -327,12 +520,28 @@ export function InventoryWorkspace({ permissions }) {
     }
   }, [cart?.status]);
 
+  useEffect(() => {
+    if (INVENTORY_VIEWS.some((view) => view.key === requestedView)) {
+      setActiveView(requestedView);
+    }
+  }, [requestedView]);
+
+  useEffect(() => {
+    if (activeView === 'count' && scanContext?.binId) {
+      setCountIntakeDraft((current) => ({
+        ...current,
+        bin_id: scanContext.binId,
+      }));
+    }
+  }, [activeView, scanContext?.binId]);
+
   const views = INVENTORY_VIEWS.map((view) => {
     const badge = {
       catalog: counts.activeItems,
       storage: counts.bins,
       cart: cartState.cartItems.length || model.cartCandidates.length,
       count: countSheet.rows.length || counts.binItems,
+      scan: countSheet.bins.length || counts.bins,
       destinations: model.destinationReferences.users.length + model.destinationReferences.vehicles.length,
       history: history.rows.length,
       controls: null,
@@ -728,6 +937,63 @@ export function InventoryWorkspace({ permissions }) {
     setCountMessages((current) => ({ ...current, new: null }));
   }
 
+  function updateInventoryView(nextView) {
+    setActiveView(nextView);
+    setSearch('');
+    setCountSearch('');
+
+    const params = new URLSearchParams(location.search);
+    params.set('view', nextView);
+    if (!['cart', 'count'].includes(nextView)) {
+      params.delete('scanBinId');
+      params.delete('scanBinCode');
+    }
+    navigate(`/inventory?${params.toString()}`, { replace: true });
+  }
+
+  function openLocationScan(locationId) {
+    if (!locationId) return;
+    setScanMessage('');
+    setScanMatches([]);
+    navigate(buildLocationScanPath(locationId));
+  }
+
+  function handleManualScan(event) {
+    event.preventDefault();
+    const payload = manualScanPayload.trim();
+    setScanMatches([]);
+
+    const parsed = parseLocationScanPayload(payload);
+    if (parsed.ok) {
+      setScanMessage('');
+      navigate(parsed.path);
+      return;
+    }
+
+    const normalized = payload.toLowerCase();
+    const matches = buildLocationRecords(countSheet)
+      .filter((record) => [
+        record.code,
+        record.label,
+        record.path,
+        record.id,
+      ].some((value) => String(value ?? '').toLowerCase() === normalized))
+      .slice(0, 12);
+
+    if (matches.length === 1) {
+      openLocationScan(matches[0].id);
+      return;
+    }
+
+    if (matches.length > 1) {
+      setScanMatches(matches);
+      setScanMessage('Multiple locations match. Choose the correct scan target.');
+      return;
+    }
+
+    setScanMessage(parsed.error || 'No matching Northgate location found.');
+  }
+
   function setCountMessage(key, tone, text) {
     setCountMessages((current) => ({
       ...current,
@@ -939,6 +1205,97 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function renderActiveView() {
+    if (activeView === 'scan') {
+      return (
+        <div className="inventory-section-stack">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Scan"
+              title="Location QR Dispatch"
+              description="Open Northgate location QR routes, or enter a location code. Scanning resolves context only; cart, count, and retirement actions remain separate."
+              dense
+            />
+
+            {!canReadCounts ? (
+              <StatePanel
+                eyebrow="Scan Access"
+                title="Inventory management permission required"
+                description="QR scan resolution uses the existing inventory location read path and does not bypass server permissions."
+                tone="warning"
+                compact
+              />
+            ) : null}
+            {countSheet.error ? (
+              <StatePanel
+                eyebrow="Scan Error"
+                title="Location hierarchy failed to load"
+                description={countSheet.error.message || 'Confirm inventory management permission and the existing location read path.'}
+                tone="danger"
+                compact
+              />
+            ) : null}
+
+            <div className="inventory-scan-panel">
+              <div className="inventory-scan-reader">
+                <QrCode aria-hidden="true" />
+                <div>
+                  <p className="eyebrow">Accepted payloads</p>
+                  <h3>Location QR only</h3>
+                  <p>Paste a full QR URL, a `/scan/location/...` path, a raw UUID, or an exact location code such as a unit, shelf, bay, or bin code.</p>
+                </div>
+              </div>
+
+              <form className="inventory-scan-form" onSubmit={handleManualScan}>
+                <label>
+                  <span>Manual Scan Payload</span>
+                  <textarea
+                    value={manualScanPayload}
+                    disabled={!canReadCounts || countSheet.isLoading}
+                    onChange={(event) => {
+                      setManualScanPayload(event.target.value);
+                      setScanMatches([]);
+                    }}
+                    placeholder="Paste /scan/location/<uuid>, a full QR URL, a UUID, or enter a location code"
+                    rows={4}
+                  />
+                </label>
+                <button type="submit" className="primary-button" disabled={!canReadCounts || countSheet.isLoading || !manualScanPayload.trim()}>
+                  <QrCode aria-hidden="true" /> Open Scan Result
+                </button>
+              </form>
+            </div>
+
+            {scanMessage ? (
+              <StatePanel
+                eyebrow="Scan Result"
+                title="Review required"
+                description={scanMessage}
+                tone={scanMatches.length ? 'warning' : 'danger'}
+                compact
+              />
+            ) : null}
+
+            {scanMatches.length ? (
+              <div className="inventory-scan-match-grid">
+                {scanMatches.map((match) => (
+                  <button
+                    type="button"
+                    className="inventory-scan-match"
+                    key={match.id}
+                    onClick={() => openLocationScan(match.id)}
+                  >
+                    <span>{match.typeLabel}</span>
+                    <strong>{match.code || match.id}</strong>
+                    <small>{match.path || match.label || 'Matching location'}</small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        </div>
+      );
+    }
+
     if (activeView === 'storage') {
       return (
         <div className="inventory-section-stack">
@@ -1008,6 +1365,16 @@ export function InventoryWorkspace({ permissions }) {
                 title="Cart action failed"
                 description={cartState.error.message || 'Check permissions, available balance, or deployment status.'}
                 tone="danger"
+                compact
+              />
+            ) : null}
+
+            {scanContext ? (
+              <StatePanel
+                eyebrow="Scanned Bin"
+                title={scanContext.binCode || scanContext.binId}
+                description="Cart candidates are filtered to the scanned bin. Open and stage items normally; scanning does not change inventory by itself."
+                tone="info"
                 compact
               />
             ) : null}
@@ -1229,6 +1596,15 @@ export function InventoryWorkspace({ permissions }) {
                 compact
               />
             ) : null}
+            {scanContext ? (
+              <StatePanel
+                eyebrow="Scanned Bin"
+                title={scanContext.binCode || scanContext.binId}
+                description="Count rows and intake defaults are filtered to the scanned bin. Count and retirement writes still require their normal confirmations."
+                tone="info"
+                compact
+              />
+            ) : null}
 
             <div className="inventory-cart-facts">
               <span>Loaded rows: <strong>{countSheet.rows.length}</strong></span>
@@ -1425,7 +1801,7 @@ export function InventoryWorkspace({ permissions }) {
           <StatePanel
             eyebrow="Counts"
             title="Physical count correction is live"
-            description="Count sheet, existing row correction, new bin/material count intake, and zero-balance retirement now use preserved RPCs."
+            description="Count sheet, existing row correction, new bin/material count intake, zero-balance retirement, and QR dispatch now use preserved paths."
             tone="good"
             compact
             actions={<Scale aria-hidden="true" />}
@@ -1471,7 +1847,7 @@ export function InventoryWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Inventory"
-        description="Inventory surface using preserved read hooks plus restored cart staging, checkout, physical count, and zero-balance retirement workflows. Scanner dispatch remains deferred until its controls can be ported deliberately."
+        description="Inventory surface using preserved read hooks plus restored cart staging, checkout, physical count, zero-balance retirement, and location QR dispatch workflows."
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -1499,10 +1875,7 @@ export function InventoryWorkspace({ permissions }) {
           description="Read models first; write controls stay intentionally bounded."
           items={views}
           activeKey={activeView}
-          onSelect={(key) => {
-            setActiveView(key);
-            setSearch('');
-          }}
+          onSelect={updateInventoryView}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
           mobileOpen={isPrimaryOpen}
@@ -1510,13 +1883,13 @@ export function InventoryWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Guardrails</strong>
-              <p>Cart staging, normal checkout, count correction, and zero-balance retirement are live. Scanner dispatch remains separate.</p>
+              <p>Cart staging, normal checkout, count correction, zero-balance retirement, and QR dispatch are live.</p>
             </div>
           )}
         />
 
         <div className="workspace-surface">
-          {activeView !== 'history' && activeView !== 'controls' ? (
+          {activeView !== 'history' && activeView !== 'controls' && activeView !== 'scan' ? (
             <article className="card workspace-card">
               <Toolbar
                 eyebrow="Filter"
@@ -1565,6 +1938,175 @@ export function InventoryWorkspace({ permissions }) {
           </section>
         </div>
       </div>
+    </>
+  );
+}
+
+export function InventoryScanRoute() {
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+  const { locationId = '' } = useParams();
+  const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
+  const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
+  const scanModel = useMemo(
+    () => buildScanDestinationModel(locationId.toLowerCase(), locationSheet),
+    [locationId, locationSheet.storageUnits, locationSheet.shelves, locationSheet.bays, locationSheet.bins],
+  );
+  const scopedRows = useMemo(
+    () => getRowsForScanScope(scanModel, locationSheet.rows),
+    [scanModel, locationSheet.rows],
+  );
+  const totalQuantity = scopedRows.reduce((sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0), 0);
+
+  function dispatchTo(view, bin) {
+    const params = getScanQuery(bin);
+    params.set('view', view);
+    navigate(`/inventory?${params.toString()}`);
+  }
+
+  if (permissions.isLoading) {
+    return (
+      <StatePanel eyebrow="Scan" title="Checking scan access..." tone="neutral" compact />
+    );
+  }
+
+  if (!canReadLocations) {
+    return (
+      <>
+        <WorkspaceHeader
+          eyebrow="Scan Result"
+          title="Location unavailable"
+          description="Scanning a QR code does not grant access. Sign in with server permissions that can read inventory locations."
+          actions={<button type="button" className="secondary-button" onClick={() => navigate('/inventory?view=scan')}>Open Scanner</button>}
+        />
+        <StatePanel
+          eyebrow="Access"
+          title="Inventory management permission required"
+          description="The scan route uses the existing inventory location read path and does not bypass server permissions."
+          tone="warning"
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <WorkspaceHeader
+        eyebrow="Scan Result"
+        title={scanModel?.locationRecord ? getLocationDisplay(scanModel.locationRecord) : 'Resolving location'}
+        description="Read-only location QR result. Use the actions below to open existing Inventory workflows with this scan context."
+        status={<span className="status-pill">{scanModel?.locationRecord?.typeLabel ?? 'Location'}</span>}
+        actions={<button type="button" className="secondary-button" onClick={() => navigate('/inventory?view=scan')}>Open Scanner</button>}
+      />
+
+      {locationSheet.error ? (
+        <StatePanel
+          eyebrow="Scan Error"
+          title="Location hierarchy failed to load"
+          description={locationSheet.error.message || 'Confirm inventory management permission and the existing location read path.'}
+          tone="danger"
+        />
+      ) : null}
+
+      {locationSheet.isLoading ? (
+        <StatePanel eyebrow="Scan" title="Resolving scanned location..." tone="neutral" compact />
+      ) : null}
+
+      {!locationSheet.isLoading && !locationSheet.error && !scanModel?.locationRecord ? (
+        <StatePanel
+          eyebrow="Scan Result"
+          title="Location not found"
+          description="This QR target is not available through the current server read path."
+          tone="warning"
+        />
+      ) : null}
+
+      {scanModel?.locationRecord ? (
+        <div className="inventory-section-stack">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Location"
+              title={scanModel.locationRecord.typeLabel}
+              description="The scan result is context only. Inventory changes still happen inside Cart, Count, or Retirement controls."
+              dense
+            />
+            <div className="inventory-cart-facts">
+              <span>Code: <strong>{scanModel.locationRecord.code || '-'}</strong></span>
+              <span>Path: <strong>{getLocationDisplay(scanModel.locationRecord)}</strong></span>
+              <span>UUID: <strong>{scanModel.locationRecord.id}</strong></span>
+              <span>Rows in scope: <strong>{scopedRows.length}</strong></span>
+              <span>Total quantity: <strong>{formatQuantity(totalQuantity)}</strong></span>
+            </div>
+          </article>
+
+          {scanModel.scopeType === 'bin' ? (
+            <article className="card workspace-card">
+              <Toolbar
+                eyebrow="Dispatch"
+                title="Open Existing Workflow"
+                description="Cart and Count open filtered to this scanned bin. No inventory changes are made from the scan result."
+                actions={(
+                  <>
+                    <button type="button" className="primary-button" onClick={() => dispatchTo('cart', scanModel.bin)}>
+                      <ShoppingCart aria-hidden="true" /> Open Cart
+                    </button>
+                    <button type="button" className="secondary-button" onClick={() => dispatchTo('count', scanModel.bin)}>
+                      <Scale aria-hidden="true" /> Open Count
+                    </button>
+                  </>
+                )}
+                dense
+              />
+            </article>
+          ) : (
+            <article className="card workspace-card">
+              <Toolbar
+                eyebrow="Bins"
+                title="Choose A Bin In Scope"
+                description="Unit, shelf, and bay QR codes resolve to their bins. Choose a bin before opening Cart or Count."
+                dense
+              />
+              <div className="inventory-scan-bin-grid">
+                {scanModel.bins.map((bin) => (
+                  <div className="inventory-scan-bin-card" key={bin.id}>
+                    <strong>{bin.bin_code || bin.label || bin.id}</strong>
+                    <span>{bin.label || 'Bin in scanned scope'}</span>
+                    <div className="inventory-scan-bin-actions">
+                      <button type="button" className="secondary-button" onClick={() => dispatchTo('cart', bin)}>
+                        <ShoppingCart aria-hidden="true" /> Cart
+                      </button>
+                      <button type="button" className="secondary-button" onClick={() => dispatchTo('count', bin)}>
+                        <Scale aria-hidden="true" /> Count
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          )}
+
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Contents"
+              title="Current Rows In Scope"
+              description="Read-only count sheet rows under the scanned location."
+              dense
+            />
+            <DataTable
+              columns={SCAN_CONTENT_COLUMNS}
+              rows={scopedRows}
+              getRowKey={(row) => row.bin_item_id}
+              permissions={permissions}
+              isLoading={locationSheet.isLoading}
+              error={locationSheet.error}
+              dense
+              minWidth="760px"
+              emptyTitle="No active material rows"
+              emptyDescription="This location resolved, but no active material rows were returned in scope."
+            />
+          </article>
+        </div>
+      ) : null}
     </>
   );
 }

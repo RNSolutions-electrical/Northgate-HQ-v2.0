@@ -1,6 +1,7 @@
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout.jsx';
+import { InventoryScanRoute } from './modules/inventory/InventoryWorkspace.jsx';
 import { ModuleScreen } from './modules/ModuleScreen.jsx';
 import { MODULES } from './modules/registry.js';
 
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/scan/location/:locationId" element={<InventoryScanRoute />} />
             {MODULES.map((module) => (
               <Route
                 key={module.key}

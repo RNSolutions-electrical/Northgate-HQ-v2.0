@@ -17347,3 +17347,112 @@ No Claude review needed - Inventory bin/material retirement reused the existing
 approved `retire_bin_item` RPC wrapper and did not change schema, RLS,
 permissions, direct balance writes, or ledger derivation under ARCHITECTURE
 v2.30 / HANDOFF Entry 166.
+
+## Entry 167 - Restore Inventory location QR dispatch in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory QR dispatch
+**Session type:** implementation
+
+### Context
+- Starting commit: `95a906d` (`Restore Inventory bin material retirement in v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 166`.
+- Ryan verified Inventory bin/material retirement in production and replied
+  "good to go. proceed."
+- v2 location QR behavior was routing/context only: scanning resolves a
+  location and dispatches into existing Cart or Count flows.
+- The preserved location helpers already parse `/scan/location/<uuid>` payloads.
+
+### What Was Completed
+- Added authenticated `/scan/location/:locationId` route inside the v3 shell.
+- Added an Inventory `Scan` view.
+- Added manual scan payload entry that accepts:
+  - full Northgate QR URLs;
+  - `/scan/location/<uuid>` paths;
+  - raw location UUIDs;
+  - exact unit, shelf, bay, or bin codes.
+- Added code disambiguation when more than one location matches manual input.
+- Added read-only scan result resolution through `useInventoryCountSheet`.
+- Added scan result summary with location level, code/path, UUID, material row
+  count, and total quantity in scope.
+- Added dispatch from scanned bin to:
+  - Inventory Cart filtered to the scanned bin;
+  - Inventory Count filtered to the scanned bin.
+- Added unit/shelf/bay scan support by listing bins in the scanned scope and
+  requiring the operator to choose a bin before opening Cart or Count.
+- Added scanned-bin context panels in Cart and Count.
+- Defaulted Count intake bin selection to the scanned bin when Count is opened
+  from a scan result.
+- Updated Inventory boundary copy to show QR dispatch is live.
+- Added focused CSS for scan payload, match, and bin-dispatch controls.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, or RPC definition changed.
+- QR scanning does not create, update, archive, checkout, count, or retire
+  inventory by itself.
+- Scan resolution uses the existing inventory count sheet/location read path.
+- Cart, Count, and Retirement actions remain inside their existing restored
+  workflows and RPC wrappers.
+- The v3 UI does not write `inventory_balances` directly.
+- Camera decoding remains deferred; this slice restores route/manual QR
+  dispatch and printed-link behavior.
+- Express checkout and return-from-job remain separate future slices.
+
+### Code / File Changes
+- `src/App.jsx`
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Static scan confirmed scan dispatch introduced no direct `insert`, `update`,
+  `delete`, `upsert`, or `inventory_balances` write path.
+- Static scan confirmed Inventory write RPC names remain limited to:
+  - `set_inventory_count_quantity`
+  - `intake_inventory_count`
+  - `retire_bin_item`
+- Static scan confirmed `/scan/location/:locationId` route and
+  `parseLocationScanPayload` are present in the v3 bundle source.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables/functions, but
+  this pass adds no new table, function, migration, or grant and reuses
+  existing read paths.
+- Authenticated live scan dispatch verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Inventory QR dispatch slice.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_manage_inventory`.
+4. Open Inventory > Scan.
+5. Paste a known `/scan/location/<uuid>` payload or exact bin code.
+6. Confirm the scan result page resolves read-only.
+7. Open Cart from the scan result and confirm candidates are filtered to the
+   scanned bin.
+8. Open Count from the scan result and confirm rows/intake are filtered to the
+   scanned bin.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Camera decoding can be restored behind the same Scan view later if field use
+  requires in-browser camera scanning.
+- The next Inventory slice should likely be return-from-job or another
+  remaining material movement workflow.
+
+### Architecture Drift Warnings
+- None active. This pass reintroduced only scan route/context dispatch and did
+  not change schema, RLS, permissions, direct balance writes, or ledger
+  derivation.
+
+### Routing Verdict
+No Claude review needed - Inventory location QR dispatch is read-only context
+routing into existing approved workflows and did not change schema, RLS,
+permissions, direct balance writes, or ledger derivation under ARCHITECTURE
+v2.30 / HANDOFF Entry 167.

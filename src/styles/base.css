@@ -1284,6 +1284,97 @@ textarea {
   align-content: end;
 }
 
+.inventory-scan-panel {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.36fr) minmax(0, 1fr);
+  gap: var(--card-gap);
+  align-items: stretch;
+}
+
+.inventory-scan-reader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.inventory-scan-reader svg {
+  width: 24px;
+  height: 24px;
+  color: var(--ng-brand-red);
+}
+
+.inventory-scan-reader p {
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.inventory-scan-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.inventory-scan-form label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.inventory-scan-form label span,
+.inventory-scan-match span,
+.inventory-scan-bin-card span {
+  color: var(--ng-faint);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inventory-scan-form textarea {
+  min-height: 116px;
+  resize: vertical;
+}
+
+.inventory-scan-match-grid,
+.inventory-scan-bin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.inventory-scan-match,
+.inventory-scan-bin-card {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+  padding: 0.85rem;
+  text-align: left;
+}
+
+.inventory-scan-match strong,
+.inventory-scan-bin-card strong,
+.inventory-scan-match small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.inventory-scan-match:hover {
+  border-color: var(--ng-brand-red);
+}
+
+.inventory-scan-bin-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
   .developer-grid,
@@ -1293,7 +1384,9 @@ textarea {
   .inventory-cart-checkout-panel,
   .inventory-cart-checkout-controls,
   .inventory-cart-destination-cell,
-  .inventory-count-intake-grid { grid-template-columns: minmax(0, 1fr); }
+  .inventory-count-intake-grid,
+  .inventory-scan-panel,
+  .inventory-scan-bin-actions { grid-template-columns: minmax(0, 1fr); }
   .inventory-cart-destination-cell { min-width: 260px; }
 }
 .profile-field span {
