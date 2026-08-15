@@ -15852,3 +15852,86 @@ source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 150.
 ### Routing Verdict
 No Claude review needed - Developer v3 migration remained a Developer-only
 source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 151.
+
+## Entry 152 - Port Reports workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Reports module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `678fac8` (`Port Developer workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 151`.
+- `MIGRATION_MAP.md` identifies Reports as the third low-risk module because it
+  is read-only by definition.
+- The preserved v2 `App.jsx` did not contain a standalone Reports workspace to
+  port. Existing report concepts were scattered across future/reserved module
+  surfaces, so this pass created a source-honest v3 Reports center rather than
+  inventing operational report rows.
+
+### What Was Completed
+- Added a v3 `ReportsWorkspace` module under `src/modules/reports/`.
+- Registered the Reports screen in `src/modules/screens.js`.
+- Changed the Reports module registry status from `stub` to `live` while
+  preserving the existing `canViewReports` route/nav gate.
+- Added a read-only report library showing:
+  - the live Effective Access Snapshot report
+  - reserved Inventory Activity, Job Cost Summary, Open Jobs, and Document Index
+    report surfaces
+- Added a read-only effective-access snapshot for report-relevant permission
+  flags using the existing server-backed `usePermissions` hook.
+- Added an Operational Sources readiness view that records why Inventory, Jobs,
+  Financials, and Documents reports stay deferred until their v3 source modules
+  and permission filters are explicit.
+- Added minimal responsive Reports layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase query, schema, migration, RPC, RLS, auth, permission flag, export,
+  backend, inventory, checkout, ledger, Jobs, Documents, or Financials behavior
+  changed.
+- No protected operational rows are selected or rendered by the Reports module
+  in this pass.
+- Financial report visibility remains tied to existing `canViewFinancials`;
+  protected fields stay omitted where that flag is not granted.
+- Reserved report rows are roadmap slots only. They do not grant data access or
+  imply that the underlying module read path has been migrated.
+
+### Code / File Changes
+- `src/modules/reports/ReportsWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Reports runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Reports-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_view_reports` and open Reports.
+4. Confirm Reports no longer shows the v3 placeholder.
+5. Confirm the Report Library, Access Snapshot, and Operational Sources sections
+   render without overflow at desktop and mobile widths.
+6. Confirm a user without `can_view_reports` cannot see or route into Reports.
+7. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- The first operational data report should be added only after its source module
+  has been migrated into v3 and the report-specific permission/filter contract
+  is explicit.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside read-only Reports UI, source-readiness
+  presentation, permission-context display, and responsive presentation scope.
+
+### Routing Verdict
+No Claude review needed - Reports v3 migration remained read-only UI within
+ARCHITECTURE v2.30 / HANDOFF Entry 152.

@@ -728,7 +728,8 @@ textarea {
 
 .developer-grid,
 .developer-links,
-.developer-future-note {
+.developer-future-note,
+.reports-workspace {
   margin-left: var(--app-page-gutter);
   margin-right: var(--app-page-gutter);
 }
@@ -872,6 +873,16 @@ textarea {
 
 .developer-future-note > svg {
   color: var(--ng-brand-red);
+}
+
+.reports-workspace {
+  margin-top: var(--card-gap);
+}
+
+.reports-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--card-gap);
 }
 
 @media (max-width: 900px) {

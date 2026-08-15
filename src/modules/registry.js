@@ -114,7 +114,7 @@ export const MODULES = [
     label: 'Reports',
     icon: BarChart3,
     requires: ['canViewReports'],
-    status: 'stub',
+    status: 'live',
     description: 'Read-only views over authoritative records.',
   },
   {

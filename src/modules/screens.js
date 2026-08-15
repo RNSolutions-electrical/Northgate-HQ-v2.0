@@ -26,8 +26,10 @@
  */
 import { DashboardWorkspace } from './dashboard/DashboardWorkspace.jsx';
 import { DeveloperWorkspace } from './developer/DeveloperWorkspace.jsx';
+import { ReportsWorkspace } from './reports/ReportsWorkspace.jsx';
 
 export const MODULE_SCREENS = {
   dashboard: DashboardWorkspace,
   developer: DeveloperWorkspace,
+  reports: ReportsWorkspace,
 };
