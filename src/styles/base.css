@@ -228,6 +228,8 @@ svg { stroke-width: 1.8; }
 .summary-card__label { font-size: 0.68rem; color: var(--ng-faint); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
 .summary-card__value { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .summary-card__detail { font-size: 0.8rem; color: var(--ng-muted); }
+.summary-card--default .summary-card__value { color: var(--ng-text); }
+.summary-card--accent .summary-card__value { color: var(--ng-info); }
 .summary-card--good .summary-card__value { color: var(--ng-ok); }
 .summary-card--warn .summary-card__value { color: var(--ng-warn); }
 .summary-card--danger .summary-card__value { color: var(--ng-err); }
@@ -324,7 +326,9 @@ svg { stroke-width: 1.8; }
 /* ----------------------------------------------------------------- forms */
 
 .button,
-.ng-button {
+.ng-button,
+.primary-button,
+.secondary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -337,13 +341,29 @@ svg { stroke-width: 1.8; }
   font-weight: 700;
   font-size: 0.86rem;
 }
-.button:hover, .ng-button:hover { background: var(--ng-panel-bg-alt); }
-.button--primary, .ng-button--primary {
+.button:hover,
+.ng-button:hover,
+.secondary-button:hover:not(:disabled) { background: var(--ng-panel-bg-alt); }
+.button--primary,
+.ng-button--primary,
+.primary-button {
   border-color: var(--ng-brand-red);
   background: var(--ng-brand-red);
   color: var(--ng-card-bg);
 }
-.button--primary:hover, .ng-button--primary:hover { background: var(--ng-brand-red-strong); }
+.button--primary:hover,
+.ng-button--primary:hover,
+.primary-button:hover:not(:disabled) { background: var(--ng-brand-red-strong); }
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.primary-button svg,
+.secondary-button svg {
+  width: 16px;
+  height: 16px;
+}
 
 input[type='text'],
 input[type='search'],
@@ -438,7 +458,7 @@ textarea {
   overflow: hidden;
   align-self: start;
 }
-.workspace-sidebar--collapsed { width: var(--app-sidebar-collapsed-width); }
+.workspace-sidebar.is-collapsed { width: var(--app-sidebar-collapsed-width); }
 
 .workspace-sidebar__header {
   display: flex;
@@ -469,13 +489,19 @@ textarea {
   text-align: left;
 }
 .workspace-sidebar__item:hover { background: var(--ng-panel-bg-alt); color: var(--ng-text); }
-.workspace-sidebar__item[aria-current='true'],
+.workspace-sidebar__item[aria-current='page'],
 .workspace-sidebar__item.is-active {
   border-left-color: var(--ng-brand-red);
   background: var(--ng-brand-red-soft);
   color: var(--ng-brand-red);
 }
 .workspace-sidebar__item-copy { min-width: 0; display: flex; flex-direction: column; }
+.workspace-sidebar.is-collapsed .workspace-sidebar__heading,
+.workspace-sidebar.is-collapsed .workspace-sidebar__item-copy,
+.workspace-sidebar.is-collapsed .workspace-sidebar__item-badge,
+.workspace-sidebar.is-collapsed .workspace-sidebar__footer { display: none; }
+.workspace-sidebar.is-collapsed .workspace-sidebar__header { justify-content: center; }
+.workspace-sidebar.is-collapsed .workspace-sidebar__item { justify-content: center; padding: 0; }
 .workspace-sidebar__item-icon { flex: 0 0 auto; width: 17px; height: 17px; }
 .workspace-sidebar__item-badge {
   margin-left: auto;
@@ -514,6 +540,49 @@ textarea {
   grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
   gap: var(--card-gap);
   align-items: start;
+}
+.workspace-split.is-primary-collapsed { grid-template-columns: var(--app-sidebar-collapsed-width) minmax(0, 1fr); }
+.workspace-surface { display: grid; gap: var(--card-gap); min-width: 0; }
+.workspace-card { display: grid; gap: var(--card-gap); }
+.state-panel-stack { display: grid; gap: var(--card-gap); }
+.module-sidebar-note { display: grid; gap: 0.25rem; color: var(--ng-muted); font-size: var(--table-font-size); }
+.module-sidebar-note strong { color: var(--ng-text); }
+.profile-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+}
+.profile-field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+  padding: 0.85rem;
+}
+.profile-field span {
+  color: var(--ng-faint);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.profile-field strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 @media (max-width: 1024px) {
   .workspace-split { grid-template-columns: minmax(0, 1fr); }

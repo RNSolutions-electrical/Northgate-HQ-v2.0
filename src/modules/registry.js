@@ -44,7 +44,7 @@ export const MODULES = [
     path: '/dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    status: 'stub',
+    status: 'live',
     description: 'Operational pulse across divisions.',
   },
   {
