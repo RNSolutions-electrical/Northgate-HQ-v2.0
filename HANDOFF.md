@@ -17675,3 +17675,59 @@ No Claude review needed - this pass restored read-only Inventory utility
 surfaces and camera QR context dispatch using existing hooks/helpers, with no
 schema, RLS, permission, write-path, balance-write, or ledger-derivation change
 under ARCHITECTURE v2.30 / HANDOFF Entry 170.
+
+---
+
+## Entry 171 — Jobs Materials Tab Visibility Cleanup
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan confirmed the Jobs Materials tab is not needed as a visible Jobs detail
+surface right now. The code path should remain in place so future materials
+work is not broken or removed prematurely.
+
+### What Was Completed
+- Hid the `Materials` tab from the visible Jobs detail navigation.
+- Preserved the existing reserved `materials` tab definition and fallback
+  reserved-panel behavior.
+- Added an active-tab guard so a hidden or stale tab selection returns to
+  `Overview`.
+- Left Buyout, Transactions, Financials, Documents, and Schedule as visible
+  deferred tabs for the next Jobs cleanup slices.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- The existing `job_buyout_lines` foundation table already exists but does not
+  yet include Ryan's requested structured buyout checklist fields for budget,
+  initial value, actual value, initial lead time, or actual lead time.
+- The existing `documents` foundation uses one generic `public.documents`
+  table with the `northgate-files` storage bucket. Job is currently the only
+  live owner type in RLS.
+
+### Next Steps (in order)
+1. Define the Jobs Documents v3 owner-scoped UX and required document categories.
+2. Add the buyout checklist schema extension or replacement fields after the
+   desired attention rules are locked.
+3. Rebuild Buyout as a live Supabase-backed Jobs tab.
+4. Rebuild Financials and Schedule from their standalone HTML designs as
+   Supabase-backed Jobs tabs once Ryan attaches the source.
+
+### Open Questions / Concerns
+- Decide whether `Transactions` remains a visible Jobs tab, becomes a read-only
+  inventory issue history panel, or is folded into Financials/Inventory history.
+- Decide whether Buyout attention should be based on status, missing actual
+  values, overdue lead times, budget variance, or an explicit attention flag.
+
+### Architecture Drift Warnings
+- None. This was UI visibility only and did not change data access, schema,
+  RLS, storage, RPCs, or write behavior.

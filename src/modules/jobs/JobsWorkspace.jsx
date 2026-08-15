@@ -272,13 +272,20 @@ export function JobsWorkspace({ permissions }) {
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'details', label: 'Details' },
-    { key: 'materials', label: 'Materials', meta: 'Deferred' },
+    { key: 'materials', label: 'Materials', meta: 'Deferred', visible: false },
     { key: 'buyout', label: 'Buyout', meta: 'Deferred' },
     { key: 'transactions', label: 'Transactions', meta: 'Deferred' },
     ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Deferred' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Deferred' },
     { key: 'schedule', label: 'Schedule', meta: 'Deferred' },
   ];
+  const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false), [canViewFinancials]);
+
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, visibleTabs]);
 
   function selectJob(job) {
     setSelectedJobId(job.id);
@@ -488,7 +495,7 @@ export function JobsWorkspace({ permissions }) {
                   ] : []}
                 />
                 <WorkspaceTabs
-                  tabs={tabs}
+                  tabs={visibleTabs}
                   activeKey={activeTab}
                   onChange={setActiveTab}
                   ariaLabel="Job detail sections"
