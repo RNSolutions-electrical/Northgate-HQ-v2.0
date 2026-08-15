@@ -1163,6 +1163,17 @@ textarea {
   border-color: color-mix(in srgb, var(--ng-ok) 38%, var(--ng-divider));
 }
 
+.job-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.job-document-actions .secondary-button {
+  min-height: 30px;
+  padding: 0.35rem 0.65rem;
+}
+
 .job-document-upload {
   display: grid;
   gap: 1rem;

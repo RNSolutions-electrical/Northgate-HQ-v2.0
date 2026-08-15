@@ -17872,3 +17872,56 @@ shared category keys from Entry 172.
 ### Architecture Drift Warnings
 - None. This pass used the existing job-owned document model and private storage
   bucket without changing RLS, storage policies, schema, or permission flags.
+
+---
+
+## Entry 174 — Jobs Document Open And Download
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the Job document upload flow worked and approved proceeding with
+the next Documents slice.
+
+### What Was Completed
+- Added `storage_path` to the selected Job document read model.
+- Added `Open` and `Download` row actions to uploaded documents in the selected
+  Job `Documents` tab.
+- Each action creates a short-lived signed URL from the existing private
+  `northgate-files` bucket only when clicked.
+- `Open` opens the signed URL in a new browser tab.
+- `Download` creates a signed URL with Supabase's `download` option using the
+  stored original file name.
+- Added inline error handling for failed signed URL creation.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- Signed URLs expire after 300 seconds.
+- This pass does not make the bucket public and does not add any service role or
+  backend signing function.
+- Access remains controlled by the existing document row visibility and Storage
+  object select policy.
+
+### Next Steps (in order)
+1. Ryan verifies Open and Download on a real uploaded job document.
+2. Add soft archive controls for uploaded job documents.
+3. Proceed to Buyout schema extension and live checklist UI.
+
+### Open Questions / Concerns
+- Browser popup behavior should be checked for Open. The implementation opens a
+  blank tab immediately on click and redirects it after the signed URL returns
+  to reduce popup-blocker friction.
+
+### Architecture Drift Warnings
+- None. This pass used existing Supabase Storage signed URLs and did not change
+  schema, RLS, storage policies, or permission flags.

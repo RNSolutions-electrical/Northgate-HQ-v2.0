@@ -63,6 +63,7 @@ const JOB_DOCUMENT_SELECT_FIELDS = [
   'updated_at',
   'owner_type',
   'owner_id',
+  'storage_path',
   'document_type',
   'file_name',
   'description',
@@ -340,6 +341,7 @@ export function JobsWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('browse');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
+  const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -486,6 +488,52 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function handleDocumentLink(document, action) {
+    if (!document?.storage_path || documentAction.id) return;
+
+    const targetWindow = action === 'open' ? window.open('', '_blank') : null;
+    if (targetWindow) {
+      targetWindow.opener = null;
+      targetWindow.document.title = 'Opening document...';
+      targetWindow.document.body.textContent = 'Opening document...';
+    }
+
+    setDocumentAction({ id: document.id, action, error: null });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client.storage
+        .from(DOCUMENT_BUCKET)
+        .createSignedUrl(document.storage_path, 300, action === 'download' ? { download: document.file_name || true } : undefined);
+
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Supabase did not return a signed document URL.');
+
+      if (action === 'open') {
+        if (targetWindow) {
+          targetWindow.location.href = data.signedUrl;
+        } else {
+          window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        const anchor = window.document.createElement('a');
+        anchor.href = data.signedUrl;
+        anchor.download = document.file_name || 'northgate-document';
+        anchor.rel = 'noopener noreferrer';
+        window.document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+
+      setDocumentAction({ id: '', action: '', error: null });
+    } catch (error) {
+      console.error('Job document link failed', error);
+      if (targetWindow && !targetWindow.closed) targetWindow.close();
+      setDocumentAction({ id: '', action: '', error });
+    }
+  }
+
   function renderActiveTab() {
     if (!selectedJob) {
       return (
@@ -524,6 +572,26 @@ export function JobsWorkspace({ permissions }) {
         status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
       }));
       const uploadedCount = checklistRows.filter((row) => row.status === 'uploaded').length;
+      const documentColumns = [
+        ...JOB_DOCUMENT_COLUMNS,
+        {
+          key: 'actions',
+          header: 'Actions',
+          render: (row) => {
+            const isBusy = documentAction.id === row.id;
+            return (
+              <div className="job-document-actions">
+                <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'open')} disabled={isBusy}>
+                  {isBusy && documentAction.action === 'open' ? 'Opening...' : 'Open'}
+                </button>
+                <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'download')} disabled={isBusy}>
+                  {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
+                </button>
+              </div>
+            );
+          },
+        },
+      ];
 
       return (
         <>
@@ -549,7 +617,7 @@ export function JobsWorkspace({ permissions }) {
           </section>
 
           <DataTable
-            columns={JOB_DOCUMENT_COLUMNS}
+            columns={documentColumns}
             rows={jobDocuments.documents}
             getRowKey={(row) => row.id}
             permissions={permissions}
@@ -560,6 +628,15 @@ export function JobsWorkspace({ permissions }) {
             emptyTitle="No documents uploaded for this job"
             emptyDescription="The checklist can still show required categories before files exist. Upload/archive actions are the next Documents slice."
           />
+          {documentAction.error ? (
+            <StatePanel
+              tone="danger"
+              eyebrow="Document Link Failed"
+              title="Could not open this document"
+              description={documentAction.error.message || 'Unexpected signed URL error.'}
+              compact
+            />
+          ) : null}
 
           {canManageJobs ? (
             <form className="job-document-upload" onSubmit={handleDocumentUpload}>
