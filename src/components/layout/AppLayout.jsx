@@ -50,8 +50,8 @@ export function AppLayout() {
 
   return (
     <AppShell
-      eyebrow="RN SOLUTIONS"
-      title="Northgate HQ"
+      eyebrow="HEADQUARTERS"
+      title="Northgate"
       buildLabel="v3.0"
       navItems={navItems}
       activeWorkspace={activeKey}

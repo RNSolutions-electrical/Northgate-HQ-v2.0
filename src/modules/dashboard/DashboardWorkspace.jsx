@@ -2,6 +2,7 @@ import { useUser } from '@clerk/clerk-react';
 import {
   FileText,
   HardHat,
+  Sparkles,
   SlidersHorizontal,
   Truck,
   Users,
@@ -79,6 +80,25 @@ export function DashboardWorkspace({ permissions }) {
           </button>
         )}
       />
+
+      <section className="dashboard-hero">
+        <div className="dashboard-hero__copy">
+          <p className="eyebrow">Northgate HQ pulse</p>
+          <h2>Good afternoon, {user?.firstName || user?.fullName || 'Ryan'}.</h2>
+          <p>Jobs, material, people, and field decisions are organized into one operational view.</p>
+          <div className="dashboard-hero__actions">
+            <button type="button" className="primary-button" onClick={() => openModule('/jobs')}>Open jobs</button>
+            <button type="button" className="secondary-button secondary-button--inverse" onClick={() => openModule('/silas')}>
+              <Sparkles aria-hidden="true" /> Ask HQ
+            </button>
+          </div>
+        </div>
+        <div className="dashboard-hero__panel">
+          <span>Needs attention</span>
+          <strong>{permissions.permissionSource === 'server' ? 'Live' : 'Pending'}</strong>
+          <p>Permission source is {permissions.permissionSource}. Production-domain auth will verify the full stack.</p>
+        </div>
+      </section>
 
       <div className="summary-grid">
         <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} />
