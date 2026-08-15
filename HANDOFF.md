@@ -18390,3 +18390,70 @@ fields plus a Gantt graph and print options for the list, graph, or both.
   should be updated in a follow-up documentation pass.
 - The Gantt graph is display/print only; it does not calculate dependency-based
   critical paths.
+
+---
+
+## Entry 182 — Jobs Transactions Read-Only Log
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+After the Schedule expansion was deployed, Ryan said to proceed with the next
+step. The remaining Jobs tab needing cleanup was Transactions. The v2
+architecture already locked Transactions as a read-only log of material coded
+to a job through Inventory Checkout, sourced from `public.job_transaction_log`.
+
+### What Was Completed
+- Activated the selected Job `Transactions` tab in v3.
+- Reused the existing `public.job_transaction_log` view.
+- Verified production columns for `public.job_transaction_log` before wiring
+  the UI.
+- Added live Supabase reads filtered by selected `job_id`.
+- Added read-only transaction summary cards:
+  - row count
+  - total line quantity
+  - distinct item count
+  - latest transaction
+- Added transaction table columns:
+  - date
+  - item
+  - material code
+  - quantity
+  - source location
+  - transaction type
+  - performed by
+  - notes
+- Updated Jobs overview/boundary copy so only transaction edits/returns remain
+  deferred, not the read-only Transactions tab itself.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice.
+- No production DDL was applied in this slice.
+- No new RPC, table, permission flag, return workflow, edit workflow, export,
+  accounting behavior, or cost/value display was added.
+- Transactions remains read-only and source-honest: Inventory Checkout remains
+  the source of material movement.
+- Cost/value display remains reserved for Financials.
+
+### Next Steps (in order)
+1. Ryan verifies Transactions loads for a selected job.
+2. Ryan verifies a job with material checked out to it shows transaction rows.
+3. Ryan verifies jobs with no checked-out material show the empty read-only
+   state.
+4. Continue Jobs cleanup / hardening after Transactions is verified.
+
+### Open Questions / Concerns
+- Return-to-Inventory remains reserved and is not represented as an action in
+  this tab.
+- Final RLS/security pass still needs to address older public tables/views,
+  including the known broad RLS-disabled advisory findings.

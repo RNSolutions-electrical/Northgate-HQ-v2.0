@@ -87,6 +87,7 @@ const DEFAULT_SCHEDULE_FORM = Object.freeze({
   error: null,
   success: '',
 });
+const EMPTY_JOB_TRANSACTIONS = Object.freeze([]);
 
 const JOB_SELECT_FIELDS = [
   'id',
@@ -186,6 +187,29 @@ const JOB_SCHEDULE_SELECT_FIELDS = [
   'created_by',
 ].join(', ');
 
+const JOB_TRANSACTION_SELECT_FIELDS = [
+  'transaction_item_id',
+  'transaction_id',
+  'occurred_at',
+  'transaction_created_at',
+  'division',
+  'job_id',
+  'item_id',
+  'material_code',
+  'item_name',
+  'unit_of_measure',
+  'quantity',
+  'transaction_type',
+  'source_bin_id',
+  'source_bin_code',
+  'source_bin_label',
+  'source_location_label',
+  'performed_by',
+  'performed_by_user_id',
+  'note',
+  'ledger_sequence',
+].join(', ');
+
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 
 const JOB_VIEWS = [
@@ -209,8 +233,8 @@ const RESERVED_TABS = Object.freeze({
   },
   transactions: {
     eyebrow: 'Transactions',
-    title: 'Transaction log is reserved for a later port',
-    description: 'The locked transaction tab is read-only material history through Inventory Checkout. This pass does not query job_transaction_log or add return/edit/export actions.',
+    title: 'Transactions are available as read-only history',
+    description: 'This is a read-only log of material coded to this job through Inventory Checkout.',
   },
   financials: {
     eyebrow: 'Financials',
@@ -290,6 +314,27 @@ function formatScheduleStatus(value) {
       return 'Pending';
     default:
       return value || '-';
+  }
+}
+
+function formatTransactionType(value) {
+  switch (value) {
+    case 'assign_to_job':
+      return 'Assign to Job';
+    case 'remove_stock':
+      return 'Remove Stock';
+    case 'return_from_job':
+      return 'Return from Job';
+    case 'physical_count_correction':
+      return 'Physical Count';
+    case 'assign_to_vehicle':
+      return 'Assign to Vehicle';
+    case 'vendor_return':
+      return 'Vendor Return';
+    case 'scrap':
+      return 'Scrap';
+    default:
+      return value ? value.replaceAll('_', ' ') : '-';
   }
 }
 
@@ -384,6 +429,13 @@ function formatLeadTime(value) {
   const days = Number(value);
   if (!Number.isFinite(days)) return '-';
   return `${days} day${days === 1 ? '' : 's'}`;
+}
+
+function formatQuantity(value, unit = '') {
+  const quantity = Number(value);
+  if (!Number.isFinite(quantity)) return '-';
+  const formatted = quantity.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return unit ? `${formatted} ${unit}` : formatted;
 }
 
 function parseOptionalNumber(value) {
@@ -514,6 +566,17 @@ const JOB_SCHEDULE_COLUMNS = [
   },
   { key: 'dependencies', header: 'Dependencies', fallback: '-' },
   { key: 'description', header: 'Description', fallback: '-' },
+  { key: 'note', header: 'Notes', fallback: '-' },
+];
+
+const JOB_TRANSACTION_COLUMNS = [
+  { key: 'occurred_at', header: 'Date', render: (row) => formatDateTime(row.occurred_at || row.transaction_created_at) },
+  { key: 'item_name', header: 'Item', render: (row) => <strong>{row.item_name || 'Unknown item'}</strong> },
+  { key: 'material_code', header: 'Code', fallback: '-' },
+  { key: 'quantity', header: 'Quantity', render: (row) => formatQuantity(row.quantity, row.unit_of_measure), align: 'right' },
+  { key: 'source_location_label', header: 'Source location', render: (row) => row.source_location_label || row.source_bin_label || row.source_bin_code || '-' },
+  { key: 'transaction_type', header: 'Type', render: (row) => <StatusBadge status={row.transaction_type}>{formatTransactionType(row.transaction_type)}</StatusBadge> },
+  { key: 'performed_by', header: 'Performed by', fallback: '-' },
   { key: 'note', header: 'Notes', fallback: '-' },
 ];
 
@@ -838,6 +901,70 @@ function useJobScheduleItems({ enabled, jobId }) {
   };
 }
 
+function useJobTransactions({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    rows: EMPTY_JOB_TRANSACTIONS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, rows: EMPTY_JOB_TRANSACTIONS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_transaction_log')
+          .select(JOB_TRANSACTION_SELECT_FIELDS)
+          .eq('job_id', jobId)
+          .order('occurred_at', { ascending: false })
+          .order('ledger_sequence', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            rows: data ?? EMPTY_JOB_TRANSACTIONS,
+          });
+        }
+      } catch (error) {
+        console.error('Job transactions failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            rows: EMPTY_JOB_TRANSACTIONS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function renderFact(label, value) {
   return (
     <div className="profile-field">
@@ -918,6 +1045,10 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'schedule' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const jobTransactions = useJobTransactions({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'transactions' && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((job) => job.id === selectedJobId)) {
@@ -930,7 +1061,7 @@ export function JobsWorkspace({ permissions }) {
     { key: 'details', label: 'Details' },
     { key: 'materials', label: 'Materials', meta: 'Deferred', visible: false },
     { key: 'buyout', label: 'Buyout', meta: 'Deferred' },
-    { key: 'transactions', label: 'Transactions', meta: 'Deferred' },
+    { key: 'transactions', label: 'Transactions', meta: 'Live' },
     ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Live' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Deferred' },
     { key: 'schedule', label: 'Schedule', meta: 'Live' },
@@ -1718,6 +1849,44 @@ export function JobsWorkspace({ permissions }) {
       );
     }
 
+    if (activeTab === 'transactions') {
+      const totalQuantity = jobTransactions.rows.reduce((total, row) => total + (Number(row.quantity) || 0), 0);
+      const distinctItems = new Set(jobTransactions.rows.map((row) => row.item_id).filter(Boolean)).size;
+      const lastRow = jobTransactions.rows[0] ?? null;
+
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Rows" value={jobTransactions.rows.length} detail="Job-coded ledger rows" />
+            <SummaryCard label="Quantity" value={formatQuantity(totalQuantity)} detail="Total material quantity" />
+            <SummaryCard label="Items" value={distinctItems} detail="Distinct materials" />
+            <SummaryCard label="Latest" value={lastRow ? formatDateTime(lastRow.occurred_at || lastRow.transaction_created_at) : '-'} detail={lastRow?.item_name || 'No job-coded transaction'} />
+          </div>
+
+          <DataTable
+            columns={JOB_TRANSACTION_COLUMNS}
+            rows={jobTransactions.rows}
+            getRowKey={(row) => row.transaction_item_id}
+            permissions={permissions}
+            isLoading={jobTransactions.isLoading}
+            error={jobTransactions.error}
+            dense
+            minWidth="1120px"
+            emptyTitle="No material transactions for this job"
+            emptyDescription="This read-only log shows material coded to this job through Inventory Checkout. It does not create returns, edits, costs, or accounting entries."
+          />
+
+          <StatePanel
+            tone="neutral"
+            eyebrow="Read Only"
+            title="Inventory Checkout remains the source"
+            description="Transactions are sourced from the existing job transaction log view. Return-to-Inventory, cost/value display, edit actions, and exports remain separate future work."
+            compact
+          />
+        </>
+      );
+    }
+
     if (activeTab === 'financials') {
       const originalTotal = sumField(jobBudget.lines, 'budget_amount');
       const changeTotal = sumField(jobBudget.lines, 'budget_change_amount');
@@ -2221,7 +2390,7 @@ export function JobsWorkspace({ permissions }) {
           <StatePanel
             eyebrow="Boundaries"
             title="Controlled Jobs workspace"
-            description="Materials are hidden for now. Transactions, external accounting, calendar sync, dependency logic, and final RLS cleanup stay deferred."
+            description="Materials are hidden for now. Transaction edits/returns, external accounting, calendar sync, dependency logic, and final RLS cleanup stay deferred."
             tone="warning"
             compact
           />
