@@ -18317,3 +18317,76 @@ creating new schema.
 - Schedule edit/archive actions currently rely on the existing table policies;
   no new audit-log behavior was introduced in this slice.
 - Calendar sync, dependency logic, and assignments remain reserved.
+
+---
+
+## Entry 181 — Jobs Schedule Dates Gantt And Print
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified Schedule input works properly and requested additional Schedule
+fields plus a Gantt graph and print options for the list, graph, or both.
+
+### What Was Completed
+- Extended `public.job_schedule_items` with:
+  - `initial_start_date`
+  - `actual_start_date`
+  - `initial_completion_date`
+  - `actual_completion_date`
+  - `duration_days`
+  - `dependencies`
+- Added nonnegative duration constraint.
+- Added initial and actual date-order constraints.
+- Updated the Schedule table to show initial/actual starts, initial/actual
+  completions, duration, dependencies, timing, description, and notes.
+- Updated the Schedule add/edit form to collect the new date, duration, and
+  dependency fields.
+- Added a Schedule Gantt graph:
+  - planned/initial bars use initial dates
+  - actual bars use actual dates
+  - duration is used to infer an end date when only a start is present
+- Added print controls for:
+  - list only
+  - graph only
+  - list and graph
+- Updated Schedule summary timing to use completion/start fields instead of only
+  the legacy `target_date`.
+
+### Schema Changes
+- `supabase/migrations/20260815214633_extend_job_schedule_dates.sql`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `supabase/migrations/20260815214633_extend_job_schedule_dates.sql`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- Production DDL was applied through the Supabase connector.
+- Production verification confirmed all six new columns exist.
+- No RLS policies were changed in this slice.
+- `target_date` is kept for legacy compatibility and is populated from initial
+  completion when no explicit target date is supplied.
+- `dependencies` is currently stored as free text / predecessor notes. No
+  automatic dependency engine, calendar sync, assignment logic, or reminder
+  system was introduced.
+
+### Next Steps (in order)
+1. Ryan verifies new Schedule fields save and reload.
+2. Ryan verifies the Gantt graph displays planned and actual bars.
+3. Ryan prints list only, graph only, and both.
+4. Decide later whether dependencies should remain free text or become a
+   structured predecessor relationship.
+5. Reconcile ARCHITECTURE Section 47 with this user-approved v3 Schedule
+   expansion.
+
+### Open Questions / Concerns
+- Existing ARCHITECTURE Section 47 described Schedule v1 as no dependencies.
+  This entry records Ryan's v3 expansion request; the architecture document
+  should be updated in a follow-up documentation pass.
+- The Gantt graph is display/print only; it does not calculate dependency-based
+  critical paths.

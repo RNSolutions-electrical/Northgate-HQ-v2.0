@@ -74,6 +74,12 @@ const DEFAULT_SCHEDULE_FORM = Object.freeze({
   title: '',
   description: '',
   target_date: '',
+  initial_start_date: '',
+  actual_start_date: '',
+  initial_completion_date: '',
+  actual_completion_date: '',
+  duration_days: '',
+  dependencies: '',
   status: 'pending',
   sort_order: '',
   note: '',
@@ -168,6 +174,12 @@ const JOB_SCHEDULE_SELECT_FIELDS = [
   'title',
   'description',
   'target_date',
+  'initial_start_date',
+  'actual_start_date',
+  'initial_completion_date',
+  'actual_completion_date',
+  'duration_days',
+  'dependencies',
   'status',
   'sort_order',
   'note',
@@ -297,6 +309,32 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
 }
 
+function parseDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function toDateOnlyString(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function daysBetween(start, end) {
+  if (!start || !end) return 0;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+  return Math.round((endDate.getTime() - startDate.getTime()) / 86400000);
+}
+
 function jobLabel(job) {
   return job?.job_number ? `${job.job_number} - ${job.name}` : job?.name || 'Unnamed job';
 }
@@ -383,6 +421,34 @@ function daysUntil(value) {
   return Math.ceil((target.getTime() - today.getTime()) / 86400000);
 }
 
+function schedulePlannedStart(row) {
+  return row.initial_start_date || row.target_date || row.initial_completion_date || '';
+}
+
+function schedulePlannedFinish(row) {
+  if (row.initial_completion_date) return row.initial_completion_date;
+  const start = parseDateOnly(schedulePlannedStart(row));
+  const duration = Number(row.duration_days);
+  if (start && Number.isFinite(duration) && duration > 0) {
+    return toDateOnlyString(addDays(start, duration - 1));
+  }
+  return row.target_date || '';
+}
+
+function scheduleActualStart(row) {
+  return row.actual_start_date || '';
+}
+
+function scheduleActualFinish(row) {
+  if (row.actual_completion_date) return row.actual_completion_date;
+  const start = parseDateOnly(scheduleActualStart(row));
+  const duration = Number(row.duration_days);
+  if (start && Number.isFinite(duration) && duration > 0) {
+    return toDateOnlyString(addDays(start, duration - 1));
+  }
+  return '';
+}
+
 const JOB_COLUMNS = [
   { key: 'name', header: 'Job', render: (row) => <strong>{jobLabel(row)}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatStatus(row.status)}</StatusBadge> },
@@ -430,18 +496,23 @@ const JOB_SCHEDULE_COLUMNS = [
   { key: 'sort_order', header: '#', render: (row) => Number(row.sort_order) || 0, align: 'right' },
   { key: 'title', header: 'Milestone / task', render: (row) => <strong>{row.title || 'Untitled schedule item'}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatScheduleStatus(row.status)}</StatusBadge> },
-  { key: 'target_date', header: 'Target', render: (row) => formatDate(row.target_date) },
+  { key: 'initial_start_date', header: 'Initial start', render: (row) => formatDate(row.initial_start_date) },
+  { key: 'actual_start_date', header: 'Actual start', render: (row) => formatDate(row.actual_start_date) },
+  { key: 'initial_completion_date', header: 'Initial finish', render: (row) => formatDate(row.initial_completion_date || row.target_date) },
+  { key: 'actual_completion_date', header: 'Actual finish', render: (row) => formatDate(row.actual_completion_date) },
+  { key: 'duration_days', header: 'Duration', render: (row) => row.duration_days ?? '-', align: 'right' },
   {
     key: 'timing',
     header: 'Timing',
     render: (row) => {
-      const remaining = daysUntil(row.target_date);
+      const remaining = daysUntil(row.actual_completion_date || row.initial_completion_date || row.target_date);
       if (remaining === null) return 'No date';
       if (remaining < 0) return `${Math.abs(remaining)} day${Math.abs(remaining) === 1 ? '' : 's'} late`;
       if (remaining === 0) return 'Due today';
       return `${remaining} day${remaining === 1 ? '' : 's'} out`;
     },
   },
+  { key: 'dependencies', header: 'Dependencies', fallback: '-' },
   { key: 'description', header: 'Description', fallback: '-' },
   { key: 'note', header: 'Notes', fallback: '-' },
 ];
@@ -792,6 +863,7 @@ export function JobsWorkspace({ permissions }) {
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
+  const [schedulePrintMode, setSchedulePrintMode] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -870,6 +942,24 @@ export function JobsWorkspace({ permissions }) {
       setActiveTab('overview');
     }
   }, [activeTab, visibleTabs]);
+
+  useEffect(() => {
+    if (!schedulePrintMode) return undefined;
+
+    const printClass = `print-schedule-${schedulePrintMode}`;
+    document.body.classList.add(printClass);
+    const clearPrintMode = () => {
+      document.body.classList.remove(printClass);
+      setSchedulePrintMode('');
+    };
+    window.addEventListener('afterprint', clearPrintMode);
+    window.setTimeout(() => window.print(), 50);
+
+    return () => {
+      window.removeEventListener('afterprint', clearPrintMode);
+      document.body.classList.remove(printClass);
+    };
+  }, [schedulePrintMode]);
 
   function selectJob(job) {
     setSelectedJobId(job.id);
@@ -1134,6 +1224,12 @@ export function JobsWorkspace({ permissions }) {
       title: row.title || '',
       description: row.description || '',
       target_date: row.target_date || '',
+      initial_start_date: row.initial_start_date || '',
+      actual_start_date: row.actual_start_date || '',
+      initial_completion_date: row.initial_completion_date || row.target_date || '',
+      actual_completion_date: row.actual_completion_date || '',
+      duration_days: row.duration_days === null || row.duration_days === undefined ? '' : String(row.duration_days),
+      dependencies: row.dependencies || '',
       status: SCHEDULE_STATUS_OPTIONS.includes(row.status) ? row.status : 'pending',
       sort_order: String(Number(row.sort_order) || 0),
       note: row.note || '',
@@ -1145,6 +1241,10 @@ export function JobsWorkspace({ permissions }) {
 
   function resetScheduleForm() {
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
+  }
+
+  function handleSchedulePrint(mode) {
+    setSchedulePrintMode(mode);
   }
 
   async function handleScheduleSave(event) {
@@ -1163,7 +1263,13 @@ export function JobsWorkspace({ permissions }) {
       division: selectedJob.division,
       title: scheduleForm.title.trim(),
       description: scheduleForm.description.trim() || null,
-      target_date: scheduleForm.target_date || null,
+      target_date: scheduleForm.target_date || scheduleForm.initial_completion_date || null,
+      initial_start_date: scheduleForm.initial_start_date || null,
+      actual_start_date: scheduleForm.actual_start_date || null,
+      initial_completion_date: scheduleForm.initial_completion_date || scheduleForm.target_date || null,
+      actual_completion_date: scheduleForm.actual_completion_date || null,
+      duration_days: parseOptionalNumber(scheduleForm.duration_days),
+      dependencies: scheduleForm.dependencies.trim() || null,
       status: SCHEDULE_STATUS_OPTIONS.includes(scheduleForm.status) ? scheduleForm.status : 'pending',
       sort_order: parseOptionalNumber(scheduleForm.sort_order) ?? nextScheduleSortOrder(),
       note: scheduleForm.note.trim() || null,
@@ -1744,14 +1850,58 @@ export function JobsWorkspace({ permissions }) {
     if (activeTab === 'schedule') {
       const completeCount = jobSchedule.items.filter((item) => item.status === 'complete').length;
       const delayedCount = jobSchedule.items.filter((item) => item.status === 'delayed').length;
-      const datedItems = jobSchedule.items.filter((item) => item.target_date);
+      const datedItems = jobSchedule.items.filter((item) => (
+        item.initial_start_date
+        || item.actual_start_date
+        || item.initial_completion_date
+        || item.actual_completion_date
+        || item.target_date
+      ));
       const overdueCount = jobSchedule.items.filter((item) => {
-        const remaining = daysUntil(item.target_date);
+        const remaining = daysUntil(item.actual_completion_date || item.initial_completion_date || item.target_date);
         return remaining !== null && remaining < 0 && item.status !== 'complete';
       }).length;
       const nextItem = datedItems
         .filter((item) => item.status !== 'complete')
-        .sort((a, b) => String(a.target_date).localeCompare(String(b.target_date)))[0] ?? null;
+        .sort((a, b) => String(schedulePlannedFinish(a) || scheduleActualFinish(a)).localeCompare(String(schedulePlannedFinish(b) || scheduleActualFinish(b))))[0] ?? null;
+      const ganttRows = jobSchedule.items.map((item) => {
+        const plannedStart = parseDateOnly(schedulePlannedStart(item));
+        const plannedFinish = parseDateOnly(schedulePlannedFinish(item));
+        const actualStart = parseDateOnly(scheduleActualStart(item));
+        const actualFinish = parseDateOnly(scheduleActualFinish(item));
+        return {
+          item,
+          plannedStart,
+          plannedFinish: plannedFinish || plannedStart,
+          actualStart,
+          actualFinish: actualFinish || actualStart,
+        };
+      });
+      const ganttDates = ganttRows.flatMap((row) => [
+        row.plannedStart,
+        row.plannedFinish,
+        row.actualStart,
+        row.actualFinish,
+      ]).filter(Boolean);
+      const ganttStart = ganttDates.length ? new Date(Math.min(...ganttDates.map((date) => date.getTime()))) : null;
+      const ganttEnd = ganttDates.length ? new Date(Math.max(...ganttDates.map((date) => date.getTime()))) : null;
+      const ganttTotalDays = ganttStart && ganttEnd ? Math.max(1, daysBetween(ganttStart, ganttEnd) + 1) : 1;
+      const ganttTicks = ganttStart
+        ? Array.from({ length: Math.min(ganttTotalDays, 16) }, (_, index) => {
+          const offset = Math.round((index / Math.max(1, Math.min(ganttTotalDays, 16) - 1)) * (ganttTotalDays - 1));
+          return addDays(ganttStart, offset);
+        })
+        : [];
+      const barStyle = (start, end) => {
+        if (!ganttStart || !start) return null;
+        const safeEnd = end || start;
+        const left = (daysBetween(ganttStart, start) / ganttTotalDays) * 100;
+        const width = Math.max(2, ((daysBetween(start, safeEnd) + 1) / ganttTotalDays) * 100);
+        return {
+          left: `${Math.max(0, left)}%`,
+          width: `${Math.min(100 - Math.max(0, left), width)}%`,
+        };
+      };
       const scheduleColumns = [
         ...JOB_SCHEDULE_COLUMNS,
         {
@@ -1800,21 +1950,80 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Complete" value={`${completeCount}/${jobSchedule.items.length}`} detail="Finished milestones" tone={completeCount && completeCount === jobSchedule.items.length ? 'good' : 'default'} />
             <SummaryCard label="Delayed" value={delayedCount} detail="Marked delayed" tone={delayedCount ? 'warn' : 'good'} />
             <SummaryCard label="Overdue" value={overdueCount} detail="Past target and not complete" tone={overdueCount ? 'warn' : 'good'} />
-            <SummaryCard label="Next" value={nextItem ? formatDate(nextItem.target_date) : '-'} detail={nextItem?.title || 'No dated open item'} />
+            <SummaryCard label="Next" value={nextItem ? formatDate(schedulePlannedFinish(nextItem) || scheduleActualFinish(nextItem)) : '-'} detail={nextItem?.title || 'No dated open item'} />
           </div>
 
-          <DataTable
-            columns={scheduleColumns}
-            rows={jobSchedule.items}
-            getRowKey={(row) => row.id}
-            permissions={permissions}
-            isLoading={jobSchedule.isLoading}
-            error={jobSchedule.error}
-            dense
-            minWidth="1180px"
-            emptyTitle="No schedule items for this job"
-            emptyDescription="Add flat milestones or tasks to track key target dates. No calendar sync, dependencies, assignments, or reminders are created."
-          />
+          <div className="job-schedule-print-actions">
+            <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('list')}>Print List</button>
+            <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('graph')}>Print Graph</button>
+            <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('both')}>Print Both</button>
+          </div>
+
+          <div className="job-schedule-print-list">
+            <DataTable
+              columns={scheduleColumns}
+              rows={jobSchedule.items}
+              getRowKey={(row) => row.id}
+              permissions={permissions}
+              isLoading={jobSchedule.isLoading}
+              error={jobSchedule.error}
+              dense
+              minWidth="1480px"
+              emptyTitle="No schedule items for this job"
+              emptyDescription="Add milestones or tasks to track key dates, duration, and dependencies. No calendar sync, assignments, or reminders are created."
+            />
+          </div>
+          <section className="job-schedule-gantt job-schedule-print-graph" aria-label="Schedule Gantt graph">
+            <Toolbar
+              eyebrow="Graph"
+              title="Schedule Gantt"
+              description="Planned bars use initial dates. Actual bars use actual dates when recorded."
+            />
+            {ganttRows.some((row) => row.plannedStart || row.actualStart) ? (
+              <div className="job-schedule-gantt__surface">
+                <div className="job-schedule-gantt__axis">
+                  <span />
+                  <div className="job-schedule-gantt__ticks">
+                    {ganttTicks.map((tick) => (
+                      <span key={tick.toISOString()}>{formatDate(toDateOnlyString(tick))}</span>
+                    ))}
+                  </div>
+                </div>
+                {ganttRows.map((row) => {
+                  const plannedStyle = barStyle(row.plannedStart, row.plannedFinish);
+                  const actualStyle = barStyle(row.actualStart, row.actualFinish);
+                  return (
+                    <div key={row.item.id} className="job-schedule-gantt__row">
+                      <div className="job-schedule-gantt__label">
+                        <strong>{row.item.title || 'Untitled schedule item'}</strong>
+                        <span>{row.item.dependencies || 'No dependencies'}</span>
+                      </div>
+                      <div className="job-schedule-gantt__track">
+                        {plannedStyle ? (
+                          <span className="job-schedule-gantt__bar job-schedule-gantt__bar--planned" style={plannedStyle}>
+                            Initial
+                          </span>
+                        ) : null}
+                        {actualStyle ? (
+                          <span className="job-schedule-gantt__bar job-schedule-gantt__bar--actual" style={actualStyle}>
+                            Actual
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <StatePanel
+                tone="neutral"
+                eyebrow="No Dates"
+                title="Add start or completion dates to render the Gantt graph"
+                description="The graph appears once at least one schedule row has an initial or actual date."
+                compact
+              />
+            )}
+          </section>
           {scheduleAction.error ? (
             <StatePanel
               tone="danger"
@@ -1861,11 +2070,13 @@ export function JobsWorkspace({ permissions }) {
                   </select>
                 </label>
                 <label>
-                  <span>Target date</span>
+                  <span>Duration days</span>
                   <input
-                    type="date"
-                    value={scheduleForm.target_date}
-                    onChange={(event) => setScheduleForm((current) => ({ ...current, target_date: event.target.value, error: null, success: '' }))}
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={scheduleForm.duration_days}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, duration_days: event.target.value, error: null, success: '' }))}
                     disabled={scheduleForm.isSaving}
                   />
                 </label>
@@ -1877,6 +2088,52 @@ export function JobsWorkspace({ permissions }) {
                     value={scheduleForm.sort_order}
                     onChange={(event) => setScheduleForm((current) => ({ ...current, sort_order: event.target.value, error: null, success: '' }))}
                     placeholder={String(nextScheduleSortOrder())}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Initial start</span>
+                  <input
+                    type="date"
+                    value={scheduleForm.initial_start_date}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, initial_start_date: event.target.value, error: null, success: '' }))}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Actual start</span>
+                  <input
+                    type="date"
+                    value={scheduleForm.actual_start_date}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, actual_start_date: event.target.value, error: null, success: '' }))}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Initial completion</span>
+                  <input
+                    type="date"
+                    value={scheduleForm.initial_completion_date}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, initial_completion_date: event.target.value, error: null, success: '' }))}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Actual completion</span>
+                  <input
+                    type="date"
+                    value={scheduleForm.actual_completion_date}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, actual_completion_date: event.target.value, error: null, success: '' }))}
+                    disabled={scheduleForm.isSaving}
+                  />
+                </label>
+                <label className="job-schedule-form__wide">
+                  <span>Dependencies</span>
+                  <input
+                    type="text"
+                    value={scheduleForm.dependencies}
+                    onChange={(event) => setScheduleForm((current) => ({ ...current, dependencies: event.target.value, error: null, success: '' }))}
+                    placeholder="Predecessor IDs, notes, or external dependencies"
                     disabled={scheduleForm.isSaving}
                   />
                 </label>

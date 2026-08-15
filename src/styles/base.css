@@ -1364,6 +1364,97 @@ textarea {
   justify-content: flex-end;
 }
 
+.job-schedule-print-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin: 0 0 var(--card-gap);
+}
+
+.job-schedule-gantt {
+  display: grid;
+  gap: 1rem;
+  margin-top: var(--card-gap);
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.job-schedule-gantt__surface {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 760px;
+  overflow-x: auto;
+}
+
+.job-schedule-gantt__axis,
+.job-schedule-gantt__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(420px, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.job-schedule-gantt__ticks {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ng-muted);
+  font-size: 0.72rem;
+}
+
+.job-schedule-gantt__label {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.job-schedule-gantt__label strong,
+.job-schedule-gantt__label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-schedule-gantt__label span {
+  color: var(--ng-muted);
+  font-size: 0.78rem;
+}
+
+.job-schedule-gantt__track {
+  position: relative;
+  min-height: 42px;
+  border-radius: 6px;
+  background: var(--ng-surface-muted);
+  overflow: hidden;
+}
+
+.job-schedule-gantt__bar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  min-width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.job-schedule-gantt__bar--planned {
+  top: 6px;
+  background: var(--ng-brand-blue);
+}
+
+.job-schedule-gantt__bar--actual {
+  bottom: 6px;
+  background: #1f7a45;
+}
+
 @media (max-width: 920px) {
   .job-document-upload__grid,
   .job-buyout-form__grid,
@@ -1376,6 +1467,54 @@ textarea {
   .job-financials-form__wide,
   .job-schedule-form__wide {
     grid-column: span 1;
+  }
+}
+
+@media print {
+  body.print-schedule-list *,
+  body.print-schedule-graph *,
+  body.print-schedule-both * {
+    visibility: hidden !important;
+  }
+
+  body.print-schedule-list .job-schedule-print-list,
+  body.print-schedule-list .job-schedule-print-list *,
+  body.print-schedule-graph .job-schedule-print-graph,
+  body.print-schedule-graph .job-schedule-print-graph *,
+  body.print-schedule-both .job-schedule-print-list,
+  body.print-schedule-both .job-schedule-print-list *,
+  body.print-schedule-both .job-schedule-print-graph,
+  body.print-schedule-both .job-schedule-print-graph * {
+    visibility: visible !important;
+  }
+
+  body.print-schedule-list .job-schedule-print-list,
+  body.print-schedule-graph .job-schedule-print-graph,
+  body.print-schedule-both .job-schedule-print-list,
+  body.print-schedule-both .job-schedule-print-graph {
+    position: static !important;
+    break-inside: avoid;
+  }
+
+  body.print-schedule-list .job-schedule-print-actions,
+  body.print-schedule-graph .job-schedule-print-actions,
+  body.print-schedule-both .job-schedule-print-actions {
+    display: none !important;
+  }
+
+  body.print-schedule-graph .job-schedule-print-list,
+  body.print-schedule-list .job-schedule-print-graph {
+    display: none !important;
+  }
+
+  .job-schedule-gantt {
+    box-shadow: none;
+    border-color: #999;
+  }
+
+  .job-schedule-gantt__surface {
+    min-width: 0;
+    overflow: visible;
   }
 }
 
