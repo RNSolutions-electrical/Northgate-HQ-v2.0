@@ -732,6 +732,7 @@ textarea {
 .documents-workspace,
 .employees-workspace,
 .reports-workspace,
+.silas-workspace,
 .tools-workspace,
 .vehicles-workspace {
   margin-left: var(--app-page-gutter);
@@ -882,9 +883,180 @@ textarea {
 .documents-workspace,
 .employees-workspace,
 .reports-workspace,
+.silas-workspace,
 .tools-workspace,
 .vehicles-workspace {
   margin-top: var(--card-gap);
+}
+
+.silas-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.36fr) minmax(0, 1fr);
+  gap: var(--card-gap);
+  align-items: stretch;
+  min-height: 560px;
+}
+
+.silas-sidebar,
+.silas-chat-card {
+  min-width: 0;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+}
+
+.silas-sidebar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.silas-sidebar__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.silas-sidebar__header h3 {
+  margin: 0;
+}
+
+.silas-conversation-list {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.silas-conversation-list__item {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  color: var(--ng-text);
+  padding: 0.7rem;
+  cursor: pointer;
+}
+
+.silas-conversation-list__item:hover,
+.silas-conversation-list__item--active {
+  border-color: var(--ng-brand-red);
+  background: var(--ng-brand-red-soft);
+}
+
+.silas-conversation-list__item strong,
+.silas-chip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.silas-conversation-list__item span,
+.silas-message__meta span {
+  color: var(--ng-faint);
+  font-size: 0.72rem;
+}
+
+.silas-chat-card {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.silas-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 0.2rem;
+}
+
+.silas-empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  border: 1px dashed var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  color: var(--ng-muted);
+  padding: 1rem;
+  text-align: center;
+}
+
+.silas-message {
+  display: grid;
+  gap: 0.45rem;
+  max-width: min(720px, 92%);
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  padding: 0.8rem;
+}
+
+.silas-message--user {
+  justify-self: end;
+  background: var(--ng-brand-red-soft);
+}
+
+.silas-message--assistant {
+  justify-self: start;
+}
+
+.silas-message__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.silas-message p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.silas-action-placeholder {
+  border-left: 3px solid var(--ng-warn);
+  background: var(--ng-warn-bg);
+  padding: 0.6rem;
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.silas-composer {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.silas-composer__input {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  color: var(--ng-text);
+  padding: 0.8rem;
+  font: inherit;
+}
+
+.silas-composer__input:focus {
+  outline: 2px solid var(--ng-brand-red-soft);
+  border-color: var(--ng-brand-red);
+}
+
+.silas-composer__actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .documents-action-map,
@@ -909,7 +1081,8 @@ textarea {
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
   .developer-grid,
-  .developer-future-note { grid-template-columns: minmax(0, 1fr); }
+  .developer-future-note,
+  .silas-shell { grid-template-columns: minmax(0, 1fr); }
   .workspace-surface { padding-left: 0; }
 }
 .profile-field span {

@@ -29,6 +29,7 @@ import { DeveloperWorkspace } from './developer/DeveloperWorkspace.jsx';
 import { DocumentsWorkspace } from './documents/DocumentsWorkspace.jsx';
 import { EmployeesWorkspace } from './employees/EmployeesWorkspace.jsx';
 import { ReportsWorkspace } from './reports/ReportsWorkspace.jsx';
+import { SilasWorkspace } from './silas/SilasWorkspace.jsx';
 import { ToolsWorkspace } from './tools/ToolsWorkspace.jsx';
 import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
 
@@ -38,6 +39,7 @@ export const MODULE_SCREENS = {
   documents: DocumentsWorkspace,
   employees: EmployeesWorkspace,
   reports: ReportsWorkspace,
+  silas: SilasWorkspace,
   tools: ToolsWorkspace,
   vehicles: VehiclesWorkspace,
 };

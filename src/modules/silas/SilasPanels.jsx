@@ -1,8 +1,8 @@
 import { MessageSquare, Sparkles, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { StatePanel } from './ui/StatePanel.jsx';
-import { WorkspaceHeader } from './ui/WorkspaceHeader.jsx';
-import { SILAS_DISABLED_HELPER_COPY, SILAS_EMPTY_HELPER_COPY } from '../hooks/useSilas.js';
+import { StatePanel } from '../../components/ui/StatePanel.jsx';
+import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { SILAS_DISABLED_HELPER_COPY, SILAS_EMPTY_HELPER_COPY } from '../../hooks/useSilas.js';
 
 function formatTimestamp(value) {
   if (!value) return '';

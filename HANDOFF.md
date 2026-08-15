@@ -16296,3 +16296,90 @@ remained within ARCHITECTURE v2.30 / HANDOFF Entry 155.
 ### Routing Verdict
 No Claude review needed - Employees v3 migration reused existing read paths and
 remained within ARCHITECTURE v2.30 / HANDOFF Entry 156.
+
+## Entry 157 - Port Silas workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Silas module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `b5a9078` (`Port Employees workspace to v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 156`.
+- `MIGRATION_MAP.md` identifies Silas as the eighth module.
+- Existing Silas Phase 1/2A behavior already lived in `useSilas`,
+  `SilasPanels`, the `silas_*` Supabase tables, and
+  `netlify/functions/silas-chat.js`.
+
+### What Was Completed
+- Added a v3 `SilasWorkspace` wrapper under `src/modules/silas/`.
+- Registered the Silas screen in `src/modules/screens.js`.
+- Changed the Silas module registry status from `stub` to `live`.
+- Reused the existing `useSilas` hook for authenticated settings,
+  conversations, messages, and `/api/silas-chat` requests.
+- Reused the existing `SilasWorkspacePanel` chat UI rather than creating a new
+  chat implementation.
+- Corrected dormant relative imports in `SilasPanels.jsx` so the extracted
+  panel resolves the shared UI components and Silas helper copy from its v3
+  module location.
+- Added responsive Silas workspace, conversation list, message list, and
+  composer styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag, or
+  business-data table behavior changed.
+- No Netlify function behavior changed.
+- No service-role Supabase path was added.
+- No business-data write capability was added.
+- Silas still uses the caller's Clerk/Supabase token for client-side table
+  reads/writes, and the existing Netlify function enforces the
+  `silas_settings.silas_enabled` kill switch before the Claude call.
+- The floating Silas bubble was not reintroduced in this pass; only the
+  dedicated `/silas` workspace route was made live.
+
+### Code / File Changes
+- `src/modules/silas/SilasWorkspace.jsx`
+- `src/modules/silas/SilasPanels.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `node --check netlify/functions/silas-chat.js` passed.
+- `npm run build` passed with Vite 8.1.0.
+- Supabase changelog was checked for relevant breaking changes; none affected
+  this existing client-side Supabase usage.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Silas runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Silas-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in and open Silas.
+4. Confirm Silas no longer shows the v3 placeholder.
+5. Confirm conversations load, a new message can be typed, and the composer
+   handles the response/error state cleanly.
+6. Continue the v3 rebuild with the next low-risk module from
+   `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future Silas work should decide separately whether to reintroduce the floating
+  bubble globally in v3.
+- Silas live-response behavior depends on the current Netlify
+  `SILAS_ANTHROPIC_API_KEY` environment variable.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside the existing Silas hook, existing
+  Supabase tables/RLS, existing Netlify function route, and dedicated workspace
+  presentation scope.
+
+### Routing Verdict
+No Claude review needed - Silas v3 migration reused the locked existing
+Silas client/function paths and remained within ARCHITECTURE v2.30 / HANDOFF
+Entry 157.

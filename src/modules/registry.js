@@ -131,7 +131,7 @@ export const MODULES = [
     path: '/silas',
     label: 'Silas',
     icon: Sparkles,
-    status: 'stub',
+    status: 'live',
     description: 'Permission-aware assistant.',
   },
   {
