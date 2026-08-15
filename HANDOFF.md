@@ -18175,3 +18175,64 @@ the existing Supabase project, repo, and permission gates.
 - Dashboard attention wiring is not added yet.
 - External accounting, pay apps, invoices, and purchase order workflows remain
   out of scope for this slice.
+
+---
+
+## Entry 179 — Financials Edit Audit And Cost Report Import Requirements
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** decision
+
+### Context
+Ryan verified the Financials information is live. Before moving to the next
+slice, Ryan defined the requirements for the future Financials edit/archive
+controls, audit behavior, cost report import, and permission model.
+
+### Decisions Made This Session (locked)
+- Financial line edit controls must allow all Financials fields to be edited.
+- All Financials changes must be permission based.
+- All Financials edits and archives must write to the audit log when
+  implemented.
+- The Financials tool needs an "import cost report" function that
+  automatically updates the `Actual` column.
+- Forecasting, actual costs, and change orders are normal workflow edits and
+  do not need the stricter justification flow.
+- Editing original budget, cost code, description, or category is more
+  sensitive and must require a description of why the change was made.
+- Only Developers and users assigned to the project should be able to edit
+  Financials by default.
+- Developers must be able to assign additional individuals through the
+  Developer Console when a job needs extra Financials assistance.
+
+### What Codex Needs to Know
+- The current Financials tab supports add and read only. Edit/archive/import
+  are not implemented yet.
+- The audit log for Financials changes should include before/after values,
+  acting user, timestamp, job id, budget line id, changed fields, and the
+  required reason when sensitive fields change.
+- Cost report import should update `actual_cost_amount` rather than replacing
+  forecast, committed, change-order, or original-budget values.
+- Developer-granted extra Financials assistance should be additive and scoped,
+  not a broad global bypass.
+- Final implementation should confirm the canonical project-assignment source
+  and the canonical audit-log table/function before writing policies or UI.
+
+### Next Steps (in order)
+1. Continue to the next Jobs slice unless Ryan asks to implement Financials
+   edit/archive/import immediately.
+2. During the Financials hardening pass, design the permission model for:
+   Developers, project-assigned users, and Developer Console assigned helpers.
+3. Add edit/archive controls with audit-log writes.
+4. Add the cost report import workflow and map imported cost values into
+   `actual_cost_amount`.
+5. Verify normal workflow edits do not require extra justification, while
+   sensitive field edits do.
+
+### Open Questions / Concerns
+- Confirm the source and file shape of the cost report before building the
+  importer.
+- Confirm whether Developer Console helper assignment should be per job, per
+  division, or time-limited.
+- Confirm which audit-log table/function is canonical for Financials changes.
