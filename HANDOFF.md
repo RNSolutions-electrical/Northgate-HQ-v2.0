@@ -17567,3 +17567,111 @@ ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 168.
 No Claude review needed - this is a route-guard loading-state fix only and
 does not change schema, RLS, permissions, write paths, balance writes, or
 ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 169.
+
+## Entry 170 - Restore unchanged Inventory utility surfaces in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / unchanged Inventory utility sweep
+**Session type:** implementation
+
+### Context
+- Starting commit: `6e956ad` (`Fix scan dispatch route guard`).
+- Ryan requested applying all unchanged functional pieces from v2.0 to v3.0 as
+  efficiently as possible, without wasting effort on pieces that are changing.
+- The lowest-risk unchanged functions left in Inventory were read-only utility
+  surfaces over existing count-sheet/location helpers.
+
+### What Was Completed
+- Added Inventory `Overview` view.
+- Added Grand Master Inventory read-only table using the existing count sheet
+  read model.
+- Added visible-row summary cards:
+  - rows in view;
+  - quantity in view;
+  - low/min rows;
+  - inventory value.
+- Added Inventory `Accounting Export` view.
+- Added read-only valuation export preview using existing quantity and
+  catalogue unit-cost fields.
+- Added CSV download for visible non-zero export rows.
+- Added Inventory `Locations & QR` view.
+- Added read-only unit/shelf/bay/bin location table from existing location
+  read paths.
+- Added selected location QR preview.
+- Added selected location QR SVG download.
+- Added selected location Open Scan Result action.
+- Restored camera QR decoding in Inventory `Scan`.
+- Kept QR camera decoding lazy-loaded with a separate `jsQR` chunk so the main
+  bundle does not pay that cost unless camera scanning is used.
+- Updated Inventory copy to reflect the restored unchanged utility surfaces.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, RPC definition, or new table access changed.
+- New Overview, Accounting Export, and Locations/QR surfaces are read-only.
+- CSV and QR SVG downloads are browser-local exports from already-visible data.
+- Camera scanning resolves QR context only and does not mutate inventory.
+- Cart, Count, and Retirement actions remain inside their existing restored
+  workflows and RPC wrappers.
+- The v3 UI does not write `inventory_balances` directly.
+
+### Code / File Changes
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- Build output split `jsQR` into a lazy chunk:
+  - `jsQR-D3aEslr3.js`
+- The build produced the expected Vite chunk-size warning only.
+- Static scan confirmed the Inventory workspace introduced no direct `insert`,
+  `update`, `delete`, `upsert`, or `inventory_balances` write path.
+- Static scan confirmed Inventory write RPC names remain limited to:
+  - `set_inventory_count_quantity`
+  - `intake_inventory_count`
+  - `retire_bin_item`
+- Authenticated live verification remains pending from Ryan's browser after
+  deployment.
+
+### Next Steps
+1. Commit and push this unchanged Inventory utility sweep.
+2. Deploy to production.
+3. Verify Inventory > Overview loads rows.
+4. Verify Inventory > Accounting Export downloads CSV.
+5. Verify Inventory > Locations & QR previews/downloads QR SVG and opens the
+   scan result.
+6. Verify Inventory > Scan camera scanner starts on HTTPS and opens a known QR
+   payload.
+
+### Remaining App Work Snapshot
+- Inventory: remaining changed/deferred workflows include return-from-job,
+  express checkout/manager override, and any additional movement flows not yet
+  intentionally restored.
+- Estimates: currently shell/foundation only; needs approved estimate read
+  model, create/edit workflow, pricing, approval snapshot, documents, and
+  history wiring.
+- Jobs: live read-only foundation exists; remaining job detail submodules,
+  write workflows, materials/buyout/schedule/completion, and documents wiring
+  still need finish work.
+- Vehicles: live directory foundation exists; assignment, service, history,
+  inspections, mileage, and maintenance workflows remain.
+- Employees: live directory foundation exists; assignments, credentials, HR
+  profile source fields, activity, and controlled create/edit remain.
+- Tools: live catalogue foundation exists; custody, checkout, QR labels,
+  assignment history, transfer/location linkage, and controlled create/edit
+  remain.
+- Reports: shell/readiness exists; operational reports need source modules and
+  approved read models.
+- Accounting: review/export foundation exists; final accounting posts depend on
+  completed Jobs, Estimates, and Inventory workflows.
+- Documents: workspace exists; owner-specific document wiring should be tied to
+  each source module as those modules finish.
+
+### Routing Verdict
+No Claude review needed - this pass restored read-only Inventory utility
+surfaces and camera QR context dispatch using existing hooks/helpers, with no
+schema, RLS, permission, write-path, balance-write, or ledger-derivation change
+under ARCHITECTURE v2.30 / HANDOFF Entry 170.

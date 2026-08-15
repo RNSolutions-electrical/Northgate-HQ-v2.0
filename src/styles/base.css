@@ -1286,7 +1286,7 @@ textarea {
 
 .inventory-scan-panel {
   display: grid;
-  grid-template-columns: minmax(240px, 0.36fr) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 0.3fr) minmax(240px, 0.34fr) minmax(0, 1fr);
   gap: var(--card-gap);
   align-items: stretch;
 }
@@ -1316,6 +1316,52 @@ textarea {
 .inventory-scan-form {
   display: grid;
   gap: 0.65rem;
+}
+
+.inventory-scan-camera {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.inventory-scan-video-frame {
+  position: relative;
+  min-height: 180px;
+  overflow: hidden;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+}
+
+.inventory-scan-video-frame video,
+.inventory-scan-video-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.inventory-scan-video-frame video {
+  object-fit: cover;
+}
+
+.inventory-scan-video-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  color: var(--ng-muted);
+  text-align: center;
+}
+
+.inventory-scan-video-placeholder svg {
+  width: 28px;
+  height: 28px;
+  color: var(--ng-brand-red);
+}
+
+.inventory-scan-camera-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
 .inventory-scan-form label {
@@ -1375,6 +1421,27 @@ textarea {
   margin-top: 0.35rem;
 }
 
+.inventory-location-qr-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: var(--card-gap);
+  align-items: start;
+}
+
+.inventory-location-qr-preview {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: #fff;
+  padding: 1rem;
+}
+
+.inventory-location-qr-preview svg {
+  width: min(100%, 210px);
+  height: auto;
+}
+
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
   .developer-grid,
@@ -1386,7 +1453,9 @@ textarea {
   .inventory-cart-destination-cell,
   .inventory-count-intake-grid,
   .inventory-scan-panel,
-  .inventory-scan-bin-actions { grid-template-columns: minmax(0, 1fr); }
+  .inventory-scan-bin-actions,
+  .inventory-scan-camera-actions,
+  .inventory-location-qr-panel { grid-template-columns: minmax(0, 1fr); }
   .inventory-cart-destination-cell { min-width: 260px; }
 }
 .profile-field span {

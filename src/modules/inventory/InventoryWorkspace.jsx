@@ -1,7 +1,11 @@
 import {
   Boxes,
+  Camera,
+  CameraOff,
   ClipboardList,
+  Download,
   History,
+  LayoutDashboard,
   MapPinned,
   PackageSearch,
   Plus,
@@ -13,7 +17,7 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
@@ -30,12 +34,15 @@ import { useInventoryCountSheet } from '../../hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
+import { buildLocationQrSvg, buildLocationQrUrl, buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
 const INVENTORY_VIEWS = [
+  { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Live stock summary and valuation export preview.' },
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
   { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units and bin previews.' },
+  { key: 'locations', label: 'Locations & QR', icon: QrCode, description: 'Physical hierarchy records and QR outputs.' },
   { key: 'scan', label: 'Scan', icon: QrCode, description: 'Resolve location QR codes and dispatch to cart or count.' },
+  { key: 'accounting', label: 'Accounting Export', icon: Download, description: 'Read-only inventory valuation export preview.' },
   { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
   { key: 'count', label: 'Count', icon: Scale, description: 'Count sheet, correction, and new bin/material intake.' },
   { key: 'destinations', label: 'Destinations', icon: Truck, description: 'Approved user and vehicle destination references.' },
@@ -162,6 +169,33 @@ const SCAN_CONTENT_COLUMNS = [
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
 ];
 
+const OVERVIEW_COLUMNS = [
+  { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
+  { key: 'item_name', header: 'Item' },
+  { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
+  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
+  { key: 'min_quantity', header: 'Min', numeric: true, render: (row) => formatQuantity(row.min_quantity) },
+  { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
+  { key: 'division', header: 'Division', fallback: '-' },
+];
+
+const ACCOUNTING_COLUMNS = [
+  { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
+  { key: 'item_name', header: 'Item' },
+  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'quantity_on_hand', header: 'Qty', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
+  { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
+  { key: 'extended_value', header: 'Extended', numeric: true, render: (row) => formatMoney(getExtendedValue(row)) },
+  { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
+];
+
+const LOCATION_COLUMNS = [
+  { key: 'typeLabel', header: 'Level', render: (row) => <StatusBadge tone={row.type === 'bin' ? 'good' : 'neutral'}>{row.typeLabel}</StatusBadge> },
+  { key: 'code', header: 'Code', render: (row) => <strong>{row.code || '-'}</strong> },
+  { key: 'label', header: 'Label', fallback: '-' },
+  { key: 'path', header: 'Path', fallback: '-' },
+];
+
 function formatMoney(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
@@ -182,6 +216,13 @@ function formatDateTime(value) {
 
 function formatTransactionType(value) {
   return String(value || '-').replaceAll('_', ' ');
+}
+
+function getExtendedValue(row) {
+  const quantity = Number(row.quantity_on_hand ?? row.system_quantity ?? 0);
+  const unitCost = Number(row.price_per_unit ?? 0);
+  if (!Number.isFinite(quantity) || !Number.isFinite(unitCost)) return 0;
+  return quantity * unitCost;
 }
 
 function buildStoragePath(row) {
@@ -370,6 +411,54 @@ function locationRecordMatchesInput(record, input) {
   return candidates.some((candidate) => normalizeLocationLookup(candidate) === normalizedInput);
 }
 
+function downloadTextFile(filename, text, type = 'text/plain') {
+  if (typeof window === 'undefined') return;
+  const blob = new Blob([text], { type });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function escapeCsvValue(value) {
+  const text = String(value ?? '');
+  if (!/[",\n\r]/.test(text)) return text;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function buildAccountingCsv(rows) {
+  const headers = ['material_code', 'item_name', 'division', 'quantity', 'unit_cost', 'extended_value', 'location'];
+  const lines = rows.map((row) => [
+    row.material_code,
+    row.item_name,
+    row.division,
+    row.quantity_on_hand ?? row.system_quantity ?? 0,
+    row.price_per_unit ?? 0,
+    getExtendedValue(row),
+    buildStoragePath(row) || row.bin_code || '',
+  ].map(escapeCsvValue).join(','));
+  return [headers.join(','), ...lines].join('\n');
+}
+
+async function decodeQrFromVideoFrame(video, canvasRef) {
+  if (!video?.videoWidth || !video?.videoHeight) return '';
+  const { default: jsQR } = await import('jsqr');
+  const canvas = canvasRef.current ?? document.createElement('canvas');
+  canvasRef.current = canvas;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return '';
+
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const result = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
+  return result?.data ?? '';
+}
+
 function filterRows(rows, search, fields) {
   const normalized = search.trim().toLowerCase();
   if (!normalized) return rows;
@@ -405,6 +494,10 @@ export function InventoryWorkspace({ permissions }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const frameRef = useRef(null);
   const requestedView = searchParams.get('view') ?? '';
   const scanBinId = searchParams.get('scanBinId') ?? '';
   const scanBinCode = searchParams.get('scanBinCode') ?? '';
@@ -450,6 +543,8 @@ export function InventoryWorkspace({ permissions }) {
   const [manualScanPayload, setManualScanPayload] = useState('');
   const [scanMessage, setScanMessage] = useState('');
   const [scanMatches, setScanMatches] = useState([]);
+  const [cameraStatus, setCameraStatus] = useState('idle');
+  const [selectedLocationId, setSelectedLocationId] = useState('');
 
   const history = useInventoryTransactionHistory({
     enabled: canLoadInventory && activeView === 'history',
@@ -457,7 +552,9 @@ export function InventoryWorkspace({ permissions }) {
     search: historySearch,
     limit: 75,
   });
-  const countSheet = useInventoryCountSheet({ enabled: canReadCounts && ['count', 'scan'].includes(activeView) });
+  const countSheet = useInventoryCountSheet({
+    enabled: canReadCounts && ['overview', 'accounting', 'locations', 'count', 'scan'].includes(activeView),
+  });
   const countCorrection = useInventoryCountCorrection();
   const countIntake = useInventoryCountIntake();
   const retirement = useBinItemRetirement();
@@ -530,6 +627,47 @@ export function InventoryWorkspace({ permissions }) {
       .filter((item) => !existingInBin.has(item.id))
       .slice(0, 200);
   }, [countIntakeDraft.bin_id, countSheet.catalogItems, countSheet.rows]);
+  const visibleOverviewRows = useMemo(
+    () => filterRows(countSheet.rows, search, [
+      'material_code',
+      'item_name',
+      'bin_code',
+      'storage_unit_code',
+      'shelf_code',
+      'bay_code',
+      'division',
+      'broad_category',
+      'sub_category',
+    ]),
+    [countSheet.rows, search],
+  );
+  const visibleAccountingRows = useMemo(
+    () => visibleOverviewRows.filter((row) => Number(row.quantity_on_hand ?? row.system_quantity ?? 0) !== 0),
+    [visibleOverviewRows],
+  );
+  const locationRecords = useMemo(
+    () => buildLocationRecords(countSheet),
+    [countSheet.storageUnits, countSheet.shelves, countSheet.bays, countSheet.bins],
+  );
+  const visibleLocationRecords = useMemo(
+    () => filterRows(locationRecords, search, ['typeLabel', 'code', 'label', 'path', 'id']),
+    [locationRecords, search],
+  );
+  const selectedLocation =
+    visibleLocationRecords.find((record) => record.id === selectedLocationId)
+    ?? locationRecords.find((record) => record.id === selectedLocationId)
+    ?? visibleLocationRecords[0]
+    ?? null;
+  const overviewQuantity = visibleOverviewRows.reduce(
+    (sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0),
+    0,
+  );
+  const overviewValue = visibleAccountingRows.reduce((sum, row) => sum + getExtendedValue(row), 0);
+  const lowStockRows = visibleOverviewRows.filter((row) => {
+    const minQuantity = Number(row.min_quantity ?? 0);
+    if (!Number.isFinite(minQuantity) || minQuantity <= 0) return false;
+    return Number(row.quantity_on_hand ?? row.system_quantity ?? 0) <= minQuantity;
+  });
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isDestinationValid(getLineDestination(item)));
   const applyAllDestinationIsValid = isDestinationValid(applyAllDestination);
 
@@ -554,10 +692,17 @@ export function InventoryWorkspace({ permissions }) {
     }
   }, [activeView, scanContext?.binId]);
 
+  useEffect(() => () => {
+    stopCameraScanner();
+  }, []);
+
   const views = INVENTORY_VIEWS.map((view) => {
     const badge = {
       catalog: counts.activeItems,
+      overview: countSheet.rows.length || counts.binItems,
+      accounting: countSheet.rows.length || counts.inventoryBalances,
       storage: counts.bins,
+      locations: locationRecords.length || counts.bins,
       cart: cartState.cartItems.length || model.cartCandidates.length,
       count: countSheet.rows.length || counts.binItems,
       scan: countSheet.bins.length || counts.bins,
@@ -1017,6 +1162,89 @@ export function InventoryWorkspace({ permissions }) {
     setScanMessage('No matching Northgate location QR or location code found.');
   }
 
+  function stopCameraScanner() {
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setCameraStatus('idle');
+  }
+
+  async function startCameraScanner() {
+    if (!canReadCounts) {
+      setScanMessage('Server inventory read access is required before scanning.');
+      return;
+    }
+    if (typeof window === 'undefined' || !window.isSecureContext) {
+      setScanMessage('Camera scanning requires HTTPS. Use manual entry in this context.');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScanMessage('This browser does not expose camera access. Use manual entry.');
+      return;
+    }
+
+    try {
+      setScanMessage('');
+      setCameraStatus('starting');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      streamRef.current = stream;
+
+      if (!videoRef.current) {
+        throw new Error('Scanner video element is unavailable.');
+      }
+
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setCameraStatus('scanning');
+
+      async function detectFrame() {
+        if (!videoRef.current || !streamRef.current) return;
+        const rawPayload = await decodeQrFromVideoFrame(videoRef.current, canvasRef);
+        if (rawPayload) {
+          const parsed = parseLocationScanPayload(rawPayload);
+          if (parsed.ok) {
+            stopCameraScanner();
+            setScanMessage('');
+            navigate(parsed.path);
+            return;
+          }
+          setScanMessage(parsed.error);
+        }
+        frameRef.current = requestAnimationFrame(detectFrame);
+      }
+
+      frameRef.current = requestAnimationFrame(detectFrame);
+    } catch (error) {
+      console.error('QR scanner camera failed', error);
+      stopCameraScanner();
+      setScanMessage('Camera permission was denied or the camera is unavailable. Use manual entry.');
+    }
+  }
+
+  function handleDownloadAccountingCsv() {
+    downloadTextFile('northgate-inventory-accounting-export.csv', buildAccountingCsv(visibleAccountingRows), 'text/csv');
+  }
+
+  function handleDownloadSelectedQr() {
+    if (!selectedLocation) return;
+    const code = selectedLocation.code || selectedLocation.id;
+    downloadTextFile(`northgate-location-${code}.svg`, buildLocationQrSvg(selectedLocation.id), 'image/svg+xml');
+  }
+
   function setCountMessage(key, tone, text) {
     setCountMessages((current) => ({
       ...current,
@@ -1228,6 +1456,159 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function renderActiveView() {
+    if (activeView === 'overview') {
+      return (
+        <div className="inventory-section-stack">
+          <section className="summary-grid">
+            <SummaryCard label="Rows in view" value={visibleOverviewRows.length} detail={`${countSheet.rows.length} loaded count rows`} />
+            <SummaryCard label="Quantity in view" value={formatQuantity(overviewQuantity)} detail="Sum of visible system quantities" />
+            <SummaryCard label="Low/min rows" value={lowStockRows.length} detail="Rows at or below min quantity" tone={lowStockRows.length ? 'warn' : 'good'} />
+            <SummaryCard label="Inventory value" value={formatMoney(overviewValue)} detail="Visible non-zero rows at catalogue cost" />
+          </section>
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Overview"
+              title="Grand Master Inventory"
+              description="Read-only count-sheet overview using the existing location, catalogue, and balance-derived quantity paths."
+              actions={(
+                <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
+                  <RefreshCw aria-hidden="true" /> Refresh Overview
+                </button>
+              )}
+              dense
+            />
+            <DataTable
+              columns={OVERVIEW_COLUMNS}
+              rows={visibleOverviewRows}
+              getRowKey={(row) => row.bin_item_id}
+              permissions={permissions}
+              isLoading={countSheet.isLoading}
+              error={countSheet.error}
+              dense
+              minWidth="980px"
+              emptyTitle="No inventory rows"
+              emptyDescription="The existing count sheet read model returned no rows for this view."
+            />
+          </article>
+        </div>
+      );
+    }
+
+    if (activeView === 'accounting') {
+      return (
+        <div className="inventory-section-stack">
+          <section className="summary-grid">
+            <SummaryCard label="Export rows" value={visibleAccountingRows.length} detail="Visible non-zero quantity rows" />
+            <SummaryCard label="Export value" value={formatMoney(overviewValue)} detail="Quantity times catalogue unit cost" />
+            <SummaryCard label="Filtered rows" value={visibleOverviewRows.length} detail="Rows matching current filter" />
+            <SummaryCard label="Boundary" value="Read only" detail="No accounting post is created" tone="good" />
+          </section>
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Accounting"
+              title="Inventory Valuation Export"
+              description="Read-only CSV preview from the existing count-sheet read model. Exporting downloads visible rows only and does not post to accounting."
+              actions={(
+                <button type="button" className="secondary-button" onClick={handleDownloadAccountingCsv} disabled={!visibleAccountingRows.length}>
+                  <Download aria-hidden="true" /> Download CSV
+                </button>
+              )}
+              dense
+            />
+            <DataTable
+              columns={ACCOUNTING_COLUMNS}
+              rows={visibleAccountingRows}
+              getRowKey={(row) => row.bin_item_id}
+              permissions={permissions}
+              isLoading={countSheet.isLoading}
+              error={countSheet.error}
+              dense
+              minWidth="1040px"
+              emptyTitle="No export rows"
+              emptyDescription="Only visible rows with non-zero quantity are included in the export preview."
+            />
+          </article>
+        </div>
+      );
+    }
+
+    if (activeView === 'locations') {
+      return (
+        <div className="inventory-section-stack">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Locations"
+              title="Location Records"
+              description="Read-only storage hierarchy records from the existing count-sheet location read model."
+              actions={(
+                <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
+                  <RefreshCw aria-hidden="true" /> Refresh Locations
+                </button>
+              )}
+              dense
+            />
+            <DataTable
+              columns={LOCATION_COLUMNS}
+              rows={visibleLocationRecords}
+              getRowKey={(row) => row.id}
+              permissions={permissions}
+              isLoading={countSheet.isLoading}
+              error={countSheet.error}
+              onRowClick={(row) => setSelectedLocationId(row.id)}
+              selectedRowKey={selectedLocation?.id ?? null}
+              dense
+              minWidth="820px"
+              emptyTitle="No location records"
+              emptyDescription="The existing storage hierarchy read path returned no location rows."
+            />
+          </article>
+
+          <article className="card workspace-card">
+            {selectedLocation ? (
+              <div className="inventory-location-qr-panel">
+                <div>
+                  <Toolbar
+                    eyebrow="QR Output"
+                    title={getLocationDisplay(selectedLocation)}
+                    description="Stable location QR output. The QR route resolves context only and does not change inventory."
+                    actions={(
+                      <>
+                        <button type="button" className="secondary-button" onClick={() => openLocationScan(selectedLocation.id)}>
+                          <QrCode aria-hidden="true" /> Open Scan Result
+                        </button>
+                        <button type="button" className="secondary-button" onClick={handleDownloadSelectedQr}>
+                          <Download aria-hidden="true" /> Download SVG
+                        </button>
+                      </>
+                    )}
+                    dense
+                  />
+                  <div className="inventory-cart-facts">
+                    <span>Level: <strong>{selectedLocation.typeLabel}</strong></span>
+                    <span>Code: <strong>{selectedLocation.code || '-'}</strong></span>
+                    <span>Path: <strong>{selectedLocation.path || '-'}</strong></span>
+                    <span>URL: <strong>{buildLocationQrUrl(selectedLocation.id)}</strong></span>
+                  </div>
+                </div>
+                <div
+                  className="inventory-location-qr-preview"
+                  aria-label={`QR code for ${getLocationDisplay(selectedLocation)}`}
+                  dangerouslySetInnerHTML={{ __html: buildLocationQrSvg(selectedLocation.id) }}
+                />
+              </div>
+            ) : (
+              <StatePanel
+                eyebrow="QR Output"
+                title="Select a location"
+                description="Choose a unit, shelf, bay, or bin to preview and download its QR output."
+                tone="neutral"
+              />
+            )}
+          </article>
+        </div>
+      );
+    }
+
     if (activeView === 'scan') {
       return (
         <div className="inventory-section-stack">
@@ -1267,6 +1648,36 @@ export function InventoryWorkspace({ permissions }) {
                   <p>Paste a full QR URL, a `/scan/location/...` path, a raw UUID, or an exact location code such as a unit, shelf, bay, or bin code.</p>
                 </div>
               </div>
+
+              <section className="inventory-scan-camera">
+                <div className="inventory-scan-video-frame">
+                  <video ref={videoRef} muted playsInline />
+                  {cameraStatus !== 'scanning' ? (
+                    <div className="inventory-scan-video-placeholder">
+                      <Camera aria-hidden="true" />
+                      <span>Camera scanner starts on request.</span>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="inventory-scan-camera-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={startCameraScanner}
+                    disabled={!canReadCounts || cameraStatus === 'starting' || cameraStatus === 'scanning'}
+                  >
+                    <Camera aria-hidden="true" /> {cameraStatus === 'starting' ? 'Starting...' : 'Start Camera'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={stopCameraScanner}
+                    disabled={cameraStatus !== 'scanning'}
+                  >
+                    <CameraOff aria-hidden="true" /> Stop
+                  </button>
+                </div>
+              </section>
 
               <form className="inventory-scan-form" onSubmit={handleManualScan}>
                 <label>
@@ -1824,7 +2235,7 @@ export function InventoryWorkspace({ permissions }) {
           <StatePanel
             eyebrow="Counts"
             title="Physical count correction is live"
-            description="Count sheet, existing row correction, new bin/material count intake, zero-balance retirement, and QR dispatch now use preserved paths."
+            description="Overview, accounting export, locations/QR, count sheet, correction, intake, retirement, and QR dispatch now use preserved paths."
             tone="good"
             compact
             actions={<Scale aria-hidden="true" />}
@@ -1870,7 +2281,7 @@ export function InventoryWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Inventory"
-        description="Inventory surface using preserved read hooks plus restored cart staging, checkout, physical count, zero-balance retirement, and location QR dispatch workflows."
+        description="Inventory surface using preserved hooks plus restored overview, accounting export, locations/QR, cart, checkout, count, retirement, and scan dispatch workflows."
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -1906,7 +2317,7 @@ export function InventoryWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Guardrails</strong>
-              <p>Cart staging, normal checkout, count correction, zero-balance retirement, and QR dispatch are live.</p>
+              <p>Overview, accounting export, locations/QR, cart, checkout, count correction, retirement, and QR dispatch are live.</p>
             </div>
           )}
         />
