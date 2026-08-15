@@ -33,6 +33,22 @@ const DEFAULT_UPLOAD_STATE = Object.freeze({
   error: null,
   success: '',
 });
+const EMPTY_BUYOUT_LINES = Object.freeze([]);
+const BUYOUT_STATUS_OPTIONS = ['pending', 'ordered', 'received', 'cancelled'];
+const DEFAULT_BUYOUT_FORM = Object.freeze({
+  item_description: '',
+  quantity_needed: '1',
+  vendor_note: '',
+  budget_amount: '',
+  initial_value: '',
+  actual_value: '',
+  initial_lead_time_days: '',
+  actual_lead_time_days: '',
+  note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
 
 const JOB_SELECT_FIELDS = [
   'id',
@@ -69,6 +85,27 @@ const JOB_DOCUMENT_SELECT_FIELDS = [
   'description',
   'file_size_bytes',
   'mime_type',
+  'created_by',
+].join(', ');
+
+const JOB_BUYOUT_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'item_description',
+  'quantity_needed',
+  'quantity_ordered',
+  'status',
+  'vendor_note',
+  'lead_time_note',
+  'budget_amount',
+  'initial_value',
+  'actual_value',
+  'initial_lead_time_days',
+  'actual_lead_time_days',
+  'note',
   'created_by',
 ].join(', ');
 
@@ -130,6 +167,21 @@ function formatStatus(value) {
   }
 }
 
+function formatBuyoutStatus(value) {
+  switch (value) {
+    case 'ordered':
+      return 'Ordered';
+    case 'received':
+      return 'Received';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'pending':
+      return 'Pending';
+    default:
+      return value || '-';
+  }
+}
+
 function formatJobType(value) {
   return value === 'service_call' ? 'Service Call' : 'Job';
 }
@@ -179,6 +231,28 @@ function sanitizeDocumentFileName(fileName) {
   return cleaned || 'document';
 }
 
+function formatMoney(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '-';
+  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+}
+
+function formatLeadTime(value) {
+  const days = Number(value);
+  if (!Number.isFinite(days)) return '-';
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
+
+function parseOptionalNumber(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sumField(rows, field) {
+  return rows.reduce((total, row) => total + (Number(row[field]) || 0), 0);
+}
+
 const JOB_COLUMNS = [
   { key: 'name', header: 'Job', render: (row) => <strong>{jobLabel(row)}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatStatus(row.status)}</StatusBadge> },
@@ -193,6 +267,18 @@ const JOB_DOCUMENT_COLUMNS = [
   { key: 'description', header: 'Description', fallback: 'No description' },
   { key: 'created_by', header: 'Uploaded by', fallback: 'Not recorded' },
   { key: 'created_at', header: 'Uploaded', render: (row) => formatDateTime(row.created_at) },
+];
+
+const JOB_BUYOUT_COLUMNS = [
+  { key: 'item_description', header: 'Item', render: (row) => <strong>{row.item_description || 'Untitled buyout item'}</strong> },
+  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatBuyoutStatus(row.status)}</StatusBadge> },
+  { key: 'quantity_needed', header: 'Qty', render: (row) => row.quantity_needed ?? 1, align: 'right' },
+  { key: 'vendor_note', header: 'Vendor / source', fallback: '-' },
+  { key: 'budget_amount', header: 'Budget', render: (row) => formatMoney(row.budget_amount), align: 'right' },
+  { key: 'initial_value', header: 'Initial value', render: (row) => formatMoney(row.initial_value), align: 'right' },
+  { key: 'actual_value', header: 'Actual value', render: (row) => formatMoney(row.actual_value), align: 'right' },
+  { key: 'initial_lead_time_days', header: 'Initial lead', render: (row) => formatLeadTime(row.initial_lead_time_days), align: 'right' },
+  { key: 'actual_lead_time_days', header: 'Actual lead', render: (row) => formatLeadTime(row.actual_lead_time_days), align: 'right' },
 ];
 
 function useJobsDirectory({ enabled }) {
@@ -286,6 +372,7 @@ function useJobDocuments({ enabled, jobId }) {
           .select(JOB_DOCUMENT_SELECT_FIELDS)
           .eq('owner_type', 'job')
           .eq('owner_id', jobId)
+          .is('archived_at', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -304,6 +391,69 @@ function useJobDocuments({ enabled, jobId }) {
             isLoading: false,
             error,
             documents: [],
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
+function useJobBuyoutLines({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    lines: EMPTY_BUYOUT_LINES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, lines: EMPTY_BUYOUT_LINES });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_buyout_lines')
+          .select(JOB_BUYOUT_SELECT_FIELDS)
+          .eq('job_id', jobId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            lines: data ?? EMPTY_BUYOUT_LINES,
+          });
+        }
+      } catch (error) {
+        console.error('Job buyout failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            lines: EMPTY_BUYOUT_LINES,
           });
         }
       }
@@ -342,6 +492,8 @@ export function JobsWorkspace({ permissions }) {
   const [mode, setMode] = useState('browse');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
+  const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
+  const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -374,8 +526,15 @@ export function JobsWorkspace({ permissions }) {
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
+  const canManageSelectedJob = canManageJobs
+    && Boolean(selectedJob?.division)
+    && permissions?.division === selectedJob.division;
   const jobDocuments = useJobDocuments({
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
+  const jobBuyout = useJobBuyoutLines({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'buyout' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
 
@@ -408,12 +567,13 @@ export function JobsWorkspace({ permissions }) {
     setActiveTab('overview');
     setMode('browse');
     setUploadState(DEFAULT_UPLOAD_STATE);
+    setBuyoutForm(DEFAULT_BUYOUT_FORM);
   }
 
   async function handleDocumentUpload(event) {
     event.preventDefault();
 
-    if (!selectedJob || !canManageJobs || uploadState.isUploading) return;
+    if (!selectedJob || !canManageSelectedJob || uploadState.isUploading) return;
 
     const file = uploadState.file;
     if (!file) {
@@ -534,36 +694,75 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleDocumentArchive(document) {
-    if (!document?.id || !selectedJob?.id || !canManageJobs || documentAction.id) return;
+  async function handleBuyoutAdd(event) {
+    event.preventDefault();
 
-    const confirmed = window.confirm(`Archive ${document.file_name || 'this document'} from this job?`);
-    if (!confirmed) return;
+    if (!selectedJob || !canManageSelectedJob || buyoutForm.isSaving) return;
 
-    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-    setDocumentAction({ id: document.id, action: 'archive', error: null });
+    if (!buyoutForm.item_description.trim()) {
+      setBuyoutForm((current) => ({ ...current, error: new Error('Enter a buyout item before saving.') }));
+      return;
+    }
+
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    setBuyoutForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const quantityNeeded = parseOptionalNumber(buyoutForm.quantity_needed) || 1;
+      const { error } = await client
+        .from('job_buyout_lines')
+        .insert({
+          job_id: selectedJob.id,
+          division: selectedJob.division,
+          item_description: buyoutForm.item_description.trim(),
+          quantity_needed: quantityNeeded,
+          status: 'pending',
+          vendor_note: buyoutForm.vendor_note.trim() || null,
+          budget_amount: parseOptionalNumber(buyoutForm.budget_amount),
+          initial_value: parseOptionalNumber(buyoutForm.initial_value),
+          actual_value: parseOptionalNumber(buyoutForm.actual_value),
+          initial_lead_time_days: parseOptionalNumber(buyoutForm.initial_lead_time_days),
+          actual_lead_time_days: parseOptionalNumber(buyoutForm.actual_lead_time_days),
+          note: buyoutForm.note.trim() || null,
+          created_by: createdBy,
+        });
+
+      if (error) throw error;
+
+      setBuyoutForm({
+        ...DEFAULT_BUYOUT_FORM,
+        success: `${buyoutForm.item_description.trim()} added to Buyout.`,
+      });
+      jobBuyout.reload();
+    } catch (error) {
+      console.error('Job buyout add failed', error);
+      setBuyoutForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleBuyoutStatus(row, status) {
+    if (!row?.id || !selectedJob?.id || !canManageSelectedJob || buyoutAction.id) return;
+
+    setBuyoutAction({ id: row.id, action: status, error: null });
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
       const { error } = await client
-        .from('documents')
-        .update({
-          archived_at: new Date().toISOString(),
-          archived_by: archivedBy,
-          archive_reason: 'Archived from Jobs Documents tab.',
-        })
-        .eq('id', document.id)
-        .eq('owner_type', 'job')
-        .eq('owner_id', selectedJob.id);
+        .from('job_buyout_lines')
+        .update({ status })
+        .eq('id', row.id)
+        .eq('job_id', selectedJob.id);
 
       if (error) throw error;
 
-      setDocumentAction({ id: '', action: '', error: null });
-      jobDocuments.reload();
+      setBuyoutAction({ id: '', action: '', error: null });
+      jobBuyout.reload();
     } catch (error) {
-      console.error('Job document archive failed', error);
-      setDocumentAction({ id: '', action: '', error });
+      console.error('Job buyout status update failed', error);
+      setBuyoutAction({ id: '', action: '', error });
     }
   }
 
@@ -620,9 +819,9 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'download')} disabled={isBusy}>
                   {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
                 </button>
-                {canManageJobs ? (
-                  <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
-                    {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+                {canManageSelectedJob ? (
+                  <button type="button" className="secondary-button secondary-button--danger" disabled title="Archive will be enabled after the final RLS pass.">
+                    Archive Pending
                   </button>
                 ) : null}
               </div>
@@ -637,7 +836,7 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Checklist" value={`${uploadedCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Visual only; not blocking" tone={uploadedCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'default'} />
             <SummaryCard label="Uploaded" value={jobDocuments.documents.length} detail="Visible job-owned documents" />
             <SummaryCard label="Owner" value="Job" detail="Documents follow job visibility" />
-            <SummaryCard label="Edit" value={canManageJobs ? 'Granted' : 'Read only'} detail="Follows job management permission" tone={canManageJobs ? 'good' : 'warn'} />
+            <SummaryCard label="Edit" value={canManageSelectedJob ? 'Granted' : 'Read only'} detail="Follows selected job division" tone={canManageSelectedJob ? 'good' : 'warn'} />
           </div>
 
           <section className="job-document-checklist" aria-label="Job document checklist">
@@ -664,7 +863,7 @@ export function JobsWorkspace({ permissions }) {
             dense
             minWidth="860px"
             emptyTitle="No documents uploaded for this job"
-            emptyDescription="The checklist can still show required categories before files exist. Upload/archive actions are the next Documents slice."
+            emptyDescription="The checklist can still show required categories before files exist. Archive remains pending for the final RLS pass."
           />
           {documentAction.error ? (
             <StatePanel
@@ -676,7 +875,7 @@ export function JobsWorkspace({ permissions }) {
             />
           ) : null}
 
-          {canManageJobs ? (
+          {canManageSelectedJob ? (
             <form className="job-document-upload" onSubmit={handleDocumentUpload}>
               <Toolbar
                 eyebrow="Upload"
@@ -746,6 +945,169 @@ export function JobsWorkspace({ permissions }) {
               eyebrow="Read Only"
               title="Document uploads require job management permission"
               description="You can view documents for jobs you can see. Uploading and editing follows the job management permission boundary."
+              compact
+            />
+          )}
+        </>
+      );
+    }
+
+    if (activeTab === 'buyout') {
+      const receivedCount = jobBuyout.lines.filter((line) => line.status === 'received').length;
+      const budgetTotal = sumField(jobBuyout.lines, 'budget_amount');
+      const initialTotal = sumField(jobBuyout.lines, 'initial_value');
+      const actualTotal = sumField(jobBuyout.lines, 'actual_value');
+      const attentionCount = jobBuyout.lines.filter((line) => (
+        line.status !== 'received'
+        || (Number(line.actual_value) || 0) > (Number(line.budget_amount) || 0)
+        || (Number(line.actual_lead_time_days) || 0) > (Number(line.initial_lead_time_days) || 0)
+      )).length;
+      const buyoutColumns = [
+        ...JOB_BUYOUT_COLUMNS,
+        {
+          key: 'actions',
+          header: 'Checklist',
+          render: (row) => {
+            if (!canManageSelectedJob) return 'Read only';
+            const isBusy = buyoutAction.id === row.id;
+            return (
+              <div className="job-buyout-actions">
+                {BUYOUT_STATUS_OPTIONS.map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={row.status === status ? 'primary-button' : 'secondary-button'}
+                    onClick={() => handleBuyoutStatus(row, status)}
+                    disabled={isBusy || row.status === status}
+                  >
+                    {isBusy && buyoutAction.action === status ? 'Saving...' : formatBuyoutStatus(status)}
+                  </button>
+                ))}
+              </div>
+            );
+          },
+        },
+      ];
+
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Checklist" value={`${receivedCount}/${jobBuyout.lines.length}`} detail="Received buyout items" tone={receivedCount && receivedCount === jobBuyout.lines.length ? 'good' : 'default'} />
+            <SummaryCard label="Budget" value={formatMoney(budgetTotal)} detail="Buyout budget target" />
+            <SummaryCard label="Initial" value={formatMoney(initialTotal)} detail="Initial value total" />
+            <SummaryCard label="Actual" value={formatMoney(actualTotal)} detail="Actual value total" tone={actualTotal > budgetTotal && budgetTotal > 0 ? 'warn' : 'default'} />
+            <SummaryCard label="Attention" value={attentionCount} detail="Open, over budget, or over lead" tone={attentionCount ? 'warn' : 'good'} />
+          </div>
+
+          <DataTable
+            columns={buyoutColumns}
+            rows={jobBuyout.lines}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={jobBuyout.isLoading}
+            error={jobBuyout.error}
+            dense
+            minWidth="1180px"
+            emptyTitle="No buyout items for this job"
+            emptyDescription="Add buyout items to track budget, value, lead time, and checklist status."
+          />
+          {buyoutAction.error ? (
+            <StatePanel
+              tone="danger"
+              eyebrow="Buyout Update Failed"
+              title="Could not update this buyout item"
+              description={buyoutAction.error.message || 'Unexpected buyout update error.'}
+              compact
+            />
+          ) : null}
+
+          {canManageSelectedJob ? (
+            <form className="job-buyout-form" onSubmit={handleBuyoutAdd}>
+              <Toolbar
+                eyebrow="Add"
+                title="Add buyout item"
+                description="Buyout remains a planning checklist. It does not create purchase orders, accounting entries, or inventory movements."
+              />
+              <div className="job-buyout-form__grid">
+                <label className="job-buyout-form__wide">
+                  <span>Item</span>
+                  <input
+                    type="text"
+                    value={buyoutForm.item_description}
+                    onChange={(event) => setBuyoutForm((current) => ({ ...current, item_description: event.target.value, error: null, success: '' }))}
+                    placeholder="Switchgear, lighting package, specialty gear..."
+                    disabled={buyoutForm.isSaving}
+                  />
+                </label>
+                <label>
+                  <span>Quantity</span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={buyoutForm.quantity_needed}
+                    onChange={(event) => setBuyoutForm((current) => ({ ...current, quantity_needed: event.target.value, error: null, success: '' }))}
+                    disabled={buyoutForm.isSaving}
+                  />
+                </label>
+                <label>
+                  <span>Vendor / source</span>
+                  <input
+                    type="text"
+                    value={buyoutForm.vendor_note}
+                    onChange={(event) => setBuyoutForm((current) => ({ ...current, vendor_note: event.target.value, error: null, success: '' }))}
+                    disabled={buyoutForm.isSaving}
+                  />
+                </label>
+                <label>
+                  <span>Budget</span>
+                  <input type="number" min="0" step="0.01" value={buyoutForm.budget_amount} onChange={(event) => setBuyoutForm((current) => ({ ...current, budget_amount: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} />
+                </label>
+                <label>
+                  <span>Initial value</span>
+                  <input type="number" min="0" step="0.01" value={buyoutForm.initial_value} onChange={(event) => setBuyoutForm((current) => ({ ...current, initial_value: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} />
+                </label>
+                <label>
+                  <span>Actual value</span>
+                  <input type="number" min="0" step="0.01" value={buyoutForm.actual_value} onChange={(event) => setBuyoutForm((current) => ({ ...current, actual_value: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} />
+                </label>
+                <label>
+                  <span>Initial lead</span>
+                  <input type="number" min="0" step="1" value={buyoutForm.initial_lead_time_days} onChange={(event) => setBuyoutForm((current) => ({ ...current, initial_lead_time_days: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} />
+                </label>
+                <label>
+                  <span>Actual lead</span>
+                  <input type="number" min="0" step="1" value={buyoutForm.actual_lead_time_days} onChange={(event) => setBuyoutForm((current) => ({ ...current, actual_lead_time_days: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} />
+                </label>
+                <label className="job-buyout-form__wide">
+                  <span>Notes</span>
+                  <input
+                    type="text"
+                    value={buyoutForm.note}
+                    onChange={(event) => setBuyoutForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))}
+                    placeholder="Optional checklist note"
+                    disabled={buyoutForm.isSaving}
+                  />
+                </label>
+              </div>
+              {buyoutForm.error ? (
+                <StatePanel tone="danger" eyebrow="Buyout Save Failed" title="Item was not saved" description={buyoutForm.error.message || 'Unexpected buyout error.'} compact />
+              ) : null}
+              {buyoutForm.success ? (
+                <StatePanel tone="success" eyebrow="Saved" title="Buyout item added" description={buyoutForm.success} compact />
+              ) : null}
+              <div className="job-buyout-form__actions">
+                <button type="submit" className="primary-button" disabled={buyoutForm.isSaving || !buyoutForm.item_description.trim()}>
+                  <Plus aria-hidden="true" /> {buyoutForm.isSaving ? 'Saving...' : 'Add Buyout Item'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Read Only"
+              title="Buyout writes require selected-job management permission"
+              description="You can view buyout rows for jobs you can see. Adding and updating buyout items follows the selected job division boundary."
               compact
             />
           )}
@@ -920,7 +1282,7 @@ export function JobsWorkspace({ permissions }) {
                   meta={selectedJob ? [
                     { label: 'Status', value: formatStatus(selectedJob.status) },
                     { label: 'Division', value: selectedJob.division || 'Unassigned' },
-                    { label: 'Manage', value: canManageJobs ? 'Granted' : 'Read only' },
+                    { label: 'Manage', value: canManageSelectedJob ? 'Granted' : 'Read only' },
                   ] : []}
                 />
                 <WorkspaceTabs

@@ -1219,9 +1219,65 @@ textarea {
   justify-content: flex-end;
 }
 
+.job-buyout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.job-buyout-actions .primary-button,
+.job-buyout-actions .secondary-button {
+  min-height: 30px;
+  padding: 0.35rem 0.65rem;
+}
+
+.job-buyout-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: var(--card-gap);
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.job-buyout-form__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.job-buyout-form label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.job-buyout-form label span {
+  color: var(--ng-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.job-buyout-form__wide {
+  grid-column: span 2;
+}
+
+.job-buyout-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 920px) {
-  .job-document-upload__grid {
+  .job-document-upload__grid,
+  .job-buyout-form__grid {
     grid-template-columns: 1fr;
+  }
+
+  .job-buyout-form__wide {
+    grid-column: span 1;
   }
 }
 

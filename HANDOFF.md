@@ -17985,3 +17985,79 @@ with the next Documents slice.
 ### Architecture Drift Warnings
 - None. This pass changed no schema, RLS, storage policies, storage objects, or
   permission flags.
+
+---
+
+## Entry 176 — Jobs Buyout Checklist
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan confirmed the Job document Open/Download flow worked. Archive failed due
+to live `documents` RLS behavior. Ryan chose to defer RLS modifications until
+the end, so Archive was changed to a disabled pending action and work moved to
+the next Jobs slice: Buyout.
+
+### What Was Completed
+- Deferred Job document Archive in the UI without applying RLS changes.
+- Added explicit `archived_at IS NULL` filtering to Job document reads.
+- Extended `public.job_buyout_lines` with structured checklist fields:
+  - `budget_amount`
+  - `initial_value`
+  - `actual_value`
+  - `initial_lead_time_days`
+  - `actual_lead_time_days`
+- Added nonnegative constraints for the new numeric/lead-time fields.
+- Added a partial index on `job_buyout_lines(job_id)` for active rows.
+- Rebuilt the selected Job `Buyout` tab as a live Supabase-backed surface.
+- Buyout tab now shows:
+  - received checklist count
+  - budget total
+  - initial value total
+  - actual value total
+  - attention count for open/over-budget/over-lead items
+  - buyout item table
+  - status checklist buttons
+  - add item form with budget/value/lead-time fields
+- Write controls now use selected-job division matching so the UI better matches
+  existing RLS boundaries.
+
+### Schema Changes
+- `supabase/migrations/20260815203520_extend_job_buyout_checklist_fields.sql`
+- `supabase/migrations/20260815203821_index_job_buyout_lines_job_id.sql`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice.
+- Production DDL was applied through the Supabase connector for the two Buyout
+  migrations.
+- Supabase advisors were run. They reported pre-existing security/performance
+  findings across older tables/functions/views; the directly relevant Buyout
+  `job_id` index finding was addressed in this slice.
+- Job document Archive remains pending for the final RLS pass.
+
+### Next Steps (in order)
+1. Ryan verifies Buyout tab loads for a selected job.
+2. Ryan adds a buyout item and verifies the table/checklist updates.
+3. Ryan changes a buyout status to `Ordered` or `Received`.
+4. If Buyout is good, proceed to the next Jobs slice: Financials or Schedule,
+   using the standalone HTML as reference.
+5. Final RLS pass should include Job document archive behavior and any other
+   deferred policy cleanup.
+
+### Open Questions / Concerns
+- Buyout currently supports add and status updates. Editing budget/value/lead
+  fields after creation can be added as a follow-up if needed.
+- Dashboard attention wiring is not added yet; the tab calculates attention
+  locally for now.
+
+### Architecture Drift Warnings
+- None. Buyout remains planning/checklist only and does not create purchase
+  orders, accounting posts, or inventory movements.
