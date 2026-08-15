@@ -1,4 +1,4 @@
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Search, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TopNavigation } from './TopNavigation.jsx';
 
@@ -36,12 +36,11 @@ export function AppShell({
               <Menu aria-hidden="true" />
             </button>
             <div className="ng-shell__brand-mark" aria-hidden="true">
-              NG
+              <span>N</span>
             </div>
             <div className="ng-shell__brand-copy">
-              <p className="eyebrow">{eyebrow}</p>
               <h1 className="ng-shell__title">{title}</h1>
-              <p className="build-note">{buildLabel}</p>
+              <p className="build-note">{eyebrow || buildLabel}</p>
             </div>
           </div>
 
@@ -55,6 +54,9 @@ export function AppShell({
           />
 
           <div className="ng-shell__actions">
+            <button type="button" className="ng-shell__notice-button" aria-label="Search">
+              <Search aria-hidden="true" />
+            </button>
             {identitySummary ? (
               <div className="ng-shell__identity" aria-label="Current user access summary">
                 <strong>{identitySummary.role}</strong>
@@ -70,7 +72,44 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="ng-shell__content">{children}</div>
+      <div className="ng-shell__body">
+        <aside className="ng-shell__rail" aria-label="Workspace context">
+          <div className="ng-shell__rail-heading">
+            <span className="ng-shell__rail-icon" aria-hidden="true">
+              <Sparkles />
+            </span>
+            <div>
+              <p className="eyebrow">Workspace</p>
+              <h2>{navItems.find((item) => item.key === activeWorkspace)?.label ?? 'Dashboard'}</h2>
+            </div>
+          </div>
+          <nav className="ng-shell__rail-nav" aria-label="Workspace shortcuts">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.key === activeWorkspace;
+
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="ng-shell__rail-link"
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => onOpenWorkspace(item.key)}
+                >
+                  {Icon ? <Icon aria-hidden="true" /> : null}
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="ng-shell__rail-note">
+            <strong>Northgate HQ</strong>
+            <span>Operations rebuild · {buildLabel}</span>
+          </div>
+        </aside>
+
+        <div className="ng-shell__content">{children}</div>
+      </div>
     </main>
   );
 }

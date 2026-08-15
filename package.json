@@ -1,7 +1,7 @@
 {
-  "name": "northgate-hq-v2",
+  "name": "northgate-hq-v3",
   "private": true,
-  "version": "0.1.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,14 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clerk/clerk-react": "latest",
-    "@supabase/supabase-js": "latest",
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest",
-    "jsqr": "^1.4.0"
+    "@clerk/clerk-react": "5.61.3",
+    "@supabase/supabase-js": "2.108.2",
+    "jsqr": "1.4.0",
+    "lucide-react": "1.21.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-router-dom": "7.9.4"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.0.3",
+    "vite": "8.1.0"
+  }
 }
