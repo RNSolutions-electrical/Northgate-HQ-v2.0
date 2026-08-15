@@ -1127,6 +1127,42 @@ textarea {
   color: var(--ng-brand-red);
 }
 
+.job-document-checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin: var(--card-gap) 0;
+}
+
+.job-document-checklist__item {
+  min-height: 116px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-card-bg);
+  padding: 0.9rem;
+}
+
+.job-document-checklist__item strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ng-text);
+}
+
+.job-document-checklist__item p {
+  margin: 0;
+  color: var(--ng-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.job-document-checklist__item.is-uploaded {
+  border-color: color-mix(in srgb, var(--ng-ok) 38%, var(--ng-divider));
+}
+
 .inventory-boundary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

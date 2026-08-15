@@ -19,6 +19,7 @@ import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
+import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_JOBS = Object.freeze([]);
@@ -43,6 +44,20 @@ const JOB_SELECT_FIELDS = [
   'postal_code',
   'job_type',
   'service_call_number',
+  'created_by',
+].join(', ');
+
+const JOB_DOCUMENT_SELECT_FIELDS = [
+  'id',
+  'created_at',
+  'updated_at',
+  'owner_type',
+  'owner_id',
+  'document_type',
+  'file_name',
+  'description',
+  'file_size_bytes',
+  'mime_type',
   'created_by',
 ].join(', ');
 
@@ -151,6 +166,14 @@ const JOB_COLUMNS = [
   { key: 'updated_at', header: 'Updated', render: (row) => formatDateTime(row.updated_at) },
 ];
 
+const JOB_DOCUMENT_COLUMNS = [
+  { key: 'file_name', header: 'Document', render: (row) => <strong>{row.file_name || 'Untitled document'}</strong> },
+  { key: 'document_type', header: 'Category', render: (row) => documentCategoryLabel(row.document_type) },
+  { key: 'description', header: 'Description', fallback: 'No description' },
+  { key: 'created_by', header: 'Uploaded by', fallback: 'Not recorded' },
+  { key: 'created_at', header: 'Uploaded', render: (row) => formatDateTime(row.created_at) },
+];
+
 function useJobsDirectory({ enabled }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -214,6 +237,70 @@ function useJobsDirectory({ enabled }) {
   };
 }
 
+function useJobDocuments({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    documents: [],
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, documents: [] });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('documents')
+          .select(JOB_DOCUMENT_SELECT_FIELDS)
+          .eq('owner_type', 'job')
+          .eq('owner_id', jobId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            documents: data ?? [],
+          });
+        }
+      } catch (error) {
+        console.error('Job documents failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            documents: [],
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function renderFact(label, value) {
   return (
     <div className="profile-field">
@@ -262,6 +349,10 @@ export function JobsWorkspace({ permissions }) {
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
+  const jobDocuments = useJobDocuments({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((job) => job.id === selectedJobId)) {
@@ -321,6 +412,53 @@ export function JobsWorkspace({ permissions }) {
           {renderFact('Description', selectedJob.description || 'No description recorded')}
           {renderFact('Notes', selectedJob.notes || 'No notes recorded')}
         </div>
+      );
+    }
+
+    if (activeTab === 'documents') {
+      const uploadedCategoryKeys = new Set(jobDocuments.documents.map((document) => document.document_type).filter(Boolean));
+      const checklistRows = JOB_DOCUMENT_CATEGORIES.map((category) => ({
+        ...category,
+        status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
+      }));
+      const uploadedCount = checklistRows.filter((row) => row.status === 'uploaded').length;
+
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Checklist" value={`${uploadedCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Visual only; not blocking" tone={uploadedCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'default'} />
+            <SummaryCard label="Uploaded" value={jobDocuments.documents.length} detail="Visible job-owned documents" />
+            <SummaryCard label="Owner" value="Job" detail="Documents follow job visibility" />
+            <SummaryCard label="Edit" value={canManageJobs ? 'Granted' : 'Read only'} detail="Follows job management permission" tone={canManageJobs ? 'good' : 'warn'} />
+          </div>
+
+          <section className="job-document-checklist" aria-label="Job document checklist">
+            {checklistRows.map((category) => (
+              <div key={category.key} className={`job-document-checklist__item ${category.status === 'uploaded' ? 'is-uploaded' : 'is-missing'}`}>
+                <div>
+                  <strong>{category.label}</strong>
+                  <p>{category.description}</p>
+                </div>
+                <StatusBadge tone={category.status === 'uploaded' ? 'good' : 'neutral'}>
+                  {category.status === 'uploaded' ? 'Uploaded' : 'Missing'}
+                </StatusBadge>
+              </div>
+            ))}
+          </section>
+
+          <DataTable
+            columns={JOB_DOCUMENT_COLUMNS}
+            rows={jobDocuments.documents}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={jobDocuments.isLoading}
+            error={jobDocuments.error}
+            dense
+            minWidth="860px"
+            emptyTitle="No documents uploaded for this job"
+            emptyDescription="The checklist can still show required categories before files exist. Upload/archive actions are the next Documents slice."
+          />
+        </>
       );
     }
 

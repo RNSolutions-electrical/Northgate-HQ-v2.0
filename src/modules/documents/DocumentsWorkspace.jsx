@@ -15,6 +15,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { JOB_DOCUMENT_CATEGORIES } from './documentCategories.js';
 
 const DOCUMENT_SECTIONS = [
   {
@@ -30,6 +31,12 @@ const DOCUMENT_SECTIONS = [
     description: 'Approved and reserved document owner types.',
   },
   {
+    key: 'categories',
+    label: 'Job Checklist',
+    icon: BriefcaseBusiness,
+    description: 'Visual checklist categories for job documents.',
+  },
+  {
     key: 'controls',
     label: 'Controls',
     icon: ShieldCheck,
@@ -42,9 +49,9 @@ const OWNER_SCOPES = [
     id: 'job',
     owner: 'Job',
     status: 'job-scoped live',
-    access: 'Jobs read path; uploads gated by can_manage_jobs in current division',
+    access: 'View follows job visibility; edits follow job management permission',
     storage: 'documents/job/{jobId}/{documentId}/{fileName}',
-    note: 'Existing implementation remains inside the Jobs detail Documents tab until Jobs is migrated.',
+    note: 'Documents belong to the job. They are not user-owned records.',
   },
   {
     id: 'estimate',
@@ -133,7 +140,13 @@ const CONTROL_ROWS = [
     id: 'writes',
     label: 'v3 top-level writes',
     state: 'Not added',
-    detail: 'This workspace does not upload, archive, download, or sign URLs yet.',
+    detail: 'Top-level uploads stay reserved. Job document actions belong in the selected Job workflow.',
+  },
+  {
+    id: 'permissions',
+    label: 'Permission model',
+    state: 'Job-owned',
+    detail: 'If a user can view the job, they can view its documents. Editing follows the same job-management boundary.',
   },
 ];
 
@@ -162,6 +175,11 @@ const CONTROL_COLUMNS = [
   { key: 'detail', header: 'Detail' },
 ];
 
+const CATEGORY_COLUMNS = [
+  { key: 'label', header: 'Required category' },
+  { key: 'description', header: 'Used for' },
+];
+
 export function DocumentsWorkspace({ permissions }) {
   const [activeSection, setActiveSection] = useState('overview');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
@@ -187,7 +205,7 @@ export function DocumentsWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard label="Live owner scopes" value={liveScopes} detail="Job documents in v2 Jobs" />
-        <SummaryCard label="Reserved scopes" value={OWNER_SCOPES.length - liveScopes} detail="Awaiting source modules" />
+        <SummaryCard label="Job checklist" value={JOB_DOCUMENT_CATEGORIES.length} detail="Visual required categories" />
         <SummaryCard label="Manage job docs" value={canManageJobDocuments ? 'Granted' : 'Read only'} detail="Existing can_manage_jobs flag" tone={canManageJobDocuments ? 'good' : 'warn'} />
         <SummaryCard label="Storage path" value="Locked" detail="northgate-files bucket" />
       </div>
@@ -245,8 +263,8 @@ export function DocumentsWorkspace({ permissions }) {
                 />
                 <StatePanel
                   eyebrow="Jobs"
-                  title="Job Documents v1 is the active source"
-                  description="Documents currently attach to selected jobs. They are stored securely, individually downloadable, and never bundled into a job export."
+                  title="Job-owned documents"
+                  description="Documents attach to the job record. If another user can view the job, they can view the document; editing follows the job management permission."
                   compact
                   actions={<BriefcaseBusiness aria-hidden="true" />}
                 />
@@ -274,6 +292,31 @@ export function DocumentsWorkspace({ permissions }) {
                 eyebrow="Boundary"
                 title="Only job owner policies are live today"
                 description="Other owner types remain reserved until their source module and RLS/read behavior are explicitly implemented."
+                compact
+              />
+            </article>
+          ) : null}
+
+          {activeSection === 'categories' ? (
+            <article className="card workspace-card">
+              <Toolbar
+                eyebrow="Job Checklist"
+                title="Required document categories"
+                description="These categories drive the visual checklist in the selected Job Documents tab. Missing items do not block the job workflow."
+              />
+              <DataTable
+                columns={CATEGORY_COLUMNS}
+                rows={JOB_DOCUMENT_CATEGORIES}
+                getRowKey={(row) => row.key}
+                permissions={permissions}
+                dense
+                minWidth="720px"
+              />
+              <StatePanel
+                tone="neutral"
+                eyebrow="Checklist Behavior"
+                title="Visual status only"
+                description="The checklist shows what has been uploaded by document type and what is still missing. It does not block approvals, billing, or job closeout yet."
                 compact
               />
             </article>

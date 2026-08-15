@@ -17731,3 +17731,76 @@ work is not broken or removed prematurely.
 ### Architecture Drift Warnings
 - None. This was UI visibility only and did not change data access, schema,
   RLS, storage, RPCs, or write behavior.
+
+---
+
+## Entry 172 — Jobs Documents Checklist Foundation
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan attached `C:\Users\crncm\OneDrive\Desktop\index.html` as the standalone
+Financials/Schedule/PM reference. The HTML is reference material only; v3 app
+instructions and data behavior come from Ryan's chat decisions and the locked
+Supabase foundations.
+
+Ryan locked the Jobs Documents direction:
+- Required categories are Contracts, Plans, Permits, Photos, Change Orders,
+  Closeout Docs, Invoices, Misc, and Pay Apps.
+- The checklist is visual only and does not block workflow.
+- Documents belong to the job, not the uploading user.
+- If a user can view the job, they can view the job documents; editing follows
+  the job-management boundary.
+
+### What Was Completed
+- Added a shared `JOB_DOCUMENT_CATEGORIES` contract for Jobs and Documents.
+- Added a `Job Checklist` section to the top-level Documents workspace.
+- Updated Documents workspace copy to reflect job-owned document access and
+  edit boundaries.
+- Rebuilt the selected Job `Documents` tab as a live read-only Supabase-backed
+  surface.
+- The Jobs `Documents` tab now reads existing `public.documents` rows for the
+  selected job and shows:
+  - visual uploaded/missing category checklist
+  - uploaded document count
+  - owner/access/edit summaries
+  - uploaded documents table
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/documents/documentCategories.js`
+- `src/modules/documents/DocumentsWorkspace.jsx`
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- The checklist status is derived from `documents.document_type` matching the
+  shared category keys.
+- This pass intentionally does not add upload, archive, download, signed URL,
+  Supabase Storage, RLS, or migration changes.
+- The existing `documents` RLS bugfix already supports job-visible document
+  reads by division or all-division visibility.
+
+### Next Steps (in order)
+1. Add the upload action inside the selected Job Documents tab.
+2. Ensure uploaded rows use the shared `document_type` category keys.
+3. Add open/download signed URL behavior from the selected Job workflow.
+4. Add archive behavior as soft archive only.
+5. After Documents is verified, proceed to Buyout schema extension and live
+   checklist UI.
+
+### Open Questions / Concerns
+- Confirm whether editing documents means metadata/category/archive only, or
+  also replacing the underlying file object.
+- Confirm whether Pay Apps should later surface in Financials as a linked
+  billing artifact or remain only a document category.
+
+### Architecture Drift Warnings
+- None. This pass reused the existing job-owned `public.documents` foundation
+  and did not create a new document table or user-owned document model.
