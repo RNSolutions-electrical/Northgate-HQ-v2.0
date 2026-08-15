@@ -12,7 +12,7 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -42,6 +42,19 @@ const HISTORY_TYPES = [
   { value: 'assign_to_vehicle', label: 'Assign to vehicle' },
   { value: 'assign_to_job', label: 'Assign to job' },
 ];
+
+const DESTINATION_OPTIONS = [
+  { value: 'job', label: 'Job' },
+  { value: 'service_call', label: 'Service Call' },
+  { value: 'vehicle', label: 'Vehicle Stock' },
+  { value: 'user', label: 'User Possession' },
+  { value: 'vendor_return', label: 'Vendor Return' },
+  { value: 'scrap', label: 'Scrap' },
+  { value: 'unknown', label: 'Unknown / Missing' },
+];
+
+const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
+const VALID_DESTINATION_TYPES = new Set(DESTINATION_OPTIONS.map((option) => option.value));
 
 const CATALOG_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
@@ -149,6 +162,21 @@ function filterRows(rows, search, fields) {
     .includes(normalized));
 }
 
+function normalizeDestinationType(value) {
+  return VALID_DESTINATION_TYPES.has(value) ? value : 'unknown';
+}
+
+function isDestinationValid(destination) {
+  const destinationType = normalizeDestinationType(destination?.destination_type);
+  if (DESTINATIONS_REQUIRING_ID.has(destinationType) && !destination?.destination_id?.trim()) {
+    return false;
+  }
+  if (destinationType === 'unknown' && !destination?.note?.trim()) {
+    return false;
+  }
+  return true;
+}
+
 export function InventoryWorkspace({ permissions }) {
   const canLoadInventory = permissions.permissionSource === 'server';
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
@@ -159,6 +187,12 @@ export function InventoryWorkspace({ permissions }) {
   const [historySearch, setHistorySearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
   const [candidateMessages, setCandidateMessages] = useState({});
+  const [lineDestinations, setLineDestinations] = useState({});
+  const [applyAllDestination, setApplyAllDestination] = useState({
+    destination_type: 'unknown',
+    destination_id: '',
+    note: '',
+  });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -179,6 +213,7 @@ export function InventoryWorkspace({ permissions }) {
     cartState.isOpening ||
     cartState.isAddingItem ||
     cartState.isRemovingItem ||
+    cartState.isCheckingOut ||
     cartState.isReadingItems;
 
   const visibleCatalogue = useMemo(
@@ -205,6 +240,14 @@ export function InventoryWorkspace({ permissions }) {
     () => filterRows(model.destinationReferences.vehicles, search, ['vehicle_number', 'make', 'model', 'classification', 'division']),
     [model.destinationReferences.vehicles, search],
   );
+  const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isDestinationValid(getLineDestination(item)));
+  const applyAllDestinationIsValid = isDestinationValid(applyAllDestination);
+
+  useEffect(() => {
+    if (cart?.status === 'checked_out') {
+      setLineDestinations({});
+    }
+  }, [cart?.status]);
 
   const views = INVENTORY_VIEWS.map((view) => {
     const badge = {
@@ -260,6 +303,39 @@ export function InventoryWorkspace({ permissions }) {
   const cartColumns = useMemo(() => [
     ...CART_COLUMNS,
     {
+      key: 'destination',
+      header: 'Destination',
+      render: (row) => {
+        const line = getLineDestination(row);
+        return (
+          <div className="inventory-cart-destination-cell">
+            <select
+              value={line.destination_type}
+              disabled={!cartIsActive || cartActionInProgress}
+              onChange={(event) => updateLineDestination(row.cart_item_id, {
+                destination_type: event.target.value,
+                destination_id: '',
+                note: '',
+              })}
+            >
+              {DESTINATION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {renderDestinationIdControl(row.cart_item_id, line)}
+            <input
+              type="text"
+              value={line.note}
+              disabled={!cartIsActive || cartActionInProgress}
+              placeholder={line.destination_type === 'unknown' ? 'Required note' : 'Optional note'}
+              onChange={(event) => updateLineDestination(row.cart_item_id, { note: event.target.value })}
+            />
+            {!isDestinationValid(line) ? <span className="inventory-cart-row-message inventory-cart-row-message--error">Destination required</span> : null}
+          </div>
+        );
+      },
+    },
+    {
       key: 'remove',
       header: 'Remove',
       render: (row) => (
@@ -273,7 +349,103 @@ export function InventoryWorkspace({ permissions }) {
         </button>
       ),
     },
-  ], [cartActionInProgress, cartIsActive]);
+  ], [cartActionInProgress, cartIsActive, lineDestinations, model.destinationReferences]);
+
+  function getLineDestination(cartItem) {
+    const savedLine = lineDestinations[cartItem.cart_item_id];
+    const destinationType = normalizeDestinationType(
+      savedLine?.destination_type ?? cartItem.destination_type ?? applyAllDestination.destination_type,
+    );
+
+    return {
+      destination_type: destinationType,
+      destination_id: savedLine?.destination_id ?? cartItem.destination_id ?? '',
+      note: savedLine?.note ?? cartItem.note ?? '',
+    };
+  }
+
+  function updateLineDestination(cartItemId, updates) {
+    setLineDestinations((current) => ({
+      ...current,
+      [cartItemId]: {
+        destination_type: applyAllDestination.destination_type,
+        destination_id: '',
+        note: '',
+        ...(current[cartItemId] ?? {}),
+        ...updates,
+      },
+    }));
+  }
+
+  function updateApplyAllDestination(updates) {
+    setApplyAllDestination((current) => ({
+      ...current,
+      ...updates,
+    }));
+  }
+
+  function applyDestinationToAll() {
+    setLineDestinations((current) => {
+      const next = { ...current };
+      cartState.cartItems.forEach((item) => {
+        next[item.cart_item_id] = {
+          destination_type: applyAllDestination.destination_type,
+          destination_id: applyAllDestination.destination_id,
+          note: applyAllDestination.note,
+        };
+      });
+      return next;
+    });
+  }
+
+  function renderDestinationIdControl(cartItemId, line) {
+    const destinationType = normalizeDestinationType(line.destination_type);
+
+    if (destinationType === 'user' && model.destinationReferences.users.length) {
+      return (
+        <select
+          value={line.destination_id}
+          disabled={!cartIsActive || cartActionInProgress}
+          onChange={(event) => updateLineDestination(cartItemId, { destination_id: event.target.value })}
+        >
+          <option value="">Select user</option>
+          {model.destinationReferences.users.map((user) => (
+            <option key={user.clerk_user_id} value={user.clerk_user_id}>
+              {user.display_name || user.email || user.clerk_user_id}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (destinationType === 'vehicle' && model.destinationReferences.vehicles.length) {
+      return (
+        <select
+          value={line.destination_id}
+          disabled={!cartIsActive || cartActionInProgress}
+          onChange={(event) => updateLineDestination(cartItemId, { destination_id: event.target.value })}
+        >
+          <option value="">Select vehicle</option>
+          {model.destinationReferences.vehicles.map((vehicle) => (
+            <option key={vehicle.id} value={vehicle.id}>
+              {vehicle.vehicle_number || vehicle.id}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    const requiresId = DESTINATIONS_REQUIRING_ID.has(destinationType);
+    return (
+      <input
+        type="text"
+        value={line.destination_id}
+        disabled={!cartIsActive || cartActionInProgress || !requiresId}
+        placeholder={requiresId ? 'Required ID' : 'No ID required'}
+        onChange={(event) => updateLineDestination(cartItemId, { destination_id: event.target.value })}
+      />
+    );
+  }
 
   function updateCandidateQuantity(binItemId, value) {
     setCandidateQuantities((current) => ({
@@ -325,6 +497,40 @@ export function InventoryWorkspace({ permissions }) {
   async function handleRemoveCartItem(cartItemId) {
     if (!cart?.cart_id || !cartIsActive) return;
     await cartState.removeItem({ cartId: cart.cart_id, cartItemId });
+    setLineDestinations((current) => {
+      const next = { ...current };
+      delete next[cartItemId];
+      return next;
+    });
+  }
+
+  async function handleCheckout() {
+    if (!cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations) return;
+
+    const lineDestinations = cartState.cartItems.map((item) => {
+      const line = getLineDestination(item);
+      return {
+        cart_item_id: item.cart_item_id,
+        destination_type: line.destination_type,
+        destination_id: line.destination_id?.trim() || null,
+        note: line.note?.trim() || null,
+      };
+    });
+
+    const result = await cartState.checkoutCart({
+      cartId: cart.cart_id,
+      destinationType: applyAllDestination.destination_type,
+      destinationId: null,
+      note: 'Normal cart checkout from v3 per-line destination UI',
+      lineDestinations,
+    });
+
+    if (result) {
+      setLineDestinations({});
+      setCandidateMessages({});
+      readModel.reload();
+      history.reload();
+    }
   }
 
   function renderActiveView() {
@@ -382,7 +588,7 @@ export function InventoryWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Cart"
               title="Active Inventory Cart"
-              description="Open or reuse your active server cart. Staging material here does not change inventory balances; checkout remains a separate future slice."
+              description="Open or reuse your active server cart. Stage material, set approved destinations, then finalize through the preserved checkout RPC."
               actions={(
                 <button type="button" className="primary-button" onClick={handleOpenCart} disabled={!canTransact || cartActionInProgress || cartIsActive}>
                   <ShoppingCart aria-hidden="true" /> {cartState.isOpening ? 'Opening...' : cartIsActive ? 'Cart Open' : 'Open Cart'}
@@ -406,6 +612,47 @@ export function InventoryWorkspace({ permissions }) {
               <span>Rows: <strong>{cartState.cartItems.length}</strong></span>
               <span>Cart ID: <strong>{cart?.cart_id ? `${cart.cart_id.slice(0, 8)}...` : 'None'}</strong></span>
               <span>Expires: <strong>{cart?.expires_at ? formatDateTime(cart.expires_at) : '-'}</strong></span>
+              <span>Checkout: <strong>{cartState.checkoutResult?.status ?? 'Not finalized'}</strong></span>
+            </div>
+
+            <div className="inventory-cart-checkout-panel">
+              <div>
+                <p className="eyebrow">Checkout</p>
+                <h3>Apply Destination To Lines</h3>
+                <p>Choose one destination for every current cart line, then adjust individual lines if needed before checkout.</p>
+              </div>
+              <div className="inventory-cart-checkout-controls">
+                <select
+                  value={applyAllDestination.destination_type}
+                  disabled={!cartIsActive || cartActionInProgress}
+                  onChange={(event) => updateApplyAllDestination({
+                    destination_type: event.target.value,
+                    destination_id: '',
+                    note: '',
+                  })}
+                >
+                  {DESTINATION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={applyAllDestination.destination_id}
+                  disabled={!cartIsActive || cartActionInProgress || !DESTINATIONS_REQUIRING_ID.has(applyAllDestination.destination_type)}
+                  placeholder={DESTINATIONS_REQUIRING_ID.has(applyAllDestination.destination_type) ? 'Destination ID required' : 'No ID required'}
+                  onChange={(event) => updateApplyAllDestination({ destination_id: event.target.value })}
+                />
+                <input
+                  type="text"
+                  value={applyAllDestination.note}
+                  disabled={!cartIsActive || cartActionInProgress}
+                  placeholder={applyAllDestination.destination_type === 'unknown' ? 'Required note' : 'Optional note'}
+                  onChange={(event) => updateApplyAllDestination({ note: event.target.value })}
+                />
+                <button type="button" className="secondary-button" disabled={!cartIsActive || cartActionInProgress || !cartState.cartItems.length || !applyAllDestinationIsValid} onClick={applyDestinationToAll}>
+                  Apply To All
+                </button>
+              </div>
             </div>
 
             <DataTable
@@ -417,8 +664,29 @@ export function InventoryWorkspace({ permissions }) {
               dense
               minWidth="900px"
               emptyTitle="No staged cart lines"
-              emptyDescription="Open a cart, then add stocked candidate rows below. Checkout finalization is not exposed in this slice."
+              emptyDescription="Open a cart, then add stocked candidate rows below. Checkout is enabled once staged lines have valid destinations."
             />
+
+            <div className="inventory-cart-finalize-row">
+              <button
+                type="button"
+                className="primary-button"
+                disabled={!canTransact || !cartIsActive || cartActionInProgress || !cartState.cartItems.length || hasInvalidLineDestinations}
+                onClick={handleCheckout}
+              >
+                <ShoppingCart aria-hidden="true" /> {cartState.isCheckingOut ? 'Checking Out...' : 'Checkout Selected Destinations'}
+              </button>
+              {hasInvalidLineDestinations ? <span className="inventory-cart-row-message inventory-cart-row-message--error">Every line needs a valid destination before checkout.</span> : null}
+            </div>
+            {cartState.checkoutResult ? (
+              <StatePanel
+                eyebrow="Checkout Complete"
+                title="Cart finalized"
+                description={`${cartState.checkoutResult.transaction_item_count ?? 0} transaction item${cartState.checkoutResult.transaction_item_count === 1 ? '' : 's'} written through the preserved checkout RPC.`}
+                tone="good"
+                compact
+              />
+            ) : null}
           </article>
 
           <article className="card workspace-card">
@@ -544,8 +812,8 @@ export function InventoryWorkspace({ permissions }) {
         <section className="inventory-boundary-grid">
           <StatePanel
             eyebrow="Cart / Checkout"
-            title="Cart staging is live"
-            description="Open cart, read cart lines, add stocked candidates, and remove staged lines now use the preserved server RPCs. Checkout finalization remains deferred."
+            title="Cart and checkout are live"
+            description="Open cart, read cart lines, add/remove stocked candidates, set destinations, and finalize checkout now use the preserved server RPCs."
             tone="good"
             compact
             actions={<ShoppingCart aria-hidden="true" />}
@@ -599,7 +867,7 @@ export function InventoryWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Inventory"
-        description="Inventory surface using preserved read hooks plus the first restored cart-staging flow. Checkout finalization, counts, and archive actions remain deferred until their controls can be ported deliberately."
+        description="Inventory surface using preserved read hooks plus restored cart staging and normal checkout finalization. Counts and archive actions remain deferred until their controls can be ported deliberately."
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -638,7 +906,7 @@ export function InventoryWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Guardrails</strong>
-              <p>Cart staging is live. Checkout finalization, count correction, and retirement flows remain separate slices.</p>
+              <p>Cart staging and normal checkout are live. Count correction and retirement remain separate slices.</p>
             </div>
           )}
         />
@@ -685,7 +953,7 @@ export function InventoryWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Data Contract"
               title="No direct balance writes"
-              description="Cart staging writes only through approved cart RPCs and does not write `inventory_balances`; balances still change only on checkout finalization."
+              description="Cart and checkout write only through approved RPCs and do not write `inventory_balances` directly; balance derivation remains server-controlled."
               tone="good"
               compact
               actions={<Boxes aria-hidden="true" />}

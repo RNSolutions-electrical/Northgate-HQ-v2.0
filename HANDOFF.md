@@ -17023,3 +17023,114 @@ No Claude review needed - Inventory cart staging reused existing approved RPCs
 and did not change schema, RLS, permissions, checkout finalization, count
 workflows, bin retirement, direct balance writes, or ledger derivation under
 ARCHITECTURE v2.30 / HANDOFF Entry 163.
+
+## Entry 164 - Restore Inventory normal checkout finalization in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory normal checkout
+**Session type:** implementation
+
+### Context
+- Starting commit: `43b5178` (`Restore Inventory cart staging in v3`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 163`.
+- Ryan verified Inventory cart staging in production and replied "good to go.
+  proceed."
+- Normal checkout/finalization is already locked in ARCHITECTURE Section 11
+  and preserved in `useInventoryCart.checkoutCart`.
+- The live RPC supports per-line destinations through
+  `finalize_inventory_cart(..., p_line_destinations jsonb)`.
+
+### What Was Completed
+- Added normal checkout destination controls to the v3 Inventory Cart view.
+- Added the locked destination types:
+  - Job
+  - Service Call
+  - Vehicle Stock
+  - User Possession
+  - Vendor Return
+  - Scrap
+  - Unknown / Missing
+- Added per-line destination type, destination ID, and note controls for staged
+  cart lines.
+- Added Apply Destination To Lines controls so one destination can be applied
+  to every current cart line before checkout.
+- Added validation that requires:
+  - destination ID for job, service call, vehicle, and user destinations;
+  - note for unknown destinations.
+- Added a `Checkout Selected Destinations` action that calls the preserved
+  `cartState.checkoutCart` wrapper with per-line destination payloads.
+- Added a checkout completion panel showing the number of transaction items
+  written by the preserved checkout RPC.
+- Updated cart and Inventory copy to show normal checkout is live while count
+  correction and retirement remain deferred.
+- Changed the stale `useInventoryCart.checkoutCart` default destination from
+  `office` to `unknown`, matching the v2.11 architectural retirement of
+  `office` as a material destination.
+- Added focused responsive CSS for checkout controls and destination cells.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, or RPC definition changed.
+- Checkout finalization is performed only through the preserved
+  `finalize_inventory_cart` RPC wrapper in `useInventoryCart`.
+- The v3 UI does not write `inventory_balances` directly.
+- No direct `inventory_carts`, `inventory_cart_items`, `inventory_balances`,
+  `inventory_transactions`, or `transaction_items` client mutation was added.
+- Express checkout remains unimplemented.
+- Count intake, count correction, bin-item retirement, QR scan dispatch, and
+  return-from-job remain separate future slices.
+- The UI does not offer `office` as a destination type.
+
+### Code / File Changes
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `src/hooks/useInventoryCart.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Static scan confirmed the v3 Inventory workspace calls
+  `cartState.checkoutCart` and exposes `Checkout Selected Destinations`.
+- Static scan confirmed checkout is routed through the existing
+  `finalize_inventory_cart` RPC wrapper with `p_line_destinations`.
+- Static scan confirmed no `office`, express checkout, count correction,
+  bin-item retirement, direct insert, direct update, direct delete, or direct
+  upsert path was added in the v3 Inventory workspace or cart hook.
+- Supabase changelog was checked for relevant breaking changes. The current
+  Data API grant change matters for newly created public tables/functions, but
+  this pass adds no new table, function, migration, or grant and reuses the
+  existing checkout RPC.
+- Authenticated live checkout runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Inventory normal-checkout slice.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_inventory_transactions`.
+4. Open Inventory > Cart.
+5. Open a cart, add one stocked candidate row, and choose a valid destination.
+6. Click `Checkout Selected Destinations`.
+7. Confirm the checkout completion panel appears with transaction item count.
+8. Confirm no Express Checkout, count correction, or bin-item retirement action
+   is exposed in this slice.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- The next Inventory slice should likely be Count Sheet / Count Intake or
+  Physical Count Correction, before bin-item retirement.
+
+### Architecture Drift Warnings
+- None active. This pass reintroduced only the preserved normal checkout RPC
+  wrapper and did not change schema, RLS, permissions, express checkout, count
+  workflows, bin retirement, direct balance writes, or ledger derivation.
+
+### Routing Verdict
+No Claude review needed - Inventory normal checkout reused the existing
+approved `finalize_inventory_cart` RPC wrapper and did not change schema, RLS,
+permissions, express checkout, count correction, bin retirement, direct balance
+writes, or ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 164.

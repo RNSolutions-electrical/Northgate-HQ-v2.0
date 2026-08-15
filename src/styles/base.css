@@ -1191,12 +1191,58 @@ textarea {
   color: var(--ng-err);
 }
 
+.inventory-cart-checkout-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+  gap: var(--card-gap);
+  align-items: start;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.inventory-cart-checkout-panel p {
+  color: var(--ng-muted);
+  font-size: var(--table-font-size);
+}
+
+.inventory-cart-checkout-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.inventory-cart-destination-cell {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 0.45rem;
+  min-width: 520px;
+}
+
+.inventory-cart-destination-cell .inventory-cart-row-message {
+  grid-column: 1 / -1;
+}
+
+.inventory-cart-finalize-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 @media (max-width: 900px) {
   .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 24px; }
   .developer-grid,
   .developer-future-note,
   .silas-shell { grid-template-columns: minmax(0, 1fr); }
   .workspace-surface { padding-left: 0; }
+  .inventory-cart-checkout-panel,
+  .inventory-cart-checkout-controls,
+  .inventory-cart-destination-cell { grid-template-columns: minmax(0, 1fr); }
+  .inventory-cart-destination-cell { min-width: 260px; }
 }
 .profile-field span {
   color: var(--ng-faint);

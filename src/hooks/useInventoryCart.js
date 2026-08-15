@@ -139,7 +139,7 @@ export function useInventoryCart() {
 
   const checkoutCart = useCallback(async ({
     cartId,
-    destinationType = 'office',
+    destinationType = 'unknown',
     destinationId = null,
     note = null,
     lineDestinations = null,
