@@ -478,6 +478,13 @@ svg { stroke-width: 1.8; }
 .secondary-button--inverse:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
 }
+.secondary-button--danger {
+  border-color: color-mix(in srgb, var(--ng-err) 28%, var(--ng-border));
+  color: var(--ng-err);
+}
+.secondary-button--danger:hover:not(:disabled) {
+  background: var(--ng-err-bg);
+}
 
 input[type='text'],
 input[type='search'],

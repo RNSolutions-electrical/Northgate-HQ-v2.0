@@ -534,6 +534,39 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function handleDocumentArchive(document) {
+    if (!document?.id || !selectedJob?.id || !canManageJobs || documentAction.id) return;
+
+    const confirmed = window.confirm(`Archive ${document.file_name || 'this document'} from this job?`);
+    if (!confirmed) return;
+
+    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    setDocumentAction({ id: document.id, action: 'archive', error: null });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('documents')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: archivedBy,
+          archive_reason: 'Archived from Jobs Documents tab.',
+        })
+        .eq('id', document.id)
+        .eq('owner_type', 'job')
+        .eq('owner_id', selectedJob.id);
+
+      if (error) throw error;
+
+      setDocumentAction({ id: '', action: '', error: null });
+      jobDocuments.reload();
+    } catch (error) {
+      console.error('Job document archive failed', error);
+      setDocumentAction({ id: '', action: '', error });
+    }
+  }
+
   function renderActiveTab() {
     if (!selectedJob) {
       return (
@@ -587,6 +620,11 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'download')} disabled={isBusy}>
                   {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
                 </button>
+                {canManageJobs ? (
+                  <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
+                    {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+                  </button>
+                ) : null}
               </div>
             );
           },
@@ -631,9 +669,9 @@ export function JobsWorkspace({ permissions }) {
           {documentAction.error ? (
             <StatePanel
               tone="danger"
-              eyebrow="Document Link Failed"
-              title="Could not open this document"
-              description={documentAction.error.message || 'Unexpected signed URL error.'}
+              eyebrow="Document Action Failed"
+              title="Could not complete this document action"
+              description={documentAction.error.message || 'Unexpected document action error.'}
               compact
             />
           ) : null}

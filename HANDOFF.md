@@ -17925,3 +17925,63 @@ the next Documents slice.
 ### Architecture Drift Warnings
 - None. This pass used existing Supabase Storage signed URLs and did not change
   schema, RLS, storage policies, or permission flags.
+
+---
+
+## Entry 175 — Jobs Document Soft Archive
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified Job document Open and Download worked and approved proceeding
+with the next Documents slice.
+
+### What Was Completed
+- Added an `Archive` row action for uploaded documents in the selected Job
+  `Documents` tab.
+- Archive action is visible only when the viewer has `canManageJobs`.
+- Archive prompts for confirmation before updating the document row.
+- Archive updates only existing row metadata:
+  - `archived_at`
+  - `archived_by`
+  - `archive_reason`
+- Archive filters the update by:
+  - `documents.id`
+  - `owner_type = 'job'`
+  - `owner_id = selectedJob.id`
+- Successful archive reloads the Job document list/checklist, causing the
+  archived row to disappear under existing RLS/read filters.
+- Added a small red-outline secondary button variant for the archive action.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- This is a soft archive only. The Supabase Storage object is intentionally not
+  deleted.
+- Access remains controlled by existing job document RLS and the job management
+  permission boundary.
+- The implementation uses Supabase JS targeted update filters, matching current
+  Supabase update guidance.
+
+### Next Steps (in order)
+1. Ryan verifies Archive on a real uploaded job document.
+2. If archive is good, Jobs Documents has upload/open/download/archive covered
+   for the current v3 slice.
+3. Proceed to Buyout schema extension and live checklist UI.
+
+### Open Questions / Concerns
+- There is no restore UI yet. Archived rows remain recoverable from the
+  database, but not from the v3 app.
+
+### Architecture Drift Warnings
+- None. This pass changed no schema, RLS, storage policies, storage objects, or
+  permission flags.
