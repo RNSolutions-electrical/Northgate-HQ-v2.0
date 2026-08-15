@@ -70,7 +70,7 @@ export const MODULES = [
     label: 'Estimates',
     icon: Calculator,
     requiresAny: ['canEstimate', 'canApproveEstimates'],
-    status: 'stub',
+    status: 'live',
     description: 'Proposals, revisions, and approval snapshots.',
   },
   {

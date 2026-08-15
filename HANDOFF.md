@@ -16385,3 +16385,96 @@ remained within ARCHITECTURE v2.30 / HANDOFF Entry 156.
 No Claude review needed - Silas v3 migration reused the locked existing
 Silas client/function paths and remained within ARCHITECTURE v2.30 / HANDOFF
 Entry 157.
+
+## Entry 158 - Port Estimates workspace into Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Estimates module migration
+**Session type:** implementation
+
+### Context
+- Starting commit: `24792a7` (`Track Silas scroll follow-up`).
+- Architecture version confirmed: `v2.30`.
+- Prior HANDOFF checkpoint confirmed: `Entry 157`.
+- `MIGRATION_MAP.md` identifies Estimates as the ninth module and calls out
+  snapshot immutability as the key invariant to preserve.
+- Prior Entries 144 and 145 confirmed the repository exposes estimate
+  permissions but not an approved production estimate read model or
+  Job-to-Estimate relationship in this UI layer.
+
+### What Was Completed
+- Added a v3 `EstimatesWorkspace` module under `src/modules/estimates/`.
+- Registered the Estimates screen in `src/modules/screens.js`.
+- Changed the Estimates module registry status from `stub` to `live` while
+  preserving the existing `canEstimate` / `canApproveEstimates` route/nav gate.
+- Rebuilt the accepted Estimates foundation shape from the preserved v2 UI:
+  - Estimate views rail
+  - browse vs explicit create mode
+  - directory surface
+  - selected-record header and disabled detail tabs
+  - snapshot / status / approval boundary panels
+  - locked estimate-status vocabulary
+- Kept the module source-honest by showing the operational shell without
+  fabricating estimate rows, pricing values, approvals, snapshots, or linked
+  jobs.
+- Added minimal responsive Estimates layout styles in `src/styles/base.css`.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
+  estimate table, snapshot table, job relationship, or backend behavior
+  changed.
+- No Supabase client read path was added because there is not yet an approved
+  production estimate read model in this UI layer.
+- No estimate create, edit, approval, archive, delete, pricing, snapshot, job
+  push, budget, or document write path was added.
+- `estimate_snapshots` immutability remains untouched; this pass does not edit
+  snapshot triggers, locked rows, or any snapshot mutation behavior.
+- Protected pricing remains presented as permission-gated future state only.
+
+### Code / File Changes
+- `src/modules/estimates/EstimatesWorkspace.jsx`
+- `src/modules/screens.js`
+- `src/modules/registry.js`
+- `src/styles/base.css`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- Static scan of `src/modules/estimates/EstimatesWorkspace.jsx` found no
+  Supabase client, `.from(...)`, insert, update, delete, upsert, RPC, storage,
+  or fetch calls.
+- Supabase changelog was checked for relevant breaking changes; none affected
+  this presentation-only Estimates port.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live Estimates runtime verification remains pending from Ryan's
+  browser after deployment.
+- No separate automated test script exists beyond `npm run build`.
+
+### Next Steps (in order)
+1. Commit and push this Estimates-module migration.
+2. Let the normal Git-connected Netlify production deploy complete.
+3. Sign in with a user that has `can_estimate` or `can_approve_estimates` and
+   open Estimates.
+4. Confirm Estimates no longer shows the v3 placeholder.
+5. Confirm browse/create mode, search empty state, disabled detail tabs, and
+   snapshot/status boundary panels render correctly.
+6. Continue the v3 rebuild with the next module from `MIGRATION_MAP.md`.
+
+### Open Questions / Concerns
+- Authenticated production verification requires Ryan's browser session.
+- Future live Estimates work needs an approved estimate table/read model,
+  Job-to-Estimate relationship, create/edit contract, approval flow, and
+  snapshot write contract before real records or actions can be added.
+
+### Architecture Drift Warnings
+- None active. This pass stayed inside presentation-only Estimates workspace
+  scope and deliberately avoided estimate data reads/writes and snapshot
+  behavior.
+
+### Routing Verdict
+No Claude review needed - Estimates v3 migration made the already accepted
+foundation shell live and did not change schema, RLS, read models, write paths,
+approval behavior, or snapshot immutability under ARCHITECTURE v2.30 /
+HANDOFF Entry 158.

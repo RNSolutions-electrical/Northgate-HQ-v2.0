@@ -731,6 +731,7 @@ textarea {
 .developer-future-note,
 .documents-workspace,
 .employees-workspace,
+.estimates-workspace,
 .reports-workspace,
 .silas-workspace,
 .tools-workspace,
@@ -882,6 +883,7 @@ textarea {
 
 .documents-workspace,
 .employees-workspace,
+.estimates-workspace,
 .reports-workspace,
 .silas-workspace,
 .tools-workspace,
@@ -1062,6 +1064,7 @@ textarea {
 .documents-action-map,
 .employees-boundary-grid,
 .employees-fact-grid,
+.estimates-boundary-grid,
 .reports-source-grid,
 .tools-boundary-grid,
 .tools-fact-grid,
@@ -1076,6 +1079,22 @@ textarea {
   width: 20px;
   height: 20px;
   color: var(--ng-brand-red);
+}
+
+.estimates-boundary-grid {
+  margin-top: var(--card-gap);
+}
+
+.estimates-boundary-grid .state-panel__actions svg {
+  width: 20px;
+  height: 20px;
+  color: var(--ng-brand-red);
+}
+
+.estimates-status-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
 }
 
 @media (max-width: 900px) {
