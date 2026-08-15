@@ -17456,3 +17456,64 @@ No Claude review needed - Inventory location QR dispatch is read-only context
 routing into existing approved workflows and did not change schema, RLS,
 permissions, direct balance writes, or ledger derivation under ARCHITECTURE
 v2.30 / HANDOFF Entry 167.
+
+## Entry 168 - Fix Inventory QR scan payload acceptance in Northgate HQ v3
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 rebuild / Inventory QR dispatch hotfix
+**Session type:** bug fix
+
+### Context
+- Starting commit: `38c5b11` (`Restore Inventory QR dispatch in v3`).
+- Ryan reported Inventory > Scan would not accept input and kept showing
+  "Only Northgate HQ location QR payloads are supported."
+- Production can encounter QR URLs with either `/scan/location/<uuid>` or the
+  deployed `/northgate/scan/location/<uuid>` basename.
+- Manual location code lookup was too strict and surfaced the QR parser error
+  even when the operator intended a code lookup.
+
+### What Was Completed
+- Updated `parseLocationScanPayload` to accept basename-prefixed
+  `/northgate/scan/location/<uuid>` payload paths as valid Northgate location
+  QR payloads.
+- Kept raw UUID and root `/scan/location/<uuid>` payload support intact.
+- Added friendlier manual location lookup normalization:
+  - ignores spaces, slashes, punctuation, and dashes;
+  - matches location code, label, path, UUID, and path segments.
+- Added loading/error messages for manual code lookup so operators get
+  location-read feedback instead of the QR-only parser error.
+- Changed no-match copy to clarify that both QR payloads and location codes are
+  accepted.
+
+### Safety And Boundary Notes
+- No Supabase schema, migration, RLS, permission flag, storage, Netlify
+  function, backend, or RPC definition changed.
+- This pass changed only scan parsing and manual lookup behavior.
+- QR scanning remains read-only context dispatch and still does not mutate
+  inventory.
+
+### Code / File Changes
+- `src/lib/locationQr.js`
+- `src/modules/inventory/InventoryWorkspace.jsx`
+- `HANDOFF.md`
+
+### Verification
+- `git diff --check` passed.
+- `npm run build` passed with Vite 8.1.0.
+- The build produced the expected Vite chunk-size warning only.
+- Authenticated live input verification remains pending from Ryan's browser
+  after deployment.
+
+### Next Steps
+1. Commit and push this QR input hotfix.
+2. Deploy to production.
+3. Re-test Inventory > Scan with:
+   - a `/northgate/scan/location/<uuid>` URL;
+   - a `/scan/location/<uuid>` URL;
+   - an exact location/bin code.
+
+### Routing Verdict
+No Claude review needed - this is a QR parser/manual lookup hotfix only and
+does not change schema, RLS, permissions, write paths, balance writes, or
+ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 168.

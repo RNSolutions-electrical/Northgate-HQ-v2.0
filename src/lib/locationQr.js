@@ -2,8 +2,10 @@ import { createQrSvg } from './qrCode.js';
 
 const viteEnv = import.meta.env ?? {};
 const APP_ORIGIN_OVERRIDE = viteEnv.VITE_APP_ORIGIN ?? viteEnv.VITE_APP_URL ?? '';
+const APP_BASE_PATH = (viteEnv.VITE_BASE_PATH ?? '/northgate').replace(/\/+$/, '');
 const LOCATION_UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const LOCATION_SCAN_ROUTE = new RegExp(`^/scan/location/(${LOCATION_UUID_PATTERN})/?$`, 'i');
+const BASED_LOCATION_SCAN_ROUTE = new RegExp(`^${APP_BASE_PATH}/scan/location/(${LOCATION_UUID_PATTERN})/?$`, 'i');
 const LOCATION_UUID_ONLY = new RegExp(`^${LOCATION_UUID_PATTERN}$`, 'i');
 
 export function getAppOrigin() {
@@ -54,7 +56,7 @@ export function parseLocationScanPayload(payload, origin = getAppOrigin()) {
     pathname = rawPayload.split(/[?#]/, 1)[0];
   }
 
-  const match = pathname.match(LOCATION_SCAN_ROUTE);
+  const match = pathname.match(LOCATION_SCAN_ROUTE) ?? pathname.match(BASED_LOCATION_SCAN_ROUTE);
   if (!match) {
     return {
       ok: false,

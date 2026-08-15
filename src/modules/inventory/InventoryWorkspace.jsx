@@ -351,6 +351,25 @@ function getScanQuery(bin) {
   return params;
 }
 
+function normalizeLocationLookup(value) {
+  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function locationRecordMatchesInput(record, input) {
+  const normalizedInput = normalizeLocationLookup(input);
+  if (!normalizedInput) return false;
+
+  const candidates = [
+    record.code,
+    record.label,
+    record.path,
+    record.id,
+    ...(record.path ? record.path.split('/') : []),
+  ];
+
+  return candidates.some((candidate) => normalizeLocationLookup(candidate) === normalizedInput);
+}
+
 function filterRows(rows, search, fields) {
   const normalized = search.trim().toLowerCase();
   if (!normalized) return rows;
@@ -970,14 +989,18 @@ export function InventoryWorkspace({ permissions }) {
       return;
     }
 
-    const normalized = payload.toLowerCase();
+    if (countSheet.isLoading || !countSheet.lastLoadedAt) {
+      setScanMessage('Location hierarchy is still loading. Try again in a moment.');
+      return;
+    }
+
+    if (countSheet.error) {
+      setScanMessage('Location hierarchy failed to load. Confirm inventory management permission and try again.');
+      return;
+    }
+
     const matches = buildLocationRecords(countSheet)
-      .filter((record) => [
-        record.code,
-        record.label,
-        record.path,
-        record.id,
-      ].some((value) => String(value ?? '').toLowerCase() === normalized))
+      .filter((record) => locationRecordMatchesInput(record, payload))
       .slice(0, 12);
 
     if (matches.length === 1) {
@@ -991,7 +1014,7 @@ export function InventoryWorkspace({ permissions }) {
       return;
     }
 
-    setScanMessage(parsed.error || 'No matching Northgate location found.');
+    setScanMessage('No matching Northgate location QR or location code found.');
   }
 
   function setCountMessage(key, tone, text) {
