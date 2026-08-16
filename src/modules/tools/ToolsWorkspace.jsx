@@ -1,5 +1,5 @@
-import { useAuth } from '@clerk/clerk-react';
-import { Archive, ClipboardList, MapPin, Plus, Wrench } from 'lucide-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
+import { Archive, ClipboardList, History, MapPin, Plus, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
@@ -13,6 +13,7 @@ import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_TOOLS = Object.freeze([]);
+const EMPTY_TOOL_HISTORY = Object.freeze([]);
 
 const TOOL_CONDITION_OPTIONS = ['unknown', 'good', 'fair', 'poor', 'damaged'];
 const TOOL_STATUS_OPTIONS = ['active', 'inactive', 'retired', 'missing'];
@@ -86,6 +87,14 @@ const TOOL_COLUMNS = [
   },
 ];
 
+const TOOL_HISTORY_COLUMNS = [
+  { key: 'created_at', header: 'When', render: (row) => formatDateTime(row.created_at) },
+  { key: 'action', header: 'Action', render: (row) => formatToolHistoryAction(row.action) },
+  { key: 'user_name', header: 'User', fallback: '-' },
+  { key: 'changed_fields', header: 'Changed fields', render: (row) => formatChangedFields(row.changed_fields) },
+  { key: 'note', header: 'Note', fallback: '-' },
+];
+
 function toolLabel(tool) {
   return tool?.tool_number || tool?.name || tool?.id || 'Tool';
 }
@@ -105,6 +114,62 @@ function toolSearchText(tool) {
     tool.current_location,
     tool.assigned_to,
   ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatToolHistoryAction(value) {
+  switch (value) {
+    case 'create':
+      return 'Created';
+    case 'update':
+      return 'Updated';
+    case 'archive':
+      return 'Archived';
+    case 'restore':
+      return 'Restored';
+    default:
+      return value ? value.replaceAll('_', ' ') : '-';
+  }
+}
+
+function formatChangedField(value) {
+  switch (value) {
+    case 'id':
+    case 'division':
+    case 'updated_at':
+      return '';
+    case 'tool_number':
+      return 'tool number';
+    case 'serial_number':
+      return 'serial number';
+    case 'home_location':
+      return 'home location';
+    case 'current_location':
+      return 'current location';
+    case 'assigned_to':
+      return 'assigned to';
+    case 'purchase_date':
+      return 'purchase date';
+    case 'archived_at':
+      return 'archived date';
+    case 'archived_by':
+      return 'archived by';
+    case 'archive_reason':
+      return 'archive reason';
+    default:
+      return value ? value.replaceAll('_', ' ') : '';
+  }
+}
+
+function formatChangedFields(fields) {
+  if (!Array.isArray(fields) || fields.length === 0) return '-';
+  const formatted = fields.map(formatChangedField).filter(Boolean);
+  return formatted.length ? formatted.join(', ') : '-';
 }
 
 function canManageToolDivision(permissions, rowDivision) {
@@ -216,8 +281,71 @@ function useToolCatalogue({ enabled }) {
   };
 }
 
+function useToolHistory({ enabled, toolId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    rows: EMPTY_TOOL_HISTORY,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !toolId) {
+        setState({ isLoading: false, error: null, rows: EMPTY_TOOL_HISTORY });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_tool_change_history', {
+          p_tool_id: toolId,
+          p_limit: 100,
+        });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            rows: data ?? EMPTY_TOOL_HISTORY,
+          });
+        }
+      } catch (error) {
+        console.error('Tool history failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            rows: EMPTY_TOOL_HISTORY,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey, toolId]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function ToolsWorkspace({ permissions }) {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const catalogue = useToolCatalogue({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('active');
   const [activeTab, setActiveTab] = useState('overview');
@@ -253,6 +381,10 @@ export function ToolsWorkspace({ permissions }) {
   const selectedTool = filteredTools.find((tool) => tool.id === selectedToolId)
     ?? tools.find((tool) => tool.id === selectedToolId)
     ?? null;
+  const toolHistory = useToolHistory({
+    enabled: permissions.permissionSource === 'server',
+    toolId: selectedTool?.id ?? '',
+  });
   const canManageToolCatalogue = permissions.permissionSource === 'server'
     && permissions.canManageInventory === true
     && Boolean(permissions.division);
@@ -285,6 +417,25 @@ export function ToolsWorkspace({ permissions }) {
   async function getToolClient() {
     const token = await getToken({ template: 'supabase' });
     return createSupabaseClient(token);
+  }
+
+  async function writeToolChangeLog(client, { action, recordId, beforeData, afterData, note }) {
+    const userId = user?.id || permissions.userId || null;
+    const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || permissions.userId || 'Unknown User';
+    const { error } = await client
+      .from('change_logs')
+      .insert({
+        user_id: userId,
+        user_name: userName,
+        table_name: 'tools',
+        record_id: recordId,
+        action,
+        before_data: beforeData,
+        after_data: afterData,
+        note,
+      });
+
+    if (error) throw error;
   }
 
   async function handleToolSave(event) {
@@ -328,7 +479,16 @@ export function ToolsWorkspace({ permissions }) {
       const { data, error } = await query;
       if (error) throw error;
 
+      await writeToolChangeLog(client, {
+        action: toolForm.id ? 'update' : 'create',
+        recordId: data.id,
+        beforeData: existingTool,
+        afterData: data,
+        note: toolForm.id ? 'Tool catalogue update' : 'Tool catalogue create',
+      });
+
       catalogue.reload();
+      toolHistory.reload();
       setSelectedToolId(data?.id ?? toolForm.id);
       setToolForm({
         ...DEFAULT_TOOL_FORM,
@@ -363,7 +523,7 @@ export function ToolsWorkspace({ permissions }) {
 
     try {
       const client = await getToolClient();
-      const { error } = await client
+      const { data, error } = await client
         .from('tools')
         .update(isArchived
           ? { archived_at: null, archived_by: null, archive_reason: null }
@@ -372,11 +532,22 @@ export function ToolsWorkspace({ permissions }) {
             archived_by: permissions.userId,
             archive_reason: archiveReason,
           })
-        .eq('id', tool.id);
+        .eq('id', tool.id)
+        .select(TOOL_SELECT_FIELDS)
+        .single();
 
       if (error) throw error;
 
+      await writeToolChangeLog(client, {
+        action: isArchived ? 'restore' : 'archive',
+        recordId: tool.id,
+        beforeData: tool,
+        afterData: data,
+        note: isArchived ? 'Tool catalogue restore' : archiveReason,
+      });
+
       catalogue.reload();
+      toolHistory.reload();
       setToolForm({
         ...DEFAULT_TOOL_FORM,
         success: `${toolLabel(tool)} ${isArchived ? 'restored' : 'archived'} in Tool Catalogue.`,
@@ -551,12 +722,36 @@ export function ToolsWorkspace({ permissions }) {
                 ) : null}
 
                 {activeTab === 'history' ? (
-                  <StatePanel
-                    eyebrow="Deferred"
-                    title="Tool history is not wired yet"
-                    description="Tracking history, QR labels, custody changes, vehicle storage, and checkout records remain future Tool Catalogue work."
-                    tone="neutral"
-                  />
+                  <>
+                    <div className="summary-grid summary-grid--compact">
+                      <SummaryCard label="Audit Entries" value={toolHistory.rows.length} detail="Recent tool changes" />
+                      <SummaryCard label="Updates" value={toolHistory.rows.filter((row) => row.action === 'update').length} detail="Recorded edits" />
+                      <SummaryCard label="Archives" value={toolHistory.rows.filter((row) => row.action === 'archive').length} detail="Archive events" tone={toolHistory.rows.some((row) => row.action === 'archive') ? 'warn' : 'default'} />
+                    </div>
+                    <Toolbar
+                      eyebrow="Audit"
+                      title="Tool History"
+                      description="Read-only audit entries for this tool catalogue row."
+                      actions={(
+                        <button type="button" className="secondary-button" onClick={toolHistory.reload} disabled={toolHistory.isLoading}>
+                          <History aria-hidden="true" /> Refresh History
+                        </button>
+                      )}
+                      dense
+                    />
+                    <DataTable
+                      columns={TOOL_HISTORY_COLUMNS}
+                      rows={toolHistory.rows}
+                      getRowKey={(row) => row.id}
+                      permissions={permissions}
+                      isLoading={toolHistory.isLoading}
+                      error={toolHistory.error}
+                      dense
+                      minWidth="900px"
+                      emptyTitle="No tool history yet"
+                      emptyDescription="Tool create, edit, archive, and restore events will appear here after they are recorded."
+                    />
+                  </>
                 ) : null}
               </>
             ) : (
@@ -672,7 +867,7 @@ export function ToolsWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Boundary"
               title="No checkout or custody"
-              description="Tool checkout, assignments, QR labels, vehicle/bin linkage, and tracking history remain reserved architecture items."
+              description="Tool checkout, assignments, QR labels, and vehicle/bin linkage remain reserved architecture items. Catalogue change history is live."
               compact
             />
             <StatePanel
