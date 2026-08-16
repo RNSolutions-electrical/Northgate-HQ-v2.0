@@ -65,6 +65,111 @@ const DEFAULT_NOTE_FORM = Object.freeze({
 const NOTE_TYPE_OPTIONS = ['feature', 'bug', 'idea', 'question', 'other'];
 const NOTE_PRIORITY_OPTIONS = ['low', 'normal', 'high'];
 
+const PERMISSION_GROUPS = [
+  ['Developer', ['canAccessDeveloper', 'canManageUsers', 'canViewReports']],
+  ['Inventory', ['canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
+  ['Jobs', ['canCreateJobs', 'canManageJobs', 'canApproveBudget', 'canManageChangeOrders']],
+  ['People and assets', ['canManageEmployees', 'canManageVehicles', 'canManageTools']],
+  ['Financials and estimates', ['canEstimate', 'canApproveEstimates', 'canViewFinancials']],
+  ['Workflow', ['canFieldAccess', 'canArchiveRecords', 'canExpressCheckout', 'canApproveExpressCheckout', 'canDeferCompletion']],
+];
+
+function labelForPermission(key) {
+  return key
+    .replace(/^can/, '')
+    .replace(/([A-Z])/g, ' $1')
+    .trim();
+}
+
+const PERMISSION_FLAG_OPTIONS = PERMISSION_GROUPS.flatMap(([, keys]) => keys)
+  .map((key) => ({
+    key,
+    flag: key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
+    label: labelForPermission(key),
+  }))
+  .filter((option) => option.flag !== 'can_access_developer');
+
+const PERMISSION_MODEL_ROWS = [
+  {
+    level: 'User',
+    scope: 'Own division',
+    edit: 'Assigned workflow only',
+    notes: 'Electrical and Construction users stay division-scoped.',
+  },
+  {
+    level: 'Supervisor',
+    scope: 'All divisions',
+    edit: 'Own division',
+    notes: 'Division edits still depend on module-level write permission.',
+  },
+  {
+    level: 'Manager',
+    scope: 'Appropriate data',
+    edit: 'Appropriate editable data',
+    notes: 'Financial, job, and approval access remain permission-flag driven.',
+  },
+  {
+    level: 'Developer',
+    scope: 'All data',
+    edit: 'All data',
+    notes: 'Developer-level actions must be logged in the Audit Log.',
+  },
+];
+
+const PERMISSION_MODEL_COLUMNS = [
+  { key: 'level', header: 'Level' },
+  { key: 'scope', header: 'View Scope' },
+  { key: 'edit', header: 'Edit Scope' },
+  { key: 'notes', header: 'Rule' },
+];
+
+const PERMISSION_CONSOLE_COLUMNS = [
+  {
+    key: 'display_name',
+    header: 'User',
+    render: (row) => (
+      <div className="developer-note-cell">
+        <strong>{row.display_name || row.email || row.user_id}</strong>
+        <span>{row.email || row.user_id}</span>
+      </div>
+    ),
+  },
+  { key: 'role', header: 'Level' },
+  { key: 'division', header: 'Division', fallback: 'Unassigned' },
+  {
+    key: 'custom_permission_count',
+    header: 'Custom',
+    render: (row) => (
+      <StatusBadge tone={row.custom_permission_count > 0 ? 'warn' : 'neutral'}>
+        {row.custom_permission_count > 0 ? `${row.custom_permission_count} active` : 'None'}
+      </StatusBadge>
+    ),
+  },
+  {
+    key: 'next_review_at',
+    header: 'Next Review',
+    render: (row) => formatDeveloperNoteDate(row.next_review_at),
+  },
+];
+
+const DEFAULT_PERMISSION_FORM = Object.freeze({
+  userId: '',
+  permissionFlag: 'can_view_reports',
+  granted: 'true',
+  reason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_LONG_TERM_FORM = Object.freeze({
+  overrideId: '',
+  reason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
 const DEVELOPER_NOTE_COLUMNS = [
   {
     key: 'title',
@@ -97,22 +202,6 @@ const DEVELOPER_NOTE_COLUMNS = [
     render: (row) => formatDeveloperNoteDate(row.updated_at),
   },
 ];
-
-const PERMISSION_GROUPS = [
-  ['Developer', ['canAccessDeveloper', 'canManageUsers', 'canViewReports']],
-  ['Inventory', ['canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
-  ['Jobs', ['canCreateJobs', 'canManageJobs', 'canApproveBudget', 'canManageChangeOrders']],
-  ['People and assets', ['canManageEmployees', 'canManageVehicles', 'canManageTools']],
-  ['Financials and estimates', ['canEstimate', 'canApproveEstimates', 'canViewFinancials']],
-  ['Workflow', ['canFieldAccess', 'canArchiveRecords', 'canExpressCheckout', 'canApproveExpressCheckout', 'canDeferCompletion']],
-];
-
-function labelForPermission(key) {
-  return key
-    .replace(/^can/, '')
-    .replace(/([A-Z])/g, ' $1')
-    .trim();
-}
 
 function buildPermissionRows(permissions) {
   return PERMISSION_GROUPS.flatMap(([group, keys]) =>
@@ -225,6 +314,86 @@ function useDeveloperNotes({ enabled, permissions }) {
   };
 }
 
+function useDeveloperPermissionConsole({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    users: [],
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled) {
+        setState((current) => ({ ...current, isLoading: false }));
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_developer_permission_console');
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            users: data ?? [],
+          });
+        }
+      } catch (error) {
+        console.error('Developer permission console failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            users: [],
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey]);
+
+  async function getClient() {
+    const token = await getToken({ template: 'supabase' });
+    return createSupabaseClient(token);
+  }
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+    async setOverride(form) {
+      const client = await getClient();
+      return client.rpc('set_permission_override', {
+        p_user_id: form.userId,
+        p_permission_flag: form.permissionFlag,
+        p_granted: form.granted === 'true',
+        p_reason: form.reason.trim(),
+      });
+    },
+    async markLongTerm(form) {
+      const client = await getClient();
+      return client.rpc('mark_permission_override_long_term', {
+        p_override_id: form.overrideId,
+        p_reason: form.reason.trim(),
+      });
+    },
+  };
+}
+
 function DeveloperHelpfulLinks() {
   const [copyStatus, setCopyStatus] = useState('');
 
@@ -324,17 +493,42 @@ export function DeveloperWorkspace({ permissions }) {
     setHideDevelopment,
   } = useDevelopmentDisplayPreferences();
   const [noteForm, setNoteForm] = useState(DEFAULT_NOTE_FORM);
+  const [permissionForm, setPermissionForm] = useState(DEFAULT_PERMISSION_FORM);
+  const [longTermForm, setLongTermForm] = useState(DEFAULT_LONG_TERM_FORM);
+  const [selectedPermissionUserId, setSelectedPermissionUserId] = useState('');
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
   const developerNotes = useDeveloperNotes({
     enabled: permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true,
     permissions,
   });
+  const permissionConsole = useDeveloperPermissionConsole({
+    enabled: permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true,
+  });
   const openNotes = developerNotes.notes.filter((note) => !note.archived_at);
   const archivedNotes = developerNotes.notes.filter((note) => note.archived_at);
+  const selectedPermissionUser = permissionConsole.users.find((row) => row.user_id === selectedPermissionUserId)
+    ?? permissionConsole.users[0]
+    ?? null;
+  const activeOverrides = Array.isArray(selectedPermissionUser?.active_overrides)
+    ? selectedPermissionUser.active_overrides
+    : [];
+  const customPermissionUsers = permissionConsole.users.filter((row) => row.custom_permission_count > 0);
+  const reviewDueCount = customPermissionUsers.filter((row) => {
+    if (!row.next_review_at) return false;
+    return new Date(row.next_review_at).getTime() <= Date.now();
+  }).length;
 
   function setNoteFormValue(key, value) {
     setNoteForm((current) => ({ ...current, [key]: value, error: null, success: '' }));
+  }
+
+  function setPermissionFormValue(key, value) {
+    setPermissionForm((current) => ({ ...current, [key]: value, error: null, success: '' }));
+  }
+
+  function setLongTermFormValue(key, value) {
+    setLongTermForm((current) => ({ ...current, [key]: value, error: null, success: '' }));
   }
 
   async function handleNoteCreate(event) {
@@ -373,6 +567,52 @@ export function DeveloperWorkspace({ permissions }) {
     } catch (error) {
       console.error('Developer note update failed', error);
       setNoteForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handlePermissionOverrideSubmit(event) {
+    event.preventDefault();
+    if (permissionForm.isSaving) return;
+    const targetUserId = permissionForm.userId || selectedPermissionUser?.user_id || '';
+
+    if (!targetUserId || !permissionForm.permissionFlag || !permissionForm.reason.trim()) {
+      setPermissionForm((current) => ({ ...current, error: new Error('Choose a user, permission, direction, and reason.') }));
+      return;
+    }
+
+    setPermissionForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const { error } = await permissionConsole.setOverride({ ...permissionForm, userId: targetUserId });
+      if (error) throw error;
+      permissionConsole.reload();
+      setSelectedPermissionUserId(targetUserId);
+      setPermissionForm({ ...DEFAULT_PERMISSION_FORM, userId: targetUserId, success: 'Permission override saved and audit logged.' });
+    } catch (error) {
+      console.error('Permission override failed', error);
+      setPermissionForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleLongTermSubmit(event) {
+    event.preventDefault();
+    if (longTermForm.isSaving) return;
+
+    if (!longTermForm.overrideId || !longTermForm.reason.trim()) {
+      setLongTermForm((current) => ({ ...current, error: new Error('Choose an active override and enter a long-term reason.') }));
+      return;
+    }
+
+    setLongTermForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const { error } = await permissionConsole.markLongTerm(longTermForm);
+      if (error) throw error;
+      permissionConsole.reload();
+      setLongTermForm({ ...DEFAULT_LONG_TERM_FORM, success: 'Custom permission marked long-term and audit logged.' });
+    } catch (error) {
+      console.error('Long-term permission acknowledgement failed', error);
+      setLongTermForm((current) => ({ ...current, isSaving: false, error, success: '' }));
     }
   }
 
@@ -421,6 +661,7 @@ export function DeveloperWorkspace({ permissions }) {
         <SummaryCard label="Division" value={permissions.division ?? 'Unassigned'} detail="Current operator division" />
         <SummaryCard label="Granted flags" value={grantedCount} detail={`${permissionRows.length} tracked flags`} />
         <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Must remain server-derived" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} />
+        <SummaryCard label="Custom users" value={customPermissionUsers.length} detail={`${reviewDueCount} due for review`} tone={reviewDueCount ? 'warn' : customPermissionUsers.length ? 'accent' : 'default'} />
         <SummaryCard label="Incomplete overlay" value={highlightIncomplete ? 'On' : 'Off'} detail="Local developer view option" tone={highlightIncomplete ? 'warn' : 'default'} incomplete={highlightIncomplete} />
         <SummaryCard label="Dev-only UI" value={hideDevelopment ? 'Hidden' : highlightDevelopment ? 'Highlighted' : 'Visible'} detail="Preview/testing display" tone={hideDevelopment || highlightDevelopment ? 'warn' : 'default'} developmentOnly />
       </div>
@@ -544,6 +785,166 @@ export function DeveloperWorkspace({ permissions }) {
             emptyDescription="The permission hook has not returned a usable effective-permission snapshot."
           />
         </article>
+      </section>
+
+      <section className="developer-permissions card workspace-card">
+        <Toolbar
+          eyebrow="Permissions"
+          title="User access and custom permission review"
+          description="Developer-only view of active permission users. Grants and revokes use the existing audited permission override RPC."
+          actions={(
+            <button type="button" className="secondary-button" onClick={permissionConsole.reload} disabled={permissionConsole.isLoading}>
+              Refresh Permissions
+            </button>
+          )}
+        />
+
+        <div className="developer-permissions__grid">
+          <div className="developer-permissions__panel">
+            <Toolbar
+              eyebrow="Access Model"
+              title="Division and level rules"
+              description="Electrical, Construction, and Admin remain the division lanes. User, Supervisor, Manager, and Developer are the target levels."
+            />
+            <DataTable
+              columns={PERMISSION_MODEL_COLUMNS}
+              rows={PERMISSION_MODEL_ROWS}
+              getRowKey={(row) => row.level}
+              permissions={permissions}
+              dense
+              minWidth="620px"
+            />
+          </div>
+
+          <div className="developer-permissions__panel">
+            <Toolbar
+              eyebrow="Directory"
+              title="Active permission users"
+              description="Select a user to inspect current custom overrides and set a new grant or revoke."
+            />
+            <DataTable
+              columns={PERMISSION_CONSOLE_COLUMNS}
+              rows={permissionConsole.users}
+              getRowKey={(row) => row.user_id}
+              permissions={permissions}
+              isLoading={permissionConsole.isLoading}
+              error={permissionConsole.error}
+              dense
+              minWidth="760px"
+              onRowClick={(row) => {
+                setSelectedPermissionUserId(row.user_id);
+                setPermissionForm((current) => ({ ...current, userId: row.user_id, error: null, success: '' }));
+              }}
+              selectedRowKey={selectedPermissionUser?.user_id ?? null}
+              emptyTitle="No permission users loaded"
+              emptyDescription="The developer permission console RPC did not return active users."
+            />
+          </div>
+        </div>
+
+        <div className="developer-permissions__grid">
+          <form className="developer-permission-form" onSubmit={handlePermissionOverrideSubmit}>
+            <Toolbar
+              eyebrow="Custom Permission"
+              title="Grant or revoke a flag"
+              description="A reason is required. The database records the before/after permission snapshot in the Audit Log."
+            />
+            <div className="developer-permission-form__grid">
+              <label>
+                <span>User</span>
+                <select value={permissionForm.userId || selectedPermissionUser?.user_id || ''} onChange={(event) => setPermissionFormValue('userId', event.target.value)} disabled={permissionForm.isSaving}>
+                  <option value="">Choose user</option>
+                  {permissionConsole.users.map((row) => (
+                    <option key={row.user_id} value={row.user_id}>
+                      {row.display_name || row.email || row.user_id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Permission</span>
+                <select value={permissionForm.permissionFlag} onChange={(event) => setPermissionFormValue('permissionFlag', event.target.value)} disabled={permissionForm.isSaving}>
+                  {PERMISSION_FLAG_OPTIONS.map((option) => (
+                    <option key={option.flag} value={option.flag}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Direction</span>
+                <select value={permissionForm.granted} onChange={(event) => setPermissionFormValue('granted', event.target.value)} disabled={permissionForm.isSaving}>
+                  <option value="true">Grant</option>
+                  <option value="false">Revoke</option>
+                </select>
+              </label>
+              <label className="developer-permission-form__full">
+                <span>Reason</span>
+                <textarea rows={3} maxLength={500} value={permissionForm.reason} onChange={(event) => setPermissionFormValue('reason', event.target.value)} disabled={permissionForm.isSaving} placeholder="Why is this override needed?" />
+              </label>
+            </div>
+            {permissionForm.error ? (
+              <StatePanel tone="danger" eyebrow="Permission Save Failed" title="Custom permission was not saved" description={permissionForm.error.message || 'Unexpected permission override error.'} compact />
+            ) : null}
+            {permissionForm.success ? (
+              <StatePanel tone="success" eyebrow="Saved" title="Custom permission updated" description={permissionForm.success} compact />
+            ) : null}
+            <div className="developer-permission-form__actions">
+              <button type="submit" className="primary-button" disabled={permissionForm.isSaving || !permissionForm.reason.trim()}>
+                Save Override
+              </button>
+            </div>
+          </form>
+
+          <form className="developer-permission-form" onSubmit={handleLongTermSubmit}>
+            <Toolbar
+              eyebrow="Review Cadence"
+              title="Custom permission reminders"
+              description="Standard custom permissions review every 30 days. Long-term acknowledgements review every 180 days."
+            />
+            <div className="developer-permission-overrides">
+              <div className="profile-field">
+                <span>Selected user</span>
+                <strong>{selectedPermissionUser?.display_name || selectedPermissionUser?.email || selectedPermissionUser?.user_id || 'Choose a user'}</strong>
+              </div>
+              {activeOverrides.length > 0 ? (
+                <div className="developer-override-list">
+                  {activeOverrides.map((override) => (
+                    <label className="developer-override-item" key={override.id}>
+                      <input
+                        type="radio"
+                        name="overrideId"
+                        value={override.id}
+                        checked={longTermForm.overrideId === override.id}
+                        onChange={(event) => setLongTermFormValue('overrideId', event.target.value)}
+                        disabled={longTermForm.isSaving}
+                      />
+                      <span>
+                        <strong>{override.permission_flag} {override.granted ? 'granted' : 'revoked'}</strong>
+                        <small>{override.review_cadence === 'long_term' ? 'Long-term' : 'Standard'} review - {formatDeveloperNoteDate(override.granted_at)}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <StatePanel tone="neutral" title="No active custom permissions" description="This user currently follows their role and division defaults." compact />
+              )}
+              <label>
+                <span>Long-term reason</span>
+                <textarea rows={3} maxLength={500} value={longTermForm.reason} onChange={(event) => setLongTermFormValue('reason', event.target.value)} disabled={longTermForm.isSaving || activeOverrides.length === 0} placeholder="Why is this custom access expected to stay in place?" />
+              </label>
+            </div>
+            {longTermForm.error ? (
+              <StatePanel tone="danger" eyebrow="Review Save Failed" title="Long-term acknowledgement was not saved" description={longTermForm.error.message || 'Unexpected permission review error.'} compact />
+            ) : null}
+            {longTermForm.success ? (
+              <StatePanel tone="success" eyebrow="Saved" title="Review cadence updated" description={longTermForm.success} compact />
+            ) : null}
+            <div className="developer-permission-form__actions">
+              <button type="submit" className="secondary-button" disabled={longTermForm.isSaving || !longTermForm.overrideId || !longTermForm.reason.trim()}>
+                Mark Long-Term
+              </button>
+            </div>
+          </form>
+        </div>
       </section>
 
       <section className="developer-notes card workspace-card">

@@ -901,6 +901,104 @@ textarea {
   margin: var(--card-gap) var(--app-page-gutter) 0;
 }
 
+.developer-permissions {
+  display: grid;
+  gap: var(--card-gap);
+  margin: var(--card-gap) var(--app-page-gutter) 0;
+}
+
+.developer-permissions__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--card-gap);
+  align-items: start;
+}
+
+.developer-permissions__panel,
+.developer-permission-form {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.developer-permission-form {
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: var(--card-padding);
+}
+
+.developer-permission-form__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.developer-permission-form label,
+.developer-permission-overrides label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.developer-permission-form label span,
+.developer-permission-overrides label > span {
+  color: var(--ng-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.developer-permission-form__full {
+  grid-column: 1 / -1;
+}
+
+.developer-permission-form textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.developer-permission-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.developer-permission-overrides {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.developer-override-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.developer-override-item {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  padding: 0.75rem;
+}
+
+.developer-override-item span {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.developer-override-item strong,
+.developer-override-item small {
+  overflow-wrap: anywhere;
+}
+
+.developer-override-item small {
+  color: var(--ng-muted);
+  font-size: 0.76rem;
+}
+
 .developer-notes__summary.summary-grid {
   margin: 0;
 }
@@ -2116,6 +2214,8 @@ textarea {
   .developer-future-note,
   .silas-shell { grid-template-columns: minmax(0, 1fr); }
   .workspace-surface { padding-left: 0; }
+  .developer-permissions__grid,
+  .developer-permission-form__grid,
   .inventory-cart-checkout-panel,
   .inventory-cart-checkout-controls,
   .inventory-cart-destination-cell,
