@@ -1,4 +1,4 @@
-import { useUser } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   FileText,
   HardHat,
@@ -8,13 +8,25 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
+import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
+import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { createSupabaseClient } from '../../services/supabaseClient.js';
+
+const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
+
+const JOB_ATTENTION_COLUMNS = [
+  { key: 'job_label', header: 'Job', render: (row) => <strong>{row.job_label}</strong> },
+  { key: 'item_description', header: 'Buyout item', render: (row) => row.item_description || 'Untitled item' },
+  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatBuyoutStatus(row.status)}</StatusBadge> },
+  { key: 'reason', header: 'Needs attention', render: (row) => row.reason },
+];
 
 function missing(value) {
   return value || 'Not provided';
@@ -24,12 +36,123 @@ function permissionLabel(value) {
   return value === true ? 'Granted' : 'Not granted';
 }
 
+function formatBuyoutStatus(value) {
+  switch (value) {
+    case 'ordered':
+      return 'Ordered';
+    case 'received':
+      return 'Received';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'pending':
+      return 'Pending';
+    default:
+      return value || '-';
+  }
+}
+
+function jobLabel(job) {
+  if (!job) return 'Unknown job';
+  return job.job_number ? `${job.job_number} - ${job.name}` : job.name || 'Unnamed job';
+}
+
+function buyoutAttentionReason(line) {
+  if (line.status !== 'received' && line.status !== 'cancelled') return 'Open buyout item';
+  const actualValue = Number(line.actual_value) || 0;
+  const budgetAmount = Number(line.budget_amount) || 0;
+  if (budgetAmount > 0 && actualValue > budgetAmount) return 'Actual value over budget';
+  const actualLead = Number(line.actual_lead_time_days) || 0;
+  const initialLead = Number(line.initial_lead_time_days) || 0;
+  if (initialLead > 0 && actualLead > initialLead) return 'Actual lead time over initial';
+  return '';
+}
+
+function useJobAttention({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    items: EMPTY_ATTENTION_ITEMS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled) {
+        setState({ isLoading: false, error: null, items: EMPTY_ATTENTION_ITEMS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const [jobsResult, buyoutResult] = await Promise.all([
+          client
+            .from('jobs')
+            .select('id, job_number, name')
+            .is('archived_at', null),
+          client
+            .from('job_buyout_lines')
+            .select('id, job_id, item_description, status, budget_amount, actual_value, initial_lead_time_days, actual_lead_time_days')
+            .is('archived_at', null),
+        ]);
+
+        if (jobsResult.error) throw jobsResult.error;
+        if (buyoutResult.error) throw buyoutResult.error;
+
+        const jobsById = new Map((jobsResult.data || []).map((job) => [job.id, job]));
+        const items = (buyoutResult.data || [])
+          .map((line) => ({
+            ...line,
+            reason: buyoutAttentionReason(line),
+            job_label: jobLabel(jobsById.get(line.job_id)),
+          }))
+          .filter((line) => line.reason)
+          .sort((a, b) => a.job_label.localeCompare(b.job_label) || a.item_description.localeCompare(b.item_description));
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            items,
+          });
+        }
+      } catch (error) {
+        console.error('Dashboard job attention failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            items: EMPTY_ATTENTION_ITEMS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function DashboardWorkspace({ permissions }) {
   const { user } = useUser();
   const navigate = useNavigate();
   const [activePanel, setActivePanel] = useState('my-info');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const jobAttention = useJobAttention({ enabled: permissions.permissionSource === 'server' });
 
   const canSeeEstimates = permissions.permissionSource === 'server'
     && (permissions.canEstimate || permissions.canApproveEstimates);
@@ -95,8 +218,8 @@ export function DashboardWorkspace({ permissions }) {
         </div>
         <div className="dashboard-hero__panel">
           <span>Needs attention</span>
-          <strong>{permissions.permissionSource === 'server' ? 'Live' : 'Pending'}</strong>
-          <p>Permission source is {permissions.permissionSource}. Production-domain auth will verify the full stack.</p>
+          <strong>{jobAttention.isLoading ? 'Loading' : jobAttention.items.length}</strong>
+          <p>{jobAttention.error ? 'Job attention could not load.' : 'Open buyout items, over-budget buyouts, and lead-time exceptions.'}</p>
         </div>
       </section>
 
@@ -105,6 +228,7 @@ export function DashboardWorkspace({ permissions }) {
         <SummaryCard label="Role" value={permissions.role ?? 'User'} detail={permissions.division ?? 'No division'} />
         <SummaryCard label="Inventory" value={permissionLabel(permissions.canManageInventory || permissions.canInventoryTransactions)} detail="Existing flags" />
         <SummaryCard label="Jobs" value={permissionLabel(permissions.canCreateJobs || permissions.canManageJobs)} detail="Existing flags" />
+        <SummaryCard label="Job Attention" value={jobAttention.isLoading ? 'Loading' : jobAttention.items.length} detail="Buyout exceptions" tone={jobAttention.items.length ? 'warn' : 'good'} />
       </div>
 
       <div className={`workspace-split dashboard-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -156,6 +280,26 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-work' ? (
             <div className="state-panel-stack">
+              <article className="card workspace-card module-directory-panel">
+                <Toolbar
+                  eyebrow="Job Attention"
+                  title="Buyout items needing attention"
+                  description="Visible open buyouts, over-budget actuals, and lead-time exceptions."
+                  actions={<button type="button" className="secondary-button" onClick={jobAttention.reload} disabled={jobAttention.isLoading}>Refresh</button>}
+                />
+                <DataTable
+                  columns={JOB_ATTENTION_COLUMNS}
+                  rows={jobAttention.items}
+                  getRowKey={(row) => row.id}
+                  permissions={permissions}
+                  isLoading={jobAttention.isLoading}
+                  error={jobAttention.error}
+                  dense
+                  minWidth="760px"
+                  emptyTitle="No buyout items need attention"
+                  emptyDescription="Open buyout items, over-budget actuals, and lead-time exceptions will appear here."
+                />
+              </article>
               <StatePanel
                 eyebrow="My Work"
                 title="Worker assignments are not available yet"

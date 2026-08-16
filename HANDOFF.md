@@ -19239,3 +19239,55 @@ exports.
 1. Ryan tests importing the Toro PDF into a job with matching Financials cost
    codes.
 2. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 196 — Dashboard Buyout Attention
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the PDF cost report import worked and asked to proceed. One
+remaining Jobs decision was that Buyout items only need to talk to the dashboard
+when they need attention.
+
+### What Was Completed
+- Added a read-only Dashboard attention loader.
+- The loader uses existing Supabase/RLS reads for:
+  - visible active `jobs`
+  - visible active `job_buyout_lines`
+- Added buyout attention rules:
+  - open item: status is not `received` or `cancelled`
+  - actual value over budget
+  - actual lead time over initial lead time
+- Updated the Dashboard hero `Needs attention` panel to show the live attention
+  count.
+- Added a `Job Attention` summary card.
+- Added a `My Work` Dashboard table for buyout attention rows with:
+  - job label
+  - buyout item
+  - status
+  - attention reason
+  - refresh action
+
+### Code / File Changes
+- `src/modules/dashboard/DashboardWorkspace.jsx`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No schema change was made in this slice.
+- No RLS policy was changed in this slice.
+- This is intentionally read-only and uses existing table grants/RLS.
+- Personalized worker/superintendent/project-manager assignments remain
+  deferred because no approved assignment source exists yet.
+
+### Next Steps
+1. Ryan verifies the Dashboard attention count and My Work attention table.
+2. Continue with the next module/page cleanup item.
