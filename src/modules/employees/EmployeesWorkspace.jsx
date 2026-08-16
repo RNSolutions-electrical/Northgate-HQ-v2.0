@@ -12,6 +12,7 @@ import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_PEOPLE = Object.freeze([]);
+const EMPTY_ASSIGNMENTS = Object.freeze([]);
 
 const EMPLOYEE_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -24,7 +25,16 @@ const EMPLOYEE_COLUMNS = [
   { key: 'display_name', header: 'Name', render: (row) => <strong>{employeeLabel(row)}</strong> },
   { key: 'role', header: 'Role', fallback: 'User' },
   { key: 'division', header: 'Division', fallback: 'Unassigned' },
+  { key: 'current_vehicle', header: 'Current Vehicle', fallback: 'Unassigned' },
   { key: 'email', header: 'Email', fallback: '-' },
+];
+
+const ASSIGNMENT_COLUMNS = [
+  { key: 'vehicle_label', header: 'Vehicle', render: (row) => <strong>{row.vehicle_label}</strong> },
+  { key: 'assigned_at', header: 'Assigned', render: (row) => formatDateTime(row.assigned_at) },
+  { key: 'unassigned_at', header: 'Released', render: (row) => row.unassigned_at ? formatDateTime(row.unassigned_at) : 'Active' },
+  { key: 'assigned_by_label', header: 'Assigned By', fallback: '-' },
+  { key: 'note', header: 'Note', fallback: '-' },
 ];
 
 function employeeLabel(person) {
@@ -37,7 +47,15 @@ function employeeSearchText(person) {
     person.email,
     person.role,
     person.division,
+    person.current_vehicle,
   ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString();
 }
 
 function useEmployeeReferences({ enabled }) {
@@ -47,6 +65,7 @@ function useEmployeeReferences({ enabled }) {
     isLoading: false,
     error: null,
     people: EMPTY_PEOPLE,
+    assignments: EMPTY_ASSIGNMENTS,
   });
 
   useEffect(() => {
@@ -63,18 +82,25 @@ function useEmployeeReferences({ enabled }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const { data, error } = await client
-          .from('inventory_destination_users_view')
-          .select('clerk_user_id, display_name, email, role, division')
-          .order('display_name', { ascending: true, nullsFirst: false });
+        const [peopleResult, assignmentsResult] = await Promise.all([
+          client
+            .from('inventory_destination_users_view')
+            .select('clerk_user_id, display_name, email, role, division')
+            .order('display_name', { ascending: true, nullsFirst: false }),
+          client.rpc('read_employee_vehicle_assignment_directory', {
+            p_limit: 1000,
+          }),
+        ]);
 
-        if (error) throw error;
+        if (peopleResult.error) throw peopleResult.error;
+        if (assignmentsResult.error) throw assignmentsResult.error;
 
         if (isMounted) {
           setState({
             isLoading: false,
             error: null,
-            people: data ?? EMPTY_PEOPLE,
+            people: peopleResult.data ?? EMPTY_PEOPLE,
+            assignments: assignmentsResult.data ?? EMPTY_ASSIGNMENTS,
           });
         }
       } catch (error) {
@@ -84,6 +110,7 @@ function useEmployeeReferences({ enabled }) {
             isLoading: false,
             error,
             people: EMPTY_PEOPLE,
+            assignments: EMPTY_ASSIGNMENTS,
           });
         }
       }
@@ -113,9 +140,28 @@ export function EmployeesWorkspace({ permissions }) {
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
-  const people = directory.people;
+  const assignments = directory.assignments;
+  const currentAssignmentMap = useMemo(() => {
+    const next = new Map();
+    assignments
+      .filter((assignment) => assignment.is_active)
+      .forEach((assignment) => {
+        if (!next.has(assignment.user_id)) next.set(assignment.user_id, assignment);
+      });
+    return next;
+  }, [assignments]);
+
+  const people = useMemo(() => directory.people.map((person) => {
+    const activeAssignment = currentAssignmentMap.get(person.clerk_user_id);
+    return {
+      ...person,
+      current_vehicle: activeAssignment?.vehicle_label ?? '',
+      current_vehicle_assignment: activeAssignment ?? null,
+    };
+  }), [currentAssignmentMap, directory.people]);
   const divisions = [...new Set(people.map((person) => person.division).filter(Boolean))];
   const currentUserInDirectory = people.some((person) => person.clerk_user_id === permissions.userId);
+  const activeAssignmentCount = assignments.filter((assignment) => assignment.is_active).length;
 
   const employeeViews = [
     { key: 'directory', label: 'Employee Directory', icon: Users, description: 'Visible contact reference rows.', badge: people.length },
@@ -135,6 +181,9 @@ export function EmployeesWorkspace({ permissions }) {
   const selectedEmployee = filteredPeople.find((person) => person.clerk_user_id === selectedEmployeeId)
     ?? people.find((person) => person.clerk_user_id === selectedEmployeeId)
     ?? null;
+  const selectedEmployeeAssignments = selectedEmployee
+    ? assignments.filter((assignment) => assignment.user_id === selectedEmployee.clerk_user_id)
+    : EMPTY_ASSIGNMENTS;
 
   useEffect(() => {
     if (activeView === 'mine') {
@@ -158,7 +207,7 @@ export function EmployeesWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Employees"
-        description="Directory and profile foundation using the existing destination-user reference path. Role changes, permission editing, Clerk identity controls, and HR source-of-truth writes remain out of scope."
+        description="Directory and profile foundation with live vehicle assignment reads. Role changes, permission editing, Clerk identity controls, and HR source-of-truth writes remain out of scope."
         status={<span className="status-pill">{people.length} visible contact{people.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -177,6 +226,7 @@ export function EmployeesWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />
+        <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" />
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
         <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
         <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create/edit remains deferred" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
@@ -208,7 +258,7 @@ export function EmployeesWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Directory"
               title={employeeViews.find((item) => item.key === activeView)?.label ?? 'Employees'}
-              description="Rows come from the limited employee reference view and follow level/division read scope."
+              description="Rows come from the limited employee reference view and live vehicle assignment reads, following level/division scope."
               search={(
                 <label>
                   <span className="sr-only">Search employees</span>
@@ -252,6 +302,7 @@ export function EmployeesWorkspace({ permissions }) {
                   meta={[
                     { label: 'Role', value: selectedEmployee.role || 'User' },
                     { label: 'Division', value: selectedEmployee.division || 'Unassigned' },
+                    { label: 'Current Vehicle', value: selectedEmployee.current_vehicle || 'Unassigned' },
                   ]}
                 />
                 <WorkspaceTabs
@@ -264,6 +315,7 @@ export function EmployeesWorkspace({ permissions }) {
                 {activeTab === 'overview' ? (
                   <div className="module-fact-grid employees-fact-grid">
                     <SummaryCard label="Email" value={selectedEmployee.email || '-'} detail="Reference field" />
+                    <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle || 'Unassigned'} detail="Active vehicle assignment" tone={selectedEmployee.current_vehicle ? 'good' : 'default'} />
                     <SummaryCard label="Profile source" value="Reference view" detail="No source mutation" />
                     <SummaryCard label="Role source" value="Permissions row" detail="Display only" />
                   </div>
@@ -279,12 +331,32 @@ export function EmployeesWorkspace({ permissions }) {
                 ) : null}
 
                 {activeTab === 'assignments' ? (
-                  <StatePanel
-                    eyebrow="Deferred"
-                    title="Assignments are not wired yet"
-                    description="Vehicle, tool, crew, direct-report, credential, and job assignment views need approved source paths before they render rows."
-                    tone="neutral"
-                  />
+                  <>
+                    {selectedEmployee.current_vehicle_assignment ? (
+                      <div className="module-fact-grid employees-fact-grid">
+                        <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle_assignment.vehicle_label} detail="Active assignment row" tone="good" />
+                        <SummaryCard label="Assigned" value={formatDateTime(selectedEmployee.current_vehicle_assignment.assigned_at)} detail="Assignment start" />
+                        <SummaryCard label="Assigned By" value={selectedEmployee.current_vehicle_assignment.assigned_by_label || '-'} detail="Recorded actor" />
+                      </div>
+                    ) : (
+                      <StatePanel
+                        eyebrow="Assignments"
+                        title="No active vehicle assignment"
+                        description="This employee does not currently have an active vehicle assignment row."
+                        tone="neutral"
+                      />
+                    )}
+                    <DataTable
+                      columns={ASSIGNMENT_COLUMNS}
+                      rows={selectedEmployeeAssignments}
+                      getRowKey={(row) => row.assignment_id}
+                      permissions={permissions}
+                      dense
+                      minWidth="820px"
+                      emptyTitle="No vehicle assignment history"
+                      emptyDescription="Vehicle assignment rows will appear here once this employee is assigned or released."
+                    />
+                  </>
                 ) : null}
 
                 {activeTab === 'activity' ? (
@@ -324,9 +396,10 @@ export function EmployeesWorkspace({ permissions }) {
             />
             <StatePanel
               eyebrow="Boundary"
-              title="No role or permission editor"
-              description="Roles and permission flags remain governed by the existing server-authoritative permission system and controlled Developer workflows."
+              title="Vehicle assignments are read-only"
+              description="Current vehicle and assignment history are live reads. Assignment create, release, and transfer controls stay with the vehicle write pass."
               compact
+              incomplete={false}
             />
             <StatePanel
               eyebrow="Boundary"
