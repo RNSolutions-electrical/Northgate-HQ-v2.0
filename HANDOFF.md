@@ -18712,3 +18712,63 @@ together under the database's permission check.
 ### Next Steps
 1. Ryan retries archiving the test job.
 2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 187 — Jobs Buyout Edit Archive Audit
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the Jobs archive RPC fix and asked to proceed. The next parked
+Jobs cleanup item was Buyout hardening: users needed to be able to edit buyout
+items later, and edits needed to land in the audit log.
+
+### What Was Completed
+- Added editable Buyout rows.
+- Reused the Buyout form for Add and Edit mode.
+- Added `Cancel Edit`.
+- Added editable fields for:
+  - item description
+  - quantity needed
+  - status
+  - vendor/source note
+  - budget
+  - initial value
+  - actual value
+  - initial lead time
+  - actual lead time
+  - notes
+- Added row-level Archive action with required reason.
+- Buyout reads now explicitly filter `archived_at is null`.
+- Buyout create, edit, status change, and archive actions now write
+  `public.change_logs` entries with before/after snapshots.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice.
+- No production DDL was applied in this slice.
+- Buyout archive uses the existing table update path and does not request the
+  archived row back after setting `archived_at`.
+- Audit writes are still client-side `change_logs` inserts until the final
+  RLS/security pass decides which additional actions need RPC-level atomicity.
+
+### Next Steps
+1. Ryan verifies editing a Buyout row saves and reloads.
+2. Ryan verifies status buttons still work.
+3. Ryan verifies archiving a Buyout row requires a reason and removes it from
+   the visible Buyout list.
+4. Continue Jobs cleanup with the next remaining gap.

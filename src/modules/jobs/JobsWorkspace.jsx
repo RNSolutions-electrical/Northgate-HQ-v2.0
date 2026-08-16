@@ -55,8 +55,10 @@ const DEFAULT_JOB_FORM = Object.freeze({
 const EMPTY_BUYOUT_LINES = Object.freeze([]);
 const BUYOUT_STATUS_OPTIONS = ['pending', 'ordered', 'received', 'cancelled'];
 const DEFAULT_BUYOUT_FORM = Object.freeze({
+  id: '',
   item_description: '',
   quantity_needed: '1',
+  status: 'pending',
   vendor_note: '',
   budget_amount: '',
   initial_value: '',
@@ -150,6 +152,9 @@ const JOB_BUYOUT_SELECT_FIELDS = [
   'division',
   'created_at',
   'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
   'item_description',
   'quantity_needed',
   'quantity_ordered',
@@ -752,6 +757,7 @@ function useJobBuyoutLines({ enabled, jobId }) {
           .from('job_buyout_lines')
           .select(JOB_BUYOUT_SELECT_FIELDS)
           .eq('job_id', jobId)
+          .is('archived_at', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -1032,6 +1038,50 @@ function jobAuditSnapshot(job) {
     archived_at: job.archived_at,
     archived_by: job.archived_by,
     archive_reason: job.archive_reason,
+  };
+}
+
+function buyoutToForm(row) {
+  if (!row) return DEFAULT_BUYOUT_FORM;
+
+  return {
+    ...DEFAULT_BUYOUT_FORM,
+    id: row.id || '',
+    item_description: row.item_description || '',
+    quantity_needed: String(row.quantity_needed ?? '1'),
+    status: BUYOUT_STATUS_OPTIONS.includes(row.status) ? row.status : 'pending',
+    vendor_note: row.vendor_note || '',
+    budget_amount: row.budget_amount == null ? '' : String(row.budget_amount),
+    initial_value: row.initial_value == null ? '' : String(row.initial_value),
+    actual_value: row.actual_value == null ? '' : String(row.actual_value),
+    initial_lead_time_days: row.initial_lead_time_days == null ? '' : String(row.initial_lead_time_days),
+    actual_lead_time_days: row.actual_lead_time_days == null ? '' : String(row.actual_lead_time_days),
+    note: row.note || '',
+  };
+}
+
+function buyoutAuditSnapshot(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    job_id: row.job_id,
+    division: row.division,
+    item_description: row.item_description,
+    quantity_needed: row.quantity_needed,
+    quantity_ordered: row.quantity_ordered,
+    status: row.status,
+    vendor_note: row.vendor_note,
+    lead_time_note: row.lead_time_note,
+    budget_amount: row.budget_amount,
+    initial_value: row.initial_value,
+    actual_value: row.actual_value,
+    initial_lead_time_days: row.initial_lead_time_days,
+    actual_lead_time_days: row.actual_lead_time_days,
+    note: row.note,
+    archived_at: row.archived_at,
+    archived_by: row.archived_by,
+    archive_reason: row.archive_reason,
   };
 }
 
@@ -1480,7 +1530,32 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleBuyoutAdd(event) {
+  function buildBuyoutPayload() {
+    return {
+      item_description: buyoutForm.item_description.trim(),
+      quantity_needed: parseOptionalNumber(buyoutForm.quantity_needed) || 1,
+      status: BUYOUT_STATUS_OPTIONS.includes(buyoutForm.status) ? buyoutForm.status : 'pending',
+      vendor_note: buyoutForm.vendor_note.trim() || null,
+      budget_amount: parseOptionalNumber(buyoutForm.budget_amount),
+      initial_value: parseOptionalNumber(buyoutForm.initial_value),
+      actual_value: parseOptionalNumber(buyoutForm.actual_value),
+      initial_lead_time_days: parseOptionalNumber(buyoutForm.initial_lead_time_days),
+      actual_lead_time_days: parseOptionalNumber(buyoutForm.actual_lead_time_days),
+      note: buyoutForm.note.trim() || null,
+    };
+  }
+
+  function startBuyoutEdit(row) {
+    if (!row?.id || !canManageSelectedJob) return;
+    setBuyoutForm(buyoutToForm(row));
+    setBuyoutAction({ id: '', action: '', error: null });
+  }
+
+  function resetBuyoutForm() {
+    setBuyoutForm(DEFAULT_BUYOUT_FORM);
+  }
+
+  async function handleBuyoutSave(event) {
     event.preventDefault();
 
     if (!selectedJob || !canManageSelectedJob || buyoutForm.isSaving) return;
@@ -1491,39 +1566,52 @@ export function JobsWorkspace({ permissions }) {
     }
 
     const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const payload = buildBuyoutPayload();
+    const existingRow = buyoutForm.id
+      ? jobBuyout.lines.find((line) => line.id === buyoutForm.id)
+      : null;
     setBuyoutForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const quantityNeeded = parseOptionalNumber(buyoutForm.quantity_needed) || 1;
-      const { error } = await client
-        .from('job_buyout_lines')
-        .insert({
-          job_id: selectedJob.id,
-          division: selectedJob.division,
-          item_description: buyoutForm.item_description.trim(),
-          quantity_needed: quantityNeeded,
-          status: 'pending',
-          vendor_note: buyoutForm.vendor_note.trim() || null,
-          budget_amount: parseOptionalNumber(buyoutForm.budget_amount),
-          initial_value: parseOptionalNumber(buyoutForm.initial_value),
-          actual_value: parseOptionalNumber(buyoutForm.actual_value),
-          initial_lead_time_days: parseOptionalNumber(buyoutForm.initial_lead_time_days),
-          actual_lead_time_days: parseOptionalNumber(buyoutForm.actual_lead_time_days),
-          note: buyoutForm.note.trim() || null,
-          created_by: createdBy,
-        });
+      const query = buyoutForm.id
+        ? client
+          .from('job_buyout_lines')
+          .update(payload)
+          .eq('id', buyoutForm.id)
+          .eq('job_id', selectedJob.id)
+          .select(JOB_BUYOUT_SELECT_FIELDS)
+          .single()
+        : client
+          .from('job_buyout_lines')
+          .insert({
+            ...payload,
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            created_by: createdBy,
+          })
+          .select(JOB_BUYOUT_SELECT_FIELDS)
+          .single();
+      const { data, error } = await query;
 
       if (error) throw error;
 
+      await writeJobChangeLog(client, {
+        action: buyoutForm.id ? 'update' : 'create',
+        recordId: data?.id || buyoutForm.id,
+        beforeData: buyoutAuditSnapshot(existingRow),
+        afterData: buyoutAuditSnapshot(data),
+        note: `Buyout item ${data?.item_description || payload.item_description} ${buyoutForm.id ? 'updated' : 'created'}.`,
+      });
+
       setBuyoutForm({
         ...DEFAULT_BUYOUT_FORM,
-        success: `${buyoutForm.item_description.trim()} added to Buyout.`,
+        success: `${payload.item_description} ${buyoutForm.id ? 'updated' : 'added'} in Buyout.`,
       });
       jobBuyout.reload();
     } catch (error) {
-      console.error('Job buyout add failed', error);
+      console.error('Job buyout save failed', error);
       setBuyoutForm((current) => ({ ...current, isSaving: false, error, success: '' }));
     }
   }
@@ -1544,10 +1632,66 @@ export function JobsWorkspace({ permissions }) {
 
       if (error) throw error;
 
+      await writeJobChangeLog(client, {
+        action: 'update',
+        recordId: row.id,
+        beforeData: buyoutAuditSnapshot(row),
+        afterData: buyoutAuditSnapshot({ ...row, status }),
+        note: `Buyout item ${row.item_description || row.id} status changed to ${status}.`,
+      });
+
       setBuyoutAction({ id: '', action: '', error: null });
       jobBuyout.reload();
     } catch (error) {
       console.error('Job buyout status update failed', error);
+      setBuyoutAction({ id: '', action: '', error });
+    }
+  }
+
+  async function handleBuyoutArchive(row) {
+    if (!row?.id || !selectedJob?.id || !canManageSelectedJob || buyoutAction.id) return;
+
+    const reason = window.prompt(`Archive "${row.item_description || 'this buyout item'}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const archivedAt = new Date().toISOString();
+    const archivedSnapshot = {
+      ...row,
+      archived_at: archivedAt,
+      archived_by: archivedBy,
+      archive_reason: reason.trim(),
+    };
+    setBuyoutAction({ id: row.id, action: 'archive', error: null });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client
+        .from('job_buyout_lines')
+        .update({
+          archived_at: archivedAt,
+          archived_by: archivedBy,
+          archive_reason: reason.trim(),
+        })
+        .eq('id', row.id)
+        .eq('job_id', selectedJob.id);
+
+      if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: 'archive',
+        recordId: row.id,
+        beforeData: buyoutAuditSnapshot(row),
+        afterData: buyoutAuditSnapshot(archivedSnapshot),
+        note: reason.trim(),
+      });
+
+      setBuyoutAction({ id: '', action: '', error: null });
+      if (buyoutForm.id === row.id) resetBuyoutForm();
+      jobBuyout.reload();
+    } catch (error) {
+      console.error('Job buyout archive failed', error);
       setBuyoutAction({ id: '', action: '', error });
     }
   }
@@ -1954,12 +2098,15 @@ export function JobsWorkspace({ permissions }) {
         ...JOB_BUYOUT_COLUMNS,
         {
           key: 'actions',
-          header: 'Checklist',
+          header: 'Actions',
           render: (row) => {
             if (!canManageSelectedJob) return 'Read only';
             const isBusy = buyoutAction.id === row.id;
             return (
               <div className="job-buyout-actions">
+                <button type="button" className="secondary-button" onClick={() => startBuyoutEdit(row)} disabled={isBusy || buyoutForm.isSaving}>
+                  Edit
+                </button>
                 {BUYOUT_STATUS_OPTIONS.map((status) => (
                   <button
                     key={status}
@@ -1971,6 +2118,9 @@ export function JobsWorkspace({ permissions }) {
                     {isBusy && buyoutAction.action === status ? 'Saving...' : formatBuyoutStatus(status)}
                   </button>
                 ))}
+                <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBuyoutArchive(row)} disabled={isBusy || buyoutForm.isSaving}>
+                  {isBusy && buyoutAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+                </button>
               </div>
             );
           },
@@ -2010,11 +2160,16 @@ export function JobsWorkspace({ permissions }) {
           ) : null}
 
           {canManageSelectedJob ? (
-            <form className="job-buyout-form" onSubmit={handleBuyoutAdd}>
+            <form className="job-buyout-form" onSubmit={handleBuyoutSave}>
               <Toolbar
-                eyebrow="Add"
-                title="Add buyout item"
+                eyebrow={buyoutForm.id ? 'Edit' : 'Add'}
+                title={buyoutForm.id ? 'Edit buyout item' : 'Add buyout item'}
                 description="Buyout remains a planning checklist. It does not create purchase orders, accounting entries, or inventory movements."
+                actions={buyoutForm.id ? (
+                  <button type="button" className="secondary-button" onClick={resetBuyoutForm} disabled={buyoutForm.isSaving}>
+                    Cancel Edit
+                  </button>
+                ) : null}
               />
               <div className="job-buyout-form__grid">
                 <label className="job-buyout-form__wide">
@@ -2037,6 +2192,18 @@ export function JobsWorkspace({ permissions }) {
                     onChange={(event) => setBuyoutForm((current) => ({ ...current, quantity_needed: event.target.value, error: null, success: '' }))}
                     disabled={buyoutForm.isSaving}
                   />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    value={buyoutForm.status}
+                    onChange={(event) => setBuyoutForm((current) => ({ ...current, status: event.target.value, error: null, success: '' }))}
+                    disabled={buyoutForm.isSaving}
+                  >
+                    {BUYOUT_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{formatBuyoutStatus(status)}</option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   <span>Vendor / source</span>
@@ -2082,11 +2249,11 @@ export function JobsWorkspace({ permissions }) {
                 <StatePanel tone="danger" eyebrow="Buyout Save Failed" title="Item was not saved" description={buyoutForm.error.message || 'Unexpected buyout error.'} compact />
               ) : null}
               {buyoutForm.success ? (
-                <StatePanel tone="success" eyebrow="Saved" title="Buyout item added" description={buyoutForm.success} compact />
+                <StatePanel tone="success" eyebrow="Saved" title="Buyout item saved" description={buyoutForm.success} compact />
               ) : null}
               <div className="job-buyout-form__actions">
                 <button type="submit" className="primary-button" disabled={buyoutForm.isSaving || !buyoutForm.item_description.trim()}>
-                  <Plus aria-hidden="true" /> {buyoutForm.isSaving ? 'Saving...' : 'Add Buyout Item'}
+                  <Plus aria-hidden="true" /> {buyoutForm.isSaving ? 'Saving...' : buyoutForm.id ? 'Save Buyout Item' : 'Add Buyout Item'}
                 </button>
               </div>
             </form>
