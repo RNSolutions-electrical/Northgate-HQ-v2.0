@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   ArrowLeft,
   Calculator,
@@ -24,6 +24,7 @@ import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_ESTIMATES = Object.freeze([]);
+const EMPTY_ESTIMATE_HISTORY = Object.freeze([]);
 
 const ESTIMATE_STATUS_OPTIONS = ['draft', 'pursuit', 'submitted', 'rejected'];
 
@@ -73,7 +74,7 @@ const ESTIMATE_TABS = [
   { key: 'pricing', label: 'Pricing', disabled: true, meta: 'Deferred' },
   { key: 'documents', label: 'Documents', disabled: true, meta: 'Reserved' },
   { key: 'approval', label: 'Approval', disabled: true, meta: 'Reserved' },
-  { key: 'history', label: 'History', disabled: true, meta: 'Reserved' },
+  { key: 'history', label: 'History', meta: 'Live' },
 ];
 
 const ESTIMATE_COLUMNS = [
@@ -87,6 +88,14 @@ const ESTIMATE_COLUMNS = [
     render: (row) => <StatusBadge status={row.status}>{formatEstimateStatus(row.status)}</StatusBadge>,
   },
   { key: 'bid_due_at', header: 'Bid Due', render: (row) => formatDate(row.bid_due_at) },
+];
+
+const ESTIMATE_HISTORY_COLUMNS = [
+  { key: 'created_at', header: 'When', render: (row) => formatDateTime(row.created_at) },
+  { key: 'action', header: 'Action', render: (row) => formatEstimateHistoryAction(row.action) },
+  { key: 'user_name', header: 'User', fallback: '-' },
+  { key: 'changed_fields', header: 'Changed fields', render: (row) => formatChangedFields(row.changed_fields) },
+  { key: 'note', header: 'Note', fallback: '-' },
 ];
 
 const STATUS_RULES = [
@@ -111,6 +120,65 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString();
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatEstimateHistoryAction(value) {
+  switch (value) {
+    case 'create':
+      return 'Created';
+    case 'update':
+      return 'Updated';
+    case 'archive':
+      return 'Archived';
+    case 'restore':
+      return 'Restored';
+    default:
+      return value ? value.replaceAll('_', ' ') : '-';
+  }
+}
+
+function formatChangedField(value) {
+  switch (value) {
+    case 'id':
+    case 'division':
+    case 'created_at':
+    case 'updated_at':
+      return '';
+    case 'estimate_number':
+      return 'estimate number';
+    case 'customer_name':
+      return 'customer';
+    case 'bid_due_at':
+      return 'bid due';
+    case 'submitted_at':
+      return 'submitted';
+    case 'estimator_id':
+      return 'estimator';
+    case 'scope_summary':
+      return 'scope summary';
+    case 'created_by':
+      return 'created by';
+    case 'archived_at':
+      return 'archived date';
+    case 'archived_by':
+      return 'archived by';
+    case 'archive_reason':
+      return 'archive reason';
+    default:
+      return value ? value.replaceAll('_', ' ') : '';
+  }
+}
+
+function formatChangedFields(fields) {
+  if (!Array.isArray(fields) || fields.length === 0) return '-';
+  const formatted = fields.map(formatChangedField).filter(Boolean);
+  return formatted.length ? formatted.join(', ') : '-';
 }
 
 function formatDateInput(value) {
@@ -233,8 +301,71 @@ function useEstimateDirectory({ enabled }) {
   };
 }
 
+function useEstimateHistory({ enabled, estimateId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    rows: EMPTY_ESTIMATE_HISTORY,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !estimateId) {
+        setState({ isLoading: false, error: null, rows: EMPTY_ESTIMATE_HISTORY });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_estimate_change_history', {
+          p_estimate_id: estimateId,
+          p_limit: 100,
+        });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            rows: data ?? EMPTY_ESTIMATE_HISTORY,
+          });
+        }
+      } catch (error) {
+        console.error('Estimate history failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            rows: EMPTY_ESTIMATE_HISTORY,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, estimateId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function EstimatesWorkspace({ permissions }) {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const canReadEstimates = permissions?.permissionSource === 'server'
     && (permissions?.canEstimate === true || permissions?.canApproveEstimates === true);
   const directory = useEstimateDirectory({ enabled: canReadEstimates });
@@ -283,6 +414,10 @@ export function EstimatesWorkspace({ permissions }) {
   const selectedEstimate = filteredEstimates.find((estimate) => estimate.id === selectedEstimateId)
     ?? estimates.find((estimate) => estimate.id === selectedEstimateId)
     ?? null;
+  const estimateHistory = useEstimateHistory({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'history',
+    estimateId: selectedEstimate?.id ?? '',
+  });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
 
   useEffect(() => {
@@ -327,6 +462,25 @@ export function EstimatesWorkspace({ permissions }) {
     return createSupabaseClient(token);
   }
 
+  async function writeEstimateChangeLog(client, { action, recordId, beforeData, afterData, note }) {
+    const userId = user?.id || permissions.userId || null;
+    const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || permissions.userId || 'Unknown User';
+    const { error } = await client
+      .from('change_logs')
+      .insert({
+        user_id: userId,
+        user_name: userName,
+        table_name: 'estimates',
+        record_id: recordId,
+        action,
+        before_data: beforeData,
+        after_data: afterData,
+        note,
+      });
+
+    if (error) throw error;
+  }
+
   async function handleEstimateSave(event) {
     event.preventDefault();
     if (!canCreateEstimate || estimateForm.isSaving) return;
@@ -363,7 +517,16 @@ export function EstimatesWorkspace({ permissions }) {
       const { data, error } = await query;
       if (error) throw error;
 
+      await writeEstimateChangeLog(client, {
+        action: estimateForm.id ? 'update' : 'create',
+        recordId: data?.id || estimateForm.id,
+        beforeData: existingEstimate,
+        afterData: data,
+        note: estimateForm.id ? `${estimateLabel(data)} updated.` : `${estimateLabel(data)} created.`,
+      });
+
       directory.reload();
+      estimateHistory.reload();
       setSelectedEstimateId(data?.id ?? estimateForm.id);
       setMode('browse');
       setEstimateForm(DEFAULT_ESTIMATE_FORM);
@@ -575,16 +738,51 @@ export function EstimatesWorkspace({ permissions }) {
                   onChange={setActiveTab}
                   ariaLabel="Estimate detail sections"
                 />
-                <div className="module-fact-grid estimates-fact-grid">
-                  <SummaryCard label="Bid due" value={formatDate(selectedEstimate.bid_due_at)} detail="Directory field" />
-                  <SummaryCard label="Submitted" value={formatDate(selectedEstimate.submitted_at)} detail="Directory field" />
-                  <SummaryCard label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Level/division scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
-                </div>
-                <div className="tool-catalogue-form__actions">
-                  <button type="button" className="primary-button" onClick={() => startEstimateEdit(selectedEstimate)} disabled={!canEditSelectedEstimate}>
-                    <Pencil aria-hidden="true" /> Edit Estimate
-                  </button>
-                </div>
+                {activeTab === 'history' ? (
+                  <>
+                    <div className="summary-grid summary-grid--compact">
+                      <SummaryCard label="Audit Entries" value={estimateHistory.rows.length} detail="Recent estimate changes" />
+                      <SummaryCard label="Updates" value={estimateHistory.rows.filter((row) => row.action === 'update').length} detail="Recorded edits" />
+                      <SummaryCard label="Created" value={estimateHistory.rows.filter((row) => row.action === 'create').length} detail="Creation entries" />
+                    </div>
+                    <Toolbar
+                      eyebrow="Audit"
+                      title="Estimate History"
+                      description="Read-only audit entries for this estimate directory row."
+                      actions={(
+                        <button type="button" className="secondary-button" onClick={estimateHistory.reload} disabled={estimateHistory.isLoading}>
+                          <History aria-hidden="true" /> Refresh History
+                        </button>
+                      )}
+                      dense
+                    />
+                    <DataTable
+                      columns={ESTIMATE_HISTORY_COLUMNS}
+                      rows={estimateHistory.rows}
+                      getRowKey={(row) => row.id}
+                      permissions={permissions}
+                      isLoading={estimateHistory.isLoading}
+                      error={estimateHistory.error}
+                      dense
+                      minWidth="940px"
+                      emptyTitle="No estimate history yet"
+                      emptyDescription="Future create and edit actions for this estimate will appear here."
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="module-fact-grid estimates-fact-grid">
+                      <SummaryCard label="Bid due" value={formatDate(selectedEstimate.bid_due_at)} detail="Directory field" />
+                      <SummaryCard label="Submitted" value={formatDate(selectedEstimate.submitted_at)} detail="Directory field" />
+                      <SummaryCard label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Level/division scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
+                    </div>
+                    <div className="tool-catalogue-form__actions">
+                      <button type="button" className="primary-button" onClick={() => startEstimateEdit(selectedEstimate)} disabled={!canEditSelectedEstimate}>
+                        <Pencil aria-hidden="true" /> Edit Estimate
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <StatePanel
