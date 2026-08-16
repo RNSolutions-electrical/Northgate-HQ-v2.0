@@ -1332,37 +1332,17 @@ export function JobsWorkspace({ permissions }) {
     const reason = window.prompt(`Archive "${jobLabel(selectedJob)}"? Enter a reason.`);
     if (!reason?.trim()) return;
 
-    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-    const archivedAt = new Date().toISOString();
-    const archivedSnapshot = {
-      ...selectedJob,
-      archived_at: archivedAt,
-      archived_by: archivedBy,
-      archive_reason: reason.trim(),
-    };
     setJobAction({ action: 'archive', error: null, success: '' });
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client
-        .from('jobs')
-        .update({
-          archived_at: archivedAt,
-          archived_by: archivedBy,
-          archive_reason: reason.trim(),
-        })
-        .eq('id', selectedJob.id);
+      const { error } = await client.rpc('archive_job', {
+        p_job_id: selectedJob.id,
+        p_reason: reason.trim(),
+      });
 
       if (error) throw error;
-
-      await writeJobChangeLog(client, {
-        action: 'archive',
-        recordId: selectedJob.id,
-        beforeData: jobAuditSnapshot(selectedJob),
-        afterData: jobAuditSnapshot(archivedSnapshot),
-        note: reason.trim(),
-      });
 
       setSelectedJobId('');
       setMode('browse');

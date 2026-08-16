@@ -18648,3 +18648,67 @@ was correctly soft-archived.
 ### Next Steps
 1. Ryan retries archiving a test job.
 2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 186 — Jobs Archive RPC Hardening
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** bug fix
+
+### Context
+Ryan reported that job archive was still blocked after removing the client-side
+post-archive row return. The remaining issue required moving archive into a
+server-side database function so the job soft archive and audit entry happen
+together under the database's permission check.
+
+### What Was Completed
+- Added `public.archive_job(p_job_id uuid, p_reason text)`.
+- The RPC:
+  - requires an authenticated Clerk subject
+  - requires a non-empty archive reason
+  - locks the active job row
+  - validates the caller has effective `can_manage_jobs` for the job division
+  - sets `archived_at`, `archived_by`, and `archive_reason`
+  - writes the `change_logs` archive entry in the same transaction
+- Updated the Jobs UI archive action to call `archive_job` instead of updating
+  `public.jobs` directly.
+- Tightened function grants so client execution is limited to `authenticated`
+  plus service/admin roles.
+
+### Schema Changes
+- Added migration:
+  - `supabase/migrations/20260815212436_archive_job_rpc.sql`
+- Applied production migrations:
+  - `archive_job_rpc`
+  - `archive_job_rpc_revoke_anon`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `supabase/migrations/20260815212436_archive_job_rpc.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production function signature verified:
+  - `archive_job(p_job_id uuid, p_reason text) returns void`
+  - `SECURITY DEFINER = true`
+- Production routine grants verified:
+  - `authenticated` has `EXECUTE`
+  - `anon` does not have `EXECUTE`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- This is a targeted archive fix, not the final RLS/security cleanup.
+- The RPC uses the existing canonical `user_permissions` and
+  `effective_permissions_for_user(...)` model.
+- The RPC records `archived_by` as the authenticated Clerk subject, not a
+  display name.
+- Final RLS cleanup should still review broad legacy grants and the broader
+  `change_logs` posture.
+
+### Next Steps
+1. Ryan retries archiving the test job.
+2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
