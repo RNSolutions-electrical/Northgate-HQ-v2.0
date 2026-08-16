@@ -21,6 +21,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
 const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
+const EMPTY_DASHBOARD_VEHICLES = Object.freeze([]);
 
 const DASHBOARD_ESTIMATE_SELECT_FIELDS = [
   'id',
@@ -52,6 +53,23 @@ const DASHBOARD_ESTIMATE_COLUMNS = [
     render: (row) => <StatusBadge status={row.status}>{formatLabel(row.status)}</StatusBadge>,
   },
   { key: 'bid_due_at', header: 'Bid Due', render: (row) => formatDate(row.bid_due_at) },
+];
+
+const DASHBOARD_VEHICLE_COLUMNS = [
+  { key: 'vehicle_label', header: 'Vehicle', render: (row) => <strong>{row.vehicle_label}</strong> },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (row) => (
+      <StatusBadge tone={row.is_active ? 'good' : 'neutral'}>
+        {row.is_active ? 'Active' : 'Released'}
+      </StatusBadge>
+    ),
+  },
+  { key: 'assigned_at', header: 'Assigned', render: (row) => formatDateTime(row.assigned_at) },
+  { key: 'unassigned_at', header: 'Released', render: (row) => row.unassigned_at ? formatDateTime(row.unassigned_at) : '-' },
+  { key: 'assigned_by_label', header: 'Assigned By', fallback: '-' },
+  { key: 'note', header: 'Note', fallback: '-' },
 ];
 
 function missing(value) {
@@ -95,6 +113,12 @@ function formatDate(value) {
   if (!value) return '-';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
 function buyoutAttentionReason(line) {
@@ -276,6 +300,81 @@ function useDashboardEstimates({ enabled, userId, canApproveEstimates }) {
   };
 }
 
+function useDashboardVehicles({ enabled, userId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    assignments: EMPTY_DASHBOARD_VEHICLES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !userId) {
+        setState({
+          isLoading: false,
+          error: null,
+          assignments: EMPTY_DASHBOARD_VEHICLES,
+        });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_employee_vehicle_assignment_directory', {
+          p_user_id: userId,
+          p_limit: 25,
+        });
+
+        if (error) throw error;
+
+        const assignments = (data ?? EMPTY_DASHBOARD_VEHICLES)
+          .slice()
+          .sort((a, b) => {
+            if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+            const aTime = a.assigned_at ? new Date(a.assigned_at).getTime() : 0;
+            const bTime = b.assigned_at ? new Date(b.assigned_at).getTime() : 0;
+            return bTime - aTime;
+          });
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            assignments,
+          });
+        }
+      } catch (error) {
+        console.error('Dashboard vehicles failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            assignments: EMPTY_DASHBOARD_VEHICLES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey, userId]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function DashboardWorkspace({ permissions }) {
   const { user } = useUser();
   const navigate = useNavigate();
@@ -291,6 +390,13 @@ export function DashboardWorkspace({ permissions }) {
     userId: permissions.userId,
     canApproveEstimates: permissions.canApproveEstimates === true,
   });
+  const canSeeVehicleAssignments = permissions.permissionSource === 'server'
+    && (permissions.canManageEmployees || permissions.canManageVehicles);
+  const dashboardVehicles = useDashboardVehicles({
+    enabled: canSeeVehicleAssignments,
+    userId: permissions.userId,
+  });
+  const activeVehicleAssignments = dashboardVehicles.assignments.filter((assignment) => assignment.is_active);
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
@@ -364,6 +470,9 @@ export function DashboardWorkspace({ permissions }) {
         <SummaryCard label="Inventory" value={permissionLabel(permissions.canManageInventory || permissions.canInventoryTransactions)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Jobs" value={permissionLabel(permissions.canCreateJobs || permissions.canManageJobs)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Job Attention" value={jobAttention.isLoading ? 'Loading' : jobAttention.items.length} detail="Buyout exceptions" tone={jobAttention.items.length ? 'warn' : 'good'} />
+        {canSeeVehicleAssignments ? (
+          <SummaryCard label="My Vehicles" value={dashboardVehicles.isLoading ? 'Loading' : activeVehicleAssignments.length} detail="Active assignment rows" tone={activeVehicleAssignments.length ? 'good' : 'default'} />
+        ) : null}
         {canSeeEstimates ? (
           <SummaryCard label="My Estimates" value={dashboardEstimates.isLoading ? 'Loading' : dashboardEstimates.assigned.length} detail="Assigned estimate rows" tone={dashboardEstimates.assigned.length ? 'accent' : 'default'} />
         ) : null}
@@ -461,12 +570,35 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-vehicles' ? (
             <div className="state-panel-stack">
-              <StatePanel
-                eyebrow="My Vehicles"
-                title="Vehicles assigned directly to you"
-                description="The current vehicle reference source exposes vehicle identity and division only. It does not expose direct user assignment or reporting relationships, so personalized vehicle groupings remain deferred."
-                actions={<button type="button" className="secondary-button" onClick={() => openModule('/vehicles')}>Open Vehicles</button>}
-              />
+              <article className="card workspace-card module-directory-panel">
+                <Toolbar
+                  eyebrow="My Vehicles"
+                  title="Vehicles assigned directly to you"
+                  description={canSeeVehicleAssignments
+                    ? 'Active and historical vehicle assignments for the current user.'
+                    : 'Vehicle assignment visibility requires employee or vehicle management permission.'}
+                  actions={(
+                    <>
+                      <button type="button" className="secondary-button" onClick={dashboardVehicles.reload} disabled={!canSeeVehicleAssignments || dashboardVehicles.isLoading}>Refresh</button>
+                      <button type="button" className="secondary-button" onClick={() => openModule('/vehicles')}>Open Vehicles</button>
+                    </>
+                  )}
+                />
+                <DataTable
+                  columns={DASHBOARD_VEHICLE_COLUMNS}
+                  rows={canSeeVehicleAssignments ? dashboardVehicles.assignments : EMPTY_DASHBOARD_VEHICLES}
+                  getRowKey={(row) => row.assignment_id}
+                  permissions={permissions}
+                  isLoading={dashboardVehicles.isLoading}
+                  error={dashboardVehicles.error}
+                  dense
+                  minWidth="760px"
+                  emptyTitle={canSeeVehicleAssignments ? 'No vehicles assigned to you' : 'Vehicle assignments unavailable'}
+                  emptyDescription={canSeeVehicleAssignments
+                    ? 'Vehicle assignments will appear here when an active or historical row references your user profile.'
+                    : 'Ask a developer to grant employee or vehicle management access if you should see vehicle assignment rows.'}
+                />
+              </article>
               <StatePanel
                 eyebrow="My Vehicles"
                 title="Department vehicles for direct reports"
