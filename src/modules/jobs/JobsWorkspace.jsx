@@ -89,6 +89,12 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   error: null,
   success: '',
 });
+const DEFAULT_BUDGET_IMPORT = Object.freeze({
+  file: null,
+  isImporting: false,
+  error: null,
+  success: '',
+});
 const EMPTY_SCHEDULE_ITEMS = Object.freeze([]);
 const SCHEDULE_STATUS_OPTIONS = ['pending', 'in_progress', 'complete', 'delayed'];
 const DEFAULT_SCHEDULE_FORM = Object.freeze({
@@ -580,6 +586,109 @@ function parseOptionalNumber(value) {
   if (value === '' || value === null || value === undefined) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeImportHeader(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeCostCode(value) {
+  const withoutCommas = String(value || '').trim().toUpperCase().replace(/,/g, '').replace(/\s+/g, '');
+  const withoutDecimalZeros = withoutCommas.replace(/\.0+$/, '');
+  return withoutDecimalZeros.replace(/[^A-Z0-9]/g, '');
+}
+
+function parseMoneyValue(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const isParenthesesNegative = /^\(.*\)$/.test(raw);
+  const cleaned = raw.replace(/[,$%\s()]/g, '');
+  const parsed = Number(cleaned);
+  if (!Number.isFinite(parsed)) return null;
+  return isParenthesesNegative ? -parsed : parsed;
+}
+
+function detectDelimiter(line) {
+  const candidates = [',', '\t', ';', '|'];
+  return candidates
+    .map((delimiter) => ({
+      delimiter,
+      count: parseDelimitedLine(line, delimiter).length,
+    }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter || ',';
+}
+
+function parseDelimitedLine(line, delimiter) {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    const nextCharacter = line[index + 1];
+
+    if (character === '"' && inQuotes && nextCharacter === '"') {
+      current += '"';
+      index += 1;
+    } else if (character === '"') {
+      inQuotes = !inQuotes;
+    } else if (character === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += character;
+    }
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+function parseDelimitedText(text) {
+  const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = parseDelimitedLine(lines[0], delimiter).map(normalizeImportHeader);
+
+  return lines.slice(1).map((line) => {
+    const cells = parseDelimitedLine(line, delimiter);
+    return headers.reduce((row, header, index) => {
+      row[header] = cells[index] ?? '';
+      return row;
+    }, {});
+  });
+}
+
+function firstPresentValue(row, headerCandidates) {
+  const key = headerCandidates.find((candidate) => row[candidate] !== undefined);
+  return key ? row[key] : '';
+}
+
+function actualsByCostCodeFromReport(text) {
+  const rows = parseDelimitedText(text);
+  if (!rows.length) {
+    throw new Error('The cost report needs a header row and at least one data row.');
+  }
+
+  const costCodeHeaders = ['costcode', 'costcodes', 'code', 'costcodedescription', 'phasecode', 'phase', 'jobcostcode', 'costtypecode'];
+  const actualHeaders = ['actual', 'actualcost', 'actualcosts', 'actualcostamount', 'actualamount', 'jobtodatecost', 'jtdcost', 'costtodate', 'cost'];
+  const actualsByCode = new Map();
+  let parsedRows = 0;
+
+  rows.forEach((row) => {
+    const costCode = normalizeCostCode(firstPresentValue(row, costCodeHeaders));
+    const actual = parseMoneyValue(firstPresentValue(row, actualHeaders));
+    if (!costCode || actual === null) return;
+    parsedRows += 1;
+    actualsByCode.set(costCode, (actualsByCode.get(costCode) || 0) + actual);
+  });
+
+  if (!parsedRows) {
+    throw new Error('The cost report needs a cost code column and an actual cost column.');
+  }
+
+  return actualsByCode;
 }
 
 function sumField(rows, field) {
@@ -1358,6 +1467,7 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
+  const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
@@ -1477,6 +1587,7 @@ export function JobsWorkspace({ permissions }) {
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
+    setBudgetImport(DEFAULT_BUDGET_IMPORT);
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
   }
 
@@ -2078,6 +2189,90 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Job budget archive failed', error);
       setBudgetForm((current) => ({ ...current, error, success: '' }));
+    }
+  }
+
+  async function handleBudgetImport(event) {
+    event.preventDefault();
+
+    if (!selectedJob || !canApproveSelectedBudget || budgetImport.isImporting) return;
+
+    if (!budgetImport.file) {
+      setBudgetImport((current) => ({ ...current, error: new Error('Choose a cost report file before importing.'), success: '' }));
+      return;
+    }
+
+    setBudgetImport((current) => ({ ...current, isImporting: true, error: null, success: '' }));
+
+    try {
+      const reportText = await budgetImport.file.text();
+      const actualsByCode = actualsByCostCodeFromReport(reportText);
+      const linesByCostCode = jobBudget.lines.reduce((map, line) => {
+        const code = normalizeCostCode(line.cost_code);
+        if (!code) return map;
+        const lines = map.get(code) || [];
+        lines.push(line);
+        map.set(code, lines);
+        return map;
+      }, new Map());
+      const updates = [];
+      let matchedCount = 0;
+
+      actualsByCode.forEach((actualCostAmount, costCode) => {
+        const matchingLines = linesByCostCode.get(costCode) || [];
+        if (!matchingLines.length) return;
+        matchedCount += matchingLines.length;
+        matchingLines.forEach((line) => {
+          if (Number(line.actual_cost_amount || 0).toFixed(2) !== Number(actualCostAmount || 0).toFixed(2)) {
+            updates.push({ line, actualCostAmount });
+          }
+        });
+      });
+
+      if (!matchedCount) {
+        throw new Error('No cost codes in the report matched this job financials table.');
+      }
+
+      if (!updates.length) {
+        setBudgetImport({
+          ...DEFAULT_BUDGET_IMPORT,
+          success: `${matchedCount} financial line${matchedCount === 1 ? '' : 's'} matched; no Actual values changed.`,
+        });
+        return;
+      }
+
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+
+      for (const update of updates) {
+        const { line, actualCostAmount } = update;
+        const { data, error } = await client
+          .from('job_budget_lines')
+          .update({ actual_cost_amount: actualCostAmount })
+          .eq('id', line.id)
+          .eq('job_id', selectedJob.id)
+          .select(JOB_BUDGET_SELECT_FIELDS)
+          .single();
+
+        if (error) throw error;
+
+        await writeJobChangeLog(client, {
+          action: 'update',
+          recordId: data?.id || line.id,
+          beforeData: budgetAuditSnapshot(line),
+          afterData: budgetAuditSnapshot(data),
+          note: `Actual cost imported from ${budgetImport.file.name}.`,
+        });
+      }
+
+      setBudgetImport({
+        ...DEFAULT_BUDGET_IMPORT,
+        success: `${updates.length} financial line${updates.length === 1 ? '' : 's'} updated from ${budgetImport.file.name}.`,
+      });
+      jobBudget.reload();
+    } catch (error) {
+      console.error('Job budget import failed', error);
+      setBudgetImport((current) => ({ ...current, isImporting: false, error, success: '' }));
     }
   }
 
@@ -2736,102 +2931,135 @@ export function JobsWorkspace({ permissions }) {
           />
 
           {canApproveSelectedBudget ? (
-            <form className="job-financials-form" onSubmit={handleBudgetSave}>
-              <Toolbar
-                eyebrow={budgetForm.id ? 'Edit' : 'Add'}
-                title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}
-                description="Financials are job planning and forecasting only. This does not post to accounting or create purchase orders."
-                actions={budgetForm.id ? (
-                  <button type="button" className="secondary-button" onClick={resetBudgetForm} disabled={budgetForm.isSaving}>
-                    Cancel Edit
-                  </button>
+            <>
+              <form className="job-financials-form" onSubmit={handleBudgetImport}>
+                <Toolbar
+                  eyebrow="Import"
+                  title="Import cost report"
+                  description="Matches report cost codes to this job and updates Actual only."
+                />
+                <div className="job-financials-form__grid">
+                  <label className="job-financials-form__wide">
+                    <span>Cost report</span>
+                    <input
+                      key={budgetImport.success || 'ready'}
+                      type="file"
+                      accept=".csv,.tsv,.txt"
+                      onChange={(event) => setBudgetImport((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
+                      disabled={budgetImport.isImporting}
+                    />
+                  </label>
+                </div>
+                {budgetImport.error ? (
+                  <StatePanel tone="danger" eyebrow="Import Failed" title="Cost report was not imported" description={budgetImport.error.message || 'Unexpected financial import error.'} compact />
                 ) : null}
-              />
-              <div className="job-financials-form__grid">
-                <label>
-                  <span>Category</span>
-                  <select
-                    value={budgetForm.category}
-                    onChange={(event) => setBudgetForm((current) => ({ ...current, category: event.target.value, error: null, success: '' }))}
-                    disabled={budgetForm.isSaving}
-                  >
-                    {BUDGET_CATEGORY_OPTIONS.map((category) => (
-                      <option key={category} value={category}>{formatBudgetCategory(category)}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Cost code</span>
-                  <input
-                    type="text"
-                    value={budgetForm.cost_code}
-                    onChange={(event) => setBudgetForm((current) => ({ ...current, cost_code: event.target.value, error: null, success: '' }))}
-                    disabled={budgetForm.isSaving}
-                  />
-                </label>
-                <label className="job-financials-form__wide">
-                  <span>Description</span>
-                  <input
-                    type="text"
-                    value={budgetForm.description}
-                    onChange={(event) => setBudgetForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
-                    placeholder="Electrical labor, fixtures, OH&P..."
-                    disabled={budgetForm.isSaving}
-                  />
-                </label>
-                <label>
-                  <span>Original</span>
-                  <input type="number" min="0" step="0.01" value={budgetForm.budget_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
-                </label>
-                <label>
-                  <span>Changes</span>
-                  <input type="number" min="0" step="0.01" value={budgetForm.budget_change_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_change_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
-                </label>
-                <label>
-                  <span>Actual</span>
-                  <input type="number" min="0" step="0.01" value={budgetForm.actual_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, actual_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
-                </label>
-                <label>
-                  <span>Committed</span>
-                  <input type="number" min="0" step="0.01" value={budgetForm.committed_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, committed_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
-                </label>
-                <label>
-                  <span>Forecast</span>
-                  <input type="number" min="0" step="0.01" value={budgetForm.forecast_to_complete_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_to_complete_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
-                </label>
-                <label className="job-financials-form__wide">
-                  <span>Notes</span>
-                  <input
-                    type="text"
-                    value={budgetForm.note}
-                    onChange={(event) => setBudgetForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))}
-                    placeholder="Optional note"
-                    disabled={budgetForm.isSaving}
-                  />
-                </label>
-                <label className="job-financials-form__wide">
-                  <span>Change reason</span>
-                  <input
-                    type="text"
-                    value={budgetForm.change_reason}
-                    onChange={(event) => setBudgetForm((current) => ({ ...current, change_reason: event.target.value, error: null, success: '' }))}
-                    placeholder="Required for original budget, cost code, description, or category edits"
-                    disabled={budgetForm.isSaving}
-                  />
-                </label>
-              </div>
-              {budgetForm.error ? (
-                <StatePanel tone="danger" eyebrow="Financial Save Failed" title="Line was not saved" description={budgetForm.error.message || 'Unexpected financials error.'} compact />
-              ) : null}
-              {budgetForm.success ? (
-                <StatePanel tone="success" eyebrow="Saved" title="Financial line saved" description={budgetForm.success} compact />
-              ) : null}
-              <div className="job-financials-form__actions">
-                <button type="submit" className="primary-button" disabled={budgetForm.isSaving || !budgetForm.description.trim()}>
-                  <Plus aria-hidden="true" /> {budgetForm.isSaving ? 'Saving...' : budgetForm.id ? 'Save Financial Line' : 'Add Financial Line'}
-                </button>
-              </div>
-            </form>
+                {budgetImport.success ? (
+                  <StatePanel tone="success" eyebrow="Imported" title="Actual costs updated" description={budgetImport.success} compact />
+                ) : null}
+                <div className="job-financials-form__actions">
+                  <button type="submit" className="secondary-button" disabled={budgetImport.isImporting || !budgetImport.file || jobBudget.isLoading}>
+                    {budgetImport.isImporting ? 'Importing...' : 'Import Cost Report'}
+                  </button>
+                </div>
+              </form>
+
+              <form className="job-financials-form" onSubmit={handleBudgetSave}>
+                <Toolbar
+                  eyebrow={budgetForm.id ? 'Edit' : 'Add'}
+                  title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}
+                  description="Financials are job planning and forecasting only. This does not post to accounting or create purchase orders."
+                  actions={budgetForm.id ? (
+                    <button type="button" className="secondary-button" onClick={resetBudgetForm} disabled={budgetForm.isSaving}>
+                      Cancel Edit
+                    </button>
+                  ) : null}
+                />
+                <div className="job-financials-form__grid">
+                  <label>
+                    <span>Category</span>
+                    <select
+                      value={budgetForm.category}
+                      onChange={(event) => setBudgetForm((current) => ({ ...current, category: event.target.value, error: null, success: '' }))}
+                      disabled={budgetForm.isSaving}
+                    >
+                      {BUDGET_CATEGORY_OPTIONS.map((category) => (
+                        <option key={category} value={category}>{formatBudgetCategory(category)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Cost code</span>
+                    <input
+                      type="text"
+                      value={budgetForm.cost_code}
+                      onChange={(event) => setBudgetForm((current) => ({ ...current, cost_code: event.target.value, error: null, success: '' }))}
+                      disabled={budgetForm.isSaving}
+                    />
+                  </label>
+                  <label className="job-financials-form__wide">
+                    <span>Description</span>
+                    <input
+                      type="text"
+                      value={budgetForm.description}
+                      onChange={(event) => setBudgetForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
+                      placeholder="Electrical labor, fixtures, OH&P..."
+                      disabled={budgetForm.isSaving}
+                    />
+                  </label>
+                  <label>
+                    <span>Original</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.budget_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label>
+                    <span>Changes</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.budget_change_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_change_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label>
+                    <span>Actual</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.actual_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, actual_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label>
+                    <span>Committed</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.committed_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, committed_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label>
+                    <span>Forecast</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.forecast_to_complete_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_to_complete_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label className="job-financials-form__wide">
+                    <span>Notes</span>
+                    <input
+                      type="text"
+                      value={budgetForm.note}
+                      onChange={(event) => setBudgetForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))}
+                      placeholder="Optional note"
+                      disabled={budgetForm.isSaving}
+                    />
+                  </label>
+                  <label className="job-financials-form__wide">
+                    <span>Change reason</span>
+                    <input
+                      type="text"
+                      value={budgetForm.change_reason}
+                      onChange={(event) => setBudgetForm((current) => ({ ...current, change_reason: event.target.value, error: null, success: '' }))}
+                      placeholder="Required for original budget, cost code, description, or category edits"
+                      disabled={budgetForm.isSaving}
+                    />
+                  </label>
+                </div>
+                {budgetForm.error ? (
+                  <StatePanel tone="danger" eyebrow="Financial Save Failed" title="Line was not saved" description={budgetForm.error.message || 'Unexpected financials error.'} compact />
+                ) : null}
+                {budgetForm.success ? (
+                  <StatePanel tone="success" eyebrow="Saved" title="Financial line saved" description={budgetForm.success} compact />
+                ) : null}
+                <div className="job-financials-form__actions">
+                  <button type="submit" className="primary-button" disabled={budgetForm.isSaving || !budgetForm.description.trim()}>
+                    <Plus aria-hidden="true" /> {budgetForm.isSaving ? 'Saving...' : budgetForm.id ? 'Save Financial Line' : 'Add Financial Line'}
+                  </button>
+                </div>
+              </form>
+            </>
           ) : (
             <StatePanel
               tone="neutral"

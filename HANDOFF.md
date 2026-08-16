@@ -19126,3 +19126,54 @@ Jobs, Buyout, Financials, Documents, and Schedule actions.
 ### Next Steps
 1. Ryan verifies the History tab loads and shows recent job activity.
 2. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 194 — Jobs Financials Cost Report Import
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the Jobs History tab and asked to proceed. A previously requested
+Financials gap was an "Import Cost Report" function that updates the `Actual`
+column from an accounting/export file.
+
+### What Was Completed
+- Added an `Import cost report` form to the Jobs Financials tab.
+- The importer:
+  - accepts `.csv`, `.tsv`, and `.txt` files
+  - detects comma, tab, semicolon, or pipe delimiters
+  - parses quoted delimited rows
+  - recognizes common cost-code and actual-cost column headers
+  - normalizes cost codes for matching, including accounting-style numeric
+    values such as `16,050.00`
+  - aggregates repeated cost-code rows before updating Financials
+  - updates only `actual_cost_amount`
+  - skips matched rows where the Actual value is already current
+  - writes a `change_logs` audit entry for every updated line
+- The import path uses the existing Financials edit permission gate
+  (`canApproveSelectedBudget`) and existing `job_budget_lines` RLS/update path.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No schema change was made in this slice.
+- No RLS policy was changed in this slice.
+- Import is intentionally limited to the `Actual` column; original budget, cost
+  code, description, category, committed, forecast, and change orders still use
+  the manual edit path.
+- Audit entries use the same client-side `change_logs` helper as other
+  Financials edits.
+
+### Next Steps
+1. Ryan tests importing a cost report with matching cost codes.
+2. Continue Jobs cleanup with the next remaining gap.
