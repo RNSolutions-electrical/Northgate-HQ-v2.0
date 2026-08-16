@@ -14,6 +14,31 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_TOOLS = Object.freeze([]);
 
+const TOOL_CONDITION_OPTIONS = ['unknown', 'good', 'fair', 'poor', 'damaged'];
+const TOOL_STATUS_OPTIONS = ['active', 'inactive', 'retired', 'missing'];
+
+const DEFAULT_TOOL_FORM = Object.freeze({
+  id: '',
+  tool_number: '',
+  name: '',
+  category: '',
+  brand: '',
+  model: '',
+  serial_number: '',
+  description: '',
+  condition: 'unknown',
+  status: 'active',
+  home_location: '',
+  current_location: '',
+  assigned_to: '',
+  purchase_date: '',
+  notes: '',
+  archive_reason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
 const TOOL_SELECT_FIELDS = [
   'id',
   'division',
@@ -82,6 +107,46 @@ function toolSearchText(tool) {
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
+function toolToForm(tool) {
+  return {
+    ...DEFAULT_TOOL_FORM,
+    id: tool.id,
+    tool_number: tool.tool_number ?? '',
+    name: tool.name ?? '',
+    category: tool.category ?? '',
+    brand: tool.brand ?? '',
+    model: tool.model ?? '',
+    serial_number: tool.serial_number ?? '',
+    description: tool.description ?? '',
+    condition: tool.condition ?? 'unknown',
+    status: tool.status ?? 'active',
+    home_location: tool.home_location ?? '',
+    current_location: tool.current_location ?? '',
+    assigned_to: tool.assigned_to ?? '',
+    purchase_date: tool.purchase_date ?? '',
+    notes: tool.notes ?? '',
+  };
+}
+
+function toolPayloadFromForm(form) {
+  return {
+    tool_number: form.tool_number.trim() || null,
+    name: form.name.trim(),
+    category: form.category.trim() || null,
+    brand: form.brand.trim() || null,
+    model: form.model.trim() || null,
+    serial_number: form.serial_number.trim() || null,
+    description: form.description.trim() || null,
+    condition: TOOL_CONDITION_OPTIONS.includes(form.condition) ? form.condition : 'unknown',
+    status: TOOL_STATUS_OPTIONS.includes(form.status) ? form.status : 'active',
+    home_location: form.home_location.trim() || null,
+    current_location: form.current_location.trim() || null,
+    assigned_to: form.assigned_to.trim() || null,
+    purchase_date: form.purchase_date || null,
+    notes: form.notes.trim() || null,
+  };
+}
+
 function useToolCatalogue({ enabled }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -146,11 +211,13 @@ function useToolCatalogue({ enabled }) {
 }
 
 export function ToolsWorkspace({ permissions }) {
+  const { getToken } = useAuth();
   const catalogue = useToolCatalogue({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('active');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedToolId, setSelectedToolId] = useState('');
   const [search, setSearch] = useState('');
+  const [toolForm, setToolForm] = useState(DEFAULT_TOOL_FORM);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -180,6 +247,9 @@ export function ToolsWorkspace({ permissions }) {
   const selectedTool = filteredTools.find((tool) => tool.id === selectedToolId)
     ?? tools.find((tool) => tool.id === selectedToolId)
     ?? null;
+  const canManageToolCatalogue = permissions.permissionSource === 'server'
+    && permissions.canManageInventory === true
+    && Boolean(permissions.division);
 
   useEffect(() => {
     if (selectedToolId && !tools.some((tool) => tool.id === selectedToolId)) {
@@ -191,6 +261,147 @@ export function ToolsWorkspace({ permissions }) {
     setSelectedToolId(tool.id);
     setActiveTab('overview');
   }
+
+  function resetToolForm() {
+    setToolForm(DEFAULT_TOOL_FORM);
+  }
+
+  function setToolFormValue(key, value) {
+    setToolForm((current) => ({ ...current, [key]: value, error: null, success: '' }));
+  }
+
+  function startToolEdit(tool) {
+    setSelectedToolId(tool.id);
+    setActiveTab('overview');
+    setToolForm(toolToForm(tool));
+  }
+
+  async function getToolClient() {
+    const token = await getToken({ template: 'supabase' });
+    return createSupabaseClient(token);
+  }
+
+  async function handleToolSave(event) {
+    event.preventDefault();
+    if (!canManageToolCatalogue || toolForm.isSaving) return;
+
+    if (!toolForm.name.trim()) {
+      setToolForm((current) => ({ ...current, error: new Error('Enter a tool name before saving.') }));
+      return;
+    }
+
+    if (!permissions.division) {
+      setToolForm((current) => ({ ...current, error: new Error('Your session does not include a division, so tool saves are blocked.') }));
+      return;
+    }
+
+    const existingTool = toolForm.id ? tools.find((tool) => tool.id === toolForm.id) : null;
+    if (existingTool && existingTool.division !== permissions.division) {
+      setToolForm((current) => ({ ...current, error: new Error('This tool belongs to another division, so your current session cannot edit it.') }));
+      return;
+    }
+
+    setToolForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getToolClient();
+      const payload = toolPayloadFromForm(toolForm);
+      const query = toolForm.id
+        ? client
+          .from('tools')
+          .update(payload)
+          .eq('id', toolForm.id)
+          .select(TOOL_SELECT_FIELDS)
+          .single()
+        : client
+          .from('tools')
+          .insert({ ...payload, division: permissions.division })
+          .select(TOOL_SELECT_FIELDS)
+          .single();
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      catalogue.reload();
+      setSelectedToolId(data?.id ?? toolForm.id);
+      setToolForm({
+        ...DEFAULT_TOOL_FORM,
+        success: `${payload.name} ${toolForm.id ? 'updated' : 'added'} in Tool Catalogue.`,
+      });
+    } catch (error) {
+      console.error('Tool save failed', error);
+      setToolForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleToolArchive(tool) {
+    if (!canManageToolCatalogue || toolForm.isSaving) return;
+
+    if (tool.division !== permissions.division) {
+      setToolForm((current) => ({ ...current, error: new Error('This tool belongs to another division, so your current session cannot archive it.'), success: '' }));
+      return;
+    }
+
+    const isArchived = Boolean(tool.archived_at);
+    const archiveReason = toolForm.id === tool.id ? toolForm.archive_reason.trim() : '';
+    if (!isArchived && !archiveReason) {
+      setSelectedToolId(tool.id);
+      setToolForm({
+        ...toolToForm(tool),
+        error: new Error('Enter an archive reason in the form before archiving this tool.'),
+      });
+      return;
+    }
+
+    setToolForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getToolClient();
+      const { error } = await client
+        .from('tools')
+        .update(isArchived
+          ? { archived_at: null, archived_by: null, archive_reason: null }
+          : {
+            archived_at: new Date().toISOString(),
+            archived_by: permissions.userId,
+            archive_reason: archiveReason,
+          })
+        .eq('id', tool.id);
+
+      if (error) throw error;
+
+      catalogue.reload();
+      setToolForm({
+        ...DEFAULT_TOOL_FORM,
+        success: `${toolLabel(tool)} ${isArchived ? 'restored' : 'archived'} in Tool Catalogue.`,
+      });
+    } catch (error) {
+      console.error('Tool archive failed', error);
+      setToolForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  const toolColumns = [
+    ...TOOL_COLUMNS,
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: '180px',
+      render: (row) => {
+        const canMutateRow = canManageToolCatalogue && row.division === permissions.division;
+        return (
+          <div className="tool-catalogue-actions" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="secondary-button" onClick={() => startToolEdit(row)} disabled={!canMutateRow || toolForm.isSaving}>
+              Edit
+            </button>
+            <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleToolArchive(row)} disabled={!canMutateRow || toolForm.isSaving}>
+              {row.archived_at ? 'Restore' : 'Archive'}
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <>
@@ -207,7 +418,7 @@ export function ToolsWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={catalogue.reload} disabled={catalogue.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" disabled>
+            <button type="button" className="primary-button" onClick={resetToolForm} disabled={!canManageToolCatalogue || toolForm.isSaving}>
               <Plus aria-hidden="true" /> Add tool
             </button>
           </>
@@ -261,7 +472,7 @@ export function ToolsWorkspace({ permissions }) {
             />
 
             <DataTable
-              columns={TOOL_COLUMNS}
+              columns={toolColumns}
               rows={filteredTools}
               getRowKey={(row) => row.id}
               permissions={permissions}
@@ -352,11 +563,104 @@ export function ToolsWorkspace({ permissions }) {
             )}
           </article>
 
+          <form className="tool-catalogue-form" onSubmit={handleToolSave}>
+            <Toolbar
+              eyebrow={toolForm.id ? 'Edit' : 'Add'}
+              title={toolForm.id ? 'Edit catalogue tool' : 'Add catalogue tool'}
+              description={canManageToolCatalogue
+                ? `Tool writes are scoped to ${permissions.division}. Checkout and custody workflows remain deferred.`
+                : 'Tool catalogue writes require inventory management permission and a current division.'}
+              actions={toolForm.id ? (
+                <button type="button" className="secondary-button" onClick={resetToolForm} disabled={toolForm.isSaving}>
+                  Cancel Edit
+                </button>
+              ) : null}
+              dense
+            />
+            <div className="tool-catalogue-form__grid">
+              <label>
+                <span>Name</span>
+                <input type="text" value={toolForm.name} onChange={(event) => setToolFormValue('name', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} required />
+              </label>
+              <label>
+                <span>Tool #</span>
+                <input type="text" value={toolForm.tool_number} onChange={(event) => setToolFormValue('tool_number', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Category</span>
+                <input type="text" value={toolForm.category} onChange={(event) => setToolFormValue('category', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Status</span>
+                <select value={toolForm.status} onChange={(event) => setToolFormValue('status', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving}>
+                  {TOOL_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Brand</span>
+                <input type="text" value={toolForm.brand} onChange={(event) => setToolFormValue('brand', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Model</span>
+                <input type="text" value={toolForm.model} onChange={(event) => setToolFormValue('model', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Serial #</span>
+                <input type="text" value={toolForm.serial_number} onChange={(event) => setToolFormValue('serial_number', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Condition</span>
+                <select value={toolForm.condition} onChange={(event) => setToolFormValue('condition', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving}>
+                  {TOOL_CONDITION_OPTIONS.map((condition) => <option key={condition} value={condition}>{condition}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Home Location</span>
+                <input type="text" value={toolForm.home_location} onChange={(event) => setToolFormValue('home_location', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Current Location</span>
+                <input type="text" value={toolForm.current_location} onChange={(event) => setToolFormValue('current_location', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Assigned To</span>
+                <input type="text" value={toolForm.assigned_to} onChange={(event) => setToolFormValue('assigned_to', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label>
+                <span>Purchase Date</span>
+                <input type="date" value={toolForm.purchase_date} onChange={(event) => setToolFormValue('purchase_date', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label className="tool-catalogue-form__wide">
+                <span>Description</span>
+                <textarea rows={3} value={toolForm.description} onChange={(event) => setToolFormValue('description', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label className="tool-catalogue-form__wide">
+                <span>Notes</span>
+                <textarea rows={3} value={toolForm.notes} onChange={(event) => setToolFormValue('notes', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
+              </label>
+              <label className="tool-catalogue-form__wide">
+                <span>Archive Reason</span>
+                <textarea rows={2} value={toolForm.archive_reason} onChange={(event) => setToolFormValue('archive_reason', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} placeholder="Required before archiving a tool." />
+              </label>
+            </div>
+            {toolForm.error ? (
+              <StatePanel tone="danger" eyebrow="Tool Save Failed" title="Tool action did not complete" description={toolForm.error.message || 'Unexpected tool catalogue error.'} compact />
+            ) : null}
+            {toolForm.success ? (
+              <StatePanel tone="success" eyebrow="Saved" title="Tool catalogue updated" description={toolForm.success} compact />
+            ) : null}
+            <div className="tool-catalogue-form__actions">
+              <button type="submit" className="primary-button" disabled={!canManageToolCatalogue || toolForm.isSaving || !toolForm.name.trim()}>
+                <Plus aria-hidden="true" /> {toolForm.isSaving ? 'Saving...' : toolForm.id ? 'Save Tool' : 'Add Tool'}
+              </button>
+            </div>
+          </form>
+
           <section className="tools-boundary-grid">
             <StatePanel
               eyebrow="Boundary"
-              title="Add/Edit remains deferred"
-              description="The existing table supports catalogue writes through RLS, but this v3 pass does not port create/edit/archive controls yet."
+              title="Catalogue writes are active"
+              description="Add, edit, archive, and restore now use the existing public.tools table and its inventory-manager division RLS."
               compact
             />
             <StatePanel
