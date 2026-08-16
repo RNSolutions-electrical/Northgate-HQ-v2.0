@@ -660,19 +660,67 @@ function parseDelimitedText(text) {
   });
 }
 
+function pdfTextItemsToLines(items) {
+  const positioned = items
+    .map((item) => ({
+      text: String(item.str || '').trim(),
+      x: Number(item.transform?.[4]) || 0,
+      y: Number(item.transform?.[5]) || 0,
+    }))
+    .filter((item) => item.text);
+  const rows = [];
+
+  positioned
+    .sort((a, b) => (Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x))
+    .forEach((item) => {
+      const row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2);
+      if (row) {
+        row.items.push(item);
+      } else {
+        rows.push({ y: item.y, items: [item] });
+      }
+    });
+
+  return rows
+    .sort((a, b) => b.y - a.y)
+    .map((row) => row.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(' '))
+    .join('\n');
+}
+
+async function extractImportTextFromFile(file) {
+  if (!file) return '';
+
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf) return file.text();
+
+  const [pdfjsLib, pdfjsWorker] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.mjs?url'),
+  ]);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
+  const document = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const pageTexts = [];
+
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    pageTexts.push(pdfTextItemsToLines(textContent.items));
+  }
+
+  return pageTexts.join('\n');
+}
+
 function firstPresentValue(row, headerCandidates) {
   const key = headerCandidates.find((candidate) => row[candidate] !== undefined);
   return key ? row[key] : '';
 }
 
-function actualsByCostCodeFromReport(text) {
+function actualsByCostCodeFromDelimitedReport(text) {
   const rows = parseDelimitedText(text);
-  if (!rows.length) {
-    throw new Error('The cost report needs a header row and at least one data row.');
-  }
+  if (!rows.length) return null;
 
   const costCodeHeaders = ['costcode', 'costcodes', 'code', 'costcodedescription', 'phasecode', 'phase', 'jobcostcode', 'costtypecode'];
-  const actualHeaders = ['actual', 'actualcost', 'actualcosts', 'actualcostamount', 'actualamount', 'jobtodatecost', 'jtdcost', 'costtodate', 'cost'];
+  const actualHeaders = ['actual', 'actualcost', 'actualcosts', 'actualcostamount', 'actualamount', 'jobtodatecost', 'jtdcost', 'costtodate', 'cost', 'actcost'];
   const actualsByCode = new Map();
   let parsedRows = 0;
 
@@ -684,11 +732,37 @@ function actualsByCostCodeFromReport(text) {
     actualsByCode.set(costCode, (actualsByCode.get(costCode) || 0) + actual);
   });
 
-  if (!parsedRows) {
-    throw new Error('The cost report needs a cost code column and an actual cost column.');
-  }
+  return parsedRows ? actualsByCode : null;
+}
 
-  return actualsByCode;
+function actualsByCostCodeFromEstimateActualsText(text) {
+  const actualsByCode = new Map();
+  const rowPattern = /^(\d{1,3}(?:\.\d+)*)\s+.+?\s+(-?\(?\$?[\d,]+\.\d{2}\)?)\s+(-?\(?\$?[\d,]+\.\d{2}\)?)\s+(-?\(?\$?[\d,]+\.\d{2}\)?)\s+(-?\(?\$?[\d,]+\.\d{2}\)?)$/;
+
+  String(text || '').split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || /^total\b/i.test(trimmed)) return;
+
+    const match = trimmed.match(rowPattern);
+    if (!match) return;
+
+    const costCode = normalizeCostCode(match[1]);
+    const actual = parseMoneyValue(match[3]);
+    if (!costCode || actual === null) return;
+
+    actualsByCode.set(costCode, (actualsByCode.get(costCode) || 0) + actual);
+  });
+
+  return actualsByCode.size ? actualsByCode : null;
+}
+
+function actualsByCostCodeFromReport(text) {
+  const actualsByCode = actualsByCostCodeFromDelimitedReport(text)
+    || actualsByCostCodeFromEstimateActualsText(text);
+
+  if (actualsByCode) return actualsByCode;
+
+  throw new Error('The cost report needs cost-code rows and actual-cost values.');
 }
 
 function sumField(rows, field) {
@@ -2205,7 +2279,7 @@ export function JobsWorkspace({ permissions }) {
     setBudgetImport((current) => ({ ...current, isImporting: true, error: null, success: '' }));
 
     try {
-      const reportText = await budgetImport.file.text();
+      const reportText = await extractImportTextFromFile(budgetImport.file);
       const actualsByCode = actualsByCostCodeFromReport(reportText);
       const linesByCostCode = jobBudget.lines.reduce((map, line) => {
         const code = normalizeCostCode(line.cost_code);
@@ -2944,7 +3018,7 @@ export function JobsWorkspace({ permissions }) {
                     <input
                       key={budgetImport.success || 'ready'}
                       type="file"
-                      accept=".csv,.tsv,.txt"
+                      accept=".csv,.tsv,.txt,.pdf,application/pdf"
                       onChange={(event) => setBudgetImport((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
                       disabled={budgetImport.isImporting}
                     />

@@ -19177,3 +19177,65 @@ column from an accounting/export file.
 ### Next Steps
 1. Ryan tests importing a cost report with matching cost codes.
 2. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 195 — Jobs Financials PDF Cost Report Import
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan provided a sample PDF cost report:
+`Report_from_Northgate_Group_Construction_Company_LLC (Toro).pdf`. The
+Financials import path needed to read this PDF format, not just CSV/TSV text
+exports.
+
+### What Was Completed
+- Added `pdfjs-dist` as a pinned client dependency.
+- Updated the Financials cost report importer to accept PDF files.
+- PDF.js is lazy-loaded only when a PDF is imported.
+- Added PDF text extraction that groups positioned text items into readable
+  lines.
+- Added support for Northgate "Job Estimates vs. Actuals Detail" rows shaped
+  like:
+  - cost code
+  - description
+  - estimated cost
+  - actual cost
+  - difference
+  - actual revenue
+- The parser uses the second money column as `Actual`.
+- Total rows and non-cost-code rows are ignored.
+- Existing CSV/TSV/TXT import support remains intact.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `package.json`
+- `package-lock.json`
+- `HANDOFF.md`
+
+### Verification
+- Extracted the provided Toro PDF with `pdfplumber`.
+- Sanity check found 46 cost-code rows, including:
+  - `16.1 -> 743.12`
+  - `16.11 -> 279.43`
+  - `16.4 -> 704.40`
+  - `16.6 -> 885.68`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No schema change was made in this slice.
+- No RLS policy was changed in this slice.
+- `npm audit --omit=dev` could not complete because the registry audit endpoint
+  returned an error in this environment.
+- The build now emits a separate PDF.js chunk/worker. This is expected and keeps
+  PDF parsing out of the normal app path until a PDF import is used.
+
+### Next Steps
+1. Ryan tests importing the Toro PDF into a job with matching Financials cost
+   codes.
+2. Continue Jobs cleanup with the next remaining gap.
