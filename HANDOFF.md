@@ -18956,3 +18956,69 @@ gap was Documents archive, which was still disabled as `Archive Pending`.
 1. Ryan verifies archiving a job document requires a reason and removes it from
    the visible document list/checklist.
 2. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 191 — Jobs Schedule Audit and Archive RPC
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified Documents archive and asked to proceed. The next Jobs cleanup gap
+was Schedule: create/edit/reorder actions were not writing audit entries, and
+archive still used a direct table update against active-row RLS.
+
+### What Was Completed
+- Added schedule audit snapshots for `job_schedule_items`.
+- Updated Schedule create/edit to:
+  - return the saved row
+  - write `change_logs` entries for create and update
+  - include schedule date, duration, dependency, status, order, note, and
+    archive metadata in audit snapshots
+- Updated Schedule reorder to write a `change_logs` update entry for the moved
+  schedule item.
+- Added `public.archive_job_schedule_item(p_schedule_item_id uuid, p_reason text)`.
+- The RPC:
+  - requires an authenticated Clerk subject
+  - requires a non-empty archive reason
+  - locks an active schedule item row
+  - validates effective `can_manage_jobs` for the schedule item division
+  - sets `archived_at`, `archived_by`, and `archive_reason`
+  - writes the `change_logs` archive entry in the same transaction
+- Updated the Schedule archive button to call the RPC instead of directly
+  updating `job_schedule_items`.
+
+### Schema Changes
+- Added migration:
+  - `supabase/migrations/20260815215341_archive_job_schedule_item_rpc.sql`
+- Applied production migration:
+  - `archive_job_schedule_item_rpc`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `supabase/migrations/20260815215341_archive_job_schedule_item_rpc.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production function signature verified:
+  - `archive_job_schedule_item(p_schedule_item_id uuid, p_reason text) returns void`
+  - `SECURITY DEFINER = true`
+- Production routine grants verified:
+  - `authenticated` has `EXECUTE`
+  - `anon` does not have `EXECUTE`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No existing RLS policy was changed in this slice.
+- Schedule archive is RPC-backed to avoid active-row RLS disappearance issues.
+- Schedule create/edit/reorder audit writes remain client-side `change_logs`
+  inserts until the final RLS/security pass determines broader atomic audit
+  requirements.
+
+### Next Steps
+1. Ryan verifies adding, editing, moving, and archiving Schedule items.
+2. Continue Jobs cleanup with the next remaining gap.

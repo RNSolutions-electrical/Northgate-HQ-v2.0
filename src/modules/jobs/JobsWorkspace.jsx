@@ -203,6 +203,9 @@ const JOB_SCHEDULE_SELECT_FIELDS = [
   'division',
   'created_at',
   'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
   'title',
   'description',
   'target_date',
@@ -1135,6 +1138,31 @@ function budgetAuditSnapshot(row) {
   };
 }
 
+function scheduleAuditSnapshot(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    job_id: row.job_id,
+    division: row.division,
+    title: row.title,
+    description: row.description,
+    target_date: row.target_date,
+    initial_start_date: row.initial_start_date,
+    actual_start_date: row.actual_start_date,
+    initial_completion_date: row.initial_completion_date,
+    actual_completion_date: row.actual_completion_date,
+    duration_days: row.duration_days,
+    dependencies: row.dependencies,
+    status: row.status,
+    sort_order: row.sort_order,
+    note: row.note,
+    archived_at: row.archived_at,
+    archived_by: row.archived_by,
+    archive_reason: row.archive_reason,
+  };
+}
+
 function normalizeBudgetProtectedValue(value) {
   return value === null || value === undefined ? '' : String(value);
 }
@@ -1949,18 +1977,33 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
+      const existingRow = scheduleForm.id
+        ? jobSchedule.items.find((item) => item.id === scheduleForm.id)
+        : null;
       const query = scheduleForm.id
         ? client
           .from('job_schedule_items')
           .update(payload)
           .eq('id', scheduleForm.id)
           .eq('job_id', selectedJob.id)
+          .select(JOB_SCHEDULE_SELECT_FIELDS)
+          .single()
         : client
           .from('job_schedule_items')
-          .insert({ ...payload, created_by: createdBy });
-      const { error } = await query;
+          .insert({ ...payload, created_by: createdBy })
+          .select(JOB_SCHEDULE_SELECT_FIELDS)
+          .single();
+      const { data, error } = await query;
 
       if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: scheduleForm.id ? 'update' : 'create',
+        recordId: data?.id || scheduleForm.id,
+        beforeData: scheduleAuditSnapshot(existingRow),
+        afterData: scheduleAuditSnapshot(data),
+        note: `${payload.title} ${scheduleForm.id ? 'updated' : 'added'} in Schedule.`,
+      });
 
       setScheduleForm({
         ...DEFAULT_SCHEDULE_FORM,
@@ -1979,21 +2022,15 @@ export function JobsWorkspace({ permissions }) {
     const reason = window.prompt(`Archive "${row.title || 'this schedule item'}"? Enter a reason.`);
     if (!reason?.trim()) return;
 
-    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
     setScheduleAction({ id: row.id, action: 'archive', error: null });
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client
-        .from('job_schedule_items')
-        .update({
-          archived_at: new Date().toISOString(),
-          archived_by: archivedBy,
-          archive_reason: reason.trim(),
-        })
-        .eq('id', row.id)
-        .eq('job_id', selectedJob.id);
+      const { error } = await client.rpc('archive_job_schedule_item', {
+        p_schedule_item_id: row.id,
+        p_reason: reason.trim(),
+      });
 
       if (error) throw error;
 
@@ -2028,6 +2065,18 @@ export function JobsWorkspace({ permissions }) {
         .eq('job_id', selectedJob.id)));
       const failedResult = results.find((result) => result.error);
       if (failedResult?.error) throw failedResult.error;
+
+      const movedRow = reorderedItems.find((item) => item.id === row.id);
+      await writeJobChangeLog(client, {
+        action: 'update',
+        recordId: row.id,
+        beforeData: scheduleAuditSnapshot(row),
+        afterData: scheduleAuditSnapshot({
+          ...movedRow,
+          sort_order: (nextIndex + 1) * 10,
+        }),
+        note: `${row.title || 'Schedule item'} moved ${direction}.`,
+      });
 
       setScheduleAction({ id: '', action: '', error: null });
       jobSchedule.reload();
