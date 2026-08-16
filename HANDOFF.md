@@ -18896,3 +18896,63 @@ categories require a reason.
 3. Ryan verifies archiving a Financials row requires a reason and removes it
    from the visible list.
 4. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 190 — Jobs Documents Archive RPC
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified Financials hardening and asked to proceed. The next visible Jobs
+gap was Documents archive, which was still disabled as `Archive Pending`.
+
+### What Was Completed
+- Added `public.archive_job_document(p_document_id uuid, p_reason text)`.
+- The RPC:
+  - requires an authenticated Clerk subject
+  - requires a non-empty archive reason
+  - locks an active job-owned document row
+  - validates effective `can_manage_jobs` for the document division
+  - sets `archived_at`, `archived_by`, and `archive_reason`
+  - writes the `change_logs` archive entry in the same transaction
+- Updated the Jobs Documents tab:
+  - removed the disabled `Archive Pending` button
+  - added live Archive action with a required reason prompt
+  - reloads the document list after archive
+- Expanded the document select fields to include division/archive metadata.
+
+### Schema Changes
+- Added migration:
+  - `supabase/migrations/20260815214742_archive_job_document_rpc.sql`
+- Applied production migration:
+  - `archive_job_document_rpc`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `supabase/migrations/20260815214742_archive_job_document_rpc.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production function signature verified:
+  - `archive_job_document(p_document_id uuid, p_reason text) returns void`
+  - `SECURITY DEFINER = true`
+- Production routine grants verified:
+  - `authenticated` has `EXECUTE`
+  - `anon` does not have `EXECUTE`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No existing RLS policy was changed in this slice.
+- Archive is RPC-backed to avoid active-row RLS disappearance issues.
+- The file is not deleted from Supabase Storage; this is a document row
+  soft-archive.
+
+### Next Steps
+1. Ryan verifies archiving a job document requires a reason and removes it from
+   the visible document list/checklist.
+2. Continue Jobs cleanup with the next remaining gap.

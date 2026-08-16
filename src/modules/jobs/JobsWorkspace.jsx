@@ -137,8 +137,12 @@ const JOB_DOCUMENT_SELECT_FIELDS = [
   'id',
   'created_at',
   'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
   'owner_type',
   'owner_id',
+  'division',
   'storage_path',
   'document_type',
   'file_name',
@@ -1589,6 +1593,32 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function handleDocumentArchive(document) {
+    if (!document?.id || !selectedJob?.id || !canManageSelectedJob || documentAction.id) return;
+
+    const reason = window.prompt(`Archive "${document.file_name || 'this document'}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    setDocumentAction({ id: document.id, action: 'archive', error: null });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('archive_job_document', {
+        p_document_id: document.id,
+        p_reason: reason.trim(),
+      });
+
+      if (error) throw error;
+
+      setDocumentAction({ id: '', action: '', error: null });
+      jobDocuments.reload();
+    } catch (error) {
+      console.error('Job document archive failed', error);
+      setDocumentAction({ id: '', action: '', error });
+    }
+  }
+
   function buildBuyoutPayload() {
     return {
       item_description: buyoutForm.item_description.trim(),
@@ -2062,8 +2092,8 @@ export function JobsWorkspace({ permissions }) {
                   {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
                 </button>
                 {canManageSelectedJob ? (
-                  <button type="button" className="secondary-button secondary-button--danger" disabled title="Archive will be enabled after the final RLS pass.">
-                    Archive Pending
+                  <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
+                    {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
                   </button>
                 ) : null}
               </div>
