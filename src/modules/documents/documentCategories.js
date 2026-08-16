@@ -1,11 +1,14 @@
 export const JOB_DOCUMENT_CATEGORIES = Object.freeze([
   { key: 'contracts', label: 'Contracts', description: 'Executed agreements, contract exhibits, and award documents.' },
   { key: 'plans', label: 'Plans', description: 'Plan sets, drawings, sketches, and drawing revisions.' },
+  { key: 'specifications', label: 'Specifications', description: 'Project specifications, product standards, and written technical requirements.' },
   { key: 'permits', label: 'Permits', description: 'Permit cards, applications, approvals, and inspection permit records.' },
+  { key: 'submittals', label: 'Submittals', description: 'Material, fixture, equipment, and product submittal packages.' },
   { key: 'photos', label: 'Photos', description: 'Job photos, progress photos, punch photos, and field condition records.' },
   { key: 'change_orders', label: 'Change Orders', description: 'Submitted, approved, and backup change-order documents.' },
   { key: 'closeout', label: 'Closeout Docs', description: 'As-builts, O&M manuals, warranties, lien waivers, and turnover records.' },
   { key: 'invoices', label: 'Invoices', description: 'Vendor, subcontractor, and project invoice documents.' },
+  { key: 'quotes', label: 'Quotes', description: 'Vendor, subcontractor, and supplier quotes used for pricing or backup.' },
   { key: 'misc', label: 'Misc', description: 'Project documents that do not fit another required category.' },
   { key: 'pay_apps', label: 'Pay Apps', description: 'Applications for payment, draw backup, and billing packages.' },
 ]);
