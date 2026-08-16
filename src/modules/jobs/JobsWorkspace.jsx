@@ -1654,38 +1654,17 @@ export function JobsWorkspace({ permissions }) {
     const reason = window.prompt(`Archive "${row.item_description || 'this buyout item'}"? Enter a reason.`);
     if (!reason?.trim()) return;
 
-    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-    const archivedAt = new Date().toISOString();
-    const archivedSnapshot = {
-      ...row,
-      archived_at: archivedAt,
-      archived_by: archivedBy,
-      archive_reason: reason.trim(),
-    };
     setBuyoutAction({ id: row.id, action: 'archive', error: null });
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client
-        .from('job_buyout_lines')
-        .update({
-          archived_at: archivedAt,
-          archived_by: archivedBy,
-          archive_reason: reason.trim(),
-        })
-        .eq('id', row.id)
-        .eq('job_id', selectedJob.id);
+      const { error } = await client.rpc('archive_job_buyout_line', {
+        p_buyout_line_id: row.id,
+        p_reason: reason.trim(),
+      });
 
       if (error) throw error;
-
-      await writeJobChangeLog(client, {
-        action: 'archive',
-        recordId: row.id,
-        beforeData: buyoutAuditSnapshot(row),
-        afterData: buyoutAuditSnapshot(archivedSnapshot),
-        note: reason.trim(),
-      });
 
       setBuyoutAction({ id: '', action: '', error: null });
       if (buyoutForm.id === row.id) resetBuyoutForm();

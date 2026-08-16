@@ -18772,3 +18772,53 @@ items later, and edits needed to land in the audit log.
 3. Ryan verifies archiving a Buyout row requires a reason and removes it from
    the visible Buyout list.
 4. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 188 — Jobs Buyout Archive RPC Fix
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** bug fix
+
+### Context
+Ryan reported the same RLS archive issue on Buyout rows that appeared on Jobs.
+The direct client update path was replaced with a server-side archive RPC.
+
+### What Was Completed
+- Added `public.archive_job_buyout_line(p_buyout_line_id uuid, p_reason text)`.
+- The RPC:
+  - requires an authenticated Clerk subject
+  - requires a non-empty archive reason
+  - locks the active buyout line
+  - validates effective `can_manage_jobs` for the line division
+  - sets `archived_at`, `archived_by`, and `archive_reason`
+  - writes the `change_logs` archive entry in the same transaction
+- Updated the Buyout Archive button to call the RPC instead of directly
+  updating `job_buyout_lines`.
+
+### Schema Changes
+- Added migration:
+  - `supabase/migrations/20260815213520_archive_job_buyout_line_rpc.sql`
+- Applied production migration:
+  - `archive_job_buyout_line_rpc`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `supabase/migrations/20260815213520_archive_job_buyout_line_rpc.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production function signature verified:
+  - `archive_job_buyout_line(p_buyout_line_id uuid, p_reason text) returns void`
+  - `SECURITY DEFINER = true`
+- Production routine grants verified:
+  - `authenticated` has `EXECUTE`
+  - `anon` does not have `EXECUTE`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### Next Steps
+1. Ryan retries archiving a Buyout item.
+2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
