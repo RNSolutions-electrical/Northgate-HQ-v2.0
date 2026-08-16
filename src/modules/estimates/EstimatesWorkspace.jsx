@@ -1,6 +1,7 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   ArrowLeft,
+  Archive,
   Calculator,
   FileText,
   History,
@@ -39,6 +40,7 @@ const DEFAULT_ESTIMATE_FORM = Object.freeze({
   estimator_id: '',
   scope_summary: '',
   notes: '',
+  archive_reason: '',
   isSaving: false,
   error: null,
   success: '',
@@ -49,6 +51,7 @@ const ESTIMATE_SELECT_FIELDS = [
   'division',
   'created_at',
   'updated_at',
+  'archived_at',
   'estimate_number',
   'title',
   'customer_name',
@@ -104,7 +107,7 @@ const STATUS_RULES = [
   ['submitted', 'Sent to the client.'],
   ['approved', 'Reserved for a future immutable approval snapshot workflow.'],
   ['rejected', 'Declined by the client.'],
-  ['archived', 'Reserved for an archive RPC with required reason and audit log.'],
+  ['archived', 'Soft archived with a required reason and audit log.'],
 ];
 
 function estimateLabel(estimate) {
@@ -375,13 +378,13 @@ export function EstimatesWorkspace({ permissions }) {
   const [selectedEstimateId, setSelectedEstimateId] = useState('');
   const [search, setSearch] = useState('');
   const [estimateForm, setEstimateForm] = useState(DEFAULT_ESTIMATE_FORM);
+  const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
   const estimates = directory.estimates;
   const selectedView = ESTIMATE_VIEWS.find((item) => item.key === activeView) ?? ESTIMATE_VIEWS[0];
   const canEstimate = permissions?.canEstimate === true;
-  const canViewFinancials = permissions?.canViewFinancials === true;
   const canCreateEstimate = canEstimate && Boolean(permissions?.division);
   const draftCount = estimates.filter((estimate) => ['draft', 'pursuit'].includes(estimate.status)).length;
   const submittedCount = estimates.filter((estimate) => estimate.status === 'submitted').length;
@@ -419,6 +422,7 @@ export function EstimatesWorkspace({ permissions }) {
     estimateId: selectedEstimate?.id ?? '',
   });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
+  const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
 
   useEffect(() => {
     if (selectedEstimateId && !estimates.some((estimate) => estimate.id === selectedEstimateId)) {
@@ -431,11 +435,13 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedEstimateId(estimate.id);
     setActiveTab('overview');
     setMode('browse');
+    setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function resetEstimateForm() {
     setEstimateForm(DEFAULT_ESTIMATE_FORM);
     setMode('browse');
+    setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function startEstimateCreate() {
@@ -445,12 +451,14 @@ export function EstimatesWorkspace({ permissions }) {
     });
     setSelectedEstimateId('');
     setMode('create');
+    setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function startEstimateEdit(estimate) {
     setSelectedEstimateId(estimate.id);
     setEstimateForm(estimateToForm(estimate));
     setMode('edit');
+    setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function setEstimateFormValue(key, value) {
@@ -530,9 +538,50 @@ export function EstimatesWorkspace({ permissions }) {
       setSelectedEstimateId(data?.id ?? estimateForm.id);
       setMode('browse');
       setEstimateForm(DEFAULT_ESTIMATE_FORM);
+      setEstimateAction({ action: '', error: null, success: `${estimateLabel(data)} saved.` });
     } catch (error) {
       console.error('Estimate save failed', error);
       setEstimateForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleEstimateArchive() {
+    if (!selectedEstimate || estimateAction.action) return;
+
+    if (!canArchiveSelectedEstimate) {
+      setEstimateAction({
+        action: '',
+        error: new Error('Estimate archive requires estimate edit scope and can_archive_records permission.'),
+        success: '',
+      });
+      return;
+    }
+
+    const reason = window.prompt(`Archive "${estimateLabel(selectedEstimate)}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    setEstimateAction({ action: 'archive', error: null, success: '' });
+
+    try {
+      const client = await getEstimateClient();
+      const { error } = await client.rpc('archive_estimate', {
+        p_estimate_id: selectedEstimate.id,
+        p_reason: reason.trim(),
+      });
+
+      if (error) throw error;
+
+      const archivedLabel = estimateLabel(selectedEstimate);
+      setSelectedEstimateId('');
+      setActiveTab('overview');
+      setMode('browse');
+      setEstimateForm(DEFAULT_ESTIMATE_FORM);
+      setEstimateAction({ action: '', error: null, success: `${archivedLabel} archived.` });
+      directory.reload();
+      estimateHistory.reload();
+    } catch (error) {
+      console.error('Estimate archive failed', error);
+      setEstimateAction({ action: '', error, success: '' });
     }
   }
 
@@ -563,7 +612,7 @@ export function EstimatesWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Estimates"
-        description="Live estimate directory foundation with division-scoped create and edit. Pricing, approval snapshots, documents, and archive controls remain reserved."
+        description="Live estimate directory foundation with division-scoped create, edit, archive, and audit history. Pricing, approval snapshots, and documents remain reserved."
         status={<span className="status-pill">{mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
@@ -584,8 +633,15 @@ export function EstimatesWorkspace({ permissions }) {
         <SummaryCard label="Visible estimates" value={estimates.length} detail={directory.isLoading ? 'Loading directory' : 'Division-scoped rows'} />
         <SummaryCard label="Draft/Pursuit" value={draftCount} detail="Editable pipeline" />
         <SummaryCard label="Submitted" value={submittedCount} detail="Awaiting outcome" tone={submittedCount ? 'accent' : 'default'} />
-        <SummaryCard label="Financial visibility" value={canViewFinancials ? 'Granted' : 'Hidden'} detail="Pricing remains unwired" developmentOnly />
+        <SummaryCard label="Archive access" value={permissions?.canArchiveRecords ? 'Granted' : 'Hidden'} detail="Reason required" tone={permissions?.canArchiveRecords ? 'good' : 'warn'} developmentOnly />
       </div>
+
+      {estimateAction.error ? (
+        <StatePanel tone="danger" eyebrow="Estimate Action Failed" title="Estimate action did not complete" description={estimateAction.error.message || 'Unexpected estimate error.'} compact />
+      ) : null}
+      {estimateAction.success ? (
+        <StatePanel tone="success" eyebrow="Saved" title="Estimate action complete" description={estimateAction.success} compact />
+      ) : null}
 
       <div className={`workspace-split estimates-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
@@ -605,7 +661,7 @@ export function EstimatesWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Directory foundation</strong>
-              <p>Pricing, approval snapshots, documents, and archive controls stay reserved.</p>
+              <p>Archive and history are live. Pricing, approval snapshots, and documents stay reserved.</p>
             </div>
           )}
         />
@@ -725,7 +781,7 @@ export function EstimatesWorkspace({ permissions }) {
                 <RecordHeader
                   eyebrow="Selected Estimate"
                   title={estimateLabel(selectedEstimate)}
-                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, approval, documents, and history are reserved.'}
+                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, approval, and documents are reserved.'}
                   meta={[
                     { label: 'Customer', value: selectedEstimate.customer_name || '-' },
                     { label: 'Division', value: selectedEstimate.division },
@@ -780,6 +836,9 @@ export function EstimatesWorkspace({ permissions }) {
                       <button type="button" className="primary-button" onClick={() => startEstimateEdit(selectedEstimate)} disabled={!canEditSelectedEstimate}>
                         <Pencil aria-hidden="true" /> Edit Estimate
                       </button>
+                      <button type="button" className="secondary-button secondary-button--danger" onClick={handleEstimateArchive} disabled={!canArchiveSelectedEstimate || estimateAction.action === 'archive'}>
+                        <Archive aria-hidden="true" /> {estimateAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+                      </button>
                     </div>
                   </>
                 )}
@@ -806,7 +865,7 @@ export function EstimatesWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Status Model"
               title="Directory statuses are active"
-              description="Draft, pursuit, submitted, and rejected can be saved now. Approved and archived remain reserved workflow states."
+              description="Draft, pursuit, submitted, rejected, and archived are active directory states. Approved remains reserved for locked snapshots."
               tone="neutral"
               compact
               actions={<History aria-hidden="true" />}
