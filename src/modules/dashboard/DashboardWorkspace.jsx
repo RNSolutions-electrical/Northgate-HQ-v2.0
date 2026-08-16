@@ -20,12 +20,38 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
+const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
+
+const DASHBOARD_ESTIMATE_SELECT_FIELDS = [
+  'id',
+  'division',
+  'updated_at',
+  'estimate_number',
+  'title',
+  'customer_name',
+  'status',
+  'bid_due_at',
+  'submitted_at',
+  'estimator_id',
+].join(', ');
 
 const JOB_ATTENTION_COLUMNS = [
   { key: 'job_label', header: 'Job', render: (row) => <strong>{row.job_label}</strong> },
   { key: 'item_description', header: 'Buyout item', render: (row) => row.item_description || 'Untitled item' },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatBuyoutStatus(row.status)}</StatusBadge> },
   { key: 'reason', header: 'Needs attention', render: (row) => row.reason },
+];
+
+const DASHBOARD_ESTIMATE_COLUMNS = [
+  { key: 'estimate_number', header: 'Estimate #', render: (row) => <strong>{estimateLabel(row)}</strong> },
+  { key: 'title', header: 'Title' },
+  { key: 'customer_name', header: 'Customer', fallback: '-' },
+  {
+    key: 'status',
+    header: 'Status',
+    render: (row) => <StatusBadge status={row.status}>{formatLabel(row.status)}</StatusBadge>,
+  },
+  { key: 'bid_due_at', header: 'Bid Due', render: (row) => formatDate(row.bid_due_at) },
 ];
 
 function missing(value) {
@@ -56,6 +82,21 @@ function jobLabel(job) {
   return job.job_number ? `${job.job_number} - ${job.name}` : job.name || 'Unnamed job';
 }
 
+function estimateLabel(estimate) {
+  if (!estimate) return 'Unknown estimate';
+  return estimate.estimate_number || estimate.title || estimate.id || 'Estimate';
+}
+
+function formatLabel(value) {
+  return String(value || '-').replaceAll('_', ' ');
+}
+
+function formatDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+}
+
 function buyoutAttentionReason(line) {
   if (line.status !== 'received' && line.status !== 'cancelled') return 'Open buyout item';
   const actualValue = Number(line.actual_value) || 0;
@@ -65,6 +106,13 @@ function buyoutAttentionReason(line) {
   const initialLead = Number(line.initial_lead_time_days) || 0;
   if (initialLead > 0 && actualLead > initialLead) return 'Actual lead time over initial';
   return '';
+}
+
+function sortEstimatesByDueDate(a, b) {
+  const aTime = a.bid_due_at ? new Date(a.bid_due_at).getTime() : Number.POSITIVE_INFINITY;
+  const bTime = b.bid_due_at ? new Date(b.bid_due_at).getTime() : Number.POSITIVE_INFINITY;
+  if (aTime !== bTime) return aTime - bTime;
+  return estimateLabel(a).localeCompare(estimateLabel(b));
 }
 
 function useJobAttention({ enabled }) {
@@ -146,6 +194,88 @@ function useJobAttention({ enabled }) {
   };
 }
 
+function useDashboardEstimates({ enabled, userId, canApproveEstimates }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    assigned: EMPTY_DASHBOARD_ESTIMATES,
+    approvalQueue: EMPTY_DASHBOARD_ESTIMATES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled) {
+        setState({
+          isLoading: false,
+          error: null,
+          assigned: EMPTY_DASHBOARD_ESTIMATES,
+          approvalQueue: EMPTY_DASHBOARD_ESTIMATES,
+        });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('estimates')
+          .select(DASHBOARD_ESTIMATE_SELECT_FIELDS)
+          .is('archived_at', null)
+          .order('bid_due_at', { ascending: true, nullsFirst: false })
+          .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+
+        const rows = data ?? EMPTY_DASHBOARD_ESTIMATES;
+        const assigned = rows
+          .filter((estimate) => estimate.estimator_id && estimate.estimator_id === userId)
+          .sort(sortEstimatesByDueDate);
+        const approvalQueue = canApproveEstimates
+          ? rows
+            .filter((estimate) => estimate.status === 'submitted')
+            .sort(sortEstimatesByDueDate)
+          : EMPTY_DASHBOARD_ESTIMATES;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            assigned,
+            approvalQueue,
+          });
+        }
+      } catch (error) {
+        console.error('Dashboard estimates failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            assigned: EMPTY_DASHBOARD_ESTIMATES,
+            approvalQueue: EMPTY_DASHBOARD_ESTIMATES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canApproveEstimates, enabled, getToken, refreshKey, userId]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function DashboardWorkspace({ permissions }) {
   const { user } = useUser();
   const navigate = useNavigate();
@@ -156,6 +286,11 @@ export function DashboardWorkspace({ permissions }) {
 
   const canSeeEstimates = permissions.permissionSource === 'server'
     && (permissions.canEstimate || permissions.canApproveEstimates);
+  const dashboardEstimates = useDashboardEstimates({
+    enabled: canSeeEstimates,
+    userId: permissions.userId,
+    canApproveEstimates: permissions.canApproveEstimates === true,
+  });
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
@@ -229,6 +364,9 @@ export function DashboardWorkspace({ permissions }) {
         <SummaryCard label="Inventory" value={permissionLabel(permissions.canManageInventory || permissions.canInventoryTransactions)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Jobs" value={permissionLabel(permissions.canCreateJobs || permissions.canManageJobs)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Job Attention" value={jobAttention.isLoading ? 'Loading' : jobAttention.items.length} detail="Buyout exceptions" tone={jobAttention.items.length ? 'warn' : 'good'} />
+        {canSeeEstimates ? (
+          <SummaryCard label="My Estimates" value={dashboardEstimates.isLoading ? 'Loading' : dashboardEstimates.assigned.length} detail="Assigned estimate rows" tone={dashboardEstimates.assigned.length ? 'accent' : 'default'} />
+        ) : null}
       </div>
 
       <div className={`workspace-split dashboard-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -357,12 +495,53 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-estimates' && canSeeEstimates ? (
             <div className="state-panel-stack">
-              <StatePanel
-                eyebrow="My Estimates"
-                title="Estimate layout is ready, but the personal estimate read source is still missing"
-                description="The repository currently exposes estimate permissions but not an approved estimate read model in this UI layer, so this dashboard keeps the final workspace reserved without fabricating estimate rows or statuses."
-                actions={<button type="button" className="secondary-button" onClick={() => openModule('/estimates')}>Open Estimates</button>}
-              />
+              <article className="card workspace-card module-directory-panel">
+                <Toolbar
+                  eyebrow="My Estimates"
+                  title="Assigned estimates"
+                  description="Estimate rows assigned to the current user through the estimator field."
+                  actions={(
+                    <>
+                      <button type="button" className="secondary-button" onClick={dashboardEstimates.reload} disabled={dashboardEstimates.isLoading}>Refresh</button>
+                      <button type="button" className="secondary-button" onClick={() => openModule('/estimates')}>Open Estimates</button>
+                    </>
+                  )}
+                />
+                <DataTable
+                  columns={DASHBOARD_ESTIMATE_COLUMNS}
+                  rows={dashboardEstimates.assigned}
+                  getRowKey={(row) => row.id}
+                  permissions={permissions}
+                  isLoading={dashboardEstimates.isLoading}
+                  error={dashboardEstimates.error}
+                  dense
+                  minWidth="760px"
+                  emptyTitle="No estimates assigned to you"
+                  emptyDescription="Assigned estimates will appear here when the estimator field matches your user profile."
+                />
+              </article>
+              {permissions.canApproveEstimates ? (
+                <article className="card workspace-card module-directory-panel">
+                  <Toolbar
+                    eyebrow="Approval Queue"
+                    title="Submitted estimates"
+                    description="Visible submitted estimates awaiting approval review."
+                    actions={<button type="button" className="secondary-button" onClick={() => openModule('/estimates')}>Review in Estimates</button>}
+                  />
+                  <DataTable
+                    columns={DASHBOARD_ESTIMATE_COLUMNS}
+                    rows={dashboardEstimates.approvalQueue}
+                    getRowKey={(row) => row.id}
+                    permissions={permissions}
+                    isLoading={dashboardEstimates.isLoading}
+                    error={dashboardEstimates.error}
+                    dense
+                    minWidth="760px"
+                    emptyTitle="No submitted estimates"
+                    emptyDescription="Submitted estimates in your approval scope will appear here."
+                  />
+                </article>
+              ) : null}
             </div>
           ) : null}
 
