@@ -27,8 +27,9 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 const EMPTY_ESTIMATES = Object.freeze([]);
 const EMPTY_ESTIMATE_HISTORY = Object.freeze([]);
 const EMPTY_ESTIMATE_PRICING = Object.freeze([]);
+const EMPTY_ESTIMATE_SNAPSHOTS = Object.freeze([]);
 
-const ESTIMATE_STATUS_OPTIONS = ['draft', 'pursuit', 'submitted', 'rejected'];
+const ESTIMATE_STATUS_OPTIONS = ['draft', 'pursuit', 'submitted', 'approved', 'rejected'];
 const ESTIMATE_PRICING_CATEGORIES = ['labor', 'material', 'equipment', 'subcontract', 'other'];
 
 const DEFAULT_ESTIMATE_FORM = Object.freeze({
@@ -100,19 +101,35 @@ const ESTIMATE_PRICING_SELECT_FIELDS = [
   'created_by',
 ].join(', ');
 
+const ESTIMATE_SNAPSHOT_SELECT_FIELDS = [
+  'id',
+  'estimate_id',
+  'division',
+  'created_at',
+  'approved_at',
+  'approved_by',
+  'approval_note',
+  'estimate_number',
+  'title',
+  'customer_name',
+  'pricing_total',
+  'pricing_line_count',
+  'locked',
+].join(', ');
+
 const ESTIMATE_VIEWS = [
   { key: 'all', label: 'All Estimates', icon: FileText, description: 'Every visible estimate.' },
   { key: 'mine', label: 'My Estimates', icon: UserRound, description: 'Estimates assigned to the current user.' },
   { key: 'drafts', label: 'Drafts', icon: Pencil, description: 'Draft and pursuit estimates.' },
   { key: 'submitted', label: 'Submitted', icon: Send, description: 'Sent estimates awaiting an outcome.' },
-  { key: 'approved', label: 'Approved', icon: ShieldCheck, description: 'Reserved for locked approval snapshots.' },
+  { key: 'approved', label: 'Approved', icon: ShieldCheck, description: 'Locked approval snapshots.' },
 ];
 
 const ESTIMATE_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'pricing', label: 'Pricing', meta: 'Live' },
   { key: 'documents', label: 'Documents', disabled: true, meta: 'Reserved' },
-  { key: 'approval', label: 'Approval', disabled: true, meta: 'Reserved' },
+  { key: 'approval', label: 'Approval', meta: 'Live' },
   { key: 'history', label: 'History', meta: 'Live' },
 ];
 
@@ -147,11 +164,19 @@ const ESTIMATE_PRICING_COLUMNS = [
   { key: 'line_total', header: 'Total', align: 'right', render: (row) => formatMoney(row.line_total) },
 ];
 
+const ESTIMATE_SNAPSHOT_COLUMNS = [
+  { key: 'approved_at', header: 'Approved', render: (row) => formatDateTime(row.approved_at) },
+  { key: 'approved_by', header: 'Approved By', fallback: '-' },
+  { key: 'pricing_total', header: 'Snapshot Total', align: 'right', render: (row) => formatMoney(row.pricing_total) },
+  { key: 'pricing_line_count', header: 'Lines', align: 'right' },
+  { key: 'approval_note', header: 'Note', fallback: '-' },
+];
+
 const STATUS_RULES = [
   ['draft', 'In progress, not submitted.'],
   ['pursuit', 'Saved lead or opportunity, not an active job.'],
   ['submitted', 'Sent to the client.'],
-  ['approved', 'Reserved for a future immutable approval snapshot workflow.'],
+  ['approved', 'Approved with an immutable estimate snapshot.'],
   ['rejected', 'Declined by the client.'],
   ['archived', 'Soft archived with a required reason and audit log.'],
 ];
@@ -337,6 +362,12 @@ function pricingPayloadFromForm(form) {
 
 function canEditEstimateDivision(permissions, rowDivision) {
   if (permissions?.permissionSource !== 'server' || permissions?.canEstimate !== true || !rowDivision) return false;
+  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  return permissions?.division === rowDivision;
+}
+
+function canApproveEstimateDivision(permissions, rowDivision) {
+  if (permissions?.permissionSource !== 'server' || permissions?.canApproveEstimates !== true || !rowDivision) return false;
   if (['Developer', 'Manager'].includes(permissions?.role)) return true;
   return permissions?.division === rowDivision;
 }
@@ -531,6 +562,70 @@ function useEstimatePricing({ enabled, estimateId }) {
   };
 }
 
+function useEstimateSnapshots({ enabled, estimateId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    snapshots: EMPTY_ESTIMATE_SNAPSHOTS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !estimateId) {
+        setState({ isLoading: false, error: null, snapshots: EMPTY_ESTIMATE_SNAPSHOTS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('estimate_snapshots')
+          .select(ESTIMATE_SNAPSHOT_SELECT_FIELDS)
+          .eq('estimate_id', estimateId)
+          .order('approved_at', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            snapshots: data ?? EMPTY_ESTIMATE_SNAPSHOTS,
+          });
+        }
+      } catch (error) {
+        console.error('Estimate snapshots failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            snapshots: EMPTY_ESTIMATE_SNAPSHOTS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, estimateId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function EstimatesWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -554,6 +649,7 @@ export function EstimatesWorkspace({ permissions }) {
   const canCreateEstimate = canEstimate && Boolean(permissions?.division);
   const draftCount = estimates.filter((estimate) => ['draft', 'pursuit'].includes(estimate.status)).length;
   const submittedCount = estimates.filter((estimate) => estimate.status === 'submitted').length;
+  const approvedCount = estimates.filter((estimate) => estimate.status === 'approved').length;
   const myEstimateCount = estimates.filter((estimate) => estimate.estimator_id === permissions.userId).length;
 
   const estimateViews = ESTIMATE_VIEWS.map((view) => {
@@ -562,7 +658,7 @@ export function EstimatesWorkspace({ permissions }) {
       mine: myEstimateCount,
       drafts: draftCount,
       submitted: submittedCount,
-      approved: 0,
+      approved: approvedCount,
     }[view.key];
     return { ...view, badge };
   });
@@ -574,7 +670,7 @@ export function EstimatesWorkspace({ permissions }) {
       if (activeView === 'mine' && estimate.estimator_id !== permissions.userId) return false;
       if (activeView === 'drafts' && !['draft', 'pursuit'].includes(estimate.status)) return false;
       if (activeView === 'submitted' && estimate.status !== 'submitted') return false;
-      if (activeView === 'approved') return false;
+      if (activeView === 'approved' && estimate.status !== 'approved') return false;
       if (!normalizedSearch) return true;
       return estimateSearchText(estimate).includes(normalizedSearch);
     });
@@ -591,9 +687,16 @@ export function EstimatesWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'pricing',
     estimateId: selectedEstimate?.id ?? '',
   });
+  const estimateSnapshots = useEstimateSnapshots({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'approval',
+    estimateId: selectedEstimate?.id ?? '',
+  });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
+  const canApproveSelectedEstimate = canApproveEstimateDivision(permissions, selectedEstimate?.division)
+    && selectedEstimate?.status !== 'approved';
   const pricingTotal = estimatePricing.lines.reduce((total, line) => total + (Number(line.line_total) || 0), 0);
+  const latestSnapshot = estimateSnapshots.snapshots[0] ?? null;
 
   useEffect(() => {
     if (selectedEstimateId && !estimates.some((estimate) => estimate.id === selectedEstimateId)) {
@@ -694,6 +797,10 @@ export function EstimatesWorkspace({ permissions }) {
     try {
       const client = await getEstimateClient();
       const payload = estimatePayloadFromForm(estimateForm, permissions);
+      if (payload.status === 'approved' && existingEstimate?.status !== 'approved') {
+        throw new Error('Use the Approval tab to approve estimates so a locked snapshot is created.');
+      }
+
       const query = estimateForm.id
         ? client
           .from('estimates')
@@ -766,6 +873,45 @@ export function EstimatesWorkspace({ permissions }) {
       estimateHistory.reload();
     } catch (error) {
       console.error('Estimate archive failed', error);
+      setEstimateAction({ action: '', error, success: '' });
+    }
+  }
+
+  async function handleEstimateApproval() {
+    if (!selectedEstimate || estimateAction.action) return;
+
+    if (!canApproveSelectedEstimate) {
+      setEstimateAction({
+        action: '',
+        error: new Error('Estimate approval requires can_approve_estimates permission for this division.'),
+        success: '',
+      });
+      return;
+    }
+
+    const note = window.prompt(`Approve "${estimateLabel(selectedEstimate)}" and lock a snapshot? Add an approval note if needed.`);
+    if (note === null) return;
+
+    setEstimateAction({ action: 'approve', error: null, success: '' });
+
+    try {
+      const client = await getEstimateClient();
+      const { error } = await client.rpc('approve_estimate', {
+        p_estimate_id: selectedEstimate.id,
+        p_note: note.trim() || null,
+      });
+
+      if (error) throw error;
+
+      directory.reload();
+      estimateSnapshots.reload();
+      estimateHistory.reload();
+      setActiveView('approved');
+      setActiveTab('approval');
+      setMode('browse');
+      setEstimateAction({ action: '', error: null, success: `${estimateLabel(selectedEstimate)} approved and snapshot locked.` });
+    } catch (error) {
+      console.error('Estimate approval failed', error);
       setEstimateAction({ action: '', error, success: '' });
     }
   }
@@ -882,7 +1028,7 @@ export function EstimatesWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Estimates"
-        description="Live estimate directory foundation with division-scoped create, edit, archive, and audit history. Pricing, approval snapshots, and documents remain reserved."
+        description="Live estimate directory with division-scoped create, edit, pricing, approval snapshots, archive, and audit history. Documents remain reserved."
         status={<span className="status-pill">{mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
@@ -903,6 +1049,7 @@ export function EstimatesWorkspace({ permissions }) {
         <SummaryCard label="Visible estimates" value={estimates.length} detail={directory.isLoading ? 'Loading directory' : 'Division-scoped rows'} />
         <SummaryCard label="Draft/Pursuit" value={draftCount} detail="Editable pipeline" />
         <SummaryCard label="Submitted" value={submittedCount} detail="Awaiting outcome" tone={submittedCount ? 'accent' : 'default'} />
+        <SummaryCard label="Approved" value={approvedCount} detail="Locked snapshots" tone={approvedCount ? 'good' : 'default'} />
         <SummaryCard label="Archive access" value={permissions?.canArchiveRecords ? 'Granted' : 'Hidden'} detail="Reason required" tone={permissions?.canArchiveRecords ? 'good' : 'warn'} developmentOnly />
       </div>
 
@@ -930,8 +1077,8 @@ export function EstimatesWorkspace({ permissions }) {
           onCloseMobile={() => setIsPrimaryOpen(false)}
           footer={(
             <div className="module-sidebar-note">
-              <strong>Directory foundation</strong>
-              <p>Pricing, archive, and history are live. Approval snapshots and documents stay reserved.</p>
+              <strong>Estimate workflow</strong>
+              <p>Pricing, approval snapshots, archive, and history are live. Documents stay reserved.</p>
             </div>
           )}
         />
@@ -971,11 +1118,11 @@ export function EstimatesWorkspace({ permissions }) {
               selectedRowKey={selectedEstimate?.id ?? null}
               dense
               minWidth="820px"
-              emptyTitle={search ? 'No estimates matched this search' : activeView === 'approved' ? 'Approval snapshots are not wired yet' : 'No estimates are visible'}
+              emptyTitle={search ? 'No estimates matched this search' : activeView === 'approved' ? 'No approved estimates yet' : 'No estimates are visible'}
               emptyDescription={search
                 ? 'Try searching by estimate number, title, customer, status, division, or scope.'
                 : activeView === 'approved'
-                  ? 'Approved estimates require the future locked snapshot workflow before rows appear here.'
+                  ? 'Approve an estimate from the Approval tab to create a locked snapshot and move it into this view.'
                   : 'Create the first estimate when you have estimate permission and a current division.'}
             />
           </article>
@@ -1051,7 +1198,7 @@ export function EstimatesWorkspace({ permissions }) {
                 <RecordHeader
                   eyebrow="Selected Estimate"
                   title={estimateLabel(selectedEstimate)}
-                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, archive, and history are live; approval and documents are reserved.'}
+                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, approval snapshots, archive, and history are live; documents are reserved.'}
                   meta={[
                     { label: 'Customer', value: selectedEstimate.customer_name || '-' },
                     { label: 'Division', value: selectedEstimate.division },
@@ -1150,12 +1297,51 @@ export function EstimatesWorkspace({ permissions }) {
                       <StatePanel tone="neutral" eyebrow="Read Only" title="Pricing writes require estimate edit scope" description="Users with estimate or approval read permission can review pricing, but only estimate editors for this division can add or edit lines." compact />
                     )}
                   </>
+                ) : activeTab === 'approval' ? (
+                  <>
+                    <div className="summary-grid summary-grid--compact">
+                      <SummaryCard label="Snapshots" value={estimateSnapshots.snapshots.length} detail="Immutable approval records" />
+                      <SummaryCard label="Latest Total" value={formatMoney(latestSnapshot?.pricing_total)} detail={latestSnapshot ? `${latestSnapshot.pricing_line_count} pricing line${latestSnapshot.pricing_line_count === 1 ? '' : 's'}` : 'No snapshot'} tone={latestSnapshot ? 'good' : 'default'} />
+                      <SummaryCard label="Approval Access" value={canApproveSelectedEstimate ? 'Granted' : 'Read Only'} detail={selectedEstimate.status === 'approved' ? 'Already approved' : 'Permission scoped'} tone={canApproveSelectedEstimate ? 'good' : 'warn'} />
+                    </div>
+                    <Toolbar
+                      eyebrow="Approval"
+                      title="Locked approval snapshots"
+                      description="Approving captures the estimate and active pricing lines in an immutable database snapshot."
+                      actions={(
+                        <button type="button" className="primary-button" onClick={handleEstimateApproval} disabled={!canApproveSelectedEstimate || estimateAction.action === 'approve'}>
+                          <ShieldCheck aria-hidden="true" /> {estimateAction.action === 'approve' ? 'Approving...' : 'Approve Estimate'}
+                        </button>
+                      )}
+                      dense
+                    />
+                    <DataTable
+                      columns={ESTIMATE_SNAPSHOT_COLUMNS}
+                      rows={estimateSnapshots.snapshots}
+                      getRowKey={(row) => row.id}
+                      permissions={permissions}
+                      isLoading={estimateSnapshots.isLoading}
+                      error={estimateSnapshots.error}
+                      dense
+                      minWidth="900px"
+                      emptyTitle="No approval snapshots yet"
+                      emptyDescription="Use the approval action when the estimate is ready to lock a snapshot."
+                    />
+                    {selectedEstimate.status === 'approved' ? (
+                      <StatePanel tone="success" eyebrow="Approved" title="This estimate has been approved" description="The approval snapshot is locked at the database layer and can be reviewed here." compact actions={<LockKeyhole aria-hidden="true" />} />
+                    ) : canApproveSelectedEstimate ? (
+                      <StatePanel tone="neutral" eyebrow="Ready" title="Approval will lock the current pricing" description="Review the Pricing tab before approving. The snapshot will capture active pricing lines at approval time." compact />
+                    ) : (
+                      <StatePanel tone="neutral" eyebrow="Read Only" title="Approval requires scoped approval permission" description="You can review approval snapshots, but only scoped approvers can approve this estimate." compact />
+                    )}
+                  </>
                 ) : activeTab === 'history' ? (
                   <>
                     <div className="summary-grid summary-grid--compact">
                       <SummaryCard label="Audit Entries" value={estimateHistory.rows.length} detail="Recent estimate changes" />
                       <SummaryCard label="Updates" value={estimateHistory.rows.filter((row) => row.action === 'update').length} detail="Recorded edits" />
                       <SummaryCard label="Pricing" value={estimateHistory.rows.filter((row) => row.table_name === 'estimate_pricing_lines').length} detail="Line item changes" />
+                      <SummaryCard label="Approvals" value={estimateHistory.rows.filter((row) => row.table_name === 'estimate_snapshots').length} detail="Snapshot changes" />
                     </div>
                     <Toolbar
                       eyebrow="Audit"
@@ -1213,7 +1399,7 @@ export function EstimatesWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Snapshot Boundary"
               title="Approved snapshots stay immutable"
-              description="Pricing is live planning data. Approval remains deferred until it can create a locked snapshot and enforce database-level immutability."
+              description="Approvals create locked snapshot rows and use a database trigger to block edits or deletes."
               tone="good"
               compact
               actions={<LockKeyhole aria-hidden="true" />}
@@ -1221,16 +1407,16 @@ export function EstimatesWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Status Model"
               title="Directory statuses are active"
-              description="Draft, pursuit, submitted, rejected, and archived are active directory states. Approved remains reserved for locked snapshots."
+              description="Draft, pursuit, submitted, approved, rejected, and archived are active directory states."
               tone="neutral"
               compact
               actions={<History aria-hidden="true" />}
             />
             <StatePanel
               eyebrow="Approval Flow"
-              title="Approval remains deferred"
-              description="Approving an estimate must create a locked snapshot. This pass adds no approval button, shortcut, or hidden write fallback."
-              tone="warning"
+              title="Approval is snapshot-based"
+              description="The Approval tab runs a scoped RPC that locks estimate and pricing data before changing status to approved."
+              tone="good"
               compact
               actions={<Calculator aria-hidden="true" />}
             />
