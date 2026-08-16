@@ -19059,3 +19059,70 @@ numbers to change from `1, 2, 3, 4, 5` to raw stored sort values like
 ### Next Steps
 1. Ryan verifies moving Schedule rows keeps visible numbering as `1, 2, 3...`.
 2. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 193 — Jobs History Tab
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the Schedule display-order fix and asked to proceed. The next
+Jobs cleanup gap was visibility into the audit records already being written by
+Jobs, Buyout, Financials, Documents, and Schedule actions.
+
+### What Was Completed
+- Added `public.read_job_change_history(p_job_id uuid, p_limit integer)`.
+- The RPC:
+  - requires an authenticated Clerk subject
+  - validates the target job exists and is active
+  - allows reads only for users in the job division or users with effective
+    `can_view_all_divisions`
+  - returns recent related `change_logs` rows for the job record, job-owned
+    Buyout, Financials, Schedule, and Documents records
+  - derives `changed_fields` from `before_data` / `after_data`
+- Added a live Jobs `History` tab.
+- The History tab:
+  - loads through the RPC only when selected
+  - shows summary counters for events, updates, archives, areas, and latest
+    event
+  - renders a read-only table with timestamp, area, action, user, changed
+    fields, and note
+  - includes a refresh action
+
+### Schema Changes
+- Added migration:
+  - `supabase/migrations/20260815220434_read_job_change_history_rpc.sql`
+- Applied production migration:
+  - `read_job_change_history_rpc`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `supabase/migrations/20260815220434_read_job_change_history_rpc.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production function signature verified:
+  - `read_job_change_history(p_job_id uuid, p_limit integer)`
+  - returns the expected history table shape
+  - `SECURITY DEFINER = true`
+- Production routine grants verified:
+  - `authenticated` has `EXECUTE`
+  - `anon` does not have `EXECUTE`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No existing RLS policy was changed in this slice.
+- The RPC intentionally avoids exposing `change_logs` directly because
+  `change_logs` is an older broad audit table with RLS disabled.
+- Existing client-side audit writes still use `table_name = 'jobs'` for some
+  child-section edits; the history RPC compensates by checking job identifiers
+  in JSON snapshots.
+
+### Next Steps
+1. Ryan verifies the History tab loads and shows recent job activity.
+2. Continue Jobs cleanup with the next remaining gap.

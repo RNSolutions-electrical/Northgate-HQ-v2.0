@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   FolderOpen,
+  History,
   ListChecks,
   PackageCheck,
   Plus,
@@ -109,6 +110,7 @@ const DEFAULT_SCHEDULE_FORM = Object.freeze({
   success: '',
 });
 const EMPTY_JOB_TRANSACTIONS = Object.freeze([]);
+const EMPTY_JOB_HISTORY = Object.freeze([]);
 
 const JOB_SELECT_FIELDS = [
   'id',
@@ -244,6 +246,15 @@ const JOB_TRANSACTION_SELECT_FIELDS = [
   'ledger_sequence',
 ].join(', ');
 
+const JOB_HISTORY_COLUMNS = [
+  { key: 'created_at', header: 'When', render: (row) => formatDateTime(row.created_at) },
+  { key: 'table_name', header: 'Area', render: (row) => formatJobHistoryArea(row.table_name) },
+  { key: 'action', header: 'Action', render: (row) => formatJobHistoryAction(row.action) },
+  { key: 'user_name', header: 'User', fallback: '-' },
+  { key: 'changed_fields', header: 'Changed fields', render: (row) => formatChangedFields(row.changed_fields) },
+  { key: 'note', header: 'Note', fallback: '-' },
+];
+
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 
 const JOB_VIEWS = [
@@ -370,6 +381,99 @@ function formatTransactionType(value) {
     default:
       return value ? value.replaceAll('_', ' ') : '-';
   }
+}
+
+function formatJobHistoryArea(value) {
+  switch (value) {
+    case 'jobs':
+      return 'Job';
+    case 'job_buyout_lines':
+      return 'Buyout';
+    case 'job_budget_lines':
+      return 'Financials';
+    case 'job_schedule_items':
+      return 'Schedule';
+    case 'documents':
+      return 'Documents';
+    default:
+      return value ? value.replaceAll('_', ' ') : '-';
+  }
+}
+
+function formatJobHistoryAction(value) {
+  switch (value) {
+    case 'create':
+      return 'Created';
+    case 'update':
+      return 'Updated';
+    case 'archive':
+      return 'Archived';
+    case 'delete':
+      return 'Deleted';
+    case 'restore':
+      return 'Restored';
+    case 'import':
+      return 'Imported';
+    default:
+      return value ? value.replaceAll('_', ' ') : '-';
+  }
+}
+
+function formatChangedField(value) {
+  switch (value) {
+    case 'job_id':
+    case 'id':
+      return '';
+    case 'item_description':
+      return 'item';
+    case 'budget_amount':
+      return 'original budget';
+    case 'budget_change_amount':
+      return 'change orders';
+    case 'actual_cost_amount':
+      return 'actual';
+    case 'committed_cost_amount':
+      return 'committed';
+    case 'forecast_to_complete_amount':
+      return 'forecast';
+    case 'archive_reason':
+      return 'archive reason';
+    case 'archived_at':
+      return 'archived date';
+    case 'archived_by':
+      return 'archived by';
+    case 'target_date':
+      return 'target date';
+    case 'initial_start_date':
+      return 'initial start';
+    case 'actual_start_date':
+      return 'actual start';
+    case 'initial_completion_date':
+      return 'initial finish';
+    case 'actual_completion_date':
+      return 'actual finish';
+    case 'duration_days':
+      return 'duration';
+    case 'sort_order':
+      return 'order';
+    case 'owner_id':
+    case 'owner_type':
+      return '';
+    case 'document_type':
+      return 'category';
+    case 'file_name':
+      return 'file name';
+    default:
+      return value ? value.replaceAll('_', ' ') : '';
+  }
+}
+
+function formatChangedFields(fields) {
+  if (!Array.isArray(fields) || fields.length === 0) return '-';
+  const formatted = fields
+    .map(formatChangedField)
+    .filter(Boolean);
+  return formatted.length ? formatted.join(', ') : '-';
 }
 
 function formatJobType(value) {
@@ -1001,6 +1105,68 @@ function useJobTransactions({ enabled, jobId }) {
   };
 }
 
+function useJobChangeHistory({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    rows: EMPTY_JOB_HISTORY,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, rows: EMPTY_JOB_HISTORY });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_job_change_history', {
+          p_job_id: jobId,
+          p_limit: 100,
+        });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            rows: data ?? EMPTY_JOB_HISTORY,
+          });
+        }
+      } catch (error) {
+        console.error('Job history failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            rows: EMPTY_JOB_HISTORY,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function renderFact(label, value) {
   return (
     <div className="profile-field">
@@ -1254,6 +1420,10 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'transactions' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const jobHistory = useJobChangeHistory({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'history' && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((job) => job.id === selectedJobId)) {
@@ -1270,6 +1440,7 @@ export function JobsWorkspace({ permissions }) {
     ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Live' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Live' },
     { key: 'schedule', label: 'Schedule', meta: 'Live' },
+    { key: 'history', label: 'History', meta: 'Live' },
   ];
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false), [canViewFinancials]);
 
@@ -3010,6 +3181,49 @@ export function JobsWorkspace({ permissions }) {
               compact
             />
           )}
+        </>
+      );
+    }
+
+    if (activeTab === 'history') {
+      const updateCount = jobHistory.rows.filter((row) => row.action === 'update').length;
+      const archiveCount = jobHistory.rows.filter((row) => row.action === 'archive').length;
+      const latestRow = jobHistory.rows[0] ?? null;
+      const areasTouched = new Set(jobHistory.rows.map((row) => row.table_name).filter(Boolean)).size;
+
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Events" value={jobHistory.rows.length} detail="Recent job audit entries" />
+            <SummaryCard label="Updates" value={updateCount} detail="Recorded edit events" />
+            <SummaryCard label="Archives" value={archiveCount} detail="Archived job records" tone={archiveCount ? 'warn' : 'default'} />
+            <SummaryCard label="Areas" value={areasTouched} detail="Job sections touched" />
+            <SummaryCard label="Latest" value={latestRow ? formatDateTime(latestRow.created_at) : '-'} detail={latestRow ? formatJobHistoryArea(latestRow.table_name) : 'No audit entry'} />
+          </div>
+
+          <Toolbar
+            eyebrow="Audit"
+            title="Job History"
+            description="Read-only audit entries for this job and its job-owned sections."
+            actions={(
+              <button type="button" className="secondary-button" onClick={jobHistory.reload} disabled={jobHistory.isLoading}>
+                <History aria-hidden="true" /> Refresh History
+              </button>
+            )}
+          />
+
+          <DataTable
+            columns={JOB_HISTORY_COLUMNS}
+            rows={jobHistory.rows}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={jobHistory.isLoading}
+            error={jobHistory.error}
+            dense
+            minWidth="980px"
+            emptyTitle="No job history yet"
+            emptyDescription="Job, Buyout, Financials, Documents, and Schedule changes will appear here after they are recorded."
+          />
         </>
       );
     }
