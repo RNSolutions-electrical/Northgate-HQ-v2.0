@@ -1,7 +1,7 @@
 import { UserButton } from '@clerk/clerk-react';
 import { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
+import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { permittedModules } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
@@ -16,13 +16,20 @@ import { StatePanel } from '../ui/StatePanel.jsx';
 export function AppLayout() {
   const permissions = usePermissions();
   const [highlightIncomplete] = useIncompleteHighlightPreference();
+  const { highlightDevelopment, hideDevelopment } = useDevelopmentDisplayPreferences();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     document.documentElement.classList.toggle('ng-highlight-incomplete', highlightIncomplete);
-    return () => document.documentElement.classList.remove('ng-highlight-incomplete');
-  }, [highlightIncomplete]);
+    document.documentElement.classList.toggle('ng-highlight-development', highlightDevelopment);
+    document.documentElement.classList.toggle('ng-hide-development', hideDevelopment);
+    return () => {
+      document.documentElement.classList.remove('ng-highlight-incomplete');
+      document.documentElement.classList.remove('ng-highlight-development');
+      document.documentElement.classList.remove('ng-hide-development');
+    };
+  }, [highlightIncomplete, highlightDevelopment, hideDevelopment]);
 
   if (permissions.isLoading) {
     return (

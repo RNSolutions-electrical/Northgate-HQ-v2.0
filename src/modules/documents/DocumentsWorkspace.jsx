@@ -204,10 +204,10 @@ export function DocumentsWorkspace({ permissions }) {
       />
 
       <div className="summary-grid">
-        <SummaryCard label="Live owner scopes" value={liveScopes} detail="Job documents in v2 Jobs" />
-        <SummaryCard label="Job checklist" value={JOB_DOCUMENT_CATEGORIES.length} detail="Visual required categories" />
-        <SummaryCard label="Manage job docs" value={canManageJobDocuments ? 'Granted' : 'Read only'} detail="Existing can_manage_jobs flag" tone={canManageJobDocuments ? 'good' : 'warn'} />
-        <SummaryCard label="Storage path" value="Locked" detail="northgate-files bucket" />
+        <SummaryCard label="Live owner scopes" value={liveScopes} detail="Job documents in v2 Jobs" developmentOnly />
+        <SummaryCard label="Job checklist" value={JOB_DOCUMENT_CATEGORIES.length} detail="Visual required categories" developmentOnly />
+        <SummaryCard label="Manage job docs" value={canManageJobDocuments ? 'Granted' : 'Read only'} detail="Existing can_manage_jobs flag" tone={canManageJobDocuments ? 'good' : 'warn'} developmentOnly />
+        <SummaryCard label="Storage path" value="Locked" detail="northgate-files bucket" developmentOnly />
       </div>
 
       <div className={`workspace-split documents-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>

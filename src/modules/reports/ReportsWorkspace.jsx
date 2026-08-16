@@ -203,10 +203,10 @@ export function ReportsWorkspace({ permissions }) {
       />
 
       <div className="summary-grid">
-        <SummaryCard label="Available reports" value={availableReports} detail="Live in v3 today" />
-        <SummaryCard label="Reserved reports" value={REPORT_LIBRARY.length - availableReports} detail="Awaiting source ports" />
-        <SummaryCard label="Granted flags" value={grantedFlags} detail={`${accessRows.length} report-relevant flags`} />
-        <SummaryCard label="Financial scope" value={permissions.canViewFinancials ? 'Granted' : 'Hidden'} detail="Protected fields omitted" tone={permissions.canViewFinancials ? 'good' : 'warn'} />
+        <SummaryCard label="Available reports" value={availableReports} detail="Live in v3 today" developmentOnly />
+        <SummaryCard label="Reserved reports" value={REPORT_LIBRARY.length - availableReports} detail="Awaiting source ports" developmentOnly />
+        <SummaryCard label="Granted flags" value={grantedFlags} detail={`${accessRows.length} report-relevant flags`} developmentOnly />
+        <SummaryCard label="Financial scope" value={permissions.canViewFinancials ? 'Granted' : 'Hidden'} detail="Protected fields omitted" tone={permissions.canViewFinancials ? 'good' : 'warn'} developmentOnly />
       </div>
 
       <div className={`workspace-split reports-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>

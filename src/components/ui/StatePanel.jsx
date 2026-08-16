@@ -7,11 +7,13 @@ export function StatePanel({
   children = null,
   compact = false,
   incomplete = null,
+  developmentOnly = null,
 }) {
   const isIncomplete = incomplete ?? hasIncompleteSignal([eyebrow, title, description]);
+  const isDevelopmentOnly = developmentOnly ?? hasDevelopmentSignal([eyebrow, title, description]);
 
   return (
-    <section className={`state-panel state-panel--${tone}${compact ? ' state-panel--compact' : ''}${isIncomplete ? ' ng-incomplete-component' : ''}`}>
+    <section className={`state-panel state-panel--${tone}${compact ? ' state-panel--compact' : ''}${isIncomplete ? ' ng-incomplete-component' : ''}${isDevelopmentOnly ? ' ng-development-component' : ''}`}>
       <div className="state-panel__copy">
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h3>{title}</h3>
@@ -21,6 +23,21 @@ export function StatePanel({
       {actions ? <div className="state-panel__actions">{actions}</div> : null}
     </section>
   );
+}
+
+function hasDevelopmentSignal(values) {
+  const text = values.filter(Boolean).join(' ').toLowerCase();
+  if (!text) return false;
+
+  return [
+    'boundary',
+    'foundation only',
+    'implementation guidance',
+    'structurally ready',
+    'read model pending',
+    'developer scope',
+    'not in this pass',
+  ].some((signal) => text.includes(signal));
 }
 
 function hasIncompleteSignal(values) {

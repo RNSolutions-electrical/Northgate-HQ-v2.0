@@ -4,11 +4,12 @@ export function SummaryCard({
   detail = '',
   tone = 'default',
   incomplete = null,
+  developmentOnly = false,
 }) {
   const isIncomplete = incomplete ?? hasIncompleteSignal([label, value, detail]);
 
   return (
-    <article className={`summary-card summary-card--${tone}${isIncomplete ? ' ng-incomplete-component' : ''}`}>
+    <article className={`summary-card summary-card--${tone}${isIncomplete ? ' ng-incomplete-component' : ''}${developmentOnly ? ' ng-development-component' : ''}`}>
       <span className="summary-card__label">{label}</span>
       <strong className="summary-card__value">{value}</strong>
       {detail ? <span className="summary-card__detail">{detail}</span> : null}

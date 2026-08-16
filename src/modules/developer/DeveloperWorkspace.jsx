@@ -15,7 +15,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
-import { useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
+import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import {
   DEVELOPER_HELPFUL_LINKS,
@@ -317,6 +317,12 @@ function DeveloperHelpfulLinks() {
 export function DeveloperWorkspace({ permissions }) {
   const { user } = useUser();
   const [highlightIncomplete, setHighlightIncomplete] = useIncompleteHighlightPreference();
+  const {
+    highlightDevelopment,
+    hideDevelopment,
+    setHighlightDevelopment,
+    setHideDevelopment,
+  } = useDevelopmentDisplayPreferences();
   const [noteForm, setNoteForm] = useState(DEFAULT_NOTE_FORM);
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
@@ -416,6 +422,7 @@ export function DeveloperWorkspace({ permissions }) {
         <SummaryCard label="Granted flags" value={grantedCount} detail={`${permissionRows.length} tracked flags`} />
         <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Must remain server-derived" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} />
         <SummaryCard label="Incomplete overlay" value={highlightIncomplete ? 'On' : 'Off'} detail="Local developer view option" tone={highlightIncomplete ? 'warn' : 'default'} incomplete={highlightIncomplete} />
+        <SummaryCard label="Dev-only UI" value={hideDevelopment ? 'Hidden' : highlightDevelopment ? 'Highlighted' : 'Visible'} detail="Preview/testing display" tone={hideDevelopment || highlightDevelopment ? 'warn' : 'default'} developmentOnly />
       </div>
 
       <section className="developer-grid">
@@ -477,6 +484,45 @@ export function DeveloperWorkspace({ permissions }) {
             title="Updates from component markers"
             description="Shared panels and roadmap controls opt into the highlight from their incomplete status. When the marker is removed during a future completion pass, the yellow highlight disappears automatically."
             compact
+            incomplete={false}
+          />
+        </article>
+
+        <article className="card workspace-card developer-toggle-card">
+          <Toolbar
+            eyebrow="Developer Preview"
+            title="Development-only cards"
+            description="Highlight or hide scaffolding, boundary notes, permission debug cards, and implementation guidance to preview the end-user experience."
+          />
+          <label className="developer-highlight-toggle">
+            <input
+              type="checkbox"
+              checked={highlightDevelopment}
+              onChange={(event) => setHighlightDevelopment(event.target.checked)}
+            />
+            <span>
+              <strong>{highlightDevelopment ? 'Highlighting development-only UI' : 'Highlight development-only UI'}</strong>
+              <small>Shows scaffolding/status cards with a blue overlay while keeping them visible.</small>
+            </span>
+          </label>
+          <label className="developer-highlight-toggle">
+            <input
+              type="checkbox"
+              checked={hideDevelopment}
+              onChange={(event) => setHideDevelopment(event.target.checked)}
+            />
+            <span>
+              <strong>{hideDevelopment ? 'Hiding development-only UI' : 'Hide development-only UI'}</strong>
+              <small>Removes marked scaffolding/status cards for cleaner end-user preview testing.</small>
+            </span>
+          </label>
+          <StatePanel
+            tone="neutral"
+            eyebrow="Preview Rule"
+            title="Operational data stays visible"
+            description="Live tables, forms, actions, and production summary cards should stay visible. Only explicit development scaffolding is marked for this display mode."
+            compact
+            developmentOnly={false}
             incomplete={false}
           />
         </article>

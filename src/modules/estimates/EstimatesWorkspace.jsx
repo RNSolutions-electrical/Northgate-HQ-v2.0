@@ -76,10 +76,10 @@ export function EstimatesWorkspace({ permissions }) {
       />
 
       <div className="summary-grid">
-        <SummaryCard label="Estimate access" value={canEstimate ? 'Granted' : 'No'} detail="Existing can_estimate permission" />
-        <SummaryCard label="Approval access" value={canApproveEstimates ? 'Granted' : 'No'} detail="Existing approval boundary" />
-        <SummaryCard label="Financial visibility" value={canViewFinancials ? 'Granted' : 'Hidden'} detail="Protected fields stay gated" />
-        <SummaryCard label="Snapshot rule" value="Locked" detail="Approved snapshots remain immutable" tone="good" />
+        <SummaryCard label="Estimate access" value={canEstimate ? 'Granted' : 'No'} detail="Existing can_estimate permission" developmentOnly />
+        <SummaryCard label="Approval access" value={canApproveEstimates ? 'Granted' : 'No'} detail="Existing approval boundary" developmentOnly />
+        <SummaryCard label="Financial visibility" value={canViewFinancials ? 'Granted' : 'Hidden'} detail="Protected fields stay gated" developmentOnly />
+        <SummaryCard label="Snapshot rule" value="Locked" detail="Approved snapshots remain immutable" tone="good" developmentOnly />
       </div>
 
       <div className={`workspace-split estimates-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
