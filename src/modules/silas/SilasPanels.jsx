@@ -32,7 +32,9 @@ function SilasMessageList({
   }
 
   function scrollToLatest() {
-    scrollAnchorRef.current?.scrollIntoView({ block: 'end' });
+    const node = scrollContainerRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
   }
 
   useLayoutEffect(() => {
