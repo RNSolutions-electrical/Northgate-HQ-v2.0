@@ -73,6 +73,7 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
 const EMPTY_BUDGET_LINES = Object.freeze([]);
 const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'other'];
 const DEFAULT_BUDGET_FORM = Object.freeze({
+  id: '',
   category: 'material',
   cost_code: '',
   description: '',
@@ -82,6 +83,7 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   committed_cost_amount: '',
   forecast_to_complete_amount: '',
   note: '',
+  change_reason: '',
   isSaving: false,
   error: null,
   success: '',
@@ -176,6 +178,9 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'division',
   'created_at',
   'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
   'category',
   'cost_code',
   'description',
@@ -821,6 +826,7 @@ function useJobBudgetLines({ enabled, jobId }) {
           .from('job_budget_lines')
           .select(JOB_BUDGET_SELECT_FIELDS)
           .eq('job_id', jobId)
+          .is('archived_at', null)
           .order('cost_code', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
 
@@ -1083,6 +1089,59 @@ function buyoutAuditSnapshot(row) {
     archived_by: row.archived_by,
     archive_reason: row.archive_reason,
   };
+}
+
+function budgetToForm(row) {
+  if (!row) return DEFAULT_BUDGET_FORM;
+
+  return {
+    ...DEFAULT_BUDGET_FORM,
+    id: row.id || '',
+    category: BUDGET_CATEGORY_OPTIONS.includes(row.category) ? row.category : 'other',
+    cost_code: row.cost_code || '',
+    description: row.description || '',
+    budget_amount: row.budget_amount == null ? '' : String(row.budget_amount),
+    budget_change_amount: row.budget_change_amount == null ? '' : String(row.budget_change_amount),
+    actual_cost_amount: row.actual_cost_amount == null ? '' : String(row.actual_cost_amount),
+    committed_cost_amount: row.committed_cost_amount == null ? '' : String(row.committed_cost_amount),
+    forecast_to_complete_amount: row.forecast_to_complete_amount == null ? '' : String(row.forecast_to_complete_amount),
+    note: row.note || '',
+  };
+}
+
+function budgetAuditSnapshot(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    job_id: row.job_id,
+    division: row.division,
+    category: row.category,
+    cost_code: row.cost_code,
+    description: row.description,
+    budget_amount: row.budget_amount,
+    budget_change_amount: row.budget_change_amount,
+    actual_cost_amount: row.actual_cost_amount,
+    committed_cost_amount: row.committed_cost_amount,
+    forecast_to_complete_amount: row.forecast_to_complete_amount,
+    note: row.note,
+    archived_at: row.archived_at,
+    archived_by: row.archived_by,
+    archive_reason: row.archive_reason,
+  };
+}
+
+function normalizeBudgetProtectedValue(value) {
+  return value === null || value === undefined ? '' : String(value);
+}
+
+function budgetProtectedFieldsChanged(beforeRow, payload) {
+  if (!beforeRow) return false;
+
+  return normalizeBudgetProtectedValue(beforeRow.category) !== normalizeBudgetProtectedValue(payload.category)
+    || normalizeBudgetProtectedValue(beforeRow.cost_code) !== normalizeBudgetProtectedValue(payload.cost_code)
+    || normalizeBudgetProtectedValue(beforeRow.description) !== normalizeBudgetProtectedValue(payload.description)
+    || Number(beforeRow.budget_amount || 0) !== Number(payload.budget_amount || 0);
 }
 
 export function JobsWorkspace({ permissions }) {
@@ -1675,7 +1734,30 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleBudgetAdd(event) {
+  function buildBudgetPayload() {
+    return {
+      category: BUDGET_CATEGORY_OPTIONS.includes(budgetForm.category) ? budgetForm.category : 'other',
+      cost_code: budgetForm.cost_code.trim() || null,
+      description: budgetForm.description.trim(),
+      budget_amount: parseOptionalNumber(budgetForm.budget_amount) || 0,
+      budget_change_amount: parseOptionalNumber(budgetForm.budget_change_amount) || 0,
+      actual_cost_amount: parseOptionalNumber(budgetForm.actual_cost_amount) || 0,
+      committed_cost_amount: parseOptionalNumber(budgetForm.committed_cost_amount) || 0,
+      forecast_to_complete_amount: parseOptionalNumber(budgetForm.forecast_to_complete_amount) || 0,
+      note: budgetForm.note.trim() || null,
+    };
+  }
+
+  function startBudgetEdit(row) {
+    if (!row?.id || !canApproveSelectedBudget) return;
+    setBudgetForm(budgetToForm(row));
+  }
+
+  function resetBudgetForm() {
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+  }
+
+  async function handleBudgetSave(event) {
     event.preventDefault();
 
     if (!selectedJob || !canApproveSelectedBudget || budgetForm.isSaving) return;
@@ -1686,38 +1768,87 @@ export function JobsWorkspace({ permissions }) {
     }
 
     const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const payload = buildBudgetPayload();
+    const existingRow = budgetForm.id
+      ? jobBudget.lines.find((line) => line.id === budgetForm.id)
+      : null;
+    const needsReason = budgetProtectedFieldsChanged(existingRow, payload);
+    if (needsReason && !budgetForm.change_reason.trim()) {
+      setBudgetForm((current) => ({
+        ...current,
+        error: new Error('Enter a reason when changing original budget, cost code, description, or category.'),
+      }));
+      return;
+    }
+
     setBudgetForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client
-        .from('job_budget_lines')
-        .insert({
-          job_id: selectedJob.id,
-          division: selectedJob.division,
-          category: BUDGET_CATEGORY_OPTIONS.includes(budgetForm.category) ? budgetForm.category : 'other',
-          cost_code: budgetForm.cost_code.trim() || null,
-          description: budgetForm.description.trim(),
-          budget_amount: parseOptionalNumber(budgetForm.budget_amount) || 0,
-          budget_change_amount: parseOptionalNumber(budgetForm.budget_change_amount) || 0,
-          actual_cost_amount: parseOptionalNumber(budgetForm.actual_cost_amount) || 0,
-          committed_cost_amount: parseOptionalNumber(budgetForm.committed_cost_amount) || 0,
-          forecast_to_complete_amount: parseOptionalNumber(budgetForm.forecast_to_complete_amount) || 0,
-          note: budgetForm.note.trim() || null,
-          created_by: createdBy,
-        });
+      const query = budgetForm.id
+        ? client
+          .from('job_budget_lines')
+          .update(payload)
+          .eq('id', budgetForm.id)
+          .eq('job_id', selectedJob.id)
+          .select(JOB_BUDGET_SELECT_FIELDS)
+          .single()
+        : client
+          .from('job_budget_lines')
+          .insert({
+            ...payload,
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            created_by: createdBy,
+          })
+          .select(JOB_BUDGET_SELECT_FIELDS)
+          .single();
+      const { data, error } = await query;
 
       if (error) throw error;
 
+      await writeJobChangeLog(client, {
+        action: budgetForm.id ? 'update' : 'create',
+        recordId: data?.id || budgetForm.id,
+        beforeData: budgetAuditSnapshot(existingRow),
+        afterData: budgetAuditSnapshot(data),
+        note: budgetForm.change_reason.trim()
+          || `Financial line ${data?.description || payload.description} ${budgetForm.id ? 'updated' : 'created'}.`,
+      });
+
       setBudgetForm({
         ...DEFAULT_BUDGET_FORM,
-        success: `${budgetForm.description.trim()} added to Financials.`,
+        success: `${payload.description} ${budgetForm.id ? 'updated' : 'added'} in Financials.`,
       });
       jobBudget.reload();
     } catch (error) {
-      console.error('Job budget add failed', error);
+      console.error('Job budget save failed', error);
       setBudgetForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleBudgetArchive(row) {
+    if (!row?.id || !selectedJob?.id || !canApproveSelectedBudget) return;
+
+    const reason = window.prompt(`Archive "${row.description || 'this financial line'}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('archive_job_budget_line', {
+        p_budget_line_id: row.id,
+        p_reason: reason.trim(),
+      });
+
+      if (error) throw error;
+
+      if (budgetForm.id === row.id) resetBudgetForm();
+      jobBudget.reload();
+    } catch (error) {
+      console.error('Job budget archive failed', error);
+      setBudgetForm((current) => ({ ...current, error, success: '' }));
     }
   }
 
@@ -2296,6 +2427,26 @@ export function JobsWorkspace({ permissions }) {
       const forecastToCompleteTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
       const remainingTotal = revisedTotal - forecastFinalTotal;
+      const budgetColumns = [
+        ...JOB_BUDGET_COLUMNS,
+        {
+          key: 'actions',
+          header: 'Actions',
+          render: (row) => {
+            if (!canApproveSelectedBudget) return 'Read only';
+            return (
+              <div className="job-buyout-actions">
+                <button type="button" className="secondary-button" onClick={() => startBudgetEdit(row)} disabled={budgetForm.isSaving}>
+                  Edit
+                </button>
+                <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBudgetArchive(row)} disabled={budgetForm.isSaving}>
+                  Archive
+                </button>
+              </div>
+            );
+          },
+        },
+      ];
 
       return (
         <>
@@ -2309,7 +2460,7 @@ export function JobsWorkspace({ permissions }) {
           </div>
 
           <DataTable
-            columns={JOB_BUDGET_COLUMNS}
+            columns={budgetColumns}
             rows={jobBudget.lines}
             getRowKey={(row) => row.id}
             permissions={permissions}
@@ -2322,11 +2473,16 @@ export function JobsWorkspace({ permissions }) {
           />
 
           {canApproveSelectedBudget ? (
-            <form className="job-financials-form" onSubmit={handleBudgetAdd}>
+            <form className="job-financials-form" onSubmit={handleBudgetSave}>
               <Toolbar
-                eyebrow="Add"
-                title="Add financial line"
+                eyebrow={budgetForm.id ? 'Edit' : 'Add'}
+                title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}
                 description="Financials are job planning and forecasting only. This does not post to accounting or create purchase orders."
+                actions={budgetForm.id ? (
+                  <button type="button" className="secondary-button" onClick={resetBudgetForm} disabled={budgetForm.isSaving}>
+                    Cancel Edit
+                  </button>
+                ) : null}
               />
               <div className="job-financials-form__grid">
                 <label>
@@ -2390,16 +2546,26 @@ export function JobsWorkspace({ permissions }) {
                     disabled={budgetForm.isSaving}
                   />
                 </label>
+                <label className="job-financials-form__wide">
+                  <span>Change reason</span>
+                  <input
+                    type="text"
+                    value={budgetForm.change_reason}
+                    onChange={(event) => setBudgetForm((current) => ({ ...current, change_reason: event.target.value, error: null, success: '' }))}
+                    placeholder="Required for original budget, cost code, description, or category edits"
+                    disabled={budgetForm.isSaving}
+                  />
+                </label>
               </div>
               {budgetForm.error ? (
                 <StatePanel tone="danger" eyebrow="Financial Save Failed" title="Line was not saved" description={budgetForm.error.message || 'Unexpected financials error.'} compact />
               ) : null}
               {budgetForm.success ? (
-                <StatePanel tone="success" eyebrow="Saved" title="Financial line added" description={budgetForm.success} compact />
+                <StatePanel tone="success" eyebrow="Saved" title="Financial line saved" description={budgetForm.success} compact />
               ) : null}
               <div className="job-financials-form__actions">
                 <button type="submit" className="primary-button" disabled={budgetForm.isSaving || !budgetForm.description.trim()}>
-                  <Plus aria-hidden="true" /> {budgetForm.isSaving ? 'Saving...' : 'Add Financial Line'}
+                  <Plus aria-hidden="true" /> {budgetForm.isSaving ? 'Saving...' : budgetForm.id ? 'Save Financial Line' : 'Add Financial Line'}
                 </button>
               </div>
             </form>

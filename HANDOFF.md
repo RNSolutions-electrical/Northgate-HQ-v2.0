@@ -18822,3 +18822,77 @@ The direct client update path was replaced with a server-side archive RPC.
 ### Next Steps
 1. Ryan retries archiving a Buyout item.
 2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 189 — Jobs Financials Edit Archive Audit
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified the Buyout archive RPC fix and asked to proceed. The next Jobs
+cleanup gap was Financials hardening: edits, archives, and audit coverage.
+Ryan previously specified that forecasting, actual costs, and change orders are
+normal workflow, while edits to original budget, cost codes, descriptions, and
+categories require a reason.
+
+### What Was Completed
+- Added editable Financials rows.
+- Reused the Financials form for Add and Edit mode.
+- Added `Cancel Edit`.
+- Added row-level Edit and Archive actions.
+- Financials reads now explicitly filter `archived_at is null`.
+- Financial create/edit actions write `public.change_logs` entries with
+  before/after snapshots.
+- Edits to protected fields require `Change reason` before save:
+  - original budget
+  - cost code
+  - description
+  - category
+- Normal workflow fields can be updated without a special reason:
+  - budget changes
+  - actual costs
+  - committed costs
+  - forecast to complete
+  - notes
+- Added `public.archive_job_budget_line(p_budget_line_id uuid, p_reason text)`.
+- The archive RPC validates effective `can_approve_budget`, soft-archives the
+  line, and writes the archive audit entry in the same transaction.
+
+### Schema Changes
+- Added migration:
+  - `supabase/migrations/20260815214015_archive_job_budget_line_rpc.sql`
+- Applied production migration:
+  - `archive_job_budget_line_rpc`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `supabase/migrations/20260815214015_archive_job_budget_line_rpc.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production function signature verified:
+  - `archive_job_budget_line(p_budget_line_id uuid, p_reason text) returns void`
+  - `SECURITY DEFINER = true`
+- Production routine grants verified:
+  - `authenticated` has `EXECUTE`
+  - `anon` does not have `EXECUTE`
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- No existing RLS policy was changed in this slice.
+- Archive is RPC-backed to avoid the active-row RLS disappearance issue.
+- Create/edit audit writes remain client-side `change_logs` inserts until the
+  final RLS/security pass determines broader atomic audit requirements.
+- The cost report import function is still deferred.
+
+### Next Steps
+1. Ryan verifies editing normal workflow fields saves.
+2. Ryan verifies protected field edits require a reason.
+3. Ryan verifies archiving a Financials row requires a reason and removes it
+   from the visible list.
+4. Continue Jobs cleanup with the next remaining gap.
