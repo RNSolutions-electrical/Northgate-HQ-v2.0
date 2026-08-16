@@ -553,6 +553,12 @@ function jobSearchText(job) {
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
+function canEditDivisionWithPermission(permissions, rowDivision, permissionKey) {
+  if (permissions?.[permissionKey] !== true || !rowDivision) return false;
+  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  return permissions?.division === rowDivision;
+}
+
 function sanitizeDocumentFileName(fileName) {
   const cleaned = String(fileName || 'document')
     .normalize('NFKD')
@@ -1578,12 +1584,8 @@ export function JobsWorkspace({ permissions }) {
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
-  const canManageSelectedJob = canManageJobs
-    && Boolean(selectedJob?.division)
-    && permissions?.division === selectedJob.division;
-  const canApproveSelectedBudget = permissions?.canApproveBudget === true
-    && Boolean(selectedJob?.division)
-    && permissions?.division === selectedJob.division;
+  const canManageSelectedJob = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canManageJobs');
+  const canApproveSelectedBudget = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
@@ -2610,7 +2612,7 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Checklist" value={`${uploadedCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Visual only; not blocking" tone={uploadedCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'default'} />
             <SummaryCard label="Uploaded" value={jobDocuments.documents.length} detail="Visible job-owned documents" />
             <SummaryCard label="Owner" value="Job" detail="Documents follow job visibility" />
-            <SummaryCard label="Edit" value={canManageSelectedJob ? 'Granted' : 'Read only'} detail="Follows selected job division" tone={canManageSelectedJob ? 'good' : 'warn'} />
+            <SummaryCard label="Edit" value={canManageSelectedJob ? 'Granted' : 'Read only'} detail="Follows level and division scope" tone={canManageSelectedJob ? 'good' : 'warn'} />
           </div>
 
           <section className="job-document-checklist" aria-label="Job document checklist">
@@ -2904,7 +2906,7 @@ export function JobsWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Read Only"
               title="Buyout writes require selected-job management permission"
-              description="You can view buyout rows for jobs you can see. Adding and updating buyout items follows the selected job division boundary."
+              description="You can view buyout rows for jobs you can see. Adding and updating buyout items follows level and division scope."
               compact
             />
           )}
@@ -3139,7 +3141,7 @@ export function JobsWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Read Only"
               title="Financial writes require selected-job budget approval permission"
-              description="You can view financial lines when allowed by financial permissions. Adding budget lines follows the selected job division and budget approval boundary."
+              description="You can view financial lines when allowed by financial permissions. Adding budget lines follows level, division, and budget approval scope."
               compact
             />
           )}
@@ -3479,7 +3481,7 @@ export function JobsWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Read Only"
               title="Schedule writes require selected-job management permission"
-              description="You can view schedule items for jobs you can see. Adding, editing, archiving, and ordering follow the selected job division boundary."
+              description="You can view schedule items for jobs you can see. Adding, editing, archiving, and ordering follow level and division scope."
               compact
             />
           )}
