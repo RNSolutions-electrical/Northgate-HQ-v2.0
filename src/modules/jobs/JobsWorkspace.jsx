@@ -1334,21 +1334,25 @@ export function JobsWorkspace({ permissions }) {
 
     const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
     const archivedAt = new Date().toISOString();
+    const archivedSnapshot = {
+      ...selectedJob,
+      archived_at: archivedAt,
+      archived_by: archivedBy,
+      archive_reason: reason.trim(),
+    };
     setJobAction({ action: 'archive', error: null, success: '' });
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { data, error } = await client
+      const { error } = await client
         .from('jobs')
         .update({
           archived_at: archivedAt,
           archived_by: archivedBy,
           archive_reason: reason.trim(),
         })
-        .eq('id', selectedJob.id)
-        .select(JOB_SELECT_FIELDS)
-        .single();
+        .eq('id', selectedJob.id);
 
       if (error) throw error;
 
@@ -1356,7 +1360,7 @@ export function JobsWorkspace({ permissions }) {
         action: 'archive',
         recordId: selectedJob.id,
         beforeData: jobAuditSnapshot(selectedJob),
-        afterData: jobAuditSnapshot(data),
+        afterData: jobAuditSnapshot(archivedSnapshot),
         note: reason.trim(),
       });
 

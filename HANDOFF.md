@@ -18608,3 +18608,43 @@ users.
 - Edit/archive controls are live for the foundation `jobs` row only. Related
   module rows such as Buyout, Financials, Documents, and Schedule keep their
   own edit/archive hardening requirements.
+
+---
+
+## Entry 185 — Jobs Archive RLS Return Fix
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** bug fix
+
+### Context
+Ryan reported an RLS issue when archiving a job. The cause was the client
+archive handler updating `archived_at` and then immediately requesting the
+updated row with `.select().single()`. The existing `jobs_read` policy hides
+archived rows, so the update path could trip RLS/read behavior after the row
+was correctly soft-archived.
+
+### What Was Completed
+- Removed the post-archive selected-row return from the Jobs archive handler.
+- The archive update now performs the soft archive without asking Supabase to
+  return the archived row.
+- The audit `after_data` snapshot is built from the selected job plus the
+  archive metadata that was sent in the update.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this fix.
+- This preserves the existing rule that archived jobs are hidden from ordinary
+  Jobs reads.
+- Final RLS/security cleanup remains deferred.
+
+### Next Steps
+1. Ryan retries archiving a test job.
+2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
