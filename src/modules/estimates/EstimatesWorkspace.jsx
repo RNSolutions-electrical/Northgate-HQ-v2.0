@@ -22,15 +22,28 @@ import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
+import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_ESTIMATES = Object.freeze([]);
 const EMPTY_ESTIMATE_HISTORY = Object.freeze([]);
 const EMPTY_ESTIMATE_PRICING = Object.freeze([]);
 const EMPTY_ESTIMATE_SNAPSHOTS = Object.freeze([]);
+const EMPTY_ESTIMATE_DOCUMENTS = Object.freeze([]);
+const DOCUMENT_BUCKET = 'northgate-files';
+const DEFAULT_DOCUMENT_CATEGORY = 'contracts';
 
 const ESTIMATE_STATUS_OPTIONS = ['draft', 'pursuit', 'submitted', 'approved', 'rejected'];
 const ESTIMATE_PRICING_CATEGORIES = ['labor', 'material', 'equipment', 'subcontract', 'other'];
+
+const DEFAULT_UPLOAD_STATE = Object.freeze({
+  category: DEFAULT_DOCUMENT_CATEGORY,
+  description: '',
+  file: null,
+  isUploading: false,
+  error: null,
+  success: '',
+});
 
 const DEFAULT_ESTIMATE_FORM = Object.freeze({
   id: '',
@@ -117,6 +130,25 @@ const ESTIMATE_SNAPSHOT_SELECT_FIELDS = [
   'locked',
 ].join(', ');
 
+const ESTIMATE_DOCUMENT_SELECT_FIELDS = [
+  'id',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'owner_type',
+  'owner_id',
+  'division',
+  'storage_path',
+  'document_type',
+  'file_name',
+  'description',
+  'file_size_bytes',
+  'mime_type',
+  'created_by',
+].join(', ');
+
 const ESTIMATE_VIEWS = [
   { key: 'all', label: 'All Estimates', icon: FileText, description: 'Every visible estimate.' },
   { key: 'mine', label: 'My Estimates', icon: UserRound, description: 'Estimates assigned to the current user.' },
@@ -128,7 +160,7 @@ const ESTIMATE_VIEWS = [
 const ESTIMATE_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'pricing', label: 'Pricing', meta: 'Live' },
-  { key: 'documents', label: 'Documents', disabled: true, meta: 'Reserved' },
+  { key: 'documents', label: 'Documents', meta: 'Live' },
   { key: 'approval', label: 'Approval', meta: 'Live' },
   { key: 'history', label: 'History', meta: 'Live' },
 ];
@@ -172,6 +204,14 @@ const ESTIMATE_SNAPSHOT_COLUMNS = [
   { key: 'approval_note', header: 'Note', fallback: '-' },
 ];
 
+const ESTIMATE_DOCUMENT_COLUMNS = [
+  { key: 'file_name', header: 'Document', render: (row) => <strong>{row.file_name || 'Untitled document'}</strong> },
+  { key: 'document_type', header: 'Category', render: (row) => documentCategoryLabel(row.document_type) },
+  { key: 'description', header: 'Description', fallback: 'No description' },
+  { key: 'created_by', header: 'Uploaded by', fallback: 'Not recorded' },
+  { key: 'created_at', header: 'Uploaded', render: (row) => formatDateTime(row.created_at) },
+];
+
 const STATUS_RULES = [
   ['draft', 'In progress, not submitted.'],
   ['pursuit', 'Saved lead or opportunity, not an active job.'],
@@ -203,6 +243,22 @@ function formatMoney(value) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '$0.00';
   return numeric.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+}
+
+function formatBytes(value) {
+  const size = Number(value);
+  if (!Number.isFinite(size) || size <= 0) return '-';
+  if (size < 1024) return `${size} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let amount = size / 1024;
+  let unitIndex = 0;
+
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${amount.toFixed(amount >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function formatDate(value) {
@@ -298,6 +354,16 @@ function estimateSearchText(estimate) {
     estimate.scope_summary,
     estimate.notes,
   ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function sanitizeDocumentFileName(fileName) {
+  const cleaned = String(fileName || 'document')
+    .normalize('NFKD')
+    .replace(/[^\w.\-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return cleaned || 'document';
 }
 
 function estimateToForm(estimate) {
@@ -626,6 +692,71 @@ function useEstimateSnapshots({ enabled, estimateId }) {
   };
 }
 
+function useEstimateDocuments({ enabled, estimateId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    documents: EMPTY_ESTIMATE_DOCUMENTS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !estimateId) {
+        setState({ isLoading: false, error: null, documents: EMPTY_ESTIMATE_DOCUMENTS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('documents')
+          .select(ESTIMATE_DOCUMENT_SELECT_FIELDS)
+          .eq('owner_type', 'estimate')
+          .eq('owner_id', estimateId)
+          .is('archived_at', null)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            documents: data ?? EMPTY_ESTIMATE_DOCUMENTS,
+          });
+        }
+      } catch (error) {
+        console.error('Estimate documents failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            documents: EMPTY_ESTIMATE_DOCUMENTS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, estimateId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function EstimatesWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -639,6 +770,8 @@ export function EstimatesWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [estimateForm, setEstimateForm] = useState(DEFAULT_ESTIMATE_FORM);
   const [pricingForm, setPricingForm] = useState(DEFAULT_PRICING_FORM);
+  const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
+  const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
@@ -691,6 +824,10 @@ export function EstimatesWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'approval',
     estimateId: selectedEstimate?.id ?? '',
   });
+  const estimateDocuments = useEstimateDocuments({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'documents',
+    estimateId: selectedEstimate?.id ?? '',
+  });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
   const canApproveSelectedEstimate = canApproveEstimateDivision(permissions, selectedEstimate?.division)
@@ -710,12 +847,16 @@ export function EstimatesWorkspace({ permissions }) {
     setActiveTab('overview');
     setMode('browse');
     setPricingForm(DEFAULT_PRICING_FORM);
+    setUploadState(DEFAULT_UPLOAD_STATE);
+    setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function resetEstimateForm() {
     setEstimateForm(DEFAULT_ESTIMATE_FORM);
     setPricingForm(DEFAULT_PRICING_FORM);
+    setUploadState(DEFAULT_UPLOAD_STATE);
+    setDocumentAction({ id: '', action: '', error: null });
     setMode('browse');
     setEstimateAction({ action: '', error: null, success: '' });
   }
@@ -728,6 +869,8 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedEstimateId('');
     setMode('create');
     setPricingForm(DEFAULT_PRICING_FORM);
+    setUploadState(DEFAULT_UPLOAD_STATE);
+    setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
@@ -735,6 +878,8 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedEstimateId(estimate.id);
     setEstimateForm(estimateToForm(estimate));
     setPricingForm(DEFAULT_PRICING_FORM);
+    setUploadState(DEFAULT_UPLOAD_STATE);
+    setDocumentAction({ id: '', action: '', error: null });
     setMode('edit');
     setEstimateAction({ action: '', error: null, success: '' });
   }
@@ -986,6 +1131,163 @@ export function EstimatesWorkspace({ permissions }) {
     }
   }
 
+  async function handleDocumentUpload(event) {
+    event.preventDefault();
+    if (!selectedEstimate || !canEditSelectedEstimate || uploadState.isUploading) return;
+
+    const file = uploadState.file;
+    if (!file) {
+      setUploadState((current) => ({ ...current, error: new Error('Choose a file before uploading.') }));
+      return;
+    }
+
+    if (!selectedEstimate.division) {
+      setUploadState((current) => ({ ...current, error: new Error('This estimate does not have a division, so document upload is blocked.') }));
+      return;
+    }
+
+    const category = JOB_DOCUMENT_CATEGORIES.some((item) => item.key === uploadState.category)
+      ? uploadState.category
+      : DEFAULT_DOCUMENT_CATEGORY;
+    const documentId = crypto.randomUUID();
+    const storagePath = `documents/estimate/${selectedEstimate.id}/${documentId}/${sanitizeDocumentFileName(file.name)}`;
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || permissions.userId || 'Unknown User';
+
+    setUploadState((current) => ({ ...current, isUploading: true, error: null, success: '' }));
+
+    try {
+      const client = await getEstimateClient();
+      const insertPayload = {
+        id: documentId,
+        division: selectedEstimate.division,
+        owner_type: 'estimate',
+        owner_id: selectedEstimate.id,
+        storage_path: storagePath,
+        file_name: file.name,
+        document_type: category,
+        description: uploadState.description.trim() || null,
+        file_size_bytes: file.size,
+        mime_type: file.type || null,
+        created_by: createdBy,
+      };
+
+      const { error: insertError } = await client
+        .from('documents')
+        .insert(insertPayload);
+
+      if (insertError) throw insertError;
+
+      const { error: uploadError } = await client.storage
+        .from(DOCUMENT_BUCKET)
+        .upload(storagePath, file, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        await client
+          .from('documents')
+          .update({
+            archived_at: new Date().toISOString(),
+            archived_by: createdBy,
+            archive_reason: `Upload failed: ${uploadError.message}`,
+          })
+          .eq('id', documentId);
+        throw uploadError;
+      }
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'documents',
+        action: 'create',
+        recordId: documentId,
+        beforeData: null,
+        afterData: insertPayload,
+        note: `${file.name} uploaded to ${documentCategoryLabel(category)}.`,
+      });
+
+      setUploadState({
+        ...DEFAULT_UPLOAD_STATE,
+        success: `${file.name} uploaded to ${documentCategoryLabel(category)}.`,
+      });
+      estimateDocuments.reload();
+      estimateHistory.reload();
+    } catch (error) {
+      console.error('Estimate document upload failed', error);
+      setUploadState((current) => ({ ...current, isUploading: false, error, success: '' }));
+    }
+  }
+
+  async function handleDocumentLink(document, action) {
+    if (!document?.storage_path || documentAction.id) return;
+
+    const targetWindow = action === 'open' ? window.open('', '_blank') : null;
+    if (targetWindow) {
+      targetWindow.opener = null;
+      targetWindow.document.title = 'Opening document...';
+      targetWindow.document.body.textContent = 'Opening document...';
+    }
+
+    setDocumentAction({ id: document.id, action, error: null });
+
+    try {
+      const client = await getEstimateClient();
+      const { data, error } = await client.storage
+        .from(DOCUMENT_BUCKET)
+        .createSignedUrl(document.storage_path, 300, action === 'download' ? { download: document.file_name || true } : undefined);
+
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Supabase did not return a signed document URL.');
+
+      if (action === 'open') {
+        if (targetWindow) {
+          targetWindow.location.href = data.signedUrl;
+        } else {
+          window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        const anchor = window.document.createElement('a');
+        anchor.href = data.signedUrl;
+        anchor.download = document.file_name || 'northgate-estimate-document';
+        anchor.rel = 'noopener noreferrer';
+        window.document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+
+      setDocumentAction({ id: '', action: '', error: null });
+    } catch (error) {
+      console.error('Estimate document link failed', error);
+      if (targetWindow && !targetWindow.closed) targetWindow.close();
+      setDocumentAction({ id: '', action: '', error });
+    }
+  }
+
+  async function handleDocumentArchive(document) {
+    if (!document?.id || !selectedEstimate?.id || !canEditSelectedEstimate || documentAction.id) return;
+
+    const reason = window.prompt(`Archive "${document.file_name || 'this document'}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    setDocumentAction({ id: document.id, action: 'archive', error: null });
+
+    try {
+      const client = await getEstimateClient();
+      const { error } = await client.rpc('archive_estimate_document', {
+        p_document_id: document.id,
+        p_reason: reason.trim(),
+      });
+
+      if (error) throw error;
+
+      setDocumentAction({ id: '', action: '', error: null });
+      estimateDocuments.reload();
+      estimateHistory.reload();
+    } catch (error) {
+      console.error('Estimate document archive failed', error);
+      setDocumentAction({ id: '', action: '', error });
+    }
+  }
+
   const estimateColumns = [
     ...ESTIMATE_COLUMNS,
     {
@@ -1023,12 +1325,50 @@ export function EstimatesWorkspace({ permissions }) {
     },
   ];
 
+  const documentColumns = [
+    ...ESTIMATE_DOCUMENT_COLUMNS,
+    {
+      key: 'file_size_bytes',
+      header: 'Size',
+      render: (row) => formatBytes(row.file_size_bytes),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => {
+        const isBusy = documentAction.id === row.id;
+        return (
+          <div className="job-document-actions">
+            <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'open')} disabled={isBusy}>
+              {isBusy && documentAction.action === 'open' ? 'Opening...' : 'Open'}
+            </button>
+            <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'download')} disabled={isBusy}>
+              {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
+            </button>
+            {canEditSelectedEstimate ? (
+              <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
+                {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+              </button>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ];
+
+  const uploadedDocumentCategoryKeys = new Set(estimateDocuments.documents.map((document) => document.document_type).filter(Boolean));
+  const documentChecklistRows = JOB_DOCUMENT_CATEGORIES.map((category) => ({
+    ...category,
+    status: uploadedDocumentCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
+  }));
+  const uploadedDocumentCategoryCount = documentChecklistRows.filter((row) => row.status === 'uploaded').length;
+
   return (
     <>
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Estimates"
-        description="Live estimate directory with division-scoped create, edit, pricing, approval snapshots, archive, and audit history. Documents remain reserved."
+        description="Live estimate directory with division-scoped create, edit, pricing, documents, approval snapshots, archive, and audit history."
         status={<span className="status-pill">{mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
@@ -1050,6 +1390,7 @@ export function EstimatesWorkspace({ permissions }) {
         <SummaryCard label="Draft/Pursuit" value={draftCount} detail="Editable pipeline" />
         <SummaryCard label="Submitted" value={submittedCount} detail="Awaiting outcome" tone={submittedCount ? 'accent' : 'default'} />
         <SummaryCard label="Approved" value={approvedCount} detail="Locked snapshots" tone={approvedCount ? 'good' : 'default'} />
+        <SummaryCard label="Document Access" value={canEstimate ? 'Granted' : 'Scoped'} detail="Estimate-owned files" tone={canEstimate ? 'good' : 'warn'} developmentOnly />
         <SummaryCard label="Archive access" value={permissions?.canArchiveRecords ? 'Granted' : 'Hidden'} detail="Reason required" tone={permissions?.canArchiveRecords ? 'good' : 'warn'} developmentOnly />
       </div>
 
@@ -1078,7 +1419,7 @@ export function EstimatesWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Estimate workflow</strong>
-              <p>Pricing, approval snapshots, archive, and history are live. Documents stay reserved.</p>
+              <p>Pricing, documents, approval snapshots, archive, and history are live.</p>
             </div>
           )}
         />
@@ -1198,7 +1539,7 @@ export function EstimatesWorkspace({ permissions }) {
                 <RecordHeader
                   eyebrow="Selected Estimate"
                   title={estimateLabel(selectedEstimate)}
-                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, approval snapshots, archive, and history are live; documents are reserved.'}
+                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, documents, approval snapshots, archive, and history are live.'}
                   meta={[
                     { label: 'Customer', value: selectedEstimate.customer_name || '-' },
                     { label: 'Division', value: selectedEstimate.division },
@@ -1295,6 +1636,126 @@ export function EstimatesWorkspace({ permissions }) {
                       </form>
                     ) : (
                       <StatePanel tone="neutral" eyebrow="Read Only" title="Pricing writes require estimate edit scope" description="Users with estimate or approval read permission can review pricing, but only estimate editors for this division can add or edit lines." compact />
+                    )}
+                  </>
+                ) : activeTab === 'documents' ? (
+                  <>
+                    <div className="summary-grid summary-grid--compact">
+                      <SummaryCard label="Checklist" value={`${uploadedDocumentCategoryCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Visual only; not blocking" tone={uploadedDocumentCategoryCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'default'} />
+                      <SummaryCard label="Uploaded" value={estimateDocuments.documents.length} detail="Visible estimate-owned documents" />
+                      <SummaryCard label="Owner" value="Estimate" detail="Follows estimate visibility" />
+                      <SummaryCard label="Edit" value={canEditSelectedEstimate ? 'Granted' : 'Read only'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
+                    </div>
+
+                    <section className="job-document-checklist" aria-label="Estimate document checklist">
+                      {documentChecklistRows.map((category) => (
+                        <div key={category.key} className={`job-document-checklist__item ${category.status === 'uploaded' ? 'is-uploaded' : 'is-missing'}`}>
+                          <div>
+                            <strong>{category.label}</strong>
+                            <p>{category.description}</p>
+                          </div>
+                          <StatusBadge tone={category.status === 'uploaded' ? 'good' : 'neutral'}>
+                            {category.status === 'uploaded' ? 'Uploaded' : 'Missing'}
+                          </StatusBadge>
+                        </div>
+                      ))}
+                    </section>
+
+                    <DataTable
+                      columns={documentColumns}
+                      rows={estimateDocuments.documents}
+                      getRowKey={(row) => row.id}
+                      permissions={permissions}
+                      isLoading={estimateDocuments.isLoading}
+                      error={estimateDocuments.error}
+                      dense
+                      minWidth="980px"
+                      emptyTitle="No documents uploaded for this estimate"
+                      emptyDescription="The checklist can still show required categories before files exist."
+                    />
+
+                    {documentAction.error ? (
+                      <StatePanel
+                        tone="danger"
+                        eyebrow="Document Action Failed"
+                        title="Could not complete this document action"
+                        description={documentAction.error.message || 'Unexpected document action error.'}
+                        compact
+                      />
+                    ) : null}
+
+                    {canEditSelectedEstimate ? (
+                      <form className="job-document-upload" onSubmit={handleDocumentUpload}>
+                        <Toolbar
+                          eyebrow="Upload"
+                          title="Add estimate document"
+                          description="Uploads are estimate-owned and use the selected category to update the visual checklist."
+                        />
+                        <div className="job-document-upload__grid">
+                          <label>
+                            <span>Category</span>
+                            <select
+                              value={uploadState.category}
+                              onChange={(event) => setUploadState((current) => ({ ...current, category: event.target.value, error: null, success: '' }))}
+                              disabled={uploadState.isUploading}
+                            >
+                              {JOB_DOCUMENT_CATEGORIES.map((category) => (
+                                <option key={category.key} value={category.key}>{category.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>File</span>
+                            <input
+                              key={`${selectedEstimate.id}-${uploadState.success || 'ready'}`}
+                              type="file"
+                              onChange={(event) => setUploadState((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
+                              disabled={uploadState.isUploading}
+                            />
+                          </label>
+                          <label className="job-document-upload__description">
+                            <span>Description</span>
+                            <input
+                              type="text"
+                              value={uploadState.description}
+                              onChange={(event) => setUploadState((current) => ({ ...current, description: event.target.value, error: null, success: '' }))}
+                              placeholder="Optional note"
+                              disabled={uploadState.isUploading}
+                            />
+                          </label>
+                        </div>
+                        {uploadState.error ? (
+                          <StatePanel
+                            tone="danger"
+                            eyebrow="Upload Failed"
+                            title="Document was not uploaded"
+                            description={uploadState.error.message || 'Unexpected upload error.'}
+                            compact
+                          />
+                        ) : null}
+                        {uploadState.success ? (
+                          <StatePanel
+                            tone="success"
+                            eyebrow="Uploaded"
+                            title="Document saved"
+                            description={uploadState.success}
+                            compact
+                          />
+                        ) : null}
+                        <div className="job-document-upload__actions">
+                          <button type="submit" className="primary-button" disabled={uploadState.isUploading || !uploadState.file}>
+                            <Plus aria-hidden="true" /> {uploadState.isUploading ? 'Uploading...' : 'Upload Document'}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <StatePanel
+                        tone="neutral"
+                        eyebrow="Read Only"
+                        title="Document uploads require estimate edit permission"
+                        description="You can view documents for estimates you can see. Uploading and archiving follows the estimate edit boundary."
+                        compact
+                      />
                     )}
                   </>
                 ) : activeTab === 'approval' ? (
