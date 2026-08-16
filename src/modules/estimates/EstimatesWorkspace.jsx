@@ -26,8 +26,10 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_ESTIMATES = Object.freeze([]);
 const EMPTY_ESTIMATE_HISTORY = Object.freeze([]);
+const EMPTY_ESTIMATE_PRICING = Object.freeze([]);
 
 const ESTIMATE_STATUS_OPTIONS = ['draft', 'pursuit', 'submitted', 'rejected'];
+const ESTIMATE_PRICING_CATEGORIES = ['labor', 'material', 'equipment', 'subcontract', 'other'];
 
 const DEFAULT_ESTIMATE_FORM = Object.freeze({
   id: '',
@@ -41,6 +43,21 @@ const DEFAULT_ESTIMATE_FORM = Object.freeze({
   scope_summary: '',
   notes: '',
   archive_reason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_PRICING_FORM = Object.freeze({
+  id: '',
+  category: 'material',
+  description: '',
+  quantity: '1',
+  unit: '',
+  unit_cost: '',
+  markup_percent: '0',
+  sort_order: '',
+  note: '',
   isSaving: false,
   error: null,
   success: '',
@@ -64,6 +81,25 @@ const ESTIMATE_SELECT_FIELDS = [
   'created_by',
 ].join(', ');
 
+const ESTIMATE_PRICING_SELECT_FIELDS = [
+  'id',
+  'estimate_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'category',
+  'description',
+  'quantity',
+  'unit',
+  'unit_cost',
+  'markup_percent',
+  'line_total',
+  'sort_order',
+  'note',
+  'created_by',
+].join(', ');
+
 const ESTIMATE_VIEWS = [
   { key: 'all', label: 'All Estimates', icon: FileText, description: 'Every visible estimate.' },
   { key: 'mine', label: 'My Estimates', icon: UserRound, description: 'Estimates assigned to the current user.' },
@@ -74,7 +110,7 @@ const ESTIMATE_VIEWS = [
 
 const ESTIMATE_TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'pricing', label: 'Pricing', disabled: true, meta: 'Deferred' },
+  { key: 'pricing', label: 'Pricing', meta: 'Live' },
   { key: 'documents', label: 'Documents', disabled: true, meta: 'Reserved' },
   { key: 'approval', label: 'Approval', disabled: true, meta: 'Reserved' },
   { key: 'history', label: 'History', meta: 'Live' },
@@ -101,6 +137,16 @@ const ESTIMATE_HISTORY_COLUMNS = [
   { key: 'note', header: 'Note', fallback: '-' },
 ];
 
+const ESTIMATE_PRICING_COLUMNS = [
+  { key: 'category', header: 'Category', render: (row) => formatPricingCategory(row.category) },
+  { key: 'description', header: 'Description', render: (row) => <strong>{row.description}</strong> },
+  { key: 'quantity', header: 'Qty', align: 'right', render: (row) => formatNumber(row.quantity) },
+  { key: 'unit', header: 'Unit', fallback: '-' },
+  { key: 'unit_cost', header: 'Unit Cost', align: 'right', render: (row) => formatMoney(row.unit_cost) },
+  { key: 'markup_percent', header: 'Markup', align: 'right', render: (row) => `${formatNumber(row.markup_percent)}%` },
+  { key: 'line_total', header: 'Total', align: 'right', render: (row) => formatMoney(row.line_total) },
+];
+
 const STATUS_RULES = [
   ['draft', 'In progress, not submitted.'],
   ['pursuit', 'Saved lead or opportunity, not an active job.'],
@@ -116,6 +162,22 @@ function estimateLabel(estimate) {
 
 function formatEstimateStatus(status) {
   return (status || 'draft').replaceAll('_', ' ');
+}
+
+function formatPricingCategory(value) {
+  return (value || 'other').replaceAll('_', ' ');
+}
+
+function formatNumber(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '-';
+  return numeric.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
+function formatMoney(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '$0.00';
+  return numeric.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 }
 
 function formatDate(value) {
@@ -173,6 +235,16 @@ function formatChangedField(value) {
       return 'archived by';
     case 'archive_reason':
       return 'archive reason';
+    case 'estimate_id':
+      return 'estimate';
+    case 'unit_cost':
+      return 'unit cost';
+    case 'markup_percent':
+      return 'markup';
+    case 'line_total':
+      return 'line total';
+    case 'sort_order':
+      return 'sort order';
     default:
       return value ? value.replaceAll('_', ' ') : '';
   }
@@ -232,6 +304,34 @@ function estimatePayloadFromForm(form, permissions) {
     estimator_id: form.estimator_id.trim() || permissions.userId || null,
     scope_summary: form.scope_summary.trim() || null,
     notes: form.notes.trim() || null,
+  };
+}
+
+function pricingToForm(row) {
+  return {
+    ...DEFAULT_PRICING_FORM,
+    id: row.id,
+    category: ESTIMATE_PRICING_CATEGORIES.includes(row.category) ? row.category : 'other',
+    description: row.description ?? '',
+    quantity: row.quantity ?? '1',
+    unit: row.unit ?? '',
+    unit_cost: row.unit_cost ?? '',
+    markup_percent: row.markup_percent ?? '0',
+    sort_order: row.sort_order ?? '',
+    note: row.note ?? '',
+  };
+}
+
+function pricingPayloadFromForm(form) {
+  return {
+    category: ESTIMATE_PRICING_CATEGORIES.includes(form.category) ? form.category : 'other',
+    description: form.description.trim(),
+    quantity: form.quantity === '' ? 0 : Number(form.quantity),
+    unit: form.unit.trim() || null,
+    unit_cost: form.unit_cost === '' ? 0 : Number(form.unit_cost),
+    markup_percent: form.markup_percent === '' ? 0 : Number(form.markup_percent),
+    sort_order: form.sort_order === '' ? 0 : Number.parseInt(form.sort_order, 10),
+    note: form.note.trim() || null,
   };
 }
 
@@ -366,6 +466,71 @@ function useEstimateHistory({ enabled, estimateId }) {
   };
 }
 
+function useEstimatePricing({ enabled, estimateId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    lines: EMPTY_ESTIMATE_PRICING,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !estimateId) {
+        setState({ isLoading: false, error: null, lines: EMPTY_ESTIMATE_PRICING });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('estimate_pricing_lines')
+          .select(ESTIMATE_PRICING_SELECT_FIELDS)
+          .eq('estimate_id', estimateId)
+          .is('archived_at', null)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            lines: data ?? EMPTY_ESTIMATE_PRICING,
+          });
+        }
+      } catch (error) {
+        console.error('Estimate pricing failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            lines: EMPTY_ESTIMATE_PRICING,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, estimateId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function EstimatesWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -378,6 +543,7 @@ export function EstimatesWorkspace({ permissions }) {
   const [selectedEstimateId, setSelectedEstimateId] = useState('');
   const [search, setSearch] = useState('');
   const [estimateForm, setEstimateForm] = useState(DEFAULT_ESTIMATE_FORM);
+  const [pricingForm, setPricingForm] = useState(DEFAULT_PRICING_FORM);
   const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
@@ -421,8 +587,13 @@ export function EstimatesWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'history',
     estimateId: selectedEstimate?.id ?? '',
   });
+  const estimatePricing = useEstimatePricing({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'pricing',
+    estimateId: selectedEstimate?.id ?? '',
+  });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
+  const pricingTotal = estimatePricing.lines.reduce((total, line) => total + (Number(line.line_total) || 0), 0);
 
   useEffect(() => {
     if (selectedEstimateId && !estimates.some((estimate) => estimate.id === selectedEstimateId)) {
@@ -435,11 +606,13 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedEstimateId(estimate.id);
     setActiveTab('overview');
     setMode('browse');
+    setPricingForm(DEFAULT_PRICING_FORM);
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function resetEstimateForm() {
     setEstimateForm(DEFAULT_ESTIMATE_FORM);
+    setPricingForm(DEFAULT_PRICING_FORM);
     setMode('browse');
     setEstimateAction({ action: '', error: null, success: '' });
   }
@@ -451,12 +624,14 @@ export function EstimatesWorkspace({ permissions }) {
     });
     setSelectedEstimateId('');
     setMode('create');
+    setPricingForm(DEFAULT_PRICING_FORM);
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
   function startEstimateEdit(estimate) {
     setSelectedEstimateId(estimate.id);
     setEstimateForm(estimateToForm(estimate));
+    setPricingForm(DEFAULT_PRICING_FORM);
     setMode('edit');
     setEstimateAction({ action: '', error: null, success: '' });
   }
@@ -470,7 +645,17 @@ export function EstimatesWorkspace({ permissions }) {
     return createSupabaseClient(token);
   }
 
-  async function writeEstimateChangeLog(client, { action, recordId, beforeData, afterData, note }) {
+  function startPricingEdit(row) {
+    if (!canEditSelectedEstimate) return;
+    setPricingForm(pricingToForm(row));
+    setEstimateAction({ action: '', error: null, success: '' });
+  }
+
+  function resetPricingForm() {
+    setPricingForm(DEFAULT_PRICING_FORM);
+  }
+
+  async function writeEstimateChangeLog(client, { tableName = 'estimates', action, recordId, beforeData, afterData, note }) {
     const userId = user?.id || permissions.userId || null;
     const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || permissions.userId || 'Unknown User';
     const { error } = await client
@@ -478,7 +663,7 @@ export function EstimatesWorkspace({ permissions }) {
       .insert({
         user_id: userId,
         user_name: userName,
-        table_name: 'estimates',
+        table_name: tableName,
         record_id: recordId,
         action,
         before_data: beforeData,
@@ -585,6 +770,76 @@ export function EstimatesWorkspace({ permissions }) {
     }
   }
 
+  async function handlePricingSave(event) {
+    event.preventDefault();
+    if (!selectedEstimate || !canEditSelectedEstimate || pricingForm.isSaving) return;
+
+    if (!pricingForm.description.trim()) {
+      setPricingForm((current) => ({ ...current, error: new Error('Enter a pricing description before saving.') }));
+      return;
+    }
+
+    const payload = pricingPayloadFromForm(pricingForm);
+    if (!Number.isFinite(payload.quantity) || payload.quantity < 0) {
+      setPricingForm((current) => ({ ...current, error: new Error('Quantity must be zero or greater.') }));
+      return;
+    }
+    if (!Number.isFinite(payload.unit_cost) || payload.unit_cost < 0) {
+      setPricingForm((current) => ({ ...current, error: new Error('Unit cost must be zero or greater.') }));
+      return;
+    }
+    if (!Number.isFinite(payload.markup_percent) || payload.markup_percent < 0) {
+      setPricingForm((current) => ({ ...current, error: new Error('Markup must be zero or greater.') }));
+      return;
+    }
+
+    const existingLine = pricingForm.id
+      ? estimatePricing.lines.find((line) => line.id === pricingForm.id)
+      : null;
+
+    setPricingForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getEstimateClient();
+      const query = pricingForm.id
+        ? client
+          .from('estimate_pricing_lines')
+          .update(payload)
+          .eq('id', pricingForm.id)
+          .select(ESTIMATE_PRICING_SELECT_FIELDS)
+          .single()
+        : client
+          .from('estimate_pricing_lines')
+          .insert({
+            ...payload,
+            estimate_id: selectedEstimate.id,
+            division: selectedEstimate.division,
+            created_by: permissions.userId,
+          })
+          .select(ESTIMATE_PRICING_SELECT_FIELDS)
+          .single();
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'estimate_pricing_lines',
+        action: pricingForm.id ? 'update' : 'create',
+        recordId: data?.id || pricingForm.id,
+        beforeData: existingLine,
+        afterData: data,
+        note: pricingForm.id ? `${data?.description || 'Pricing line'} updated.` : `${data?.description || 'Pricing line'} added.`,
+      });
+
+      estimatePricing.reload();
+      estimateHistory.reload();
+      setPricingForm({ ...DEFAULT_PRICING_FORM, success: `${data?.description || 'Pricing line'} saved.` });
+    } catch (error) {
+      console.error('Estimate pricing save failed', error);
+      setPricingForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
   const estimateColumns = [
     ...ESTIMATE_COLUMNS,
     {
@@ -603,6 +858,21 @@ export function EstimatesWorkspace({ permissions }) {
         >
           Edit
         </button>
+      ),
+    },
+  ];
+
+  const pricingColumns = [
+    ...ESTIMATE_PRICING_COLUMNS,
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => (
+        canEditSelectedEstimate ? (
+          <button type="button" className="secondary-button" onClick={() => startPricingEdit(row)} disabled={pricingForm.isSaving}>
+            Edit
+          </button>
+        ) : 'Read only'
       ),
     },
   ];
@@ -661,7 +931,7 @@ export function EstimatesWorkspace({ permissions }) {
           footer={(
             <div className="module-sidebar-note">
               <strong>Directory foundation</strong>
-              <p>Archive and history are live. Pricing, approval snapshots, and documents stay reserved.</p>
+              <p>Pricing, archive, and history are live. Approval snapshots and documents stay reserved.</p>
             </div>
           )}
         />
@@ -781,7 +1051,7 @@ export function EstimatesWorkspace({ permissions }) {
                 <RecordHeader
                   eyebrow="Selected Estimate"
                   title={estimateLabel(selectedEstimate)}
-                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, approval, and documents are reserved.'}
+                  description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, archive, and history are live; approval and documents are reserved.'}
                   meta={[
                     { label: 'Customer', value: selectedEstimate.customer_name || '-' },
                     { label: 'Division', value: selectedEstimate.division },
@@ -794,17 +1064,103 @@ export function EstimatesWorkspace({ permissions }) {
                   onChange={setActiveTab}
                   ariaLabel="Estimate detail sections"
                 />
-                {activeTab === 'history' ? (
+                {activeTab === 'pricing' ? (
+                  <>
+                    <div className="summary-grid summary-grid--compact">
+                      <SummaryCard label="Pricing Lines" value={estimatePricing.lines.length} detail="Active line items" />
+                      <SummaryCard label="Total Price" value={formatMoney(pricingTotal)} detail="Generated line totals" tone={pricingTotal ? 'accent' : 'default'} />
+                      <SummaryCard label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
+                    </div>
+                    <DataTable
+                      columns={pricingColumns}
+                      rows={estimatePricing.lines}
+                      getRowKey={(row) => row.id}
+                      permissions={permissions}
+                      isLoading={estimatePricing.isLoading}
+                      error={estimatePricing.error}
+                      dense
+                      minWidth="980px"
+                      emptyTitle="No pricing lines yet"
+                      emptyDescription="Add pricing lines for labor, material, equipment, subcontract, or other estimate costs."
+                    />
+                    {canEditSelectedEstimate ? (
+                      <form className="job-financials-form" onSubmit={handlePricingSave}>
+                        <Toolbar
+                          eyebrow={pricingForm.id ? 'Edit' : 'Add'}
+                          title={pricingForm.id ? 'Edit pricing line' : 'Add pricing line'}
+                          description="Pricing is estimate-only planning data. Approval snapshots remain separate."
+                          actions={pricingForm.id ? (
+                            <button type="button" className="secondary-button" onClick={resetPricingForm} disabled={pricingForm.isSaving}>
+                              Cancel Edit
+                            </button>
+                          ) : null}
+                          dense
+                        />
+                        <div className="job-financials-form__grid">
+                          <label>
+                            <span>Category</span>
+                            <select value={pricingForm.category} onChange={(event) => setPricingForm((current) => ({ ...current, category: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving}>
+                              {ESTIMATE_PRICING_CATEGORIES.map((category) => (
+                                <option key={category} value={category}>{formatPricingCategory(category)}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="job-financials-form__wide">
+                            <span>Description</span>
+                            <input type="text" value={pricingForm.description} onChange={(event) => setPricingForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} required />
+                          </label>
+                          <label>
+                            <span>Quantity</span>
+                            <input type="number" min="0" step="0.0001" value={pricingForm.quantity} onChange={(event) => setPricingForm((current) => ({ ...current, quantity: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Unit</span>
+                            <input type="text" value={pricingForm.unit} onChange={(event) => setPricingForm((current) => ({ ...current, unit: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} placeholder="ea, hr, lot..." />
+                          </label>
+                          <label>
+                            <span>Unit Cost</span>
+                            <input type="number" min="0" step="0.01" value={pricingForm.unit_cost} onChange={(event) => setPricingForm((current) => ({ ...current, unit_cost: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Markup %</span>
+                            <input type="number" min="0" step="0.0001" value={pricingForm.markup_percent} onChange={(event) => setPricingForm((current) => ({ ...current, markup_percent: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Sort</span>
+                            <input type="number" step="1" value={pricingForm.sort_order} onChange={(event) => setPricingForm((current) => ({ ...current, sort_order: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} />
+                          </label>
+                          <label className="job-financials-form__wide">
+                            <span>Note</span>
+                            <input type="text" value={pricingForm.note} onChange={(event) => setPricingForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} disabled={pricingForm.isSaving} />
+                          </label>
+                        </div>
+                        {pricingForm.error ? (
+                          <StatePanel tone="danger" eyebrow="Pricing Save Failed" title="Pricing line was not saved" description={pricingForm.error.message || 'Unexpected pricing error.'} compact />
+                        ) : null}
+                        {pricingForm.success ? (
+                          <StatePanel tone="success" eyebrow="Saved" title="Pricing line saved" description={pricingForm.success} compact />
+                        ) : null}
+                        <div className="job-financials-form__actions">
+                          <button type="submit" className="primary-button" disabled={pricingForm.isSaving || !pricingForm.description.trim()}>
+                            <Plus aria-hidden="true" /> {pricingForm.isSaving ? 'Saving...' : pricingForm.id ? 'Save Pricing Line' : 'Add Pricing Line'}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <StatePanel tone="neutral" eyebrow="Read Only" title="Pricing writes require estimate edit scope" description="Users with estimate or approval read permission can review pricing, but only estimate editors for this division can add or edit lines." compact />
+                    )}
+                  </>
+                ) : activeTab === 'history' ? (
                   <>
                     <div className="summary-grid summary-grid--compact">
                       <SummaryCard label="Audit Entries" value={estimateHistory.rows.length} detail="Recent estimate changes" />
                       <SummaryCard label="Updates" value={estimateHistory.rows.filter((row) => row.action === 'update').length} detail="Recorded edits" />
-                      <SummaryCard label="Created" value={estimateHistory.rows.filter((row) => row.action === 'create').length} detail="Creation entries" />
+                      <SummaryCard label="Pricing" value={estimateHistory.rows.filter((row) => row.table_name === 'estimate_pricing_lines').length} detail="Line item changes" />
                     </div>
                     <Toolbar
                       eyebrow="Audit"
                       title="Estimate History"
-                      description="Read-only audit entries for this estimate directory row."
+                      description="Read-only audit entries for this estimate and its pricing lines."
                       actions={(
                         <button type="button" className="secondary-button" onClick={estimateHistory.reload} disabled={estimateHistory.isLoading}>
                           <History aria-hidden="true" /> Refresh History
@@ -822,7 +1178,7 @@ export function EstimatesWorkspace({ permissions }) {
                       dense
                       minWidth="940px"
                       emptyTitle="No estimate history yet"
-                      emptyDescription="Future create and edit actions for this estimate will appear here."
+                      emptyDescription="Future estimate and pricing create/edit actions will appear here."
                     />
                   </>
                 ) : (
@@ -857,7 +1213,7 @@ export function EstimatesWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Snapshot Boundary"
               title="Approved snapshots stay immutable"
-              description="Approval remains deferred until it can create a locked snapshot and enforce database-level immutability."
+              description="Pricing is live planning data. Approval remains deferred until it can create a locked snapshot and enforce database-level immutability."
               tone="good"
               compact
               actions={<LockKeyhole aria-hidden="true" />}
@@ -884,7 +1240,7 @@ export function EstimatesWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Locked Vocabulary"
               title="Estimate statuses"
-              description="These labels preserve the planned estimate lifecycle while the first live directory fields come online."
+              description="These labels preserve the planned estimate lifecycle while live directory and pricing fields come online."
               dense
             />
             <div className="estimates-status-list">
