@@ -48,6 +48,41 @@ svg { stroke-width: 1.8; }
 
 .build-note { margin: 0; color: var(--ng-faint); font-size: 0.68rem; font-weight: 700; }
 
+.ng-highlight-incomplete .ng-incomplete-component {
+  position: relative;
+  isolation: isolate;
+  outline: 2px solid rgba(204, 160, 0, 0.72);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 4px rgba(255, 213, 79, 0.18),
+    inset 0 0 0 999px rgba(255, 235, 59, 0.14);
+}
+
+.ng-highlight-incomplete .ng-incomplete-component::after {
+  content: "Incomplete";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid rgba(160, 116, 0, 0.36);
+  border-radius: 4px;
+  background: rgba(255, 235, 59, 0.82);
+  color: #3a2d00;
+  padding: 2px 6px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.ng-highlight-incomplete .status-pill.ng-incomplete-component::after,
+.ng-highlight-incomplete button.ng-incomplete-component::after {
+  top: -10px;
+  right: -8px;
+}
+
 /* ------------------------------------------------------------------ boot */
 
 .ng-boot { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
@@ -796,6 +831,37 @@ textarea {
 .developer-link-card__caution p {
   color: var(--ng-muted);
   font-size: var(--table-font-size);
+}
+
+.developer-toggle-card {
+  align-content: start;
+}
+
+.developer-highlight-toggle {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  padding: 1rem;
+}
+
+.developer-highlight-toggle input {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.15rem;
+  accent-color: #cca000;
+}
+
+.developer-highlight-toggle span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.developer-highlight-toggle small {
+  color: var(--ng-muted);
+  font-size: 0.8rem;
 }
 
 .developer-link-card__icon {

@@ -82,7 +82,7 @@ function SilasMessageList({
             </div>
             <p>{message.content}</p>
             {message.suggestedAction ? (
-              <div className="silas-action-placeholder">
+              <div className="silas-action-placeholder ng-incomplete-component">
                 Action approvals are not enabled yet in Phase 1.
               </div>
             ) : null}

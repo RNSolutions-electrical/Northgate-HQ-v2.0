@@ -88,7 +88,7 @@ const REPORT_COLUMNS = [
     key: 'status',
     header: 'Status',
     render: (row) => (
-      <StatusBadge tone={row.status === 'available' ? 'good' : 'neutral'}>
+      <StatusBadge tone={row.status === 'available' ? 'good' : 'neutral'} incomplete={row.status !== 'available'}>
         {row.status === 'available' ? 'Available' : 'Reserved'}
       </StatusBadge>
     ),
@@ -102,7 +102,7 @@ const SOURCE_COLUMNS = [
   {
     key: 'status',
     header: 'Status',
-    render: (row) => <StatusBadge tone={row.ready ? 'good' : 'warn'}>{row.ready ? 'Ready' : 'Pending'}</StatusBadge>,
+    render: (row) => <StatusBadge tone={row.ready ? 'good' : 'warn'} incomplete={!row.ready}>{row.ready ? 'Ready' : 'Pending'}</StatusBadge>,
   },
   { key: 'reason', header: 'Reason' },
 ];

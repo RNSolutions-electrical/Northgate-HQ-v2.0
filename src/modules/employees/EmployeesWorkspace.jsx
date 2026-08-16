@@ -167,7 +167,7 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" disabled>
+            <button type="button" className="primary-button ng-incomplete-component" disabled>
               <Plus aria-hidden="true" /> Create employee
             </button>
           </>

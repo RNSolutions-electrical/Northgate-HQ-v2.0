@@ -14,6 +14,7 @@ import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import {
   DEVELOPER_HELPFUL_LINKS,
   FUTURE_USER_MANAGEMENT_CAPABILITIES,
@@ -151,6 +152,7 @@ function DeveloperHelpfulLinks() {
 
 export function DeveloperWorkspace({ permissions }) {
   const { user } = useUser();
+  const [highlightIncomplete, setHighlightIncomplete] = useIncompleteHighlightPreference();
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
 
@@ -172,6 +174,7 @@ export function DeveloperWorkspace({ permissions }) {
         <SummaryCard label="Division" value={permissions.division ?? 'Unassigned'} detail="Current operator division" />
         <SummaryCard label="Granted flags" value={grantedCount} detail={`${permissionRows.length} tracked flags`} />
         <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Must remain server-derived" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} />
+        <SummaryCard label="Incomplete overlay" value={highlightIncomplete ? 'On' : 'Off'} detail="Local developer view option" tone={highlightIncomplete ? 'warn' : 'default'} incomplete={highlightIncomplete} />
       </div>
 
       <section className="developer-grid">
@@ -210,6 +213,33 @@ export function DeveloperWorkspace({ permissions }) {
           />
         </article>
 
+        <article className="card workspace-card developer-toggle-card">
+          <Toolbar
+            eyebrow="Developer Overlay"
+            title="Incomplete component highlights"
+            description="Highlights deferred, reserved, disabled, and roadmap surfaces across the app without blocking normal testing."
+          />
+          <label className="developer-highlight-toggle">
+            <input
+              type="checkbox"
+              checked={highlightIncomplete}
+              onChange={(event) => setHighlightIncomplete(event.target.checked)}
+            />
+            <span>
+              <strong>{highlightIncomplete ? 'Highlighting incomplete components' : 'Highlight incomplete components'}</strong>
+              <small>Transparent yellow overlay. This setting is stored in this browser only.</small>
+            </span>
+          </label>
+          <StatePanel
+            tone="neutral"
+            eyebrow="Automation"
+            title="Updates from component markers"
+            description="Shared panels and roadmap controls opt into the highlight from their incomplete status. When the marker is removed during a future completion pass, the yellow highlight disappears automatically."
+            compact
+            incomplete={false}
+          />
+        </article>
+
         <article className="card workspace-card">
           <Toolbar
             eyebrow="Server Permissions"
@@ -231,7 +261,7 @@ export function DeveloperWorkspace({ permissions }) {
 
       <DeveloperHelpfulLinks />
 
-      <aside className="developer-future-note" aria-labelledby="developer-future-note-title">
+      <aside className="developer-future-note ng-incomplete-component" aria-labelledby="developer-future-note-title">
         <div>
           <p className="eyebrow">Planned - not yet implemented</p>
           <h3 id="developer-future-note-title">Future: User Management</h3>

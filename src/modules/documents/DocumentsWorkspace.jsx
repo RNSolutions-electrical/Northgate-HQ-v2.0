@@ -156,7 +156,7 @@ const OWNER_COLUMNS = [
     key: 'status',
     header: 'Status',
     render: (row) => (
-      <StatusBadge tone={row.status === 'job-scoped live' ? 'good' : 'neutral'}>
+      <StatusBadge tone={row.status === 'job-scoped live' ? 'good' : 'neutral'} incomplete={row.status !== 'job-scoped live'}>
         {row.status === 'job-scoped live' ? 'Job-scoped live' : 'Reserved'}
       </StatusBadge>
     ),
@@ -170,7 +170,7 @@ const CONTROL_COLUMNS = [
   {
     key: 'state',
     header: 'State',
-    render: (row) => <StatusBadge tone={row.state === 'Not added' ? 'neutral' : 'good'}>{row.state}</StatusBadge>,
+    render: (row) => <StatusBadge tone={row.state === 'Not added' ? 'neutral' : 'good'} incomplete={row.state === 'Not added'}>{row.state}</StatusBadge>,
   },
   { key: 'detail', header: 'Detail' },
 ];

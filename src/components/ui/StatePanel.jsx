@@ -6,9 +6,12 @@ export function StatePanel({
   actions = null,
   children = null,
   compact = false,
+  incomplete = null,
 }) {
+  const isIncomplete = incomplete ?? hasIncompleteSignal([eyebrow, title, description]);
+
   return (
-    <section className={`state-panel state-panel--${tone}${compact ? ' state-panel--compact' : ''}`}>
+    <section className={`state-panel state-panel--${tone}${compact ? ' state-panel--compact' : ''}${isIncomplete ? ' ng-incomplete-component' : ''}`}>
       <div className="state-panel__copy">
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h3>{title}</h3>
@@ -18,4 +21,30 @@ export function StatePanel({
       {actions ? <div className="state-panel__actions">{actions}</div> : null}
     </section>
   );
+}
+
+function hasIncompleteSignal(values) {
+  const text = values.filter(Boolean).join(' ').toLowerCase();
+  if (!text) return false;
+
+  return [
+    'deferred',
+    'reserved',
+    'future',
+    'not wired',
+    'not implemented',
+    'not enabled yet',
+    'not connected',
+    'not added',
+    'not in this pass',
+    'remain owner-scoped',
+    'remain reserved',
+    'remains reserved',
+    'remain deferred',
+    'remains deferred',
+    'remain future',
+    'remains future',
+    'placeholder',
+    'unavailable yet',
+  ].some((signal) => text.includes(signal));
 }

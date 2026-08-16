@@ -1,5 +1,7 @@
 import { UserButton } from '@clerk/clerk-react';
+import { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { permittedModules } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
@@ -13,8 +15,14 @@ import { StatePanel } from '../ui/StatePanel.jsx';
  */
 export function AppLayout() {
   const permissions = usePermissions();
+  const [highlightIncomplete] = useIncompleteHighlightPreference();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('ng-highlight-incomplete', highlightIncomplete);
+    return () => document.documentElement.classList.remove('ng-highlight-incomplete');
+  }, [highlightIncomplete]);
 
   if (permissions.isLoading) {
     return (

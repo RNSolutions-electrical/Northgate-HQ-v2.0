@@ -69,13 +69,14 @@ export function StatusBadge({
   status = null,
   icon = null,
   title,
+  incomplete = false,
 }) {
   const resolvedTone = status ? toneForStatus(status) : tone;
   const modifier = TONE_CLASS[resolvedTone] ?? '';
   const content = children ?? label ?? status ?? '';
 
   return (
-    <span className={`status-pill ${modifier}`.trim()} title={title}>
+    <span className={`status-pill ${modifier}${incomplete ? ' ng-incomplete-component' : ''}`.trim()} title={title}>
       {icon ? <span className="status-pill__icon" aria-hidden="true">{icon}</span> : null}
       <span className="status-pill__label">{content}</span>
     </span>

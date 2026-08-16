@@ -176,7 +176,7 @@ export function VehiclesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={vehicleState.reload} disabled={vehicleState.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" disabled>
+            <button type="button" className="primary-button ng-incomplete-component" disabled>
               <Plus aria-hidden="true" /> Add vehicle
             </button>
           </>
