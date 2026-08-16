@@ -19022,3 +19022,40 @@ archive still used a direct table update against active-row RLS.
 ### Next Steps
 1. Ryan verifies adding, editing, moving, and archiving Schedule items.
 2. Continue Jobs cleanup with the next remaining gap.
+
+---
+
+## Entry 192 — Jobs Schedule Display Order Fix
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified Schedule actions worked, but moving a row caused visible order
+numbers to change from `1, 2, 3, 4, 5` to raw stored sort values like
+`10, 20, 30, 40, 50`.
+
+### What Was Completed
+- Kept the database `sort_order` values spaced internally for stable
+  reordering.
+- Changed the Schedule table `#` column to display row position as
+  `1, 2, 3...`.
+- Changed the Schedule edit form to show the display order rather than raw
+  `sort_order`.
+- Converted display order back to spaced internal `sort_order` values only when
+  saving.
+- Updated the add form placeholder to show the next visible order number.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### Verification
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### Next Steps
+1. Ryan verifies moving Schedule rows keeps visible numbering as `1, 2, 3...`.
+2. Continue Jobs cleanup with the next remaining gap.

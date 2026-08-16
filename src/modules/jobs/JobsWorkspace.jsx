@@ -579,7 +579,7 @@ const JOB_BUDGET_COLUMNS = [
 ];
 
 const JOB_SCHEDULE_COLUMNS = [
-  { key: 'sort_order', header: '#', render: (row) => Number(row.sort_order) || 0, align: 'right' },
+  { key: 'display_order', header: '#', render: (row) => Number(row.display_order) || 0, align: 'right' },
   { key: 'title', header: 'Milestone / task', render: (row) => <strong>{row.title || 'Untitled schedule item'}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatScheduleStatus(row.status)}</StatusBadge> },
   { key: 'initial_start_date', header: 'Initial start', render: (row) => formatDate(row.initial_start_date) },
@@ -1915,6 +1915,18 @@ export function JobsWorkspace({ permissions }) {
     return Math.max(...jobSchedule.items.map((item) => Number(item.sort_order) || 0)) + 10;
   }
 
+  function nextScheduleDisplayOrder() {
+    return jobSchedule.items.length + 1;
+  }
+
+  function scheduleDisplayOrder(row) {
+    const index = jobSchedule.items.findIndex((item) => item.id === row?.id);
+    if (index >= 0) return index + 1;
+    const rawOrder = Number(row?.sort_order);
+    if (!Number.isFinite(rawOrder) || rawOrder <= 0) return nextScheduleDisplayOrder();
+    return Math.max(1, Math.round(rawOrder / 10));
+  }
+
   function startScheduleEdit(row) {
     setScheduleForm({
       id: row.id,
@@ -1928,7 +1940,7 @@ export function JobsWorkspace({ permissions }) {
       duration_days: row.duration_days === null || row.duration_days === undefined ? '' : String(row.duration_days),
       dependencies: row.dependencies || '',
       status: SCHEDULE_STATUS_OPTIONS.includes(row.status) ? row.status : 'pending',
-      sort_order: String(Number(row.sort_order) || 0),
+      sort_order: String(scheduleDisplayOrder(row)),
       note: row.note || '',
       isSaving: false,
       error: null,
@@ -1955,6 +1967,7 @@ export function JobsWorkspace({ permissions }) {
     }
 
     const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const displaySortOrder = parseOptionalNumber(scheduleForm.sort_order);
     const payload = {
       job_id: selectedJob.id,
       division: selectedJob.division,
@@ -1968,7 +1981,7 @@ export function JobsWorkspace({ permissions }) {
       duration_days: parseOptionalNumber(scheduleForm.duration_days),
       dependencies: scheduleForm.dependencies.trim() || null,
       status: SCHEDULE_STATUS_OPTIONS.includes(scheduleForm.status) ? scheduleForm.status : 'pending',
-      sort_order: parseOptionalNumber(scheduleForm.sort_order) ?? nextScheduleSortOrder(),
+      sort_order: displaySortOrder == null ? nextScheduleSortOrder() : Math.max(1, Math.round(displaySortOrder)) * 10,
       note: scheduleForm.note.trim() || null,
     };
 
@@ -2691,6 +2704,10 @@ export function JobsWorkspace({ permissions }) {
           actualFinish: actualFinish || actualStart,
         };
       });
+      const scheduleRows = jobSchedule.items.map((item, index) => ({
+        ...item,
+        display_order: index + 1,
+      }));
       const ganttDates = ganttRows.flatMap((row) => [
         row.plannedStart,
         row.plannedFinish,
@@ -2776,7 +2793,7 @@ export function JobsWorkspace({ permissions }) {
           <div className="job-schedule-print-list">
             <DataTable
               columns={scheduleColumns}
-              rows={jobSchedule.items}
+              rows={scheduleRows}
               getRowKey={(row) => row.id}
               permissions={permissions}
               isLoading={jobSchedule.isLoading}
@@ -2901,7 +2918,7 @@ export function JobsWorkspace({ permissions }) {
                     step="1"
                     value={scheduleForm.sort_order}
                     onChange={(event) => setScheduleForm((current) => ({ ...current, sort_order: event.target.value, error: null, success: '' }))}
-                    placeholder={String(nextScheduleSortOrder())}
+                    placeholder={String(nextScheduleDisplayOrder())}
                     disabled={scheduleForm.isSaving}
                   />
                 </label>
