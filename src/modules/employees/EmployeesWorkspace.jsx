@@ -104,7 +104,8 @@ function useEmployeeReferences({ enabled }) {
 
 export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
-  const directory = useEmployeeReferences({ enabled: permissions.permissionSource === 'server' });
+  const canReadEmployees = permissions.permissionSource === 'server' && permissions.canManageEmployees === true;
+  const directory = useEmployeeReferences({ enabled: canReadEmployees });
   const [activeView, setActiveView] = useState('directory');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -179,6 +180,7 @@ export function EmployeesWorkspace({ permissions }) {
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
         <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
         <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create/edit remains deferred" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
+        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All divisions' : permissions.division || 'None'} detail="Server level/division rules" tone={canReadEmployees ? 'good' : 'warn'} />
       </div>
 
       <div className={`workspace-split employees-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -307,6 +309,13 @@ export function EmployeesWorkspace({ permissions }) {
           </article>
 
           <section className="employees-boundary-grid">
+            <StatePanel
+              eyebrow="Boundary"
+              title="Read scope is active"
+              description="Directory rows come from Supabase and follow the current user's effective level/division visibility."
+              compact
+              incomplete={false}
+            />
             <StatePanel
               eyebrow="Boundary"
               title="Create/Edit remains deferred"

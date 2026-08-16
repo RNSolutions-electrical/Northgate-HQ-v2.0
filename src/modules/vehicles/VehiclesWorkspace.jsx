@@ -116,7 +116,8 @@ function useVehicleReferences({ enabled }) {
 }
 
 export function VehiclesWorkspace({ permissions }) {
-  const vehicleState = useVehicleReferences({ enabled: permissions.permissionSource === 'server' });
+  const canReadVehicles = permissions.permissionSource === 'server' && permissions.canManageVehicles === true;
+  const vehicleState = useVehicleReferences({ enabled: canReadVehicles });
   const [activeView, setActiveView] = useState('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
@@ -187,6 +188,7 @@ export function VehiclesWorkspace({ permissions }) {
         <SummaryCard label="Visible vehicles" value={vehicles.length} detail={vehicleState.isLoading ? 'Loading references' : 'Destination reference rows'} />
         <SummaryCard label="Stock vehicles" value={stockCount} detail="Vehicles marked inventory-capable" />
         <SummaryCard label="General fleet" value={fleetCount} detail="Not marked as stock-holding" />
+        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All divisions' : 'Limited'} detail="Vehicle division source pending" tone={canReadVehicles ? 'good' : 'warn'} incomplete={!vehiclesWithDivision} />
         <SummaryCard
           label="Division source"
           value={vehiclesWithDivision ? 'Available' : 'Pending'}
@@ -317,6 +319,13 @@ export function VehiclesWorkspace({ permissions }) {
           </article>
 
           <section className="vehicles-boundary-grid">
+            <StatePanel
+              eyebrow="Boundary"
+              title="Read scope is active"
+              description="Vehicle references require the vehicle-management permission. Per-division vehicle filtering waits on a real vehicle division source."
+              compact
+              incomplete={!vehiclesWithDivision}
+            />
             <StatePanel
               eyebrow="Boundary"
               title="Add/Edit remains deferred"
