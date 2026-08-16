@@ -26,7 +26,7 @@ const VEHICLE_COLUMNS = [
   { key: 'classification', header: 'Classification', fallback: 'Vehicle' },
   { key: 'make', header: 'Make', fallback: '-' },
   { key: 'model', header: 'Model', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: 'Unassigned' },
+  { key: 'division', header: 'Division Source', fallback: 'Source pending' },
   {
     key: 'holds_stock',
     header: 'Stock',
@@ -127,7 +127,7 @@ export function VehiclesWorkspace({ permissions }) {
   const vehicles = vehicleState.vehicles;
   const stockCount = vehicles.filter((vehicle) => vehicle.holds_stock).length;
   const fleetCount = vehicles.length - stockCount;
-  const divisions = [...new Set(vehicles.map((vehicle) => vehicle.division).filter(Boolean))];
+  const vehiclesWithDivision = vehicles.filter((vehicle) => vehicle.division).length;
 
   const vehicleViews = [
     { key: 'all', label: 'All Vehicles', icon: Truck, description: 'Every visible destination vehicle.', badge: vehicles.length },
@@ -187,7 +187,12 @@ export function VehiclesWorkspace({ permissions }) {
         <SummaryCard label="Visible vehicles" value={vehicles.length} detail={vehicleState.isLoading ? 'Loading references' : 'Destination reference rows'} />
         <SummaryCard label="Stock vehicles" value={stockCount} detail="Vehicles marked inventory-capable" />
         <SummaryCard label="General fleet" value={fleetCount} detail="Not marked as stock-holding" />
-        <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
+        <SummaryCard
+          label="Division source"
+          value={vehiclesWithDivision ? 'Available' : 'Pending'}
+          detail={vehiclesWithDivision ? `${vehiclesWithDivision} scoped row${vehiclesWithDivision === 1 ? '' : 's'}` : 'Vehicles do not expose division yet'}
+          tone={vehiclesWithDivision ? 'good' : 'warn'}
+        />
       </div>
 
       <div className={`workspace-split vehicles-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -215,7 +220,7 @@ export function VehiclesWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Directory"
               title={vehicleViews.find((item) => item.key === activeView)?.label ?? 'Vehicles'}
-              description="Rows come from the existing authenticated vehicle reference view."
+              description="Rows come from the limited vehicle reference view. Vehicle division is source-pending, so visibility remains all-division only."
               search={(
                 <label>
                   <span className="sr-only">Search vehicles</span>
@@ -256,7 +261,7 @@ export function VehiclesWorkspace({ permissions }) {
                   description="This selected-record shell preserves the approved detail pattern without inventing assignment or maintenance workflows."
                   meta={[
                     { label: 'Classification', value: selectedVehicle.classification || 'Vehicle' },
-                    { label: 'Division', value: selectedVehicle.division || 'Unassigned' },
+                    { label: 'Division', value: selectedVehicle.division || 'Source pending' },
                   ]}
                 />
                 <WorkspaceTabs
@@ -322,6 +327,12 @@ export function VehiclesWorkspace({ permissions }) {
               eyebrow="Boundary"
               title="No assignment mutations"
               description="This pass does not create, end, or edit vehicle assignments, and does not alter cart-open vehicle snapshot behavior."
+              compact
+            />
+            <StatePanel
+              eyebrow="Boundary"
+              title="Division source is pending"
+              description="Vehicle records do not currently expose a division field, so this directory cannot enforce per-division vehicle visibility until that source exists."
               compact
             />
             <StatePanel

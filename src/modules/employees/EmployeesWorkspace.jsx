@@ -178,7 +178,7 @@ export function EmployeesWorkspace({ permissions }) {
         <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
         <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
-        <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="No writes added here" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
+        <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create/edit remains deferred" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
       </div>
 
       <div className={`workspace-split employees-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -206,7 +206,7 @@ export function EmployeesWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Directory"
               title={employeeViews.find((item) => item.key === activeView)?.label ?? 'Employees'}
-              description="Rows come from the existing authenticated user reference view."
+              description="Rows come from the limited employee reference view and follow level/division read scope."
               search={(
                 <label>
                   <span className="sr-only">Search employees</span>
