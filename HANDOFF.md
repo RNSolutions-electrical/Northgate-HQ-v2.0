@@ -18526,3 +18526,85 @@ by `can_create_jobs` and the user's own division.
   path.
 - Final RLS/security pass still needs to address older public tables/views,
   including the known broad RLS-disabled advisory findings.
+
+---
+
+## Entry 184 — Jobs Edit And Archive Controls
+
+**Date:** 2026-08-15
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs cleanup
+**Session type:** implementation
+
+### Context
+Ryan verified that the Jobs Create form worked and asked to proceed. The next
+Jobs hardening step was selected-job maintenance: editing the foundation job
+record and archiving jobs without exposing hidden write paths to read-only
+users.
+
+### What Was Completed
+- Added selected-job `Edit` and `Archive` actions.
+- Actions are visible only when the current user has `can_manage_jobs` for the
+  selected job division.
+- Reused the controlled Jobs form for edit mode.
+- Job edits now update the existing `public.jobs` row fields:
+  - job number
+  - name
+  - status
+  - job type
+  - service call number
+  - address lines
+  - city/state/postal code
+  - description
+  - notes
+- Job archive now requires a reason and updates:
+  - `archived_at`
+  - `archived_by`
+  - `archive_reason`
+- Job create, edit, and archive actions now write `public.change_logs` entries
+  using the existing canonical audit columns:
+  - `user_id`
+  - `user_name`
+  - `table_name`
+  - `record_id`
+  - `action`
+  - `before_data`
+  - `after_data`
+  - `note`
+- Audit snapshots include before/after foundation job fields and archive
+  metadata.
+
+### Schema Changes
+- None.
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No RLS policies were changed in this slice.
+- No production DDL was applied in this slice.
+- Live `public.change_logs` was verified to include the expected columns and to
+  accept `create`, `update`, and `archive`.
+- The audit writes are currently client-side inserts into the existing
+  `change_logs` table. This matches the current available app path but is not
+  atomic with the job update/archive operation.
+- Final RLS/security hardening should replace or protect these audit writes
+  with a server-validated atomic path if the app requires strict audit/update
+  inseparability.
+
+### Next Steps (in order)
+1. Ryan verifies editing a test job saves and reloads.
+2. Ryan verifies archiving a test job requires a reason and removes it from the
+   visible Jobs directory.
+3. During the final security pass, tighten `change_logs` exposure and confirm
+   the desired atomic audit strategy for Jobs, Buyout, Financials, and other
+   editable modules.
+4. Continue Jobs cleanup with the next remaining page/module gap.
+
+### Open Questions / Concerns
+- Because final RLS cleanup is intentionally deferred, `change_logs` remains
+  broader than the final desired security posture.
+- Edit/archive controls are live for the foundation `jobs` row only. Related
+  module rows such as Buyout, Financials, Documents, and Schedule keep their
+  own edit/archive hardening requirements.

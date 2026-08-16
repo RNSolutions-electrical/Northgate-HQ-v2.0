@@ -991,6 +991,50 @@ function renderFact(label, value) {
   );
 }
 
+function jobToForm(job) {
+  if (!job) return DEFAULT_JOB_FORM;
+
+  return {
+    ...DEFAULT_JOB_FORM,
+    job_number: job.job_number || '',
+    name: job.name || '',
+    status: JOB_STATUS_OPTIONS.includes(job.status) ? job.status : 'active',
+    job_type: job.job_type === 'service_call' ? 'service_call' : 'job',
+    service_call_number: job.service_call_number || '',
+    address_line1: job.address_line1 || '',
+    address_line2: job.address_line2 || '',
+    city: job.city || '',
+    state: job.state || '',
+    postal_code: job.postal_code || '',
+    description: job.description || '',
+    notes: job.notes || '',
+  };
+}
+
+function jobAuditSnapshot(job) {
+  if (!job) return null;
+
+  return {
+    id: job.id,
+    division: job.division,
+    job_number: job.job_number,
+    name: job.name,
+    status: job.status,
+    description: job.description,
+    notes: job.notes,
+    address_line1: job.address_line1,
+    address_line2: job.address_line2,
+    city: job.city,
+    state: job.state,
+    postal_code: job.postal_code,
+    job_type: job.job_type,
+    service_call_number: job.service_call_number,
+    archived_at: job.archived_at,
+    archived_by: job.archived_by,
+    archive_reason: job.archive_reason,
+  };
+}
+
 export function JobsWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -1001,6 +1045,7 @@ export function JobsWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('browse');
   const [jobForm, setJobForm] = useState(DEFAULT_JOB_FORM);
+  const [jobAction, setJobAction] = useState({ action: '', error: null, success: '' });
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
@@ -1116,6 +1161,7 @@ export function JobsWorkspace({ permissions }) {
     setActiveTab('overview');
     setMode('browse');
     setJobForm(DEFAULT_JOB_FORM);
+    setJobAction({ action: '', error: null, success: '' });
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
@@ -1125,6 +1171,52 @@ export function JobsWorkspace({ permissions }) {
   function startJobCreate() {
     setMode('create');
     setJobForm(DEFAULT_JOB_FORM);
+    setJobAction({ action: '', error: null, success: '' });
+  }
+
+  function startJobEdit() {
+    if (!selectedJob || !canManageSelectedJob) return;
+    setMode('edit');
+    setJobForm(jobToForm(selectedJob));
+    setJobAction({ action: '', error: null, success: '' });
+  }
+
+  async function writeJobChangeLog(client, { action, recordId, beforeData, afterData, note }) {
+    const userId = user?.id || null;
+    const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const { error } = await client
+      .from('change_logs')
+      .insert({
+        user_id: userId,
+        user_name: userName,
+        table_name: 'jobs',
+        record_id: recordId,
+        action,
+        before_data: beforeData,
+        after_data: afterData,
+        note,
+      });
+
+    if (error) throw error;
+  }
+
+  function buildJobPayload() {
+    const jobType = jobForm.job_type === 'service_call' ? 'service_call' : 'job';
+
+    return {
+      job_number: jobForm.job_number.trim() || null,
+      name: jobForm.name.trim(),
+      status: JOB_STATUS_OPTIONS.includes(jobForm.status) ? jobForm.status : 'active',
+      description: jobForm.description.trim() || null,
+      notes: jobForm.notes.trim() || null,
+      address_line1: jobForm.address_line1.trim() || null,
+      address_line2: jobForm.address_line2.trim() || null,
+      city: jobForm.city.trim() || null,
+      state: jobForm.state.trim() || null,
+      postal_code: jobForm.postal_code.trim() || null,
+      job_type: jobType,
+      service_call_number: jobType === 'service_call' ? jobForm.service_call_number.trim() || null : null,
+    };
   }
 
   async function handleJobCreate(event) {
@@ -1149,21 +1241,9 @@ export function JobsWorkspace({ permissions }) {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
       const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-      const jobType = jobForm.job_type === 'service_call' ? 'service_call' : 'job';
       const payload = {
+        ...buildJobPayload(),
         division: createJobDivision,
-        job_number: jobForm.job_number.trim() || null,
-        name,
-        status: JOB_STATUS_OPTIONS.includes(jobForm.status) ? jobForm.status : 'active',
-        description: jobForm.description.trim() || null,
-        notes: jobForm.notes.trim() || null,
-        address_line1: jobForm.address_line1.trim() || null,
-        address_line2: jobForm.address_line2.trim() || null,
-        city: jobForm.city.trim() || null,
-        state: jobForm.state.trim() || null,
-        postal_code: jobForm.postal_code.trim() || null,
-        job_type: jobType,
-        service_call_number: jobType === 'service_call' ? jobForm.service_call_number.trim() || null : null,
         created_by: createdBy,
       };
 
@@ -1175,6 +1255,14 @@ export function JobsWorkspace({ permissions }) {
 
       if (error) throw error;
 
+      await writeJobChangeLog(client, {
+        action: 'create',
+        recordId: data?.id || '',
+        beforeData: null,
+        afterData: jobAuditSnapshot(data),
+        note: `Job ${data?.job_number || data?.name || name} created.`,
+      });
+
       setJobForm({
         ...DEFAULT_JOB_FORM,
         success: `${data?.name || name} created.`,
@@ -1183,10 +1271,104 @@ export function JobsWorkspace({ permissions }) {
       setActiveView(data?.status || 'active');
       setActiveTab('overview');
       setMode('browse');
+      setJobAction({ action: '', error: null, success: `${data?.name || name} created.` });
       directory.reload();
     } catch (error) {
       console.error('Job create failed', error);
       setJobForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleJobUpdate(event) {
+    event.preventDefault();
+
+    if (!selectedJob || !canManageSelectedJob || jobForm.isSaving) return;
+
+    const name = jobForm.name.trim();
+    if (!name) {
+      setJobForm((current) => ({ ...current, error: new Error('Enter a job name before saving.') }));
+      return;
+    }
+
+    const payload = buildJobPayload();
+    setJobForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('jobs')
+        .update(payload)
+        .eq('id', selectedJob.id)
+        .select(JOB_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: 'update',
+        recordId: selectedJob.id,
+        beforeData: jobAuditSnapshot(selectedJob),
+        afterData: jobAuditSnapshot(data),
+        note: `Job ${selectedJob.job_number || selectedJob.name || selectedJob.id} updated.`,
+      });
+
+      setJobForm(DEFAULT_JOB_FORM);
+      setJobAction({ action: '', error: null, success: `${data?.name || name} updated.` });
+      setSelectedJobId(data?.id || selectedJob.id);
+      setActiveView(data?.status || 'active');
+      setActiveTab('overview');
+      setMode('browse');
+      directory.reload();
+    } catch (error) {
+      console.error('Job update failed', error);
+      setJobForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleJobArchive() {
+    if (!selectedJob || !canManageSelectedJob || jobAction.action) return;
+
+    const reason = window.prompt(`Archive "${jobLabel(selectedJob)}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    const archivedBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const archivedAt = new Date().toISOString();
+    setJobAction({ action: 'archive', error: null, success: '' });
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client
+        .from('jobs')
+        .update({
+          archived_at: archivedAt,
+          archived_by: archivedBy,
+          archive_reason: reason.trim(),
+        })
+        .eq('id', selectedJob.id)
+        .select(JOB_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: 'archive',
+        recordId: selectedJob.id,
+        beforeData: jobAuditSnapshot(selectedJob),
+        afterData: jobAuditSnapshot(data),
+        note: reason.trim(),
+      });
+
+      setSelectedJobId('');
+      setMode('browse');
+      setActiveTab('overview');
+      setJobForm(DEFAULT_JOB_FORM);
+      setJobAction({ action: '', error: null, success: `${jobLabel(selectedJob)} archived.` });
+      directory.reload();
+    } catch (error) {
+      console.error('Job archive failed', error);
+      setJobAction({ action: '', error, success: '' });
     }
   }
 
@@ -2582,13 +2764,15 @@ export function JobsWorkspace({ permissions }) {
           </article>
 
           <article className="card workspace-card">
-            {mode === 'create' ? (
-              canCreateJobs ? (
-                <form className="job-create-form" onSubmit={handleJobCreate}>
+            {mode === 'create' || mode === 'edit' ? (
+              (mode === 'create' ? canCreateJobs : canManageSelectedJob) ? (
+                <form className="job-create-form" onSubmit={mode === 'create' ? handleJobCreate : handleJobUpdate}>
                   <Toolbar
-                    eyebrow="Create Mode"
-                    title="Create job"
-                    description="New jobs are created in your current division and inherit the existing jobs RLS."
+                    eyebrow={mode === 'create' ? 'Create Mode' : 'Edit Mode'}
+                    title={mode === 'create' ? 'Create job' : 'Edit job'}
+                    description={mode === 'create'
+                      ? 'New jobs are created in your current division and inherit the existing jobs RLS.'
+                      : 'Job edits update the existing foundation record and write a change log entry.'}
                     dense
                     actions={(
                       <button type="button" className="secondary-button" onClick={() => setMode('browse')} disabled={jobForm.isSaving}>
@@ -2620,7 +2804,7 @@ export function JobsWorkspace({ permissions }) {
                     </label>
                     <label>
                       <span>Division</span>
-                      <input type="text" value={createJobDivision || 'No division'} disabled readOnly />
+                      <input type="text" value={(mode === 'create' ? createJobDivision : selectedJob?.division) || 'No division'} disabled readOnly />
                     </label>
                     <label>
                       <span>Status</span>
@@ -2730,16 +2914,22 @@ export function JobsWorkspace({ permissions }) {
                     <StatePanel tone="success" eyebrow="Saved" title="Job created" description={jobForm.success} compact />
                   ) : null}
                   <div className="job-create-form__actions">
-                    <button type="submit" className="primary-button" disabled={jobForm.isSaving || !jobForm.name.trim() || !createJobDivision}>
-                      <Plus aria-hidden="true" /> {jobForm.isSaving ? 'Saving...' : 'Create Job'}
+                    <button
+                      type="submit"
+                      className="primary-button"
+                      disabled={jobForm.isSaving || !jobForm.name.trim() || (mode === 'create' && !createJobDivision)}
+                    >
+                      <Plus aria-hidden="true" /> {jobForm.isSaving ? 'Saving...' : mode === 'create' ? 'Create Job' : 'Save Job'}
                     </button>
                   </div>
                 </form>
               ) : (
                 <StatePanel
-                  eyebrow="Create Locked"
-                  title="Job creation requires can_create_jobs"
-                  description="This session can browse visible jobs but cannot submit a hidden insert path."
+                  eyebrow={mode === 'create' ? 'Create Locked' : 'Edit Locked'}
+                  title={mode === 'create' ? 'Job creation requires can_create_jobs' : 'Job edits require selected-job management permission'}
+                  description={mode === 'create'
+                    ? 'This session can browse visible jobs but cannot submit a hidden insert path.'
+                    : 'This session can browse the selected job but cannot submit a hidden update path.'}
                   tone="warning"
                   actions={(
                     <button type="button" className="secondary-button" onClick={() => setMode('browse')}>
@@ -2761,7 +2951,23 @@ export function JobsWorkspace({ permissions }) {
                     { label: 'Division', value: selectedJob.division || 'Unassigned' },
                     { label: 'Manage', value: canManageSelectedJob ? 'Granted' : 'Read only' },
                   ] : []}
+                  actions={selectedJob && canManageSelectedJob ? (
+                    <>
+                      <button type="button" className="secondary-button" onClick={startJobEdit} disabled={Boolean(jobAction.action)}>
+                        Edit
+                      </button>
+                      <button type="button" className="secondary-button secondary-button--danger" onClick={handleJobArchive} disabled={Boolean(jobAction.action)}>
+                        {jobAction.action === 'archive' ? 'Archiving...' : 'Archive'}
+                      </button>
+                    </>
+                  ) : null}
                 />
+                {jobAction.error ? (
+                  <StatePanel tone="danger" eyebrow="Job Action Failed" title="Could not complete this job action" description={jobAction.error.message || 'Unexpected job action error.'} compact />
+                ) : null}
+                {jobAction.success ? (
+                  <StatePanel tone="success" eyebrow="Saved" title="Job action complete" description={jobAction.success} compact />
+                ) : null}
                 <WorkspaceTabs
                   tabs={visibleTabs}
                   activeKey={activeTab}
