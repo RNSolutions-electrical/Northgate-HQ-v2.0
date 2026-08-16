@@ -107,6 +107,12 @@ function toolSearchText(tool) {
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
+function canManageToolDivision(permissions, rowDivision) {
+  if (permissions?.permissionSource !== 'server' || permissions?.canManageInventory !== true || !rowDivision) return false;
+  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  return permissions?.division === rowDivision;
+}
+
 function toolToForm(tool) {
   return {
     ...DEFAULT_TOOL_FORM,
@@ -296,7 +302,7 @@ export function ToolsWorkspace({ permissions }) {
     }
 
     const existingTool = toolForm.id ? tools.find((tool) => tool.id === toolForm.id) : null;
-    if (existingTool && existingTool.division !== permissions.division) {
+    if (existingTool && !canManageToolDivision(permissions, existingTool.division)) {
       setToolForm((current) => ({ ...current, error: new Error('This tool belongs to another division, so your current session cannot edit it.') }));
       return;
     }
@@ -337,7 +343,7 @@ export function ToolsWorkspace({ permissions }) {
   async function handleToolArchive(tool) {
     if (!canManageToolCatalogue || toolForm.isSaving) return;
 
-    if (tool.division !== permissions.division) {
+    if (!canManageToolDivision(permissions, tool.division)) {
       setToolForm((current) => ({ ...current, error: new Error('This tool belongs to another division, so your current session cannot archive it.'), success: '' }));
       return;
     }
@@ -388,7 +394,7 @@ export function ToolsWorkspace({ permissions }) {
       header: 'Actions',
       width: '180px',
       render: (row) => {
-        const canMutateRow = canManageToolCatalogue && row.division === permissions.division;
+        const canMutateRow = canManageToolDivision(permissions, row.division);
         return (
           <div className="tool-catalogue-actions" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="secondary-button" onClick={() => startToolEdit(row)} disabled={!canMutateRow || toolForm.isSaving}>
@@ -457,7 +463,7 @@ export function ToolsWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Directory"
               title={toolViews.find((item) => item.key === activeView)?.label ?? 'Tool Catalogue'}
-              description="Rows come from the existing division-scoped public.tools catalogue."
+              description="Rows come from the existing public.tools catalogue and follow level/division scope."
               search={(
                 <label>
                   <span className="sr-only">Search tools</span>
@@ -568,7 +574,7 @@ export function ToolsWorkspace({ permissions }) {
               eyebrow={toolForm.id ? 'Edit' : 'Add'}
               title={toolForm.id ? 'Edit catalogue tool' : 'Add catalogue tool'}
               description={canManageToolCatalogue
-                ? `Tool writes are scoped to ${permissions.division}. Checkout and custody workflows remain deferred.`
+                ? 'Tool writes follow level/division scope. Checkout and custody workflows remain deferred.'
                 : 'Tool catalogue writes require inventory management permission and a current division.'}
               actions={toolForm.id ? (
                 <button type="button" className="secondary-button" onClick={resetToolForm} disabled={toolForm.isSaving}>
@@ -660,7 +666,7 @@ export function ToolsWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Boundary"
               title="Catalogue writes are active"
-              description="Add, edit, archive, and restore now use the existing public.tools table and its inventory-manager division RLS."
+              description="Add, edit, archive, and restore now use the existing public.tools table and level/division RLS."
               compact
             />
             <StatePanel
