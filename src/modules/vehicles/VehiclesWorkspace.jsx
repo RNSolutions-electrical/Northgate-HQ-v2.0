@@ -14,6 +14,16 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_VEHICLES = Object.freeze([]);
 const EMPTY_ASSIGNMENTS = Object.freeze([]);
+const EMPTY_EMPLOYEES = Object.freeze([]);
+
+const DEFAULT_ASSIGNMENT_FORM = Object.freeze({
+  userId: '',
+  reason: '',
+  releaseReason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
 
 const VEHICLE_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -80,6 +90,7 @@ function useVehicleReferences({ enabled }) {
     error: null,
     vehicles: EMPTY_VEHICLES,
     assignments: EMPTY_ASSIGNMENTS,
+    employees: EMPTY_EMPLOYEES,
   });
 
   useEffect(() => {
@@ -96,7 +107,7 @@ function useVehicleReferences({ enabled }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const [vehiclesResult, assignmentsResult] = await Promise.all([
+        const [vehiclesResult, assignmentsResult, employeesResult] = await Promise.all([
           client
             .from('inventory_destination_vehicles_view')
             .select('id, vehicle_number, name, make, model, classification, holds_stock, division')
@@ -104,10 +115,15 @@ function useVehicleReferences({ enabled }) {
           client.rpc('read_vehicle_assignment_directory', {
             p_limit: 1000,
           }),
+          client
+            .from('inventory_destination_users_view')
+            .select('clerk_user_id, display_name, email, role, division')
+            .order('display_name', { ascending: true, nullsFirst: false }),
         ]);
 
         if (vehiclesResult.error) throw vehiclesResult.error;
         if (assignmentsResult.error) throw assignmentsResult.error;
+        if (employeesResult.error) throw employeesResult.error;
 
         if (isMounted) {
           setState({
@@ -115,6 +131,7 @@ function useVehicleReferences({ enabled }) {
             error: null,
             vehicles: vehiclesResult.data ?? EMPTY_VEHICLES,
             assignments: assignmentsResult.data ?? EMPTY_ASSIGNMENTS,
+            employees: employeesResult.data ?? EMPTY_EMPLOYEES,
           });
         }
       } catch (error) {
@@ -125,6 +142,7 @@ function useVehicleReferences({ enabled }) {
             error,
             vehicles: EMPTY_VEHICLES,
             assignments: EMPTY_ASSIGNMENTS,
+            employees: EMPTY_EMPLOYEES,
           });
         }
       }
@@ -144,6 +162,7 @@ function useVehicleReferences({ enabled }) {
 }
 
 export function VehiclesWorkspace({ permissions }) {
+  const { getToken } = useAuth();
   const canReadVehicles = permissions.permissionSource === 'server' && permissions.canManageVehicles === true;
   const vehicleState = useVehicleReferences({ enabled: canReadVehicles });
   const [activeView, setActiveView] = useState('all');
@@ -152,6 +171,7 @@ export function VehiclesWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const [assignmentForm, setAssignmentForm] = useState(DEFAULT_ASSIGNMENT_FORM);
 
   const assignments = vehicleState.assignments;
   const currentAssignmentMap = useMemo(() => {
@@ -210,6 +230,57 @@ export function VehiclesWorkspace({ permissions }) {
   function selectVehicle(vehicle) {
     setSelectedVehicleId(vehicle.id);
     setActiveTab('overview');
+    setAssignmentForm(DEFAULT_ASSIGNMENT_FORM);
+  }
+
+  function setAssignmentField(field, value) {
+    setAssignmentForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+  }
+
+  async function assignVehicle(event) {
+    event.preventDefault();
+    if (!selectedVehicle || !assignmentForm.userId || !assignmentForm.reason.trim() || assignmentForm.isSaving) return;
+
+    setAssignmentForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('assign_vehicle_to_user', {
+        p_vehicle_id: selectedVehicle.id,
+        p_user_id: assignmentForm.userId,
+        p_reason: assignmentForm.reason.trim(),
+      });
+      if (error) throw error;
+
+      setAssignmentForm({ ...DEFAULT_ASSIGNMENT_FORM, success: 'Vehicle assignment saved.' });
+      vehicleState.reload();
+    } catch (error) {
+      console.error('Vehicle assignment failed', error);
+      setAssignmentForm((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
+  async function releaseVehicle() {
+    if (!selectedVehicle?.current_assignment || !assignmentForm.releaseReason.trim() || assignmentForm.isSaving) return;
+
+    setAssignmentForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('release_vehicle_assignment', {
+        p_assignment_id: selectedVehicle.current_assignment.assignment_id,
+        p_reason: assignmentForm.releaseReason.trim(),
+      });
+      if (error) throw error;
+
+      setAssignmentForm({ ...DEFAULT_ASSIGNMENT_FORM, success: 'Vehicle assignment released.' });
+      vehicleState.reload();
+    } catch (error) {
+      console.error('Vehicle release failed', error);
+      setAssignmentForm((current) => ({ ...current, isSaving: false, error }));
+    }
   }
 
   return (
@@ -217,7 +288,7 @@ export function VehiclesWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Vehicles"
-        description="Fleet directory with live current-operator and assignment-history reads. Assignment write controls, maintenance, inspections, and service workflows remain deferred."
+        description="Fleet directory with live current-operator reads, assignment history, and controlled assignment changes. Maintenance, inspections, and service workflows remain deferred."
         status={<span className="status-pill">{vehicles.length} visible vehicle{vehicles.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -350,14 +421,55 @@ export function VehiclesWorkspace({ permissions }) {
                         tone="neutral"
                       />
                     )}
-                    <StatePanel
-                      eyebrow="Read Only"
-                      title="Assignment changes are still deferred"
-                      description="This page now reads the authoritative assignment table. Create, release, and transfer actions will be added in a separate write pass with audit logging."
-                      tone="info"
-                      compact
-                      incomplete={false}
-                    />
+                    <form className="card workspace-card" onSubmit={assignVehicle}>
+                      <Toolbar
+                        eyebrow="Assignment Control"
+                        title={selectedVehicle.current_assignment ? 'Transfer or reassign vehicle' : 'Assign vehicle'}
+                        description="Choose an employee in your approved scope and provide a required audit reason. Assigning an employee who already has a vehicle transfers them from that vehicle."
+                      />
+                      <div className="module-form-grid">
+                        <label>
+                          Employee
+                          <select value={assignmentForm.userId} onChange={(event) => setAssignmentField('userId', event.target.value)} disabled={assignmentForm.isSaving} required>
+                            <option value="">Select employee</option>
+                            {vehicleState.employees.map((employee) => (
+                              <option key={employee.clerk_user_id} value={employee.clerk_user_id}>
+                                {employee.display_name || employee.email || employee.clerk_user_id} — {employee.division || 'Unassigned'}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Assignment reason
+                          <input type="text" maxLength={500} value={assignmentForm.reason} onChange={(event) => setAssignmentField('reason', event.target.value)} disabled={assignmentForm.isSaving} placeholder="Required audit reason" required />
+                        </label>
+                      </div>
+                      <button type="submit" className="primary-button" disabled={assignmentForm.isSaving || !assignmentForm.userId || !assignmentForm.reason.trim()}>
+                        {assignmentForm.isSaving ? 'Saving…' : selectedVehicle.current_assignment ? 'Save assignment / transfer' : 'Assign vehicle'}
+                      </button>
+                    </form>
+
+                    {selectedVehicle.current_assignment ? (
+                      <article className="card workspace-card">
+                        <Toolbar eyebrow="Release" title="Release current operator" description="End the active assignment without creating a replacement." />
+                        <div className="module-form-grid">
+                          <label>
+                            Release reason
+                            <input type="text" maxLength={500} value={assignmentForm.releaseReason} onChange={(event) => setAssignmentField('releaseReason', event.target.value)} disabled={assignmentForm.isSaving} placeholder="Required audit reason" />
+                          </label>
+                        </div>
+                        <button type="button" className="secondary-button" onClick={releaseVehicle} disabled={assignmentForm.isSaving || !assignmentForm.releaseReason.trim()}>
+                          Release assignment
+                        </button>
+                      </article>
+                    ) : null}
+
+                    {assignmentForm.error ? (
+                      <StatePanel tone="danger" eyebrow="Assignment Failed" title="Vehicle assignment was not changed" description={assignmentForm.error.message || 'Unexpected assignment error.'} compact />
+                    ) : null}
+                    {assignmentForm.success ? (
+                      <StatePanel tone="success" eyebrow="Saved" title={assignmentForm.success} description="The assignment directory and Dashboard vehicle view will use the updated authoritative history." compact />
+                    ) : null}
                   </>
                 ) : null}
 
@@ -409,8 +521,8 @@ export function VehiclesWorkspace({ permissions }) {
             />
             <StatePanel
               eyebrow="Boundary"
-              title="No assignment mutations"
-              description="Assignment history is now readable, but this pass does not create, end, or edit vehicle assignments, and does not alter cart-open vehicle snapshot behavior."
+              title="Controlled assignment mutations"
+              description="Assignment create, transfer, and release use permission-checked RPCs with required reasons and audit rows. Cart-open continues to resolve the active vehicle from assignment history."
               compact
               incomplete={false}
             />

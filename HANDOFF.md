@@ -19339,3 +19339,88 @@ bounded slice was therefore a read-only view of the existing company catalogue.
 1. Ryan verifies the Company Tools summary and My Tools catalogue table.
 2. Decide the next Dashboard cleanup slice; personalized tool custody and job
    assignments still require an approved backend source.
+
+---
+
+## Entry 198 — Vehicle Assignment Write Controls
+
+**Date:** 2026-08-16
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Vehicles cleanup
+**Session type:** implementation
+**Risk classification:** HIGH — REVIEW REQUIRED
+
+### High-Risk Review Flag
+This milestone adds authenticated `SECURITY DEFINER` production write RPCs that
+mutate vehicle-assignment history. Active assignments also affect the
+server-derived vehicle snapshot used when opening an Inventory cart. Review this
+slice again before widening vehicle, employee, custody, or inventory workflows.
+
+Future review should specifically examine:
+- effective `can_manage_vehicles` enforcement
+- employee division/read-scope enforcement
+- concurrent assignment and transfer behavior
+- one-active-vehicle-per-user uniqueness behavior
+- whether multiple active users per vehicle remains the intended model
+- assignment/release audit completeness
+- cart-open vehicle snapshot behavior after assign, transfer, and release
+
+### What Was Completed
+- Added `assign_vehicle_to_user(p_vehicle_id, p_user_id, p_reason)`.
+- Added `release_vehicle_assignment(p_assignment_id, p_reason)`.
+- Both RPCs:
+  - require an authenticated Clerk subject
+  - require an active permission row and effective `can_manage_vehicles`
+  - require a non-empty audit reason
+  - use `SECURITY DEFINER` with fixed `search_path = public, pg_temp`
+  - revoke `PUBLIC` and `anon` execution
+  - grant execution only to `authenticated`
+  - write `change_logs` audit records for mutations
+- Assignment validates an active vehicle and an active employee inside the
+  caller's approved division/read scope.
+- Assigning a user who already has an active vehicle closes the prior row before
+  inserting the new assignment.
+- Release ends the selected active assignment without deleting history.
+- Added Vehicle Assignment controls for employee selection, assign/transfer,
+  release, required reasons, success states, and error states.
+
+### Production Migration
+- Local file:
+  `supabase/migrations/20260817030521_vehicle_assignment_writes.sql`
+- Production migration:
+  `20260817031213_vehicle_assignment_writes`
+- Project:
+  `keogysnoukbendfkfjcn`
+
+### Verification
+- Production migration application succeeded.
+- Production migration history includes `20260817031213`.
+- Verified function signatures:
+  - `assign_vehicle_to_user(uuid, text, text)`
+  - `release_vehicle_assignment(bigint, text)`
+- Verified both functions are `SECURITY DEFINER` with fixed search paths.
+- Verified `anon EXECUTE = false` and `authenticated EXECUTE = true`.
+- Security and performance advisors were rerun.
+- No test assignment or release mutation was executed in production.
+- Production front-end build passed.
+- `git diff --check` passed.
+
+### Advisor Context
+The project has pre-existing security and performance advisor findings,
+including exposed-schema/RLS, security-definer-view, mutable-search-path, and
+RLS performance findings. They were present before this migration and were not
+expanded or remediated by this slice. The new authenticated write RPCs are
+intentional but must remain on the high-risk review list because authenticated
+`SECURITY DEFINER` functions are surfaced by Supabase advisors for manual
+assessment.
+
+### Code / File Changes
+- `src/modules/vehicles/VehiclesWorkspace.jsx`
+- `supabase/migrations/20260817030521_vehicle_assignment_writes.sql`
+- `HANDOFF.md`
+
+### Next Steps
+1. Ryan live-tests assign, transfer, and release using controlled records.
+2. Confirm Dashboard My Vehicles and Inventory cart-open reflect the expected
+   active assignment after each action.
+3. Keep this milestone flagged HIGH RISK until that live review is complete.
