@@ -19291,3 +19291,51 @@ when they need attention.
 ### Next Steps
 1. Ryan verifies the Dashboard attention count and My Work attention table.
 2. Continue with the next module/page cleanup item.
+
+---
+
+## Entry 197 — Dashboard Company Tool Catalogue
+
+**Date:** 2026-08-16
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Dashboard cleanup
+**Session type:** implementation
+
+### Context
+The latest completed Dashboard slice added direct vehicle assignments. The next
+Dashboard section was My Tools, but ARCHITECTURE v2.30 explicitly reserves
+employee-linked assignment, custody, checkout, and assignment history. The safe
+bounded slice was therefore a read-only view of the existing company catalogue.
+
+### What Was Completed
+- Added a Dashboard company-tool loader using the existing `tools` table.
+- Kept reads inside existing division-scoped RLS and authenticated Clerk token
+  handling.
+- Added a `Company Tools` summary card showing visible active catalogue rows.
+- Replaced the company-tool placeholder with a live read-only table showing:
+  - tool number and name
+  - category and brand
+  - condition
+  - current catalogue location
+- Added Refresh and Open Tools Module actions.
+- Kept Personal Tools explicitly deferred.
+
+### Code / File Changes
+- `src/modules/dashboard/DashboardWorkspace.jsx`
+- `HANDOFF.md`
+
+### What Codex Needs to Know
+- No schema, migration, RPC, RLS, grant, auth, or permission change was made.
+- The Dashboard does not use `assigned_to` to infer custody because that field
+  remains a plain-text catalogue placeholder under ARCHITECTURE v2.30.
+- True employee-linked tools, personal tools, checkout, and custody remain
+  architecture-reserved.
+
+### Verification
+- Production build passed.
+- `git diff --check` passed.
+
+### Next Steps
+1. Ryan verifies the Company Tools summary and My Tools catalogue table.
+2. Decide the next Dashboard cleanup slice; personalized tool custody and job
+   assignments still require an approved backend source.

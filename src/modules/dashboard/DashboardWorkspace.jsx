@@ -22,6 +22,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
 const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
 const EMPTY_DASHBOARD_VEHICLES = Object.freeze([]);
+const EMPTY_DASHBOARD_TOOLS = Object.freeze([]);
 
 const DASHBOARD_ESTIMATE_SELECT_FIELDS = [
   'id',
@@ -70,6 +71,15 @@ const DASHBOARD_VEHICLE_COLUMNS = [
   { key: 'unassigned_at', header: 'Released', render: (row) => row.unassigned_at ? formatDateTime(row.unassigned_at) : '-' },
   { key: 'assigned_by_label', header: 'Assigned By', fallback: '-' },
   { key: 'note', header: 'Note', fallback: '-' },
+];
+
+const DASHBOARD_TOOL_COLUMNS = [
+  { key: 'tool_number', header: 'Tool #', render: (row) => <strong>{row.tool_number || row.name}</strong> },
+  { key: 'name', header: 'Name' },
+  { key: 'category', header: 'Category', fallback: '-' },
+  { key: 'brand', header: 'Brand', fallback: '-' },
+  { key: 'condition', header: 'Condition', render: (row) => <StatusBadge status={row.condition || 'unknown'}>{formatLabel(row.condition || 'unknown')}</StatusBadge> },
+  { key: 'current_location', header: 'Current Location', fallback: '-' },
 ];
 
 function missing(value) {
@@ -375,6 +385,67 @@ function useDashboardVehicles({ enabled, userId }) {
   };
 }
 
+function useDashboardTools({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    tools: EMPTY_DASHBOARD_TOOLS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled) {
+        setState({ isLoading: false, error: null, tools: EMPTY_DASHBOARD_TOOLS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('tools')
+          .select('id, tool_number, name, category, brand, condition, status, current_location, division')
+          .is('archived_at', null)
+          .order('tool_number', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true })
+          .limit(100);
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            tools: data ?? EMPTY_DASHBOARD_TOOLS,
+          });
+        }
+      } catch (error) {
+        console.error('Dashboard tools failed to load', error);
+        if (isMounted) {
+          setState({ isLoading: false, error, tools: EMPTY_DASHBOARD_TOOLS });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function DashboardWorkspace({ permissions }) {
   const { user } = useUser();
   const navigate = useNavigate();
@@ -397,6 +468,9 @@ export function DashboardWorkspace({ permissions }) {
     userId: permissions.userId,
   });
   const activeVehicleAssignments = dashboardVehicles.assignments.filter((assignment) => assignment.is_active);
+  const canSeeTools = permissions.permissionSource === 'server';
+  const dashboardTools = useDashboardTools({ enabled: canSeeTools });
+  const activeDashboardTools = dashboardTools.tools.filter((tool) => tool.status === 'active');
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
@@ -472,6 +546,9 @@ export function DashboardWorkspace({ permissions }) {
         <SummaryCard label="Job Attention" value={jobAttention.isLoading ? 'Loading' : jobAttention.items.length} detail="Buyout exceptions" tone={jobAttention.items.length ? 'warn' : 'good'} />
         {canSeeVehicleAssignments ? (
           <SummaryCard label="My Vehicles" value={dashboardVehicles.isLoading ? 'Loading' : activeVehicleAssignments.length} detail="Active assignment rows" tone={activeVehicleAssignments.length ? 'good' : 'default'} />
+        ) : null}
+        {canSeeTools ? (
+          <SummaryCard label="Company Tools" value={dashboardTools.isLoading ? 'Loading' : activeDashboardTools.length} detail="Visible active catalogue rows" tone={activeDashboardTools.length ? 'accent' : 'default'} />
         ) : null}
         {canSeeEstimates ? (
           <SummaryCard label="My Estimates" value={dashboardEstimates.isLoading ? 'Loading' : dashboardEstimates.assigned.length} detail="Assigned estimate rows" tone={dashboardEstimates.assigned.length ? 'accent' : 'default'} />
@@ -609,13 +686,31 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-tools' ? (
             <div className="state-panel-stack">
-              <StatePanel
-                eyebrow="Company Tools"
-                title="Company tool catalogue"
-                description="The current tool catalogue includes company tool rows and an assigned-to text field, but this dashboard does not have an approved user-linked assignment model yet. Open the full Tools module for the live catalogue instead of inferring ownership here."
-                tone="info"
-                actions={<button type="button" className="secondary-button" onClick={() => openModule('/tools')}>Open Tools Module</button>}
-              />
+              <article className="card workspace-card module-directory-panel">
+                <Toolbar
+                  eyebrow="Company Tools"
+                  title="Visible company tool catalogue"
+                  description="Active company tools available through your existing division-scoped catalogue access. This list does not infer personal assignment or custody."
+                  actions={(
+                    <>
+                      <button type="button" className="secondary-button" onClick={dashboardTools.reload} disabled={!canSeeTools || dashboardTools.isLoading}>Refresh</button>
+                      <button type="button" className="secondary-button" onClick={() => openModule('/tools')}>Open Tools Module</button>
+                    </>
+                  )}
+                />
+                <DataTable
+                  columns={DASHBOARD_TOOL_COLUMNS}
+                  rows={activeDashboardTools}
+                  getRowKey={(row) => row.id}
+                  permissions={permissions}
+                  isLoading={dashboardTools.isLoading}
+                  error={dashboardTools.error}
+                  dense
+                  minWidth="760px"
+                  emptyTitle="No active company tools"
+                  emptyDescription="Active tools in your approved division scope will appear here."
+                />
+              </article>
               <StatePanel
                 eyebrow="Personal Tools"
                 title="Personal tools are not connected yet"
