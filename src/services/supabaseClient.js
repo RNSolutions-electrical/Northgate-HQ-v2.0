@@ -31,4 +31,6 @@ export function createSupabaseClient(accessToken) {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     },
   });
+
+  return cachedClient;
 }
