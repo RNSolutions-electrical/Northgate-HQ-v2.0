@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let cachedClient = null;
+let cachedAccessToken = null;
 
 if (!supabaseUrl) throw new Error('Missing VITE_SUPABASE_URL');
 if (!supabaseAnonKey) throw new Error('Missing VITE_SUPABASE_ANON_KEY');
@@ -16,7 +18,10 @@ if (!supabaseAnonKey) throw new Error('Missing VITE_SUPABASE_ANON_KEY');
  * an auth bug. Not carried over. (Drift register D-08.)
  */
 export function createSupabaseClient(accessToken) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  if (cachedClient && cachedAccessToken === accessToken) return cachedClient;
+
+  cachedAccessToken = accessToken;
+  cachedClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

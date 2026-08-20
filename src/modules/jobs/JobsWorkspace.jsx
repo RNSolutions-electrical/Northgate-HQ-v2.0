@@ -1554,7 +1554,6 @@ export function JobsWorkspace({ permissions }) {
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
   const createJobDivision = permissions?.division || '';
-  const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => template.division === selectedJob?.division);
 
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
@@ -1580,6 +1579,7 @@ export function JobsWorkspace({ permissions }) {
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
+  const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => template.division === selectedJob?.division);
   const canManageSelectedJob = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canManageJobs');
   const canApproveSelectedBudget = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
