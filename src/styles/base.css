@@ -1759,6 +1759,22 @@ textarea {
   justify-content: flex-end;
 }
 
+.job-financials-table-input {
+  box-sizing: border-box;
+  min-width: 96px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0.28rem 0.42rem;
+}
+
+.job-financials-table-input--description {
+  min-width: 180px;
+}
+
+.job-financials-table-actions {
+  min-width: 210px;
+}
+
 .job-schedule-actions {
   display: flex;
   flex-wrap: wrap;

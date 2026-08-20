@@ -23,6 +23,7 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
+import { BUDGET_TEMPLATES } from './gablesServiceTemplate.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_JOBS = Object.freeze([]);
@@ -83,6 +84,7 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   actual_cost_amount: '',
   committed_cost_amount: '',
   forecast_to_complete_amount: '',
+  forecast_final_amount: '',
   note: '',
   change_reason: '',
   isSaving: false,
@@ -201,6 +203,7 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'actual_cost_amount',
   'committed_cost_amount',
   'forecast_to_complete_amount',
+  'forecast_final_amount',
   'note',
   'created_by',
 ].join(', ');
@@ -441,7 +444,9 @@ function formatChangedField(value) {
     case 'committed_cost_amount':
       return 'committed';
     case 'forecast_to_complete_amount':
-      return 'forecast';
+      return 'forecast this month';
+    case 'forecast_final_amount':
+      return 'forecast final';
     case 'archive_reason':
       return 'archive reason';
     case 'archived_at':
@@ -780,11 +785,13 @@ function revisedBudget(row) {
 }
 
 function forecastFinal(row) {
-  return (
-    (Number(row.actual_cost_amount) || 0)
-    + (Number(row.committed_cost_amount) || 0)
-    + (Number(row.forecast_to_complete_amount) || 0)
-  );
+  return Number(row.forecast_final_amount) || 0;
+}
+
+function forecastedRemainder(row) {
+  return forecastFinal(row)
+    - (Number(row.actual_cost_amount) || 0)
+    - (Number(row.forecast_to_complete_amount) || 0);
 }
 
 function budgetRemaining(row) {
@@ -854,21 +861,6 @@ const JOB_BUYOUT_COLUMNS = [
   { key: 'actual_value', header: 'Actual value', render: (row) => formatMoney(row.actual_value), align: 'right' },
   { key: 'initial_lead_time_days', header: 'Initial lead', render: (row) => formatLeadTime(row.initial_lead_time_days), align: 'right' },
   { key: 'actual_lead_time_days', header: 'Actual lead', render: (row) => formatLeadTime(row.actual_lead_time_days), align: 'right' },
-];
-
-const JOB_BUDGET_COLUMNS = [
-  { key: 'category', header: 'Category', render: (row) => formatBudgetCategory(row.category) },
-  { key: 'cost_code', header: 'Cost code', fallback: '-' },
-  { key: 'description', header: 'Description', render: (row) => <strong>{row.description || 'Untitled budget line'}</strong> },
-  { key: 'budget_amount', header: 'Original', render: (row) => formatMoney(row.budget_amount), align: 'right' },
-  { key: 'budget_change_amount', header: 'Changes', render: (row) => formatMoney(row.budget_change_amount), align: 'right' },
-  { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(revisedBudget(row)), align: 'right' },
-  { key: 'actual_cost_amount', header: 'Actual', render: (row) => formatMoney(row.actual_cost_amount), align: 'right' },
-  { key: 'committed_cost_amount', header: 'Committed', render: (row) => formatMoney(row.committed_cost_amount), align: 'right' },
-  { key: 'forecast_to_complete_amount', header: 'Forecast', render: (row) => formatMoney(row.forecast_to_complete_amount), align: 'right' },
-  { key: 'forecast_final', header: 'Forecast final', render: (row) => formatMoney(forecastFinal(row)), align: 'right' },
-  { key: 'remaining', header: 'Remaining', render: (row) => formatMoney(budgetRemaining(row)), align: 'right' },
-  { key: 'note', header: 'Notes', fallback: '-' },
 ];
 
 const JOB_SCHEDULE_COLUMNS = [
@@ -1467,6 +1459,7 @@ function budgetToForm(row) {
     actual_cost_amount: row.actual_cost_amount == null ? '' : String(row.actual_cost_amount),
     committed_cost_amount: row.committed_cost_amount == null ? '' : String(row.committed_cost_amount),
     forecast_to_complete_amount: row.forecast_to_complete_amount == null ? '' : String(row.forecast_to_complete_amount),
+    forecast_final_amount: row.forecast_final_amount == null ? '' : String(row.forecast_final_amount),
     note: row.note || '',
   };
 }
@@ -1486,6 +1479,7 @@ function budgetAuditSnapshot(row) {
     actual_cost_amount: row.actual_cost_amount,
     committed_cost_amount: row.committed_cost_amount,
     forecast_to_complete_amount: row.forecast_to_complete_amount,
+    forecast_final_amount: row.forecast_final_amount,
     note: row.note,
     archived_at: row.archived_at,
     archived_by: row.archived_by,
@@ -1548,6 +1542,7 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
+  const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
@@ -1559,6 +1554,7 @@ export function JobsWorkspace({ permissions }) {
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
   const createJobDivision = permissions?.division || '';
+  const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => template.division === selectedJob?.division);
 
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
@@ -1664,6 +1660,7 @@ export function JobsWorkspace({ permissions }) {
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setBudgetImport(DEFAULT_BUDGET_IMPORT);
+    setBudgetTemplateAction({ key: '', error: null, success: '' });
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
   }
 
@@ -2160,6 +2157,7 @@ export function JobsWorkspace({ permissions }) {
       actual_cost_amount: parseOptionalNumber(budgetForm.actual_cost_amount) || 0,
       committed_cost_amount: parseOptionalNumber(budgetForm.committed_cost_amount) || 0,
       forecast_to_complete_amount: parseOptionalNumber(budgetForm.forecast_to_complete_amount) || 0,
+      forecast_final_amount: parseOptionalNumber(budgetForm.forecast_final_amount) || 0,
       note: budgetForm.note.trim() || null,
     };
   }
@@ -2174,7 +2172,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   async function handleBudgetSave(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
 
     if (!selectedJob || !canApproveSelectedBudget || budgetForm.isSaving) return;
 
@@ -2265,6 +2263,66 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Job budget archive failed', error);
       setBudgetForm((current) => ({ ...current, error, success: '' }));
+    }
+  }
+
+  async function handleBudgetTemplateUse(template) {
+    if (!selectedJob || !canApproveSelectedBudget || budgetTemplateAction.key) return;
+
+    const existingKeys = new Set(jobBudget.lines.map((line) => `${normalizeCostCode(line.cost_code)}|${line.description.trim().toLowerCase()}`));
+    const lines = template.lines.filter((line) => !existingKeys.has(`${normalizeCostCode(line.cost_code)}|${line.description.toLowerCase()}`));
+    const skipped = template.lines.length - lines.length;
+    if (!lines.length) {
+      setBudgetTemplateAction({ key: '', error: null, success: `${template.name} is already applied to this job.` });
+      return;
+    }
+
+    if (!window.confirm(`Use ${template.name}? This adds ${lines.length} editable financial line${lines.length === 1 ? '' : 's'} with $0.00 amounts.${skipped ? ` ${skipped} existing line${skipped === 1 ? '' : 's'} will be skipped.` : ''}`)) return;
+
+    setBudgetTemplateAction({ key: template.key, error: null, success: '' });
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+      const { data, error } = await client
+        .from('job_budget_lines')
+        .insert(lines.map((line) => ({
+          job_id: selectedJob.id,
+          division: selectedJob.division,
+          category: line.category,
+          cost_code: line.cost_code,
+          description: line.description,
+          budget_amount: 0,
+          budget_change_amount: 0,
+          actual_cost_amount: 0,
+          committed_cost_amount: 0,
+          forecast_to_complete_amount: 0,
+          forecast_final_amount: 0,
+          note: `Created from template: ${template.name}`,
+          created_by: createdBy,
+        })))
+        .select(JOB_BUDGET_SELECT_FIELDS);
+      if (error) throw error;
+
+      for (const row of data ?? []) {
+        await writeJobChangeLog(client, {
+          action: 'create',
+          recordId: row.id,
+          beforeData: null,
+          afterData: budgetAuditSnapshot(row),
+          note: `Created from template: ${template.name}.`,
+        });
+      }
+
+      setBudgetTemplateAction({
+        key: '',
+        error: null,
+        success: `${data?.length ?? lines.length} financial line${lines.length === 1 ? '' : 's'} added from ${template.name}.${skipped ? ` ${skipped} duplicate line${skipped === 1 ? '' : 's'} skipped.` : ''}`,
+      });
+      jobBudget.reload();
+    } catch (error) {
+      console.error('Budget template apply failed', error);
+      setBudgetTemplateAction({ key: '', error, success: '' });
     }
   }
 
@@ -2958,16 +3016,76 @@ export function JobsWorkspace({ permissions }) {
       const revisedTotal = jobBudget.lines.reduce((total, line) => total + revisedBudget(line), 0);
       const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
-      const forecastToCompleteTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
+      const forecastThisMonthTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
+      const forecastedRemainderTotal = jobBudget.lines.reduce((total, line) => total + forecastedRemainder(line), 0);
       const remainingTotal = revisedTotal - forecastFinalTotal;
+      const updateInlineBudgetField = (field, value) => {
+        setBudgetForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+      };
+      const inlineBudgetInput = (row, field, label) => (
+        budgetForm.id === row.id ? (
+          <input
+            aria-label={`${label} for ${row.description || 'financial line'}`}
+            className="job-financials-table-input"
+            type="number"
+            min="0"
+            step="0.01"
+            value={budgetForm[field]}
+            onChange={(event) => updateInlineBudgetField(field, event.target.value)}
+            disabled={budgetForm.isSaving}
+          />
+        ) : null
+      );
       const budgetColumns = [
-        ...JOB_BUDGET_COLUMNS,
+        {
+          key: 'category',
+          header: 'Category',
+          render: (row) => budgetForm.id === row.id ? (
+            <select aria-label={`Category for ${row.description || 'financial line'}`} className="job-financials-table-input" value={budgetForm.category} onChange={(event) => updateInlineBudgetField('category', event.target.value)} disabled={budgetForm.isSaving}>
+              {BUDGET_CATEGORY_OPTIONS.map((category) => <option key={category} value={category}>{formatBudgetCategory(category)}</option>)}
+            </select>
+          ) : formatBudgetCategory(row.category),
+        },
+        {
+          key: 'cost_code',
+          header: 'Cost code',
+          render: (row) => budgetForm.id === row.id ? <input aria-label={`Cost code for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.cost_code} onChange={(event) => updateInlineBudgetField('cost_code', event.target.value)} disabled={budgetForm.isSaving} /> : (row.cost_code || '-'),
+        },
+        {
+          key: 'description',
+          header: 'Description',
+          render: (row) => budgetForm.id === row.id ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
+        },
+        { key: 'budget_amount', header: 'Original', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original budget') || formatMoney(row.budget_amount), align: 'right' },
+        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney(row.budget_change_amount), align: 'right' },
+        { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(revisedBudget(row)), align: 'right' },
+        { key: 'actual_cost_amount', header: 'Actual', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual cost') || formatMoney(row.actual_cost_amount), align: 'right' },
+        { key: 'committed_cost_amount', header: 'Committed', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed cost') || formatMoney(row.committed_cost_amount), align: 'right' },
+        { key: 'forecast_to_complete_amount', header: 'Forecast this month', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Forecast this month') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
+        { key: 'forecast_final', header: 'Forecast final', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Forecast final') || formatMoney(forecastFinal(row)), align: 'right' },
+        { key: 'forecasted_remainder', header: 'Forecasted remainder', render: (row) => formatMoney(forecastedRemainder(row)), align: 'right' },
+        {
+          key: 'note',
+          header: 'Notes',
+          render: (row) => budgetForm.id === row.id ? <input aria-label={`Notes for ${row.description || 'financial line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.note} onChange={(event) => updateInlineBudgetField('note', event.target.value)} disabled={budgetForm.isSaving} /> : (row.note || '-'),
+        },
         {
           key: 'actions',
           header: 'Actions',
           render: (row) => {
             if (!canApproveSelectedBudget) return 'Read only';
+            if (budgetForm.id === row.id) {
+              return (
+                <div className="job-buyout-actions job-financials-table-actions">
+                  <input aria-label={`Change reason for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.change_reason} onChange={(event) => updateInlineBudgetField('change_reason', event.target.value)} placeholder="Reason if changing protected fields" disabled={budgetForm.isSaving} />
+                  <button type="button" className="primary-button" onClick={() => handleBudgetSave()} disabled={budgetForm.isSaving || !budgetForm.description.trim()}>
+                    {budgetForm.isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" className="secondary-button" onClick={resetBudgetForm} disabled={budgetForm.isSaving}>Cancel</button>
+                </div>
+              );
+            }
             return (
               <div className="job-buyout-actions">
                 <button type="button" className="secondary-button" onClick={() => startBudgetEdit(row)} disabled={budgetForm.isSaving}>
@@ -2989,7 +3107,8 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Revised Budget" value={formatMoney(revisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
             <SummaryCard label="Actual Cost" value={formatMoney(actualTotal)} detail="Tracked cost only" />
             <SummaryCard label="Committed" value={formatMoney(committedTotal)} detail="Committed cost" />
-            <SummaryCard label="Forecast Final" value={formatMoney(forecastFinalTotal)} detail={`${formatMoney(forecastToCompleteTotal)} to complete`} />
+            <SummaryCard label="Forecast This Month" value={formatMoney(forecastThisMonthTotal)} detail="Expected payment by month-end" />
+            <SummaryCard label="Forecast Final" value={formatMoney(forecastFinalTotal)} detail={`${formatMoney(forecastedRemainderTotal)} after this month`} />
             <SummaryCard label="Remaining" value={formatMoney(remainingTotal)} detail="Revised minus forecast final" tone={remainingTotal < 0 ? 'warn' : 'good'} />
           </div>
 
@@ -3001,13 +3120,37 @@ export function JobsWorkspace({ permissions }) {
             isLoading={jobBudget.isLoading}
             error={jobBudget.error}
             dense
-            minWidth="1320px"
+            minWidth="1800px"
             emptyTitle="No financial lines for this job"
-            emptyDescription="Add budget lines to track original budget, changes, actuals, commitments, forecast, and remaining value."
+            emptyDescription="Add budget lines to track budget, actuals, commitments, month-end forecast, final forecast, and remaining value."
           />
 
           {canApproveSelectedBudget ? (
             <>
+              {availableBudgetTemplates.length ? (
+                <section className="job-financials-form" aria-label="Financial templates">
+                  <Toolbar
+                    eyebrow="Templates"
+                    title="Use a financial template"
+                    description="Templates add editable financial lines by cost code. Existing matching lines are not duplicated, and all amounts start at $0.00."
+                  />
+                  {availableBudgetTemplates.map((template) => (
+                    <div className="job-financials-form__actions" key={template.key}>
+                      <span>{template.name} - {template.lines.length} service lines</span>
+                      <button type="button" className="secondary-button" onClick={() => handleBudgetTemplateUse(template)} disabled={Boolean(budgetTemplateAction.key) || jobBudget.isLoading}>
+                        {budgetTemplateAction.key === template.key ? 'Applying...' : 'Use Template'}
+                      </button>
+                    </div>
+                  ))}
+                  {budgetTemplateAction.error ? (
+                    <StatePanel tone="danger" eyebrow="Template Failed" title="Financial template was not applied" description={budgetTemplateAction.error.message || 'Unexpected template error.'} compact />
+                  ) : null}
+                  {budgetTemplateAction.success ? (
+                    <StatePanel tone="success" eyebrow="Template Applied" title="Financial lines added" description={budgetTemplateAction.success} compact />
+                  ) : null}
+                </section>
+              ) : null}
+
               <form className="job-financials-form" onSubmit={handleBudgetImport}>
                 <Toolbar
                   eyebrow="Import"
@@ -3043,7 +3186,7 @@ export function JobsWorkspace({ permissions }) {
                 <Toolbar
                   eyebrow={budgetForm.id ? 'Edit' : 'Add'}
                   title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}
-                  description="Financials are job planning and forecasting only. This does not post to accounting or create purchase orders."
+                  description="Add a new financial line here. Existing lines are edited directly in the table. Financials are planning and forecasting only; they do not post to accounting or create purchase orders."
                   actions={budgetForm.id ? (
                     <button type="button" className="secondary-button" onClick={resetBudgetForm} disabled={budgetForm.isSaving}>
                       Cancel Edit
@@ -3099,8 +3242,12 @@ export function JobsWorkspace({ permissions }) {
                     <input type="number" min="0" step="0.01" value={budgetForm.committed_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, committed_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Forecast</span>
+                    <span>Forecast this month</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.forecast_to_complete_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_to_complete_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label>
+                    <span>Forecast final</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.forecast_final_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_final_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label className="job-financials-form__wide">
                     <span>Notes</span>

@@ -1,0 +1,24 @@
+// Source: The Gables Lodge service report (Aug. 14, 2026). Amounts are deliberately
+// omitted: applying a template creates editable planning lines with zero values.
+const rows = [
+  ['01.1', 'Plans', 'permit'], ['01.11', 'Underground Utilities', 'subcontractor'], ['01.2', 'Building Permits', 'permit'], ['01.4', 'PortaJohn', 'other'], ['01.5', 'Dumpster', 'other'], ['01.61', 'Admin', 'other'], ['01.62', 'Company Meetings', 'other'], ['01.63', 'Business Development', 'other'], ['01.6', 'Supervision', 'labor'], ['01.7', 'Fee', 'other'], ['01.71', 'GC Construction Contingency', 'other'],
+  ['02.0', 'Equipment Rental', 'equipment'], ['02.01', 'Floor and Wall Protection', 'material'], ['02.02', 'Site Security', 'subcontractor'], ['02.1', 'Demo', 'labor'], ['02.11', 'Demo Materials', 'material'], ['02.12', 'Driveway/Parking Lot', 'subcontractor'], ['02.2', 'Excavation/Grading', 'subcontractor'], ['02.3', 'Cleanup Labor', 'labor'], ['02.31', 'Cleanup Material', 'material'], ['02.4', 'Landscaping', 'subcontractor'], ['02.41', 'Landscaping Material', 'material'], ['02.5', 'Fence', 'subcontractor'], ['02.6', 'Tree Protection', 'other'], ['02.9', 'Safety Gear and Equipment', 'equipment'], ['02', 'Site Work - Other', 'other'],
+  ['03.1', 'Concrete Labor', 'labor'], ['03.11', 'Concrete Materials', 'material'], ['03.2', 'Footings', 'subcontractor'], ['03.21', 'Footings Materials', 'material'], ['03.3', 'Sidewalks, Slabs & Steps', 'subcontractor'],
+  ['04.1', 'Masonry Labor', 'labor'], ['04.11', 'Masonry Materials', 'material'], ['04.2', 'Foundation', 'material'],
+  ['05.1', 'Metals Labor', 'labor'], ['05.11', 'Metals Materials', 'material'],
+  ['06.0', 'Equipment Rental for Framing', 'equipment'], ['06.1', 'Framing Labor', 'labor'], ['06.11', 'Framing Material', 'material'], ['06.2', 'Decks Labor', 'labor'], ['06.21', 'Decks Material', 'material'], ['06.22', 'Deck Stairs and Railing', 'material'], ['06.3', 'Millwork/Interior Trim Labor', 'labor'], ['06.31', 'Millwork/Interior Trim Material', 'material'], ['06.6', 'Closet & Shelving Install', 'labor'],
+  ['07.1', 'Roofing & Flashing Labor', 'labor'], ['07.2', 'Gutters', 'subcontractor'], ['07.3', 'Insulation', 'subcontractor'], ['07.6', 'Sump Pump', 'material'], ['07.8', 'Awning', 'material'],
+  ['08.1', 'Interior Doors Install', 'labor'], ['08.11', 'Interior Door Materials', 'material'], ['08.2', 'Exterior Door Install', 'labor'], ['08.21', 'Exterior Doors Materials', 'material'], ['08.22', 'Storefront', 'subcontractor'], ['08.3', 'Door Hardware Install', 'labor'], ['08.31', 'Door Hardware Materials', 'material'], ['08.4', 'Window Labor', 'labor'], ['08.41', 'Window Materials', 'material'], ['08.5', 'Window Repair Labor', 'labor'], ['08.7', 'Glass Shower Enclosure', 'subcontractor'],
+  ['09.0', 'Equipment Rental', 'equipment'], ['09.1', 'Interior Walls Labor', 'labor'], ['09.11', 'Interior Walls Materials', 'material'], ['09.2', 'Interior Paint Labor', 'labor'], ['09.3', 'Exterior Paint Labor', 'labor'], ['09.31', 'Exterior Paint Materials', 'material'], ['09.4', 'Wall Tile Labor', 'labor'], ['09.41', 'Wall Tile Material', 'material'], ['09.5', 'Siding/Exterior Trim Labor', 'labor'], ['09.51', 'Siding/Exterior Trim Materials', 'material'], ['09.6', 'Stairs Labor', 'labor'], ['09.8', 'Floor Tile Labor', 'labor'], ['09.81', 'Floor Tile Materials', 'material'], ['09.9', 'Hardwood Install', 'labor'], ['09.91', 'Hardwood Material', 'material'], ['09.92', 'Hardwood Repair', 'labor'], ['09.93', 'Carpeting & LVT', 'subcontractor'], ['09', 'Floor Coverings - Other', 'other'],
+  ['10.1', 'Kitchen Cabinet Install', 'labor'], ['10.2', 'Bath Vanity Install', 'labor'], ['10.3', 'Countertop', 'subcontractor'], ['10.5', 'Appliances', 'material'], ['10.6', 'Accessories Install', 'labor'], ['10.61', 'Accessories', 'material'], ['10', 'Specialties - Other', 'other'],
+  ['15.1', 'Plumbing Labor', 'labor'], ['15.11', 'Plumbing Materials', 'material'], ['15.12', 'Plumbing Fixtures', 'material'], ['15.14', 'Sprinkler System', 'subcontractor'], ['15.2', 'HVAC', 'subcontractor'],
+  ['16.0', 'Equipment Rental for Electrical Work', 'equipment'], ['16.1', 'Electrical Labor', 'labor'], ['16.11', 'Electrical Materials', 'material'], ['16.12', 'Lighting Fixtures', 'material'], ['16.2', 'Fire Alarm System', 'subcontractor'], ['16.4', 'Electrical Estimating', 'labor'], ['16.6', 'Electrical Supervision', 'labor'], ['CO', 'Change Order', 'other'], ['CO-MAT', 'Change Order Materials', 'material'], ['PER-DIEM', 'Per Diem', 'other'],
+];
+
+export const BUDGET_TEMPLATES = [{
+  key: 'gables-service-construction',
+  name: 'Gables Service Cost Codes',
+  division: 'Construction',
+  description: 'Service codes from the Gables report, grouped by CSI cost code. Amounts start at $0.00.',
+  lines: rows.map(([cost_code, description, category]) => ({ cost_code, description, category })),
+}];
