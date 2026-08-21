@@ -1730,6 +1730,54 @@ textarea {
   padding: var(--card-padding);
 }
 
+.job-financials-form--legacy {
+  display: none;
+}
+
+.job-financials-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin: 0.85rem 0;
+}
+
+.job-financials-compact-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  margin: 0.85rem 0;
+  padding: 0.85rem;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+}
+
+.job-financials-compact-form label {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1 1 300px;
+}
+
+.job-budget-division {
+  margin-top: 0.9rem;
+}
+
+.job-budget-division__toggle {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ng-divider);
+  border-radius: var(--ng-radius-card);
+  background: var(--ng-panel-bg);
+  color: var(--ng-text);
+  font-weight: 700;
+  text-align: left;
+}
+
 .job-financials-form__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(150px, 1fr));
@@ -1773,6 +1821,14 @@ textarea {
 
 .job-financials-table-actions {
   min-width: 210px;
+}
+
+.jobs-workspace--record {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.jobs-workspace--record .workspace-surface {
+  min-width: 0;
 }
 
 .job-schedule-actions {

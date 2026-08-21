@@ -73,6 +73,7 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
   success: '',
 });
 const EMPTY_BUDGET_LINES = Object.freeze([]);
+const EMPTY_CHANGE_ORDERS = Object.freeze([]);
 const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'other'];
 const DEFAULT_BUDGET_FORM = Object.freeze({
   id: '',
@@ -206,6 +207,25 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'forecast_final_amount',
   'note',
   'created_by',
+].join(', ');
+
+const JOB_CHANGE_ORDER_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'co_number',
+  'title',
+  'description',
+  'price_amount',
+  'cost_amount',
+  'status',
+  'submitted_by',
+  'approved_by',
+  'approved_at',
+  'rejected_by',
+  'rejected_at',
+  'created_at',
+  'updated_at',
 ].join(', ');
 
 const JOB_SCHEDULE_SELECT_FIELDS = [
@@ -1156,6 +1176,41 @@ function useJobBudgetLines({ enabled, jobId }) {
   };
 }
 
+function useJobChangeOrders({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, rows: EMPTY_CHANGE_ORDERS });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, rows: EMPTY_CHANGE_ORDERS });
+        return;
+      }
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('change_orders')
+          .select(JOB_CHANGE_ORDER_SELECT_FIELDS)
+          .eq('job_id', jobId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_CHANGE_ORDERS });
+      } catch (error) {
+        console.error('Job change orders failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, rows: EMPTY_CHANGE_ORDERS });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 function useJobScheduleItems({ enabled, jobId }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1541,6 +1596,9 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
+  const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
+  const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
+  const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
@@ -1594,6 +1652,10 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'financials' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const jobChangeOrders = useJobChangeOrders({
+    enabled: permissions.permissionSource === 'server' && ['financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
   const jobSchedule = useJobScheduleItems({
     enabled: permissions.permissionSource === 'server' && activeTab === 'schedule' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
@@ -1620,6 +1682,7 @@ export function JobsWorkspace({ permissions }) {
     { key: 'buyout', label: 'Buyout', meta: 'Live' },
     { key: 'transactions', label: 'Transactions', meta: 'Live' },
     ...(canViewFinancials ? [{ key: 'financials', label: 'Financials', meta: 'Live' }] : []),
+    ...(canViewFinancials ? [{ key: 'change_orders', label: 'Change Orders', meta: 'Live' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Live' },
     { key: 'schedule', label: 'Schedule', meta: 'Live' },
     { key: 'history', label: 'History', meta: 'Live' },
@@ -1659,9 +1722,21 @@ export function JobsWorkspace({ permissions }) {
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
+    setIsAddingBudgetLine(false);
+    setIsBudgetImportOpen(false);
     setBudgetImport(DEFAULT_BUDGET_IMPORT);
     setBudgetTemplateAction({ key: '', error: null, success: '' });
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
+  }
+
+  function returnToJobList() {
+    setSelectedJobId('');
+    setActiveTab('overview');
+    setMode('browse');
+    setJobForm(DEFAULT_JOB_FORM);
+    setJobAction({ action: '', error: null, success: '' });
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+    setBudgetImport(DEFAULT_BUDGET_IMPORT);
   }
 
   function startJobCreate() {
@@ -2164,11 +2239,19 @@ export function JobsWorkspace({ permissions }) {
 
   function startBudgetEdit(row) {
     if (!row?.id || !canApproveSelectedBudget) return;
+    setIsAddingBudgetLine(false);
     setBudgetForm(budgetToForm(row));
+  }
+
+  function startBudgetAdd() {
+    if (!canApproveSelectedBudget) return;
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+    setIsAddingBudgetLine(true);
   }
 
   function resetBudgetForm() {
     setBudgetForm(DEFAULT_BUDGET_FORM);
+    setIsAddingBudgetLine(false);
   }
 
   async function handleBudgetSave(event) {
@@ -2235,6 +2318,7 @@ export function JobsWorkspace({ permissions }) {
         ...DEFAULT_BUDGET_FORM,
         success: `${payload.description} ${budgetForm.id ? 'updated' : 'added'} in Financials.`,
       });
+      setIsAddingBudgetLine(false);
       jobBudget.reload();
     } catch (error) {
       console.error('Job budget save failed', error);
@@ -3010,21 +3094,84 @@ export function JobsWorkspace({ permissions }) {
       );
     }
 
+    if (activeTab === 'change_orders') {
+      const approvedCost = jobChangeOrders.rows
+        .filter((row) => row.status === 'approved')
+        .reduce((total, row) => total + Number(row.cost_amount || 0), 0);
+      const approvedPrice = jobChangeOrders.rows
+        .filter((row) => row.status === 'approved')
+        .reduce((total, row) => total + Number(row.price_amount || 0), 0);
+      const changeOrderColumns = [
+        { key: 'co_number', header: 'CO #', render: (row) => <strong>{row.co_number}</strong> },
+        { key: 'title', header: 'Title', render: (row) => row.title },
+        { key: 'description', header: 'Description', render: (row) => row.description || '-' },
+        { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+        { key: 'price_amount', header: 'Price', align: 'right', render: (row) => formatMoney(row.price_amount) },
+        { key: 'cost_amount', header: 'Budget impact', align: 'right', render: (row) => formatMoney(row.cost_amount) },
+        { key: 'approved_at', header: 'Approved', render: (row) => row.approved_at ? formatDateTime(row.approved_at) : '-' },
+      ];
+      return (
+        <>
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Change Orders" value={jobChangeOrders.rows.length} detail="Visible active change orders" />
+            <SummaryCard label="Approved Price" value={formatMoney(approvedPrice)} detail="Approved customer value" />
+            <SummaryCard label="Approved Budget Impact" value={formatMoney(approvedCost)} detail="Available for budget allocation" />
+          </div>
+          <DataTable
+            columns={changeOrderColumns}
+            rows={jobChangeOrders.rows}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={jobChangeOrders.isLoading}
+            error={jobChangeOrders.error}
+            dense
+            minWidth="1040px"
+            emptyTitle="No change orders for this job"
+            emptyDescription="Approved change orders will appear here before they are allocated to a budget division and cost code."
+          />
+          <StatePanel
+            eyebrow="Budget allocation"
+            title="Division and cost-code allocation is the next step"
+            description="The current foundation stores the job's broad business division only. It does not yet store Division 1/2/3 or a cost-code target for a change order, so this table intentionally does not alter budget lines until those rules are defined."
+            tone="neutral"
+            compact
+          />
+        </>
+      );
+    }
+
     if (activeTab === 'financials') {
       const originalTotal = sumField(jobBudget.lines, 'budget_amount');
-      const changeTotal = sumField(jobBudget.lines, 'budget_change_amount');
+      const manualChangeTotal = sumField(jobBudget.lines, 'budget_change_amount');
+      const approvedChangeOrderTotal = jobChangeOrders.rows
+        .filter((row) => row.status === 'approved')
+        .reduce((total, row) => total + Number(row.cost_amount || 0), 0);
+      const changeTotal = manualChangeTotal + approvedChangeOrderTotal;
       const revisedTotal = jobBudget.lines.reduce((total, line) => total + revisedBudget(line), 0);
+      const financialRevisedTotal = revisedTotal + approvedChangeOrderTotal;
       const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
       const forecastThisMonthTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
       const forecastedRemainderTotal = jobBudget.lines.reduce((total, line) => total + forecastedRemainder(line), 0);
-      const remainingTotal = revisedTotal - forecastFinalTotal;
+      const remainingTotal = financialRevisedTotal - forecastFinalTotal;
       const updateInlineBudgetField = (field, value) => {
         setBudgetForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
       };
+      const isEditingBudgetRow = (row) => budgetForm.id === row.id
+        || (isAddingBudgetLine && row.id === '__new_budget_line__');
+      const budgetRows = isAddingBudgetLine
+        ? [...jobBudget.lines, { ...DEFAULT_BUDGET_FORM, id: '__new_budget_line__' }]
+        : jobBudget.lines;
+      const budgetGroups = [...budgetRows.reduce((groups, row) => {
+        const division = row.division || selectedJob.division || 'Unassigned division';
+        const rows = groups.get(division) || [];
+        rows.push(row);
+        groups.set(division, rows);
+        return groups;
+      }, new Map()).entries()];
       const inlineBudgetInput = (row, field, label) => (
-        budgetForm.id === row.id ? (
+        isEditingBudgetRow(row) ? (
           <input
             aria-label={`${label} for ${row.description || 'financial line'}`}
             className="job-financials-table-input"
@@ -3041,7 +3188,7 @@ export function JobsWorkspace({ permissions }) {
         {
           key: 'category',
           header: 'Category',
-          render: (row) => budgetForm.id === row.id ? (
+          render: (row) => isEditingBudgetRow(row) ? (
             <select aria-label={`Category for ${row.description || 'financial line'}`} className="job-financials-table-input" value={budgetForm.category} onChange={(event) => updateInlineBudgetField('category', event.target.value)} disabled={budgetForm.isSaving}>
               {BUDGET_CATEGORY_OPTIONS.map((category) => <option key={category} value={category}>{formatBudgetCategory(category)}</option>)}
             </select>
@@ -3050,12 +3197,12 @@ export function JobsWorkspace({ permissions }) {
         {
           key: 'cost_code',
           header: 'Cost code',
-          render: (row) => budgetForm.id === row.id ? <input aria-label={`Cost code for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.cost_code} onChange={(event) => updateInlineBudgetField('cost_code', event.target.value)} disabled={budgetForm.isSaving} /> : (row.cost_code || '-'),
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Cost code for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.cost_code} onChange={(event) => updateInlineBudgetField('cost_code', event.target.value)} disabled={budgetForm.isSaving} /> : (row.cost_code || '-'),
         },
         {
           key: 'description',
           header: 'Description',
-          render: (row) => budgetForm.id === row.id ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
         },
         { key: 'budget_amount', header: 'Original', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original budget') || formatMoney(row.budget_amount), align: 'right' },
         { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney(row.budget_change_amount), align: 'right' },
@@ -3068,14 +3215,14 @@ export function JobsWorkspace({ permissions }) {
         {
           key: 'note',
           header: 'Notes',
-          render: (row) => budgetForm.id === row.id ? <input aria-label={`Notes for ${row.description || 'financial line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.note} onChange={(event) => updateInlineBudgetField('note', event.target.value)} disabled={budgetForm.isSaving} /> : (row.note || '-'),
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Notes for ${row.description || 'financial line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.note} onChange={(event) => updateInlineBudgetField('note', event.target.value)} disabled={budgetForm.isSaving} /> : (row.note || '-'),
         },
         {
           key: 'actions',
           header: 'Actions',
           render: (row) => {
             if (!canApproveSelectedBudget) return 'Read only';
-            if (budgetForm.id === row.id) {
+            if (isEditingBudgetRow(row)) {
               return (
                 <div className="job-buyout-actions job-financials-table-actions">
                   <input aria-label={`Change reason for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.change_reason} onChange={(event) => updateInlineBudgetField('change_reason', event.target.value)} placeholder="Reason if changing protected fields" disabled={budgetForm.isSaving} />
@@ -3104,7 +3251,7 @@ export function JobsWorkspace({ permissions }) {
         <>
           <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Original Budget" value={formatMoney(originalTotal)} detail="Approved budget lines" />
-            <SummaryCard label="Revised Budget" value={formatMoney(revisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
+            <SummaryCard label="Revised Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
             <SummaryCard label="Actual Cost" value={formatMoney(actualTotal)} detail="Tracked cost only" />
             <SummaryCard label="Committed" value={formatMoney(committedTotal)} detail="Committed cost" />
             <SummaryCard label="Forecast This Month" value={formatMoney(forecastThisMonthTotal)} detail="Expected payment by month-end" />
@@ -3112,18 +3259,41 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Remaining" value={formatMoney(remainingTotal)} detail="Revised minus forecast final" tone={remainingTotal < 0 ? 'warn' : 'good'} />
           </div>
 
-          <DataTable
-            columns={budgetColumns}
-            rows={jobBudget.lines}
-            getRowKey={(row) => row.id}
-            permissions={permissions}
-            isLoading={jobBudget.isLoading}
-            error={jobBudget.error}
-            dense
-            minWidth="1800px"
-            emptyTitle="No financial lines for this job"
-            emptyDescription="Add budget lines to track budget, actuals, commitments, month-end forecast, final forecast, and remaining value."
-          />
+          {canApproveSelectedBudget ? (
+            <div className="job-financials-quick-actions">
+              <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen((current) => !current)}>
+                {isBudgetImportOpen ? 'Close Import' : 'Import Cost Report'}
+              </button>
+              <button type="button" className="primary-button" onClick={startBudgetAdd} disabled={isAddingBudgetLine || budgetForm.isSaving}>
+                <Plus aria-hidden="true" /> Add Financial Line
+              </button>
+            </div>
+          ) : null}
+
+          {budgetGroups.map(([division, rows]) => {
+            const isCollapsed = collapsedBudgetDivisions[division] === true;
+            const divisionRevised = rows.reduce((total, row) => total + revisedBudget(row), 0);
+            return (
+              <section className="job-budget-division" key={division}>
+                <button type="button" className="job-budget-division__toggle" onClick={() => setCollapsedBudgetDivisions((current) => ({ ...current, [division]: !isCollapsed }))}>
+                  <span>{isCollapsed ? '▸' : '▾'} {division}</span>
+                  <span>{rows.length} line{rows.length === 1 ? '' : 's'} · {formatMoney(divisionRevised)} revised</span>
+                </button>
+                {!isCollapsed ? <DataTable
+                  columns={budgetColumns}
+                  rows={rows}
+                  getRowKey={(row) => row.id}
+                  permissions={permissions}
+                  isLoading={jobBudget.isLoading}
+                  error={jobBudget.error}
+                  dense
+                  minWidth="1800px"
+                  emptyTitle="No financial lines for this division"
+                  emptyDescription="Add a financial line to begin this division's budget."
+                /> : null}
+              </section>
+            );
+          })}
 
           {canApproveSelectedBudget ? (
             <>
@@ -3151,7 +3321,7 @@ export function JobsWorkspace({ permissions }) {
                 </section>
               ) : null}
 
-              <form className="job-financials-form" onSubmit={handleBudgetImport}>
+              {isBudgetImportOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetImport}>
                 <Toolbar
                   eyebrow="Import"
                   title="Import cost report"
@@ -3180,9 +3350,9 @@ export function JobsWorkspace({ permissions }) {
                     {budgetImport.isImporting ? 'Importing...' : 'Import Cost Report'}
                   </button>
                 </div>
-              </form>
+              </form> : null}
 
-              <form className="job-financials-form" onSubmit={handleBudgetSave}>
+              <form className="job-financials-form job-financials-form--legacy" onSubmit={handleBudgetSave}>
                 <Toolbar
                   eyebrow={budgetForm.id ? 'Edit' : 'Add'}
                   title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}
@@ -3730,33 +3900,35 @@ export function JobsWorkspace({ permissions }) {
     <>
       <WorkspaceHeader
         eyebrow="Workspace"
-        title="Jobs"
-        description="Live Jobs foundation with selected v3 modules restored against the existing Supabase tables and permission gates."
-        status={<span className="status-pill">{jobs.length} visible job{jobs.length === 1 ? '' : 's'}</span>}
+        title={selectedJob ? jobLabel(selectedJob) : 'Jobs'}
+        description={selectedJob
+          ? 'Job workspace — use the tabs below to work with this job without the directory competing for attention.'
+          : 'Browse and select a job to open its dedicated workspace.'}
+        status={<span className="status-pill">{selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
-            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-              Views
-            </button>
-            <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
-              Refresh
-            </button>
-            <button type="button" className="primary-button" onClick={startJobCreate} disabled={!canCreateJobs}>
-              <Plus aria-hidden="true" /> Create Job
-            </button>
+            {selectedJob ? (
+              <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
+            ) : (
+              <>
+                <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>Views</button>
+                <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>Refresh</button>
+                <button type="button" className="primary-button" onClick={startJobCreate} disabled={!canCreateJobs}><Plus aria-hidden="true" /> Create Job</button>
+              </>
+            )}
           </>
         )}
       />
 
-      <div className="summary-grid">
+      {!selectedJob ? <div className="summary-grid">
         <SummaryCard label="Active" value={countsByStatus.active ?? 0} detail="Visible active jobs" />
         <SummaryCard label="On hold" value={countsByStatus.on_hold ?? 0} detail="Visible paused jobs" tone={(countsByStatus.on_hold ?? 0) ? 'warn' : 'default'} />
         <SummaryCard label="Completed" value={countsByStatus.complete ?? 0} detail="Visible completed jobs" />
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
-      </div>
+      </div> : null}
 
-      <div className={`workspace-split jobs-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
-        <PrimarySidebar
+      <div className={`workspace-split jobs-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}${selectedJob ? ' jobs-workspace--record' : ''}`}>
+        {!selectedJob ? <PrimarySidebar
           eyebrow="Job Views"
           title="Jobs"
           description="Browse visible Jobs foundation records."
@@ -3776,10 +3948,10 @@ export function JobsWorkspace({ permissions }) {
               <p>Jobs now carries Details, Buyout, Financials, and Documents slices while the remaining modules stay bounded.</p>
             </div>
           )}
-        />
+        /> : null}
 
         <div className="workspace-surface">
-          <article className="card workspace-card">
+          {!selectedJob ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
               title={views.find((item) => item.key === activeView)?.label ?? 'Jobs'}
@@ -3818,7 +3990,7 @@ export function JobsWorkspace({ permissions }) {
                 ? 'Try searching by job number, name, address, status, division, or service call number.'
                 : 'The Jobs workspace stays honest when RLS or the existing read path returns no visible job rows.'}
             />
-          </article>
+          </article> : null}
 
           <article className="card workspace-card">
             {mode === 'create' || mode === 'edit' ? (
@@ -4010,6 +4182,7 @@ export function JobsWorkspace({ permissions }) {
                   ] : []}
                   actions={selectedJob && canManageSelectedJob ? (
                     <>
+                      <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
                       <button type="button" className="secondary-button" onClick={startJobEdit} disabled={Boolean(jobAction.action)}>
                         Edit
                       </button>
@@ -4036,7 +4209,7 @@ export function JobsWorkspace({ permissions }) {
             )}
           </article>
 
-          <section className="jobs-boundary-grid">
+          {!selectedJob ? <section className="jobs-boundary-grid">
             <StatePanel
               eyebrow="Inventory Boundary"
               title="No Issue to Job handoff yet"
@@ -4061,7 +4234,7 @@ export function JobsWorkspace({ permissions }) {
               compact
               actions={<FolderOpen aria-hidden="true" />}
             />
-          </section>
+          </section> : null}
         </div>
       </div>
     </>
