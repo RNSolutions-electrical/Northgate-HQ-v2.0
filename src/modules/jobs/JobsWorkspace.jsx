@@ -75,6 +75,11 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
 const EMPTY_BUDGET_LINES = Object.freeze([]);
 const EMPTY_CHANGE_ORDERS = Object.freeze([]);
 const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'other'];
+const PROJECT_DIVISION_NAMES = Object.freeze({
+  '01': 'General Requirements', '02': 'Site Work', '03': 'Concrete', '04': 'Masonry', '05': 'Metals',
+  '06': 'Woods and Plastics', '07': 'Thermal & Moisture Protection', '08': 'Doors and Windows',
+  '09': 'Finishes', '10': 'Specialties', '15': 'Mechanical Systems', '16': 'Electrical & Lighting',
+});
 const DEFAULT_BUDGET_FORM = Object.freeze({
   id: '',
   category: 'material',
@@ -2411,6 +2416,28 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function addChangeOrder() {
+    if (!selectedJob || !permissions?.canManageChangeOrders) return;
+    const coNumber = window.prompt('Change order number');
+    const title = coNumber && window.prompt('Change order title');
+    const cost = title && window.prompt('Budget impact (cost)');
+    if (!coNumber || !title || cost === null || cost === '') return;
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('save_job_change_order', {
+        p_change_order_id: null, p_job_id: selectedJob.id, p_division: selectedJob.division,
+        p_co_number: coNumber, p_title: title, p_description: null,
+        p_price_amount: 0, p_cost_amount: Number(cost), p_status: 'proposed', p_reason: 'Created from Change Orders tab',
+      });
+      if (error) throw error;
+      jobChangeOrders.reload();
+    } catch (error) {
+      console.error('Change order create failed', error);
+      setJobAction({ action: '', error, success: '' });
+    }
+  }
+
   async function handleBudgetImport(event) {
     event.preventDefault();
 
@@ -3118,6 +3145,11 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Approved Price" value={formatMoney(approvedPrice)} detail="Approved customer value" />
             <SummaryCard label="Approved Budget Impact" value={formatMoney(approvedCost)} detail="Available for budget allocation" />
           </div>
+          {permissions?.canManageChangeOrders ? (
+            <div className="job-financials-quick-actions">
+              <button type="button" className="primary-button" onClick={addChangeOrder}><Plus aria-hidden="true" /> Add Change Order</button>
+            </div>
+          ) : null}
           <DataTable
             columns={changeOrderColumns}
             rows={jobChangeOrders.rows}
@@ -3170,7 +3202,7 @@ export function JobsWorkspace({ permissions }) {
         const division = projectDivision?.id
           ? `${projectDivision.code || ''} ${projectDivision.name || 'Project division'}`.trim()
           : costCodeDivision
-            ? `Division ${costCodeDivision}`
+            ? `Division ${costCodeDivision} · ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Project division'}`
             : 'Unassigned project division';
         const group = groups.get(division) || { rows: [], sortOrder: projectDivision?.sort_order ?? Number(costCodeDivision || 999) };
         group.rows.push(row);
@@ -3269,7 +3301,7 @@ export function JobsWorkspace({ permissions }) {
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen((current) => !current)}>
-                {isBudgetImportOpen ? 'Close Import' : 'Import Cost Report'}
+                {isBudgetImportOpen ? 'Close Import' : 'Import'}
               </button>
               <button type="button" className="primary-button" onClick={startBudgetAdd} disabled={isAddingBudgetLine || budgetForm.isSaving}>
                 <Plus aria-hidden="true" /> Add Financial Line
@@ -3332,7 +3364,7 @@ export function JobsWorkspace({ permissions }) {
               {isBudgetImportOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetImport}>
                 <Toolbar
                   eyebrow="Import"
-                  title="Import cost report"
+                  title="Cost report import"
                   description="Matches report cost codes to this job and updates Actual only."
                 />
                 <div className="job-financials-form__grid">
@@ -3355,7 +3387,7 @@ export function JobsWorkspace({ permissions }) {
                 ) : null}
                 <div className="job-financials-form__actions">
                   <button type="submit" className="secondary-button" disabled={budgetImport.isImporting || !budgetImport.file || jobBudget.isLoading}>
-                    {budgetImport.isImporting ? 'Importing...' : 'Import Cost Report'}
+                    {budgetImport.isImporting ? 'Importing...' : 'Update Actuals'}
                   </button>
                 </div>
               </form> : null}
