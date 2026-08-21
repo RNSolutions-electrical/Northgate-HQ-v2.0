@@ -74,6 +74,7 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
 });
 const EMPTY_BUDGET_LINES = Object.freeze([]);
 const EMPTY_CHANGE_ORDERS = Object.freeze([]);
+const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({ id: '', co_number: '', title: '', description: '', price_amount: '', cost_amount: '', status: 'proposed', reason: '', isSaving: false });
 const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'other'];
 const PROJECT_DIVISION_NAMES = Object.freeze({
   '01': 'General Requirements', '02': 'Site Work', '03': 'Concrete', '04': 'Masonry', '05': 'Metals',
@@ -1605,6 +1606,7 @@ export function JobsWorkspace({ permissions }) {
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
   const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
+  const [changeOrderForm, setChangeOrderForm] = useState(DEFAULT_CHANGE_ORDER_FORM);
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
@@ -2416,25 +2418,23 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function addChangeOrder() {
-    if (!selectedJob || !permissions?.canManageChangeOrders) return;
-    const coNumber = window.prompt('Change order number');
-    const title = coNumber && window.prompt('Change order title');
-    const cost = title && window.prompt('Budget impact (cost)');
-    if (!coNumber || !title || cost === null || cost === '') return;
+  async function saveChangeOrder() {
+    if (!selectedJob || !permissions?.canManageChangeOrders || !changeOrderForm.co_number.trim() || !changeOrderForm.title.trim() || !changeOrderForm.reason.trim()) return;
     try {
+      setChangeOrderForm((current) => ({ ...current, isSaving: true }));
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('save_job_change_order', {
-        p_change_order_id: null, p_job_id: selectedJob.id, p_division: selectedJob.division,
-        p_co_number: coNumber, p_title: title, p_description: null,
-        p_price_amount: 0, p_cost_amount: Number(cost), p_status: 'proposed', p_reason: 'Created from Change Orders tab',
+        p_change_order_id: changeOrderForm.id === '__new_change_order__' ? null : changeOrderForm.id, p_job_id: selectedJob.id, p_division: selectedJob.division,
+        p_co_number: changeOrderForm.co_number.trim(), p_title: changeOrderForm.title.trim(), p_description: changeOrderForm.description || null,
+        p_price_amount: Number(changeOrderForm.price_amount || 0), p_cost_amount: Number(changeOrderForm.cost_amount || 0), p_status: changeOrderForm.status, p_reason: changeOrderForm.reason.trim(),
       });
       if (error) throw error;
+      setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM);
       jobChangeOrders.reload();
     } catch (error) {
       console.error('Change order create failed', error);
-      setJobAction({ action: '', error, success: '' });
+      setChangeOrderForm((current) => ({ ...current, isSaving: false })); setJobAction({ action: '', error, success: '' });
     }
   }
 
@@ -3130,13 +3130,14 @@ export function JobsWorkspace({ permissions }) {
         .filter((row) => row.status === 'approved')
         .reduce((total, row) => total + Number(row.price_amount || 0), 0);
       const changeOrderColumns = [
-        { key: 'co_number', header: 'CO #', render: (row) => <strong>{row.co_number}</strong> },
-        { key: 'title', header: 'Title', render: (row) => row.title },
-        { key: 'description', header: 'Description', render: (row) => row.description || '-' },
-        { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
-        { key: 'price_amount', header: 'Price', align: 'right', render: (row) => formatMoney(row.price_amount) },
-        { key: 'cost_amount', header: 'Budget impact', align: 'right', render: (row) => formatMoney(row.cost_amount) },
+        { key: 'co_number', header: 'CO #', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.co_number} onChange={(e) => setChangeOrderForm((c) => ({ ...c, co_number: e.target.value }))} /> : <strong>{row.co_number}</strong> },
+        { key: 'title', header: 'Title', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.title} onChange={(e) => setChangeOrderForm((c) => ({ ...c, title: e.target.value }))} /> : row.title },
+        { key: 'description', header: 'Description', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, description: e.target.value }))} /> : (row.description || '-') },
+        { key: 'status', header: 'Status', render: (row) => changeOrderForm.id === row.id ? <select className="job-financials-table-input" value={changeOrderForm.status} onChange={(e) => setChangeOrderForm((c) => ({ ...c, status: e.target.value }))}><option value="proposed">Proposed</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select> : <StatusBadge status={row.status} /> },
+        { key: 'price_amount', header: 'Price', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.price_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, price_amount: e.target.value }))} /> : formatMoney(row.price_amount) },
+        { key: 'cost_amount', header: 'Budget impact', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.cost_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, cost_amount: e.target.value }))} /> : formatMoney(row.cost_amount) },
         { key: 'approved_at', header: 'Approved', render: (row) => row.approved_at ? formatDateTime(row.approved_at) : '-' },
+        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><button type="button" className="primary-button" onClick={saveChangeOrder}>Save</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)}>Cancel</button></> : <button type="button" className="secondary-button" onClick={() => setChangeOrderForm({ ...row, reason: '', isSaving: false })}>Edit</button> },
       ];
       return (
         <>
@@ -3147,12 +3148,12 @@ export function JobsWorkspace({ permissions }) {
           </div>
           {permissions?.canManageChangeOrders ? (
             <div className="job-financials-quick-actions">
-              <button type="button" className="primary-button" onClick={addChangeOrder}><Plus aria-hidden="true" /> Add Change Order</button>
+              <button type="button" className="primary-button" onClick={() => setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, id: '__new_change_order__' })}><Plus aria-hidden="true" /> Add Change Order</button>
             </div>
           ) : null}
           <DataTable
             columns={changeOrderColumns}
-            rows={jobChangeOrders.rows}
+            rows={changeOrderForm.id === '__new_change_order__' ? [...jobChangeOrders.rows, { id: '__new_change_order__' }] : jobChangeOrders.rows}
             getRowKey={(row) => row.id}
             permissions={permissions}
             isLoading={jobChangeOrders.isLoading}
