@@ -142,6 +142,7 @@ const JOB_SELECT_FIELDS = [
   'job_type',
   'service_call_number',
   'created_by',
+  'project_division:job_budget_divisions(id, code, name, sort_order)',
 ].join(', ');
 
 const JOB_DOCUMENT_SELECT_FIELDS = [
@@ -3164,12 +3165,18 @@ export function JobsWorkspace({ permissions }) {
         ? [...jobBudget.lines, { ...DEFAULT_BUDGET_FORM, id: '__new_budget_line__' }]
         : jobBudget.lines;
       const budgetGroups = [...budgetRows.reduce((groups, row) => {
-        const division = row.division || selectedJob.division || 'Unassigned division';
-        const rows = groups.get(division) || [];
-        rows.push(row);
-        groups.set(division, rows);
+        const costCodeDivision = String(row.cost_code || '').match(/^\d{2}/)?.[0];
+        const projectDivision = row.project_division;
+        const division = projectDivision?.id
+          ? `${projectDivision.code || ''} ${projectDivision.name || 'Project division'}`.trim()
+          : costCodeDivision
+            ? `Division ${costCodeDivision}`
+            : 'Unassigned project division';
+        const group = groups.get(division) || { rows: [], sortOrder: projectDivision?.sort_order ?? Number(costCodeDivision || 999) };
+        group.rows.push(row);
+        groups.set(division, group);
         return groups;
-      }, new Map()).entries()];
+      }, new Map()).entries()].sort(([, left], [, right]) => left.sortOrder - right.sortOrder);
       const inlineBudgetInput = (row, field, label) => (
         isEditingBudgetRow(row) ? (
           <input
@@ -3270,7 +3277,8 @@ export function JobsWorkspace({ permissions }) {
             </div>
           ) : null}
 
-          {budgetGroups.map(([division, rows]) => {
+          {budgetGroups.map(([division, group]) => {
+            const rows = group.rows;
             const isCollapsed = collapsedBudgetDivisions[division] === true;
             const divisionRevised = rows.reduce((total, row) => total + revisedBudget(row), 0);
             return (
