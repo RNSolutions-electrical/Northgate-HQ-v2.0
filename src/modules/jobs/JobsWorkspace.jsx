@@ -78,7 +78,7 @@ const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipmen
 const PROJECT_DIVISION_NAMES = Object.freeze({
   '01': 'General Requirements', '02': 'Site Work', '03': 'Concrete', '04': 'Masonry', '05': 'Metals',
   '06': 'Woods and Plastics', '07': 'Thermal & Moisture Protection', '08': 'Doors and Windows',
-  '09': 'Finishes', '10': 'Specialties', '15': 'Mechanical Systems', '16': 'Electrical & Lighting',
+  '09': 'Finishes', '10': 'Specialties', '15': 'Mechanical', '16': 'Electrical',
 });
 const DEFAULT_BUDGET_FORM = Object.freeze({
   id: '',
@@ -1643,7 +1643,7 @@ export function JobsWorkspace({ permissions }) {
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
-  const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => template.division === selectedJob?.division);
+  const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => !template.division || template.division === selectedJob?.division);
   const canManageSelectedJob = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canManageJobs');
   const canApproveSelectedBudget = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
@@ -3202,7 +3202,7 @@ export function JobsWorkspace({ permissions }) {
         const division = projectDivision?.id
           ? `${projectDivision.code || ''} ${projectDivision.name || 'Project division'}`.trim()
           : costCodeDivision
-            ? `Division ${costCodeDivision} · ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Project division'}`
+            ? `${costCodeDivision} - ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Project division'}`
             : 'Unassigned project division';
         const group = groups.get(division) || { rows: [], sortOrder: projectDivision?.sort_order ?? Number(costCodeDivision || 999) };
         group.rows.push(row);
@@ -3306,6 +3306,12 @@ export function JobsWorkspace({ permissions }) {
               <button type="button" className="primary-button" onClick={startBudgetAdd} disabled={isAddingBudgetLine || budgetForm.isSaving}>
                 <Plus aria-hidden="true" /> Add Financial Line
               </button>
+            </div>
+          ) : null}
+          {budgetGroups.length > 1 ? (
+            <div className="job-financials-quick-actions">
+              <button type="button" className="secondary-button" onClick={() => setCollapsedBudgetDivisions(Object.fromEntries(budgetGroups.map(([key]) => [key, false])))}>Expand All</button>
+              <button type="button" className="secondary-button" onClick={() => setCollapsedBudgetDivisions(Object.fromEntries(budgetGroups.map(([key]) => [key, true])))}>Collapse All</button>
             </div>
           ) : null}
 

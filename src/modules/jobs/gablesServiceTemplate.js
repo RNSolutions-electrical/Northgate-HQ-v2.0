@@ -16,9 +16,9 @@ const rows = [
 ];
 
 export const BUDGET_TEMPLATES = [{
-  key: 'gables-service-construction',
-  name: 'Gables Service Cost Codes',
-  division: 'Construction',
-  description: 'Service codes from the Gables report, grouped by CSI cost code. Amounts start at $0.00.',
+  key: 'master-construction-cost-codes',
+  name: 'Master Construction Cost Codes',
+  division: null,
+  description: 'Built-in project cost-code template available to every job. It adds only missing planning lines and never replaces financial amounts.',
   lines: rows.map(([cost_code, description, category]) => ({ cost_code, description, category })),
 }];
