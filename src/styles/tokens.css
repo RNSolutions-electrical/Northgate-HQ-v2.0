@@ -33,18 +33,18 @@
   --ng-radius-card: 6px;
   --ng-radius-control: 6px;
   --app-header-height: 68px;
-  --app-sidebar-width: 226px;
+  --app-sidebar-width: clamp(188px, 15vw, 226px);
   --app-sidebar-collapsed-width: 64px;
-  --app-secondary-sidebar-width: 300px;
+  --app-secondary-sidebar-width: clamp(240px, 22vw, 300px);
   --app-content-max: 100%;
   --app-content-vw: 100vw;
-  --app-page-gutter: 24px;
-  --card-gap: 18px;
-  --card-padding: 18px;
+  --app-page-gutter: clamp(12px, 1.5vw, 24px);
+  --card-gap: clamp(12px, 1.15vw, 18px);
+  --card-padding: clamp(12px, 1.15vw, 18px);
   --base-font-size: 14px;
   --table-font-size: 12px;
-  --table-cell-padding-y: 10px;
-  --table-cell-padding-x: 12px;
+  --table-cell-padding-y: clamp(7px, 0.65vw, 10px);
+  --table-cell-padding-x: clamp(8px, 0.78vw, 12px);
   --ui-radius: 6px;
   font-family: "Geist", "Aptos", "Segoe UI", Arial, sans-serif;
 }
