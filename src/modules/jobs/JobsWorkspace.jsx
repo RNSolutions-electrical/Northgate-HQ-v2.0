@@ -1819,7 +1819,7 @@ export function JobsWorkspace({ permissions }) {
     jobId: selectedJob?.id,
   });
   const jobBudget = useJobBudgetLines({
-    enabled: permissions.permissionSource === 'server' && activeTab === 'financials' && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobChangeOrders = useJobChangeOrders({
