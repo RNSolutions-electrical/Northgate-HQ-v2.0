@@ -46,6 +46,12 @@ function resolveValue(column, row) {
   return value;
 }
 
+function mobileLabelFor(column) {
+  if (typeof column.mobileLabel === 'string') return column.mobileLabel;
+  if (typeof column.header === 'string') return column.header;
+  return '';
+}
+
 /**
  * Permission-aware data table.
  *
@@ -173,7 +179,7 @@ export function DataTable({
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {permitted.map((column) => (
-                  <td key={column.key} className={cellClassName(column)}>
+                  <td key={column.key} className={cellClassName(column)} data-label={mobileLabelFor(column)}>
                     {resolveValue(column, row)}
                   </td>
                 ))}

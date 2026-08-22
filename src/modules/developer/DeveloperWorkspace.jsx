@@ -941,14 +941,14 @@ export function DeveloperWorkspace({ permissions }) {
 
                     return (
                       <tr key={option.flag}>
-                        <td>
+                        <td data-label="Permission">
                           <div className="developer-permission-name">
                             <strong>{option.label}</strong>
                             <span>{option.group}</span>
                           </div>
                         </td>
                         {['default', 'grant', 'deny'].map((nextState) => (
-                          <td key={nextState} className="data-table__cell--center">
+                          <td key={nextState} className="data-table__cell--center" data-label={nextState}>
                             <input
                               type="radio"
                               name={`${selectedPermissionUser.user_id}:${option.flag}`}
@@ -959,7 +959,7 @@ export function DeveloperWorkspace({ permissions }) {
                             />
                           </td>
                         ))}
-                        <td>
+                        <td data-label="Effective">
                           <StatusBadge tone={override ? (effectiveValue ? 'warn' : 'danger') : effectiveValue ? 'good' : 'neutral'}>
                             {override ? (effectiveValue ? 'Granted override' : 'Denied override') : baseValue ? 'Granted default' : 'Denied default'}
                           </StatusBadge>
