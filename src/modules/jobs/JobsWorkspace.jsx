@@ -855,18 +855,20 @@ function parseBulkBudgetRows(text) {
     const description = String(firstPresentValue(row, ['description', 'desc', 'item', 'name', 'scope']) || '').trim();
     const costCode = String(firstPresentValue(row, ['costcode', 'code', 'phase', 'phasecode', 'jobcostcode']) || '').trim();
     const category = normalizeBudgetCategoryInput(firstPresentValue(row, ['category', 'type', 'costtype']));
+    const budgetAmount = parseMoneyValue(firstPresentValue(row, ['original', 'originalbudget', 'budget', 'budgetamount', 'initialbudget'])) || 0;
+    const forecastFinal = parseMoneyValue(firstPresentValue(row, ['forecastfinal', 'finalforecast', 'forecastfinalamount']));
 
     return {
       rowNumber: index + 2,
       category,
       cost_code: costCode || null,
       description,
-      budget_amount: parseMoneyValue(firstPresentValue(row, ['original', 'originalbudget', 'budget', 'budgetamount', 'initialbudget'])) || 0,
+      budget_amount: budgetAmount,
       budget_change_amount: parseMoneyValue(firstPresentValue(row, ['changes', 'change', 'budgetchanges', 'changeorders', 'budgetchangeamount'])) || 0,
       actual_cost_amount: parseMoneyValue(firstPresentValue(row, ['actual', 'actualcost', 'actualcostamount'])) || 0,
       committed_cost_amount: parseMoneyValue(firstPresentValue(row, ['committed', 'committedcost', 'committedcostamount'])) || 0,
       forecast_to_complete_amount: parseMoneyValue(firstPresentValue(row, ['forecastthismonth', 'forecastmonth', 'forecasttocomplete', 'forecasttocompleteamount'])) || 0,
-      forecast_final_amount: parseMoneyValue(firstPresentValue(row, ['forecastfinal', 'finalforecast', 'forecastfinalamount'])) || 0,
+      forecast_final_amount: forecastFinal === null ? budgetAmount : forecastFinal,
       note: String(firstPresentValue(row, ['note', 'notes', 'comment', 'comments']) || '').trim() || null,
     };
   }).filter((row) => row.description || row.cost_code);
@@ -2317,16 +2319,19 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function buildBudgetPayload() {
+    const budgetAmount = parseOptionalNumber(budgetForm.budget_amount) || 0;
+    const forecastFinalAmount = parseOptionalNumber(budgetForm.forecast_final_amount);
+
     return {
       category: BUDGET_CATEGORY_OPTIONS.includes(budgetForm.category) ? budgetForm.category : 'other',
       cost_code: budgetForm.cost_code.trim() || null,
       description: budgetForm.description.trim(),
-      budget_amount: parseOptionalNumber(budgetForm.budget_amount) || 0,
+      budget_amount: budgetAmount,
       budget_change_amount: parseOptionalNumber(budgetForm.budget_change_amount) || 0,
       actual_cost_amount: parseOptionalNumber(budgetForm.actual_cost_amount) || 0,
       committed_cost_amount: parseOptionalNumber(budgetForm.committed_cost_amount) || 0,
       forecast_to_complete_amount: parseOptionalNumber(budgetForm.forecast_to_complete_amount) || 0,
-      forecast_final_amount: parseOptionalNumber(budgetForm.forecast_final_amount) || 0,
+      forecast_final_amount: forecastFinalAmount === null ? budgetAmount : forecastFinalAmount,
       note: budgetForm.note.trim() || null,
     };
   }
@@ -3372,7 +3377,15 @@ export function JobsWorkspace({ permissions }) {
       const forecastedRemainderTotal = jobBudget.lines.reduce((total, line) => total + forecastedRemainder(line), 0);
       const remainingTotal = financialRevisedTotal - forecastFinalTotal;
       const updateInlineBudgetField = (field, value) => {
-        setBudgetForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+        setBudgetForm((current) => ({
+          ...current,
+          [field]: value,
+          forecast_final_amount: field === 'budget_amount' && current.forecast_final_amount === ''
+            ? value
+            : current.forecast_final_amount,
+          error: null,
+          success: '',
+        }));
       };
       const isEditingBudgetRow = (row) => budgetForm.id === row.id
         || (isAddingBudgetLine && row.id === '__new_budget_line__');
@@ -3557,7 +3570,7 @@ export function JobsWorkspace({ permissions }) {
                 <Toolbar
                   eyebrow="Setup"
                   title="Bulk financial input"
-                  description="Paste spreadsheet rows to add or update original budget lines with one shared audit reason."
+                  description="Paste spreadsheet rows to add or update original budget lines with one shared audit reason. Forecast Final defaults to Original when omitted."
                 />
                 <div className="job-financials-form__grid">
                   <label className="job-financials-form__full">
@@ -3567,7 +3580,7 @@ export function JobsWorkspace({ permissions }) {
                       value={budgetBulkInput.text}
                       onChange={(event) => setBudgetBulkInput((current) => ({ ...current, text: event.target.value, error: null, success: '' }))}
                       disabled={budgetBulkInput.isSaving}
-                      placeholder={'category,cost_code,description,original,changes,actual,committed,forecast_this_month,forecast_final,note\nmaterial,16.100,Rough-in material,12500,0,0,0,0,12500,Initial setup'}
+                      placeholder={'category,cost_code,description,original,changes,actual,committed,forecast_this_month,forecast_final,note\nmaterial,16.100,Rough-in material,12500,0,0,0,0,,Initial setup'}
                     />
                   </label>
                   <label className="job-financials-form__wide">
@@ -3670,7 +3683,20 @@ export function JobsWorkspace({ permissions }) {
                   </label>
                   <label>
                     <span>Original</span>
-                    <input type="number" min="0" step="0.01" value={budgetForm.budget_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={budgetForm.budget_amount}
+                      onChange={(event) => setBudgetForm((current) => ({
+                        ...current,
+                        budget_amount: event.target.value,
+                        forecast_final_amount: current.forecast_final_amount === '' ? event.target.value : current.forecast_final_amount,
+                        error: null,
+                        success: '',
+                      }))}
+                      disabled={budgetForm.isSaving}
+                    />
                   </label>
                   <label>
                     <span>Changes</span>
