@@ -128,7 +128,7 @@ export function DataTable({
       <table
         className={`data-table${dense ? ' data-table--dense' : ''}`}
         aria-label={ariaLabel}
-        style={minWidth ? { minWidth } : undefined}
+        style={minWidth ? { minWidth: `min(${minWidth}, 100%)` } : undefined}
       >
         {caption ? <caption className="data-table__caption">{caption}</caption> : null}
 
