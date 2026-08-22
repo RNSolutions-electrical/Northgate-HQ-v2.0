@@ -1902,6 +1902,23 @@ textarea {
   min-width: min(210px, 100%);
 }
 
+.job-change-order-allocation,
+.job-change-order-actions {
+  display: grid;
+  gap: 0.35rem;
+  min-width: min(260px, 100%);
+}
+
+.job-change-order-actions {
+  min-width: min(300px, 100%);
+}
+
+.job-change-order-allocation__hint {
+  color: var(--ng-muted);
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
 .jobs-workspace--record {
   grid-template-columns: minmax(0, 1fr);
 }

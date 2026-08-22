@@ -74,7 +74,21 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
 });
 const EMPTY_BUDGET_LINES = Object.freeze([]);
 const EMPTY_CHANGE_ORDERS = Object.freeze([]);
-const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({ id: '', co_number: '', title: '', description: '', price_amount: '', cost_amount: '', status: 'proposed', reason: '', isSaving: false });
+const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({
+  id: '',
+  co_number: '',
+  title: '',
+  description: '',
+  project_division_id: '',
+  budget_line_id: '',
+  price_amount: '',
+  cost_amount: '',
+  status: 'proposed',
+  reason: '',
+  document_description: '',
+  document_file: null,
+  isSaving: false,
+});
 const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'other'];
 const PROJECT_DIVISION_NAMES = Object.freeze({
   '01': 'General Requirements', '02': 'Site Work', '03': 'Concrete', '04': 'Masonry', '05': 'Metals',
@@ -219,6 +233,8 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'committed_cost_amount',
   'forecast_to_complete_amount',
   'forecast_final_amount',
+  'project_division_id',
+  'project_division:job_budget_divisions(id, code, name, sort_order)',
   'note',
   'created_by',
 ].join(', ');
@@ -232,6 +248,8 @@ const JOB_CHANGE_ORDER_SELECT_FIELDS = [
   'description',
   'price_amount',
   'cost_amount',
+  'project_division_id',
+  'budget_line_id',
   'status',
   'submitted_by',
   'approved_by',
@@ -889,6 +907,10 @@ function revisedBudget(row) {
   return (Number(row.budget_amount) || 0) + (Number(row.budget_change_amount) || 0);
 }
 
+function changeOrderBudgetImpact(row) {
+  return row?.status === 'approved' ? Number(row.cost_amount || 0) : 0;
+}
+
 function forecastFinal(row) {
   return Number(row.forecast_final_amount) || 0;
 }
@@ -901,6 +923,27 @@ function forecastedRemainder(row) {
 
 function budgetRemaining(row) {
   return revisedBudget(row) - forecastFinal(row);
+}
+
+function projectDivisionLabel(row) {
+  const projectDivision = row?.project_division;
+  if (projectDivision?.id) {
+    return `${projectDivision.code || ''} ${projectDivision.name || 'Project division'}`.trim();
+  }
+  const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
+  return costCodeDivision
+    ? `${costCodeDivision} - ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Project division'}`
+    : 'Unassigned project division';
+}
+
+function projectDivisionSortOrder(row) {
+  const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
+  return row?.project_division?.sort_order ?? Number(costCodeDivision || 999);
+}
+
+function budgetLineLabel(row) {
+  if (!row?.id) return 'Unassigned budget line';
+  return [row.cost_code, row.description || 'Untitled budget line'].filter(Boolean).join(' - ');
 }
 
 function daysUntil(value) {
@@ -1090,7 +1133,7 @@ function useJobDocuments({ enabled, jobId }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const { data, error } = await client
+        const { data: jobDocumentsData, error: jobDocumentsError } = await client
           .from('documents')
           .select(JOB_DOCUMENT_SELECT_FIELDS)
           .eq('owner_type', 'job')
@@ -1098,13 +1141,40 @@ function useJobDocuments({ enabled, jobId }) {
           .is('archived_at', null)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (jobDocumentsError) throw jobDocumentsError;
+
+        const { data: changeOrderRows, error: changeOrderError } = await client
+          .from('change_orders')
+          .select('id')
+          .eq('job_id', jobId)
+          .is('archived_at', null);
+
+        if (changeOrderError) throw changeOrderError;
+
+        const changeOrderIds = (changeOrderRows ?? []).map((row) => row.id).filter(Boolean);
+        let changeOrderDocumentsData = [];
+
+        if (changeOrderIds.length) {
+          const { data, error } = await client
+            .from('documents')
+            .select(JOB_DOCUMENT_SELECT_FIELDS)
+            .eq('owner_type', 'change_order')
+            .in('owner_id', changeOrderIds)
+            .is('archived_at', null)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          changeOrderDocumentsData = data ?? [];
+        }
+
+        const documents = [...(jobDocumentsData ?? []), ...changeOrderDocumentsData]
+          .sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0));
 
         if (isMounted) {
           setState({
             isLoading: false,
             error: null,
-            documents: data ?? [],
+            documents,
           });
         }
       } catch (error) {
@@ -2158,7 +2228,10 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client.rpc('archive_job_document', {
+      const archiveRpc = document.owner_type === 'change_order'
+        ? 'archive_change_order_document'
+        : 'archive_job_document';
+      const { error } = await client.rpc(archiveRpc, {
         p_document_id: document.id,
         p_reason: reason.trim(),
       });
@@ -2611,14 +2684,63 @@ export function JobsWorkspace({ permissions }) {
       setChangeOrderForm((current) => ({ ...current, isSaving: true }));
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client.rpc('save_job_change_order', {
+      const selectedBudgetLine = jobBudget.lines.find((line) => line.id === changeOrderForm.budget_line_id);
+      const projectDivisionId = selectedBudgetLine?.project_division_id || changeOrderForm.project_division_id || null;
+      const { data, error } = await client.rpc('save_job_change_order', {
         p_change_order_id: changeOrderForm.id === '__new_change_order__' ? null : changeOrderForm.id, p_job_id: selectedJob.id, p_division: selectedJob.division,
         p_co_number: changeOrderForm.co_number.trim(), p_title: changeOrderForm.title.trim(), p_description: changeOrderForm.description || null,
         p_price_amount: Number(changeOrderForm.price_amount || 0), p_cost_amount: Number(changeOrderForm.cost_amount || 0), p_status: changeOrderForm.status, p_reason: changeOrderForm.reason.trim(),
+        p_project_division_id: projectDivisionId,
+        p_budget_line_id: changeOrderForm.budget_line_id || null,
       });
       if (error) throw error;
+      const savedChangeOrder = Array.isArray(data) ? data[0] : data;
+      const file = changeOrderForm.document_file;
+      if (file && savedChangeOrder?.id) {
+        const documentId = crypto.randomUUID();
+        const storagePath = `documents/change_order/${savedChangeOrder.id}/${documentId}/${sanitizeDocumentFileName(file.name)}`;
+        const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+        const { error: insertError } = await client
+          .from('documents')
+          .insert({
+            id: documentId,
+            division: selectedJob.division,
+            owner_type: 'change_order',
+            owner_id: savedChangeOrder.id,
+            storage_path: storagePath,
+            file_name: file.name,
+            document_type: 'change_orders',
+            description: changeOrderForm.document_description.trim() || `Attached to change order ${changeOrderForm.co_number.trim()}`,
+            file_size_bytes: file.size,
+            mime_type: file.type || null,
+            created_by: createdBy,
+          });
+
+        if (insertError) throw insertError;
+
+        const { error: uploadError } = await client.storage
+          .from(DOCUMENT_BUCKET)
+          .upload(storagePath, file, {
+            contentType: file.type || 'application/octet-stream',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          await client
+            .from('documents')
+            .update({
+              archived_at: new Date().toISOString(),
+              archived_by: createdBy,
+              archive_reason: `Upload failed: ${uploadError.message}`,
+            })
+            .eq('id', documentId);
+          throw uploadError;
+        }
+      }
       setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM);
       jobChangeOrders.reload();
+      jobDocuments.reload();
+      jobBudget.reload();
     } catch (error) {
       console.error('Change order create failed', error);
       setChangeOrderForm((current) => ({ ...current, isSaving: false })); setJobAction({ action: '', error, success: '' });
@@ -3316,15 +3438,74 @@ export function JobsWorkspace({ permissions }) {
       const approvedPrice = jobChangeOrders.rows
         .filter((row) => row.status === 'approved')
         .reduce((total, row) => total + Number(row.price_amount || 0), 0);
+      const budgetLineById = new Map(jobBudget.lines.map((line) => [line.id, line]));
+      const projectDivisionOptions = [...jobBudget.lines.reduce((options, line) => {
+        const division = line.project_division;
+        if (!division?.id || options.has(division.id)) return options;
+        options.set(division.id, {
+          id: division.id,
+          label: projectDivisionLabel(line),
+          sortOrder: projectDivisionSortOrder(line),
+        });
+        return options;
+      }, new Map()).values()].sort((left, right) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label));
+      const filteredBudgetLineOptions = jobBudget.lines
+        .filter((line) => !changeOrderForm.project_division_id || line.project_division_id === changeOrderForm.project_division_id)
+        .sort((left, right) => String(left.cost_code || '').localeCompare(String(right.cost_code || '')) || String(left.description || '').localeCompare(String(right.description || '')));
+      const selectedChangeOrderBudgetLine = budgetLineById.get(changeOrderForm.budget_line_id);
+      const allocationLabel = (row) => {
+        const budgetLine = budgetLineById.get(row.budget_line_id);
+        if (budgetLine) return budgetLineLabel(budgetLine);
+        if (row.project_division_id) return projectDivisionOptions.find((option) => option.id === row.project_division_id)?.label || 'Project division assigned';
+        return 'Unassigned';
+      };
       const changeOrderColumns = [
         { key: 'co_number', header: 'CO #', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.co_number} onChange={(e) => setChangeOrderForm((c) => ({ ...c, co_number: e.target.value }))} /> : <strong>{row.co_number}</strong> },
         { key: 'title', header: 'Title', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.title} onChange={(e) => setChangeOrderForm((c) => ({ ...c, title: e.target.value }))} /> : row.title },
         { key: 'description', header: 'Description', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, description: e.target.value }))} /> : (row.description || '-') },
+        {
+          key: 'allocation',
+          header: 'Budget item / division',
+          render: (row) => changeOrderForm.id === row.id ? (
+            <div className="job-change-order-allocation">
+              <select
+                className="job-financials-table-input"
+                value={changeOrderForm.project_division_id}
+                onChange={(e) => setChangeOrderForm((current) => ({
+                  ...current,
+                  project_division_id: e.target.value,
+                  budget_line_id: current.budget_line_id && budgetLineById.get(current.budget_line_id)?.project_division_id !== e.target.value ? '' : current.budget_line_id,
+                }))}
+                disabled={changeOrderForm.isSaving || !projectDivisionOptions.length}
+              >
+                <option value="">Project division</option>
+                {projectDivisionOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
+              <select
+                className="job-financials-table-input"
+                value={changeOrderForm.budget_line_id}
+                onChange={(e) => {
+                  const budgetLine = budgetLineById.get(e.target.value);
+                  setChangeOrderForm((current) => ({
+                    ...current,
+                    budget_line_id: e.target.value,
+                    project_division_id: budgetLine?.project_division_id || current.project_division_id,
+                  }));
+                }}
+                disabled={changeOrderForm.isSaving || !jobBudget.lines.length}
+              >
+                <option value="">Budget line</option>
+                {filteredBudgetLineOptions.map((line) => <option key={line.id} value={line.id}>{budgetLineLabel(line)}</option>)}
+              </select>
+              {selectedChangeOrderBudgetLine ? <span className="job-change-order-allocation__hint">{projectDivisionLabel(selectedChangeOrderBudgetLine)}</span> : null}
+            </div>
+          ) : allocationLabel(row),
+        },
         { key: 'status', header: 'Status', render: (row) => changeOrderForm.id === row.id ? <select className="job-financials-table-input" value={changeOrderForm.status} onChange={(e) => setChangeOrderForm((c) => ({ ...c, status: e.target.value }))}><option value="proposed">Proposed</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select> : <StatusBadge status={row.status} /> },
         { key: 'price_amount', header: 'Price', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.price_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, price_amount: e.target.value }))} /> : formatMoney(row.price_amount) },
         { key: 'cost_amount', header: 'Budget impact', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.cost_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, cost_amount: e.target.value }))} /> : formatMoney(row.cost_amount) },
         { key: 'approved_at', header: 'Approved', render: (row) => row.approved_at ? formatDateTime(row.approved_at) : '-' },
-        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><button type="button" className="primary-button" onClick={saveChangeOrder}>Save</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)}>Cancel</button></> : <button type="button" className="secondary-button" onClick={() => setChangeOrderForm({ ...row, reason: '', isSaving: false })}>Edit</button> },
+        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <div className="job-change-order-actions"><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><input className="job-financials-table-input" placeholder="Document note" value={changeOrderForm.document_description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_description: e.target.value }))} /><input className="job-financials-table-input" type="file" onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_file: e.target.files?.[0] || null }))} disabled={changeOrderForm.isSaving} /><button type="button" className="primary-button" onClick={saveChangeOrder} disabled={changeOrderForm.isSaving}>{changeOrderForm.isSaving ? 'Saving...' : 'Save'}</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)} disabled={changeOrderForm.isSaving}>Cancel</button></div> : <button type="button" className="secondary-button" onClick={() => setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, ...row, price_amount: row.price_amount ?? '', cost_amount: row.cost_amount ?? '', project_division_id: row.project_division_id || '', budget_line_id: row.budget_line_id || '', reason: '', isSaving: false })}>Edit</button> },
       ];
       return (
         <>
@@ -3346,27 +3527,32 @@ export function JobsWorkspace({ permissions }) {
             isLoading={jobChangeOrders.isLoading}
             error={jobChangeOrders.error}
             dense
-            minWidth="1040px"
+            minWidth="1380px"
             emptyTitle="No change orders for this job"
             emptyDescription="Approved change orders will appear here before they are allocated to a budget division and cost code."
-          />
-          <StatePanel
-            eyebrow="Budget allocation"
-            title="Division and cost-code allocation is the next step"
-            description="The current foundation stores the job's broad business division only. It does not yet store Division 1/2/3 or a cost-code target for a change order, so this table intentionally does not alter budget lines until those rules are defined."
-            tone="neutral"
-            compact
           />
         </>
       );
     }
 
     if (activeTab === 'financials') {
+      const approvedChangeOrders = jobChangeOrders.rows.filter((row) => row.status === 'approved');
+      const approvedChangeOrderCostByBudgetLineId = approvedChangeOrders.reduce((map, row) => {
+        if (!row.budget_line_id) return map;
+        map.set(row.budget_line_id, (map.get(row.budget_line_id) || 0) + changeOrderBudgetImpact(row));
+        return map;
+      }, new Map());
+      const approvedChangeOrderCostByProjectDivisionId = approvedChangeOrders.reduce((map, row) => {
+        if (!row.project_division_id || row.budget_line_id) return map;
+        map.set(row.project_division_id, (map.get(row.project_division_id) || 0) + changeOrderBudgetImpact(row));
+        return map;
+      }, new Map());
+      const budgetLineChangeOrderAmount = (row) => approvedChangeOrderCostByBudgetLineId.get(row.id) || 0;
+      const budgetLineRevisedBudget = (row) => revisedBudget(row) + budgetLineChangeOrderAmount(row);
       const originalTotal = sumField(jobBudget.lines, 'budget_amount');
       const manualChangeTotal = sumField(jobBudget.lines, 'budget_change_amount');
-      const approvedChangeOrderTotal = jobChangeOrders.rows
-        .filter((row) => row.status === 'approved')
-        .reduce((total, row) => total + Number(row.cost_amount || 0), 0);
+      const approvedChangeOrderTotal = approvedChangeOrders
+        .reduce((total, row) => total + changeOrderBudgetImpact(row), 0);
       const changeTotal = manualChangeTotal + approvedChangeOrderTotal;
       const revisedTotal = jobBudget.lines.reduce((total, line) => total + revisedBudget(line), 0);
       const financialRevisedTotal = revisedTotal + approvedChangeOrderTotal;
@@ -3393,14 +3579,8 @@ export function JobsWorkspace({ permissions }) {
         ? [...jobBudget.lines, { ...DEFAULT_BUDGET_FORM, id: '__new_budget_line__' }]
         : jobBudget.lines;
       const budgetGroups = [...budgetRows.reduce((groups, row) => {
-        const costCodeDivision = String(row.cost_code || '').match(/^\d{2}/)?.[0];
-        const projectDivision = row.project_division;
-        const division = projectDivision?.id
-          ? `${projectDivision.code || ''} ${projectDivision.name || 'Project division'}`.trim()
-          : costCodeDivision
-            ? `${costCodeDivision} - ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Project division'}`
-            : 'Unassigned project division';
-        const group = groups.get(division) || { rows: [], sortOrder: projectDivision?.sort_order ?? Number(costCodeDivision || 999) };
+        const division = projectDivisionLabel(row);
+        const group = groups.get(division) || { rows: [], sortOrder: projectDivisionSortOrder(row), projectDivisionId: row.project_division_id || row.project_division?.id || null };
         group.rows.push(row);
         groups.set(division, group);
         return groups;
@@ -3440,8 +3620,8 @@ export function JobsWorkspace({ permissions }) {
           render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
         },
         { key: 'budget_amount', header: 'Original', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original budget') || formatMoney(row.budget_amount), align: 'right' },
-        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney(row.budget_change_amount), align: 'right' },
-        { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(revisedBudget(row)), align: 'right' },
+        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), align: 'right' },
+        { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
         { key: 'actual_cost_amount', header: 'Actual', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual cost') || formatMoney(row.actual_cost_amount), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed cost') || formatMoney(row.committed_cost_amount), align: 'right' },
         { key: 'forecast_to_complete_amount', header: 'Forecast this month', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Forecast this month') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
@@ -3517,7 +3697,10 @@ export function JobsWorkspace({ permissions }) {
           {budgetGroups.map(([division, group]) => {
             const rows = group.rows;
             const isCollapsed = collapsedBudgetDivisions[division] === true;
-            const divisionRevised = rows.reduce((total, row) => total + revisedBudget(row), 0);
+            const unassignedDivisionChangeOrders = group.projectDivisionId
+              ? approvedChangeOrderCostByProjectDivisionId.get(group.projectDivisionId) || 0
+              : 0;
+            const divisionRevised = rows.reduce((total, row) => total + budgetLineRevisedBudget(row), 0) + unassignedDivisionChangeOrders;
             return (
               <section className="job-budget-division" key={division}>
                 <button type="button" className="job-budget-division__toggle" onClick={() => setCollapsedBudgetDivisions((current) => ({ ...current, [division]: !isCollapsed }))}>
