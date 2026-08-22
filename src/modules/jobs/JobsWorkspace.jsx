@@ -12,7 +12,7 @@ import {
   PackageCheck,
   Plus,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -1775,6 +1775,7 @@ export function JobsWorkspace({ permissions }) {
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const previousSelectedJobIdRef = useRef('');
 
   const jobs = directory.jobs;
   const canCreateJobs = permissions?.canCreateJobs === true;
@@ -1843,6 +1844,17 @@ export function JobsWorkspace({ permissions }) {
       setSelectedJobId('');
     }
   }, [jobs, selectedJobId]);
+
+  useEffect(() => {
+    const previousSelectedJobId = previousSelectedJobIdRef.current;
+    previousSelectedJobIdRef.current = selectedJobId;
+    if (!selectedJobId || previousSelectedJobId === selectedJobId) return;
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.querySelector('.ng-shell__content')?.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+    });
+  }, [selectedJobId]);
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -3712,12 +3724,42 @@ export function JobsWorkspace({ permissions }) {
             const unassignedDivisionChangeOrders = group.projectDivisionId
               ? approvedChangeOrderCostByProjectDivisionId.get(group.projectDivisionId) || 0
               : 0;
-            const divisionRevised = rows.reduce((total, row) => total + budgetLineRevisedBudget(row), 0) + unassignedDivisionChangeOrders;
+            const divisionOriginalBudget = sumField(rows, 'budget_amount');
+            const divisionApprovedChangeOrders = sumField(rows, 'budget_change_amount')
+              + rows.reduce((total, row) => total + budgetLineChangeOrderAmount(row), 0)
+              + unassignedDivisionChangeOrders;
+            const divisionTotalBudget = divisionOriginalBudget + divisionApprovedChangeOrders;
+            const divisionTotalCosts = sumField(rows, 'actual_cost_amount') + sumField(rows, 'committed_cost_amount');
+            const divisionRemainingBudget = divisionTotalBudget - divisionTotalCosts;
             return (
               <section className="job-budget-division" key={division}>
                 <button type="button" className="job-budget-division__toggle" onClick={() => setCollapsedBudgetDivisions((current) => ({ ...current, [division]: !isCollapsed }))}>
-                  <span>{isCollapsed ? '▸' : '▾'} {division}</span>
-                  <span>{rows.length} line{rows.length === 1 ? '' : 's'} · {formatMoney(divisionRevised)} revised</span>
+                  <span className="job-budget-division__title">
+                    <span>{isCollapsed ? '▸' : '▾'} {division}</span>
+                    <small>{rows.length} line{rows.length === 1 ? '' : 's'}</small>
+                  </span>
+                  <span className="job-budget-division__metrics">
+                    <span>
+                      <small>Total budget</small>
+                      <strong>{formatMoney(divisionTotalBudget)}</strong>
+                    </span>
+                    <span>
+                      <small>Original</small>
+                      <strong>{formatMoney(divisionOriginalBudget)}</strong>
+                    </span>
+                    <span>
+                      <small>Approved CO</small>
+                      <strong>{formatMoney(divisionApprovedChangeOrders)}</strong>
+                    </span>
+                    <span>
+                      <small>Total costs</small>
+                      <strong>{formatMoney(divisionTotalCosts)}</strong>
+                    </span>
+                    <span className={divisionRemainingBudget < 0 ? 'is-negative' : 'is-positive'}>
+                      <small>Remaining</small>
+                      <strong>{formatMoney(divisionRemainingBudget)}</strong>
+                    </span>
+                  </span>
                 </button>
                 {!isCollapsed ? <DataTable
                   columns={budgetColumns}
