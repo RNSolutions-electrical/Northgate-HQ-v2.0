@@ -688,17 +688,23 @@ textarea {
 
   .top-nav {
     display: none;
-    position: absolute;
+    position: fixed;
     top: var(--app-header-height);
     left: 0;
     right: 0;
+    z-index: 45;
     flex-direction: column;
     align-items: stretch;
     gap: 2px;
+    height: auto;
+    max-height: calc(100dvh - var(--app-header-height));
+    overflow-y: auto;
+    overflow-x: hidden;
     background: var(--ng-card-bg);
     border-bottom: 1px solid var(--ng-border);
     box-shadow: var(--ng-shadow-raised);
     padding: 10px var(--app-page-gutter) 16px;
+    -webkit-overflow-scrolling: touch;
   }
   .top-nav.is-open { display: flex; }
   .top-nav__item { min-height: 44px; }
