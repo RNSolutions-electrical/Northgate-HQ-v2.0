@@ -1919,45 +1919,6 @@ textarea {
   line-height: 1.25;
 }
 
-.job-change-order-picker__label {
-  display: block;
-  margin-bottom: 0.35rem;
-  color: var(--ng-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.job-change-order-picker,
-.job-change-order-line-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.job-change-order-line-list {
-  max-height: 190px;
-  margin-top: 0.45rem;
-  overflow: auto;
-  padding: 0.45rem;
-  border: 1px solid var(--ng-divider);
-  border-radius: var(--ng-radius-control);
-  background: var(--ng-panel-bg-alt);
-}
-
-.job-change-order-picker__button,
-.job-change-order-line-list__button {
-  justify-content: flex-start;
-  text-align: left;
-}
-
-.job-change-order-picker__button.is-selected,
-.job-change-order-line-list__button.is-selected {
-  border-color: var(--ng-brand-red);
-  background: var(--ng-brand-red-soft);
-  color: var(--ng-brand-red-strong);
-}
-
 .jobs-workspace--record {
   grid-template-columns: minmax(0, 1fr);
 }
