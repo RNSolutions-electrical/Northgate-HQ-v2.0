@@ -725,16 +725,31 @@ function pdfTextItemsToLines(items) {
     .join('\n');
 }
 
+function isStaleDynamicImportError(error) {
+  const message = String(error?.message || error || '');
+  return /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message);
+}
+
 async function extractImportTextFromFile(file) {
   if (!file) return '';
 
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (!isPdf) return file.text();
 
-  const [pdfjsLib, pdfjsWorker] = await Promise.all([
-    import('pdfjs-dist'),
-    import('pdfjs-dist/build/pdf.worker.mjs?url'),
-  ]);
+  let pdfjsLib;
+  let pdfjsWorker;
+  try {
+    [pdfjsLib, pdfjsWorker] = await Promise.all([
+      import('pdfjs-dist'),
+      import('pdfjs-dist/build/pdf.worker.mjs?url'),
+    ]);
+  } catch (error) {
+    if (isStaleDynamicImportError(error)) {
+      throw new Error('The app was updated while this browser tab was open. Refresh the page, then import the cost report again.');
+    }
+    throw error;
+  }
+
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
   const document = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
   const pageTexts = [];
