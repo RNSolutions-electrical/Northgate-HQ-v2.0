@@ -1867,9 +1867,20 @@ textarea {
   grid-column: span 2;
 }
 
+.job-financials-form__full {
+  grid-column: 1 / -1;
+}
+
 .job-financials-form__actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.job-financials-bulk-input {
+  min-height: 170px;
+  resize: vertical;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  line-height: 1.45;
 }
 
 .job-financials-table-input {

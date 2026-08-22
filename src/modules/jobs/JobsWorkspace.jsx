@@ -104,6 +104,13 @@ const DEFAULT_BUDGET_IMPORT = Object.freeze({
   error: null,
   success: '',
 });
+const DEFAULT_BUDGET_BULK_INPUT = Object.freeze({
+  text: '',
+  reason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
 const EMPTY_SCHEDULE_ITEMS = Object.freeze([]);
 const SCHEDULE_STATUS_OPTIONS = ['pending', 'in_progress', 'complete', 'delayed'];
 const DEFAULT_SCHEDULE_FORM = Object.freeze({
@@ -816,6 +823,60 @@ function actualsByCostCodeFromReport(text) {
   if (actualsByCode) return actualsByCode;
 
   throw new Error('The cost report needs cost-code rows and actual-cost values.');
+}
+
+function normalizeBudgetCategoryInput(value) {
+  const normalized = String(value || '').toLowerCase().replace(/[^a-z]/g, '');
+  const matches = {
+    material: 'material',
+    materials: 'material',
+    labor: 'labor',
+    labour: 'labor',
+    subcontractor: 'subcontractor',
+    subcontractors: 'subcontractor',
+    sub: 'subcontractor',
+    equipment: 'equipment',
+    permit: 'permit',
+    permits: 'permit',
+    other: 'other',
+    misc: 'other',
+    miscellaneous: 'other',
+  };
+  return matches[normalized] || 'other';
+}
+
+function parseBulkBudgetRows(text) {
+  const rows = parseDelimitedText(text);
+  if (!rows.length) {
+    throw new Error('Paste budget rows with a header row before importing.');
+  }
+
+  const parsed = rows.map((row, index) => {
+    const description = String(firstPresentValue(row, ['description', 'desc', 'item', 'name', 'scope']) || '').trim();
+    const costCode = String(firstPresentValue(row, ['costcode', 'code', 'phase', 'phasecode', 'jobcostcode']) || '').trim();
+    const category = normalizeBudgetCategoryInput(firstPresentValue(row, ['category', 'type', 'costtype']));
+
+    return {
+      rowNumber: index + 2,
+      category,
+      cost_code: costCode || null,
+      description,
+      budget_amount: parseMoneyValue(firstPresentValue(row, ['original', 'originalbudget', 'budget', 'budgetamount', 'initialbudget'])) || 0,
+      budget_change_amount: parseMoneyValue(firstPresentValue(row, ['changes', 'change', 'budgetchanges', 'changeorders', 'budgetchangeamount'])) || 0,
+      actual_cost_amount: parseMoneyValue(firstPresentValue(row, ['actual', 'actualcost', 'actualcostamount'])) || 0,
+      committed_cost_amount: parseMoneyValue(firstPresentValue(row, ['committed', 'committedcost', 'committedcostamount'])) || 0,
+      forecast_to_complete_amount: parseMoneyValue(firstPresentValue(row, ['forecastthismonth', 'forecastmonth', 'forecasttocomplete', 'forecasttocompleteamount'])) || 0,
+      forecast_final_amount: parseMoneyValue(firstPresentValue(row, ['forecastfinal', 'finalforecast', 'forecastfinalamount'])) || 0,
+      note: String(firstPresentValue(row, ['note', 'notes', 'comment', 'comments']) || '').trim() || null,
+    };
+  }).filter((row) => row.description || row.cost_code);
+
+  const missingDescription = parsed.find((row) => !row.description);
+  if (missingDescription) {
+    throw new Error(`Bulk budget row ${missingDescription.rowNumber} needs a description.`);
+  }
+
+  return parsed;
 }
 
 function sumField(rows, field) {
@@ -1602,6 +1663,10 @@ function budgetProtectedFieldsChanged(beforeRow, payload) {
     || Number(beforeRow.budget_amount || 0) !== Number(payload.budget_amount || 0);
 }
 
+function budgetLineMatchKey(line) {
+  return `${normalizeCostCode(line?.cost_code)}|${String(line?.description || '').trim().toLowerCase()}`;
+}
+
 export function JobsWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -1620,9 +1685,11 @@ export function JobsWorkspace({ permissions }) {
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
   const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
+  const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [changeOrderForm, setChangeOrderForm] = useState(DEFAULT_CHANGE_ORDER_FORM);
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
+  const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
@@ -1748,6 +1815,8 @@ export function JobsWorkspace({ permissions }) {
     setIsAddingBudgetLine(false);
     setIsBudgetImportOpen(false);
     setBudgetImport(DEFAULT_BUDGET_IMPORT);
+    setIsBudgetBulkInputOpen(false);
+    setBudgetBulkInput(DEFAULT_BUDGET_BULK_INPUT);
     setBudgetTemplateAction({ key: '', error: null, success: '' });
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
   }
@@ -1760,6 +1829,8 @@ export function JobsWorkspace({ permissions }) {
     setJobAction({ action: '', error: null, success: '' });
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setBudgetImport(DEFAULT_BUDGET_IMPORT);
+    setIsBudgetBulkInputOpen(false);
+    setBudgetBulkInput(DEFAULT_BUDGET_BULK_INPUT);
   }
 
   function startJobCreate() {
@@ -2430,6 +2501,102 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Budget template apply failed', error);
       setBudgetTemplateAction({ key: '', error, success: '' });
+    }
+  }
+
+  async function handleBudgetBulkInput(event) {
+    event.preventDefault();
+
+    if (!selectedJob || !canApproveSelectedBudget || budgetBulkInput.isSaving) return;
+
+    if (!budgetBulkInput.reason.trim()) {
+      setBudgetBulkInput((current) => ({ ...current, error: new Error('Enter one setup reason for this bulk budget input.'), success: '' }));
+      return;
+    }
+
+    let rows;
+    try {
+      rows = parseBulkBudgetRows(budgetBulkInput.text);
+    } catch (error) {
+      setBudgetBulkInput((current) => ({ ...current, error, success: '' }));
+      return;
+    }
+
+    if (!rows.length) {
+      setBudgetBulkInput((current) => ({ ...current, error: new Error('No usable budget rows were found.'), success: '' }));
+      return;
+    }
+
+    setBudgetBulkInput((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+      const existingByKey = new Map(jobBudget.lines.map((line) => [budgetLineMatchKey(line), line]));
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const row of rows) {
+        const payload = {
+          category: row.category,
+          cost_code: row.cost_code,
+          description: row.description,
+          budget_amount: row.budget_amount,
+          budget_change_amount: row.budget_change_amount,
+          actual_cost_amount: row.actual_cost_amount,
+          committed_cost_amount: row.committed_cost_amount,
+          forecast_to_complete_amount: row.forecast_to_complete_amount,
+          forecast_final_amount: row.forecast_final_amount,
+          note: row.note,
+        };
+        const existingRow = existingByKey.get(budgetLineMatchKey(payload));
+        const query = existingRow
+          ? client
+            .from('job_budget_lines')
+            .update(payload)
+            .eq('id', existingRow.id)
+            .eq('job_id', selectedJob.id)
+            .select(JOB_BUDGET_SELECT_FIELDS)
+            .single()
+          : client
+            .from('job_budget_lines')
+            .insert({
+              ...payload,
+              job_id: selectedJob.id,
+              division: selectedJob.division,
+              created_by: createdBy,
+            })
+            .select(JOB_BUDGET_SELECT_FIELDS)
+            .single();
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        await writeJobChangeLog(client, {
+          action: existingRow ? 'update' : 'create',
+          recordId: data?.id || existingRow?.id || '',
+          beforeData: budgetAuditSnapshot(existingRow),
+          afterData: budgetAuditSnapshot(data),
+          note: `Bulk budget setup: ${budgetBulkInput.reason.trim()}`,
+        });
+
+        if (existingRow) {
+          updatedCount += 1;
+        } else {
+          createdCount += 1;
+          existingByKey.set(budgetLineMatchKey(data), data);
+        }
+      }
+
+      setBudgetBulkInput({
+        ...DEFAULT_BUDGET_BULK_INPUT,
+        success: `${createdCount} financial line${createdCount === 1 ? '' : 's'} added and ${updatedCount} updated.`,
+      });
+      jobBudget.reload();
+    } catch (error) {
+      console.error('Bulk budget input failed', error);
+      setBudgetBulkInput((current) => ({ ...current, isSaving: false, error, success: '' }));
     }
   }
 
@@ -3316,6 +3483,9 @@ export function JobsWorkspace({ permissions }) {
 
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
+              <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
+                {isBudgetBulkInputOpen ? 'Close Bulk Input' : 'Bulk Input'}
+              </button>
               <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen((current) => !current)}>
                 {isBudgetImportOpen ? 'Close Import' : 'Import'}
               </button>
@@ -3382,6 +3552,47 @@ export function JobsWorkspace({ permissions }) {
                   ) : null}
                 </section>
               ) : null}
+
+              {isBudgetBulkInputOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetBulkInput}>
+                <Toolbar
+                  eyebrow="Setup"
+                  title="Bulk financial input"
+                  description="Paste spreadsheet rows to add or update original budget lines with one shared audit reason."
+                />
+                <div className="job-financials-form__grid">
+                  <label className="job-financials-form__full">
+                    <span>Budget rows</span>
+                    <textarea
+                      className="job-financials-bulk-input"
+                      value={budgetBulkInput.text}
+                      onChange={(event) => setBudgetBulkInput((current) => ({ ...current, text: event.target.value, error: null, success: '' }))}
+                      disabled={budgetBulkInput.isSaving}
+                      placeholder={'category,cost_code,description,original,changes,actual,committed,forecast_this_month,forecast_final,note\nmaterial,16.100,Rough-in material,12500,0,0,0,0,12500,Initial setup'}
+                    />
+                  </label>
+                  <label className="job-financials-form__wide">
+                    <span>Setup reason</span>
+                    <input
+                      type="text"
+                      value={budgetBulkInput.reason}
+                      onChange={(event) => setBudgetBulkInput((current) => ({ ...current, reason: event.target.value, error: null, success: '' }))}
+                      disabled={budgetBulkInput.isSaving}
+                      placeholder="Required once for all pasted rows"
+                    />
+                  </label>
+                </div>
+                {budgetBulkInput.error ? (
+                  <StatePanel tone="danger" eyebrow="Bulk Input Failed" title="Financial lines were not saved" description={budgetBulkInput.error.message || 'Unexpected bulk input error.'} compact />
+                ) : null}
+                {budgetBulkInput.success ? (
+                  <StatePanel tone="success" eyebrow="Bulk Input Saved" title="Financial lines saved" description={budgetBulkInput.success} compact />
+                ) : null}
+                <div className="job-financials-form__actions">
+                  <button type="submit" className="primary-button" disabled={budgetBulkInput.isSaving || !budgetBulkInput.text.trim() || !budgetBulkInput.reason.trim() || jobBudget.isLoading}>
+                    {budgetBulkInput.isSaving ? 'Saving...' : 'Save Bulk Input'}
+                  </button>
+                </div>
+              </form> : null}
 
               {isBudgetImportOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetImport}>
                 <Toolbar
