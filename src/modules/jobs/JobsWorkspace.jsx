@@ -82,6 +82,7 @@ const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({
   budget_division_key: '',
   project_division_id: '',
   budget_line_id: '',
+  budget_line_search: '',
   price_amount: '',
   cost_amount: '',
   status: 'proposed',
@@ -3462,6 +3463,10 @@ export function JobsWorkspace({ permissions }) {
       const filteredBudgetLineOptions = jobBudget.lines
         .filter((line) => !changeOrderForm.budget_division_key || projectDivisionKey(line) === changeOrderForm.budget_division_key)
         .sort((left, right) => String(left.cost_code || '').localeCompare(String(right.cost_code || '')) || String(left.description || '').localeCompare(String(right.description || '')));
+      const budgetLineSearchTerm = changeOrderForm.budget_line_search.trim().toLowerCase();
+      const visibleBudgetLineOptions = filteredBudgetLineOptions
+        .filter((line) => !budgetLineSearchTerm || budgetLineLabel(line).toLowerCase().includes(budgetLineSearchTerm))
+        .slice(0, 60);
       const selectedChangeOrderBudgetLine = budgetLineById.get(changeOrderForm.budget_line_id);
       const allocationLabel = (row) => {
         const budgetLine = budgetLineById.get(row.budget_line_id);
@@ -3520,44 +3525,74 @@ export function JobsWorkspace({ permissions }) {
                   <span>Description</span>
                   <input className="job-financials-table-input" value={changeOrderForm.description} onChange={(event) => setChangeOrderForm((current) => ({ ...current, description: event.target.value }))} disabled={changeOrderForm.isSaving} />
                 </label>
-                <label className="job-financials-form__wide">
-                  <span>Budget division</span>
-                  <select
+                <div className="job-financials-form__full">
+                  <span className="job-change-order-picker__label">Budget division</span>
+                  <div className="job-change-order-picker">
+                    <button
+                      type="button"
+                      className={`secondary-button job-change-order-picker__button${changeOrderForm.budget_division_key ? '' : ' is-selected'}`}
+                      onClick={() => setChangeOrderForm((current) => ({ ...current, budget_division_key: '', project_division_id: '', budget_line_id: '' }))}
+                      disabled={changeOrderForm.isSaving}
+                    >
+                      All divisions
+                    </button>
+                    {projectDivisionOptions.map((option) => (
+                      <button
+                        type="button"
+                        className={`secondary-button job-change-order-picker__button${changeOrderForm.budget_division_key === option.id ? ' is-selected' : ''}`}
+                        key={option.id}
+                        onClick={() => setChangeOrderForm((current) => ({
+                          ...current,
+                          budget_division_key: option.id,
+                          project_division_id: option.id.startsWith('project:') ? option.id.replace('project:', '') : '',
+                          budget_line_id: current.budget_line_id && projectDivisionKey(budgetLineById.get(current.budget_line_id)) !== option.id ? '' : current.budget_line_id,
+                        }))}
+                        disabled={changeOrderForm.isSaving}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="job-financials-form__full">
+                  <span className="job-change-order-picker__label">Budget line</span>
+                  <input
                     className="job-financials-table-input"
-                    value={changeOrderForm.budget_division_key}
-                    onChange={(event) => setChangeOrderForm((current) => ({
-                      ...current,
-                      budget_division_key: event.target.value,
-                      project_division_id: event.target.value.startsWith('project:') ? event.target.value.replace('project:', '') : '',
-                      budget_line_id: current.budget_line_id && projectDivisionKey(budgetLineById.get(current.budget_line_id)) !== event.target.value ? '' : current.budget_line_id,
-                    }))}
-                    disabled={changeOrderForm.isSaving || !projectDivisionOptions.length}
-                  >
-                    <option value="">All divisions</option>
-                    {projectDivisionOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </label>
-                <label className="job-financials-form__wide">
-                  <span>Budget line</span>
-                  <select
-                    className="job-financials-table-input"
-                    value={changeOrderForm.budget_line_id}
-                    onChange={(event) => {
-                      const budgetLine = budgetLineById.get(event.target.value);
-                      setChangeOrderForm((current) => ({
-                        ...current,
-                        budget_line_id: event.target.value,
-                        budget_division_key: budgetLine ? projectDivisionKey(budgetLine) : current.budget_division_key,
-                        project_division_id: budgetLine?.project_division_id || current.project_division_id,
-                      }));
-                    }}
+                    value={changeOrderForm.budget_line_search}
+                    onChange={(event) => setChangeOrderForm((current) => ({ ...current, budget_line_search: event.target.value }))}
+                    placeholder="Search budget lines"
                     disabled={changeOrderForm.isSaving || !jobBudget.lines.length}
-                  >
-                    <option value="">Unassigned budget line</option>
-                    {filteredBudgetLineOptions.map((line) => <option key={line.id} value={line.id}>{budgetLineLabel(line)}</option>)}
-                  </select>
-                  {selectedChangeOrderBudgetLine ? <small className="job-change-order-allocation__hint">{projectDivisionLabel(selectedChangeOrderBudgetLine)}</small> : null}
-                </label>
+                  />
+                  <div className="job-change-order-line-list">
+                    <button
+                      type="button"
+                      className={`secondary-button job-change-order-line-list__button${changeOrderForm.budget_line_id ? '' : ' is-selected'}`}
+                      onClick={() => setChangeOrderForm((current) => ({ ...current, budget_line_id: '' }))}
+                      disabled={changeOrderForm.isSaving}
+                    >
+                      Unassigned budget line
+                    </button>
+                    {visibleBudgetLineOptions.map((line) => (
+                      <button
+                        type="button"
+                        className={`secondary-button job-change-order-line-list__button${changeOrderForm.budget_line_id === line.id ? ' is-selected' : ''}`}
+                        key={line.id}
+                        onClick={() => setChangeOrderForm((current) => ({
+                          ...current,
+                          budget_line_id: line.id,
+                          budget_division_key: projectDivisionKey(line),
+                          project_division_id: line.project_division_id || current.project_division_id,
+                        }))}
+                        disabled={changeOrderForm.isSaving}
+                      >
+                        {budgetLineLabel(line)}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedChangeOrderBudgetLine ? <small className="job-change-order-allocation__hint">Selected: {budgetLineLabel(selectedChangeOrderBudgetLine)} ({projectDivisionLabel(selectedChangeOrderBudgetLine)})</small> : null}
+                  {!jobBudget.lines.length ? <small className="job-change-order-allocation__hint">No financial lines are loaded for this job yet.</small> : null}
+                  {jobBudget.error ? <small className="job-change-order-allocation__hint">Financial lines could not be loaded: {jobBudget.error.message || 'Unexpected error.'}</small> : null}
+                </div>
                 <label>
                   <span>Price</span>
                   <input className="job-financials-table-input" type="number" min="0" step="0.01" value={changeOrderForm.price_amount} onChange={(event) => setChangeOrderForm((current) => ({ ...current, price_amount: event.target.value }))} disabled={changeOrderForm.isSaving} />
