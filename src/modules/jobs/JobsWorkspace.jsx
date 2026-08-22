@@ -107,6 +107,7 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   committed_cost_amount: '',
   forecast_to_complete_amount: '',
   forecast_final_amount: '',
+  schedule_of_values_amount: '',
   note: '',
   change_reason: '',
   isSaving: false,
@@ -234,6 +235,7 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'committed_cost_amount',
   'forecast_to_complete_amount',
   'forecast_final_amount',
+  'schedule_of_values_amount',
   'project_division_id',
   'project_division:job_budget_divisions(id, code, name, sort_order)',
   'note',
@@ -876,6 +878,7 @@ function parseBulkBudgetRows(text) {
     const category = normalizeBudgetCategoryInput(firstPresentValue(row, ['category', 'type', 'costtype']));
     const budgetAmount = parseMoneyValue(firstPresentValue(row, ['original', 'originalbudget', 'budget', 'budgetamount', 'initialbudget'])) || 0;
     const forecastFinal = parseMoneyValue(firstPresentValue(row, ['forecastfinal', 'finalforecast', 'forecastfinalamount']));
+    const scheduleOfValues = parseMoneyValue(firstPresentValue(row, ['sov', 'scheduleofvalues', 'scheduleofvaluesamount', 'billingvalue', 'billingschedule']));
 
     return {
       rowNumber: index + 2,
@@ -886,8 +889,9 @@ function parseBulkBudgetRows(text) {
       budget_change_amount: parseMoneyValue(firstPresentValue(row, ['changes', 'change', 'budgetchanges', 'changeorders', 'budgetchangeamount'])) || 0,
       actual_cost_amount: parseMoneyValue(firstPresentValue(row, ['actual', 'actualcost', 'actualcostamount'])) || 0,
       committed_cost_amount: parseMoneyValue(firstPresentValue(row, ['committed', 'committedcost', 'committedcostamount'])) || 0,
-      forecast_to_complete_amount: parseMoneyValue(firstPresentValue(row, ['forecastthismonth', 'forecastmonth', 'forecasttocomplete', 'forecasttocompleteamount'])) || 0,
+      forecast_to_complete_amount: parseMoneyValue(firstPresentValue(row, ['monthlyforecast', 'forecastthismonth', 'forecastmonth', 'forecasttocomplete', 'forecasttocompleteamount'])) || 0,
       forecast_final_amount: forecastFinal === null ? budgetAmount : forecastFinal,
+      schedule_of_values_amount: scheduleOfValues === null ? 0 : scheduleOfValues,
       note: String(firstPresentValue(row, ['note', 'notes', 'comment', 'comments']) || '').trim() || null,
     };
   }).filter((row) => row.description || row.cost_code);
@@ -919,6 +923,7 @@ function forecastFinal(row) {
 function forecastedRemainder(row) {
   return forecastFinal(row)
     - (Number(row.actual_cost_amount) || 0)
+    - (Number(row.committed_cost_amount) || 0)
     - (Number(row.forecast_to_complete_amount) || 0);
 }
 
@@ -1677,6 +1682,7 @@ function budgetToForm(row) {
     committed_cost_amount: row.committed_cost_amount == null ? '' : String(row.committed_cost_amount),
     forecast_to_complete_amount: row.forecast_to_complete_amount == null ? '' : String(row.forecast_to_complete_amount),
     forecast_final_amount: row.forecast_final_amount == null ? '' : String(row.forecast_final_amount),
+    schedule_of_values_amount: row.schedule_of_values_amount == null ? '' : String(row.schedule_of_values_amount),
     note: row.note || '',
   };
 }
@@ -1697,6 +1703,7 @@ function budgetAuditSnapshot(row) {
     committed_cost_amount: row.committed_cost_amount,
     forecast_to_complete_amount: row.forecast_to_complete_amount,
     forecast_final_amount: row.forecast_final_amount,
+    schedule_of_values_amount: row.schedule_of_values_amount,
     note: row.note,
     archived_at: row.archived_at,
     archived_by: row.archived_by,
@@ -2424,6 +2431,7 @@ export function JobsWorkspace({ permissions }) {
       committed_cost_amount: parseOptionalNumber(budgetForm.committed_cost_amount) || 0,
       forecast_to_complete_amount: parseOptionalNumber(budgetForm.forecast_to_complete_amount) || 0,
       forecast_final_amount: forecastFinalAmount === null ? budgetAmount : forecastFinalAmount,
+      schedule_of_values_amount: parseOptionalNumber(budgetForm.schedule_of_values_amount) || 0,
       note: budgetForm.note.trim() || null,
     };
   }
@@ -2573,6 +2581,7 @@ export function JobsWorkspace({ permissions }) {
           committed_cost_amount: 0,
           forecast_to_complete_amount: 0,
           forecast_final_amount: 0,
+          schedule_of_values_amount: 0,
           note: `Created from template: ${template.name}`,
           created_by: createdBy,
         })))
@@ -2645,6 +2654,7 @@ export function JobsWorkspace({ permissions }) {
           committed_cost_amount: row.committed_cost_amount,
           forecast_to_complete_amount: row.forecast_to_complete_amount,
           forecast_final_amount: row.forecast_final_amount,
+          schedule_of_values_amount: row.schedule_of_values_amount,
           note: row.note,
         };
         const existingRow = existingByKey.get(budgetLineMatchKey(payload));
@@ -3584,6 +3594,7 @@ export function JobsWorkspace({ permissions }) {
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
       const forecastThisMonthTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
+      const scheduleOfValuesTotal = sumField(jobBudget.lines, 'schedule_of_values_amount');
       const forecastedRemainderTotal = jobBudget.lines.reduce((total, line) => total + forecastedRemainder(line), 0);
       const remainingTotal = financialRevisedTotal - forecastFinalTotal;
       const updateInlineBudgetField = (field, value) => {
@@ -3648,9 +3659,10 @@ export function JobsWorkspace({ permissions }) {
         { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
         { key: 'actual_cost_amount', header: 'Actual', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual cost') || formatMoney(row.actual_cost_amount), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed cost') || formatMoney(row.committed_cost_amount), align: 'right' },
-        { key: 'forecast_to_complete_amount', header: 'Forecast this month', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Forecast this month') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
-        { key: 'forecast_final', header: 'Forecast final', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Forecast final') || formatMoney(forecastFinal(row)), align: 'right' },
-        { key: 'forecasted_remainder', header: 'Forecasted remainder', render: (row) => formatMoney(forecastedRemainder(row)), align: 'right' },
+        { key: 'forecast_to_complete_amount', header: 'Monthly forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
+        { key: 'forecast_final', header: 'Final forecast', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Final forecast') || formatMoney(forecastFinal(row)), align: 'right' },
+        { key: 'schedule_of_values_amount', header: 'S.O.V.', render: (row) => inlineBudgetInput(row, 'schedule_of_values_amount', 'Schedule of values') || formatMoney(row.schedule_of_values_amount), align: 'right' },
+        { key: 'forecasted_remainder', header: 'Future remainder', render: (row) => formatMoney(forecastedRemainder(row)), align: 'right' },
         {
           key: 'note',
           header: 'Notes',
@@ -3693,9 +3705,10 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Revised Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
             <SummaryCard label="Actual Cost" value={formatMoney(actualTotal)} detail="Tracked cost only" />
             <SummaryCard label="Committed" value={formatMoney(committedTotal)} detail="Committed cost" />
-            <SummaryCard label="Forecast This Month" value={formatMoney(forecastThisMonthTotal)} detail="Expected payment by month-end" />
-            <SummaryCard label="Forecast Final" value={formatMoney(forecastFinalTotal)} detail={`${formatMoney(forecastedRemainderTotal)} after this month`} />
-            <SummaryCard label="Remaining" value={formatMoney(remainingTotal)} detail="Revised minus forecast final" tone={remainingTotal < 0 ? 'warn' : 'good'} />
+            <SummaryCard label="Monthly Forecast" value={formatMoney(forecastThisMonthTotal)} detail="Expected cost this month" />
+            <SummaryCard label="Final Forecast" value={formatMoney(forecastFinalTotal)} detail={`${formatMoney(forecastedRemainderTotal)} future remainder`} />
+            <SummaryCard label="S.O.V." value={formatMoney(scheduleOfValuesTotal)} detail="Schedule of Values" />
+            <SummaryCard label="Remaining Budget" value={formatMoney(remainingTotal)} detail="Total budget minus final forecast" tone={remainingTotal < 0 ? 'warn' : 'good'} />
           </div>
 
           {canApproveSelectedBudget ? (
@@ -3729,8 +3742,9 @@ export function JobsWorkspace({ permissions }) {
               + rows.reduce((total, row) => total + budgetLineChangeOrderAmount(row), 0)
               + unassignedDivisionChangeOrders;
             const divisionTotalBudget = divisionOriginalBudget + divisionApprovedChangeOrders;
-            const divisionTotalCosts = sumField(rows, 'actual_cost_amount') + sumField(rows, 'committed_cost_amount');
-            const divisionRemainingBudget = divisionTotalBudget - divisionTotalCosts;
+            const divisionActualCosts = sumField(rows, 'actual_cost_amount');
+            const divisionFinalForecast = rows.reduce((total, row) => total + forecastFinal(row), 0);
+            const divisionRemainingBudget = divisionTotalBudget - divisionFinalForecast;
             return (
               <section className="job-budget-division" key={division}>
                 <button type="button" className="job-budget-division__toggle" onClick={() => setCollapsedBudgetDivisions((current) => ({ ...current, [division]: !isCollapsed }))}>
@@ -3752,8 +3766,8 @@ export function JobsWorkspace({ permissions }) {
                       <strong>{formatMoney(divisionApprovedChangeOrders)}</strong>
                     </span>
                     <span>
-                      <small>Total costs</small>
-                      <strong>{formatMoney(divisionTotalCosts)}</strong>
+                      <small>Actual costs</small>
+                      <strong>{formatMoney(divisionActualCosts)}</strong>
                     </span>
                     <span className={divisionRemainingBudget < 0 ? 'is-negative' : 'is-positive'}>
                       <small>Remaining</small>
@@ -3769,7 +3783,7 @@ export function JobsWorkspace({ permissions }) {
                   isLoading={jobBudget.isLoading}
                   error={jobBudget.error}
                   dense
-                  minWidth="1800px"
+                  minWidth="1920px"
                   emptyTitle="No financial lines for this division"
                   emptyDescription="Add a financial line to begin this division's budget."
                 /> : null}
@@ -3817,7 +3831,7 @@ export function JobsWorkspace({ permissions }) {
                       value={budgetBulkInput.text}
                       onChange={(event) => setBudgetBulkInput((current) => ({ ...current, text: event.target.value, error: null, success: '' }))}
                       disabled={budgetBulkInput.isSaving}
-                      placeholder={'category,cost_code,description,original,changes,actual,committed,forecast_this_month,forecast_final,note\nmaterial,16.100,Rough-in material,12500,0,0,0,0,,Initial setup'}
+                      placeholder={'category,cost_code,description,original,changes,actual,committed,monthly_forecast,final_forecast,sov,note\nmaterial,16.100,Rough-in material,12500,0,0,0,0,12500,12500,Initial setup'}
                     />
                   </label>
                   <label className="job-financials-form__wide">
@@ -3948,12 +3962,16 @@ export function JobsWorkspace({ permissions }) {
                     <input type="number" min="0" step="0.01" value={budgetForm.committed_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, committed_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Forecast this month</span>
+                    <span>Monthly forecast</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.forecast_to_complete_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_to_complete_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Forecast final</span>
+                    <span>Final forecast</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.forecast_final_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_final_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
+                  </label>
+                  <label>
+                    <span>S.O.V.</span>
+                    <input type="number" min="0" step="0.01" value={budgetForm.schedule_of_values_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, schedule_of_values_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label className="job-financials-form__wide">
                     <span>Notes</span>
