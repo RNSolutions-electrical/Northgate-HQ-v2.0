@@ -146,19 +146,19 @@ svg { stroke-width: 1.8; }
 .ng-shell__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 0 0 var(--app-sidebar-width);
   min-width: 0;
   height: var(--app-header-height);
-  padding: 0 10px;
+  padding: 0 8px;
   border-right: 1px solid var(--ng-border);
 }
 
 .ng-shell__brand-mark {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   flex: 0 0 auto;
   border: 2px solid var(--ng-brand-red);
   border-radius: 3px;
@@ -166,7 +166,7 @@ svg { stroke-width: 1.8; }
   color: var(--ng-brand-red);
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 900;
-  font-size: 1.35rem;
+  font-size: 1.18rem;
 }
 .ng-shell__brand-mark { line-height: 1; }
 .ng-shell__brand-mark span { transform: rotate(-45deg); }
@@ -175,9 +175,9 @@ svg { stroke-width: 1.8; }
 .ng-shell__title {
   margin: 0;
   color: #24292d;
-  font-size: 0.95rem;
+  font-size: 0.84rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -402,7 +402,7 @@ svg { stroke-width: 1.8; }
   padding: var(--card-padding);
 }
 .summary-card__label { font-size: 0.68rem; color: var(--ng-faint); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-.summary-card__value { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.summary-card__value { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .summary-card__detail { font-size: 0.8rem; color: var(--ng-muted); }
 .summary-card--default .summary-card__value { color: var(--ng-text); }
 .summary-card--accent .summary-card__value { color: var(--ng-info); }
@@ -590,8 +590,8 @@ textarea {
 
 @media (max-width: 1360px) and (min-width: 900px) {
   :root {
-    --base-font-size: 13px;
-    --table-font-size: 11.5px;
+    --base-font-size: 12.5px;
+    --table-font-size: 10.5px;
   }
 
   .ng-shell__brand {
@@ -831,11 +831,11 @@ textarea {
     radial-gradient(circle at 55% 12%, rgba(179, 38, 45, 0.28), transparent 34%),
     linear-gradient(135deg, #24292d, #2c3338);
   color: #fff;
-  padding: 34px;
+  padding: clamp(22px, 2.35vw, 30px);
   box-shadow: var(--ng-shadow-raised);
 }
 .dashboard-hero .eyebrow { color: #f1c3c5; }
-.dashboard-hero h2 { color: #fff; font-size: 2rem; }
+.dashboard-hero h2 { color: #fff; font-size: 1.75rem; }
 .dashboard-hero p { color: #d9dde0; }
 .dashboard-hero__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 1.4rem; }
 .dashboard-hero__panel {
@@ -856,7 +856,7 @@ textarea {
 }
 .dashboard-hero__panel strong {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.85rem;
+  font-size: 1.65rem;
 }
 .dashboard-workspace,
 .summary-grid {
