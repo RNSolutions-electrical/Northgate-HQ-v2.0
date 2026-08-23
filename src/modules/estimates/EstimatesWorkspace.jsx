@@ -37,6 +37,7 @@ const EMPTY_ESTIMATE_QUOTE_PACKAGES = Object.freeze([]);
 const EMPTY_ESTIMATE_TAKEOFFS = Object.freeze([]);
 const EMPTY_ESTIMATE_TAKEOFF_LINES = Object.freeze([]);
 const EMPTY_ASSEMBLIES = Object.freeze([]);
+const EMPTY_ASSEMBLY_ITEMS = Object.freeze([]);
 const EMPTY_CATALOG_ITEMS = Object.freeze([]);
 const DOCUMENT_BUCKET = 'northgate-files';
 const DEFAULT_DOCUMENT_CATEGORY = 'contracts';
@@ -124,6 +125,24 @@ const DEFAULT_ASSEMBLY_PRICING_FORM = Object.freeze({
   quantity: '1',
   unit_cost: '',
   markup_percent: '0',
+  note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_ASSEMBLY_ITEM_FORM = Object.freeze({
+  assembly_id: '',
+  item_id: '',
+  line_type: 'material',
+  description: '',
+  quantity: '1',
+  waste_percent: '0',
+  unit: '',
+  unit_cost_snapshot: '',
+  labor_rate_hrs_snapshot: '',
+  labor_rate_per_hour_snapshot: '',
+  sort_order: '',
   note: '',
   isSaving: false,
   error: null,
@@ -349,6 +368,29 @@ const ASSEMBLY_SELECT_FIELDS = [
   'source_estimate_id',
 ].join(', ');
 
+const ASSEMBLY_ITEM_SELECT_FIELDS = [
+  'id',
+  'assembly_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'item_id',
+  'line_type',
+  'description',
+  'quantity',
+  'waste_percent',
+  'unit',
+  'unit_cost_snapshot',
+  'labor_rate_hrs_snapshot',
+  'labor_rate_per_hour_snapshot',
+  'material_total',
+  'labor_hours_total',
+  'labor_total',
+  'line_total',
+  'sort_order',
+  'note',
+].join(', ');
+
 const CATALOG_ITEM_SELECT_FIELDS = [
   'id',
   'name',
@@ -390,6 +432,17 @@ const ASSEMBLY_COLUMNS = [
   { key: 'unit', header: 'Unit', fallback: '-' },
   { key: 'division', header: 'Division' },
   { key: 'is_library_item', header: 'Library', render: (row) => (row.is_library_item ? 'Yes' : 'One-time') },
+];
+
+const ASSEMBLY_ITEM_COLUMNS = [
+  { key: 'line_type', header: 'Type', render: (row) => formatLineType(row.line_type) },
+  { key: 'description', header: 'Description', render: (row) => <strong>{row.description}</strong> },
+  { key: 'quantity', header: 'Qty', align: 'right', render: (row) => formatNumber(row.quantity) },
+  { key: 'waste_percent', header: 'Waste', align: 'right', render: (row) => `${formatNumber(row.waste_percent)}%` },
+  { key: 'unit', header: 'Unit', fallback: '-' },
+  { key: 'material_total', header: 'Material', align: 'right', render: (row) => formatMoney(row.material_total) },
+  { key: 'labor_hours_total', header: 'Labor Hrs', align: 'right', render: (row) => formatNumber(row.labor_hours_total) },
+  { key: 'line_total', header: 'Total', align: 'right', render: (row) => formatMoney(row.line_total) },
 ];
 
 const CATALOG_ITEM_COLUMNS = [
@@ -693,6 +746,40 @@ function assemblyPayloadFromForm(form) {
     unit: form.unit.trim() || null,
     description: form.description.trim() || null,
     is_library_item: form.is_library_item === true,
+  };
+}
+
+function assemblyItemPayloadFromForm(form) {
+  const lineType = ESTIMATE_PRICING_CATEGORIES.includes(form.line_type) ? form.line_type : 'material';
+
+  return {
+    item_id: form.item_id || null,
+    line_type: lineType,
+    description: form.description.trim(),
+    quantity: form.quantity === '' ? 0 : Number(form.quantity),
+    waste_percent: form.waste_percent === '' ? 0 : Number(form.waste_percent),
+    unit: form.unit.trim() || null,
+    unit_cost_snapshot: form.unit_cost_snapshot === '' ? 0 : Number(form.unit_cost_snapshot),
+    labor_rate_hrs_snapshot: form.labor_rate_hrs_snapshot === '' ? 0 : Number(form.labor_rate_hrs_snapshot),
+    labor_rate_per_hour_snapshot: form.labor_rate_per_hour_snapshot === '' ? 0 : Number(form.labor_rate_per_hour_snapshot),
+    sort_order: form.sort_order === '' ? 0 : Number.parseInt(form.sort_order, 10),
+    note: form.note.trim() || null,
+  };
+}
+
+function catalogItemToAssemblyItemForm(item, currentForm) {
+  if (!item) return currentForm;
+
+  return {
+    ...currentForm,
+    item_id: item.id,
+    line_type: 'material',
+    description: item.name || currentForm.description,
+    unit: item.unit_of_measure || currentForm.unit,
+    unit_cost_snapshot: item.price_per_unit ?? currentForm.unit_cost_snapshot,
+    labor_rate_hrs_snapshot: item.labor_rate_hrs ?? currentForm.labor_rate_hrs_snapshot,
+    error: null,
+    success: '',
   };
 }
 
@@ -1233,6 +1320,71 @@ function useAssemblyLibrary({ enabled }) {
   };
 }
 
+function useAssemblyItems({ enabled, assemblyId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    items: EMPTY_ASSEMBLY_ITEMS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !assemblyId) {
+        setState({ isLoading: false, error: null, items: EMPTY_ASSEMBLY_ITEMS });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('assembly_items')
+          .select(ASSEMBLY_ITEM_SELECT_FIELDS)
+          .eq('assembly_id', assemblyId)
+          .is('archived_at', null)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            items: data ?? EMPTY_ASSEMBLY_ITEMS,
+          });
+        }
+      } catch (error) {
+        console.error('Assembly items failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            items: EMPTY_ASSEMBLY_ITEMS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, assemblyId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function useCatalogItems({ enabled }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1316,6 +1468,8 @@ export function EstimatesWorkspace({ permissions }) {
   const [quotePackageForm, setQuotePackageForm] = useState(DEFAULT_QUOTE_PACKAGE_FORM);
   const [assemblyForm, setAssemblyForm] = useState(DEFAULT_ASSEMBLY_FORM);
   const [assemblyPricingForm, setAssemblyPricingForm] = useState(DEFAULT_ASSEMBLY_PRICING_FORM);
+  const [assemblyItemForm, setAssemblyItemForm] = useState(DEFAULT_ASSEMBLY_ITEM_FORM);
+  const [selectedAssemblyId, setSelectedAssemblyId] = useState('');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
@@ -1385,8 +1539,16 @@ export function EstimatesWorkspace({ permissions }) {
   const assemblyLibrary = useAssemblyLibrary({
     enabled: permissions.permissionSource === 'server' && (activeWorkspaceTab === 'assemblies' || activeTab === 'pricing'),
   });
+  const selectedPricingAssembly = assemblyLibrary.assemblies.find((assembly) => assembly.id === assemblyPricingForm.assembly_id) ?? null;
+  const selectedAssemblyForItems = assemblyLibrary.assemblies.find((assembly) => assembly.id === selectedAssemblyId)
+    ?? selectedPricingAssembly
+    ?? null;
+  const assemblyItems = useAssemblyItems({
+    enabled: permissions.permissionSource === 'server' && Boolean(selectedAssemblyForItems?.id),
+    assemblyId: selectedAssemblyForItems?.id ?? '',
+  });
   const catalogItems = useCatalogItems({
-    enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'price-list',
+    enabled: permissions.permissionSource === 'server' && (activeWorkspaceTab === 'price-list' || activeWorkspaceTab === 'assemblies' || activeTab === 'pricing'),
   });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
@@ -1401,7 +1563,8 @@ export function EstimatesWorkspace({ permissions }) {
   const stockedCatalogCount = catalogItems.items.filter((item) => item.inventory_tracking_status === 'in_inventory').length;
   const catalogOnlyCount = catalogItems.items.filter((item) => item.inventory_tracking_status !== 'in_inventory').length;
   const oneTimeAssemblyCount = assemblyLibrary.assemblies.filter((assembly) => !assembly.is_library_item).length;
-  const selectedPricingAssembly = assemblyLibrary.assemblies.find((assembly) => assembly.id === assemblyPricingForm.assembly_id) ?? null;
+  const assemblyItemTotal = assemblyItems.items.reduce((total, item) => total + (Number(item.line_total) || 0), 0);
+  const assemblyItemLaborHours = assemblyItems.items.reduce((total, item) => total + (Number(item.labor_hours_total) || 0), 0);
   const latestSnapshot = estimateSnapshots.snapshots[0] ?? null;
 
   useEffect(() => {
@@ -1420,6 +1583,8 @@ export function EstimatesWorkspace({ permissions }) {
     setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
     setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
     setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
+    setAssemblyItemForm(DEFAULT_ASSEMBLY_ITEM_FORM);
+    setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
@@ -1431,6 +1596,8 @@ export function EstimatesWorkspace({ permissions }) {
     setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
     setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
     setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
+    setAssemblyItemForm(DEFAULT_ASSEMBLY_ITEM_FORM);
+    setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setMode('browse');
@@ -1446,6 +1613,8 @@ export function EstimatesWorkspace({ permissions }) {
     setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
     setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
     setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
+    setAssemblyItemForm(DEFAULT_ASSEMBLY_ITEM_FORM);
+    setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
@@ -1463,6 +1632,8 @@ export function EstimatesWorkspace({ permissions }) {
     setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
     setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
     setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
+    setAssemblyItemForm(DEFAULT_ASSEMBLY_ITEM_FORM);
+    setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
@@ -1475,6 +1646,8 @@ export function EstimatesWorkspace({ permissions }) {
     setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
     setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
     setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
+    setAssemblyItemForm(DEFAULT_ASSEMBLY_ITEM_FORM);
+    setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setMode('edit');
@@ -1745,10 +1918,6 @@ export function EstimatesWorkspace({ permissions }) {
       setAssemblyPricingForm((current) => ({ ...current, error: new Error('Assembly quantity must be greater than zero.') }));
       return;
     }
-    if (!Number.isFinite(unitCost) || unitCost < 0) {
-      setAssemblyPricingForm((current) => ({ ...current, error: new Error('Assembly unit cost must be zero or greater.') }));
-      return;
-    }
     if (!Number.isFinite(markupPercent) || markupPercent < 0) {
       setAssemblyPricingForm((current) => ({ ...current, error: new Error('Assembly markup must be zero or greater.') }));
       return;
@@ -1758,46 +1927,144 @@ export function EstimatesWorkspace({ permissions }) {
 
     try {
       const client = await getEstimateClient();
-      const payload = {
-        estimate_id: selectedEstimate.id,
-        division: selectedEstimate.division,
-        category: 'material',
-        description: `Assembly: ${selectedPricingAssembly.name}`,
-        quantity,
-        unit: selectedPricingAssembly.unit || null,
-        unit_cost: unitCost,
-        markup_percent: markupPercent,
-        sort_order: estimatePricing.lines.length + 1,
-        note: [
-          selectedPricingAssembly.assembly_code ? `Assembly ${selectedPricingAssembly.assembly_code}` : '',
-          assemblyPricingForm.note.trim(),
-        ].filter(Boolean).join(' - ') || null,
-        created_by: permissions.userId,
-      };
+      const { data: assemblyItemRows, error: assemblyItemsError } = await client
+        .from('assembly_items')
+        .select(ASSEMBLY_ITEM_SELECT_FIELDS)
+        .eq('assembly_id', selectedPricingAssembly.id)
+        .is('archived_at', null)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (assemblyItemsError) throw assemblyItemsError;
+
+      const activeAssemblyItems = assemblyItemRows ?? EMPTY_ASSEMBLY_ITEMS;
+      if (activeAssemblyItems.length === 0 && (!Number.isFinite(unitCost) || unitCost < 0)) {
+        throw new Error('Assembly unit cost must be zero or greater when the assembly has no item rows.');
+      }
+
+      const baseNote = [
+        selectedPricingAssembly.assembly_code ? `Assembly ${selectedPricingAssembly.assembly_code}` : '',
+        assemblyPricingForm.note.trim(),
+      ].filter(Boolean).join(' - ') || null;
+
+      const insertPayload = activeAssemblyItems.length > 0
+        ? activeAssemblyItems.map((item, index) => ({
+          estimate_id: selectedEstimate.id,
+          division: selectedEstimate.division,
+          category: ESTIMATE_PRICING_CATEGORIES.includes(item.line_type) ? item.line_type : 'material',
+          description: `${selectedPricingAssembly.name}: ${item.description}`,
+          quantity,
+          unit: item.unit || selectedPricingAssembly.unit || null,
+          unit_cost: Number(item.line_total) || 0,
+          markup_percent: markupPercent,
+          sort_order: estimatePricing.lines.length + index + 1,
+          note: baseNote,
+          created_by: permissions.userId,
+        }))
+        : [{
+          estimate_id: selectedEstimate.id,
+          division: selectedEstimate.division,
+          category: 'material',
+          description: `Assembly: ${selectedPricingAssembly.name}`,
+          quantity,
+          unit: selectedPricingAssembly.unit || null,
+          unit_cost: unitCost,
+          markup_percent: markupPercent,
+          sort_order: estimatePricing.lines.length + 1,
+          note: baseNote,
+          created_by: permissions.userId,
+        }];
 
       const { data, error } = await client
         .from('estimate_pricing_lines')
-        .insert(payload)
+        .insert(insertPayload)
         .select(ESTIMATE_PRICING_SELECT_FIELDS)
-        .single();
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
 
       await writeEstimateChangeLog(client, {
         tableName: 'estimate_pricing_lines',
-        action: 'create',
-        recordId: data?.id,
+        action: activeAssemblyItems.length > 0 ? 'bulk_create' : 'create',
+        recordId: selectedEstimate.id,
         beforeData: null,
         afterData: data,
-        note: `${selectedPricingAssembly.name} assembly added to pricing.`,
+        note: `${selectedPricingAssembly.name} assembly added to pricing (${insertPayload.length} line${insertPayload.length === 1 ? '' : 's'}).`,
       });
 
       estimatePricing.reload();
       estimateHistory.reload();
-      setAssemblyPricingForm({ ...DEFAULT_ASSEMBLY_PRICING_FORM, success: `${selectedPricingAssembly.name} added to pricing.` });
+      setAssemblyPricingForm({ ...DEFAULT_ASSEMBLY_PRICING_FORM, success: `${selectedPricingAssembly.name} added to pricing (${insertPayload.length} line${insertPayload.length === 1 ? '' : 's'}).` });
     } catch (error) {
       console.error('Assembly pricing save failed', error);
       setAssemblyPricingForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleAssemblyItemSave(event) {
+    event.preventDefault();
+    if (!selectedAssemblyForItems || !canEstimate || assemblyItemForm.isSaving) return;
+
+    if (!assemblyItemForm.description.trim()) {
+      setAssemblyItemForm((current) => ({ ...current, error: new Error('Enter an assembly item description before saving.') }));
+      return;
+    }
+
+    const payload = assemblyItemPayloadFromForm(assemblyItemForm);
+    if (!Number.isFinite(payload.quantity) || payload.quantity < 0) {
+      setAssemblyItemForm((current) => ({ ...current, error: new Error('Quantity must be zero or greater.') }));
+      return;
+    }
+    if (!Number.isFinite(payload.waste_percent) || payload.waste_percent < 0) {
+      setAssemblyItemForm((current) => ({ ...current, error: new Error('Waste must be zero or greater.') }));
+      return;
+    }
+    if (!Number.isFinite(payload.unit_cost_snapshot) || payload.unit_cost_snapshot < 0) {
+      setAssemblyItemForm((current) => ({ ...current, error: new Error('Unit cost must be zero or greater.') }));
+      return;
+    }
+    if (!Number.isFinite(payload.labor_rate_hrs_snapshot) || payload.labor_rate_hrs_snapshot < 0 || !Number.isFinite(payload.labor_rate_per_hour_snapshot) || payload.labor_rate_per_hour_snapshot < 0) {
+      setAssemblyItemForm((current) => ({ ...current, error: new Error('Labor rates must be zero or greater.') }));
+      return;
+    }
+
+    setAssemblyItemForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getEstimateClient();
+      const { data, error } = await client
+        .from('assembly_items')
+        .insert({
+          ...payload,
+          assembly_id: selectedAssemblyForItems.id,
+          division: selectedAssemblyForItems.division,
+          sort_order: payload.sort_order || assemblyItems.items.length + 1,
+          created_by: permissions.userId,
+        })
+        .select(ASSEMBLY_ITEM_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'assembly_items',
+        action: 'create',
+        recordId: data?.id,
+        beforeData: null,
+        afterData: data,
+        note: `${data?.description || 'Assembly item'} added to ${selectedAssemblyForItems.name}.`,
+      });
+
+      assemblyItems.reload();
+      estimateHistory.reload();
+      setAssemblyItemForm({
+        ...DEFAULT_ASSEMBLY_ITEM_FORM,
+        assembly_id: selectedAssemblyForItems.id,
+        success: `${data?.description || 'Assembly item'} saved.`,
+      });
+    } catch (error) {
+      console.error('Assembly item save failed', error);
+      setAssemblyItemForm((current) => ({ ...current, isSaving: false, error, success: '' }));
     }
   }
 
@@ -1840,6 +2107,8 @@ export function EstimatesWorkspace({ permissions }) {
 
       assemblyLibrary.reload();
       estimateHistory.reload();
+      setSelectedAssemblyId(data?.id || '');
+      setAssemblyItemForm((current) => ({ ...current, assembly_id: data?.id || current.assembly_id, error: null, success: '' }));
       setAssemblyForm({ ...DEFAULT_ASSEMBLY_FORM, success: `${data?.name || 'Assembly'} saved.` });
     } catch (error) {
       console.error('Assembly save failed', error);
@@ -2202,6 +2471,145 @@ export function EstimatesWorkspace({ permissions }) {
     status: uploadedDocumentCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
   }));
   const uploadedDocumentCategoryCount = documentChecklistRows.filter((row) => row.status === 'uploaded').length;
+  const assemblyItemBuilder = (
+    <article className="estimate-assembly-items">
+      <Toolbar
+        eyebrow="Assembly Items"
+        title={selectedAssemblyForItems ? `${selectedAssemblyForItems.name} items` : 'Select an assembly'}
+        description="Add the material, labor, equipment, subcontract, or other rows that make up this assembly."
+        actions={(
+          <button type="button" className="secondary-button" onClick={assemblyItems.reload} disabled={!selectedAssemblyForItems || assemblyItems.isLoading}>
+            Refresh
+          </button>
+        )}
+        dense
+      />
+      <div className="summary-grid summary-grid--compact">
+        <SummaryCard label="Item Rows" value={assemblyItems.items.length} detail="Assembly components" />
+        <SummaryCard label="Labor Hours" value={formatNumber(assemblyItemLaborHours)} detail="Generated total" />
+        <SummaryCard label="Assembly Total" value={formatMoney(assemblyItemTotal)} detail="Material and labor" tone={assemblyItemTotal ? 'accent' : 'default'} />
+      </div>
+      <div className="job-financials-form__grid">
+        <label className="job-financials-form__wide">
+          <span>Active assembly</span>
+          <select
+            value={selectedAssemblyForItems?.id || ''}
+            onChange={(event) => {
+              setSelectedAssemblyId(event.target.value);
+              setAssemblyItemForm((current) => ({ ...current, assembly_id: event.target.value, error: null, success: '' }));
+            }}
+            disabled={assemblyLibrary.isLoading}
+          >
+            <option value="">Select assembly...</option>
+            {assemblyLibrary.assemblies.map((assembly) => (
+              <option key={assembly.id} value={assembly.id}>
+                {assembly.assembly_code ? `${assembly.assembly_code} - ${assembly.name}` : assembly.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {selectedAssemblyForItems && canEstimate ? (
+        <form className="job-financials-form" onSubmit={handleAssemblyItemSave}>
+          <div className="job-financials-form__grid">
+            <label className="job-financials-form__wide">
+              <span>Catalog Item</span>
+              <select
+                value={assemblyItemForm.item_id}
+                onChange={(event) => {
+                  const item = catalogItems.items.find((candidate) => candidate.id === event.target.value);
+                  setAssemblyItemForm((current) => catalogItemToAssemblyItemForm(item, { ...current, item_id: event.target.value }));
+                }}
+                disabled={assemblyItemForm.isSaving || catalogItems.isLoading}
+              >
+                <option value="">Manual / not catalog-linked</option>
+                {catalogItems.items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.material_code ? `${item.material_code} - ${item.name}` : item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Type</span>
+              <select value={assemblyItemForm.line_type} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, line_type: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving}>
+                {ESTIMATE_PRICING_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>{formatPricingCategory(category)}</option>
+                ))}
+              </select>
+            </label>
+            <label className="job-financials-form__wide">
+              <span>Description</span>
+              <input type="text" value={assemblyItemForm.description} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} required />
+            </label>
+            <label>
+              <span>Quantity</span>
+              <input type="number" min="0" step="0.0001" value={assemblyItemForm.quantity} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, quantity: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label>
+              <span>Waste %</span>
+              <input type="number" min="0" step="0.0001" value={assemblyItemForm.waste_percent} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, waste_percent: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label>
+              <span>Unit</span>
+              <input type="text" value={assemblyItemForm.unit} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, unit: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label>
+              <span>Unit Cost</span>
+              <input type="number" min="0" step="0.0001" value={assemblyItemForm.unit_cost_snapshot} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, unit_cost_snapshot: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label>
+              <span>Labor Hrs</span>
+              <input type="number" min="0" step="0.000001" value={assemblyItemForm.labor_rate_hrs_snapshot} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, labor_rate_hrs_snapshot: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label>
+              <span>Labor Rate</span>
+              <input type="number" min="0" step="0.01" value={assemblyItemForm.labor_rate_per_hour_snapshot} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, labor_rate_per_hour_snapshot: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label>
+              <span>Sort</span>
+              <input type="number" step="1" value={assemblyItemForm.sort_order} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, sort_order: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+            <label className="job-financials-form__wide">
+              <span>Note</span>
+              <input type="text" value={assemblyItemForm.note} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
+            </label>
+          </div>
+          {assemblyItemForm.error ? (
+            <StatePanel tone="danger" eyebrow="Assembly Item Failed" title="Assembly item was not saved" description={assemblyItemForm.error.message || 'Unexpected assembly item error.'} compact />
+          ) : null}
+          {assemblyItemForm.success ? (
+            <StatePanel tone="success" eyebrow="Saved" title="Assembly item saved" description={assemblyItemForm.success} compact />
+          ) : null}
+          <div className="job-financials-form__actions">
+            <button type="submit" className="primary-button" disabled={assemblyItemForm.isSaving || !assemblyItemForm.description.trim()}>
+              <Plus aria-hidden="true" /> {assemblyItemForm.isSaving ? 'Saving...' : 'Add Assembly Item'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <StatePanel
+          tone="neutral"
+          eyebrow="Assembly Required"
+          title="Select or create an assembly first"
+          description="Assembly item rows are stored under the selected assembly and are used when pulling the assembly into estimate pricing."
+          compact
+        />
+      )}
+      <DataTable
+        columns={ASSEMBLY_ITEM_COLUMNS}
+        rows={assemblyItems.items}
+        getRowKey={(row) => row.id}
+        permissions={permissions}
+        isLoading={assemblyItems.isLoading}
+        error={assemblyItems.error}
+        dense
+        minWidth="980px"
+        emptyTitle="No assembly items yet"
+        emptyDescription="Add catalog or manual rows to define what this assembly includes."
+      />
+    </article>
+  );
 
   return (
     <>
@@ -2464,7 +2872,11 @@ export function EstimatesWorkspace({ permissions }) {
                               <span>Assembly</span>
                               <select
                                 value={assemblyPricingForm.assembly_id}
-                                onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, assembly_id: event.target.value, error: null, success: '' }))}
+                                onChange={(event) => {
+                                  setAssemblyPricingForm((current) => ({ ...current, assembly_id: event.target.value, error: null, success: '' }));
+                                  setSelectedAssemblyId(event.target.value);
+                                  setAssemblyItemForm((current) => ({ ...current, assembly_id: event.target.value, error: null, success: '' }));
+                                }}
                                 disabled={assemblyPricingForm.isSaving || assemblyLibrary.isLoading}
                               >
                                 <option value="">Select assembly...</option>
@@ -2555,6 +2967,7 @@ export function EstimatesWorkspace({ permissions }) {
                         </form>
                       </div>
                     ) : null}
+                    {assemblyItemBuilder}
                     <DataTable
                       columns={pricingColumns}
                       rows={estimatePricing.lines}
@@ -3153,6 +3566,7 @@ export function EstimatesWorkspace({ permissions }) {
               </div>
             </form>
           ) : null}
+          {assemblyItemBuilder}
           <DataTable
             columns={ASSEMBLY_COLUMNS}
             rows={assemblyLibrary.assemblies}
