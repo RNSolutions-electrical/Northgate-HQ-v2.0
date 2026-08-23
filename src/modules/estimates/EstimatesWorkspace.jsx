@@ -281,10 +281,10 @@ const ASSEMBLY_SELECT_FIELDS = [
 const CATALOG_ITEM_SELECT_FIELDS = [
   'id',
   'name',
-  'sku',
+  'material_code',
   'description',
-  'category',
-  'unit',
+  'broad_category',
+  'unit_of_measure',
   'price_per_unit',
   'labor_rate_hrs',
   'inventory_tracking_status',
@@ -323,9 +323,9 @@ const ASSEMBLY_COLUMNS = [
 
 const CATALOG_ITEM_COLUMNS = [
   { key: 'name', header: 'Material', render: (row) => <strong>{row.name}</strong> },
-  { key: 'sku', header: 'SKU', fallback: '-' },
-  { key: 'category', header: 'Category', fallback: '-' },
-  { key: 'unit', header: 'Unit', fallback: '-' },
+  { key: 'material_code', header: 'Code', fallback: '-' },
+  { key: 'broad_category', header: 'Category', fallback: '-' },
+  { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
   { key: 'price_per_unit', header: 'Unit Cost', align: 'right', render: (row) => formatMoney(row.price_per_unit) },
   { key: 'labor_rate_hrs', header: 'NECA Hrs', align: 'right', render: (row) => formatNumber(row.labor_rate_hrs) },
   { key: 'inventory_tracking_status', header: 'Inventory', render: (row) => formatInventoryTrackingStatus(row.inventory_tracking_status) },
