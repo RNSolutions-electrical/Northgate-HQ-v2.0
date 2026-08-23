@@ -2,6 +2,8 @@ import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   ArrowLeft,
   Archive,
+  Boxes,
+  ClipboardList,
   Calculator,
   FileText,
   History,
@@ -10,6 +12,7 @@ import {
   Plus,
   Send,
   ShieldCheck,
+  Tags,
   UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,6 +33,10 @@ const EMPTY_ESTIMATE_HISTORY = Object.freeze([]);
 const EMPTY_ESTIMATE_PRICING = Object.freeze([]);
 const EMPTY_ESTIMATE_SNAPSHOTS = Object.freeze([]);
 const EMPTY_ESTIMATE_DOCUMENTS = Object.freeze([]);
+const EMPTY_ESTIMATE_TAKEOFFS = Object.freeze([]);
+const EMPTY_ESTIMATE_TAKEOFF_LINES = Object.freeze([]);
+const EMPTY_ASSEMBLIES = Object.freeze([]);
+const EMPTY_CATALOG_ITEMS = Object.freeze([]);
 const DOCUMENT_BUCKET = 'northgate-files';
 const DEFAULT_DOCUMENT_CATEGORY = 'contracts';
 
@@ -157,6 +164,15 @@ const ESTIMATE_VIEWS = [
   { key: 'approved', label: 'Approved', icon: ShieldCheck, description: 'Locked approval snapshots.' },
 ];
 
+const ESTIMATOR_WORKSPACE_TABS = [
+  { key: 'estimates', label: 'Estimates', meta: 'Live' },
+  { key: 'takeoffs', label: 'Takeoffs', meta: 'New' },
+  { key: 'proposals', label: 'Proposals', meta: 'Future' },
+  { key: 'assemblies', label: 'Assembly Library', meta: 'New' },
+  { key: 'price-list', label: 'Price List', meta: 'Catalog' },
+  { key: 'settings', label: 'Settings', meta: 'Setup' },
+];
+
 const ESTIMATE_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'pricing', label: 'Pricing', meta: 'Live' },
@@ -212,6 +228,109 @@ const ESTIMATE_DOCUMENT_COLUMNS = [
   { key: 'created_at', header: 'Uploaded', render: (row) => formatDateTime(row.created_at) },
 ];
 
+const ESTIMATE_TAKEOFF_SELECT_FIELDS = [
+  'id',
+  'estimate_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'name',
+  'area',
+  'system',
+  'description',
+  'sort_order',
+].join(', ');
+
+const ESTIMATE_TAKEOFF_LINE_SELECT_FIELDS = [
+  'id',
+  'estimate_id',
+  'takeoff_id',
+  'division',
+  'created_at',
+  'line_type',
+  'description',
+  'quantity',
+  'waste_percent',
+  'unit',
+  'unit_cost_snapshot',
+  'labor_rate_hrs_snapshot',
+  'labor_rate_per_hour_snapshot',
+  'material_total',
+  'labor_hours_total',
+  'labor_total',
+  'line_total',
+  'one_time_use',
+  'save_to_library',
+  'sort_order',
+].join(', ');
+
+const ASSEMBLY_SELECT_FIELDS = [
+  'id',
+  'division',
+  'created_at',
+  'updated_at',
+  'assembly_code',
+  'name',
+  'category',
+  'unit',
+  'description',
+  'is_library_item',
+  'source_estimate_id',
+].join(', ');
+
+const CATALOG_ITEM_SELECT_FIELDS = [
+  'id',
+  'name',
+  'sku',
+  'description',
+  'category',
+  'unit',
+  'price_per_unit',
+  'labor_rate_hrs',
+  'inventory_tracking_status',
+  'estimating_enabled',
+  'neca_labor_unit',
+  'is_active',
+  'is_archived',
+].join(', ');
+
+const ESTIMATE_TAKEOFF_COLUMNS = [
+  { key: 'name', header: 'Takeoff', render: (row) => <strong>{row.name}</strong> },
+  { key: 'area', header: 'Area', fallback: '-' },
+  { key: 'system', header: 'System', fallback: '-' },
+  { key: 'description', header: 'Description', fallback: '-' },
+  { key: 'sort_order', header: 'Sort', align: 'right' },
+];
+
+const ESTIMATE_TAKEOFF_LINE_COLUMNS = [
+  { key: 'line_type', header: 'Type', render: (row) => formatLineType(row.line_type) },
+  { key: 'description', header: 'Description', render: (row) => <strong>{row.description}</strong> },
+  { key: 'quantity', header: 'Qty', align: 'right', render: (row) => formatNumber(row.quantity) },
+  { key: 'unit', header: 'Unit', fallback: '-' },
+  { key: 'material_total', header: 'Material', align: 'right', render: (row) => formatMoney(row.material_total) },
+  { key: 'labor_hours_total', header: 'Labor Hrs', align: 'right', render: (row) => formatNumber(row.labor_hours_total) },
+  { key: 'line_total', header: 'Total', align: 'right', render: (row) => formatMoney(row.line_total) },
+];
+
+const ASSEMBLY_COLUMNS = [
+  { key: 'assembly_code', header: 'Code', fallback: '-' },
+  { key: 'name', header: 'Assembly', render: (row) => <strong>{row.name}</strong> },
+  { key: 'category', header: 'Category', fallback: '-' },
+  { key: 'unit', header: 'Unit', fallback: '-' },
+  { key: 'division', header: 'Division' },
+  { key: 'is_library_item', header: 'Library', render: (row) => (row.is_library_item ? 'Yes' : 'One-time') },
+];
+
+const CATALOG_ITEM_COLUMNS = [
+  { key: 'name', header: 'Material', render: (row) => <strong>{row.name}</strong> },
+  { key: 'sku', header: 'SKU', fallback: '-' },
+  { key: 'category', header: 'Category', fallback: '-' },
+  { key: 'unit', header: 'Unit', fallback: '-' },
+  { key: 'price_per_unit', header: 'Unit Cost', align: 'right', render: (row) => formatMoney(row.price_per_unit) },
+  { key: 'labor_rate_hrs', header: 'NECA Hrs', align: 'right', render: (row) => formatNumber(row.labor_rate_hrs) },
+  { key: 'inventory_tracking_status', header: 'Inventory', render: (row) => formatInventoryTrackingStatus(row.inventory_tracking_status) },
+];
+
 const STATUS_RULES = [
   ['draft', 'In progress, not submitted.'],
   ['pursuit', 'Saved lead or opportunity, not an active job.'],
@@ -231,6 +350,22 @@ function formatEstimateStatus(status) {
 
 function formatPricingCategory(value) {
   return (value || 'other').replaceAll('_', ' ');
+}
+
+function formatLineType(value) {
+  return (value || 'other').replaceAll('_', ' ');
+}
+
+function formatInventoryTrackingStatus(value) {
+  switch (value) {
+    case 'in_inventory':
+      return 'In inventory';
+    case 'retired':
+      return 'Retired';
+    case 'not_stocked':
+    default:
+      return 'Catalog only';
+  }
 }
 
 function formatNumber(value) {
@@ -757,12 +892,220 @@ function useEstimateDocuments({ enabled, estimateId }) {
   };
 }
 
+function useEstimateTakeoffReadModel({ enabled, estimateId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    takeoffs: EMPTY_ESTIMATE_TAKEOFFS,
+    lines: EMPTY_ESTIMATE_TAKEOFF_LINES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !estimateId) {
+        setState({ isLoading: false, error: null, takeoffs: EMPTY_ESTIMATE_TAKEOFFS, lines: EMPTY_ESTIMATE_TAKEOFF_LINES });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const [takeoffsResult, linesResult] = await Promise.all([
+          client
+            .from('estimate_takeoffs')
+            .select(ESTIMATE_TAKEOFF_SELECT_FIELDS)
+            .eq('estimate_id', estimateId)
+            .is('archived_at', null)
+            .order('sort_order', { ascending: true })
+            .order('created_at', { ascending: true }),
+          client
+            .from('estimate_takeoff_lines')
+            .select(ESTIMATE_TAKEOFF_LINE_SELECT_FIELDS)
+            .eq('estimate_id', estimateId)
+            .is('archived_at', null)
+            .order('sort_order', { ascending: true })
+            .order('created_at', { ascending: true }),
+        ]);
+
+        if (takeoffsResult.error) throw takeoffsResult.error;
+        if (linesResult.error) throw linesResult.error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            takeoffs: takeoffsResult.data ?? EMPTY_ESTIMATE_TAKEOFFS,
+            lines: linesResult.data ?? EMPTY_ESTIMATE_TAKEOFF_LINES,
+          });
+        }
+      } catch (error) {
+        console.error('Estimate takeoffs failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            takeoffs: EMPTY_ESTIMATE_TAKEOFFS,
+            lines: EMPTY_ESTIMATE_TAKEOFF_LINES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, estimateId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
+function useAssemblyLibrary({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    assemblies: EMPTY_ASSEMBLIES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled) {
+        setState((current) => ({ ...current, isLoading: false }));
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('assemblies')
+          .select(ASSEMBLY_SELECT_FIELDS)
+          .is('archived_at', null)
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            assemblies: data ?? EMPTY_ASSEMBLIES,
+          });
+        }
+      } catch (error) {
+        console.error('Assembly library failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            assemblies: EMPTY_ASSEMBLIES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
+function useCatalogItems({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    items: EMPTY_CATALOG_ITEMS,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled) {
+        setState((current) => ({ ...current, isLoading: false }));
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('items')
+          .select(CATALOG_ITEM_SELECT_FIELDS)
+          .eq('estimating_enabled', true)
+          .eq('is_active', true)
+          .eq('is_archived', false)
+          .order('name', { ascending: true })
+          .limit(250);
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            items: data ?? EMPTY_CATALOG_ITEMS,
+          });
+        }
+      } catch (error) {
+        console.error('Catalog items failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            items: EMPTY_CATALOG_ITEMS,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 export function EstimatesWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
   const canReadEstimates = permissions?.permissionSource === 'server'
     && (permissions?.canEstimate === true || permissions?.canApproveEstimates === true);
   const directory = useEstimateDirectory({ enabled: canReadEstimates });
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState('estimates');
   const [activeView, setActiveView] = useState('all');
   const [activeTab, setActiveTab] = useState('overview');
   const [mode, setMode] = useState('browse');
@@ -828,11 +1171,26 @@ export function EstimatesWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents',
     estimateId: selectedEstimate?.id ?? '',
   });
+  const estimateTakeoffs = useEstimateTakeoffReadModel({
+    enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'takeoffs',
+    estimateId: selectedEstimate?.id ?? '',
+  });
+  const assemblyLibrary = useAssemblyLibrary({
+    enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'assemblies',
+  });
+  const catalogItems = useCatalogItems({
+    enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'price-list',
+  });
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
   const canApproveSelectedEstimate = canApproveEstimateDivision(permissions, selectedEstimate?.division)
     && selectedEstimate?.status !== 'approved';
   const pricingTotal = estimatePricing.lines.reduce((total, line) => total + (Number(line.line_total) || 0), 0);
+  const takeoffLineTotal = estimateTakeoffs.lines.reduce((total, line) => total + (Number(line.line_total) || 0), 0);
+  const takeoffLaborHours = estimateTakeoffs.lines.reduce((total, line) => total + (Number(line.labor_hours_total) || 0), 0);
+  const stockedCatalogCount = catalogItems.items.filter((item) => item.inventory_tracking_status === 'in_inventory').length;
+  const catalogOnlyCount = catalogItems.items.filter((item) => item.inventory_tracking_status !== 'in_inventory').length;
+  const oneTimeAssemblyCount = assemblyLibrary.assemblies.filter((assembly) => !assembly.is_library_item).length;
   const latestSnapshot = estimateSnapshots.snapshots[0] ?? null;
 
   useEffect(() => {
@@ -1394,6 +1752,15 @@ export function EstimatesWorkspace({ permissions }) {
         <SummaryCard label="Archive access" value={permissions?.canArchiveRecords ? 'Granted' : 'Hidden'} detail="Reason required" tone={permissions?.canArchiveRecords ? 'good' : 'warn'} developmentOnly />
       </div>
 
+      <article className="card workspace-card estimates-nav-card">
+        <WorkspaceTabs
+          tabs={ESTIMATOR_WORKSPACE_TABS}
+          activeKey={activeWorkspaceTab}
+          onChange={setActiveWorkspaceTab}
+          ariaLabel="Estimator workspace sections"
+        />
+      </article>
+
       {estimateAction.error ? (
         <StatePanel tone="danger" eyebrow="Estimate Action Failed" title="Estimate action did not complete" description={estimateAction.error.message || 'Unexpected estimate error.'} compact />
       ) : null}
@@ -1401,6 +1768,7 @@ export function EstimatesWorkspace({ permissions }) {
         <StatePanel tone="success" eyebrow="Saved" title="Estimate action complete" description={estimateAction.success} compact />
       ) : null}
 
+      {activeWorkspaceTab === 'estimates' ? (
       <div className={`workspace-split estimates-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
           eyebrow="Estimate Views"
@@ -1901,6 +2269,170 @@ export function EstimatesWorkspace({ permissions }) {
           </article>
         </div>
       </div>
+      ) : activeWorkspaceTab === 'takeoffs' ? (
+        <article className="card workspace-card estimates-workspace">
+          <Toolbar
+            eyebrow="Takeoffs"
+            title={selectedEstimate ? `${estimateLabel(selectedEstimate)} takeoff` : 'Select an estimate'}
+            description={selectedEstimate
+              ? 'Live takeoff sections and generated material/labor lines for the selected estimate.'
+              : 'Choose an estimate from the Estimates tab before building a takeoff.'}
+            actions={(
+              <button type="button" className="secondary-button" onClick={estimateTakeoffs.reload} disabled={!selectedEstimate || estimateTakeoffs.isLoading}>
+                Refresh
+              </button>
+            )}
+          />
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Takeoff Sections" value={estimateTakeoffs.takeoffs.length} detail="Estimate takeoff groups" />
+            <SummaryCard label="Takeoff Lines" value={estimateTakeoffs.lines.length} detail="Material/labor rows" />
+            <SummaryCard label="Labor Hours" value={formatNumber(takeoffLaborHours)} detail="Generated from catalog rates" />
+            <SummaryCard label="Takeoff Total" value={formatMoney(takeoffLineTotal)} detail="Material and labor total" tone={takeoffLineTotal ? 'accent' : 'default'} />
+          </div>
+          {selectedEstimate ? (
+            <>
+              <DataTable
+                columns={ESTIMATE_TAKEOFF_COLUMNS}
+                rows={estimateTakeoffs.takeoffs}
+                getRowKey={(row) => row.id}
+                permissions={permissions}
+                isLoading={estimateTakeoffs.isLoading}
+                error={estimateTakeoffs.error}
+                dense
+                minWidth="760px"
+                emptyTitle="No takeoff sections yet"
+                emptyDescription="The next build step will add section and assembly input controls here."
+              />
+              <DataTable
+                columns={ESTIMATE_TAKEOFF_LINE_COLUMNS}
+                rows={estimateTakeoffs.lines}
+                getRowKey={(row) => row.id}
+                permissions={permissions}
+                isLoading={estimateTakeoffs.isLoading}
+                error={estimateTakeoffs.error}
+                dense
+                minWidth="980px"
+                emptyTitle="No takeoff lines yet"
+                emptyDescription="Takeoff lines will summarize assemblies, catalog materials, one-time items, and labor."
+              />
+            </>
+          ) : (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Estimate Required"
+              title="Open an estimate first"
+              description="Takeoffs belong to an estimate, so the takeoff workspace becomes active after a row is selected on the Estimates tab."
+            />
+          )}
+        </article>
+      ) : activeWorkspaceTab === 'assemblies' ? (
+        <article className="card workspace-card estimates-workspace">
+          <Toolbar
+            eyebrow="Assembly Library"
+            title="Reusable assemblies"
+            description="Assemblies are task templates made from catalog materials, labor, equipment, subcontract, or other rows."
+            actions={(
+              <button type="button" className="secondary-button" onClick={assemblyLibrary.reload} disabled={assemblyLibrary.isLoading}>
+                Refresh
+              </button>
+            )}
+          />
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Visible Assemblies" value={assemblyLibrary.assemblies.length} detail="Division-scoped library" />
+            <SummaryCard label="Library Items" value={assemblyLibrary.assemblies.length - oneTimeAssemblyCount} detail="Reusable templates" />
+            <SummaryCard label="One-time" value={oneTimeAssemblyCount} detail="Estimate-specific assemblies" />
+            <SummaryCard label="Write Access" value={canEstimate ? 'Granted' : 'Read only'} detail="Estimate permission" tone={canEstimate ? 'good' : 'warn'} />
+          </div>
+          <DataTable
+            columns={ASSEMBLY_COLUMNS}
+            rows={assemblyLibrary.assemblies}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={assemblyLibrary.isLoading}
+            error={assemblyLibrary.error}
+            dense
+            minWidth="860px"
+            emptyTitle="No assemblies in the library yet"
+            emptyDescription="The next pass will add create/edit controls and the assembly item builder."
+          />
+        </article>
+      ) : activeWorkspaceTab === 'price-list' ? (
+        <article className="card workspace-card estimates-workspace">
+          <Toolbar
+            eyebrow="Price List"
+            title="Master material catalog"
+            description="Estimate materials and NECA labor rates come from the shared items catalog. Inventory only marks whether the item is stocked."
+            actions={(
+              <button type="button" className="secondary-button" onClick={catalogItems.reload} disabled={catalogItems.isLoading}>
+                Refresh
+              </button>
+            )}
+          />
+          <div className="summary-grid summary-grid--compact">
+            <SummaryCard label="Catalog Items" value={catalogItems.items.length} detail="Estimating-enabled rows" />
+            <SummaryCard label="In Inventory" value={stockedCatalogCount} detail="Stocked material" tone={stockedCatalogCount ? 'good' : 'default'} />
+            <SummaryCard label="Catalog Only" value={catalogOnlyCount} detail="Estimating/search only" />
+            <SummaryCard label="NECA Rates" value={catalogItems.items.filter((item) => Number(item.labor_rate_hrs) > 0).length} detail="Rows with labor hours" tone="accent" />
+          </div>
+          <DataTable
+            columns={CATALOG_ITEM_COLUMNS}
+            rows={catalogItems.items}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            isLoading={catalogItems.isLoading}
+            error={catalogItems.error}
+            dense
+            minWidth="980px"
+            emptyTitle="No estimating catalog items are visible"
+            emptyDescription="Catalog rows need estimating enabled, active status, and estimate read permission."
+          />
+        </article>
+      ) : activeWorkspaceTab === 'proposals' ? (
+        <article className="card workspace-card estimates-workspace">
+          <StatePanel
+            tone="neutral"
+            eyebrow="Proposal Builder"
+            title="Proposal builder is staged for a later pass"
+            description="This tab is reserved so the estimating workflow has the right shape now. We will wire proposal templates after estimates, takeoffs, assemblies, and catalog pricing are stable."
+            compact
+            actions={<FileText aria-hidden="true" />}
+          />
+        </article>
+      ) : (
+        <article className="card workspace-card estimates-workspace">
+          <Toolbar
+            eyebrow="Settings"
+            title="Estimator setup"
+            description="Current estimating configuration and the remaining controls needed before rollout."
+          />
+          <section className="estimates-boundary-grid">
+            <StatePanel
+              tone="good"
+              eyebrow="Catalog Strategy"
+              title="One master material catalog"
+              description="The items table now supports estimating materials, NECA labor rates, and inventory visibility without splitting into a second material database."
+              compact
+              actions={<Tags aria-hidden="true" />}
+            />
+            <StatePanel
+              tone="neutral"
+              eyebrow="Conversion Flow"
+              title="Estimate converts to job header first"
+              description="The job conversion step still needs UI and RPC work. Budget import should remain a separate option after the job is created or linked."
+              compact
+              actions={<ClipboardList aria-hidden="true" />}
+            />
+            <StatePanel
+              tone="neutral"
+              eyebrow="Next Controls"
+              title="Assembly and takeoff builders come next"
+              description="The tables are live; the next implementation pass should add create/edit controls for assembly items and takeoff lines."
+              compact
+              actions={<Boxes aria-hidden="true" />}
+            />
+          </section>
+        </article>
+      )}
     </>
   );
 }
