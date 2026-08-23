@@ -73,6 +73,7 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
   success: '',
 });
 const EMPTY_BUDGET_LINES = Object.freeze([]);
+const EMPTY_REVENUE_LINES = Object.freeze([]);
 const EMPTY_CHANGE_ORDERS = Object.freeze([]);
 const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({
   id: '',
@@ -123,6 +124,19 @@ const DEFAULT_BUDGET_IMPORT = Object.freeze({
 const DEFAULT_BUDGET_BULK_INPUT = Object.freeze({
   text: '',
   reason: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+const DEFAULT_REVENUE_FORM = Object.freeze({
+  id: '',
+  sov_line: '',
+  description: '',
+  scheduled_value_amount: '',
+  approved_change_amount: '',
+  billed_to_date_amount: '',
+  note: '',
+  change_reason: '',
   isSaving: false,
   error: null,
   success: '',
@@ -238,6 +252,24 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'schedule_of_values_amount',
   'project_division_id',
   'project_division:job_budget_divisions(id, code, name, sort_order)',
+  'note',
+  'created_by',
+].join(', ');
+
+const JOB_REVENUE_SELECT_FIELDS = [
+  'id',
+  'job_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'archived_at',
+  'archived_by',
+  'archive_reason',
+  'sov_line',
+  'description',
+  'scheduled_value_amount',
+  'approved_change_amount',
+  'billed_to_date_amount',
   'note',
   'created_by',
 ].join(', ');
@@ -635,6 +667,12 @@ function formatMoney(value) {
   return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 }
 
+function formatPercent(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '-';
+  return amount.toLocaleString(undefined, { style: 'percent', maximumFractionDigits: 1 });
+}
+
 function formatLeadTime(value) {
   const days = Number(value);
   if (!Number.isFinite(days)) return '-';
@@ -920,14 +958,11 @@ function forecastFinal(row) {
   return Number(row.forecast_final_amount) || 0;
 }
 
-function forecastedRemainder(row) {
-  return forecastFinal(row)
-    - (Number(row.actual_cost_amount) || 0)
-    - (Number(row.committed_cost_amount) || 0)
-    - (Number(row.forecast_to_complete_amount) || 0);
+function budgetRemaining(row) {
+  return revisedBudget(row) - (Number(row.actual_cost_amount) || 0);
 }
 
-function budgetRemaining(row) {
+function forecastedBudgetRemaining(row) {
   return revisedBudget(row) - forecastFinal(row);
 }
 
@@ -956,6 +991,20 @@ function projectDivisionKey(row) {
 function budgetLineLabel(row) {
   if (!row?.id) return 'Unassigned budget line';
   return [row.cost_code, row.description || 'Untitled budget line'].filter(Boolean).join(' - ');
+}
+
+function revisedRevenue(row) {
+  return (Number(row.scheduled_value_amount) || 0) + (Number(row.approved_change_amount) || 0);
+}
+
+function remainingToBill(row) {
+  return revisedRevenue(row) - (Number(row.billed_to_date_amount) || 0);
+}
+
+function billedPercent(row) {
+  const revised = revisedRevenue(row);
+  if (!revised) return null;
+  return (Number(row.billed_to_date_amount) || 0) / revised;
 }
 
 function daysUntil(value) {
@@ -1343,6 +1392,71 @@ function useJobBudgetLines({ enabled, jobId }) {
   };
 }
 
+function useJobRevenueLines({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    lines: EMPTY_REVENUE_LINES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !jobId) {
+        setState({ isLoading: false, error: null, lines: EMPTY_REVENUE_LINES });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_revenue_lines')
+          .select(JOB_REVENUE_SELECT_FIELDS)
+          .eq('job_id', jobId)
+          .is('archived_at', null)
+          .order('sov_line', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            lines: data ?? EMPTY_REVENUE_LINES,
+          });
+        }
+      } catch (error) {
+        console.error('Job revenue lines failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            lines: EMPTY_REVENUE_LINES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, getToken, jobId, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function useJobChangeOrders({ enabled, jobId }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1711,6 +1825,40 @@ function budgetAuditSnapshot(row) {
   };
 }
 
+function revenueToForm(row) {
+  if (!row) return DEFAULT_REVENUE_FORM;
+
+  return {
+    ...DEFAULT_REVENUE_FORM,
+    id: row.id || '',
+    sov_line: row.sov_line || '',
+    description: row.description || '',
+    scheduled_value_amount: row.scheduled_value_amount == null ? '' : String(row.scheduled_value_amount),
+    approved_change_amount: row.approved_change_amount == null ? '' : String(row.approved_change_amount),
+    billed_to_date_amount: row.billed_to_date_amount == null ? '' : String(row.billed_to_date_amount),
+    note: row.note || '',
+  };
+}
+
+function revenueAuditSnapshot(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    job_id: row.job_id,
+    division: row.division,
+    sov_line: row.sov_line,
+    description: row.description,
+    scheduled_value_amount: row.scheduled_value_amount,
+    approved_change_amount: row.approved_change_amount,
+    billed_to_date_amount: row.billed_to_date_amount,
+    note: row.note,
+    archived_at: row.archived_at,
+    archived_by: row.archived_by,
+    archive_reason: row.archive_reason,
+  };
+}
+
 function scheduleAuditSnapshot(row) {
   if (!row) return null;
 
@@ -1770,6 +1918,8 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
+  const [revenueForm, setRevenueForm] = useState(DEFAULT_REVENUE_FORM);
+  const [isAddingRevenueLine, setIsAddingRevenueLine] = useState(false);
   const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
@@ -1827,6 +1977,10 @@ export function JobsWorkspace({ permissions }) {
   });
   const jobBudget = useJobBudgetLines({
     enabled: permissions.permissionSource === 'server' && ['financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
+    jobId: selectedJob?.id,
+  });
+  const jobRevenue = useJobRevenueLines({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'financials' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobChangeOrders = useJobChangeOrders({
@@ -2546,6 +2700,138 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Job budget archive failed', error);
       setBudgetForm((current) => ({ ...current, error, success: '' }));
+    }
+  }
+
+  function buildRevenuePayload() {
+    return {
+      sov_line: revenueForm.sov_line.trim() || null,
+      description: revenueForm.description.trim(),
+      scheduled_value_amount: parseOptionalNumber(revenueForm.scheduled_value_amount) || 0,
+      approved_change_amount: parseOptionalNumber(revenueForm.approved_change_amount) || 0,
+      billed_to_date_amount: parseOptionalNumber(revenueForm.billed_to_date_amount) || 0,
+      note: revenueForm.note.trim() || null,
+    };
+  }
+
+  function startRevenueEdit(row) {
+    if (!row?.id || !canApproveSelectedBudget) return;
+    setIsAddingRevenueLine(false);
+    setRevenueForm(revenueToForm(row));
+  }
+
+  function startRevenueAdd() {
+    if (!canApproveSelectedBudget) return;
+    setRevenueForm(DEFAULT_REVENUE_FORM);
+    setIsAddingRevenueLine(true);
+  }
+
+  function resetRevenueForm() {
+    setRevenueForm(DEFAULT_REVENUE_FORM);
+    setIsAddingRevenueLine(false);
+  }
+
+  async function handleRevenueSave(event) {
+    event?.preventDefault?.();
+
+    if (!selectedJob || !canApproveSelectedBudget || revenueForm.isSaving) return;
+
+    if (!revenueForm.description.trim()) {
+      setRevenueForm((current) => ({ ...current, error: new Error('Enter an SOV description before saving.') }));
+      return;
+    }
+
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const payload = buildRevenuePayload();
+    const existingRow = revenueForm.id
+      ? jobRevenue.lines.find((line) => line.id === revenueForm.id)
+      : null;
+
+    setRevenueForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const query = revenueForm.id
+        ? client
+          .from('job_revenue_lines')
+          .update(payload)
+          .eq('id', revenueForm.id)
+          .eq('job_id', selectedJob.id)
+          .select(JOB_REVENUE_SELECT_FIELDS)
+          .single()
+        : client
+          .from('job_revenue_lines')
+          .insert({
+            ...payload,
+            job_id: selectedJob.id,
+            division: selectedJob.division,
+            created_by: createdBy,
+          })
+          .select(JOB_REVENUE_SELECT_FIELDS)
+          .single();
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: revenueForm.id ? 'update' : 'create',
+        recordId: data?.id || revenueForm.id,
+        beforeData: revenueAuditSnapshot(existingRow),
+        afterData: revenueAuditSnapshot(data),
+        note: revenueForm.change_reason.trim()
+          || `Revenue line ${data?.description || payload.description} ${revenueForm.id ? 'updated' : 'created'}.`,
+      });
+
+      setRevenueForm({
+        ...DEFAULT_REVENUE_FORM,
+        success: `${payload.description} ${revenueForm.id ? 'updated' : 'added'} in Revenue.`,
+      });
+      setIsAddingRevenueLine(false);
+      jobRevenue.reload();
+    } catch (error) {
+      console.error('Job revenue save failed', error);
+      setRevenueForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleRevenueArchive(row) {
+    if (!row?.id || !selectedJob?.id || !canApproveSelectedBudget) return;
+
+    const reason = window.prompt(`Archive "${row.description || 'this revenue line'}"? Enter a reason.`);
+    if (!reason?.trim()) return;
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const archivedBy = user?.id || user?.primaryEmailAddress?.emailAddress || 'Unknown User';
+      const { data, error } = await client
+        .from('job_revenue_lines')
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_by: archivedBy,
+          archive_reason: reason.trim(),
+        })
+        .eq('id', row.id)
+        .eq('job_id', selectedJob.id)
+        .select(JOB_REVENUE_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: 'update',
+        recordId: row.id,
+        beforeData: revenueAuditSnapshot(row),
+        afterData: revenueAuditSnapshot(data),
+        note: reason.trim(),
+      });
+
+      if (revenueForm.id === row.id) resetRevenueForm();
+      jobRevenue.reload();
+    } catch (error) {
+      console.error('Job revenue archive failed', error);
+      setRevenueForm((current) => ({ ...current, error, success: '' }));
     }
   }
 
@@ -3594,9 +3880,17 @@ export function JobsWorkspace({ permissions }) {
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
       const forecastThisMonthTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
-      const scheduleOfValuesTotal = sumField(jobBudget.lines, 'schedule_of_values_amount');
-      const forecastedRemainderTotal = jobBudget.lines.reduce((total, line) => total + forecastedRemainder(line), 0);
-      const remainingTotal = financialRevisedTotal - forecastFinalTotal;
+      const remainingBudgetTotal = financialRevisedTotal - actualTotal;
+      const forecastedRemainingBudgetTotal = financialRevisedTotal - forecastFinalTotal;
+      const scheduledRevenueTotal = sumField(jobRevenue.lines, 'scheduled_value_amount');
+      const approvedRevenueChangeTotal = sumField(jobRevenue.lines, 'approved_change_amount');
+      const revisedRevenueTotal = jobRevenue.lines.reduce((total, line) => total + revisedRevenue(line), 0);
+      const billedRevenueTotal = sumField(jobRevenue.lines, 'billed_to_date_amount');
+      const remainingToBillTotal = revisedRevenueTotal - billedRevenueTotal;
+      const projectedGrossProfit = revisedRevenueTotal - forecastFinalTotal;
+      const projectedMargin = revisedRevenueTotal ? projectedGrossProfit / revisedRevenueTotal : null;
+      const budgetLineRemaining = (row) => budgetLineRevisedBudget(row) - (Number(row.actual_cost_amount) || 0);
+      const budgetLineForecastedRemaining = (row) => budgetLineRevisedBudget(row) - forecastFinal(row);
       const updateInlineBudgetField = (field, value) => {
         setBudgetForm((current) => ({
           ...current,
@@ -3613,6 +3907,9 @@ export function JobsWorkspace({ permissions }) {
       const budgetRows = isAddingBudgetLine
         ? [...jobBudget.lines, { ...DEFAULT_BUDGET_FORM, id: '__new_budget_line__' }]
         : jobBudget.lines;
+      const revenueRows = isAddingRevenueLine
+        ? [...jobRevenue.lines, { ...DEFAULT_REVENUE_FORM, id: '__new_revenue_line__' }]
+        : jobRevenue.lines;
       const budgetGroups = [...budgetRows.reduce((groups, row) => {
         const division = projectDivisionLabel(row);
         const group = groups.get(division) || { rows: [], sortOrder: projectDivisionSortOrder(row), projectDivisionId: row.project_division_id || row.project_division?.id || null };
@@ -3631,6 +3928,25 @@ export function JobsWorkspace({ permissions }) {
             value={budgetForm[field]}
             onChange={(event) => updateInlineBudgetField(field, event.target.value)}
             disabled={budgetForm.isSaving}
+          />
+        ) : null
+      );
+      const updateInlineRevenueField = (field, value) => {
+        setRevenueForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+      };
+      const isEditingRevenueRow = (row) => revenueForm.id === row.id
+        || (isAddingRevenueLine && row.id === '__new_revenue_line__');
+      const inlineRevenueInput = (row, field, label, type = 'number') => (
+        isEditingRevenueRow(row) ? (
+          <input
+            aria-label={`${label} for ${row.description || 'revenue line'}`}
+            className="job-financials-table-input"
+            type={type}
+            min={type === 'number' ? '0' : undefined}
+            step={type === 'number' ? '0.01' : undefined}
+            value={revenueForm[field]}
+            onChange={(event) => updateInlineRevenueField(field, event.target.value)}
+            disabled={revenueForm.isSaving}
           />
         ) : null
       );
@@ -3654,15 +3970,15 @@ export function JobsWorkspace({ permissions }) {
           header: 'Description',
           render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
         },
-        { key: 'budget_amount', header: 'Original', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original budget') || formatMoney(row.budget_amount), align: 'right' },
+        { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || formatMoney(row.budget_amount), align: 'right' },
         { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), align: 'right' },
         { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
-        { key: 'actual_cost_amount', header: 'Actual', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual cost') || formatMoney(row.actual_cost_amount), align: 'right' },
-        { key: 'committed_cost_amount', header: 'Committed', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed cost') || formatMoney(row.committed_cost_amount), align: 'right' },
-        { key: 'forecast_to_complete_amount', header: 'Monthly forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
-        { key: 'forecast_final', header: 'Final forecast', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Final forecast') || formatMoney(forecastFinal(row)), align: 'right' },
-        { key: 'schedule_of_values_amount', header: 'S.O.V.', render: (row) => inlineBudgetInput(row, 'schedule_of_values_amount', 'Schedule of values') || formatMoney(row.schedule_of_values_amount), align: 'right' },
-        { key: 'forecasted_remainder', header: 'Future remainder', render: (row) => formatMoney(forecastedRemainder(row)), align: 'right' },
+        { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || formatMoney(row.actual_cost_amount), align: 'right' },
+        { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || formatMoney(row.committed_cost_amount), align: 'right' },
+        { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => formatMoney(budgetLineRemaining(row)), align: 'right' },
+        { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
+        { key: 'forecast_final', header: 'Final Forecast', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Final forecast') || formatMoney(forecastFinal(row)), align: 'right' },
+        { key: 'forecasted_remaining_budget', header: 'Forecasted Remaining Budget', render: (row) => formatMoney(budgetLineForecastedRemaining(row)), align: 'right' },
         {
           key: 'note',
           header: 'Notes',
@@ -3697,20 +4013,79 @@ export function JobsWorkspace({ permissions }) {
           },
         },
       ];
+      const revenueColumns = [
+        {
+          key: 'sov_line',
+          header: 'SOV Line',
+          render: (row) => inlineRevenueInput(row, 'sov_line', 'SOV line', 'text') || (row.sov_line || '-'),
+        },
+        {
+          key: 'description',
+          header: 'Description',
+          render: (row) => isEditingRevenueRow(row) ? <input aria-label="Revenue line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.description} onChange={(event) => updateInlineRevenueField('description', event.target.value)} disabled={revenueForm.isSaving} /> : <strong>{row.description || 'Untitled revenue line'}</strong>,
+        },
+        { key: 'scheduled_value_amount', header: 'Scheduled Value', render: (row) => inlineRevenueInput(row, 'scheduled_value_amount', 'Scheduled value') || formatMoney(row.scheduled_value_amount), align: 'right' },
+        { key: 'approved_change_amount', header: 'Approved Changes', render: (row) => inlineRevenueInput(row, 'approved_change_amount', 'Approved changes') || formatMoney(row.approved_change_amount), align: 'right' },
+        { key: 'revised_contract_value', header: 'Revised Contract Value', render: (row) => formatMoney(revisedRevenue(row)), align: 'right' },
+        { key: 'billed_to_date_amount', header: 'Billed to Date', render: (row) => inlineRevenueInput(row, 'billed_to_date_amount', 'Billed to date') || formatMoney(row.billed_to_date_amount), align: 'right' },
+        { key: 'remaining_to_bill', header: 'Remaining to Bill', render: (row) => formatMoney(remainingToBill(row)), align: 'right' },
+        { key: 'percent_billed', header: '% Billed', render: (row) => formatPercent(billedPercent(row)), align: 'right' },
+        {
+          key: 'note',
+          header: 'Notes',
+          render: (row) => isEditingRevenueRow(row) ? <input aria-label={`Notes for ${row.description || 'revenue line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.note} onChange={(event) => updateInlineRevenueField('note', event.target.value)} disabled={revenueForm.isSaving} /> : (row.note || '-'),
+        },
+        {
+          key: 'actions',
+          header: 'Actions',
+          render: (row) => {
+            if (!canApproveSelectedBudget) return 'Read only';
+            if (isEditingRevenueRow(row)) {
+              return (
+                <div className="job-buyout-actions job-financials-table-actions">
+                  <input aria-label={`Change reason for ${row.description || 'revenue line'}`} className="job-financials-table-input" type="text" value={revenueForm.change_reason} onChange={(event) => updateInlineRevenueField('change_reason', event.target.value)} placeholder="Reason" disabled={revenueForm.isSaving} />
+                  <button type="button" className="primary-button" onClick={() => handleRevenueSave()} disabled={revenueForm.isSaving || !revenueForm.description.trim()}>
+                    {revenueForm.isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" className="secondary-button" onClick={resetRevenueForm} disabled={revenueForm.isSaving}>Cancel</button>
+                </div>
+              );
+            }
+            return (
+              <div className="job-buyout-actions">
+                <button type="button" className="secondary-button" onClick={() => startRevenueEdit(row)} disabled={revenueForm.isSaving}>
+                  Edit
+                </button>
+                <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleRevenueArchive(row)} disabled={revenueForm.isSaving}>
+                  Archive
+                </button>
+              </div>
+            );
+          },
+        },
+      ];
 
       return (
         <>
           <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Original Budget" value={formatMoney(originalTotal)} detail="Approved budget lines" />
             <SummaryCard label="Revised Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
-            <SummaryCard label="Actual Cost" value={formatMoney(actualTotal)} detail="Tracked cost only" />
-            <SummaryCard label="Committed" value={formatMoney(committedTotal)} detail="Committed cost" />
-            <SummaryCard label="Monthly Forecast" value={formatMoney(forecastThisMonthTotal)} detail="Expected cost this month" />
-            <SummaryCard label="Final Forecast" value={formatMoney(forecastFinalTotal)} detail={`${formatMoney(forecastedRemainderTotal)} future remainder`} />
-            <SummaryCard label="S.O.V." value={formatMoney(scheduleOfValuesTotal)} detail="Schedule of Values" />
-            <SummaryCard label="Remaining Budget" value={formatMoney(remainingTotal)} detail="Total budget minus final forecast" tone={remainingTotal < 0 ? 'warn' : 'good'} />
+            <SummaryCard label="Actual Costs" value={formatMoney(actualTotal)} detail="Costs posted to date" />
+            <SummaryCard label="Committed Costs" value={formatMoney(committedTotal)} detail="Buyout or committed exposure" />
+            <SummaryCard label="Remaining Budget" value={formatMoney(remainingBudgetTotal)} detail="Revised budget minus actual costs" tone={remainingBudgetTotal < 0 ? 'warn' : 'good'} />
+            <SummaryCard label="Monthly Forecast" value={formatMoney(forecastThisMonthTotal)} detail="Expected total cost by month-end" />
+            <SummaryCard label="Final Forecast" value={formatMoney(forecastFinalTotal)} detail="Expected total cost at completion" />
+            <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Revised budget minus final forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : 'good'} />
+            <SummaryCard label="Revised Contract" value={formatMoney(revisedRevenueTotal)} detail={`${formatMoney(approvedRevenueChangeTotal)} in SOV changes`} />
+            <SummaryCard label="Billed to Date" value={formatMoney(billedRevenueTotal)} detail={`${formatMoney(remainingToBillTotal)} remaining to bill`} tone={remainingToBillTotal < 0 ? 'warn' : 'default'} />
+            <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} />
           </div>
 
+          <Toolbar
+            eyebrow="Cost Control"
+            title="Budget and cost forecast"
+            description="Cost-code lines track revised budget, actual costs, committed costs, and PM forecasts without mixing in SOV billing."
+          />
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
@@ -3791,6 +4166,37 @@ export function JobsWorkspace({ permissions }) {
             );
           })}
 
+          <section className="job-financials-section" aria-label="Schedule of values revenue">
+            <Toolbar
+              eyebrow="Revenue"
+              title="Schedule of values"
+              description={`${formatMoney(scheduledRevenueTotal)} scheduled value across ${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}.`}
+              actions={canApproveSelectedBudget ? (
+                <button type="button" className="primary-button" onClick={startRevenueAdd} disabled={isAddingRevenueLine || revenueForm.isSaving}>
+                  <Plus aria-hidden="true" /> Add SOV Line
+                </button>
+              ) : null}
+            />
+            <DataTable
+              columns={revenueColumns}
+              rows={revenueRows}
+              getRowKey={(row) => row.id}
+              permissions={permissions}
+              isLoading={jobRevenue.isLoading}
+              error={jobRevenue.error}
+              dense
+              minWidth="1500px"
+              emptyTitle="No SOV revenue lines"
+              emptyDescription="Add SOV lines to track scheduled value, billed revenue, remaining billing, and projected margin."
+            />
+            {revenueForm.error ? (
+              <StatePanel tone="danger" eyebrow="Revenue Save Failed" title="Revenue line was not saved" description={revenueForm.error.message || 'Unexpected revenue error.'} compact />
+            ) : null}
+            {revenueForm.success ? (
+              <StatePanel tone="success" eyebrow="Saved" title="Revenue line saved" description={revenueForm.success} compact />
+            ) : null}
+          </section>
+
           {canApproveSelectedBudget ? (
             <>
               {availableBudgetTemplates.length ? (
@@ -3862,7 +4268,7 @@ export function JobsWorkspace({ permissions }) {
                 <Toolbar
                   eyebrow="Import"
                   title="Cost report import"
-                  description="Matches report cost codes to this job and updates Actual only."
+                  description="Matches report cost codes to this job and updates Actual Costs only."
                 />
                 <div className="job-financials-form__grid">
                   <label className="job-financials-form__wide">
@@ -3933,7 +4339,7 @@ export function JobsWorkspace({ permissions }) {
                     />
                   </label>
                   <label>
-                    <span>Original</span>
+                    <span>Original Estimate</span>
                     <input
                       type="number"
                       min="0"
@@ -3954,24 +4360,20 @@ export function JobsWorkspace({ permissions }) {
                     <input type="number" min="0" step="0.01" value={budgetForm.budget_change_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, budget_change_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Actual</span>
+                    <span>Actual Costs</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.actual_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, actual_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Committed</span>
+                    <span>Committed Costs</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.committed_cost_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, committed_cost_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Monthly forecast</span>
+                    <span>Monthly Forecast</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.forecast_to_complete_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_to_complete_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label>
-                    <span>Final forecast</span>
+                    <span>Final Forecast</span>
                     <input type="number" min="0" step="0.01" value={budgetForm.forecast_final_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, forecast_final_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
-                  </label>
-                  <label>
-                    <span>S.O.V.</span>
-                    <input type="number" min="0" step="0.01" value={budgetForm.schedule_of_values_amount} onChange={(event) => setBudgetForm((current) => ({ ...current, schedule_of_values_amount: event.target.value, error: null, success: '' }))} disabled={budgetForm.isSaving} />
                   </label>
                   <label className="job-financials-form__wide">
                     <span>Notes</span>
