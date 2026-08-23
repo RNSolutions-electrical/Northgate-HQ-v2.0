@@ -2718,6 +2718,33 @@ export function EstimatesWorkspace({ permissions }) {
     },
   ];
 
+  const assemblyColumns = [
+    ...ASSEMBLY_COLUMNS,
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => (
+        canEstimate ? (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setSelectedAssemblyId(row.id);
+              setAssemblyItemForm({ ...DEFAULT_ASSEMBLY_ITEM_FORM, assembly_id: row.id });
+              setMaterialPriceUpdate(DEFAULT_MATERIAL_PRICE_UPDATE);
+              window.requestAnimationFrame(() => {
+                document.getElementById('estimate-assembly-materials')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+              });
+            }}
+            disabled={assemblyItemForm.isSaving}
+          >
+            Manage Materials
+          </button>
+        ) : 'Read only'
+      ),
+    },
+  ];
+
   const uploadedDocumentCategoryKeys = new Set(estimateDocuments.documents.map((document) => document.document_type).filter(Boolean));
   const documentChecklistRows = JOB_DOCUMENT_CATEGORIES.map((category) => ({
     ...category,
@@ -2725,7 +2752,7 @@ export function EstimatesWorkspace({ permissions }) {
   }));
   const uploadedDocumentCategoryCount = documentChecklistRows.filter((row) => row.status === 'uploaded').length;
   const assemblyItemBuilder = (
-    <article className="estimate-assembly-items">
+    <article id="estimate-assembly-materials" className="estimate-assembly-items">
       <Toolbar
         eyebrow="Assembly Items"
         title={selectedAssemblyForItems ? `${selectedAssemblyForItems.name} items` : 'Select an assembly'}
@@ -3824,7 +3851,7 @@ export function EstimatesWorkspace({ permissions }) {
               <Toolbar
                 eyebrow="Create"
                 title="Add assembly"
-                description="Create a reusable assembly shell. The next pass will add line-item components inside each assembly."
+                description="Create a reusable assembly shell, then use Manage Materials in the table below to add catalog-linked material and labor rows."
                 dense
               />
               <div className="job-financials-form__grid">
@@ -3869,9 +3896,8 @@ export function EstimatesWorkspace({ permissions }) {
               </div>
             </form>
           ) : null}
-          {assemblyItemBuilder}
           <DataTable
-            columns={ASSEMBLY_COLUMNS}
+            columns={assemblyColumns}
             rows={assemblyLibrary.assemblies}
             getRowKey={(row) => row.id}
             permissions={permissions}
@@ -3880,8 +3906,9 @@ export function EstimatesWorkspace({ permissions }) {
             dense
             minWidth="860px"
             emptyTitle="No assemblies in the library yet"
-            emptyDescription="The next pass will add create/edit controls and the assembly item builder."
+            emptyDescription="Create an assembly, then use Manage Materials to build it from catalog material and labor rows."
           />
+          {assemblyItemBuilder}
         </article>
       ) : activeWorkspaceTab === 'price-list' ? (
         <article className="card workspace-card estimates-workspace">
