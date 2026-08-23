@@ -43,6 +43,8 @@ const DEFAULT_DOCUMENT_CATEGORY = 'contracts';
 
 const ESTIMATE_STATUS_OPTIONS = ['draft', 'pursuit', 'submitted', 'approved', 'rejected'];
 const ESTIMATE_PRICING_CATEGORIES = ['labor', 'material', 'equipment', 'subcontract', 'other'];
+const QUOTE_PACKAGE_TYPES = ['vendor_quote', 'gear_package', 'lighting_package', 'subcontract', 'allowance', 'other'];
+const QUOTE_PACKAGE_STATUSES = ['requested', 'received', 'included', 'excluded', 'expired', 'revised'];
 
 const DEFAULT_UPLOAD_STATE = Object.freeze({
   category: DEFAULT_DOCUMENT_CATEGORY,
@@ -79,6 +81,49 @@ const DEFAULT_PRICING_FORM = Object.freeze({
   unit_cost: '',
   markup_percent: '0',
   sort_order: '',
+  note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_QUOTE_PACKAGE_FORM = Object.freeze({
+  package_type: 'vendor_quote',
+  vendor_name: '',
+  quote_number: '',
+  title: '',
+  description: '',
+  status: 'requested',
+  requested_at: '',
+  received_at: '',
+  expires_at: '',
+  quoted_cost: '',
+  sell_price: '',
+  lead_time_days: '',
+  note: '',
+  file: null,
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_ASSEMBLY_FORM = Object.freeze({
+  assembly_code: '',
+  name: '',
+  category: '',
+  unit: '',
+  description: '',
+  is_library_item: true,
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_ASSEMBLY_PRICING_FORM = Object.freeze({
+  assembly_id: '',
+  quantity: '1',
+  unit_cost: '',
+  markup_percent: '0',
   note: '',
   isSaving: false,
   error: null,
@@ -616,6 +661,38 @@ function pricingPayloadFromForm(form) {
     markup_percent: form.markup_percent === '' ? 0 : Number(form.markup_percent),
     sort_order: form.sort_order === '' ? 0 : Number.parseInt(form.sort_order, 10),
     note: form.note.trim() || null,
+  };
+}
+
+function quotePackagePayloadFromForm(form) {
+  const packageType = QUOTE_PACKAGE_TYPES.includes(form.package_type) ? form.package_type : 'vendor_quote';
+  const status = QUOTE_PACKAGE_STATUSES.includes(form.status) ? form.status : 'requested';
+
+  return {
+    package_type: packageType,
+    vendor_name: form.vendor_name.trim(),
+    quote_number: form.quote_number.trim() || null,
+    title: form.title.trim(),
+    description: form.description.trim() || null,
+    status,
+    requested_at: form.requested_at || null,
+    received_at: form.received_at || null,
+    expires_at: form.expires_at || null,
+    quoted_cost: form.quoted_cost === '' ? 0 : Number(form.quoted_cost),
+    sell_price: form.sell_price === '' ? (form.quoted_cost === '' ? 0 : Number(form.quoted_cost)) : Number(form.sell_price),
+    lead_time_days: form.lead_time_days === '' ? null : Number(form.lead_time_days),
+    note: form.note.trim() || null,
+  };
+}
+
+function assemblyPayloadFromForm(form) {
+  return {
+    assembly_code: form.assembly_code.trim() || null,
+    name: form.name.trim(),
+    category: form.category.trim() || null,
+    unit: form.unit.trim() || null,
+    description: form.description.trim() || null,
+    is_library_item: form.is_library_item === true,
   };
 }
 
@@ -1236,6 +1313,9 @@ export function EstimatesWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [estimateForm, setEstimateForm] = useState(DEFAULT_ESTIMATE_FORM);
   const [pricingForm, setPricingForm] = useState(DEFAULT_PRICING_FORM);
+  const [quotePackageForm, setQuotePackageForm] = useState(DEFAULT_QUOTE_PACKAGE_FORM);
+  const [assemblyForm, setAssemblyForm] = useState(DEFAULT_ASSEMBLY_FORM);
+  const [assemblyPricingForm, setAssemblyPricingForm] = useState(DEFAULT_ASSEMBLY_PRICING_FORM);
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
@@ -1303,7 +1383,7 @@ export function EstimatesWorkspace({ permissions }) {
     estimateId: selectedEstimate?.id ?? '',
   });
   const assemblyLibrary = useAssemblyLibrary({
-    enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'assemblies',
+    enabled: permissions.permissionSource === 'server' && (activeWorkspaceTab === 'assemblies' || activeTab === 'pricing'),
   });
   const catalogItems = useCatalogItems({
     enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'price-list',
@@ -1321,6 +1401,7 @@ export function EstimatesWorkspace({ permissions }) {
   const stockedCatalogCount = catalogItems.items.filter((item) => item.inventory_tracking_status === 'in_inventory').length;
   const catalogOnlyCount = catalogItems.items.filter((item) => item.inventory_tracking_status !== 'in_inventory').length;
   const oneTimeAssemblyCount = assemblyLibrary.assemblies.filter((assembly) => !assembly.is_library_item).length;
+  const selectedPricingAssembly = assemblyLibrary.assemblies.find((assembly) => assembly.id === assemblyPricingForm.assembly_id) ?? null;
   const latestSnapshot = estimateSnapshots.snapshots[0] ?? null;
 
   useEffect(() => {
@@ -1336,6 +1417,9 @@ export function EstimatesWorkspace({ permissions }) {
     setActiveWorkspaceTab('estimates');
     setMode('browse');
     setPricingForm(DEFAULT_PRICING_FORM);
+    setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
+    setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
+    setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
@@ -1344,6 +1428,9 @@ export function EstimatesWorkspace({ permissions }) {
   function resetEstimateForm() {
     setEstimateForm(DEFAULT_ESTIMATE_FORM);
     setPricingForm(DEFAULT_PRICING_FORM);
+    setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
+    setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
+    setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setMode('browse');
@@ -1356,6 +1443,9 @@ export function EstimatesWorkspace({ permissions }) {
     setActiveTab('overview');
     setMode('browse');
     setPricingForm(DEFAULT_PRICING_FORM);
+    setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
+    setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
+    setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
@@ -1370,6 +1460,9 @@ export function EstimatesWorkspace({ permissions }) {
     setActiveWorkspaceTab('estimates');
     setMode('create');
     setPricingForm(DEFAULT_PRICING_FORM);
+    setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
+    setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
+    setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setEstimateAction({ action: '', error: null, success: '' });
@@ -1379,6 +1472,9 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedEstimateId(estimate.id);
     setEstimateForm(estimateToForm(estimate));
     setPricingForm(DEFAULT_PRICING_FORM);
+    setQuotePackageForm(DEFAULT_QUOTE_PACKAGE_FORM);
+    setAssemblyForm(DEFAULT_ASSEMBLY_FORM);
+    setAssemblyPricingForm(DEFAULT_ASSEMBLY_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
     setMode('edit');
@@ -1632,6 +1728,249 @@ export function EstimatesWorkspace({ permissions }) {
     }
   }
 
+  async function handleAssemblyPricingSave(event) {
+    event.preventDefault();
+    if (!selectedEstimate || !canEditSelectedEstimate || assemblyPricingForm.isSaving) return;
+
+    if (!selectedPricingAssembly) {
+      setAssemblyPricingForm((current) => ({ ...current, error: new Error('Select an assembly before adding it to pricing.') }));
+      return;
+    }
+
+    const quantity = assemblyPricingForm.quantity === '' ? 0 : Number(assemblyPricingForm.quantity);
+    const unitCost = assemblyPricingForm.unit_cost === '' ? 0 : Number(assemblyPricingForm.unit_cost);
+    const markupPercent = assemblyPricingForm.markup_percent === '' ? 0 : Number(assemblyPricingForm.markup_percent);
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setAssemblyPricingForm((current) => ({ ...current, error: new Error('Assembly quantity must be greater than zero.') }));
+      return;
+    }
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      setAssemblyPricingForm((current) => ({ ...current, error: new Error('Assembly unit cost must be zero or greater.') }));
+      return;
+    }
+    if (!Number.isFinite(markupPercent) || markupPercent < 0) {
+      setAssemblyPricingForm((current) => ({ ...current, error: new Error('Assembly markup must be zero or greater.') }));
+      return;
+    }
+
+    setAssemblyPricingForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getEstimateClient();
+      const payload = {
+        estimate_id: selectedEstimate.id,
+        division: selectedEstimate.division,
+        category: 'material',
+        description: `Assembly: ${selectedPricingAssembly.name}`,
+        quantity,
+        unit: selectedPricingAssembly.unit || null,
+        unit_cost: unitCost,
+        markup_percent: markupPercent,
+        sort_order: estimatePricing.lines.length + 1,
+        note: [
+          selectedPricingAssembly.assembly_code ? `Assembly ${selectedPricingAssembly.assembly_code}` : '',
+          assemblyPricingForm.note.trim(),
+        ].filter(Boolean).join(' - ') || null,
+        created_by: permissions.userId,
+      };
+
+      const { data, error } = await client
+        .from('estimate_pricing_lines')
+        .insert(payload)
+        .select(ESTIMATE_PRICING_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'estimate_pricing_lines',
+        action: 'create',
+        recordId: data?.id,
+        beforeData: null,
+        afterData: data,
+        note: `${selectedPricingAssembly.name} assembly added to pricing.`,
+      });
+
+      estimatePricing.reload();
+      estimateHistory.reload();
+      setAssemblyPricingForm({ ...DEFAULT_ASSEMBLY_PRICING_FORM, success: `${selectedPricingAssembly.name} added to pricing.` });
+    } catch (error) {
+      console.error('Assembly pricing save failed', error);
+      setAssemblyPricingForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleAssemblySave(event) {
+    event.preventDefault();
+    if (!canEstimate || !permissions?.division || assemblyForm.isSaving) return;
+
+    if (!assemblyForm.name.trim()) {
+      setAssemblyForm((current) => ({ ...current, error: new Error('Enter an assembly name before saving.') }));
+      return;
+    }
+
+    setAssemblyForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getEstimateClient();
+      const payload = {
+        ...assemblyPayloadFromForm(assemblyForm),
+        division: selectedEstimate?.division || permissions.division,
+        source_estimate_id: assemblyForm.is_library_item ? null : selectedEstimate?.id || null,
+        created_by: permissions.userId,
+      };
+
+      const { data, error } = await client
+        .from('assemblies')
+        .insert(payload)
+        .select(ASSEMBLY_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'assemblies',
+        action: 'create',
+        recordId: data?.id,
+        beforeData: null,
+        afterData: data,
+        note: `${data?.name || 'Assembly'} created${data?.is_library_item ? ' in the library' : ' for this estimate'}.`,
+      });
+
+      assemblyLibrary.reload();
+      estimateHistory.reload();
+      setAssemblyForm({ ...DEFAULT_ASSEMBLY_FORM, success: `${data?.name || 'Assembly'} saved.` });
+    } catch (error) {
+      console.error('Assembly save failed', error);
+      setAssemblyForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleQuotePackageSave(event) {
+    event.preventDefault();
+    if (!selectedEstimate || !canEditSelectedEstimate || quotePackageForm.isSaving) return;
+
+    if (!quotePackageForm.title.trim() || !quotePackageForm.vendor_name.trim()) {
+      setQuotePackageForm((current) => ({ ...current, error: new Error('Enter a package title and vendor before saving.') }));
+      return;
+    }
+
+    const payload = quotePackagePayloadFromForm(quotePackageForm);
+    if (!Number.isFinite(payload.quoted_cost) || payload.quoted_cost < 0 || !Number.isFinite(payload.sell_price) || payload.sell_price < 0) {
+      setQuotePackageForm((current) => ({ ...current, error: new Error('Quote amounts must be zero or greater.') }));
+      return;
+    }
+    if (payload.lead_time_days !== null && (!Number.isFinite(payload.lead_time_days) || payload.lead_time_days < 0)) {
+      setQuotePackageForm((current) => ({ ...current, error: new Error('Lead time must be zero or greater.') }));
+      return;
+    }
+
+    const file = quotePackageForm.file;
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || permissions.userId || 'Unknown User';
+    const documentId = file ? crypto.randomUUID() : null;
+    const storagePath = file ? `documents/estimate/${selectedEstimate.id}/${documentId}/${sanitizeDocumentFileName(file.name)}` : null;
+
+    setQuotePackageForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+
+    try {
+      const client = await getEstimateClient();
+      let documentPayload = null;
+
+      if (file) {
+        documentPayload = {
+          id: documentId,
+          division: selectedEstimate.division,
+          owner_type: 'estimate',
+          owner_id: selectedEstimate.id,
+          storage_path: storagePath,
+          file_name: file.name,
+          document_type: 'quotes',
+          description: quotePackageForm.title.trim(),
+          file_size_bytes: file.size,
+          mime_type: file.type || null,
+          created_by: createdBy,
+        };
+
+        const { error: documentError } = await client
+          .from('documents')
+          .insert(documentPayload);
+        if (documentError) throw documentError;
+
+        const { error: uploadError } = await client.storage
+          .from(DOCUMENT_BUCKET)
+          .upload(storagePath, file, {
+            contentType: file.type || 'application/octet-stream',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          await client
+            .from('documents')
+            .update({
+              archived_at: new Date().toISOString(),
+              archived_by: createdBy,
+              archive_reason: `Upload failed: ${uploadError.message}`,
+            })
+            .eq('id', documentId);
+          throw uploadError;
+        }
+
+        await writeEstimateChangeLog(client, {
+          tableName: 'documents',
+          action: 'create',
+          recordId: documentId,
+          beforeData: null,
+          afterData: documentPayload,
+          note: `${file.name} uploaded to Quotes.`,
+        });
+      }
+
+      const { data, error } = await client
+        .from('estimate_quote_packages')
+        .insert({
+          ...payload,
+          estimate_id: selectedEstimate.id,
+          division: selectedEstimate.division,
+          document_id: documentId,
+          created_by: permissions.userId,
+        })
+        .select(ESTIMATE_QUOTE_PACKAGE_SELECT_FIELDS)
+        .single();
+
+      if (error) {
+        if (documentId) {
+          await client
+            .from('documents')
+            .update({
+              archived_at: new Date().toISOString(),
+              archived_by: createdBy,
+              archive_reason: `Quote package save failed: ${error.message}`,
+            })
+            .eq('id', documentId);
+        }
+        throw error;
+      }
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'estimate_quote_packages',
+        action: 'create',
+        recordId: data?.id,
+        beforeData: null,
+        afterData: data,
+        note: `${data?.title || 'Quote package'} saved${documentPayload ? ' with attached document' : ''}.`,
+      });
+
+      estimateQuotePackages.reload();
+      estimateDocuments.reload();
+      estimateHistory.reload();
+      setQuotePackageForm({ ...DEFAULT_QUOTE_PACKAGE_FORM, success: `${data?.title || 'Quote package'} saved.` });
+    } catch (error) {
+      console.error('Quote package save failed', error);
+      setQuotePackageForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
   async function handleDocumentUpload(event) {
     event.preventDefault();
     if (!selectedEstimate || !canEditSelectedEstimate || uploadState.isUploading) return;
@@ -1870,7 +2209,7 @@ export function EstimatesWorkspace({ permissions }) {
         eyebrow="Workspace"
         title={selectedEstimate ? estimateLabel(selectedEstimate) : 'Estimates'}
         description={selectedEstimate
-          ? 'Estimate workspace — use the tabs below to build pricing, manage quotes and packages, review documents, and approve the estimate.'
+          ? 'Estimate workspace - use the tabs below to build pricing, manage quotes and packages, review documents, and approve the estimate.'
           : 'Live estimate directory with division-scoped create, edit, pricing, documents, approval snapshots, archive, and audit history.'}
         status={<span className="status-pill">{selectedEstimate ? formatEstimateStatus(selectedEstimate.status) : mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
         actions={(
@@ -2081,14 +2420,14 @@ export function EstimatesWorkspace({ permissions }) {
                     </div>
                     {canEditSelectedEstimate ? (
                       <section className="estimate-pricing-actions" aria-label="Pricing input methods">
-                        <button type="button" className="estimate-pricing-action" disabled>
+                        <button type="button" className="estimate-pricing-action" onClick={() => setAssemblyPricingForm((current) => ({ ...current, error: null, success: '' }))}>
                           <Boxes aria-hidden="true" />
                           <span>
                             <strong>Pull from Assembly</strong>
-                            <small>Select a saved assembly and generate pricing lines.</small>
+                            <small>Select a saved assembly and add it to pricing.</small>
                           </span>
                         </button>
-                        <button type="button" className="estimate-pricing-action" disabled>
+                        <button type="button" className="estimate-pricing-action" onClick={() => setAssemblyForm((current) => ({ ...current, is_library_item: true, error: null, success: '' }))}>
                           <Plus aria-hidden="true" />
                           <span>
                             <strong>Add New Assembly</strong>
@@ -2110,6 +2449,111 @@ export function EstimatesWorkspace({ permissions }) {
                           </span>
                         </button>
                       </section>
+                    ) : null}
+                    {canEditSelectedEstimate ? (
+                      <div className="estimate-builder-grid">
+                        <form className="job-financials-form" onSubmit={handleAssemblyPricingSave}>
+                          <Toolbar
+                            eyebrow="Assembly"
+                            title="Pull from assembly"
+                            description="Adds the selected assembly as a pricing line. Detailed assembly item expansion comes after the item builder is wired."
+                            dense
+                          />
+                          <div className="job-financials-form__grid">
+                            <label className="job-financials-form__wide">
+                              <span>Assembly</span>
+                              <select
+                                value={assemblyPricingForm.assembly_id}
+                                onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, assembly_id: event.target.value, error: null, success: '' }))}
+                                disabled={assemblyPricingForm.isSaving || assemblyLibrary.isLoading}
+                              >
+                                <option value="">Select assembly...</option>
+                                {assemblyLibrary.assemblies.map((assembly) => (
+                                  <option key={assembly.id} value={assembly.id}>
+                                    {assembly.assembly_code ? `${assembly.assembly_code} - ${assembly.name}` : assembly.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              <span>Quantity</span>
+                              <input type="number" min="0.0001" step="0.0001" value={assemblyPricingForm.quantity} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, quantity: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
+                            </label>
+                            <label>
+                              <span>Unit Cost</span>
+                              <input type="number" min="0" step="0.01" value={assemblyPricingForm.unit_cost} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, unit_cost: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
+                            </label>
+                            <label>
+                              <span>Markup %</span>
+                              <input type="number" min="0" step="0.0001" value={assemblyPricingForm.markup_percent} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, markup_percent: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
+                            </label>
+                            <label className="job-financials-form__wide">
+                              <span>Note</span>
+                              <input type="text" value={assemblyPricingForm.note} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
+                            </label>
+                          </div>
+                          {assemblyPricingForm.error ? (
+                            <StatePanel tone="danger" eyebrow="Assembly Add Failed" title="Assembly was not added to pricing" description={assemblyPricingForm.error.message || 'Unexpected assembly pricing error.'} compact />
+                          ) : null}
+                          {assemblyPricingForm.success ? (
+                            <StatePanel tone="success" eyebrow="Saved" title="Assembly added" description={assemblyPricingForm.success} compact />
+                          ) : null}
+                          <div className="job-financials-form__actions">
+                            <button type="submit" className="primary-button" disabled={assemblyPricingForm.isSaving || !assemblyPricingForm.assembly_id}>
+                              <Plus aria-hidden="true" /> {assemblyPricingForm.isSaving ? 'Adding...' : 'Add Assembly Line'}
+                            </button>
+                          </div>
+                        </form>
+
+                        <form className="job-financials-form" onSubmit={handleAssemblySave}>
+                          <Toolbar
+                            eyebrow="Assembly"
+                            title="Create assembly"
+                            description="Save a reusable assembly to the library or keep it attached to this estimate as one-time use."
+                            dense
+                          />
+                          <div className="job-financials-form__grid">
+                            <label className="job-financials-form__wide">
+                              <span>Name</span>
+                              <input type="text" value={assemblyForm.name} onChange={(event) => setAssemblyForm((current) => ({ ...current, name: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} required />
+                            </label>
+                            <label>
+                              <span>Code</span>
+                              <input type="text" value={assemblyForm.assembly_code} onChange={(event) => setAssemblyForm((current) => ({ ...current, assembly_code: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                            </label>
+                            <label>
+                              <span>Category</span>
+                              <input type="text" value={assemblyForm.category} onChange={(event) => setAssemblyForm((current) => ({ ...current, category: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                            </label>
+                            <label>
+                              <span>Unit</span>
+                              <input type="text" value={assemblyForm.unit} onChange={(event) => setAssemblyForm((current) => ({ ...current, unit: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                            </label>
+                            <label>
+                              <span>Save</span>
+                              <select value={assemblyForm.is_library_item ? 'library' : 'one_time'} onChange={(event) => setAssemblyForm((current) => ({ ...current, is_library_item: event.target.value === 'library', error: null, success: '' }))} disabled={assemblyForm.isSaving}>
+                                <option value="library">Assembly library</option>
+                                <option value="one_time">One-time use</option>
+                              </select>
+                            </label>
+                            <label className="job-financials-form__wide">
+                              <span>Description</span>
+                              <input type="text" value={assemblyForm.description} onChange={(event) => setAssemblyForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                            </label>
+                          </div>
+                          {assemblyForm.error ? (
+                            <StatePanel tone="danger" eyebrow="Assembly Save Failed" title="Assembly was not saved" description={assemblyForm.error.message || 'Unexpected assembly error.'} compact />
+                          ) : null}
+                          {assemblyForm.success ? (
+                            <StatePanel tone="success" eyebrow="Saved" title="Assembly saved" description={assemblyForm.success} compact />
+                          ) : null}
+                          <div className="job-financials-form__actions">
+                            <button type="submit" className="primary-button" disabled={assemblyForm.isSaving || !assemblyForm.name.trim()}>
+                              <Plus aria-hidden="true" /> {assemblyForm.isSaving ? 'Saving...' : 'Save Assembly'}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     ) : null}
                     <DataTable
                       columns={pricingColumns}
@@ -2209,6 +2653,98 @@ export function EstimatesWorkspace({ permissions }) {
                       )}
                       dense
                     />
+                    {canEditSelectedEstimate ? (
+                      <form className="job-document-upload" onSubmit={handleQuotePackageSave}>
+                        <Toolbar
+                          eyebrow="Add"
+                          title="Add quote or package"
+                          description="Attach the vendor quote file here and it will also appear in the Documents tab under Quotes."
+                          dense
+                        />
+                        <div className="job-document-upload__grid">
+                          <label>
+                            <span>Type</span>
+                            <select value={quotePackageForm.package_type} onChange={(event) => setQuotePackageForm((current) => ({ ...current, package_type: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving}>
+                              {QUOTE_PACKAGE_TYPES.map((type) => (
+                                <option key={type} value={type}>{formatQuotePackageType(type)}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>Status</span>
+                            <select value={quotePackageForm.status} onChange={(event) => setQuotePackageForm((current) => ({ ...current, status: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving}>
+                              {QUOTE_PACKAGE_STATUSES.map((status) => (
+                                <option key={status} value={status}>{formatQuotePackageStatus(status)}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>Vendor</span>
+                            <input type="text" value={quotePackageForm.vendor_name} onChange={(event) => setQuotePackageForm((current) => ({ ...current, vendor_name: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} required />
+                          </label>
+                          <label>
+                            <span>Quote #</span>
+                            <input type="text" value={quotePackageForm.quote_number} onChange={(event) => setQuotePackageForm((current) => ({ ...current, quote_number: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label className="job-document-upload__description">
+                            <span>Title</span>
+                            <input type="text" value={quotePackageForm.title} onChange={(event) => setQuotePackageForm((current) => ({ ...current, title: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} required />
+                          </label>
+                          <label>
+                            <span>Quoted Cost</span>
+                            <input type="number" min="0" step="0.01" value={quotePackageForm.quoted_cost} onChange={(event) => setQuotePackageForm((current) => ({ ...current, quoted_cost: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Sell Price</span>
+                            <input type="number" min="0" step="0.01" value={quotePackageForm.sell_price} onChange={(event) => setQuotePackageForm((current) => ({ ...current, sell_price: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} placeholder="Defaults to quoted cost" />
+                          </label>
+                          <label>
+                            <span>Lead Time</span>
+                            <input type="number" min="0" step="1" value={quotePackageForm.lead_time_days} onChange={(event) => setQuotePackageForm((current) => ({ ...current, lead_time_days: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Requested</span>
+                            <input type="date" value={quotePackageForm.requested_at} onChange={(event) => setQuotePackageForm((current) => ({ ...current, requested_at: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Received</span>
+                            <input type="date" value={quotePackageForm.received_at} onChange={(event) => setQuotePackageForm((current) => ({ ...current, received_at: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Expires</span>
+                            <input type="date" value={quotePackageForm.expires_at} onChange={(event) => setQuotePackageForm((current) => ({ ...current, expires_at: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label>
+                            <span>Attachment</span>
+                            <input
+                              key={quotePackageForm.success || 'quote-package-file'}
+                              type="file"
+                              onChange={(event) => setQuotePackageForm((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
+                              disabled={quotePackageForm.isSaving}
+                            />
+                          </label>
+                          <label className="job-document-upload__description">
+                            <span>Description</span>
+                            <input type="text" value={quotePackageForm.description} onChange={(event) => setQuotePackageForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                          <label className="job-document-upload__description">
+                            <span>Note</span>
+                            <input type="text" value={quotePackageForm.note} onChange={(event) => setQuotePackageForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} disabled={quotePackageForm.isSaving} />
+                          </label>
+                        </div>
+                        {quotePackageForm.error ? (
+                          <StatePanel tone="danger" eyebrow="Quote Save Failed" title="Quote package was not saved" description={quotePackageForm.error.message || 'Unexpected quote package error.'} compact />
+                        ) : null}
+                        {quotePackageForm.success ? (
+                          <StatePanel tone="success" eyebrow="Saved" title="Quote package saved" description={quotePackageForm.success} compact />
+                        ) : null}
+                        <div className="job-document-upload__actions">
+                          <button type="submit" className="primary-button" disabled={quotePackageForm.isSaving || !quotePackageForm.title.trim() || !quotePackageForm.vendor_name.trim()}>
+                            <Plus aria-hidden="true" /> {quotePackageForm.isSaving ? 'Saving...' : 'Save Quote / Package'}
+                          </button>
+                        </div>
+                      </form>
+                    ) : null}
                     <DataTable
                       columns={ESTIMATE_QUOTE_PACKAGE_COLUMNS}
                       rows={estimateQuotePackages.packages}
@@ -2567,6 +3103,56 @@ export function EstimatesWorkspace({ permissions }) {
             <SummaryCard label="One-time" value={oneTimeAssemblyCount} detail="Estimate-specific assemblies" />
             <SummaryCard label="Write Access" value={canEstimate ? 'Granted' : 'Read only'} detail="Estimate permission" tone={canEstimate ? 'good' : 'warn'} />
           </div>
+          {canEstimate ? (
+            <form className="job-financials-form" onSubmit={handleAssemblySave}>
+              <Toolbar
+                eyebrow="Create"
+                title="Add assembly"
+                description="Create a reusable assembly shell. The next pass will add line-item components inside each assembly."
+                dense
+              />
+              <div className="job-financials-form__grid">
+                <label className="job-financials-form__wide">
+                  <span>Name</span>
+                  <input type="text" value={assemblyForm.name} onChange={(event) => setAssemblyForm((current) => ({ ...current, name: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} required />
+                </label>
+                <label>
+                  <span>Code</span>
+                  <input type="text" value={assemblyForm.assembly_code} onChange={(event) => setAssemblyForm((current) => ({ ...current, assembly_code: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                </label>
+                <label>
+                  <span>Category</span>
+                  <input type="text" value={assemblyForm.category} onChange={(event) => setAssemblyForm((current) => ({ ...current, category: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                </label>
+                <label>
+                  <span>Unit</span>
+                  <input type="text" value={assemblyForm.unit} onChange={(event) => setAssemblyForm((current) => ({ ...current, unit: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                </label>
+                <label>
+                  <span>Save</span>
+                  <select value={assemblyForm.is_library_item ? 'library' : 'one_time'} onChange={(event) => setAssemblyForm((current) => ({ ...current, is_library_item: event.target.value === 'library', error: null, success: '' }))} disabled={assemblyForm.isSaving}>
+                    <option value="library">Assembly library</option>
+                    <option value="one_time">One-time use</option>
+                  </select>
+                </label>
+                <label className="job-financials-form__wide">
+                  <span>Description</span>
+                  <input type="text" value={assemblyForm.description} onChange={(event) => setAssemblyForm((current) => ({ ...current, description: event.target.value, error: null, success: '' }))} disabled={assemblyForm.isSaving} />
+                </label>
+              </div>
+              {assemblyForm.error ? (
+                <StatePanel tone="danger" eyebrow="Assembly Save Failed" title="Assembly was not saved" description={assemblyForm.error.message || 'Unexpected assembly error.'} compact />
+              ) : null}
+              {assemblyForm.success ? (
+                <StatePanel tone="success" eyebrow="Saved" title="Assembly saved" description={assemblyForm.success} compact />
+              ) : null}
+              <div className="job-financials-form__actions">
+                <button type="submit" className="primary-button" disabled={assemblyForm.isSaving || !assemblyForm.name.trim()}>
+                  <Plus aria-hidden="true" /> {assemblyForm.isSaving ? 'Saving...' : 'Save Assembly'}
+                </button>
+              </div>
+            </form>
+          ) : null}
           <DataTable
             columns={ASSEMBLY_COLUMNS}
             rows={assemblyLibrary.assemblies}
