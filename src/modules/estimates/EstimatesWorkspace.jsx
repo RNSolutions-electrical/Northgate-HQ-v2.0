@@ -33,6 +33,7 @@ const EMPTY_ESTIMATE_HISTORY = Object.freeze([]);
 const EMPTY_ESTIMATE_PRICING = Object.freeze([]);
 const EMPTY_ESTIMATE_SNAPSHOTS = Object.freeze([]);
 const EMPTY_ESTIMATE_DOCUMENTS = Object.freeze([]);
+const EMPTY_ESTIMATE_QUOTE_PACKAGES = Object.freeze([]);
 const EMPTY_ESTIMATE_TAKEOFFS = Object.freeze([]);
 const EMPTY_ESTIMATE_TAKEOFF_LINES = Object.freeze([]);
 const EMPTY_ASSEMBLIES = Object.freeze([]);
@@ -176,6 +177,7 @@ const ESTIMATOR_WORKSPACE_TABS = [
 const ESTIMATE_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'pricing', label: 'Pricing', meta: 'Live' },
+  { key: 'quotes', label: 'Quotes / Packages', meta: 'New' },
   { key: 'documents', label: 'Documents', meta: 'Live' },
   { key: 'approval', label: 'Approval', meta: 'Live' },
   { key: 'history', label: 'History', meta: 'Live' },
@@ -227,6 +229,30 @@ const ESTIMATE_DOCUMENT_COLUMNS = [
   { key: 'created_by', header: 'Uploaded by', fallback: 'Not recorded' },
   { key: 'created_at', header: 'Uploaded', render: (row) => formatDateTime(row.created_at) },
 ];
+
+const ESTIMATE_QUOTE_PACKAGE_SELECT_FIELDS = [
+  'id',
+  'estimate_id',
+  'division',
+  'created_at',
+  'updated_at',
+  'package_type',
+  'vendor_name',
+  'quote_number',
+  'title',
+  'description',
+  'status',
+  'requested_at',
+  'received_at',
+  'expires_at',
+  'quoted_cost',
+  'sell_price',
+  'lead_time_days',
+  'document_id',
+  'pricing_line_id',
+  'sort_order',
+  'note',
+].join(', ');
 
 const ESTIMATE_TAKEOFF_SELECT_FIELDS = [
   'id',
@@ -331,6 +357,17 @@ const CATALOG_ITEM_COLUMNS = [
   { key: 'inventory_tracking_status', header: 'Inventory', render: (row) => formatInventoryTrackingStatus(row.inventory_tracking_status) },
 ];
 
+const ESTIMATE_QUOTE_PACKAGE_COLUMNS = [
+  { key: 'package_type', header: 'Type', render: (row) => formatQuotePackageType(row.package_type) },
+  { key: 'title', header: 'Package', render: (row) => <strong>{row.title}</strong> },
+  { key: 'vendor_name', header: 'Vendor' },
+  { key: 'quote_number', header: 'Quote #', fallback: '-' },
+  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatQuotePackageStatus(row.status)}</StatusBadge> },
+  { key: 'quoted_cost', header: 'Quoted Cost', align: 'right', render: (row) => formatMoney(row.quoted_cost) },
+  { key: 'sell_price', header: 'Sell Price', align: 'right', render: (row) => formatMoney(row.sell_price) },
+  { key: 'expires_at', header: 'Expires', render: (row) => formatDate(row.expires_at) },
+];
+
 const STATUS_RULES = [
   ['draft', 'In progress, not submitted.'],
   ['pursuit', 'Saved lead or opportunity, not an active job.'],
@@ -354,6 +391,27 @@ function formatPricingCategory(value) {
 
 function formatLineType(value) {
   return (value || 'other').replaceAll('_', ' ');
+}
+
+function formatQuotePackageType(value) {
+  switch (value) {
+    case 'gear_package':
+      return 'Gear package';
+    case 'lighting_package':
+      return 'Lighting package';
+    case 'vendor_quote':
+      return 'Vendor quote';
+    case 'subcontract':
+      return 'Subcontract';
+    case 'allowance':
+      return 'Allowance';
+    default:
+      return value ? value.replaceAll('_', ' ') : 'Other';
+  }
+}
+
+function formatQuotePackageStatus(value) {
+  return (value || 'requested').replaceAll('_', ' ');
 }
 
 function formatInventoryTrackingStatus(value) {
@@ -892,6 +950,71 @@ function useEstimateDocuments({ enabled, estimateId }) {
   };
 }
 
+function useEstimateQuotePackages({ enabled, estimateId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    packages: EMPTY_ESTIMATE_QUOTE_PACKAGES,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      if (!enabled || !estimateId) {
+        setState({ isLoading: false, error: null, packages: EMPTY_ESTIMATE_QUOTE_PACKAGES });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('estimate_quote_packages')
+          .select(ESTIMATE_QUOTE_PACKAGE_SELECT_FIELDS)
+          .eq('estimate_id', estimateId)
+          .is('archived_at', null)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error: null,
+            packages: data ?? EMPTY_ESTIMATE_QUOTE_PACKAGES,
+          });
+        }
+      } catch (error) {
+        console.error('Estimate quote packages failed to load', error);
+        if (isMounted) {
+          setState({
+            isLoading: false,
+            error,
+            packages: EMPTY_ESTIMATE_QUOTE_PACKAGES,
+          });
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enabled, estimateId, getToken, refreshKey]);
+
+  return {
+    ...state,
+    reload: () => setRefreshKey((current) => current + 1),
+  };
+}
+
 function useEstimateTakeoffReadModel({ enabled, estimateId }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1171,6 +1294,10 @@ export function EstimatesWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents',
     estimateId: selectedEstimate?.id ?? '',
   });
+  const estimateQuotePackages = useEstimateQuotePackages({
+    enabled: permissions.permissionSource === 'server' && ['pricing', 'quotes'].includes(activeTab),
+    estimateId: selectedEstimate?.id ?? '',
+  });
   const estimateTakeoffs = useEstimateTakeoffReadModel({
     enabled: permissions.permissionSource === 'server' && activeWorkspaceTab === 'takeoffs',
     estimateId: selectedEstimate?.id ?? '',
@@ -1186,6 +1313,9 @@ export function EstimatesWorkspace({ permissions }) {
   const canApproveSelectedEstimate = canApproveEstimateDivision(permissions, selectedEstimate?.division)
     && selectedEstimate?.status !== 'approved';
   const pricingTotal = estimatePricing.lines.reduce((total, line) => total + (Number(line.line_total) || 0), 0);
+  const quotePackageQuotedTotal = estimateQuotePackages.packages.reduce((total, row) => total + (Number(row.quoted_cost) || 0), 0);
+  const quotePackageSellTotal = estimateQuotePackages.packages.reduce((total, row) => total + (Number(row.sell_price) || 0), 0);
+  const includedQuotePackageCount = estimateQuotePackages.packages.filter((row) => row.status === 'included').length;
   const takeoffLineTotal = estimateTakeoffs.lines.reduce((total, line) => total + (Number(line.line_total) || 0), 0);
   const takeoffLaborHours = estimateTakeoffs.lines.reduce((total, line) => total + (Number(line.labor_hours_total) || 0), 0);
   const stockedCatalogCount = catalogItems.items.filter((item) => item.inventory_tracking_status === 'in_inventory').length;
@@ -1203,6 +1333,7 @@ export function EstimatesWorkspace({ permissions }) {
   function selectEstimate(estimate) {
     setSelectedEstimateId(estimate.id);
     setActiveTab('overview');
+    setActiveWorkspaceTab('estimates');
     setMode('browse');
     setPricingForm(DEFAULT_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
@@ -1219,12 +1350,24 @@ export function EstimatesWorkspace({ permissions }) {
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
+  function returnToEstimateList() {
+    setSelectedEstimateId('');
+    setActiveWorkspaceTab('estimates');
+    setActiveTab('overview');
+    setMode('browse');
+    setPricingForm(DEFAULT_PRICING_FORM);
+    setUploadState(DEFAULT_UPLOAD_STATE);
+    setDocumentAction({ id: '', action: '', error: null });
+    setEstimateAction({ action: '', error: null, success: '' });
+  }
+
   function startEstimateCreate() {
     setEstimateForm({
       ...DEFAULT_ESTIMATE_FORM,
       estimator_id: permissions.userId ?? '',
     });
     setSelectedEstimateId('');
+    setActiveWorkspaceTab('estimates');
     setMode('create');
     setPricingForm(DEFAULT_PRICING_FORM);
     setUploadState(DEFAULT_UPLOAD_STATE);
@@ -1725,41 +1868,49 @@ export function EstimatesWorkspace({ permissions }) {
     <>
       <WorkspaceHeader
         eyebrow="Workspace"
-        title="Estimates"
-        description="Live estimate directory with division-scoped create, edit, pricing, documents, approval snapshots, archive, and audit history."
-        status={<span className="status-pill">{mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
+        title={selectedEstimate ? estimateLabel(selectedEstimate) : 'Estimates'}
+        description={selectedEstimate
+          ? 'Estimate workspace — use the tabs below to build pricing, manage quotes and packages, review documents, and approve the estimate.'
+          : 'Live estimate directory with division-scoped create, edit, pricing, documents, approval snapshots, archive, and audit history.'}
+        status={<span className="status-pill">{selectedEstimate ? formatEstimateStatus(selectedEstimate.status) : mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
-            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-              Views
-            </button>
-            <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
-              Refresh
-            </button>
-            <button type="button" className="primary-button" onClick={startEstimateCreate} disabled={!canCreateEstimate || estimateForm.isSaving}>
-              <Plus aria-hidden="true" /> Create Estimate
-            </button>
+            {selectedEstimate ? (
+              <button type="button" className="secondary-button" onClick={returnToEstimateList}>Back to Estimates</button>
+            ) : (
+              <>
+                <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+                  Views
+                </button>
+                <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
+                  Refresh
+                </button>
+                <button type="button" className="primary-button" onClick={startEstimateCreate} disabled={!canCreateEstimate || estimateForm.isSaving}>
+                  <Plus aria-hidden="true" /> Create Estimate
+                </button>
+              </>
+            )}
           </>
         )}
       />
 
-      <div className="summary-grid">
+      {!selectedEstimate ? <div className="summary-grid">
         <SummaryCard label="Visible estimates" value={estimates.length} detail={directory.isLoading ? 'Loading directory' : 'Division-scoped rows'} />
         <SummaryCard label="Draft/Pursuit" value={draftCount} detail="Editable pipeline" />
         <SummaryCard label="Submitted" value={submittedCount} detail="Awaiting outcome" tone={submittedCount ? 'accent' : 'default'} />
         <SummaryCard label="Approved" value={approvedCount} detail="Locked snapshots" tone={approvedCount ? 'good' : 'default'} />
         <SummaryCard label="Document Access" value={canEstimate ? 'Granted' : 'Scoped'} detail="Estimate-owned files" tone={canEstimate ? 'good' : 'warn'} developmentOnly />
         <SummaryCard label="Archive access" value={permissions?.canArchiveRecords ? 'Granted' : 'Hidden'} detail="Reason required" tone={permissions?.canArchiveRecords ? 'good' : 'warn'} developmentOnly />
-      </div>
+      </div> : null}
 
-      <article className="card workspace-card estimates-nav-card">
+      {!selectedEstimate ? <article className="card workspace-card estimates-nav-card">
         <WorkspaceTabs
           tabs={ESTIMATOR_WORKSPACE_TABS}
           activeKey={activeWorkspaceTab}
           onChange={setActiveWorkspaceTab}
           ariaLabel="Estimator workspace sections"
         />
-      </article>
+      </article> : null}
 
       {estimateAction.error ? (
         <StatePanel tone="danger" eyebrow="Estimate Action Failed" title="Estimate action did not complete" description={estimateAction.error.message || 'Unexpected estimate error.'} compact />
@@ -1769,8 +1920,8 @@ export function EstimatesWorkspace({ permissions }) {
       ) : null}
 
       {activeWorkspaceTab === 'estimates' ? (
-      <div className={`workspace-split estimates-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
-        <PrimarySidebar
+      <div className={`workspace-split estimates-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}${selectedEstimate ? ' estimates-workspace--record' : ''}`}>
+        {!selectedEstimate ? <PrimarySidebar
           eyebrow="Estimate Views"
           title="Estimates"
           description="Browse live estimate directory rows."
@@ -1790,10 +1941,10 @@ export function EstimatesWorkspace({ permissions }) {
               <p>Pricing, documents, approval snapshots, archive, and history are live.</p>
             </div>
           )}
-        />
+        /> : null}
 
         <div className="workspace-surface">
-          <article className="card workspace-card">
+          {!selectedEstimate ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
               title={selectedView.label}
@@ -1834,7 +1985,7 @@ export function EstimatesWorkspace({ permissions }) {
                   ? 'Approve an estimate from the Approval tab to create a locked snapshot and move it into this view.'
                   : 'Create the first estimate when you have estimate permission and a current division.'}
             />
-          </article>
+          </article> : null}
 
           <article className="card workspace-card">
             {mode === 'create' || mode === 'edit' ? (
@@ -1925,8 +2076,41 @@ export function EstimatesWorkspace({ permissions }) {
                     <div className="summary-grid summary-grid--compact">
                       <SummaryCard label="Pricing Lines" value={estimatePricing.lines.length} detail="Active line items" />
                       <SummaryCard label="Total Price" value={formatMoney(pricingTotal)} detail="Generated line totals" tone={pricingTotal ? 'accent' : 'default'} />
+                      <SummaryCard label="Quote Packages" value={estimateQuotePackages.packages.length} detail="Available package inputs" />
                       <SummaryCard label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
                     </div>
+                    {canEditSelectedEstimate ? (
+                      <section className="estimate-pricing-actions" aria-label="Pricing input methods">
+                        <button type="button" className="estimate-pricing-action" disabled>
+                          <Boxes aria-hidden="true" />
+                          <span>
+                            <strong>Pull from Assembly</strong>
+                            <small>Select a saved assembly and generate pricing lines.</small>
+                          </span>
+                        </button>
+                        <button type="button" className="estimate-pricing-action" disabled>
+                          <Plus aria-hidden="true" />
+                          <span>
+                            <strong>Add New Assembly</strong>
+                            <small>Build a one-time assembly or save it to the library.</small>
+                          </span>
+                        </button>
+                        <button type="button" className="estimate-pricing-action" onClick={() => resetPricingForm()}>
+                          <Calculator aria-hidden="true" />
+                          <span>
+                            <strong>Standalone Line</strong>
+                            <small>Use the form below for labor, material, equipment, subcontract, or other.</small>
+                          </span>
+                        </button>
+                        <button type="button" className="estimate-pricing-action" onClick={() => setActiveTab('quotes')}>
+                          <FileText aria-hidden="true" />
+                          <span>
+                            <strong>Quotes / Packages</strong>
+                            <small>Review gear, lighting, vendor, or subcontract packages.</small>
+                          </span>
+                        </button>
+                      </section>
+                    ) : null}
                     <DataTable
                       columns={pricingColumns}
                       rows={estimatePricing.lines}
@@ -2005,6 +2189,46 @@ export function EstimatesWorkspace({ permissions }) {
                     ) : (
                       <StatePanel tone="neutral" eyebrow="Read Only" title="Pricing writes require estimate edit scope" description="Users with estimate or approval read permission can review pricing, but only estimate editors for this division can add or edit lines." compact />
                     )}
+                  </>
+                ) : activeTab === 'quotes' ? (
+                  <>
+                    <div className="summary-grid summary-grid--compact">
+                      <SummaryCard label="Packages" value={estimateQuotePackages.packages.length} detail="Vendor quote records" />
+                      <SummaryCard label="Included" value={includedQuotePackageCount} detail="Marked for pricing" tone={includedQuotePackageCount ? 'good' : 'default'} />
+                      <SummaryCard label="Quoted Cost" value={formatMoney(quotePackageQuotedTotal)} detail="Vendor cost total" />
+                      <SummaryCard label="Sell Price" value={formatMoney(quotePackageSellTotal)} detail="Estimate price total" tone={quotePackageSellTotal ? 'accent' : 'default'} />
+                    </div>
+                    <Toolbar
+                      eyebrow="Quotes / Packages"
+                      title="Vendor quotes and estimate packages"
+                      description="Gear quotes, lighting quotes, subcontract quotes, and allowance packages live here so Pricing can pull from them without cluttering the line-item view."
+                      actions={(
+                        <button type="button" className="secondary-button" onClick={estimateQuotePackages.reload} disabled={estimateQuotePackages.isLoading}>
+                          Refresh
+                        </button>
+                      )}
+                      dense
+                    />
+                    <DataTable
+                      columns={ESTIMATE_QUOTE_PACKAGE_COLUMNS}
+                      rows={estimateQuotePackages.packages}
+                      getRowKey={(row) => row.id}
+                      permissions={permissions}
+                      isLoading={estimateQuotePackages.isLoading}
+                      error={estimateQuotePackages.error}
+                      dense
+                      minWidth="1060px"
+                      emptyTitle="No quotes or packages yet"
+                      emptyDescription="The next pass will add the input flow for gear quotes, lighting quotes, vendor packages, and pricing handoff."
+                    />
+                    <StatePanel
+                      tone="neutral"
+                      eyebrow="Pricing Handoff"
+                      title="Packages will be able to feed pricing"
+                      description="Quote/package rows can be linked to pricing lines, while quote backup can remain attached through the Documents tab under Quotes."
+                      compact
+                      actions={<FileText aria-hidden="true" />}
+                    />
                   </>
                 ) : activeTab === 'documents' ? (
                   <>
