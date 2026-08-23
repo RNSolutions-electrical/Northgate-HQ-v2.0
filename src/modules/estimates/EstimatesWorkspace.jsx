@@ -132,6 +132,7 @@ const DEFAULT_ASSEMBLY_PRICING_FORM = Object.freeze({
 });
 
 const DEFAULT_ASSEMBLY_ITEM_FORM = Object.freeze({
+  id: '',
   assembly_id: '',
   item_id: '',
   line_type: 'material',
@@ -144,6 +145,12 @@ const DEFAULT_ASSEMBLY_ITEM_FORM = Object.freeze({
   labor_rate_per_hour_snapshot: '',
   sort_order: '',
   note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+
+const DEFAULT_MATERIAL_PRICE_UPDATE = Object.freeze({
   isSaving: false,
   error: null,
   success: '',
@@ -780,6 +787,25 @@ function catalogItemToAssemblyItemForm(item, currentForm) {
     labor_rate_hrs_snapshot: item.labor_rate_hrs ?? currentForm.labor_rate_hrs_snapshot,
     error: null,
     success: '',
+  };
+}
+
+function assemblyItemToForm(row) {
+  return {
+    ...DEFAULT_ASSEMBLY_ITEM_FORM,
+    id: row.id,
+    assembly_id: row.assembly_id ?? '',
+    item_id: row.item_id ?? '',
+    line_type: ESTIMATE_PRICING_CATEGORIES.includes(row.line_type) ? row.line_type : 'material',
+    description: row.description ?? '',
+    quantity: row.quantity ?? '1',
+    waste_percent: row.waste_percent ?? '0',
+    unit: row.unit ?? '',
+    unit_cost_snapshot: row.unit_cost_snapshot ?? '',
+    labor_rate_hrs_snapshot: row.labor_rate_hrs_snapshot ?? '',
+    labor_rate_per_hour_snapshot: row.labor_rate_per_hour_snapshot ?? '',
+    sort_order: row.sort_order ?? '',
+    note: row.note ?? '',
   };
 }
 
@@ -1469,6 +1495,7 @@ export function EstimatesWorkspace({ permissions }) {
   const [assemblyForm, setAssemblyForm] = useState(DEFAULT_ASSEMBLY_FORM);
   const [assemblyPricingForm, setAssemblyPricingForm] = useState(DEFAULT_ASSEMBLY_PRICING_FORM);
   const [assemblyItemForm, setAssemblyItemForm] = useState(DEFAULT_ASSEMBLY_ITEM_FORM);
+  const [materialPriceUpdate, setMaterialPriceUpdate] = useState(DEFAULT_MATERIAL_PRICE_UPDATE);
   const [selectedAssemblyId, setSelectedAssemblyId] = useState('');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
@@ -1551,6 +1578,7 @@ export function EstimatesWorkspace({ permissions }) {
   const catalogItems = useCatalogItems({
     enabled: permissions.permissionSource === 'server' && (activeWorkspaceTab === 'price-list' || activeWorkspaceTab === 'assemblies' || activeTab === 'pricing'),
   });
+  const selectedAssemblyCatalogItem = catalogItems.items.find((item) => item.id === assemblyItemForm.item_id) ?? null;
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
   const canApproveSelectedEstimate = canApproveEstimateDivision(permissions, selectedEstimate?.division)
@@ -1944,8 +1972,12 @@ export function EstimatesWorkspace({ permissions }) {
       if (assemblyItemsError) throw assemblyItemsError;
 
       const activeAssemblyItems = assemblyItemRows ?? EMPTY_ASSEMBLY_ITEMS;
-      if (activeAssemblyItems.length === 0 && (!Number.isFinite(unitCost) || unitCost < 0)) {
-        throw new Error('Assembly unit cost must be zero or greater when the assembly has no item rows.');
+      const hasProjectOverride = assemblyPricingForm.unit_cost !== '';
+      if (hasProjectOverride && (!Number.isFinite(unitCost) || unitCost < 0)) {
+        throw new Error('Project override unit cost must be zero or greater.');
+      }
+      if (activeAssemblyItems.length === 0 && !hasProjectOverride) {
+        throw new Error('Enter a project override unit cost or add item rows to this assembly before pricing it.');
       }
 
       const baseNote = [
@@ -1953,7 +1985,7 @@ export function EstimatesWorkspace({ permissions }) {
         assemblyPricingForm.note.trim(),
       ].filter(Boolean).join(' - ') || null;
 
-      const insertPayload = activeAssemblyItems.length > 0
+      const insertPayload = activeAssemblyItems.length > 0 && !hasProjectOverride
         ? activeAssemblyItems.map((item, index) => ({
           estimate_id: selectedEstimate.id,
           division: selectedEstimate.division,
@@ -1971,7 +2003,7 @@ export function EstimatesWorkspace({ permissions }) {
           estimate_id: selectedEstimate.id,
           division: selectedEstimate.division,
           category: 'material',
-          description: `Assembly: ${selectedPricingAssembly.name}`,
+          description: hasProjectOverride ? `Assembly override: ${selectedPricingAssembly.name}` : `Assembly: ${selectedPricingAssembly.name}`,
           quantity,
           unit: selectedPricingAssembly.unit || null,
           unit_cost: unitCost,
@@ -1995,12 +2027,12 @@ export function EstimatesWorkspace({ permissions }) {
         recordId: selectedEstimate.id,
         beforeData: null,
         afterData: data,
-        note: `${selectedPricingAssembly.name} assembly added to pricing (${insertPayload.length} line${insertPayload.length === 1 ? '' : 's'}).`,
+        note: `${selectedPricingAssembly.name} assembly added to pricing (${insertPayload.length} line${insertPayload.length === 1 ? '' : 's'}${hasProjectOverride ? ', project override' : ''}).`,
       });
 
       estimatePricing.reload();
       estimateHistory.reload();
-      setAssemblyPricingForm({ ...DEFAULT_ASSEMBLY_PRICING_FORM, success: `${selectedPricingAssembly.name} added to pricing (${insertPayload.length} line${insertPayload.length === 1 ? '' : 's'}).` });
+      setAssemblyPricingForm({ ...DEFAULT_ASSEMBLY_PRICING_FORM, success: `${selectedPricingAssembly.name} added to pricing (${insertPayload.length} line${insertPayload.length === 1 ? '' : 's'}${hasProjectOverride ? ', project override' : ''}).` });
     } catch (error) {
       console.error('Assembly pricing save failed', error);
       setAssemblyPricingForm((current) => ({ ...current, isSaving: false, error, success: '' }));
@@ -2038,27 +2070,42 @@ export function EstimatesWorkspace({ permissions }) {
 
     try {
       const client = await getEstimateClient();
-      const { data, error } = await client
-        .from('assembly_items')
-        .insert({
-          ...payload,
-          assembly_id: selectedAssemblyForItems.id,
-          division: selectedAssemblyForItems.division,
-          sort_order: payload.sort_order || assemblyItems.items.length + 1,
-          created_by: permissions.userId,
-        })
-        .select(ASSEMBLY_ITEM_SELECT_FIELDS)
-        .single();
+      const existingItem = assemblyItemForm.id
+        ? assemblyItems.items.find((item) => item.id === assemblyItemForm.id)
+        : null;
+      const query = assemblyItemForm.id
+        ? client
+          .from('assembly_items')
+          .update({
+            ...payload,
+            sort_order: payload.sort_order || existingItem?.sort_order || assemblyItems.items.length + 1,
+          })
+          .eq('id', assemblyItemForm.id)
+          .select(ASSEMBLY_ITEM_SELECT_FIELDS)
+          .single()
+        : client
+          .from('assembly_items')
+          .insert({
+            ...payload,
+            assembly_id: selectedAssemblyForItems.id,
+            division: selectedAssemblyForItems.division,
+            sort_order: payload.sort_order || assemblyItems.items.length + 1,
+            created_by: permissions.userId,
+          })
+          .select(ASSEMBLY_ITEM_SELECT_FIELDS)
+          .single();
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
       await writeEstimateChangeLog(client, {
         tableName: 'assembly_items',
-        action: 'create',
+        action: assemblyItemForm.id ? 'update' : 'create',
         recordId: data?.id,
-        beforeData: null,
+        beforeData: existingItem,
         afterData: data,
-        note: `${data?.description || 'Assembly item'} added to ${selectedAssemblyForItems.name}.`,
+        note: `${data?.description || 'Assembly item'} ${assemblyItemForm.id ? 'updated' : 'added'} in ${selectedAssemblyForItems.name}.`,
       });
 
       assemblyItems.reload();
@@ -2071,6 +2118,60 @@ export function EstimatesWorkspace({ permissions }) {
     } catch (error) {
       console.error('Assembly item save failed', error);
       setAssemblyItemForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleMasterMaterialPriceUpdate() {
+    if (!selectedAssemblyCatalogItem || materialPriceUpdate.isSaving) return;
+
+    const nextPrice = assemblyItemForm.unit_cost_snapshot === '' ? 0 : Number(assemblyItemForm.unit_cost_snapshot);
+    const nextLaborRate = assemblyItemForm.labor_rate_hrs_snapshot === '' ? 0 : Number(assemblyItemForm.labor_rate_hrs_snapshot);
+
+    if (!Number.isFinite(nextPrice) || nextPrice < 0) {
+      setMaterialPriceUpdate({ isSaving: false, error: new Error('Master material price must be zero or greater.'), success: '' });
+      return;
+    }
+    if (!Number.isFinite(nextLaborRate) || nextLaborRate < 0) {
+      setMaterialPriceUpdate({ isSaving: false, error: new Error('Master NECA labor hours must be zero or greater.'), success: '' });
+      return;
+    }
+
+    const reason = window.prompt(`Update master material pricing for "${selectedAssemblyCatalogItem.name}"? Enter a reason for the audit log.`);
+    if (!reason?.trim()) return;
+
+    setMaterialPriceUpdate({ isSaving: true, error: null, success: '' });
+
+    try {
+      const client = await getEstimateClient();
+      const beforeData = selectedAssemblyCatalogItem;
+      const { data, error } = await client
+        .from('items')
+        .update({
+          price_per_unit: nextPrice,
+          labor_rate_hrs: nextLaborRate,
+        })
+        .eq('id', selectedAssemblyCatalogItem.id)
+        .select(CATALOG_ITEM_SELECT_FIELDS)
+        .single();
+
+      if (error) throw error;
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'items',
+        action: 'update',
+        recordId: data?.id,
+        beforeData,
+        afterData: data,
+        note: `Master material pricing updated from assembly builder. Reason: ${reason.trim()}`,
+      });
+
+      catalogItems.reload();
+      estimateHistory.reload();
+      setMaterialPriceUpdate({ isSaving: false, error: null, success: `${data?.name || 'Material'} master pricing updated.` });
+      setAssemblyItemForm((current) => catalogItemToAssemblyItemForm(data, current));
+    } catch (error) {
+      console.error('Master material price update failed', error);
+      setMaterialPriceUpdate({ isSaving: false, error, success: '' });
     }
   }
 
@@ -2592,6 +2693,31 @@ export function EstimatesWorkspace({ permissions }) {
     },
   ];
 
+  const assemblyItemColumns = [
+    ...ASSEMBLY_ITEM_COLUMNS,
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => {
+        if (!canEstimate) return 'Read only';
+        return (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setSelectedAssemblyId(row.assembly_id);
+              setAssemblyItemForm(assemblyItemToForm(row));
+              setMaterialPriceUpdate(DEFAULT_MATERIAL_PRICE_UPDATE);
+            }}
+            disabled={assemblyItemForm.isSaving}
+          >
+            Edit
+          </button>
+        );
+      },
+    },
+  ];
+
   const uploadedDocumentCategoryKeys = new Set(estimateDocuments.documents.map((document) => document.document_type).filter(Boolean));
   const documentChecklistRows = JOB_DOCUMENT_CATEGORIES.map((category) => ({
     ...category,
@@ -2702,6 +2828,29 @@ export function EstimatesWorkspace({ permissions }) {
               <input type="text" value={assemblyItemForm.note} onChange={(event) => setAssemblyItemForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} disabled={assemblyItemForm.isSaving} />
             </label>
           </div>
+          {selectedAssemblyCatalogItem ? (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Master Catalog"
+              title={`${selectedAssemblyCatalogItem.name} is linked`}
+              description={`Current master values: ${formatMoney(selectedAssemblyCatalogItem.price_per_unit)} unit cost and ${formatNumber(selectedAssemblyCatalogItem.labor_rate_hrs)} NECA labor hrs. Saving this row updates the assembly snapshot. Update Master Price changes the shared material catalog and writes an audit entry.`}
+              compact
+            />
+          ) : (
+            <StatePanel
+              tone="neutral"
+              eyebrow="Manual Row"
+              title="This assembly item is not catalog-linked"
+              description="Manual rows stay inside the assembly library item and will not update master material pricing."
+              compact
+            />
+          )}
+          {materialPriceUpdate.error ? (
+            <StatePanel tone="danger" eyebrow="Master Price Failed" title="Master material pricing was not updated" description={materialPriceUpdate.error.message || 'Unexpected material price update error.'} compact />
+          ) : null}
+          {materialPriceUpdate.success ? (
+            <StatePanel tone="success" eyebrow="Master Price Updated" title="Master material pricing saved" description={materialPriceUpdate.success} compact />
+          ) : null}
           {assemblyItemForm.error ? (
             <StatePanel tone="danger" eyebrow="Assembly Item Failed" title="Assembly item was not saved" description={assemblyItemForm.error.message || 'Unexpected assembly item error.'} compact />
           ) : null}
@@ -2709,8 +2858,29 @@ export function EstimatesWorkspace({ permissions }) {
             <StatePanel tone="success" eyebrow="Saved" title="Assembly item saved" description={assemblyItemForm.success} compact />
           ) : null}
           <div className="job-financials-form__actions">
+            {assemblyItemForm.id ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setAssemblyItemForm({ ...DEFAULT_ASSEMBLY_ITEM_FORM, assembly_id: selectedAssemblyForItems?.id || '' });
+                  setMaterialPriceUpdate(DEFAULT_MATERIAL_PRICE_UPDATE);
+                }}
+                disabled={assemblyItemForm.isSaving}
+              >
+                Cancel Edit
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleMasterMaterialPriceUpdate}
+              disabled={!selectedAssemblyCatalogItem || assemblyItemForm.isSaving || materialPriceUpdate.isSaving}
+            >
+              {materialPriceUpdate.isSaving ? 'Updating...' : 'Update Master Price'}
+            </button>
             <button type="submit" className="primary-button" disabled={assemblyItemForm.isSaving || !assemblyItemForm.description.trim()}>
-              <Plus aria-hidden="true" /> {assemblyItemForm.isSaving ? 'Saving...' : 'Add Assembly Item'}
+              <Plus aria-hidden="true" /> {assemblyItemForm.isSaving ? 'Saving...' : assemblyItemForm.id ? 'Save Assembly Item' : 'Add Assembly Item'}
             </button>
           </div>
         </form>
@@ -2724,7 +2894,7 @@ export function EstimatesWorkspace({ permissions }) {
         />
       )}
       <DataTable
-        columns={ASSEMBLY_ITEM_COLUMNS}
+        columns={assemblyItemColumns}
         rows={assemblyItems.items}
         getRowKey={(row) => row.id}
         permissions={permissions}
@@ -3019,8 +3189,8 @@ export function EstimatesWorkspace({ permissions }) {
                               <input type="number" min="0.0001" step="0.0001" value={assemblyPricingForm.quantity} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, quantity: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
                             </label>
                             <label>
-                              <span>Unit Cost</span>
-                              <input type="number" min="0" step="0.01" value={assemblyPricingForm.unit_cost} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, unit_cost: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
+                              <span>Project Override Unit Cost</span>
+                              <input type="number" min="0" step="0.01" placeholder="Leave blank to use assembly items" value={assemblyPricingForm.unit_cost} onChange={(event) => setAssemblyPricingForm((current) => ({ ...current, unit_cost: event.target.value, error: null, success: '' }))} disabled={assemblyPricingForm.isSaving} />
                             </label>
                             <label>
                               <span>Markup %</span>
