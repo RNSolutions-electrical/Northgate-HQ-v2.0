@@ -1472,6 +1472,7 @@ export function EstimatesWorkspace({ permissions }) {
   const [selectedAssemblyId, setSelectedAssemblyId] = useState('');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
+  const [quotePackageAction, setQuotePackageAction] = useState({ id: '', action: '', error: null, success: '' });
   const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
@@ -1587,6 +1588,7 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
+    setQuotePackageAction({ id: '', action: '', error: null, success: '' });
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
@@ -1600,6 +1602,7 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
+    setQuotePackageAction({ id: '', action: '', error: null, success: '' });
     setMode('browse');
     setEstimateAction({ action: '', error: null, success: '' });
   }
@@ -1617,6 +1620,7 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
+    setQuotePackageAction({ id: '', action: '', error: null, success: '' });
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
@@ -1636,6 +1640,7 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
+    setQuotePackageAction({ id: '', action: '', error: null, success: '' });
     setEstimateAction({ action: '', error: null, success: '' });
   }
 
@@ -1650,6 +1655,7 @@ export function EstimatesWorkspace({ permissions }) {
     setSelectedAssemblyId('');
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentAction({ id: '', action: '', error: null });
+    setQuotePackageAction({ id: '', action: '', error: null, success: '' });
     setMode('edit');
     setEstimateAction({ action: '', error: null, success: '' });
   }
@@ -2240,6 +2246,100 @@ export function EstimatesWorkspace({ permissions }) {
     }
   }
 
+  async function handleQuotePackagePushToPricing(row) {
+    if (!selectedEstimate || !canEditSelectedEstimate || !row?.id || quotePackageAction.id) return;
+
+    if (row.pricing_line_id) {
+      setQuotePackageAction({
+        id: row.id,
+        action: '',
+        error: new Error('This quote/package is already linked to a pricing line.'),
+        success: '',
+      });
+      return;
+    }
+
+    const unitCost = Number(row.sell_price || row.quoted_cost || 0);
+    if (!Number.isFinite(unitCost) || unitCost < 0) {
+      setQuotePackageAction({
+        id: row.id,
+        action: '',
+        error: new Error('Quote/package sell price must be zero or greater before pushing to pricing.'),
+        success: '',
+      });
+      return;
+    }
+
+    setQuotePackageAction({ id: row.id, action: 'push', error: null, success: '' });
+
+    try {
+      const client = await getEstimateClient();
+      const pricingPayload = {
+        estimate_id: selectedEstimate.id,
+        division: selectedEstimate.division,
+        category: row.package_type === 'subcontract' ? 'subcontract' : 'material',
+        description: `${formatQuotePackageType(row.package_type)}: ${row.title}`,
+        quantity: 1,
+        unit: 'package',
+        unit_cost: unitCost,
+        markup_percent: 0,
+        sort_order: estimatePricing.lines.length + 1,
+        note: [
+          row.vendor_name ? `Vendor: ${row.vendor_name}` : '',
+          row.quote_number ? `Quote: ${row.quote_number}` : '',
+          row.note || '',
+        ].filter(Boolean).join(' | ') || null,
+        created_by: permissions.userId,
+      };
+
+      const { data: pricingLine, error: pricingError } = await client
+        .from('estimate_pricing_lines')
+        .insert(pricingPayload)
+        .select(ESTIMATE_PRICING_SELECT_FIELDS)
+        .single();
+
+      if (pricingError) throw pricingError;
+
+      const { data: updatedPackage, error: packageError } = await client
+        .from('estimate_quote_packages')
+        .update({
+          pricing_line_id: pricingLine.id,
+          status: row.status === 'included' ? row.status : 'included',
+        })
+        .eq('id', row.id)
+        .select(ESTIMATE_QUOTE_PACKAGE_SELECT_FIELDS)
+        .single();
+
+      if (packageError) throw packageError;
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'estimate_pricing_lines',
+        action: 'create',
+        recordId: pricingLine.id,
+        beforeData: null,
+        afterData: pricingLine,
+        note: `${row.title} quote/package pushed to pricing.`,
+      });
+
+      await writeEstimateChangeLog(client, {
+        tableName: 'estimate_quote_packages',
+        action: 'update',
+        recordId: row.id,
+        beforeData: row,
+        afterData: updatedPackage,
+        note: `${row.title} linked to pricing line.`,
+      });
+
+      estimatePricing.reload();
+      estimateQuotePackages.reload();
+      estimateHistory.reload();
+      setQuotePackageAction({ id: '', action: '', error: null, success: `${row.title} pushed to pricing.` });
+    } catch (error) {
+      console.error('Quote package push to pricing failed', error);
+      setQuotePackageAction({ id: row.id, action: '', error, success: '' });
+    }
+  }
+
   async function handleDocumentUpload(event) {
     event.preventDefault();
     if (!selectedEstimate || !canEditSelectedEstimate || uploadState.isUploading) return;
@@ -2460,6 +2560,33 @@ export function EstimatesWorkspace({ permissions }) {
               </button>
             ) : null}
           </div>
+        );
+      },
+    },
+  ];
+
+  const quotePackageColumns = [
+    ...ESTIMATE_QUOTE_PACKAGE_COLUMNS,
+    {
+      key: 'pricing_link',
+      header: 'Pricing',
+      render: (row) => (row.pricing_line_id ? 'Linked' : 'Not linked'),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row) => {
+        const isBusy = quotePackageAction.id === row.id && quotePackageAction.action === 'push';
+        if (!canEditSelectedEstimate) return 'Read only';
+        return (
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => handleQuotePackagePushToPricing(row)}
+            disabled={isBusy || Boolean(row.pricing_line_id)}
+          >
+            {row.pricing_line_id ? 'Linked' : isBusy ? 'Pushing...' : 'Push to Pricing'}
+          </button>
         );
       },
     },
@@ -3158,8 +3285,14 @@ export function EstimatesWorkspace({ permissions }) {
                         </div>
                       </form>
                     ) : null}
+                    {quotePackageAction.error ? (
+                      <StatePanel tone="danger" eyebrow="Quote Action Failed" title="Quote/package action did not complete" description={quotePackageAction.error.message || 'Unexpected quote/package action error.'} compact />
+                    ) : null}
+                    {quotePackageAction.success ? (
+                      <StatePanel tone="success" eyebrow="Saved" title="Quote/package action complete" description={quotePackageAction.success} compact />
+                    ) : null}
                     <DataTable
-                      columns={ESTIMATE_QUOTE_PACKAGE_COLUMNS}
+                      columns={quotePackageColumns}
                       rows={estimateQuotePackages.packages}
                       getRowKey={(row) => row.id}
                       permissions={permissions}
