@@ -10,5 +10,9 @@ const base = process.env.VITE_BASE_PATH
 export default defineConfig({
   plugins: [react()],
   base,
+  cacheDir: process.env.VITE_CACHE_DIR || 'node_modules/.vite',
+  server: {
+    allowedHosts: ['rnsolutions.net'],
+  },
   build: { outDir: 'dist', sourcemap: false },
 });

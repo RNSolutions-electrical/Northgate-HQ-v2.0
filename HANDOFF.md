@@ -19424,3 +19424,87 @@ assessment.
 2. Confirm Dashboard My Vehicles and Inventory cart-open reflect the expected
    active assignment after each action.
 3. Keep this milestone flagged HIGH RISK until that live review is complete.
+
+---
+
+## Entry 199 - Jobs Financials Cost and SOV Revenue Split
+
+**Date:** 2026-08-23
+**Updated by:** Codex
+**Phase:** Northgate HQ v3 Jobs Financials cleanup
+**Session type:** implementation
+**Risk classification:** MEDIUM - schema-backed financial UI refinement
+
+### Context
+Ryan reviewed the Jobs Financials tab and clarified that the cost table should
+track PM-facing budget/cost forecasts, while billing revenue should follow a
+Schedule of Values rather than pretending revised budget equals billable
+contract value.
+
+### What Was Completed
+- Renamed cost-control labels in the Financials tab:
+  - Original Estimate
+  - Actual Costs
+  - Committed Costs
+  - Monthly Forecast
+  - Final Forecast
+- Replaced the old forecasted-remainder presentation with:
+  - Remaining Budget = Revised Budget minus Actual Costs
+  - Forecasted Remaining Budget = Revised Budget minus Final Forecast
+- Added a separate Schedule of Values revenue section inside Financials.
+- Added SOV revenue line support for:
+  - SOV line
+  - description
+  - scheduled value
+  - approved changes
+  - revised contract value
+  - billed to date
+  - remaining to bill
+  - percent billed
+- Added project-level summary cards for revised contract, billed to date, and
+  projected gross profit/margin.
+- Added `job_revenue_lines` as a new persisted SOV/revenue table.
+- Reused existing financial gates:
+  - read: `can_view_financials`
+  - write: `can_approve_budget`
+- Kept revenue lines planning/billing visibility only; no invoice creation,
+  accounting post, payment collection, PO, or external accounting sync.
+- Added a Vite local-preview cache/host configuration so Dropbox-backed
+  workspaces can use an external cache and, when DNS is explicitly configured,
+  the production hostname can be used for local Clerk-compatible preview.
+
+### Production Migration
+- Local file:
+  `supabase/migrations/20260823101500_job_revenue_lines_foundation.sql`
+- Production migration:
+  `20260823162947_job_revenue_lines_foundation`
+- Project:
+  `keogysnoukbendfkfjcn`
+
+### Code / File Changes
+- `src/modules/jobs/JobsWorkspace.jsx`
+- `src/styles/base.css`
+- `vite.config.js`
+- `supabase/migrations/20260823101500_job_revenue_lines_foundation.sql`
+- `HANDOFF.md`
+
+### Verification
+- Production migration application succeeded.
+- Production `job_revenue_lines` columns were verified.
+- Production migration history includes `20260823162947`.
+- `npm run build` passed.
+- `git diff --check` passed.
+
+### What Codex Needs to Know
+- The new SOV section is deliberately separate from cost-code budget lines.
+- `Billed to Date` is revenue billed, not cash collected.
+- `Projected Gross Profit` uses Revised Contract Value minus Final Forecast.
+- Approved changes on SOV lines are manually entered for now; automatic
+  mapping from Change Orders to SOV lines remains a future design step.
+- Production already had `schedule_of_values_amount` on `job_budget_lines`
+  from migration `20260822201747`; this slice leaves that column alone and
+  adds separate revenue lines for billing progress.
+
+### Next Steps
+1. Ryan tests adding/editing SOV lines and confirms the revenue summary math.
+2. Decide later whether Change Orders should map directly to SOV lines.
