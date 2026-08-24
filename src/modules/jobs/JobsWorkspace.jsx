@@ -38,6 +38,7 @@ const DEFAULT_UPLOAD_STATE = Object.freeze({
   success: '',
 });
 const DEFAULT_JOB_FORM = Object.freeze({
+  division: '',
   job_number: '',
   name: '',
   status: 'active',
@@ -1698,6 +1699,7 @@ function jobToForm(job) {
 
   return {
     ...DEFAULT_JOB_FORM,
+    division: job.division || '',
     job_number: job.job_number || '',
     name: job.name || '',
     status: JOB_STATUS_OPTIONS.includes(job.status) ? job.status : 'active',
@@ -1966,6 +1968,7 @@ export function JobsWorkspace({ permissions }) {
     ?? null;
   const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => !template.division || template.division === selectedJob?.division);
   const canManageSelectedJob = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canManageJobs');
+  const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
@@ -2121,6 +2124,7 @@ export function JobsWorkspace({ permissions }) {
     const jobType = jobForm.job_type === 'service_call' ? 'service_call' : 'job';
 
     return {
+      division: jobForm.division || selectedJob?.division,
       job_number: jobForm.job_number.trim() || null,
       name: jobForm.name.trim(),
       status: JOB_STATUS_OPTIONS.includes(jobForm.status) ? jobForm.status : 'active',
@@ -4989,7 +4993,11 @@ export function JobsWorkspace({ permissions }) {
                     </label>
                     <label>
                       <span>Division</span>
-                      <input type="text" value={(mode === 'create' ? createJobDivision : selectedJob?.division) || 'No division'} disabled readOnly />
+                      {mode === 'edit' && canReassignJobDivision ? (
+                        <select value={jobForm.division} onChange={(event) => setJobForm((current) => ({ ...current, division: event.target.value, error: null, success: '' }))} disabled={jobForm.isSaving}>
+                          {['Construction', 'Electrical', 'Admin'].map((division) => <option key={division} value={division}>{division}</option>)}
+                        </select>
+                      ) : <input type="text" value={(mode === 'create' ? createJobDivision : selectedJob?.division) || 'No division'} disabled readOnly />}
                     </label>
                     <label>
                       <span>Status</span>
