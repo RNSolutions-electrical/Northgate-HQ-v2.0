@@ -87,6 +87,7 @@ export function DataTable({
   dense = false,
   minWidth = null,
   footNote = '',
+  rowClassName = null,
 }) {
   const permitted = visibleColumns(columns, permissions);
 
@@ -172,7 +173,7 @@ export function DataTable({
             return (
               <tr
                 key={rowKey}
-                className={`${isSelected ? 'data-table__row--selected' : ''}${
+                className={`${typeof rowClassName === 'function' ? rowClassName(row) : ''} ${isSelected ? 'data-table__row--selected' : ''}${
                   onRowClick ? ' data-table__row--clickable' : ''
                 }`.trim()}
                 aria-selected={selectedRowKey !== null ? isSelected : undefined}

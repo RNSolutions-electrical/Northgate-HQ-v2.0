@@ -3950,6 +3950,7 @@ export function JobsWorkspace({ permissions }) {
           />
         ) : null
       );
+      const financialValue = (value) => <span className={Number(value || 0) !== 0 ? 'job-financials-value--populated' : ''}>{formatMoney(value)}</span>;
       const updateInlineRevenueField = (field, value) => {
         setRevenueForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
       };
@@ -3989,10 +3990,10 @@ export function JobsWorkspace({ permissions }) {
           header: 'Description',
           render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
         },
-        { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || formatMoney(row.budget_amount), align: 'right' },
+        { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || financialValue(row.budget_amount), align: 'right' },
         { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), align: 'right' },
         { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
-        { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || formatMoney(row.actual_cost_amount), align: 'right' },
+        { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || financialValue(row.actual_cost_amount), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || formatMoney(row.committed_cost_amount), align: 'right' },
         { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => formatMoney(budgetLineRemaining(row)), align: 'right' },
         { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
@@ -4127,7 +4128,7 @@ export function JobsWorkspace({ permissions }) {
 
           {budgetGroups.map(([division, group]) => {
             const rows = group.rows;
-            const isCollapsed = collapsedBudgetDivisions[division] === true;
+            const isCollapsed = collapsedBudgetDivisions[division] !== false;
             const unassignedDivisionChangeOrders = group.projectDivisionId
               ? approvedChangeOrderCostByProjectDivisionId.get(group.projectDivisionId) || 0
               : 0;
@@ -4173,6 +4174,7 @@ export function JobsWorkspace({ permissions }) {
                   columns={budgetColumns}
                   rows={rows}
                   getRowKey={(row) => row.id}
+                  rowClassName={(row) => ['budget_amount','budget_change_amount','actual_cost_amount','committed_cost_amount','forecast_to_complete_amount','forecast_final_amount'].some((field) => Number(row[field] || 0) !== 0) ? 'job-financials-row--populated' : ''}
                   permissions={permissions}
                   isLoading={jobBudget.isLoading}
                   error={jobBudget.error}

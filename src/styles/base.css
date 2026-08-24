@@ -2442,6 +2442,10 @@ textarea {
   min-width: min(300px, 100%);
 }
 
+.data-table tbody tr.job-financials-row--populated > td {
+  background: color-mix(in srgb, var(--ng-accent) 8%, transparent);
+}
+
 .job-change-order-allocation__hint {
   color: var(--ng-muted);
   font-size: 0.76rem;
