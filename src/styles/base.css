@@ -2442,9 +2442,13 @@ textarea {
   min-width: min(300px, 100%);
 }
 
-.data-table tbody tr.job-financials-row--populated > td {
+.job-financials-value--populated {
+  display: inline-block;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.3rem;
   background: var(--ng-panel-bg-alt);
-  box-shadow: inset 3px 0 0 var(--ng-brand-red);
+  color: var(--ng-text);
+  font-weight: 700;
 }
 
 .job-change-order-allocation__hint {

@@ -3991,13 +3991,13 @@ export function JobsWorkspace({ permissions }) {
           render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
         },
         { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || financialValue(row.budget_amount), align: 'right' },
-        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || formatMoney((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), align: 'right' },
+        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || financialValue((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), align: 'right' },
         { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
         { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || financialValue(row.actual_cost_amount), align: 'right' },
-        { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || formatMoney(row.committed_cost_amount), align: 'right' },
+        { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || financialValue(row.committed_cost_amount), align: 'right' },
         { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => formatMoney(budgetLineRemaining(row)), align: 'right' },
-        { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || formatMoney(row.forecast_to_complete_amount), align: 'right' },
-        { key: 'forecast_final', header: 'Final Forecast', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Final forecast') || formatMoney(forecastFinal(row)), align: 'right' },
+        { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || financialValue(row.forecast_to_complete_amount), align: 'right' },
+        { key: 'forecast_final', header: 'Final Forecast', render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Final forecast') || financialValue(forecastFinal(row)), align: 'right' },
         { key: 'forecasted_remaining_budget', header: 'Forecasted Remaining Budget', render: (row) => formatMoney(budgetLineForecastedRemaining(row)), align: 'right' },
         {
           key: 'note',
@@ -4174,7 +4174,6 @@ export function JobsWorkspace({ permissions }) {
                   columns={budgetColumns}
                   rows={rows}
                   getRowKey={(row) => row.id}
-                  rowClassName={(row) => ['budget_amount','budget_change_amount','actual_cost_amount','committed_cost_amount','forecast_to_complete_amount','forecast_final_amount'].some((field) => Number(row[field] || 0) !== 0) ? 'job-financials-row--populated' : ''}
                   permissions={permissions}
                   isLoading={jobBudget.isLoading}
                   error={jobBudget.error}
