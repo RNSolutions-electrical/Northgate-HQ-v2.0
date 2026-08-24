@@ -2443,7 +2443,8 @@ textarea {
 }
 
 .data-table tbody tr.job-financials-row--populated > td {
-  background: color-mix(in srgb, var(--ng-accent) 8%, transparent);
+  background: var(--ng-panel-bg-alt);
+  box-shadow: inset 3px 0 0 var(--ng-brand-red);
 }
 
 .job-change-order-allocation__hint {
