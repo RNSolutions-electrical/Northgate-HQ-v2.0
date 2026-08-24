@@ -118,6 +118,8 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
 });
 const DEFAULT_BUDGET_IMPORT = Object.freeze({
   file: null,
+  mode: 'actual',
+  includedDivisions: [],
   isImporting: false,
   error: null,
   success: '',
@@ -883,6 +885,14 @@ function actualsByCostCodeFromReport(text) {
   if (actualsByCode) return actualsByCode;
 
   throw new Error('The cost report needs cost-code rows and actual-cost values.');
+}
+
+function estimatedCostsByCostCodeFromReport(text) {
+  const values = new Map();
+  const pattern = /^(\d{1,3}(?:\.\d+)*)\s+.+?\s+(-?\(?\$?[\d,]+\.\d{2}\)?)/;
+  String(text || '').split(/\r?\n/).forEach((line) => { const match = line.trim().match(pattern); if (match && !/^total\b/i.test(line.trim())) values.set(normalizeCostCode(match[1]), parseMoneyValue(match[2])); });
+  if (!values.size) throw new Error('The cost report needs cost-code rows with Est. Cost values.');
+  return values;
 }
 
 function normalizeBudgetCategoryInput(value) {
@@ -3083,7 +3093,9 @@ export function JobsWorkspace({ permissions }) {
 
     try {
       const reportText = await extractImportTextFromFile(budgetImport.file);
-      const actualsByCode = actualsByCostCodeFromReport(reportText);
+      const actualsByCode = budgetImport.mode === 'estimate'
+        ? estimatedCostsByCostCodeFromReport(reportText)
+        : actualsByCostCodeFromReport(reportText);
       const linesByCostCode = jobBudget.lines.reduce((map, line) => {
         const code = normalizeCostCode(line.cost_code);
         if (!code) return map;
@@ -3096,11 +3108,14 @@ export function JobsWorkspace({ permissions }) {
       let matchedCount = 0;
 
       actualsByCode.forEach((actualCostAmount, costCode) => {
+        const divisionCode = String(costCode).match(/^\d{2}/)?.[0];
+        if (budgetImport.mode === 'estimate' && budgetImport.includedDivisions.length && !budgetImport.includedDivisions.includes(divisionCode)) return;
         const matchingLines = linesByCostCode.get(costCode) || [];
         if (!matchingLines.length) return;
         matchedCount += matchingLines.length;
         matchingLines.forEach((line) => {
-          if (Number(line.actual_cost_amount || 0).toFixed(2) !== Number(actualCostAmount || 0).toFixed(2)) {
+          const currentValue = budgetImport.mode === 'estimate' ? line.budget_amount : line.actual_cost_amount;
+          if (Number(currentValue || 0).toFixed(2) !== Number(actualCostAmount || 0).toFixed(2)) {
             updates.push({ line, actualCostAmount });
           }
         });
@@ -3125,7 +3140,7 @@ export function JobsWorkspace({ permissions }) {
         const { line, actualCostAmount } = update;
         const { data, error } = await client
           .from('job_budget_lines')
-          .update({ actual_cost_amount: actualCostAmount })
+          .update(budgetImport.mode === 'estimate' ? { budget_amount: actualCostAmount } : { actual_cost_amount: actualCostAmount })
           .eq('id', line.id)
           .eq('job_id', selectedJob.id)
           .select(JOB_BUDGET_SELECT_FIELDS)
@@ -3138,7 +3153,7 @@ export function JobsWorkspace({ permissions }) {
           recordId: data?.id || line.id,
           beforeData: budgetAuditSnapshot(line),
           afterData: budgetAuditSnapshot(data),
-          note: `Actual cost imported from ${budgetImport.file.name}.`,
+          note: `${budgetImport.mode === 'estimate' ? 'Estimated cost' : 'Actual cost'} imported from ${budgetImport.file.name}.`,
         });
       }
 
@@ -4275,6 +4290,7 @@ export function JobsWorkspace({ permissions }) {
                   description="Matches report cost codes to this job and updates Actual Costs only."
                 />
                 <div className="job-financials-form__grid">
+                  <label><span>Import type</span><select value={budgetImport.mode} onChange={(event) => setBudgetImport((current) => ({ ...current, mode: event.target.value }))}><option value="actual">Actual Cost</option><option value="estimate">Estimated Cost</option></select></label>
                   <label className="job-financials-form__wide">
                     <span>Cost report</span>
                     <input
@@ -4285,6 +4301,7 @@ export function JobsWorkspace({ permissions }) {
                       disabled={budgetImport.isImporting}
                     />
                   </label>
+                  {budgetImport.mode === 'estimate' ? <label className="job-financials-form__wide"><span>Project divisions (leave blank for all)</span><input placeholder="e.g. 01, 06, 16" onChange={(event) => setBudgetImport((current) => ({ ...current, includedDivisions: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) }))} /></label> : null}
                 </div>
                 {budgetImport.error ? (
                   <StatePanel tone="danger" eyebrow="Import Failed" title="Cost report was not imported" description={budgetImport.error.message || 'Unexpected financial import error.'} compact />
@@ -4294,7 +4311,7 @@ export function JobsWorkspace({ permissions }) {
                 ) : null}
                 <div className="job-financials-form__actions">
                   <button type="submit" className="secondary-button" disabled={budgetImport.isImporting || !budgetImport.file || jobBudget.isLoading}>
-                    {budgetImport.isImporting ? 'Importing...' : 'Update Actuals'}
+                    {budgetImport.isImporting ? 'Importing...' : budgetImport.mode === 'estimate' ? 'Update Estimated Costs' : 'Update Actuals'}
                   </button>
                 </div>
               </form> : null}
