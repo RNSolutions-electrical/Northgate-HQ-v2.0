@@ -1954,7 +1954,6 @@ export function JobsWorkspace({ permissions }) {
   const canCreateJobs = permissions?.canCreateJobs === true;
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
-  const createJobDivision = permissions?.division || '';
 
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
@@ -2104,7 +2103,7 @@ export function JobsWorkspace({ permissions }) {
 
   function startJobCreate() {
     setMode('create');
-    setJobForm(DEFAULT_JOB_FORM);
+    setJobForm({ ...DEFAULT_JOB_FORM, division: permissions?.division || 'Construction' });
     setJobAction({ action: '', error: null, success: '' });
   }
 
@@ -2165,8 +2164,8 @@ export function JobsWorkspace({ permissions }) {
       return;
     }
 
-    if (!createJobDivision) {
-      setJobForm((current) => ({ ...current, error: new Error('Your session does not include a division, so job creation is blocked.') }));
+    if (!['Construction', 'Electrical', 'Admin'].includes(jobForm.division)) {
+      setJobForm((current) => ({ ...current, error: new Error('Select a division before creating the job.') }));
       return;
     }
 
@@ -2178,7 +2177,6 @@ export function JobsWorkspace({ permissions }) {
       const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
       const payload = {
         ...buildJobPayload(),
-        division: createJobDivision,
         created_by: createdBy,
       };
 
@@ -5114,11 +5112,15 @@ export function JobsWorkspace({ permissions }) {
                     </label>
                     <label>
                       <span>Division</span>
-                      {mode === 'edit' && canReassignJobDivision ? (
+                      {mode === 'create' ? (
                         <select value={jobForm.division} onChange={(event) => setJobForm((current) => ({ ...current, division: event.target.value, error: null, success: '' }))} disabled={jobForm.isSaving}>
                           {['Construction', 'Electrical', 'Admin'].map((division) => <option key={division} value={division}>{division}</option>)}
                         </select>
-                      ) : <input type="text" value={(mode === 'create' ? createJobDivision : selectedJob?.division) || 'No division'} disabled readOnly />}
+                      ) : mode === 'edit' && canReassignJobDivision ? (
+                        <select value={jobForm.division} onChange={(event) => setJobForm((current) => ({ ...current, division: event.target.value, error: null, success: '' }))} disabled={jobForm.isSaving}>
+                          {['Construction', 'Electrical', 'Admin'].map((division) => <option key={division} value={division}>{division}</option>)}
+                        </select>
+                      ) : <input type="text" value={selectedJob?.division || 'No division'} disabled readOnly />}
                     </label>
                     <label>
                       <span>Status</span>
@@ -5231,7 +5233,7 @@ export function JobsWorkspace({ permissions }) {
                     <button
                       type="submit"
                       className="primary-button"
-                      disabled={jobForm.isSaving || !jobForm.name.trim() || (mode === 'create' && !createJobDivision)}
+                      disabled={jobForm.isSaving || !jobForm.name.trim() || (mode === 'create' && !['Construction', 'Electrical', 'Admin'].includes(jobForm.division))}
                     >
                       <Plus aria-hidden="true" /> {jobForm.isSaving ? 'Saving...' : mode === 'create' ? 'Create Job' : 'Save Job'}
                     </button>
