@@ -1204,9 +1204,90 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.vehicle-create-form {
+  max-width: 980px;
+}
+
+.vehicle-create-form__hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.vehicle-create-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.vehicle-create-form__grid label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--ink-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.vehicle-create-form__grid label > span {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.vehicle-create-form__grid b {
+  color: var(--accent-red);
+}
+
+.vehicle-create-form__grid input:not([type='checkbox']),
+.vehicle-create-form__grid select,
+.vehicle-create-form__grid textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.55rem;
+}
+
+.vehicle-create-form__grid textarea {
+  resize: vertical;
+  padding-top: 0.65rem;
+}
+
+.vehicle-create-form__stock {
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.4rem;
+  background: var(--surface-muted);
+}
+
+.vehicle-create-form__stock input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.1rem 0 0;
+}
+
+.vehicle-create-form__stock span {
+  display: grid !important;
+  gap: 0.15rem !important;
+  align-items: start !important;
+}
+
+.vehicle-create-form__stock small {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.vehicle-create-form__wide {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 640px) {
   .employee-profile-form__grid { grid-template-columns: 1fr; }
   .employee-profile-form__wide { grid-column: auto; }
+  .vehicle-create-form__grid { grid-template-columns: 1fr; }
+  .vehicle-create-form__wide { grid-column: auto; }
 }
 .state-panel-stack { display: grid; gap: var(--card-gap); }
 .module-sidebar-note { display: grid; gap: 0.25rem; color: var(--ng-muted); font-size: var(--table-font-size); }

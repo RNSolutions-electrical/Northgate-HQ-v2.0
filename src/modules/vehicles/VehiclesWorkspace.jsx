@@ -177,6 +177,7 @@ export function VehiclesWorkspace({ permissions }) {
   const [assignmentForm, setAssignmentForm] = useState(DEFAULT_ASSIGNMENT_FORM);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [vehicleForm, setVehicleForm] = useState(DEFAULT_VEHICLE_FORM);
+  const [vehicleNotice, setVehicleNotice] = useState('');
 
   const assignments = vehicleState.assignments;
   const currentAssignmentMap = useMemo(() => {
@@ -262,7 +263,9 @@ export function VehiclesWorkspace({ permissions }) {
         p_reason: vehicleForm.reason,
       });
       if (error) throw error;
-      setVehicleForm({ ...DEFAULT_VEHICLE_FORM, success: 'Vehicle saved to the fleet.' });
+      setVehicleForm(DEFAULT_VEHICLE_FORM);
+      setVehicleNotice('Vehicle saved to the fleet and is ready to be assigned.');
+      setIsCreateOpen(false);
       vehicleState.reload();
     } catch (error) {
       console.error('Vehicle create failed', error);
@@ -331,7 +334,7 @@ export function VehiclesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={vehicleState.reload} disabled={vehicleState.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={() => setIsCreateOpen(true)} disabled={!canReadVehicles}>
+            <button type="button" className="primary-button" onClick={() => { setVehicleNotice(''); setIsCreateOpen(true); }} disabled={!canReadVehicles}>
               <Plus aria-hidden="true" /> Add vehicle
             </button>
           </>
@@ -339,21 +342,23 @@ export function VehiclesWorkspace({ permissions }) {
       />
 
       {isCreateOpen ? (
-        <form className="card workspace-card" onSubmit={createVehicle}>
+        <form className="card workspace-card vehicle-create-form" onSubmit={createVehicle}>
           <Toolbar eyebrow="Fleet Setup" title="Add vehicle" description="Add a vehicle to the internal fleet. A required reason records this change in the audit history." />
-          <div className="module-form-grid">
-            <label>Unit number<input value={vehicleForm.vehicleNumber} onChange={(event) => setVehicleField('vehicleNumber', event.target.value)} disabled={vehicleForm.isSaving} /></label>
-            <label>Vehicle name<input value={vehicleForm.name} onChange={(event) => setVehicleField('name', event.target.value)} disabled={vehicleForm.isSaving} placeholder="Required if no unit number" /></label>
-            <label>Classification<select value={vehicleForm.classification} onChange={(event) => setVehicleField('classification', event.target.value)} disabled={vehicleForm.isSaving}><option>Residential</option><option>Commercial</option><option>Service</option><option>Other</option></select></label>
-            <label className="checkbox-label"><input type="checkbox" checked={vehicleForm.holdsStock} onChange={(event) => setVehicleField('holdsStock', event.target.checked)} disabled={vehicleForm.isSaving} /> Holds inventory stock</label>
-            <label>Reason for adding this vehicle<input value={vehicleForm.reason} onChange={(event) => setVehicleField('reason', event.target.value)} disabled={vehicleForm.isSaving} required /></label>
-            <label>Description<input value={vehicleForm.description} onChange={(event) => setVehicleField('description', event.target.value)} disabled={vehicleForm.isSaving} /></label>
+          <p className="vehicle-create-form__hint"><strong>Enter a unit number or vehicle name.</strong> The audit reason is required before the vehicle can be added.</p>
+          <div className="vehicle-create-form__grid">
+            <label><span>Unit number</span><input value={vehicleForm.vehicleNumber} onChange={(event) => setVehicleField('vehicleNumber', event.target.value)} disabled={vehicleForm.isSaving} placeholder="e.g., E-14" autoFocus /></label>
+            <label><span>Vehicle name</span><input value={vehicleForm.name} onChange={(event) => setVehicleField('name', event.target.value)} disabled={vehicleForm.isSaving} placeholder="Required if no unit number" /></label>
+            <label><span>Classification</span><select value={vehicleForm.classification} onChange={(event) => setVehicleField('classification', event.target.value)} disabled={vehicleForm.isSaving}><option>Residential</option><option>Commercial</option><option>Service</option><option>Other</option></select></label>
+            <label className="vehicle-create-form__stock"><input type="checkbox" checked={vehicleForm.holdsStock} onChange={(event) => setVehicleField('holdsStock', event.target.checked)} disabled={vehicleForm.isSaving} /><span><strong>Holds inventory stock</strong><small>Enable only for a vehicle that can receive stock.</small></span></label>
+            <label className="vehicle-create-form__wide"><span>Reason for adding this vehicle <b aria-hidden="true">*</b></span><input value={vehicleForm.reason} onChange={(event) => setVehicleField('reason', event.target.value)} disabled={vehicleForm.isSaving} placeholder="e.g., Added to electrical service fleet" required /></label>
+            <label className="vehicle-create-form__wide"><span>Description</span><textarea value={vehicleForm.description} onChange={(event) => setVehicleField('description', event.target.value)} disabled={vehicleForm.isSaving} rows="3" placeholder="Optional fleet notes" /></label>
           </div>
           <div className="record-actions"><button type="submit" className="primary-button" disabled={vehicleForm.isSaving}>{vehicleForm.isSaving ? 'Saving…' : 'Save vehicle'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setVehicleForm(DEFAULT_VEHICLE_FORM); }} disabled={vehicleForm.isSaving}>Cancel</button></div>
           {vehicleForm.error ? <StatePanel tone="danger" eyebrow="Create Failed" title="Vehicle was not saved" description={vehicleForm.error.message || 'Unexpected vehicle error.'} compact /> : null}
-          {vehicleForm.success ? <StatePanel tone="success" eyebrow="Vehicle Saved" title={vehicleForm.success} description="The vehicle will now be available for assignment." compact /> : null}
         </form>
       ) : null}
+
+      {vehicleNotice ? <StatePanel tone="success" eyebrow="Vehicle Saved" title="Ready for assignment" description={vehicleNotice} compact /> : null}
 
       <div className="summary-grid">
         <SummaryCard label="Visible vehicles" value={vehicles.length} detail={vehicleState.isLoading ? 'Loading references' : 'Destination reference rows'} />
