@@ -36,6 +36,14 @@ const DEFAULT_UPLOAD_STATE = Object.freeze({
   error: null,
   success: '',
 });
+const DEFAULT_BUYOUT_QUOTE_UPLOAD = Object.freeze({
+  buyoutLine: null,
+  file: null,
+  note: '',
+  isUploading: false,
+  error: null,
+  success: '',
+});
 const DEFAULT_JOB_FORM = Object.freeze({
   division: '',
   sub_divisions: [],
@@ -1948,6 +1956,7 @@ export function JobsWorkspace({ permissions }) {
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
+  const [buyoutQuoteUpload, setBuyoutQuoteUpload] = useState(DEFAULT_BUYOUT_QUOTE_UPLOAD);
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
   const [budgetEditFocusField, setBudgetEditFocusField] = useState('');
@@ -2003,7 +2012,7 @@ export function JobsWorkspace({ permissions }) {
   const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
-    enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['documents', 'buyout'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobBuyout = useJobBuyoutLines({
@@ -2098,6 +2107,7 @@ export function JobsWorkspace({ permissions }) {
     setJobAction({ action: '', error: null, success: '' });
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
+    setBuyoutQuoteUpload(DEFAULT_BUYOUT_QUOTE_UPLOAD);
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setIsAddingBudgetLine(false);
     setIsBudgetImportOpen(false);
@@ -2508,6 +2518,83 @@ export function JobsWorkspace({ permissions }) {
 
   function resetBuyoutForm() {
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
+  }
+
+  function startBuyoutQuoteUpload(line) {
+    if (!line?.id || !canManageSelectedJob) return;
+    setBuyoutQuoteUpload({
+      ...DEFAULT_BUYOUT_QUOTE_UPLOAD,
+      buyoutLine: line,
+    });
+  }
+
+  function cancelBuyoutQuoteUpload() {
+    if (buyoutQuoteUpload.isUploading) return;
+    setBuyoutQuoteUpload(DEFAULT_BUYOUT_QUOTE_UPLOAD);
+  }
+
+  async function handleBuyoutQuoteUpload(event) {
+    event.preventDefault();
+
+    const { buyoutLine, file, note, isUploading } = buyoutQuoteUpload;
+    if (!selectedJob || !buyoutLine?.id || !file || !canManageSelectedJob || isUploading) return;
+
+    const documentId = crypto.randomUUID();
+    const storagePath = `documents/job/${selectedJob.id}/${documentId}/${sanitizeDocumentFileName(file.name)}`;
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    const description = [`Buyout quote: ${buyoutLine.item_description || 'Untitled buyout item'}`, note.trim()]
+      .filter(Boolean)
+      .join(' — ');
+
+    setBuyoutQuoteUpload((current) => ({ ...current, isUploading: true, error: null, success: '' }));
+
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error: insertError } = await client
+        .from('documents')
+        .insert({
+          id: documentId,
+          division: selectedJob.division,
+          owner_type: 'job',
+          owner_id: selectedJob.id,
+          storage_path: storagePath,
+          document_type: 'quotes',
+          file_name: file.name,
+          description,
+          file_size_bytes: file.size,
+          mime_type: file.type || null,
+          created_by: createdBy,
+        });
+      if (insertError) throw insertError;
+
+      const { error: uploadError } = await client.storage
+        .from(DOCUMENT_BUCKET)
+        .upload(storagePath, file, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: false,
+        });
+      if (uploadError) {
+        await client
+          .from('documents')
+          .update({
+            archived_at: new Date().toISOString(),
+            archived_by: createdBy,
+            archive_reason: `Quote upload failed: ${uploadError.message}`,
+          })
+          .eq('id', documentId);
+        throw uploadError;
+      }
+
+      setBuyoutQuoteUpload({
+        ...DEFAULT_BUYOUT_QUOTE_UPLOAD,
+        success: `${file.name} was added to Documents as a quote for ${buyoutLine.item_description || 'this buyout item'}.`,
+      });
+      jobDocuments.reload();
+    } catch (error) {
+      console.error('Buyout quote upload failed', error);
+      setBuyoutQuoteUpload((current) => ({ ...current, isUploading: false, error, success: '' }));
+    }
   }
 
   async function handleBuyoutSave(event) {
@@ -3686,6 +3773,9 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button" onClick={() => startBuyoutEdit(row)} disabled={isBusy || buyoutForm.isSaving}>
                   Edit
                 </button>
+                <button type="button" className="secondary-button" onClick={() => startBuyoutQuoteUpload(row)} disabled={isBusy || buyoutQuoteUpload.isUploading}>
+                  Attach Quote
+                </button>
                 {BUYOUT_STATUS_OPTIONS.map((status) => (
                   <button
                     key={status}
@@ -3728,6 +3818,52 @@ export function JobsWorkspace({ permissions }) {
               description={buyoutAction.error.message || 'Unexpected buyout update error.'}
               compact
             />
+          ) : null}
+
+          {buyoutQuoteUpload.buyoutLine ? (
+            <form className="job-buyout-form" onSubmit={handleBuyoutQuoteUpload}>
+              <Toolbar
+                eyebrow="Quote"
+                title={`Attach quote — ${buyoutQuoteUpload.buyoutLine.item_description || 'Buyout item'}`}
+                description="The quote will be saved in this job's Documents tab."
+                actions={(
+                  <button type="button" className="secondary-button" onClick={cancelBuyoutQuoteUpload} disabled={buyoutQuoteUpload.isUploading}>
+                    Cancel
+                  </button>
+                )}
+              />
+              <div className="job-buyout-form__grid">
+                <label className="job-buyout-form__wide">
+                  <span>Quote file</span>
+                  <input
+                    type="file"
+                    onChange={(event) => setBuyoutQuoteUpload((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
+                    disabled={buyoutQuoteUpload.isUploading}
+                  />
+                </label>
+                <label className="job-buyout-form__wide">
+                  <span>Note</span>
+                  <input
+                    type="text"
+                    value={buyoutQuoteUpload.note}
+                    onChange={(event) => setBuyoutQuoteUpload((current) => ({ ...current, note: event.target.value, error: null, success: '' }))}
+                    placeholder="Optional vendor or pricing note"
+                    disabled={buyoutQuoteUpload.isUploading}
+                  />
+                </label>
+              </div>
+              {buyoutQuoteUpload.error ? (
+                <StatePanel tone="danger" eyebrow="Quote Upload Failed" title="Quote was not uploaded" description={buyoutQuoteUpload.error.message || 'Unexpected quote upload error.'} compact />
+              ) : null}
+              <div className="job-buyout-form__actions">
+                <button type="submit" className="primary-button" disabled={buyoutQuoteUpload.isUploading || !buyoutQuoteUpload.file}>
+                  <Plus aria-hidden="true" /> {buyoutQuoteUpload.isUploading ? 'Uploading...' : 'Upload Quote'}
+                </button>
+              </div>
+            </form>
+          ) : null}
+          {buyoutQuoteUpload.success ? (
+            <StatePanel tone="success" eyebrow="Quote Added" title="Quote saved to Documents" description={buyoutQuoteUpload.success} compact />
           ) : null}
 
           {canManageSelectedJob ? (
