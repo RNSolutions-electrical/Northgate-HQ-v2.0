@@ -3935,15 +3935,18 @@ export function JobsWorkspace({ permissions }) {
       const budgetLineRemaining = (row) => budgetLineRevisedBudget(row) - (Number(row.actual_cost_amount) || 0);
       const budgetLineForecastedRemaining = (row) => budgetLineRevisedBudget(row) - forecastFinal(row);
       const updateInlineBudgetField = (field, value) => {
-        setBudgetForm((current) => ({
-          ...current,
-          [field]: value,
-          forecast_final_amount: field === 'budget_amount' && current.forecast_final_amount === ''
-            ? value
-            : current.forecast_final_amount,
-          error: null,
-          success: '',
-        }));
+        setBudgetForm((current) => {
+          const next = {
+            ...current,
+            [field]: value,
+            error: null,
+            success: '',
+          };
+          if (field === 'budget_amount' && current.forecast_final_amount === '') {
+            next.forecast_final_amount = value;
+          }
+          return next;
+        });
       };
       const isEditingBudgetRow = (row) => budgetForm.id === row.id
         || (isAddingBudgetLine && row.id === '__new_budget_line__');
