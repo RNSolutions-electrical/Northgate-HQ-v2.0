@@ -1972,8 +1972,6 @@ export function JobsWorkspace({ permissions }) {
   const canCreateJobs = permissions?.canCreateJobs === true;
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
-  const isDirectoryMode = !selectedJob && mode === 'browse';
-  const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit';
 
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
@@ -1999,6 +1997,8 @@ export function JobsWorkspace({ permissions }) {
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
+  const isDirectoryMode = !selectedJob && mode === 'browse';
+  const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit';
   const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => !template.division || template.division === selectedJob?.division);
   const canManageSelectedJob = canEditJobWithPermission(permissions, selectedJob, 'canManageJobs');
   const canReassignJobDivision = permissions?.role === 'Developer';
