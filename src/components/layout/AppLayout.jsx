@@ -1,4 +1,4 @@
-import { UserButton } from '@clerk/clerk-react';
+import { UserButton, useClerk } from '@clerk/clerk-react';
 import { useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
@@ -14,6 +14,7 @@ import { StatePanel } from '../ui/StatePanel.jsx';
  * the array — never rendered disabled. See 04_PRESENTATION_CONTRACT.md §4.
  */
 export function AppLayout() {
+  const { signOut } = useClerk();
   const permissions = usePermissions();
   const [highlightIncomplete] = useIncompleteHighlightPreference();
   const { highlightDevelopment, hideDevelopment } = useDevelopmentDisplayPreferences();
@@ -79,7 +80,14 @@ export function AppLayout() {
         role: permissions.role,
         division: permissions.division ?? 'No division',
       }}
-      profileControl={<UserButton afterSignOutUrl="/" />}
+      profileControl={(
+        <>
+          <button type="button" className="secondary-button" onClick={() => signOut({ redirectUrl: '/' })}>
+            Sign out
+          </button>
+          <UserButton afterSignOutUrl="/" />
+        </>
+      )}
     >
       <Outlet />
     </AppShell>
