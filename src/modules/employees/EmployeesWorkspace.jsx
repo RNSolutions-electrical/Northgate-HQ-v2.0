@@ -145,6 +145,7 @@ export function EmployeesWorkspace({ permissions }) {
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [employeeForm, setEmployeeForm] = useState(DEFAULT_EMPLOYEE_FORM);
+  const [employeeNotice, setEmployeeNotice] = useState('');
 
   const assignments = directory.assignments;
   const currentAssignmentMap = useMemo(() => {
@@ -230,7 +231,9 @@ export function EmployeesWorkspace({ permissions }) {
         p_reason: employeeForm.reason,
       });
       if (error) throw error;
-      setEmployeeForm({ ...DEFAULT_EMPLOYEE_FORM, success: 'Employee profile saved. It will link automatically when this email first signs in through Clerk.' });
+      setEmployeeForm(DEFAULT_EMPLOYEE_FORM);
+      setEmployeeNotice('Employee profile saved. It will connect automatically when this email first signs in through Clerk.');
+      setIsCreateOpen(false);
       directory.reload();
     } catch (error) {
       console.error('Employee profile save failed', error);
@@ -253,7 +256,7 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={() => setIsCreateOpen(true)} disabled={!canReadEmployees}>
+            <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
               <Plus aria-hidden="true" /> Create employee
             </button>
           </>
@@ -261,23 +264,25 @@ export function EmployeesWorkspace({ permissions }) {
       />
 
       {isCreateOpen ? (
-        <form className="card workspace-card" onSubmit={createEmployee}>
-          <Toolbar eyebrow="Employee Setup" title="Create employee profile" description="Create the internal profile first. It will connect to the Clerk account automatically when the employee signs in with this email address." />
-          <div className="module-form-grid">
-            <label>Name<input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} required /></label>
-            <label>Email<input type="email" value={employeeForm.email} onChange={(event) => setEmployeeField('email', event.target.value)} disabled={employeeForm.isSaving} required /></label>
-            <label>Role<select value={employeeForm.role} onChange={(event) => setEmployeeField('role', event.target.value)} disabled={employeeForm.isSaving}><option>User</option><option>Supervisor</option><option>Manager</option><option>Developer</option></select></label>
-            <label>Division<select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
-            <label>Job title<input value={employeeForm.jobTitle} onChange={(event) => setEmployeeField('jobTitle', event.target.value)} disabled={employeeForm.isSaving} /></label>
-            <label>Phone<input type="tel" value={employeeForm.phone} onChange={(event) => setEmployeeField('phone', event.target.value)} disabled={employeeForm.isSaving} /></label>
-            <label>Reason for this profile<input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} required /></label>
-            <label>Notes<input value={employeeForm.notes} onChange={(event) => setEmployeeField('notes', event.target.value)} disabled={employeeForm.isSaving} /></label>
+        <form className="card workspace-card employee-profile-form" onSubmit={createEmployee}>
+          <Toolbar eyebrow="Employee Setup" title="Create employee profile" description="Set up the internal profile first. It will connect to Clerk automatically when the employee signs in with this exact email address." />
+          <p className="employee-profile-form__hint"><strong>Required fields</strong> are marked with an asterisk. The reason is saved to the audit log.</p>
+          <div className="employee-profile-form__grid">
+            <label><span>Full name <b aria-hidden="true">*</b></span><input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} autoComplete="name" required /></label>
+            <label><span>Work email <b aria-hidden="true">*</b></span><input type="email" value={employeeForm.email} onChange={(event) => setEmployeeField('email', event.target.value)} disabled={employeeForm.isSaving} autoComplete="email" required /></label>
+            <label><span>Role</span><select value={employeeForm.role} onChange={(event) => setEmployeeField('role', event.target.value)} disabled={employeeForm.isSaving}><option>User</option><option>Supervisor</option><option>Manager</option><option>Developer</option></select></label>
+            <label><span>Primary division</span><select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
+            <label><span>Job title</span><input value={employeeForm.jobTitle} onChange={(event) => setEmployeeField('jobTitle', event.target.value)} disabled={employeeForm.isSaving} /></label>
+            <label><span>Phone</span><input type="tel" value={employeeForm.phone} onChange={(event) => setEmployeeField('phone', event.target.value)} disabled={employeeForm.isSaving} autoComplete="tel" /></label>
+            <label className="employee-profile-form__wide"><span>Reason for creating this profile <b aria-hidden="true">*</b></span><input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} placeholder="e.g., New electrical field employee" required /></label>
+            <label className="employee-profile-form__wide"><span>Notes</span><textarea value={employeeForm.notes} onChange={(event) => setEmployeeField('notes', event.target.value)} disabled={employeeForm.isSaving} rows="3" /></label>
           </div>
           <div className="record-actions"><button type="submit" className="primary-button" disabled={employeeForm.isSaving}>{employeeForm.isSaving ? 'Saving…' : 'Save employee profile'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); }} disabled={employeeForm.isSaving}>Cancel</button></div>
           {employeeForm.error ? <StatePanel tone="danger" eyebrow="Create Failed" title="Employee profile was not saved" description={employeeForm.error.message || 'Unexpected employee profile error.'} compact /> : null}
-          {employeeForm.success ? <StatePanel tone="success" eyebrow="Profile Saved" title="Ready for Clerk sign-in" description={employeeForm.success} compact /> : null}
         </form>
       ) : null}
+
+      {employeeNotice ? <StatePanel tone="success" eyebrow="Profile Saved" title="Ready for Clerk sign-in" description={employeeNotice} compact /> : null}
 
       <div className="summary-grid">
         <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />

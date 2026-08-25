@@ -1151,6 +1151,63 @@ textarea {
 .workspace-split.is-primary-collapsed { grid-template-columns: var(--app-sidebar-collapsed-width) minmax(0, 1fr); }
 .workspace-surface { display: grid; gap: var(--card-gap); min-width: 0; }
 .workspace-card { display: grid; gap: var(--card-gap); }
+
+.employee-profile-form {
+  max-width: 980px;
+}
+
+.employee-profile-form__hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.employee-profile-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.employee-profile-form__grid label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--ink-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.employee-profile-form__grid label > span {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.employee-profile-form__grid b {
+  color: var(--accent-red);
+}
+
+.employee-profile-form__grid input,
+.employee-profile-form__grid select,
+.employee-profile-form__grid textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.55rem;
+}
+
+.employee-profile-form__grid textarea {
+  resize: vertical;
+  padding-top: 0.65rem;
+}
+
+.employee-profile-form__wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .employee-profile-form__grid { grid-template-columns: 1fr; }
+  .employee-profile-form__wide { grid-column: auto; }
+}
 .state-panel-stack { display: grid; gap: var(--card-gap); }
 .module-sidebar-note { display: grid; gap: 0.25rem; color: var(--ng-muted); font-size: var(--table-font-size); }
 .module-sidebar-note strong { color: var(--ng-text); }
