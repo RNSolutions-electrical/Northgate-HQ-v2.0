@@ -64,7 +64,7 @@ RETURNS TABLE(clerk_user_id TEXT, display_name TEXT, email TEXT, role TEXT, divi
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE jwt_subject TEXT := auth.jwt() ->> 'sub'; profile public.employee_profiles%ROWTYPE; normalized_email TEXT := lower(NULLIF(trim(COALESCE(p_email, '')), '')); BEGIN
   IF jwt_subject IS NULL OR p_clerk_user_id IS NULL OR p_clerk_user_id <> jwt_subject THEN RAISE EXCEPTION 'authenticated Clerk JWT is required'; END IF;
-  SELECT * INTO profile FROM public.employee_profiles WHERE email = normalized_email AND clerk_user_id IS NULL LIMIT 1;
+  SELECT * INTO profile FROM public.employee_profiles AS ep WHERE ep.email = normalized_email AND ep.clerk_user_id IS NULL LIMIT 1;
   INSERT INTO public.user_permissions AS up (clerk_user_id, display_name, email, role, division, permission_overrides, is_active)
   VALUES (p_clerk_user_id, COALESCE(profile.display_name, p_display_name), COALESCE(profile.email, normalized_email), COALESCE(profile.role, 'User'), profile.division, '{}'::jsonb, TRUE)
   ON CONFLICT (clerk_user_id) DO UPDATE SET display_name = COALESCE(EXCLUDED.display_name, up.display_name), email = COALESCE(EXCLUDED.email, up.email), updated_at = NOW();
