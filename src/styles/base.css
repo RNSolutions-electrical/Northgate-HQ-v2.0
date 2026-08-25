@@ -2325,6 +2325,20 @@ textarea {
   margin-top: 1.25rem;
 }
 
+.job-sub-division-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 0.55rem;
+}
+
+.job-sub-division-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
 .job-budget-division__toggle {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(0, auto);

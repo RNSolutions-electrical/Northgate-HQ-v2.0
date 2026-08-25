@@ -39,6 +39,7 @@ const DEFAULT_UPLOAD_STATE = Object.freeze({
 });
 const DEFAULT_JOB_FORM = Object.freeze({
   division: '',
+  sub_divisions: [],
   job_number: '',
   name: '',
   status: 'active',
@@ -192,6 +193,7 @@ const JOB_SELECT_FIELDS = [
   'service_call_number',
   'created_by',
   'project_division:job_budget_divisions(id, code, name, sort_order)',
+  'sub_divisions:job_sub_divisions(id, division)',
 ].join(', ');
 
 const JOB_DOCUMENT_SELECT_FIELDS = [
@@ -656,6 +658,14 @@ function canEditDivisionWithPermission(permissions, rowDivision, permissionKey) 
   if (permissions?.[permissionKey] !== true || !rowDivision) return false;
   if (['Developer', 'Manager'].includes(permissions?.role)) return true;
   return permissions?.division === rowDivision;
+}
+
+function canEditJobWithPermission(permissions, job, permissionKey) {
+  if (!permissions?.[permissionKey] || !job) return false;
+  if (['Developer', 'Manager'].includes(permissions.role)) return true;
+  return [job.division, ...(job.sub_divisions || []).map((item) => item.division)]
+    .filter(Boolean)
+    .includes(permissions.division);
 }
 
 function sanitizeDocumentFileName(fileName) {
@@ -1716,6 +1726,7 @@ function jobToForm(job) {
   return {
     ...DEFAULT_JOB_FORM,
     division: job.division || '',
+    sub_divisions: (job.sub_divisions || []).map((item) => item.division).filter(Boolean),
     job_number: job.job_number || '',
     name: job.name || '',
     status: JOB_STATUS_OPTIONS.includes(job.status) ? job.status : 'active',
@@ -1737,6 +1748,7 @@ function jobAuditSnapshot(job) {
   return {
     id: job.id,
     division: job.division,
+    sub_divisions: (job.sub_divisions || []).map((item) => item.division),
     job_number: job.job_number,
     name: job.name,
     status: job.status,
@@ -1986,9 +1998,9 @@ export function JobsWorkspace({ permissions }) {
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
   const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => !template.division || template.division === selectedJob?.division);
-  const canManageSelectedJob = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canManageJobs');
+  const canManageSelectedJob = canEditJobWithPermission(permissions, selectedJob, 'canManageJobs');
   const canReassignJobDivision = permissions?.role === 'Developer';
-  const canApproveSelectedBudget = canEditDivisionWithPermission(permissions, selectedJob?.division, 'canApproveBudget');
+  const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
     enabled: permissions.permissionSource === 'server' && activeTab === 'documents' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
@@ -2234,6 +2246,12 @@ export function JobsWorkspace({ permissions }) {
     }
 
     const payload = buildJobPayload();
+    const nextSubDivisions = canReassignJobDivision
+      ? [...new Set(jobForm.sub_divisions)].filter((division) => division !== payload.division)
+      : [];
+    const currentSubDivisions = (selectedJob.sub_divisions || []).map((item) => item.division).sort();
+    const subDivisionsChanged = canReassignJobDivision
+      && JSON.stringify([...nextSubDivisions].sort()) !== JSON.stringify(currentSubDivisions);
     setJobForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
@@ -2247,6 +2265,15 @@ export function JobsWorkspace({ permissions }) {
         .single();
 
       if (error) throw error;
+
+      if (subDivisionsChanged) {
+        const { error: subDivisionError } = await client.rpc('set_job_sub_divisions', {
+          p_job_id: selectedJob.id,
+          p_divisions: nextSubDivisions,
+          p_reason: `Job access divisions updated while editing ${selectedJob.job_number || selectedJob.name || selectedJob.id}.`,
+        });
+        if (subDivisionError) throw subDivisionError;
+      }
 
       await writeJobChangeLog(client, {
         action: 'update',
@@ -4973,6 +5000,7 @@ export function JobsWorkspace({ permissions }) {
           <SummaryCard label="Status" value={formatStatus(selectedJob.status)} detail="Foundation job state" />
           <SummaryCard label="Type" value={formatJobType(selectedJob.job_type)} detail={selectedJob.service_call_number || 'No service call number'} />
           <SummaryCard label="Division" value={selectedJob.division || 'Unassigned'} detail="Read scope is enforced by RLS" />
+          <SummaryCard label="Sub-divisions" value={(selectedJob.sub_divisions || []).map((item) => item.division).join(', ') || 'None'} detail="Linked access divisions" />
           <SummaryCard label="Financials" value={canViewFinancials ? 'Available' : 'Hidden'} detail="Gated by financial permission" />
         </div>
         <section className="jobs-overview-grid">
@@ -5161,6 +5189,32 @@ export function JobsWorkspace({ permissions }) {
                         ))}
                       </select>
                     </label>
+                    {mode === 'edit' && canReassignJobDivision ? (
+                      <fieldset className="job-create-form__wide">
+                        <legend>Sub-divisions</legend>
+                        <small>These divisions can view the job and edit it only when their users already have the relevant permission.</small>
+                        <div className="job-sub-division-options">
+                          {['Construction', 'Electrical', 'Admin'].filter((division) => division !== jobForm.division).map((division) => (
+                            <label key={division}>
+                              <input
+                                type="checkbox"
+                                checked={jobForm.sub_divisions.includes(division)}
+                                onChange={(event) => setJobForm((current) => ({
+                                  ...current,
+                                  sub_divisions: event.target.checked
+                                    ? [...current.sub_divisions, division]
+                                    : current.sub_divisions.filter((item) => item !== division),
+                                  error: null,
+                                  success: '',
+                                }))}
+                                disabled={jobForm.isSaving}
+                              />
+                              {division}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    ) : null}
                     <label>
                       <span>Type</span>
                       <select
@@ -5292,6 +5346,7 @@ export function JobsWorkspace({ permissions }) {
                   meta={selectedJob ? [
                     { label: 'Status', value: formatStatus(selectedJob.status) },
                     { label: 'Division', value: selectedJob.division || 'Unassigned' },
+                    { label: 'Sub-divisions', value: (selectedJob.sub_divisions || []).map((item) => item.division).join(', ') || 'None' },
                     { label: 'Manage', value: canManageSelectedJob ? 'Granted' : 'Read only' },
                   ] : []}
                   actions={selectedJob && canManageSelectedJob ? (
