@@ -1158,7 +1158,7 @@ textarea {
 
 .employee-profile-form__hint {
   margin: 0;
-  color: var(--ink-muted);
+  color: var(--ng-muted);
   font-size: 0.875rem;
 }
 
@@ -1172,7 +1172,7 @@ textarea {
   display: grid;
   gap: 0.4rem;
   min-width: 0;
-  color: var(--ink-strong);
+  color: var(--ng-text);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -1184,7 +1184,7 @@ textarea {
 }
 
 .employee-profile-form__grid b {
-  color: var(--accent-red);
+  color: var(--ng-brand-red);
 }
 
 .employee-profile-form__grid input,
@@ -1210,7 +1210,7 @@ textarea {
 
 .vehicle-create-form__hint {
   margin: 0;
-  color: var(--ink-muted);
+  color: var(--ng-muted);
   font-size: 0.875rem;
 }
 
@@ -1224,7 +1224,7 @@ textarea {
   display: grid;
   gap: 0.4rem;
   min-width: 0;
-  color: var(--ink-strong);
+  color: var(--ng-text);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -1236,7 +1236,7 @@ textarea {
 }
 
 .vehicle-create-form__grid b {
-  color: var(--accent-red);
+  color: var(--ng-brand-red);
 }
 
 .vehicle-create-form__grid input:not([type='checkbox']),
@@ -1256,9 +1256,9 @@ textarea {
   grid-template-columns: auto 1fr;
   align-content: center;
   padding: 0.7rem 0.85rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--ng-border);
   border-radius: 0.4rem;
-  background: var(--surface-muted);
+  background: var(--ng-panel-bg);
 }
 
 .vehicle-create-form__stock input[type='checkbox'] {
@@ -1274,7 +1274,7 @@ textarea {
 }
 
 .vehicle-create-form__stock small {
-  color: var(--ink-muted);
+  color: var(--ng-muted);
   font-size: 0.75rem;
   font-weight: 400;
 }
