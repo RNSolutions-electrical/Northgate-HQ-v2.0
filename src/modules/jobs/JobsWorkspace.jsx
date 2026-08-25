@@ -11,6 +11,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -1934,6 +1935,7 @@ function budgetLineMatchKey(line) {
 export function JobsWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
+  const location = useLocation();
   const directory = useJobsDirectory({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('active');
   const [activeTab, setActiveTab] = useState('overview');
@@ -1970,6 +1972,8 @@ export function JobsWorkspace({ permissions }) {
   const canCreateJobs = permissions?.canCreateJobs === true;
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
+  const isDirectoryMode = !selectedJob && mode === 'browse';
+  const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit';
 
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
@@ -2116,6 +2120,11 @@ export function JobsWorkspace({ permissions }) {
     setIsBudgetBulkInputOpen(false);
     setBudgetBulkInput(DEFAULT_BUDGET_BULK_INPUT);
   }
+
+  useEffect(() => {
+    if (!location.state?.openJobsDirectory) return;
+    returnToJobList();
+  }, [location.key]);
 
   function startJobCreate() {
     setMode('create');
@@ -5021,14 +5030,18 @@ export function JobsWorkspace({ permissions }) {
     <>
       <WorkspaceHeader
         eyebrow="Workspace"
-        title={selectedJob ? jobLabel(selectedJob) : 'Jobs'}
-        description={selectedJob
+        title={mode === 'create' ? 'Create Job' : selectedJob ? jobLabel(selectedJob) : 'Jobs'}
+        description={mode === 'create'
+          ? 'Create a new job in a focused workspace, then return to the Jobs directory when finished.'
+          : selectedJob
           ? 'Job workspace — use the tabs below to work with this job without the directory competing for attention.'
           : 'Browse and select a job to open its dedicated workspace.'}
-        status={<span className="status-pill">{selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
+        status={<span className="status-pill">{mode === 'create' ? 'Create Job' : selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
-            {selectedJob ? (
+            {mode === 'create' || mode === 'edit' ? (
+              <button type="button" className="secondary-button" onClick={returnToJobList} disabled={jobForm.isSaving}>Back to Jobs</button>
+            ) : selectedJob ? (
               <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
             ) : (
               <>
@@ -5041,15 +5054,15 @@ export function JobsWorkspace({ permissions }) {
         )}
       />
 
-      {!selectedJob ? <div className="summary-grid">
+      {isDirectoryMode ? <div className="summary-grid">
         <SummaryCard label="Active" value={countsByStatus.active ?? 0} detail="Visible active jobs" />
         <SummaryCard label="On hold" value={countsByStatus.on_hold ?? 0} detail="Visible paused jobs" tone={(countsByStatus.on_hold ?? 0) ? 'warn' : 'default'} />
         <SummaryCard label="Completed" value={countsByStatus.complete ?? 0} detail="Visible completed jobs" />
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
       </div> : null}
 
-      <div className={`workspace-split jobs-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}${selectedJob ? ' jobs-workspace--record' : ''}`}>
-        {!selectedJob ? <PrimarySidebar
+      <div className={`workspace-split jobs-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}${isFocusedWorkspace ? ' jobs-workspace--record' : ''}`}>
+        {isDirectoryMode ? <PrimarySidebar
           eyebrow="Job Views"
           title="Jobs"
           description="Browse visible Jobs foundation records."
@@ -5066,7 +5079,7 @@ export function JobsWorkspace({ permissions }) {
         /> : null}
 
         <div className="workspace-surface">
-          {!selectedJob ? <article className="card workspace-card">
+          {isDirectoryMode ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
               title={views.find((item) => item.key === activeView)?.label ?? 'Jobs'}
@@ -5107,7 +5120,7 @@ export function JobsWorkspace({ permissions }) {
             />
           </article> : null}
 
-          {(selectedJob || mode === 'create' || mode === 'edit') ? <article className="card workspace-card">
+          {isFocusedWorkspace ? <article className="card workspace-card">
             {mode === 'create' || mode === 'edit' ? (
               (mode === 'create' ? canCreateJobs : canManageSelectedJob) ? (
                 <form className="job-create-form" onSubmit={mode === 'create' ? handleJobCreate : handleJobUpdate}>
@@ -5119,8 +5132,8 @@ export function JobsWorkspace({ permissions }) {
                       : 'Job edits update the existing foundation record and write a change log entry.'}
                     dense
                     actions={(
-                      <button type="button" className="secondary-button" onClick={() => setMode('browse')} disabled={jobForm.isSaving}>
-                        Back to All Jobs
+                      <button type="button" className="secondary-button" onClick={returnToJobList} disabled={jobForm.isSaving}>
+                        Back to Jobs
                       </button>
                     )}
                   />
@@ -5310,8 +5323,8 @@ export function JobsWorkspace({ permissions }) {
                     : 'This session can browse the selected job but cannot submit a hidden update path.'}
                   tone="warning"
                   actions={(
-                    <button type="button" className="secondary-button" onClick={() => setMode('browse')}>
-                      Back to All Jobs
+                    <button type="button" className="secondary-button" onClick={returnToJobList}>
+                      Back to Jobs
                     </button>
                   )}
                 />

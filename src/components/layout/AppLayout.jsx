@@ -72,7 +72,8 @@ export function AppLayout() {
       activeWorkspace={activeKey}
       onOpenWorkspace={(key) => {
         const target = modules.find((module) => module.key === key);
-        if (target) navigate(target.path);
+        if (!target) return;
+        navigate(target.path, key === 'jobs' ? { state: { openJobsDirectory: Date.now() } } : undefined);
       }}
       identitySummary={{
         role: permissions.role,
