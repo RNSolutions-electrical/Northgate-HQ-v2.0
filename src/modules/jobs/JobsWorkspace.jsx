@@ -1932,8 +1932,10 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
+  const [budgetEditFocusField, setBudgetEditFocusField] = useState('');
   const [revenueForm, setRevenueForm] = useState(DEFAULT_REVENUE_FORM);
   const [isAddingRevenueLine, setIsAddingRevenueLine] = useState(false);
+  const [revenueEditFocusField, setRevenueEditFocusField] = useState('');
   const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
@@ -2606,14 +2608,16 @@ export function JobsWorkspace({ permissions }) {
     };
   }
 
-  function startBudgetEdit(row) {
+  function startBudgetEdit(row, focusField = '') {
     if (!row?.id || !canApproveSelectedBudget) return;
     setIsAddingBudgetLine(false);
+    setBudgetEditFocusField(focusField);
     setBudgetForm(budgetToForm(row));
   }
 
   function startBudgetAdd() {
     if (!canApproveSelectedBudget) return;
+    setBudgetEditFocusField('');
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setIsAddingBudgetLine(true);
   }
@@ -2621,6 +2625,7 @@ export function JobsWorkspace({ permissions }) {
   function resetBudgetForm() {
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setIsAddingBudgetLine(false);
+    setBudgetEditFocusField('');
   }
 
   async function handleBudgetSave(event) {
@@ -2688,6 +2693,7 @@ export function JobsWorkspace({ permissions }) {
         success: `${payload.description} ${budgetForm.id ? 'updated' : 'added'} in Financials.`,
       });
       setIsAddingBudgetLine(false);
+      setBudgetEditFocusField('');
       jobBudget.reload();
     } catch (error) {
       console.error('Job budget save failed', error);
@@ -2730,14 +2736,16 @@ export function JobsWorkspace({ permissions }) {
     };
   }
 
-  function startRevenueEdit(row) {
+  function startRevenueEdit(row, focusField = '') {
     if (!row?.id || !canApproveSelectedBudget) return;
     setIsAddingRevenueLine(false);
+    setRevenueEditFocusField(focusField);
     setRevenueForm(revenueToForm(row));
   }
 
   function startRevenueAdd() {
     if (!canApproveSelectedBudget) return;
+    setRevenueEditFocusField('');
     setRevenueForm(DEFAULT_REVENUE_FORM);
     setIsAddingRevenueLine(true);
   }
@@ -2745,6 +2753,7 @@ export function JobsWorkspace({ permissions }) {
   function resetRevenueForm() {
     setRevenueForm(DEFAULT_REVENUE_FORM);
     setIsAddingRevenueLine(false);
+    setRevenueEditFocusField('');
   }
 
   async function handleRevenueSave(event) {
@@ -2804,6 +2813,7 @@ export function JobsWorkspace({ permissions }) {
         success: `${payload.description} ${revenueForm.id ? 'updated' : 'added'} in Revenue.`,
       });
       setIsAddingRevenueLine(false);
+      setRevenueEditFocusField('');
       jobRevenue.reload();
     } catch (error) {
       console.error('Job revenue save failed', error);
@@ -3961,11 +3971,16 @@ export function JobsWorkspace({ permissions }) {
             value={budgetForm[field]}
             onChange={(event) => updateInlineBudgetField(field, event.target.value)}
             disabled={budgetForm.isSaving}
-            autoFocus={field === 'forecast_final_amount'}
+            autoFocus={field === budgetEditFocusField}
           />
         ) : null
       );
       const financialValue = (value) => <span className={Number(value || 0) !== 0 ? 'job-financials-value--populated' : ''}>{formatMoney(value)}</span>;
+      const editableBudgetValue = (row, field, content, label) => canApproveSelectedBudget ? (
+        <button type="button" className="job-financials-value-button" onClick={() => startBudgetEdit(row, field)} aria-label={`Edit ${label} for ${row.description || 'financial line'}`}>
+          {content}
+        </button>
+      ) : content;
       const updateInlineRevenueField = (field, value) => {
         setRevenueForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
       };
@@ -3982,51 +3997,53 @@ export function JobsWorkspace({ permissions }) {
             value={revenueForm[field]}
             onChange={(event) => updateInlineRevenueField(field, event.target.value)}
             disabled={revenueForm.isSaving}
+            autoFocus={field === revenueEditFocusField}
           />
         ) : null
       );
+      const editableRevenueValue = (row, field, content, label) => canApproveSelectedBudget ? (
+        <button type="button" className="job-financials-value-button" onClick={() => startRevenueEdit(row, field)} aria-label={`Edit ${label} for ${row.description || 'revenue line'}`}>
+          {content}
+        </button>
+      ) : content;
       const budgetColumns = [
         {
           key: 'category',
           header: 'Category',
           render: (row) => isEditingBudgetRow(row) ? (
-            <select aria-label={`Category for ${row.description || 'financial line'}`} className="job-financials-table-input" value={budgetForm.category} onChange={(event) => updateInlineBudgetField('category', event.target.value)} disabled={budgetForm.isSaving}>
+            <select aria-label={`Category for ${row.description || 'financial line'}`} className="job-financials-table-input" value={budgetForm.category} onChange={(event) => updateInlineBudgetField('category', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'category'}>
               {BUDGET_CATEGORY_OPTIONS.map((category) => <option key={category} value={category}>{formatBudgetCategory(category)}</option>)}
             </select>
-          ) : formatBudgetCategory(row.category),
+          ) : editableBudgetValue(row, 'category', formatBudgetCategory(row.category), 'category'),
         },
         {
           key: 'cost_code',
           header: 'Cost code',
-          render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Cost code for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.cost_code} onChange={(event) => updateInlineBudgetField('cost_code', event.target.value)} disabled={budgetForm.isSaving} /> : (row.cost_code || '-'),
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Cost code for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.cost_code} onChange={(event) => updateInlineBudgetField('cost_code', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'cost_code'} /> : editableBudgetValue(row, 'cost_code', row.cost_code || '-', 'cost code'),
         },
         {
           key: 'description',
           header: 'Description',
-          render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} /> : <strong>{row.description || 'Untitled budget line'}</strong>,
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'description'} /> : editableBudgetValue(row, 'description', <strong>{row.description || 'Untitled budget line'}</strong>, 'description'),
         },
-        { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || financialValue(row.budget_amount), align: 'right' },
-        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || financialValue((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), align: 'right' },
+        { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || editableBudgetValue(row, 'budget_amount', financialValue(row.budget_amount), 'original estimate'), align: 'right' },
+        { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || editableBudgetValue(row, 'budget_change_amount', financialValue((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), 'budget changes'), align: 'right' },
         { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
-        { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || financialValue(row.actual_cost_amount), align: 'right' },
-        { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || financialValue(row.committed_cost_amount), align: 'right' },
+        { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || editableBudgetValue(row, 'actual_cost_amount', financialValue(row.actual_cost_amount), 'actual costs'), align: 'right' },
+        { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || editableBudgetValue(row, 'committed_cost_amount', financialValue(row.committed_cost_amount), 'committed costs'), align: 'right' },
         { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => formatMoney(budgetLineRemaining(row)), align: 'right' },
-        { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || financialValue(row.forecast_to_complete_amount), align: 'right' },
+        { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || editableBudgetValue(row, 'forecast_to_complete_amount', financialValue(row.forecast_to_complete_amount), 'monthly forecast'), align: 'right' },
         {
           key: 'forecast_final',
           header: 'Completion Forecast',
-          render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Completion forecast') || (canApproveSelectedBudget ? (
-            <button type="button" className="job-financials-value-button" onClick={() => startBudgetEdit(row)} aria-label={`Edit completion forecast for ${row.description || 'financial line'}`}>
-              {financialValue(forecastFinal(row))}
-            </button>
-          ) : financialValue(forecastFinal(row))),
+          render: (row) => inlineBudgetInput(row, 'forecast_final_amount', 'Completion forecast') || editableBudgetValue(row, 'forecast_final_amount', financialValue(forecastFinal(row)), 'completion forecast'),
           align: 'right',
         },
         { key: 'forecasted_remaining_budget', header: 'Forecasted Remaining Budget', render: (row) => formatMoney(budgetLineForecastedRemaining(row)), align: 'right' },
         {
           key: 'note',
           header: 'Notes',
-          render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Notes for ${row.description || 'financial line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.note} onChange={(event) => updateInlineBudgetField('note', event.target.value)} disabled={budgetForm.isSaving} /> : (row.note || '-'),
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Notes for ${row.description || 'financial line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.note} onChange={(event) => updateInlineBudgetField('note', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'note'} /> : editableBudgetValue(row, 'note', row.note || '-', 'notes'),
         },
         {
           key: 'actions',
@@ -4061,23 +4078,23 @@ export function JobsWorkspace({ permissions }) {
         {
           key: 'sov_line',
           header: 'SOV Line',
-          render: (row) => inlineRevenueInput(row, 'sov_line', 'SOV line', 'text') || (row.sov_line || '-'),
+          render: (row) => inlineRevenueInput(row, 'sov_line', 'SOV line', 'text') || editableRevenueValue(row, 'sov_line', row.sov_line || '-', 'SOV line'),
         },
         {
           key: 'description',
           header: 'Description',
-          render: (row) => isEditingRevenueRow(row) ? <input aria-label="Revenue line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.description} onChange={(event) => updateInlineRevenueField('description', event.target.value)} disabled={revenueForm.isSaving} /> : <strong>{row.description || 'Untitled revenue line'}</strong>,
+          render: (row) => isEditingRevenueRow(row) ? <input aria-label="Revenue line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.description} onChange={(event) => updateInlineRevenueField('description', event.target.value)} disabled={revenueForm.isSaving} autoFocus={revenueEditFocusField === 'description'} /> : editableRevenueValue(row, 'description', <strong>{row.description || 'Untitled revenue line'}</strong>, 'description'),
         },
-        { key: 'scheduled_value_amount', header: 'Scheduled Value', render: (row) => inlineRevenueInput(row, 'scheduled_value_amount', 'Scheduled value') || formatMoney(row.scheduled_value_amount), align: 'right' },
-        { key: 'approved_change_amount', header: 'Approved Changes', render: (row) => inlineRevenueInput(row, 'approved_change_amount', 'Approved changes') || formatMoney(row.approved_change_amount), align: 'right' },
+        { key: 'scheduled_value_amount', header: 'Scheduled Value', render: (row) => inlineRevenueInput(row, 'scheduled_value_amount', 'Scheduled value') || editableRevenueValue(row, 'scheduled_value_amount', formatMoney(row.scheduled_value_amount), 'scheduled value'), align: 'right' },
+        { key: 'approved_change_amount', header: 'Approved Changes', render: (row) => inlineRevenueInput(row, 'approved_change_amount', 'Approved changes') || editableRevenueValue(row, 'approved_change_amount', formatMoney(row.approved_change_amount), 'approved changes'), align: 'right' },
         { key: 'revised_contract_value', header: 'Revised Contract Value', render: (row) => formatMoney(revisedRevenue(row)), align: 'right' },
-        { key: 'billed_to_date_amount', header: 'Billed to Date', render: (row) => inlineRevenueInput(row, 'billed_to_date_amount', 'Billed to date') || formatMoney(row.billed_to_date_amount), align: 'right' },
+        { key: 'billed_to_date_amount', header: 'Billed to Date', render: (row) => inlineRevenueInput(row, 'billed_to_date_amount', 'Billed to date') || editableRevenueValue(row, 'billed_to_date_amount', formatMoney(row.billed_to_date_amount), 'billed to date'), align: 'right' },
         { key: 'remaining_to_bill', header: 'Remaining to Bill', render: (row) => formatMoney(remainingToBill(row)), align: 'right' },
         { key: 'percent_billed', header: '% Billed', render: (row) => formatPercent(billedPercent(row)), align: 'right' },
         {
           key: 'note',
           header: 'Notes',
-          render: (row) => isEditingRevenueRow(row) ? <input aria-label={`Notes for ${row.description || 'revenue line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.note} onChange={(event) => updateInlineRevenueField('note', event.target.value)} disabled={revenueForm.isSaving} /> : (row.note || '-'),
+          render: (row) => isEditingRevenueRow(row) ? <input aria-label={`Notes for ${row.description || 'revenue line'}`} className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.note} onChange={(event) => updateInlineRevenueField('note', event.target.value)} disabled={revenueForm.isSaving} autoFocus={revenueEditFocusField === 'note'} /> : editableRevenueValue(row, 'note', row.note || '-', 'notes'),
         },
         {
           key: 'actions',
