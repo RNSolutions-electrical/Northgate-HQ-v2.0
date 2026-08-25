@@ -13,6 +13,9 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_PEOPLE = Object.freeze([]);
 const EMPTY_ASSIGNMENTS = Object.freeze([]);
+const DEFAULT_EMPLOYEE_FORM = Object.freeze({
+  displayName: '', email: '', role: 'User', division: '', jobTitle: '', phone: '', notes: '', reason: '', isSaving: false, error: null, success: '',
+});
 
 const EMPLOYEE_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -131,6 +134,7 @@ function useEmployeeReferences({ enabled }) {
 
 export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const canReadEmployees = permissions.permissionSource === 'server' && permissions.canManageEmployees === true;
   const directory = useEmployeeReferences({ enabled: canReadEmployees });
   const [activeView, setActiveView] = useState('directory');
@@ -139,6 +143,8 @@ export function EmployeesWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState(DEFAULT_EMPLOYEE_FORM);
 
   const assignments = directory.assignments;
   const currentAssignmentMap = useMemo(() => {
@@ -202,12 +208,42 @@ export function EmployeesWorkspace({ permissions }) {
     setActiveTab('overview');
   }
 
+  function setEmployeeField(field, value) {
+    setEmployeeForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+  }
+
+  async function createEmployee(event) {
+    event.preventDefault();
+    if (employeeForm.isSaving) return;
+    setEmployeeForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('save_employee_profile', {
+        p_email: employeeForm.email,
+        p_display_name: employeeForm.displayName,
+        p_role: employeeForm.role,
+        p_division: employeeForm.division,
+        p_job_title: employeeForm.jobTitle,
+        p_phone: employeeForm.phone,
+        p_notes: employeeForm.notes,
+        p_reason: employeeForm.reason,
+      });
+      if (error) throw error;
+      setEmployeeForm({ ...DEFAULT_EMPLOYEE_FORM, success: 'Employee profile saved. It will link automatically when this email first signs in through Clerk.' });
+      directory.reload();
+    } catch (error) {
+      console.error('Employee profile save failed', error);
+      setEmployeeForm((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
   return (
     <>
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Employees"
-        description="Directory and profile foundation with live vehicle assignment reads. Role changes, permission editing, Clerk identity controls, and HR source-of-truth writes remain out of scope."
+        description="Directory, pre-hire employee setup, and live vehicle assignment reads. A profile entered by email links automatically on the employee's first Clerk sign-in."
         status={<span className="status-pill">{people.length} visible contact{people.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -217,12 +253,31 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button ng-incomplete-component" disabled>
+            <button type="button" className="primary-button" onClick={() => setIsCreateOpen(true)} disabled={!canReadEmployees}>
               <Plus aria-hidden="true" /> Create employee
             </button>
           </>
         )}
       />
+
+      {isCreateOpen ? (
+        <form className="card workspace-card" onSubmit={createEmployee}>
+          <Toolbar eyebrow="Employee Setup" title="Create employee profile" description="Create the internal profile first. It will connect to the Clerk account automatically when the employee signs in with this email address." />
+          <div className="module-form-grid">
+            <label>Name<input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} required /></label>
+            <label>Email<input type="email" value={employeeForm.email} onChange={(event) => setEmployeeField('email', event.target.value)} disabled={employeeForm.isSaving} required /></label>
+            <label>Role<select value={employeeForm.role} onChange={(event) => setEmployeeField('role', event.target.value)} disabled={employeeForm.isSaving}><option>User</option><option>Supervisor</option><option>Manager</option><option>Developer</option></select></label>
+            <label>Division<select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
+            <label>Job title<input value={employeeForm.jobTitle} onChange={(event) => setEmployeeField('jobTitle', event.target.value)} disabled={employeeForm.isSaving} /></label>
+            <label>Phone<input type="tel" value={employeeForm.phone} onChange={(event) => setEmployeeField('phone', event.target.value)} disabled={employeeForm.isSaving} /></label>
+            <label>Reason for this profile<input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} required /></label>
+            <label>Notes<input value={employeeForm.notes} onChange={(event) => setEmployeeField('notes', event.target.value)} disabled={employeeForm.isSaving} /></label>
+          </div>
+          <div className="record-actions"><button type="submit" className="primary-button" disabled={employeeForm.isSaving}>{employeeForm.isSaving ? 'Saving…' : 'Save employee profile'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); }} disabled={employeeForm.isSaving}>Cancel</button></div>
+          {employeeForm.error ? <StatePanel tone="danger" eyebrow="Create Failed" title="Employee profile was not saved" description={employeeForm.error.message || 'Unexpected employee profile error.'} compact /> : null}
+          {employeeForm.success ? <StatePanel tone="success" eyebrow="Profile Saved" title="Ready for Clerk sign-in" description={employeeForm.success} compact /> : null}
+        </form>
+      ) : null}
 
       <div className="summary-grid">
         <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />

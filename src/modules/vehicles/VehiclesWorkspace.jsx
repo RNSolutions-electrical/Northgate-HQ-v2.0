@@ -24,6 +24,9 @@ const DEFAULT_ASSIGNMENT_FORM = Object.freeze({
   error: null,
   success: '',
 });
+const DEFAULT_VEHICLE_FORM = Object.freeze({
+  vehicleNumber: '', name: '', classification: 'Other', description: '', holdsStock: false, reason: '', isSaving: false, error: null, success: '',
+});
 
 const VEHICLE_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -172,6 +175,8 @@ export function VehiclesWorkspace({ permissions }) {
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState(DEFAULT_ASSIGNMENT_FORM);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [vehicleForm, setVehicleForm] = useState(DEFAULT_VEHICLE_FORM);
 
   const assignments = vehicleState.assignments;
   const currentAssignmentMap = useMemo(() => {
@@ -237,6 +242,34 @@ export function VehiclesWorkspace({ permissions }) {
     setAssignmentForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
   }
 
+  function setVehicleField(field, value) {
+    setVehicleForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+  }
+
+  async function createVehicle(event) {
+    event.preventDefault();
+    if (vehicleForm.isSaving) return;
+    setVehicleForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('create_vehicle', {
+        p_vehicle_number: vehicleForm.vehicleNumber,
+        p_name: vehicleForm.name,
+        p_classification: vehicleForm.classification,
+        p_description: vehicleForm.description,
+        p_holds_stock: vehicleForm.holdsStock,
+        p_reason: vehicleForm.reason,
+      });
+      if (error) throw error;
+      setVehicleForm({ ...DEFAULT_VEHICLE_FORM, success: 'Vehicle saved to the fleet.' });
+      vehicleState.reload();
+    } catch (error) {
+      console.error('Vehicle create failed', error);
+      setVehicleForm((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
   async function assignVehicle(event) {
     event.preventDefault();
     if (!selectedVehicle || !assignmentForm.userId || !assignmentForm.reason.trim() || assignmentForm.isSaving) return;
@@ -288,7 +321,7 @@ export function VehiclesWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Vehicles"
-        description="Fleet directory with live current-operator reads, assignment history, and controlled assignment changes. Maintenance, inspections, and service workflows remain deferred."
+        description="Fleet directory with vehicle creation, live current-operator reads, and controlled assignment changes. Maintenance, inspections, and service workflows remain deferred."
         status={<span className="status-pill">{vehicles.length} visible vehicle{vehicles.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -298,12 +331,29 @@ export function VehiclesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={vehicleState.reload} disabled={vehicleState.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button ng-incomplete-component" disabled>
+            <button type="button" className="primary-button" onClick={() => setIsCreateOpen(true)} disabled={!canReadVehicles}>
               <Plus aria-hidden="true" /> Add vehicle
             </button>
           </>
         )}
       />
+
+      {isCreateOpen ? (
+        <form className="card workspace-card" onSubmit={createVehicle}>
+          <Toolbar eyebrow="Fleet Setup" title="Add vehicle" description="Add a vehicle to the internal fleet. A required reason records this change in the audit history." />
+          <div className="module-form-grid">
+            <label>Unit number<input value={vehicleForm.vehicleNumber} onChange={(event) => setVehicleField('vehicleNumber', event.target.value)} disabled={vehicleForm.isSaving} /></label>
+            <label>Vehicle name<input value={vehicleForm.name} onChange={(event) => setVehicleField('name', event.target.value)} disabled={vehicleForm.isSaving} placeholder="Required if no unit number" /></label>
+            <label>Classification<select value={vehicleForm.classification} onChange={(event) => setVehicleField('classification', event.target.value)} disabled={vehicleForm.isSaving}><option>Residential</option><option>Commercial</option><option>Service</option><option>Other</option></select></label>
+            <label className="checkbox-label"><input type="checkbox" checked={vehicleForm.holdsStock} onChange={(event) => setVehicleField('holdsStock', event.target.checked)} disabled={vehicleForm.isSaving} /> Holds inventory stock</label>
+            <label>Reason for adding this vehicle<input value={vehicleForm.reason} onChange={(event) => setVehicleField('reason', event.target.value)} disabled={vehicleForm.isSaving} required /></label>
+            <label>Description<input value={vehicleForm.description} onChange={(event) => setVehicleField('description', event.target.value)} disabled={vehicleForm.isSaving} /></label>
+          </div>
+          <div className="record-actions"><button type="submit" className="primary-button" disabled={vehicleForm.isSaving}>{vehicleForm.isSaving ? 'Saving…' : 'Save vehicle'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setVehicleForm(DEFAULT_VEHICLE_FORM); }} disabled={vehicleForm.isSaving}>Cancel</button></div>
+          {vehicleForm.error ? <StatePanel tone="danger" eyebrow="Create Failed" title="Vehicle was not saved" description={vehicleForm.error.message || 'Unexpected vehicle error.'} compact /> : null}
+          {vehicleForm.success ? <StatePanel tone="success" eyebrow="Vehicle Saved" title={vehicleForm.success} description="The vehicle will now be available for assignment." compact /> : null}
+        </form>
+      ) : null}
 
       <div className="summary-grid">
         <SummaryCard label="Visible vehicles" value={vehicles.length} detail={vehicleState.isLoading ? 'Loading references' : 'Destination reference rows'} />
