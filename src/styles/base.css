@@ -957,6 +957,10 @@ textarea {
     gap: 0.75rem;
   }
 
+  .job-budget-division__header {
+    align-items: stretch;
+  }
+
   .job-budget-division__title > span {
     white-space: normal;
   }
@@ -2298,6 +2302,21 @@ textarea {
 
 .job-budget-division {
   margin-top: 0.9rem;
+}
+
+.job-budget-division__header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.job-budget-division__header .job-budget-division__toggle {
+  flex: 1;
+}
+
+.job-budget-division__add-line {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .job-financials-section {
