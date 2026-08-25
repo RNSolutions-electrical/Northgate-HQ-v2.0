@@ -22,6 +22,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
 const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
 const EMPTY_DASHBOARD_VEHICLES = Object.freeze([]);
+const EMPTY_DASHBOARD_JOBS = Object.freeze([]);
 const EMPTY_DASHBOARD_TOOLS = Object.freeze([]);
 
 const DASHBOARD_ESTIMATE_SELECT_FIELDS = [
@@ -71,6 +72,12 @@ const DASHBOARD_VEHICLE_COLUMNS = [
   { key: 'unassigned_at', header: 'Released', render: (row) => row.unassigned_at ? formatDateTime(row.unassigned_at) : '-' },
   { key: 'assigned_by_label', header: 'Assigned By', fallback: '-' },
   { key: 'note', header: 'Note', fallback: '-' },
+];
+const DASHBOARD_JOB_COLUMNS = [
+  { key: 'job_number', header: 'Job', render: (row) => <strong>{row.job_number ? `${row.job_number} - ${row.name}` : row.name}</strong> },
+  { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatLabel(row.status)}</StatusBadge> },
+  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'assigned_at', header: 'Assigned', render: (row) => formatDateTime(row.assigned_at) },
 ];
 
 const DASHBOARD_TOOL_COLUMNS = [
@@ -337,8 +344,7 @@ function useDashboardVehicles({ enabled, userId }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const { data, error } = await client.rpc('read_employee_vehicle_assignment_directory', {
-          p_user_id: userId,
+        const { data, error } = await client.rpc('read_my_vehicle_assignments', {
           p_limit: 25,
         });
 
@@ -383,6 +389,43 @@ function useDashboardVehicles({ enabled, userId }) {
     ...state,
     reload: () => setRefreshKey((current) => current + 1),
   };
+}
+
+function useDashboardJobAssignments({ enabled, userId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, jobs: EMPTY_DASHBOARD_JOBS });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled || !userId) {
+        setState({ isLoading: false, error: null, jobs: EMPTY_DASHBOARD_JOBS });
+        return;
+      }
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_user_assignments')
+          .select('id, job_id, assigned_at, note, job:jobs(id, job_number, name, status, division)')
+          .eq('user_id', userId)
+          .is('unassigned_at', null)
+          .order('assigned_at', { ascending: false });
+        if (error) throw error;
+        const jobs = (data ?? []).map((assignment) => ({ ...assignment.job, assignment_id: assignment.id, assigned_at: assignment.assigned_at, note: assignment.note })).filter((job) => job?.id);
+        if (isMounted) setState({ isLoading: false, error: null, jobs });
+      } catch (error) {
+        console.error('Dashboard job assignments failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, jobs: EMPTY_DASHBOARD_JOBS });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, refreshKey, userId]);
+
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
 }
 
 function useDashboardTools({ enabled }) {
@@ -461,20 +504,20 @@ export function DashboardWorkspace({ permissions }) {
     userId: permissions.userId,
     canApproveEstimates: permissions.canApproveEstimates === true,
   });
-  const canSeeVehicleAssignments = permissions.permissionSource === 'server'
-    && (permissions.canManageEmployees || permissions.canManageVehicles);
+  const canSeeVehicleAssignments = permissions.permissionSource === 'server';
   const dashboardVehicles = useDashboardVehicles({
     enabled: canSeeVehicleAssignments,
     userId: permissions.userId,
   });
   const activeVehicleAssignments = dashboardVehicles.assignments.filter((assignment) => assignment.is_active);
+  const dashboardJobs = useDashboardJobAssignments({ enabled: permissions.permissionSource === 'server', userId: permissions.userId });
   const canSeeTools = permissions.permissionSource === 'server';
   const dashboardTools = useDashboardTools({ enabled: canSeeTools });
   const activeDashboardTools = dashboardTools.tools.filter((tool) => tool.status === 'active');
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
-    { key: 'my-work', label: 'My Work', icon: HardHat, description: 'Assigned-job workspace once assignment data exists.' },
+    { key: 'my-work', label: 'My Work', icon: HardHat, description: 'Jobs assigned to you.' },
     { key: 'my-vehicles', label: 'My Vehicles', icon: Truck, description: 'Direct and team vehicle views.' },
     { key: 'my-tools', label: 'My Tools', icon: Wrench, description: 'Company tools plus deferred personal tools.' },
     ...(canSeeEstimates
@@ -606,6 +649,27 @@ export function DashboardWorkspace({ permissions }) {
             <div className="state-panel-stack">
               <article className="card workspace-card module-directory-panel">
                 <Toolbar
+                  eyebrow="My Jobs"
+                  title="Jobs assigned to you"
+                  description="Select a job to open it in Jobs."
+                  actions={<button type="button" className="secondary-button" onClick={dashboardJobs.reload} disabled={dashboardJobs.isLoading}>Refresh</button>}
+                />
+                <DataTable
+                  columns={DASHBOARD_JOB_COLUMNS}
+                  rows={dashboardJobs.jobs}
+                  getRowKey={(row) => row.assignment_id}
+                  permissions={permissions}
+                  isLoading={dashboardJobs.isLoading}
+                  error={dashboardJobs.error}
+                  dense
+                  minWidth="760px"
+                  emptyTitle="No jobs assigned to you"
+                  emptyDescription="Jobs assigned to you will appear here."
+                  onRowClick={(row) => navigate('/jobs', { state: { openJobId: row.id } })}
+                />
+              </article>
+              <article className="card workspace-card module-directory-panel">
+                <Toolbar
                   eyebrow="Job Attention"
                   title="Buyout items needing attention"
                   description="Visible open buyouts, over-budget actuals, and lead-time exceptions."
@@ -624,24 +688,6 @@ export function DashboardWorkspace({ permissions }) {
                   emptyDescription="Open buyout items, over-budget actuals, and lead-time exceptions will appear here."
                 />
               </article>
-              <StatePanel
-                eyebrow="My Work"
-                title="Worker assignments are not available yet"
-                description="The current Jobs read model does not expose worker, superintendent, or project-management assignment fields, so this dashboard cannot safely resolve a personalized project list yet."
-                actions={<button type="button" className="secondary-button" onClick={() => openModule('/jobs')}>Open Jobs</button>}
-              />
-              <StatePanel
-                eyebrow="My Work"
-                title="Superintendent assignments are not available yet"
-                description="No approved superintendent-assignment field or read path is present in the current Jobs workspace source."
-                compact
-              />
-              <StatePanel
-                eyebrow="My Work"
-                title="Project-management assignments are not available yet"
-                description="Project-manager assignment records are not exposed to this dashboard yet, so this section stays deferred instead of widening visibility or guessing ownership."
-                compact
-              />
             </div>
           ) : null}
 
@@ -651,29 +697,25 @@ export function DashboardWorkspace({ permissions }) {
                 <Toolbar
                   eyebrow="My Vehicles"
                   title="Vehicles assigned directly to you"
-                  description={canSeeVehicleAssignments
-                    ? 'Active and historical vehicle assignments for the current user.'
-                    : 'Vehicle assignment visibility requires employee or vehicle management permission.'}
+                  description="Active and historical vehicle assignments for the current user."
                   actions={(
                     <>
-                      <button type="button" className="secondary-button" onClick={dashboardVehicles.reload} disabled={!canSeeVehicleAssignments || dashboardVehicles.isLoading}>Refresh</button>
+                      <button type="button" className="secondary-button" onClick={dashboardVehicles.reload} disabled={dashboardVehicles.isLoading}>Refresh</button>
                       <button type="button" className="secondary-button" onClick={() => openModule('/vehicles')}>Open Vehicles</button>
                     </>
                   )}
                 />
                 <DataTable
                   columns={DASHBOARD_VEHICLE_COLUMNS}
-                  rows={canSeeVehicleAssignments ? dashboardVehicles.assignments : EMPTY_DASHBOARD_VEHICLES}
+                  rows={dashboardVehicles.assignments}
                   getRowKey={(row) => row.assignment_id}
                   permissions={permissions}
                   isLoading={dashboardVehicles.isLoading}
                   error={dashboardVehicles.error}
                   dense
                   minWidth="760px"
-                  emptyTitle={canSeeVehicleAssignments ? 'No vehicles assigned to you' : 'Vehicle assignments unavailable'}
-                  emptyDescription={canSeeVehicleAssignments
-                    ? 'Vehicle assignments will appear here when an active or historical row references your user profile.'
-                    : 'Ask a developer to grant employee or vehicle management access if you should see vehicle assignment rows.'}
+                  emptyTitle="No vehicles assigned to you"
+                  emptyDescription="Vehicle assignments will appear here when a vehicle is assigned to you."
                 />
               </article>
               <StatePanel

@@ -1297,6 +1297,31 @@ function useJobDocuments({ enabled, jobId }) {
   };
 }
 
+function useJobAssignmentDirectory({ enabled, jobId }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, rows: [] });
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled || !jobId) { setState({ isLoading: false, error: null, rows: [] }); return; }
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_job_assignment_directory', { p_job_id: jobId });
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? [] });
+      } catch (error) {
+        if (isMounted) setState({ isLoading: false, error, rows: [] });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, jobId, refreshKey]);
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 function useJobBuyoutLines({ enabled, jobId }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1972,6 +1997,7 @@ export function JobsWorkspace({ permissions }) {
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
   const [isAddingScheduleItem, setIsAddingScheduleItem] = useState(false);
+  const [jobAssignmentAction, setJobAssignmentAction] = useState({ userId: '', error: null });
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
@@ -2044,6 +2070,10 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'history' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const jobAssignments = useJobAssignmentDirectory({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'assignments' && Boolean(selectedJob?.id) && canManageSelectedJob,
+    jobId: selectedJob?.id,
+  });
 
   useEffect(() => {
     if (selectedJobId && !jobs.some((job) => job.id === selectedJobId)) {
@@ -2065,6 +2095,7 @@ export function JobsWorkspace({ permissions }) {
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'details', label: 'Details' },
+    { key: 'assignments', label: 'Assignments' },
     { key: 'materials', label: 'Materials', meta: 'Deferred', visible: false },
     { key: 'buyout', label: 'Buyout', meta: 'Live' },
     { key: 'transactions', label: 'Transactions', meta: 'Live' },
@@ -2135,8 +2166,13 @@ export function JobsWorkspace({ permissions }) {
   }
 
   useEffect(() => {
-    if (!location.state?.openJobsDirectory) return;
-    returnToJobList();
+    if (location.state?.openJobId) {
+      setSelectedJobId(location.state.openJobId);
+      setActiveTab('overview');
+      setMode('browse');
+      return;
+    }
+    if (location.state?.openJobsDirectory) returnToJobList();
   }, [location.key]);
 
   function startJobCreate() {
@@ -3608,7 +3644,46 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function handleJobAssignment(row) {
+    if (!selectedJob || !row?.user_id || !canManageSelectedJob || jobAssignmentAction.userId) return;
+    const isAssigned = Boolean(row.assignment_id);
+    const reason = window.prompt(`${isAssigned ? 'Remove' : 'Assign'} ${row.display_name || row.email || row.user_id} ${isAssigned ? 'from' : 'to'} this job. Enter a reason.`);
+    if (!reason?.trim()) return;
+    setJobAssignmentAction({ userId: row.user_id, error: null });
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('set_job_user_assignment', {
+        p_job_id: selectedJob.id,
+        p_user_id: row.user_id,
+        p_is_assigned: !isAssigned,
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+      setJobAssignmentAction({ userId: '', error: null });
+      jobAssignments.reload();
+    } catch (error) {
+      setJobAssignmentAction({ userId: '', error });
+    }
+  }
+
   function renderActiveTab() {
+    if (activeTab === 'assignments') {
+      const columns = [
+        { key: 'display_name', header: 'User', render: (row) => <strong>{row.display_name || row.email || row.user_id}</strong> },
+        { key: 'email', header: 'Email', fallback: '-' },
+        { key: 'role', header: 'Role', fallback: 'User' },
+        { key: 'division', header: 'Division', fallback: '-' },
+        { key: 'assigned_at', header: 'Assigned', render: (row) => row.assigned_at ? formatDateTime(row.assigned_at) : '-' },
+        { key: 'actions', header: 'Actions', render: (row) => canManageSelectedJob ? <button type="button" className={row.assignment_id ? 'secondary-button secondary-button--danger' : 'secondary-button'} onClick={() => handleJobAssignment(row)} disabled={jobAssignmentAction.userId === row.user_id}>{jobAssignmentAction.userId === row.user_id ? 'Saving...' : row.assignment_id ? 'Remove' : 'Assign'}</button> : 'Read only' },
+      ];
+      return (
+        <>
+          <Toolbar eyebrow="Assignments" title="Job team" description="Assign people to this job. Assigned users see it in their Dashboard." actions={<button type="button" className="secondary-button" onClick={jobAssignments.reload} disabled={jobAssignments.isLoading}>Refresh</button>} />
+          <DataTable columns={columns} rows={jobAssignments.rows} getRowKey={(row) => row.user_id} permissions={permissions} isLoading={jobAssignments.isLoading} error={jobAssignments.error || jobAssignmentAction.error} dense minWidth="760px" emptyTitle="No users are available" emptyDescription="Users within your approved scope will appear here." />
+        </>
+      );
+    }
     if (activeTab === 'details') {
       return (
         <div className="profile-field-grid">
