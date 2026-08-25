@@ -3961,6 +3961,7 @@ export function JobsWorkspace({ permissions }) {
             value={budgetForm[field]}
             onChange={(event) => updateInlineBudgetField(field, event.target.value)}
             disabled={budgetForm.isSaving}
+            autoFocus={field === 'forecast_final_amount'}
           />
         ) : null
       );
