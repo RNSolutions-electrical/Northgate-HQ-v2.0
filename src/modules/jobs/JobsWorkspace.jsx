@@ -2182,31 +2182,35 @@ export function JobsWorkspace({ permissions }) {
         created_by: createdBy,
       };
 
-      const { data, error } = await client
-        .from('jobs')
-        .insert(payload)
-        .select(JOB_SELECT_FIELDS)
-        .single();
+      const { data, error } = await client.rpc('create_job', {
+        p_division: payload.division,
+        p_job_number: payload.job_number,
+        p_name: payload.name,
+        p_status: payload.status,
+        p_description: payload.description,
+        p_notes: payload.notes,
+        p_address_line1: payload.address_line1,
+        p_address_line2: payload.address_line2,
+        p_city: payload.city,
+        p_state: payload.state,
+        p_postal_code: payload.postal_code,
+        p_job_type: payload.job_type,
+        p_service_call_number: payload.service_call_number,
+        p_created_by: payload.created_by,
+      });
 
       if (error) throw error;
-
-      await writeJobChangeLog(client, {
-        action: 'create',
-        recordId: data?.id || '',
-        beforeData: null,
-        afterData: jobAuditSnapshot(data),
-        note: `Job ${data?.job_number || data?.name || name} created.`,
-      });
+      const createdJob = Array.isArray(data) ? data[0] : data;
 
       setJobForm({
         ...DEFAULT_JOB_FORM,
-        success: `${data?.name || name} created.`,
+        success: `${createdJob?.name || name} created.`,
       });
-      setSelectedJobId(data?.id || '');
-      setActiveView(data?.status || 'active');
+      setSelectedJobId(createdJob?.id || '');
+      setActiveView(createdJob?.status || 'active');
       setActiveTab('overview');
       setMode('browse');
-      setJobAction({ action: '', error: null, success: `${data?.name || name} created.` });
+      setJobAction({ action: '', error: null, success: `${createdJob?.name || name} created.` });
       directory.reload();
     } catch (error) {
       console.error('Job create failed', error);
