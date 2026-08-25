@@ -84,6 +84,7 @@ const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({
   budget_division_key: '',
   project_division_id: '',
   budget_line_id: '',
+  allocations: [],
   price_amount: '',
   cost_amount: '',
   status: 'proposed',
@@ -296,6 +297,7 @@ const JOB_CHANGE_ORDER_SELECT_FIELDS = [
   'rejected_at',
   'created_at',
   'updated_at',
+  'change_order_allocations(id, project_division_id, budget_line_id, amount)',
 ].join(', ');
 
 const JOB_SCHEDULE_SELECT_FIELDS = [
@@ -962,7 +964,7 @@ function revisedBudget(row) {
 }
 
 function changeOrderBudgetImpact(row) {
-  return row?.status === 'approved' ? Number(row.cost_amount || 0) : 0;
+  return row?.status === 'approved' ? Number(row.price_amount || 0) : 0;
 }
 
 function forecastFinal(row) {
@@ -3013,20 +3015,47 @@ export function JobsWorkspace({ permissions }) {
       setChangeOrderForm((current) => ({ ...current, isSaving: true }));
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const selectedBudgetLine = jobBudget.lines.find((line) => line.id === changeOrderForm.budget_line_id);
-      const explicitProjectDivisionId = changeOrderForm.budget_division_key.startsWith('project:')
-        ? changeOrderForm.budget_division_key.replace('project:', '')
-        : null;
-      const projectDivisionId = selectedBudgetLine?.project_division_id || explicitProjectDivisionId || null;
+      const allocations = changeOrderForm.allocations
+        .filter((allocation) => allocation.budget_line_id && Number(allocation.amount || 0) > 0)
+        .map((allocation) => {
+          const budgetLine = jobBudget.lines.find((line) => line.id === allocation.budget_line_id);
+          return {
+            budget_line_id: allocation.budget_line_id,
+            project_division_id: budgetLine?.project_division_id || null,
+            amount: Number(allocation.amount || 0),
+          };
+        });
+      const allocationTotal = allocations.reduce((total, allocation) => total + allocation.amount, 0);
+      const priceAmount = Number(changeOrderForm.price_amount || 0);
+      if (changeOrderForm.status === 'approved' && allocationTotal !== priceAmount) {
+        throw new Error('Approved change-order allocations must equal the approved price.');
+      }
+      const isNewChangeOrder = changeOrderForm.id === '__new_change_order__';
+      if (!isNewChangeOrder && allocations.length) {
+        const { error: allocationError } = await client.rpc('save_change_order_allocations', {
+          p_change_order_id: changeOrderForm.id,
+          p_allocations: allocations,
+          p_reason: changeOrderForm.reason.trim(),
+        });
+        if (allocationError) throw allocationError;
+      }
       const { data, error } = await client.rpc('save_job_change_order', {
-        p_change_order_id: changeOrderForm.id === '__new_change_order__' ? null : changeOrderForm.id, p_job_id: selectedJob.id, p_division: selectedJob.division,
+        p_change_order_id: isNewChangeOrder ? null : changeOrderForm.id, p_job_id: selectedJob.id, p_division: selectedJob.division,
         p_co_number: changeOrderForm.co_number.trim(), p_title: changeOrderForm.title.trim(), p_description: changeOrderForm.description || null,
         p_price_amount: Number(changeOrderForm.price_amount || 0), p_cost_amount: Number(changeOrderForm.cost_amount || 0), p_status: changeOrderForm.status, p_reason: changeOrderForm.reason.trim(),
-        p_project_division_id: projectDivisionId,
-        p_budget_line_id: changeOrderForm.budget_line_id || null,
+        p_project_division_id: null,
+        p_budget_line_id: null,
       });
       if (error) throw error;
       const savedChangeOrder = Array.isArray(data) ? data[0] : data;
+      if (isNewChangeOrder && allocations.length && savedChangeOrder?.id) {
+        const { error: allocationError } = await client.rpc('save_change_order_allocations', {
+          p_change_order_id: savedChangeOrder.id,
+          p_allocations: allocations,
+          p_reason: changeOrderForm.reason.trim(),
+        });
+        if (allocationError) throw allocationError;
+      }
       const file = changeOrderForm.document_file;
       if (file && savedChangeOrder?.id) {
         const documentId = crypto.randomUUID();
@@ -3769,11 +3798,11 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'change_orders') {
-      const approvedCost = jobChangeOrders.rows
-        .filter((row) => row.status === 'approved')
-        .reduce((total, row) => total + Number(row.cost_amount || 0), 0);
       const approvedPrice = jobChangeOrders.rows
         .filter((row) => row.status === 'approved')
+        .reduce((total, row) => total + Number(row.price_amount || 0), 0);
+      const pendingPrice = jobChangeOrders.rows
+        .filter((row) => row.status === 'proposed')
         .reduce((total, row) => total + Number(row.price_amount || 0), 0);
       const budgetLineById = new Map(jobBudget.lines.map((line) => [line.id, line]));
       const projectDivisionOptions = [...jobBudget.lines.reduce((options, line) => {
@@ -3786,15 +3815,12 @@ export function JobsWorkspace({ permissions }) {
         });
         return options;
       }, new Map()).values()].sort((left, right) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label));
-      const filteredBudgetLineOptions = jobBudget.lines
-        .filter((line) => !changeOrderForm.budget_division_key || projectDivisionKey(line) === changeOrderForm.budget_division_key)
-        .sort((left, right) => String(left.cost_code || '').localeCompare(String(right.cost_code || '')) || String(left.description || '').localeCompare(String(right.description || '')));
-      const selectedChangeOrderBudgetLine = budgetLineById.get(changeOrderForm.budget_line_id);
       const allocationLabel = (row) => {
-        const budgetLine = budgetLineById.get(row.budget_line_id);
-        if (budgetLine) return budgetLineLabel(budgetLine);
-        if (row.project_division_id) return projectDivisionOptions.find((option) => option.id === `project:${row.project_division_id}`)?.label || 'Project division assigned';
-        return 'Unassigned';
+        const allocations = row.change_order_allocations?.length
+          ? row.change_order_allocations
+          : row.budget_line_id ? [{ budget_line_id: row.budget_line_id, amount: row.price_amount }] : [];
+        if (!allocations.length) return 'Pending allocation';
+        return allocations.map((allocation) => `${budgetLineLabel(budgetLineById.get(allocation.budget_line_id))} (${formatMoney(allocation.amount)})`).join(', ');
       };
       const changeOrderColumns = [
         { key: 'co_number', header: 'CO #', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.co_number} onChange={(e) => setChangeOrderForm((c) => ({ ...c, co_number: e.target.value }))} /> : <strong>{row.co_number}</strong> },
@@ -3802,56 +3828,36 @@ export function JobsWorkspace({ permissions }) {
         { key: 'description', header: 'Description', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" value={changeOrderForm.description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, description: e.target.value }))} /> : (row.description || '-') },
         {
           key: 'allocation',
-          header: 'Budget item / division',
+          header: 'Budget allocations',
           render: (row) => changeOrderForm.id === row.id ? (
             <div className="job-change-order-allocation">
-              <select
-                className="job-financials-table-input"
-                value={changeOrderForm.budget_division_key}
-                onChange={(e) => setChangeOrderForm((current) => ({
-                  ...current,
-                  budget_division_key: e.target.value,
-                  project_division_id: e.target.value.startsWith('project:') ? e.target.value.replace('project:', '') : '',
-                  budget_line_id: current.budget_line_id && projectDivisionKey(budgetLineById.get(current.budget_line_id)) !== e.target.value ? '' : current.budget_line_id,
-                }))}
-                disabled={changeOrderForm.isSaving || !projectDivisionOptions.length}
-              >
-                <option value="">Project division</option>
-                {projectDivisionOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-              </select>
-              <select
-                className="job-financials-table-input"
-                value={changeOrderForm.budget_line_id}
-                onChange={(e) => {
-                  const budgetLine = budgetLineById.get(e.target.value);
-                  setChangeOrderForm((current) => ({
-                    ...current,
-                    budget_line_id: e.target.value,
-                    budget_division_key: budgetLine ? projectDivisionKey(budgetLine) : current.budget_division_key,
-                    project_division_id: budgetLine?.project_division_id || current.project_division_id,
-                  }));
-                }}
-                disabled={changeOrderForm.isSaving || !jobBudget.lines.length}
-              >
-                <option value="">Budget line</option>
-                {filteredBudgetLineOptions.map((line) => <option key={line.id} value={line.id}>{budgetLineLabel(line)}</option>)}
-              </select>
-              {selectedChangeOrderBudgetLine ? <span className="job-change-order-allocation__hint">{projectDivisionLabel(selectedChangeOrderBudgetLine)}</span> : null}
+              {changeOrderForm.allocations.map((allocation, index) => (
+                <div className="job-change-order-allocation__row" key={allocation.id || `${allocation.budget_line_id}-${index}`}>
+                  <select className="job-financials-table-input" value={allocation.budget_line_id} onChange={(e) => setChangeOrderForm((current) => ({ ...current, allocations: current.allocations.map((item, itemIndex) => itemIndex === index ? { ...item, budget_line_id: e.target.value } : item) }))} disabled={changeOrderForm.isSaving || !jobBudget.lines.length}>
+                    <option value="">Budget line</option>
+                    {jobBudget.lines.map((line) => <option key={line.id} value={line.id}>{budgetLineLabel(line)}</option>)}
+                  </select>
+                  <input className="job-financials-table-input" aria-label="Allocated budget amount" type="number" min="0" step="0.01" value={allocation.amount} onChange={(e) => setChangeOrderForm((current) => ({ ...current, allocations: current.allocations.map((item, itemIndex) => itemIndex === index ? { ...item, amount: e.target.value } : item) }))} disabled={changeOrderForm.isSaving} />
+                  <button type="button" className="secondary-button" onClick={() => setChangeOrderForm((current) => ({ ...current, allocations: current.allocations.filter((_, itemIndex) => itemIndex !== index) }))} disabled={changeOrderForm.isSaving}>Remove</button>
+                </div>
+              ))}
+              <button type="button" className="secondary-button" onClick={() => setChangeOrderForm((current) => ({ ...current, allocations: [...current.allocations, { budget_line_id: '', amount: '' }] }))} disabled={changeOrderForm.isSaving || !jobBudget.lines.length}>Add allocation</button>
             </div>
           ) : allocationLabel(row),
         },
-        { key: 'status', header: 'Status', render: (row) => changeOrderForm.id === row.id ? <select className="job-financials-table-input" value={changeOrderForm.status} onChange={(e) => setChangeOrderForm((c) => ({ ...c, status: e.target.value }))}><option value="proposed">Proposed</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select> : <StatusBadge status={row.status} /> },
+        { key: 'status', header: 'Status', render: (row) => changeOrderForm.id === row.id ? <select className="job-financials-table-input" value={changeOrderForm.status} onChange={(e) => setChangeOrderForm((c) => ({ ...c, status: e.target.value }))}><option value="proposed">Proposed</option><option value="approved" disabled={row.id === '__new_change_order__'}>Approved</option><option value="rejected">Rejected</option></select> : <StatusBadge status={row.status} /> },
         { key: 'price_amount', header: 'Price', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.price_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, price_amount: e.target.value }))} /> : formatMoney(row.price_amount) },
-        { key: 'cost_amount', header: 'Budget impact', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.cost_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, cost_amount: e.target.value }))} /> : formatMoney(row.cost_amount) },
+        { key: 'cost_amount', header: 'Internal cost', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.cost_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, cost_amount: e.target.value }))} /> : formatMoney(row.cost_amount) },
         { key: 'approved_at', header: 'Approved', render: (row) => row.approved_at ? formatDateTime(row.approved_at) : '-' },
-        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <div className="job-change-order-actions"><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><input className="job-financials-table-input" placeholder="Document note" value={changeOrderForm.document_description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_description: e.target.value }))} /><input className="job-financials-table-input" type="file" onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_file: e.target.files?.[0] || null }))} disabled={changeOrderForm.isSaving} /><button type="button" className="primary-button" onClick={saveChangeOrder} disabled={changeOrderForm.isSaving}>{changeOrderForm.isSaving ? 'Saving...' : 'Save'}</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)} disabled={changeOrderForm.isSaving}>Cancel</button></div> : permissions?.canManageChangeOrders ? <button type="button" className="secondary-button" onClick={() => { const budgetLine = budgetLineById.get(row.budget_line_id); setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, ...row, price_amount: row.price_amount ?? '', cost_amount: row.cost_amount ?? '', budget_division_key: budgetLine ? projectDivisionKey(budgetLine) : row.project_division_id ? `project:${row.project_division_id}` : '', project_division_id: row.project_division_id || '', budget_line_id: row.budget_line_id || '', reason: '', isSaving: false }); }}>Edit</button> : 'Read only' },
+        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <div className="job-change-order-actions"><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><input className="job-financials-table-input" placeholder="Document note" value={changeOrderForm.document_description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_description: e.target.value }))} /><input className="job-financials-table-input" type="file" onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_file: e.target.files?.[0] || null }))} disabled={changeOrderForm.isSaving} /><button type="button" className="primary-button" onClick={saveChangeOrder} disabled={changeOrderForm.isSaving}>{changeOrderForm.isSaving ? 'Saving...' : 'Save'}</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)} disabled={changeOrderForm.isSaving}>Cancel</button></div> : permissions?.canManageChangeOrders ? <button type="button" className="secondary-button" onClick={() => { const legacyAllocation = row.change_order_allocations?.length ? row.change_order_allocations.map((allocation) => ({ ...allocation, amount: allocation.amount ?? '' })) : row.budget_line_id ? [{ budget_line_id: row.budget_line_id, amount: row.price_amount ?? '' }] : []; setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, ...row, price_amount: row.price_amount ?? '', cost_amount: row.cost_amount ?? '', allocations: legacyAllocation, reason: '', isSaving: false }); }}>Edit</button> : 'Read only' },
       ];
       return (
         <>
           <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Change Orders" value={jobChangeOrders.rows.length} detail="Visible active change orders" />
             <SummaryCard label="Approved Price" value={formatMoney(approvedPrice)} detail="Approved customer value" />
-            <SummaryCard label="Approved Budget Impact" value={formatMoney(approvedCost)} detail="Available for budget allocation" />
+            <SummaryCard label="Pending Change Orders" value={formatMoney(pendingPrice)} detail="Awaiting approval" />
+            <SummaryCard label="Approved Budget Impact" value={formatMoney(approvedPrice)} detail="Approved price allocated to budget" />
           </div>
           {permissions?.canManageChangeOrders ? (
             <div className="job-financials-quick-actions">
@@ -3877,21 +3883,29 @@ export function JobsWorkspace({ permissions }) {
     if (activeTab === 'financials') {
       const approvedChangeOrders = jobChangeOrders.rows.filter((row) => row.status === 'approved');
       const approvedChangeOrderCostByBudgetLineId = approvedChangeOrders.reduce((map, row) => {
-        if (!row.budget_line_id) return map;
-        map.set(row.budget_line_id, (map.get(row.budget_line_id) || 0) + changeOrderBudgetImpact(row));
+        const allocations = row.change_order_allocations?.length
+          ? row.change_order_allocations
+          : row.budget_line_id ? [{ budget_line_id: row.budget_line_id, amount: row.price_amount }] : [];
+        allocations.forEach((allocation) => {
+          if (!allocation.budget_line_id) return;
+          map.set(allocation.budget_line_id, (map.get(allocation.budget_line_id) || 0) + Number(allocation.amount || 0));
+        });
         return map;
       }, new Map());
       const approvedChangeOrderCostByProjectDivisionId = approvedChangeOrders.reduce((map, row) => {
-        if (!row.project_division_id || row.budget_line_id) return map;
-        map.set(row.project_division_id, (map.get(row.project_division_id) || 0) + changeOrderBudgetImpact(row));
+        const allocations = row.change_order_allocations?.length ? row.change_order_allocations : [];
+        allocations.forEach((allocation) => {
+          if (!allocation.project_division_id || allocation.budget_line_id) return;
+          map.set(allocation.project_division_id, (map.get(allocation.project_division_id) || 0) + Number(allocation.amount || 0));
+        });
         return map;
       }, new Map());
       const budgetLineChangeOrderAmount = (row) => approvedChangeOrderCostByBudgetLineId.get(row.id) || 0;
       const budgetLineRevisedBudget = (row) => revisedBudget(row) + budgetLineChangeOrderAmount(row);
       const originalTotal = sumField(jobBudget.lines, 'budget_amount');
       const manualChangeTotal = sumField(jobBudget.lines, 'budget_change_amount');
-      const approvedChangeOrderTotal = approvedChangeOrders
-        .reduce((total, row) => total + changeOrderBudgetImpact(row), 0);
+      const approvedChangeOrderTotal = [...approvedChangeOrderCostByBudgetLineId.values()]
+        .reduce((total, amount) => total + amount, 0);
       const changeTotal = manualChangeTotal + approvedChangeOrderTotal;
       const revisedTotal = jobBudget.lines.reduce((total, line) => total + revisedBudget(line), 0);
       const financialRevisedTotal = revisedTotal + approvedChangeOrderTotal;
