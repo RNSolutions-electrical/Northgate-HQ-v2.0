@@ -67,7 +67,7 @@ DECLARE jwt_subject TEXT := auth.jwt() ->> 'sub'; profile public.employee_profil
   SELECT * INTO profile FROM public.employee_profiles AS ep WHERE ep.email = normalized_email AND ep.clerk_user_id IS NULL LIMIT 1;
   INSERT INTO public.user_permissions AS up (clerk_user_id, display_name, email, role, division, permission_overrides, is_active)
   VALUES (p_clerk_user_id, COALESCE(profile.display_name, p_display_name), COALESCE(profile.email, normalized_email), COALESCE(profile.role, 'User'), profile.division, '{}'::jsonb, TRUE)
-  ON CONFLICT (clerk_user_id) DO UPDATE SET display_name = COALESCE(EXCLUDED.display_name, up.display_name), email = COALESCE(EXCLUDED.email, up.email), updated_at = NOW();
+  ON CONFLICT ON CONSTRAINT user_permissions_clerk_user_id_key DO UPDATE SET display_name = COALESCE(EXCLUDED.display_name, up.display_name), email = COALESCE(EXCLUDED.email, up.email), updated_at = NOW();
   IF profile.id IS NOT NULL THEN UPDATE public.employee_profiles SET clerk_user_id = p_clerk_user_id, linked_at = NOW(), updated_at = NOW() WHERE id = profile.id; END IF;
   RETURN QUERY SELECT up.clerk_user_id, up.display_name, up.email, up.role, up.division, public.effective_permissions_for_user(up.role, up.division, up.permission_overrides), up.is_active FROM public.user_permissions up WHERE up.clerk_user_id = p_clerk_user_id AND up.is_active;
 END; $$;
