@@ -362,18 +362,18 @@ const JOB_HISTORY_COLUMNS = [
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 
 const JOB_VIEWS = [
-  { key: 'active', label: 'Active Jobs', icon: BriefcaseBusiness, description: 'Visible jobs currently marked active.' },
-  { key: 'on_hold', label: 'On Hold', icon: ClipboardList, description: 'Visible jobs paused without being closed.' },
-  { key: 'complete', label: 'Completed', icon: PackageCheck, description: 'Visible completed jobs.' },
-  { key: 'cancelled', label: 'Cancelled', icon: Archive, description: 'Visible cancelled jobs.' },
-  { key: 'all', label: 'All Visible', icon: ListChecks, description: 'Every visible non-archived job.' },
+  { key: 'active', label: 'Active Jobs', icon: BriefcaseBusiness, description: 'Currently active.' },
+  { key: 'on_hold', label: 'On Hold', icon: ClipboardList, description: 'Paused jobs.' },
+  { key: 'complete', label: 'Completed', icon: PackageCheck, description: 'Completed jobs.' },
+  { key: 'cancelled', label: 'Cancelled', icon: Archive, description: 'Cancelled jobs.' },
+  { key: 'all', label: 'All Jobs', icon: ListChecks, description: 'All available jobs.' },
 ];
 
 const RESERVED_TABS = Object.freeze({
   materials: {
     eyebrow: 'Material List',
-    title: 'Job Material List is not ported in this v3 slice',
-    description: 'The locked demand layer remains planning-only. This pass does not read or write job_materials, issue stock, reserve inventory, or update balances.',
+    title: 'Materials are not available yet',
+    description: 'This job does not yet have a material list.',
   },
   buyout: {
     eyebrow: 'Buyout',
@@ -1977,7 +1977,6 @@ export function JobsWorkspace({ permissions }) {
     accumulator[status] = jobs.filter((job) => job.status === status).length;
     return accumulator;
   }, {});
-  const divisions = [...new Set(jobs.map((job) => job.division).filter(Boolean))];
 
   const views = JOB_VIEWS.map((view) => ({
     ...view,
@@ -3532,7 +3531,6 @@ export function JobsWorkspace({ permissions }) {
         ...category,
         status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
       }));
-      const uploadedCount = checklistRows.filter((row) => row.status === 'uploaded').length;
       const documentColumns = [
         ...JOB_DOCUMENT_COLUMNS,
         {
@@ -3561,13 +3559,6 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
-          <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Checklist" value={`${uploadedCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Visual only; not blocking" tone={uploadedCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'default'} />
-            <SummaryCard label="Uploaded" value={jobDocuments.documents.length} detail="Visible job-owned documents" />
-            <SummaryCard label="Owner" value="Job" detail="Documents follow job visibility" />
-            <SummaryCard label="Edit" value={canManageSelectedJob ? 'Granted' : 'Read only'} detail="Follows level and division scope" tone={canManageSelectedJob ? 'good' : 'warn'} />
-          </div>
-
           <section className="job-document-checklist" aria-label="Job document checklist">
             {checklistRows.map((category) => (
               <div key={category.key} className={`job-document-checklist__item ${category.status === 'uploaded' ? 'is-uploaded' : 'is-missing'}`}>
@@ -3592,7 +3583,7 @@ export function JobsWorkspace({ permissions }) {
             dense
             minWidth="860px"
             emptyTitle="No documents uploaded for this job"
-            emptyDescription="The checklist can still show required categories before files exist. Archive remains pending for the final RLS pass."
+            emptyDescription="Upload the first document for this job."
           />
           {documentAction.error ? (
             <StatePanel
@@ -3609,7 +3600,7 @@ export function JobsWorkspace({ permissions }) {
               <Toolbar
                 eyebrow="Upload"
                 title="Add job document"
-                description="Uploads are job-owned and use the selected category to update the visual checklist."
+                description="Choose a category and upload a file."
               />
               <div className="job-document-upload__grid">
                 <label>
@@ -3673,7 +3664,7 @@ export function JobsWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Read Only"
               title="Document uploads require job management permission"
-              description="You can view documents for jobs you can see. Uploading and editing follows the job management permission boundary."
+              description="You can view documents for this job, but cannot upload or edit them."
               compact
             />
           )}
@@ -3682,15 +3673,6 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'buyout') {
-      const receivedCount = jobBuyout.lines.filter((line) => line.status === 'received').length;
-      const budgetTotal = sumField(jobBuyout.lines, 'budget_amount');
-      const initialTotal = sumField(jobBuyout.lines, 'initial_value');
-      const actualTotal = sumField(jobBuyout.lines, 'actual_value');
-      const attentionCount = jobBuyout.lines.filter((line) => (
-        line.status !== 'received'
-        || (Number(line.actual_value) || 0) > (Number(line.budget_amount) || 0)
-        || (Number(line.actual_lead_time_days) || 0) > (Number(line.initial_lead_time_days) || 0)
-      )).length;
       const buyoutColumns = [
         ...JOB_BUYOUT_COLUMNS,
         {
@@ -3726,14 +3708,6 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
-          <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Checklist" value={`${receivedCount}/${jobBuyout.lines.length}`} detail="Received buyout items" tone={receivedCount && receivedCount === jobBuyout.lines.length ? 'good' : 'default'} />
-            <SummaryCard label="Budget" value={formatMoney(budgetTotal)} detail="Buyout budget target" />
-            <SummaryCard label="Initial" value={formatMoney(initialTotal)} detail="Initial value total" />
-            <SummaryCard label="Actual" value={formatMoney(actualTotal)} detail="Actual value total" tone={actualTotal > budgetTotal && budgetTotal > 0 ? 'warn' : 'default'} />
-            <SummaryCard label="Attention" value={attentionCount} detail="Open, over budget, or over lead" tone={attentionCount ? 'warn' : 'good'} />
-          </div>
-
           <DataTable
             columns={buyoutColumns}
             rows={jobBuyout.lines}
@@ -3761,7 +3735,7 @@ export function JobsWorkspace({ permissions }) {
               <Toolbar
                 eyebrow={buyoutForm.id ? 'Edit' : 'Add'}
                 title={buyoutForm.id ? 'Edit buyout item' : 'Add buyout item'}
-                description="Buyout remains a planning checklist. It does not create purchase orders, accounting entries, or inventory movements."
+                description="Track quantities, values, lead times, and status."
                 actions={buyoutForm.id ? (
                   <button type="button" className="secondary-button" onClick={resetBuyoutForm} disabled={buyoutForm.isSaving}>
                     Cancel Edit
@@ -3859,7 +3833,7 @@ export function JobsWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Read Only"
               title="Buyout writes require selected-job management permission"
-              description="You can view buyout rows for jobs you can see. Adding and updating buyout items follows level and division scope."
+              description="You can view buyout items for this job, but cannot change them."
               compact
             />
           )}
@@ -3868,19 +3842,8 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'transactions') {
-      const totalQuantity = jobTransactions.rows.reduce((total, row) => total + (Number(row.quantity) || 0), 0);
-      const distinctItems = new Set(jobTransactions.rows.map((row) => row.item_id).filter(Boolean)).size;
-      const lastRow = jobTransactions.rows[0] ?? null;
-
       return (
         <>
-          <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Rows" value={jobTransactions.rows.length} detail="Job-coded ledger rows" />
-            <SummaryCard label="Quantity" value={formatQuantity(totalQuantity)} detail="Total material quantity" />
-            <SummaryCard label="Items" value={distinctItems} detail="Distinct materials" />
-            <SummaryCard label="Latest" value={lastRow ? formatDateTime(lastRow.occurred_at || lastRow.transaction_created_at) : '-'} detail={lastRow?.item_name || 'No job-coded transaction'} />
-          </div>
-
           <DataTable
             columns={JOB_TRANSACTION_COLUMNS}
             rows={jobTransactions.rows}
@@ -3891,15 +3854,7 @@ export function JobsWorkspace({ permissions }) {
             dense
             minWidth="1120px"
             emptyTitle="No material transactions for this job"
-            emptyDescription="This read-only log shows material coded to this job through Inventory Checkout. It does not create returns, edits, costs, or accounting entries."
-          />
-
-          <StatePanel
-            tone="neutral"
-            eyebrow="Read Only"
-            title="Inventory Checkout remains the source"
-            description="Transactions are sourced from the existing job transaction log view. Return-to-Inventory, cost/value display, edit actions, and exports remain separate future work."
-            compact
+            emptyDescription="Material issued to this job will appear here."
           />
         </>
       );
@@ -3961,12 +3916,6 @@ export function JobsWorkspace({ permissions }) {
       ];
       return (
         <>
-          <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Change Orders" value={jobChangeOrders.rows.length} detail="Visible active change orders" />
-            <SummaryCard label="Approved Price" value={formatMoney(approvedPrice)} detail="Approved customer value" />
-            <SummaryCard label="Pending Change Orders" value={formatMoney(pendingPrice)} detail="Awaiting approval" />
-            <SummaryCard label="Approved Budget Impact" value={formatMoney(approvedPrice)} detail="Approved price allocated to budget" />
-          </div>
           {permissions?.canManageChangeOrders ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="primary-button" onClick={() => setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, id: '__new_change_order__' })}><Plus aria-hidden="true" /> Add Change Order</button>
@@ -4010,7 +3959,6 @@ export function JobsWorkspace({ permissions }) {
       }, new Map());
       const budgetLineChangeOrderAmount = (row) => approvedChangeOrderCostByBudgetLineId.get(row.id) || 0;
       const budgetLineRevisedBudget = (row) => revisedBudget(row) + budgetLineChangeOrderAmount(row);
-      const originalTotal = sumField(jobBudget.lines, 'budget_amount');
       const manualChangeTotal = sumField(jobBudget.lines, 'budget_change_amount');
       const approvedChangeOrderTotal = [...approvedChangeOrderCostByBudgetLineId.values()]
         .reduce((total, amount) => total + amount, 0);
@@ -4019,15 +3967,10 @@ export function JobsWorkspace({ permissions }) {
       const financialRevisedTotal = revisedTotal + approvedChangeOrderTotal;
       const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
-      const forecastThisMonthTotal = sumField(jobBudget.lines, 'forecast_to_complete_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
-      const remainingBudgetTotal = financialRevisedTotal - actualTotal;
       const forecastedRemainingBudgetTotal = financialRevisedTotal - forecastFinalTotal;
       const scheduledRevenueTotal = sumField(jobRevenue.lines, 'scheduled_value_amount');
-      const approvedRevenueChangeTotal = sumField(jobRevenue.lines, 'approved_change_amount');
       const revisedRevenueTotal = jobRevenue.lines.reduce((total, line) => total + revisedRevenue(line), 0);
-      const billedRevenueTotal = sumField(jobRevenue.lines, 'billed_to_date_amount');
-      const remainingToBillTotal = revisedRevenueTotal - billedRevenueTotal;
       const projectedGrossProfit = revisedRevenueTotal - forecastFinalTotal;
       const projectedMargin = revisedRevenueTotal ? projectedGrossProfit / revisedRevenueTotal : null;
       const budgetLineRemaining = (row) => budgetLineRevisedBudget(row) - (Number(row.actual_cost_amount) || 0);
@@ -4230,23 +4173,18 @@ export function JobsWorkspace({ permissions }) {
       return (
         <>
           <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Original Budget" value={formatMoney(originalTotal)} detail="Approved budget lines" />
             <SummaryCard label="Revised Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
             <SummaryCard label="Actual Costs" value={formatMoney(actualTotal)} detail="Costs posted to date" />
             <SummaryCard label="Committed Costs" value={formatMoney(committedTotal)} detail="Buyout or committed exposure" />
-            <SummaryCard label="Remaining Budget" value={formatMoney(remainingBudgetTotal)} detail="Revised budget minus actual costs" tone={remainingBudgetTotal < 0 ? 'warn' : 'good'} />
-            <SummaryCard label="Monthly Forecast" value={formatMoney(forecastThisMonthTotal)} detail="Expected total cost by month-end" />
             <SummaryCard label="Completion Forecast" value={formatMoney(forecastFinalTotal)} detail="Expected total cost at completion" />
             <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Revised budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : 'good'} />
-            <SummaryCard label="Revised Contract" value={formatMoney(revisedRevenueTotal)} detail={`${formatMoney(approvedRevenueChangeTotal)} in SOV changes`} />
-            <SummaryCard label="Billed to Date" value={formatMoney(billedRevenueTotal)} detail={`${formatMoney(remainingToBillTotal)} remaining to bill`} tone={remainingToBillTotal < 0 ? 'warn' : 'default'} />
             <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} />
           </div>
 
           <Toolbar
             eyebrow="Cost Control"
             title="Budget and cost forecast"
-            description="Cost-code lines track revised budget, actual costs, committed costs, and PM forecasts without mixing in SOV billing."
+            description="Manage the job budget, costs, and forecasts by cost code."
           />
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
@@ -4472,7 +4410,7 @@ export function JobsWorkspace({ permissions }) {
                 <Toolbar
                   eyebrow={budgetForm.id ? 'Edit' : 'Add'}
                   title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}
-                  description="Add a new financial line here. Existing lines are edited directly in the table. Financials are planning and forecasting only; they do not post to accounting or create purchase orders."
+              description="Add a line here. Edit existing lines directly in the table."
                   actions={budgetForm.id ? (
                     <button type="button" className="secondary-button" onClick={resetBudgetForm} disabled={budgetForm.isSaving}>
                       Cancel Edit
@@ -4596,22 +4534,6 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'schedule') {
-      const completeCount = jobSchedule.items.filter((item) => item.status === 'complete').length;
-      const delayedCount = jobSchedule.items.filter((item) => item.status === 'delayed').length;
-      const datedItems = jobSchedule.items.filter((item) => (
-        item.initial_start_date
-        || item.actual_start_date
-        || item.initial_completion_date
-        || item.actual_completion_date
-        || item.target_date
-      ));
-      const overdueCount = jobSchedule.items.filter((item) => {
-        const remaining = daysUntil(item.actual_completion_date || item.initial_completion_date || item.target_date);
-        return remaining !== null && remaining < 0 && item.status !== 'complete';
-      }).length;
-      const nextItem = datedItems
-        .filter((item) => item.status !== 'complete')
-        .sort((a, b) => String(schedulePlannedFinish(a) || scheduleActualFinish(a)).localeCompare(String(schedulePlannedFinish(b) || scheduleActualFinish(b))))[0] ?? null;
       const ganttRows = jobSchedule.items.map((item) => {
         const plannedStart = parseDateOnly(schedulePlannedStart(item));
         const plannedFinish = parseDateOnly(schedulePlannedFinish(item));
@@ -4697,14 +4619,6 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
-          <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Items" value={jobSchedule.items.length} detail="Active schedule rows" />
-            <SummaryCard label="Complete" value={`${completeCount}/${jobSchedule.items.length}`} detail="Finished milestones" tone={completeCount && completeCount === jobSchedule.items.length ? 'good' : 'default'} />
-            <SummaryCard label="Delayed" value={delayedCount} detail="Marked delayed" tone={delayedCount ? 'warn' : 'good'} />
-            <SummaryCard label="Overdue" value={overdueCount} detail="Past target and not complete" tone={overdueCount ? 'warn' : 'good'} />
-            <SummaryCard label="Next" value={nextItem ? formatDate(schedulePlannedFinish(nextItem) || scheduleActualFinish(nextItem)) : '-'} detail={nextItem?.title || 'No dated open item'} />
-          </div>
-
           <div className="job-schedule-print-actions">
             <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('list')}>Print List</button>
             <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('graph')}>Print Graph</button>
@@ -4722,7 +4636,7 @@ export function JobsWorkspace({ permissions }) {
               dense
               minWidth="1480px"
               emptyTitle="No schedule items for this job"
-              emptyDescription="Add milestones or tasks to track key dates, duration, and dependencies. No calendar sync, assignments, or reminders are created."
+              emptyDescription="Add a milestone or task to begin the schedule."
             />
           </div>
           <section className="job-schedule-gantt job-schedule-print-graph" aria-label="Schedule Gantt graph">
@@ -4791,7 +4705,7 @@ export function JobsWorkspace({ permissions }) {
               <Toolbar
                 eyebrow={scheduleForm.id ? 'Edit' : 'Add'}
                 title={scheduleForm.id ? 'Edit schedule item' : 'Add schedule item'}
-                description="Schedule tracks key milestones and tasks for this job. It does not sync with a calendar or manage dependencies between items."
+                description="Track key milestones, tasks, dates, and dependencies."
                 actions={scheduleForm.id ? (
                   <button type="button" className="secondary-button" onClick={resetScheduleForm} disabled={scheduleForm.isSaving}>
                     Cancel Edit
@@ -4927,7 +4841,7 @@ export function JobsWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Read Only"
               title="Schedule writes require selected-job management permission"
-              description="You can view schedule items for jobs you can see. Adding, editing, archiving, and ordering follow level and division scope."
+              description="You can view schedule items for this job, but cannot change them."
               compact
             />
           )}
@@ -4936,21 +4850,8 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'history') {
-      const updateCount = jobHistory.rows.filter((row) => row.action === 'update').length;
-      const archiveCount = jobHistory.rows.filter((row) => row.action === 'archive').length;
-      const latestRow = jobHistory.rows[0] ?? null;
-      const areasTouched = new Set(jobHistory.rows.map((row) => row.table_name).filter(Boolean)).size;
-
       return (
         <>
-          <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Events" value={jobHistory.rows.length} detail="Recent job audit entries" />
-            <SummaryCard label="Updates" value={updateCount} detail="Recorded edit events" />
-            <SummaryCard label="Archives" value={archiveCount} detail="Archived job records" tone={archiveCount ? 'warn' : 'default'} />
-            <SummaryCard label="Areas" value={areasTouched} detail="Job sections touched" />
-            <SummaryCard label="Latest" value={latestRow ? formatDateTime(latestRow.created_at) : '-'} detail={latestRow ? formatJobHistoryArea(latestRow.table_name) : 'No audit entry'} />
-          </div>
-
           <Toolbar
             eyebrow="Audit"
             title="Job History"
@@ -4991,38 +4892,15 @@ export function JobsWorkspace({ permissions }) {
     }
 
     return (
-      <>
-        <div className="summary-grid summary-grid--compact">
-          <SummaryCard label="Status" value={formatStatus(selectedJob.status)} detail="Foundation job state" />
-          <SummaryCard label="Type" value={formatJobType(selectedJob.job_type)} detail={selectedJob.service_call_number || 'No service call number'} />
-          <SummaryCard label="Division" value={selectedJob.division || 'Unassigned'} detail="Read scope is enforced by RLS" />
-          <SummaryCard label="Sub-divisions" value={(selectedJob.sub_divisions || []).map((item) => item.division).join(', ') || 'None'} detail="Linked access divisions" />
-          <SummaryCard label="Financials" value={canViewFinancials ? 'Available' : 'Hidden'} detail="Gated by financial permission" />
-        </div>
-        <section className="jobs-overview-grid">
-          <StatePanel
-            eyebrow="Operational Summary"
-            title={selectedJob.description || 'No description recorded'}
-            description={selectedJob.notes || 'No notes are recorded for this job.'}
-            tone="neutral"
-            compact
-          />
-          <StatePanel
-            eyebrow="Address"
-            title={buildAddress(selectedJob)}
-            description="Address fields are read directly from the Jobs foundation record."
-            tone="neutral"
-            compact
-          />
-          <StatePanel
-            eyebrow="Boundaries"
-            title="Controlled Jobs workspace"
-            description="Materials are hidden for now. Transaction edits/returns, external accounting, calendar sync, dependency logic, and final RLS cleanup stay deferred."
-            tone="warning"
-            compact
-          />
-        </section>
-      </>
+      <section className="jobs-overview-grid">
+        <StatePanel
+          eyebrow="Job Summary"
+          title={selectedJob.description || 'No description recorded'}
+          description={buildAddress(selectedJob)}
+          tone="neutral"
+          compact
+        />
+      </section>
     );
   }
 
@@ -5034,7 +4912,7 @@ export function JobsWorkspace({ permissions }) {
         description={mode === 'create'
           ? 'Create a new job in a focused workspace, then return to the Jobs directory when finished.'
           : selectedJob
-          ? 'Job workspace — use the tabs below to work with this job without the directory competing for attention.'
+          ? 'Use the tabs below to manage this job.'
           : 'Browse and select a job to open its dedicated workspace.'}
         status={<span className="status-pill">{mode === 'create' ? 'Create Job' : selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
         actions={(
@@ -5054,18 +4932,11 @@ export function JobsWorkspace({ permissions }) {
         )}
       />
 
-      {isDirectoryMode ? <div className="summary-grid">
-        <SummaryCard label="Active" value={countsByStatus.active ?? 0} detail="Visible active jobs" />
-        <SummaryCard label="On hold" value={countsByStatus.on_hold ?? 0} detail="Visible paused jobs" tone={(countsByStatus.on_hold ?? 0) ? 'warn' : 'default'} />
-        <SummaryCard label="Completed" value={countsByStatus.complete ?? 0} detail="Visible completed jobs" />
-        <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
-      </div> : null}
-
       <div className={`workspace-split jobs-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}${isFocusedWorkspace ? ' jobs-workspace--record' : ''}`}>
         {isDirectoryMode ? <PrimarySidebar
           eyebrow="Job Views"
           title="Jobs"
-          description="Browse visible Jobs foundation records."
+          description="Choose a view to find a job."
           items={views}
           activeKey={activeView}
           onSelect={(key) => {
@@ -5083,7 +4954,7 @@ export function JobsWorkspace({ permissions }) {
             <Toolbar
               eyebrow="Directory"
               title={views.find((item) => item.key === activeView)?.label ?? 'Jobs'}
-              description="Rows come from the existing authenticated jobs table and inherit its RLS."
+              description="Select a job to open its workspace."
               search={(
                 <label>
                   <span className="sr-only">Search jobs</span>
@@ -5116,7 +4987,7 @@ export function JobsWorkspace({ permissions }) {
               emptyTitle={search ? 'No jobs matched this search' : 'No jobs are visible'}
               emptyDescription={search
                 ? 'Try searching by job number, name, address, status, division, or service call number.'
-                : 'The Jobs workspace stays honest when RLS or the existing read path returns no visible job rows.'}
+                : 'No jobs are available in this view.'}
             />
           </article> : null}
 
@@ -5127,9 +4998,9 @@ export function JobsWorkspace({ permissions }) {
                   <Toolbar
                     eyebrow={mode === 'create' ? 'Create Mode' : 'Edit Mode'}
                     title={mode === 'create' ? 'Create job' : 'Edit job'}
-                    description={mode === 'create'
-                      ? 'New jobs are created in your current division and inherit the existing jobs RLS.'
-                      : 'Job edits update the existing foundation record and write a change log entry.'}
+                  description={mode === 'create'
+                    ? 'Enter the job details below.'
+                    : 'Update the job details below.'}
                     dense
                     actions={(
                       <button type="button" className="secondary-button" onClick={returnToJobList} disabled={jobForm.isSaving}>
@@ -5317,10 +5188,10 @@ export function JobsWorkspace({ permissions }) {
               ) : (
                 <StatePanel
                   eyebrow={mode === 'create' ? 'Create Locked' : 'Edit Locked'}
-                  title={mode === 'create' ? 'Job creation requires can_create_jobs' : 'Job edits require selected-job management permission'}
+                  title={mode === 'create' ? 'You do not have permission to create jobs' : 'You do not have permission to edit this job'}
                   description={mode === 'create'
-                    ? 'This session can browse visible jobs but cannot submit a hidden insert path.'
-                    : 'This session can browse the selected job but cannot submit a hidden update path.'}
+                    ? 'Contact an administrator if you need access.'
+                    : 'Contact an administrator if you need edit access.'}
                   tone="warning"
                   actions={(
                     <button type="button" className="secondary-button" onClick={returnToJobList}>
@@ -5335,8 +5206,8 @@ export function JobsWorkspace({ permissions }) {
                   eyebrow="Selected Job"
                   title={selectedJob ? jobLabel(selectedJob) : 'No job selected'}
                   description={selectedJob
-                    ? 'Selected-record shell using the locked Section 42 detail pattern.'
-                    : 'Select a job from the directory to inspect the read-only v3 foundation record.'}
+                    ? 'Manage job details, finances, documents, schedule, and history.'
+                    : 'Select a job from the Jobs directory.'}
                   meta={selectedJob ? [
                     { label: 'Status', value: formatStatus(selectedJob.status) },
                     { label: 'Division', value: selectedJob.division || 'Unassigned' },
