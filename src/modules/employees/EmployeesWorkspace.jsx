@@ -13,6 +13,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 
 const EMPTY_PEOPLE = Object.freeze([]);
 const EMPTY_ASSIGNMENTS = Object.freeze([]);
+const EMPTY_PENDING_PROFILES = Object.freeze([]);
 const DEFAULT_EMPLOYEE_FORM = Object.freeze({
   displayName: '', email: '', role: 'User', division: '', jobTitle: '', phone: '', notes: '', reason: '', isSaving: false, error: null, success: '',
 });
@@ -38,6 +39,15 @@ const ASSIGNMENT_COLUMNS = [
   { key: 'unassigned_at', header: 'Released', render: (row) => row.unassigned_at ? formatDateTime(row.unassigned_at) : 'Active' },
   { key: 'assigned_by_label', header: 'Assigned By', fallback: '-' },
   { key: 'note', header: 'Note', fallback: '-' },
+];
+
+const PENDING_PROFILE_COLUMNS = [
+  { key: 'display_name', header: 'Name', render: (row) => <strong>{row.display_name}</strong> },
+  { key: 'email', header: 'Email' },
+  { key: 'role', header: 'Planned Role', fallback: 'User' },
+  { key: 'division', header: 'Primary Division', fallback: 'Unassigned' },
+  { key: 'job_title', header: 'Job Title', fallback: '-' },
+  { key: 'created_at', header: 'Created', render: (row) => formatDateTime(row.created_at) },
 ];
 
 function employeeLabel(person) {
@@ -69,6 +79,7 @@ function useEmployeeReferences({ enabled }) {
     error: null,
     people: EMPTY_PEOPLE,
     assignments: EMPTY_ASSIGNMENTS,
+    pendingProfiles: EMPTY_PENDING_PROFILES,
   });
 
   useEffect(() => {
@@ -85,7 +96,7 @@ function useEmployeeReferences({ enabled }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const [peopleResult, assignmentsResult] = await Promise.all([
+        const [peopleResult, assignmentsResult, pendingProfilesResult] = await Promise.all([
           client
             .from('inventory_destination_users_view')
             .select('clerk_user_id, display_name, email, role, division')
@@ -93,10 +104,14 @@ function useEmployeeReferences({ enabled }) {
           client.rpc('read_employee_vehicle_assignment_directory', {
             p_limit: 1000,
           }),
+          client.rpc('read_pending_employee_profiles', {
+            p_limit: 200,
+          }),
         ]);
 
         if (peopleResult.error) throw peopleResult.error;
         if (assignmentsResult.error) throw assignmentsResult.error;
+        if (pendingProfilesResult.error) throw pendingProfilesResult.error;
 
         if (isMounted) {
           setState({
@@ -104,6 +119,7 @@ function useEmployeeReferences({ enabled }) {
             error: null,
             people: peopleResult.data ?? EMPTY_PEOPLE,
             assignments: assignmentsResult.data ?? EMPTY_ASSIGNMENTS,
+            pendingProfiles: pendingProfilesResult.data ?? EMPTY_PENDING_PROFILES,
           });
         }
       } catch (error) {
@@ -114,6 +130,7 @@ function useEmployeeReferences({ enabled }) {
             error,
             people: EMPTY_PEOPLE,
             assignments: EMPTY_ASSIGNMENTS,
+            pendingProfiles: EMPTY_PENDING_PROFILES,
           });
         }
       }
@@ -148,6 +165,7 @@ export function EmployeesWorkspace({ permissions }) {
   const [employeeNotice, setEmployeeNotice] = useState('');
 
   const assignments = directory.assignments;
+  const pendingProfiles = directory.pendingProfiles;
   const currentAssignmentMap = useMemo(() => {
     const next = new Map();
     assignments
@@ -286,6 +304,7 @@ export function EmployeesWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />
+        <SummaryCard label="Awaiting sign-in" value={pendingProfiles.length} detail="Profiles not yet linked to Clerk" tone={pendingProfiles.length ? 'warn' : 'good'} />
         <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" />
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
         <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
@@ -314,6 +333,26 @@ export function EmployeesWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Account Setup"
+              title="Awaiting Clerk sign-in"
+              description="These employee profiles are ready. They will move into the active directory automatically when the matching email address first signs in through Clerk."
+            />
+            <DataTable
+              columns={PENDING_PROFILE_COLUMNS}
+              rows={pendingProfiles}
+              getRowKey={(row) => row.id}
+              permissions={permissions}
+              isLoading={directory.isLoading}
+              error={directory.error}
+              dense
+              minWidth="860px"
+              emptyTitle="No employee profiles are awaiting sign-in"
+              emptyDescription="Create a profile above when you need to prepare an employee before their Clerk account is active."
+            />
+          </article>
+
           <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
