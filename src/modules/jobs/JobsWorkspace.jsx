@@ -982,7 +982,9 @@ function forecastedBudgetRemaining(row) {
 function projectDivisionLabel(row) {
   const projectDivision = row?.project_division;
   if (projectDivision?.id) {
-    return `${projectDivision.code || ''} ${projectDivision.name || 'Project division'}`.trim();
+    return projectDivision.code
+      ? `${projectDivision.code} - ${projectDivision.name || 'Project division'}`
+      : projectDivision.name || 'Project division';
   }
   const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
   return costCodeDivision
@@ -2641,11 +2643,11 @@ export function JobsWorkspace({ permissions }) {
     }
 
     const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-    const payload = buildBudgetPayload();
+    const basePayload = buildBudgetPayload();
     const existingRow = budgetForm.id
       ? jobBudget.lines.find((line) => line.id === budgetForm.id)
       : null;
-    const needsReason = budgetProtectedFieldsChanged(existingRow, payload);
+    const needsReason = budgetProtectedFieldsChanged(existingRow, basePayload);
     if (needsReason && !budgetForm.change_reason.trim()) {
       setBudgetForm((current) => ({
         ...current,
@@ -2659,6 +2661,22 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
+      let projectDivisionId = existingRow?.project_division_id || null;
+      if (!budgetForm.id) {
+        const divisionCode = String(basePayload.cost_code || '').match(/^\d{2}/)?.[0];
+        if (divisionCode) {
+          const { data: projectDivisions, error: divisionError } = await client
+            .from('job_budget_divisions')
+            .select('id, code')
+            .eq('job_id', selectedJob.id)
+            .is('archived_at', null)
+            .eq('code', divisionCode)
+            .limit(1);
+          if (divisionError) throw divisionError;
+          projectDivisionId = projectDivisions?.[0]?.id || null;
+        }
+      }
+      const payload = { ...basePayload, project_division_id: projectDivisionId };
       const query = budgetForm.id
         ? client
           .from('job_budget_lines')
