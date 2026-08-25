@@ -4,9 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   BriefcaseBusiness,
-  CircleDollarSign,
   ClipboardList,
-  FolderOpen,
   History,
   ListChecks,
   PackageCheck,
@@ -3500,17 +3498,6 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function renderActiveTab() {
-    if (!selectedJob) {
-      return (
-        <StatePanel
-          eyebrow="No Selection"
-          title="Select a job when a real row is available"
-          description="This panel is reserved for the persistent job header, detail tabs, and approved actions once a job is selected."
-          tone="neutral"
-        />
-      );
-    }
-
     if (activeTab === 'details') {
       return (
         <div className="profile-field-grid">
@@ -5076,12 +5063,6 @@ export function JobsWorkspace({ permissions }) {
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
           mobileOpen={isPrimaryOpen}
           onCloseMobile={() => setIsPrimaryOpen(false)}
-          footer={(
-            <div className="module-sidebar-note">
-              <strong>Foundation first</strong>
-              <p>Jobs now carries Details, Buyout, Financials, and Documents slices while the remaining modules stay bounded.</p>
-            </div>
-          )}
         /> : null}
 
         <div className="workspace-surface">
@@ -5126,7 +5107,7 @@ export function JobsWorkspace({ permissions }) {
             />
           </article> : null}
 
-          <article className="card workspace-card">
+          {(selectedJob || mode === 'create' || mode === 'edit') ? <article className="card workspace-card">
             {mode === 'create' || mode === 'edit' ? (
               (mode === 'create' ? canCreateJobs : canManageSelectedJob) ? (
                 <form className="job-create-form" onSubmit={mode === 'create' ? handleJobCreate : handleJobUpdate}>
@@ -5376,34 +5357,7 @@ export function JobsWorkspace({ permissions }) {
                 {renderActiveTab()}
               </>
             )}
-          </article>
-
-          {!selectedJob ? <section className="jobs-boundary-grid">
-            <StatePanel
-              eyebrow="Inventory Boundary"
-              title="No Issue to Job handoff yet"
-              description="This pass does not alter cart, checkout, destination selection, transaction_items, or inventory balances."
-              tone="warning"
-              compact
-              actions={<PackageCheck aria-hidden="true" />}
-            />
-            <StatePanel
-              eyebrow="Financial Boundary"
-              title="Financials are permission gated"
-              description="Budget forecast fields are live for authorized users. Purchase orders, invoices, and accounting sync remain outside this slice."
-              tone="neutral"
-              compact
-              actions={<CircleDollarSign aria-hidden="true" />}
-            />
-            <StatePanel
-              eyebrow="Reserved Surfaces"
-              title="Calendar and dependency engines stay separate"
-              description="Schedule uses the locked flat task list only. Documents are job-owned, while external calendar sync and dependency management remain reserved."
-              tone="neutral"
-              compact
-              actions={<FolderOpen aria-hidden="true" />}
-            />
-          </section> : null}
+          </article> : null}
         </div>
       </div>
     </>

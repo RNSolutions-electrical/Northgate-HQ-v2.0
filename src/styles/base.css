@@ -2014,18 +2014,11 @@ textarea {
   gap: 0.75rem;
 }
 
-.jobs-boundary-grid,
 .jobs-overview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--card-gap);
   margin-top: var(--card-gap);
-}
-
-.jobs-boundary-grid .state-panel__actions svg {
-  width: 20px;
-  height: 20px;
-  color: var(--ng-brand-red);
 }
 
 .job-document-checklist {
