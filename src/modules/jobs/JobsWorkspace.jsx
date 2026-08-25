@@ -2864,29 +2864,61 @@ export function JobsWorkspace({ permissions }) {
   async function handleBudgetTemplateUse(template) {
     if (!selectedJob || !canApproveSelectedBudget || budgetTemplateAction.key) return;
 
-    const existingKeys = new Set(jobBudget.lines.map((line) => `${normalizeCostCode(line.cost_code)}|${line.description.trim().toLowerCase()}`));
-    const lines = template.lines.filter((line) => !existingKeys.has(`${normalizeCostCode(line.cost_code)}|${line.description.toLowerCase()}`));
-    const skipped = template.lines.length - lines.length;
-    if (!lines.length) {
-      setBudgetTemplateAction({ key: '', error: null, success: `${template.name} is already applied to this job.` });
-      return;
-    }
-
-    if (!window.confirm(`Use ${template.name}? This adds ${lines.length} editable financial line${lines.length === 1 ? '' : 's'} with $0.00 amounts.${skipped ? ` ${skipped} existing line${skipped === 1 ? '' : 's'} will be skipped.` : ''}`)) return;
-
     setBudgetTemplateAction({ key: template.key, error: null, success: '' });
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
       const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-      const { data, error } = await client
-        .from('job_budget_lines')
-        .insert(lines.map((line) => ({
+      const { data: existingDivisions, error: divisionLoadError } = await client
+        .from('job_budget_divisions')
+        .select('id, code, name, sort_order')
+        .eq('job_id', selectedJob.id)
+        .is('archived_at', null);
+      if (divisionLoadError) throw divisionLoadError;
+
+      const templateDivisions = template.divisions || [];
+      const divisionByCode = new Map((existingDivisions ?? []).filter((division) => division.code).map((division) => [division.code, division]));
+      const missingDivisions = templateDivisions.filter((division) => !divisionByCode.has(division.code));
+      if (missingDivisions.length) {
+        const { data: createdDivisions, error: divisionCreateError } = await client
+          .from('job_budget_divisions')
+          .insert(missingDivisions.map((division) => ({ job_id: selectedJob.id, ...division })))
+          .select('id, code, name, sort_order');
+        if (divisionCreateError) throw divisionCreateError;
+        (createdDivisions ?? []).forEach((division) => divisionByCode.set(division.code, division));
+      }
+
+      const existingByCostCode = new Map(jobBudget.lines.filter((line) => line.cost_code).map((line) => [normalizeCostCode(line.cost_code), line]));
+      const templateLines = template.lines.map((line) => {
+        const code = String(line.cost_code || '').match(/^\d{2}/)?.[0] || '';
+        return { ...line, project_division_id: divisionByCode.get(code)?.id || null };
+      });
+      const linesToCreate = templateLines.filter((line) => !existingByCostCode.has(normalizeCostCode(line.cost_code)));
+      const linesToUpdate = templateLines.filter((line) => {
+        const existing = existingByCostCode.get(normalizeCostCode(line.cost_code));
+        return existing && (existing.description !== line.description || existing.category !== line.category || existing.project_division_id !== line.project_division_id);
+      });
+      const unchangedCount = templateLines.length - linesToCreate.length - linesToUpdate.length;
+
+      if (!linesToCreate.length && !linesToUpdate.length && !missingDivisions.length) {
+        setBudgetTemplateAction({ key: '', error: null, success: `${template.name} is already applied to this job.` });
+        return;
+      }
+
+      if (!window.confirm(`Use ${template.name}? This will add ${missingDivisions.length} project division${missingDivisions.length === 1 ? '' : 's'}, add ${linesToCreate.length} financial line${linesToCreate.length === 1 ? '' : 's'}, and align ${linesToUpdate.length} existing line${linesToUpdate.length === 1 ? '' : 's'} to the template without changing any financial amounts.${unchangedCount ? ` ${unchangedCount} matching line${unchangedCount === 1 ? '' : 's'} will be left unchanged.` : ''}`)) {
+        setBudgetTemplateAction({ key: '', error: null, success: '' });
+        return;
+      }
+
+      let createdRows = [];
+      if (linesToCreate.length) {
+        const { data, error } = await client.from('job_budget_lines').insert(linesToCreate.map((line) => ({
           job_id: selectedJob.id,
           division: selectedJob.division,
           category: line.category,
           cost_code: line.cost_code,
           description: line.description,
+          project_division_id: line.project_division_id,
           budget_amount: 0,
           budget_change_amount: 0,
           actual_cost_amount: 0,
@@ -2896,11 +2928,25 @@ export function JobsWorkspace({ permissions }) {
           schedule_of_values_amount: 0,
           note: `Created from template: ${template.name}`,
           created_by: createdBy,
-        })))
-        .select(JOB_BUDGET_SELECT_FIELDS);
-      if (error) throw error;
+        }))).select(JOB_BUDGET_SELECT_FIELDS);
+        if (error) throw error;
+        createdRows = data ?? [];
+      }
 
-      for (const row of data ?? []) {
+      const updatedRows = await Promise.all(linesToUpdate.map(async (line) => {
+        const existing = existingByCostCode.get(normalizeCostCode(line.cost_code));
+        const { data, error } = await client
+          .from('job_budget_lines')
+          .update({ category: line.category, description: line.description, project_division_id: line.project_division_id })
+          .eq('id', existing.id)
+          .eq('job_id', selectedJob.id)
+          .select(JOB_BUDGET_SELECT_FIELDS)
+          .single();
+        if (error) throw error;
+        return { before: existing, after: data };
+      }));
+
+      for (const row of createdRows) {
         await writeJobChangeLog(client, {
           action: 'create',
           recordId: row.id,
@@ -2909,11 +2955,20 @@ export function JobsWorkspace({ permissions }) {
           note: `Created from template: ${template.name}.`,
         });
       }
+      for (const row of updatedRows) {
+        await writeJobChangeLog(client, {
+          action: 'update',
+          recordId: row.after.id,
+          beforeData: budgetAuditSnapshot(row.before),
+          afterData: budgetAuditSnapshot(row.after),
+          note: `Aligned to template: ${template.name}. Financial amounts were preserved.`,
+        });
+      }
 
       setBudgetTemplateAction({
         key: '',
         error: null,
-        success: `${data?.length ?? lines.length} financial line${lines.length === 1 ? '' : 's'} added from ${template.name}.${skipped ? ` ${skipped} duplicate line${skipped === 1 ? '' : 's'} skipped.` : ''}`,
+        success: `${missingDivisions.length} project division${missingDivisions.length === 1 ? '' : 's'} added, ${createdRows.length} financial line${createdRows.length === 1 ? '' : 's'} added, and ${updatedRows.length} existing line${updatedRows.length === 1 ? '' : 's'} aligned from ${template.name}. Financial amounts were not changed.`,
       });
       jobBudget.reload();
     } catch (error) {
@@ -4268,11 +4323,11 @@ export function JobsWorkspace({ permissions }) {
                   <Toolbar
                     eyebrow="Templates"
                     title="Use a financial template"
-                    description="Templates add editable financial lines by cost code. Existing matching lines are not duplicated, and all amounts start at $0.00."
+                    description="Templates create project-division headings and financial lines by cost code. Existing matching lines are aligned to the template without changing financial amounts."
                   />
                   {availableBudgetTemplates.map((template) => (
                     <div className="job-financials-form__actions" key={template.key}>
-                      <span>{template.name} - {template.lines.length} service lines</span>
+                      <span>{template.name} - {template.divisions?.length || 0} project divisions, {template.lines.length} financial lines</span>
                       <button type="button" className="secondary-button" onClick={() => handleBudgetTemplateUse(template)} disabled={Boolean(budgetTemplateAction.key) || jobBudget.isLoading}>
                         {budgetTemplateAction.key === template.key ? 'Applying...' : 'Use Template'}
                       </button>

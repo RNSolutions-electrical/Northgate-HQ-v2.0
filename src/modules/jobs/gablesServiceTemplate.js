@@ -15,10 +15,17 @@ const rows = [
   ['16.0', 'Equipment Rental for Electrical Work', 'equipment'], ['16.1', 'Electrical Labor', 'labor'], ['16.11', 'Electrical Materials', 'material'], ['16.12', 'Lighting Fixtures', 'material'], ['16.2', 'Fire Alarm System', 'subcontractor'], ['16.4', 'Electrical Estimating', 'labor'], ['16.6', 'Electrical Supervision', 'labor'], ['CO', 'Change Order', 'other'], ['CO-MAT', 'Change Order Materials', 'material'], ['PER-DIEM', 'Per Diem', 'other'],
 ];
 
+const projectDivisions = [
+  ['01', 'General Requirements'], ['02', 'Site Work'], ['03', 'Concrete'], ['04', 'Masonry'],
+  ['05', 'Metals'], ['06', 'Woods and Plastics'], ['07', 'Thermal & Moisture Protection'],
+  ['08', 'Doors and Windows'], ['09', 'Finishes'], ['10', 'Specialties'], ['15', 'Mechanical'], ['16', 'Electrical'],
+];
+
 export const BUDGET_TEMPLATES = [{
   key: 'master-construction-cost-codes',
   name: 'Master Construction Cost Codes',
   division: null,
   description: 'Built-in project cost-code template available to every job. It adds only missing planning lines and never replaces financial amounts.',
+  divisions: projectDivisions.map(([code, name]) => ({ code, name, sort_order: Number(code) })),
   lines: rows.map(([cost_code, description, category]) => ({ cost_code, description, category })),
 }];
