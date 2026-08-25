@@ -1971,6 +1971,7 @@ export function JobsWorkspace({ permissions }) {
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
+  const [isAddingScheduleItem, setIsAddingScheduleItem] = useState(false);
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
@@ -2116,6 +2117,7 @@ export function JobsWorkspace({ permissions }) {
     setBudgetBulkInput(DEFAULT_BUDGET_BULK_INPUT);
     setBudgetTemplateAction({ key: '', error: null, success: '' });
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
+    setIsAddingScheduleItem(false);
   }
 
   function returnToJobList() {
@@ -2128,6 +2130,8 @@ export function JobsWorkspace({ permissions }) {
     setBudgetImport(DEFAULT_BUDGET_IMPORT);
     setIsBudgetBulkInputOpen(false);
     setBudgetBulkInput(DEFAULT_BUDGET_BULK_INPUT);
+    setScheduleForm(DEFAULT_SCHEDULE_FORM);
+    setIsAddingScheduleItem(false);
   }
 
   useEffect(() => {
@@ -3420,6 +3424,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function startScheduleEdit(row) {
+    setIsAddingScheduleItem(false);
     setScheduleForm({
       id: row.id,
       title: row.title || '',
@@ -3442,6 +3447,16 @@ export function JobsWorkspace({ permissions }) {
 
   function resetScheduleForm() {
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
+    setIsAddingScheduleItem(false);
+  }
+
+  function startScheduleAdd() {
+    if (!canManageSelectedJob || isAddingScheduleItem) return;
+    setScheduleForm({
+      ...DEFAULT_SCHEDULE_FORM,
+      sort_order: String(nextScheduleDisplayOrder()),
+    });
+    setIsAddingScheduleItem(true);
   }
 
   function handleSchedulePrint(mode) {
@@ -3449,7 +3464,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   async function handleScheduleSave(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
 
     if (!selectedJob || !canManageSelectedJob || scheduleForm.isSaving) return;
 
@@ -3514,6 +3529,7 @@ export function JobsWorkspace({ permissions }) {
         ...DEFAULT_SCHEDULE_FORM,
         success: `${payload.title} ${scheduleForm.id ? 'updated' : 'added'} in Schedule.`,
       });
+      setIsAddingScheduleItem(false);
       jobSchedule.reload();
     } catch (error) {
       console.error('Job schedule save failed', error);
@@ -4683,10 +4699,13 @@ export function JobsWorkspace({ permissions }) {
           actualFinish: actualFinish || actualStart,
         };
       });
-      const scheduleRows = jobSchedule.items.map((item, index) => ({
+      const savedScheduleRows = jobSchedule.items.map((item, index) => ({
         ...item,
         display_order: index + 1,
       }));
+      const scheduleRows = isAddingScheduleItem
+        ? [{ ...scheduleForm, id: '__new_schedule_item__', display_order: scheduleForm.sort_order || nextScheduleDisplayOrder(), isNew: true }, ...savedScheduleRows]
+        : savedScheduleRows;
       const ganttDates = ganttRows.flatMap((row) => [
         row.plannedStart,
         row.plannedFinish,
@@ -4712,13 +4731,45 @@ export function JobsWorkspace({ permissions }) {
           width: `${Math.min(100 - Math.max(0, left), width)}%`,
         };
       };
+      const updateInlineScheduleField = (field, value) => setScheduleForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
       const scheduleColumns = [
-        ...JOB_SCHEDULE_COLUMNS,
+        ...JOB_SCHEDULE_COLUMNS.map((column) => ({
+          ...column,
+          render: (row) => {
+            if (!row.isNew) return column.render ? column.render(row) : row[column.key] ?? '-';
+            const disabled = scheduleForm.isSaving;
+            switch (column.key) {
+              case 'display_order': return <input className="job-financials-table-input" type="number" min="1" value={scheduleForm.sort_order} onChange={(event) => updateInlineScheduleField('sort_order', event.target.value)} disabled={disabled} />;
+              case 'title': return <input className="job-financials-table-input" value={scheduleForm.title} placeholder="Milestone or task" onChange={(event) => updateInlineScheduleField('title', event.target.value)} disabled={disabled} />;
+              case 'status': return <select className="job-financials-table-input" value={scheduleForm.status} onChange={(event) => updateInlineScheduleField('status', event.target.value)} disabled={disabled}>{SCHEDULE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatScheduleStatus(status)}</option>)}</select>;
+              case 'initial_start_date': return <input className="job-financials-table-input" type="date" value={scheduleForm.initial_start_date} onChange={(event) => updateInlineScheduleField('initial_start_date', event.target.value)} disabled={disabled} />;
+              case 'actual_start_date': return <input className="job-financials-table-input" type="date" value={scheduleForm.actual_start_date} onChange={(event) => updateInlineScheduleField('actual_start_date', event.target.value)} disabled={disabled} />;
+              case 'initial_completion_date': return <input className="job-financials-table-input" type="date" value={scheduleForm.initial_completion_date} onChange={(event) => updateInlineScheduleField('initial_completion_date', event.target.value)} disabled={disabled} />;
+              case 'actual_completion_date': return <input className="job-financials-table-input" type="date" value={scheduleForm.actual_completion_date} onChange={(event) => updateInlineScheduleField('actual_completion_date', event.target.value)} disabled={disabled} />;
+              case 'duration_days': return <input className="job-financials-table-input" type="number" min="0" step="1" value={scheduleForm.duration_days} onChange={(event) => updateInlineScheduleField('duration_days', event.target.value)} disabled={disabled} />;
+              case 'timing': return '—';
+              case 'dependencies': return <input className="job-financials-table-input" value={scheduleForm.dependencies} onChange={(event) => updateInlineScheduleField('dependencies', event.target.value)} disabled={disabled} />;
+              case 'description': return <input className="job-financials-table-input" value={scheduleForm.description} onChange={(event) => updateInlineScheduleField('description', event.target.value)} disabled={disabled} />;
+              case 'note': return <input className="job-financials-table-input" value={scheduleForm.note} onChange={(event) => updateInlineScheduleField('note', event.target.value)} disabled={disabled} />;
+              default: return '—';
+            }
+          },
+        })),
         {
           key: 'actions',
           header: 'Actions',
           render: (row) => {
             if (!canManageSelectedJob) return 'Read only';
+            if (row.isNew) {
+              return (
+                <div className="job-schedule-actions">
+                  <button type="button" className="primary-button" onClick={handleScheduleSave} disabled={scheduleForm.isSaving || !scheduleForm.title.trim()}>
+                    {scheduleForm.isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" className="secondary-button" onClick={resetScheduleForm} disabled={scheduleForm.isSaving}>Cancel</button>
+                </div>
+              );
+            }
             const isBusy = scheduleAction.id === row.id;
             const currentIndex = jobSchedule.items.findIndex((item) => item.id === row.id);
             return (
@@ -4756,6 +4807,7 @@ export function JobsWorkspace({ permissions }) {
       return (
         <>
           <div className="job-schedule-print-actions">
+            {canManageSelectedJob ? <button type="button" className="primary-button" onClick={startScheduleAdd} disabled={isAddingScheduleItem || scheduleForm.isSaving}><Plus aria-hidden="true" /> Add Schedule Item</button> : null}
             <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('list')}>Print List</button>
             <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('graph')}>Print Graph</button>
             <button type="button" className="secondary-button" onClick={() => handleSchedulePrint('both')}>Print Both</button>
@@ -4836,7 +4888,7 @@ export function JobsWorkspace({ permissions }) {
             />
           ) : null}
 
-          {canManageSelectedJob ? (
+          {canManageSelectedJob && scheduleForm.id ? (
             <form className="job-schedule-form" onSubmit={handleScheduleSave}>
               <Toolbar
                 eyebrow={scheduleForm.id ? 'Edit' : 'Add'}
