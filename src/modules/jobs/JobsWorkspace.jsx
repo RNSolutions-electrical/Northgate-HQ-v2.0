@@ -4170,29 +4170,43 @@ export function JobsWorkspace({ permissions }) {
             const isBusy = buyoutAction.id === row.id;
             return (
               <div className="job-buyout-actions">
-                <button type="button" className="secondary-button" onClick={() => startBuyoutEdit(row)} disabled={isBusy || buyoutForm.isSaving}>
-                  Edit
-                </button>
-                <button type="button" className="secondary-button" onClick={() => startBuyoutQuoteUpload(row)} disabled={isBusy || buyoutQuoteUpload.isUploading}>
-                  Attach Quote
-                </button>
-                <button type="button" className="secondary-button" onClick={() => startVendorQuoteAdd(row)} disabled={isBusy || vendorQuoteForm.isSaving}>
-                  Vendors ({jobBuyoutVendorQuotes.rows.filter((quote) => quote.buyout_line_id === row.id).length})
-                </button>
-                {BUYOUT_STATUS_OPTIONS.map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    className={row.status === status ? 'primary-button' : 'secondary-button'}
-                    onClick={() => handleBuyoutStatus(row, status)}
-                    disabled={isBusy || row.status === status}
-                  >
-                    {isBusy && buyoutAction.action === status ? 'Saving...' : formatBuyoutStatus(status)}
-                  </button>
-                ))}
-                <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBuyoutArchive(row)} disabled={isBusy || buyoutForm.isSaving}>
-                  {isBusy && buyoutAction.action === 'archive' ? 'Archiving...' : 'Archive'}
-                </button>
+                <details className="job-buyout-action-menu">
+                  <summary>Edit</summary>
+                  <div className="job-buyout-action-menu__content">
+                    <button type="button" className="secondary-button" onClick={() => startBuyoutEdit(row)} disabled={isBusy || buyoutForm.isSaving}>Edit item</button>
+                    <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBuyoutArchive(row)} disabled={isBusy || buyoutForm.isSaving}>
+                      {isBusy && buyoutAction.action === 'archive' ? 'Archiving...' : 'Archive item'}
+                    </button>
+                  </div>
+                </details>
+                <details className="job-buyout-action-menu">
+                  <summary>Attachments</summary>
+                  <div className="job-buyout-action-menu__content">
+                    <button type="button" className="secondary-button" onClick={() => startBuyoutQuoteUpload(row)} disabled={isBusy || buyoutQuoteUpload.isUploading}>Attach quote</button>
+                  </div>
+                </details>
+                <details className="job-buyout-action-menu">
+                  <summary>Vendors ({jobBuyoutVendorQuotes.rows.filter((quote) => quote.buyout_line_id === row.id).length})</summary>
+                  <div className="job-buyout-action-menu__content">
+                    <button type="button" className="secondary-button" onClick={() => startVendorQuoteAdd(row)} disabled={isBusy || vendorQuoteForm.isSaving}>Manage vendors</button>
+                  </div>
+                </details>
+                <details className="job-buyout-action-menu">
+                  <summary>Status: {formatBuyoutStatus(row.status)}</summary>
+                  <div className="job-buyout-action-menu__content">
+                    {BUYOUT_STATUS_OPTIONS.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        className={row.status === status ? 'primary-button' : 'secondary-button'}
+                        onClick={() => handleBuyoutStatus(row, status)}
+                        disabled={isBusy || row.status === status}
+                      >
+                        {isBusy && buyoutAction.action === status ? 'Saving...' : formatBuyoutStatus(status)}
+                      </button>
+                    ))}
+                  </div>
+                </details>
               </div>
             );
           },

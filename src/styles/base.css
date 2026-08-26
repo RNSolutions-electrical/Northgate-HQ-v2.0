@@ -2245,15 +2245,63 @@ textarea {
 }
 
 .job-buyout-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  display: grid;
+  gap: 0.35rem;
 }
 
 .job-buyout-actions .primary-button,
 .job-buyout-actions .secondary-button {
   min-height: 30px;
   padding: 0.35rem 0.65rem;
+}
+
+.job-buyout-action-menu {
+  position: relative;
+  min-width: 132px;
+}
+
+.job-buyout-action-menu summary {
+  align-items: center;
+  border: 1px solid var(--ng-divider);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  font-weight: 700;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 0.35rem 0.6rem;
+  white-space: nowrap;
+}
+
+.job-buyout-action-menu summary::after {
+  color: var(--ng-text-muted);
+  content: '⌄';
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.job-buyout-action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.job-buyout-action-menu[open] summary {
+  border-color: var(--ng-accent);
+}
+
+.job-buyout-action-menu__content {
+  background: var(--ng-panel-bg);
+  border: 1px solid var(--ng-divider);
+  border-radius: 6px;
+  box-shadow: var(--ng-shadow);
+  display: grid;
+  gap: 0.35rem;
+  left: 0;
+  margin-top: 0.25rem;
+  min-width: max-content;
+  padding: 0.4rem;
+  position: absolute;
+  top: 100%;
+  z-index: 4;
 }
 
 .tool-catalogue-actions {
