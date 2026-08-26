@@ -2085,6 +2085,7 @@ export function JobsWorkspace({ permissions }) {
   const [jobForm, setJobForm] = useState(DEFAULT_JOB_FORM);
   const [jobAction, setJobAction] = useState({ action: '', error: null, success: '' });
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
+  const [documentCategoryFilter, setDocumentCategoryFilter] = useState('');
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutWorkspaceMode, setBuyoutWorkspaceMode] = useState('');
@@ -2262,6 +2263,7 @@ export function JobsWorkspace({ permissions }) {
     setJobForm(DEFAULT_JOB_FORM);
     setJobAction({ action: '', error: null, success: '' });
     setUploadState(DEFAULT_UPLOAD_STATE);
+    setDocumentCategoryFilter('');
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBuyoutWorkspaceMode('');
     setBuyoutQuoteUpload(DEFAULT_BUYOUT_QUOTE_UPLOAD);
@@ -2290,6 +2292,7 @@ export function JobsWorkspace({ permissions }) {
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
     setIsAddingScheduleItem(false);
     setBuyoutWorkspaceMode('');
+    setDocumentCategoryFilter('');
   }
 
   function returnToBuyoutList() {
@@ -4034,6 +4037,9 @@ export function JobsWorkspace({ permissions }) {
         ...category,
         status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
       }));
+      const filteredDocuments = documentCategoryFilter
+        ? jobDocuments.documents.filter((document) => document.document_type === documentCategoryFilter)
+        : jobDocuments.documents;
       const documentColumns = [
         ...JOB_DOCUMENT_COLUMNS,
         {
@@ -4064,7 +4070,13 @@ export function JobsWorkspace({ permissions }) {
         <>
           <section className="job-document-checklist" aria-label="Job document checklist">
             {checklistRows.map((category) => (
-              <div key={category.key} className={`job-document-checklist__item ${category.status === 'uploaded' ? 'is-uploaded' : 'is-missing'}`}>
+              <button
+                key={category.key}
+                type="button"
+                className={`job-document-checklist__item ${category.status === 'uploaded' ? 'is-uploaded' : 'is-missing'}${documentCategoryFilter === category.key ? ' is-selected' : ''}`}
+                onClick={() => setDocumentCategoryFilter((current) => current === category.key ? '' : category.key)}
+                aria-pressed={documentCategoryFilter === category.key}
+              >
                 <div>
                   <strong>{category.label}</strong>
                   <p>{category.description}</p>
@@ -4072,21 +4084,30 @@ export function JobsWorkspace({ permissions }) {
                 <StatusBadge tone={category.status === 'uploaded' ? 'good' : 'neutral'}>
                   {category.status === 'uploaded' ? 'Uploaded' : 'Missing'}
                 </StatusBadge>
-              </div>
+              </button>
             ))}
           </section>
 
+          {documentCategoryFilter ? (
+            <Toolbar
+              eyebrow="Filtered documents"
+              title={documentCategoryLabel(documentCategoryFilter)}
+              description="Showing documents in the selected category."
+              actions={<button type="button" className="secondary-button" onClick={() => setDocumentCategoryFilter('')}>Show all</button>}
+            />
+          ) : null}
+
           <DataTable
             columns={documentColumns}
-            rows={jobDocuments.documents}
+            rows={filteredDocuments}
             getRowKey={(row) => row.id}
             permissions={permissions}
             isLoading={jobDocuments.isLoading}
             error={jobDocuments.error}
             dense
             minWidth="860px"
-            emptyTitle="No documents uploaded for this job"
-            emptyDescription="Upload the first document for this job."
+            emptyTitle={documentCategoryFilter ? `No ${documentCategoryLabel(documentCategoryFilter)} documents` : 'No documents uploaded for this job'}
+            emptyDescription={documentCategoryFilter ? 'Choose another category or clear the filter to see all job documents.' : 'Upload the first document for this job.'}
           />
           {documentAction.error ? (
             <StatePanel

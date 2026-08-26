@@ -2167,6 +2167,10 @@ textarea {
 }
 
 .job-document-checklist__item {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   min-height: 116px;
   display: flex;
   align-items: flex-start;
@@ -2193,6 +2197,11 @@ textarea {
 
 .job-document-checklist__item.is-uploaded {
   border-color: color-mix(in srgb, var(--ng-ok) 38%, var(--ng-divider));
+}
+
+.job-document-checklist__item.is-selected {
+  border-color: var(--ng-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ng-accent) 15%, transparent);
 }
 
 .job-document-actions {
