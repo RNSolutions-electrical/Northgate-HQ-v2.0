@@ -1,4 +1,4 @@
-# Northgate HQ v2.0 ‚Äî Handoff Log
+Y™Áäx-ÆÈ‹j◊ù¢Îi∫⁄+äßj[hëÈ‹¢ÈÌﬂO}Ôç}◊}{o+^≤â¢∂◊ù# Northgate HQ v2.0 ‚Äî Handoff Log
 ### Repository: RNSolutions-electrical/Northgate-HQ-v2.0
 ### Rule: Append only. Never edit prior entries. Entries are permanent record.
 ### Before writing a new entry: read the last entry number and increment. Never reuse a number.
@@ -4878,14633 +4878,425 @@ attachment copies.
   transfer, return, retirement, or destination actions.
 
 ### Payload Handling
-- Accepted payload formats:
-  - `https://<app-domain>/scan/location/<location_uuid>`;
-  - `/scan/location/<location_uuid>`;
-  - bare `<location_uuid>` for manual entry.
-- Unsupported payloads are rejected gracefully with user-facing scanner copy.
-- Non-location entity types remain unsupported.
-- A111-style compact codes and human-readable location codes are not accepted as identity.
-- Location resolution uses the stable UUID from the typed payload.
-
-### Schema Changes
-- None.
-- No migration was added.
-- No live Supabase schema change was made.
-- No new dependency was added.
-
-### Code / File Changes
-- Updated `src/lib/locationQr.js`:
-  - added scan path generation;
-  - added payload parsing/validation for location QR payloads.
-- Updated `src/App.jsx`:
-  - added lightweight browser path handling;
-  - added `/scan/location/<uuid>` result rendering;
-  - added `LocationScannerPanel`;
-  - added `LocationScanResult`;
-  - added the `Scan QR` Inventory tab.
-- Updated `src/styles.css`:
-  - added responsive scanner, manual-entry, and scan-result styles.
-
-### Verification
-- `npm.cmd run build` passed.
-- Parser smoke test confirmed:
-  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes correctly;
-  - relative `/scan/location/<uuid>` payload routes correctly;
-  - bare UUID manual entry routes correctly;
-  - `/scan/material/<uuid>` is rejected;
-  - `A111` is rejected.
-- Static scan confirmed no migration files were added or changed.
-- Static scan confirmed no package/dependency file was changed.
-- Static scan confirmed no Supabase hooks/services were changed.
-- Static scan confirmed no 5A read-rule, transaction-history, permission, or
-  `can_view_all_divisions` behavior was changed.
-- Static scan confirmed no direct `inventory_balances` write path was added.
-- Static scan confirmed no checkout/finalization function was changed.
-- Static review confirmed scan result resolves by location UUID, not human-readable code.
-- Authenticated browser/camera verification was not available in this Codex session and is
-  not claimed here.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.14.
-- HANDOFF remains gapless through Entry 060.
-
-### What Codex Needs to Know
-- The web scanner is browser-native: no scanner dependency was added.
-- Camera scanning requires HTTPS and browser support for `BarcodeDetector`.
-- Manual scan payload entry is always available as the fallback.
-- The scan result view uses the existing storage hierarchy/count read path and requires
-  server permission source plus `can_manage_inventory`.
-- Scanner and scan result views are read-only and are not a permission bypass.
-
-### What Claude Needs to Know
-- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
-  correction, count intake, bin_item retirement, destination semantics, transaction
-  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
-  label-template, non-location QR entity, or Financials/job-cost behavior was changed.
-- Non-location QR entities remain unbuilt.
-- Location create/rename/archive remains unbuilt.
-
-### Next Steps (in order)
-1. Ryan may perform authenticated browser/camera smoke verification on the
-   `rnsolutions.net` custom domain:
-   - Source shows server;
-   - `Scan QR` tab loads;
-   - camera permission prompt appears on supported browsers;
-   - manual entry of a 5B location QR URL routes to `/scan/location/<uuid>`;
-   - scan result displays the correct human-readable location path;
-   - unsupported payloads are rejected without crashing;
-   - no Supabase 401 / PGRST301;
-   - no Clerk production-domain error.
-2. Keep Label Template Designer, Grand Master UI, accounting export, and non-location QR
-   entity support reserved for their own milestones.
-3. Route to Claude before any scan result action becomes write-capable or before adding
-   new schema/RPC/RLS/permission behavior.
-
-### Open Questions / Concerns
-- Authenticated browser and camera verification were not available from this Codex session.
-- Native camera scanning depends on browser `BarcodeDetector` support; manual entry remains
-  the fallback where unsupported.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: camera-based web scanner and `/scan/location/<uuid>` route
-  are implemented for location payloads only.
-- RESERVED: non-location QR entities, React Native companion app, Label Template
-  Designer, `label_templates`, Avery 5164/8160 designer, Grand Master UI surface,
-  accounting export, location create/rename/archive, Return-to-Inventory, Buyout, Tools
-  locations, vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, and catalog creation from count UI.
-
-### Routing Verdict
-No Claude review needed - within locked decisions (ARCHITECTURE v2.14, HANDOFF Entry 059).
-
----
-
-## Entry 061 - Milestone 5C.1 Chrome-Compatible QR Scanner Fallback
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5C.1 Chrome scanner fallback
-**Session type:** UI implementation / dependency addition / static verification
-
-### Context
-Ryan requested Milestone 5C.1 after Chrome showed the scanner message:
-`This browser does not support native QR detection. Use manual entry.` Required first
-actions were completed before implementation: `git pull --ff-only origin main` returned
-already up to date; local `main` matched `origin/main` at `203911f`;
-`docs/ARCHITECTURE.md` was confirmed as v2.14; HANDOFF was confirmed gapless through
-Entry 060; Entry 060 was confirmed to document the location-only scanner route; and the
-repo clone files were used rather than stale coordination docs or attachment copies.
-
-### What Was Completed
-- Added a Chrome-compatible camera decoding fallback for location QR scanning.
-- Preserved the native `BarcodeDetector` path when the browser supports QR detection.
-- Added QR support detection using `BarcodeDetector.getSupportedFormats()` when available.
-- Changed the previous native-unsupported terminal branch into an automatic compatibility
-  camera scanner path.
-- Added scanner mode display while the camera is active:
-  - Native scanner;
-  - Compatibility scanner;
-  - manual entry remains available.
-- Preserved manual scan payload entry as a fallback, not the only Chrome path.
-- Preserved route handling through `/scan/location/<location_uuid>`.
-
-### Payload Handling
-- Accepted payload formats remain:
-  - `https://<app-domain>/scan/location/<location_uuid>`;
-  - `/scan/location/<location_uuid>`;
-  - bare `<location_uuid>` for manual entry.
-- Unsupported payloads are rejected through the existing parser.
-- Non-location entity types remain unsupported.
-- Human-readable location codes remain display labels only and are not accepted as scan
-  identity.
-- Scan result routing still resolves by stable location UUID.
-
-### Schema Changes
-- None.
-- No migration was added.
-- No live Supabase schema change was made.
-- No RPC, RLS, permission, ledger, balance, checkout/finalization, count correction,
-  count intake, bin_item retirement, destination semantics, or transaction-history
-  behavior was changed.
-
-### Code / File Changes
-- Updated `src/App.jsx`:
-  - added the `jsqr` import;
-  - added native QR detector support checks;
-  - added video-frame QR decoding fallback for browsers without native QR support;
-  - kept scanner behavior read-only and location-only.
-- Updated `package.json`:
-  - added `jsqr`.
-- Added `package-lock.json`.
-
-### Verification
-- `npm.cmd run build` passed.
-- Parser smoke test confirmed:
-  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes correctly;
-  - relative `/scan/location/<uuid>` payload routes correctly;
-  - bare UUID manual entry routes correctly;
-  - `/scan/material/<uuid>` is rejected;
-  - `A111` is rejected.
-- Static scan confirmed no migration files were added or changed.
-- Static scan confirmed no Supabase hooks/services were changed.
-- Static scan confirmed no docs or architecture files were changed.
-- Static scan confirmed no direct `inventory_balances` write path was added.
-- Static scan confirmed no checkout/finalization function was changed.
-- Static review confirmed no scan result write action was added.
-- Authenticated browser/camera verification was not available in this Codex session and is
-  not claimed here.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.14.
-- HANDOFF remains gapless through Entry 061.
-
-### What Codex Needs to Know
-- Chrome no longer has to rely on manual entry solely because native `BarcodeDetector`
-  support is unavailable.
-- The camera scanner now chooses native QR detection first, then falls back to `jsqr`.
-- Manual entry remains present for HTTPS, permission, camera, or scan-quality issues.
-- Scanner and scan result views remain read-only and are not a permission bypass.
-
-### What Claude Needs to Know
-- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization, count
-  correction, count intake, bin_item retirement, destination semantics, transaction
-  history read-rule, `can_view_all_divisions`, `can_view_financials`, inventory cost,
-  label-template, non-location QR entity, or Financials/job-cost behavior was changed.
-- Non-location QR entities remain unbuilt.
-- Location create/rename/archive remains unbuilt.
-
-### Next Steps (in order)
-1. Ryan may perform authenticated Chrome/camera smoke verification on the
-   `rnsolutions.net` custom domain:
-   - Source shows server;
-   - `Scan QR` tab loads;
-   - Start Camera opens a camera stream;
-   - Chrome displays Compatibility scanner when native QR detection is unavailable;
-   - a 5B location QR routes to `/scan/location/<uuid>`;
-   - manual entry of a location QR URL still routes correctly;
-   - unsupported payloads are rejected without crashing;
-   - no Supabase 401 / PGRST301;
-   - no Clerk production-domain error.
-2. Keep Label Template Designer, Grand Master UI, accounting export, and non-location QR
-   entity support reserved for their own milestones.
-3. Route to Claude before any scan result action becomes write-capable or before adding
-   new schema/RPC/RLS/permission behavior.
-
-### Open Questions / Concerns
-- Authenticated browser and camera verification were not available from this Codex
-  session.
-- Real-device scan performance should be confirmed in Chrome against printed and
-  screen-displayed location QR codes.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Chrome-compatible camera fallback for location QR scanning.
-- RESERVED: non-location QR entities, React Native companion app, Label Template
-  Designer, `label_templates`, Avery 5164/8160 designer, Grand Master UI surface,
-  accounting export, location create/rename/archive, Return-to-Inventory, Buyout, Tools
-  locations, vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, and catalog creation from count UI.
-
-### Routing Verdict
-No Claude review needed - Chrome-compatible scanner fallback within locked scan behavior (ARCHITECTURE v2.14, HANDOFF Entry 060).
-
----
-
-## Entry 062 - Milestone 5C.3 Prep v2.15 Scan Destination Behavior Lock
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5C.3 Prep lock-document update
-**Session type:** Documentation-only architecture lock update
-
-### Context
-Ryan requested Milestone 5C.3 Prep to apply the Rule 20-cleared v2.15 Scan
-Destination Behavior lock-document delta before running the planned Milestone
-5C.2 implementation. This session intentionally did not implement 5C.2.
-Required first actions were completed before editing: `git pull --ff-only origin
-main` returned already up to date; local `main` matched `origin/main` at
-`5948537`; `docs/ARCHITECTURE.md` was confirmed as v2.14 before editing;
-HANDOFF was confirmed gapless through Entry 061; no stale coordination docs
-were used; and work was performed only from the git clone.
-
-### What Was Completed
-- Updated `docs/ARCHITECTURE.md` to v2.15.
-- Added new Section 10a: Scan Destination Behavior.
-- Locked scan destination pages as division-scoped, location-scoped views and
-  action entry points.
-- Locked that scan destination pages dispatch into the existing cart/checkout
-  and `physical_count_correction` engines.
-- Locked that scan pages must not reimplement cart, transaction, or balance
-  logic.
-- Locked that scan pages introduce no new transaction type and change no balance
-  derivation.
-- Locked authentication before contents.
-- Locked server-resolved, fail-closed behavior under Rule 4.
-- Locked that unauthorized scans do not confirm whether a location exists.
-- Locked bin pages as the action level.
-- Locked unit, shelf, and bay pages as read + navigation surfaces where actions
-  occur at bin level.
-- Locked that no generic ambiguous +/- controls are allowed.
-- Locked that scan pages initiate no location-to-location/bin-to-bin movement
-  and do not surface Transfer Location.
-- Locked multi-bin batch cart actions from hierarchy levels as RESERVED.
-- Locked that current contents/balances reads are broader than
-  transaction-history self-scope, which still governs history reads only.
-- Locked that label layout may vary by level through
-  `label_templates.scope_level`, while QR payload remains unchanged.
-- Preserved the v2.14 summary as prior/history text.
-
-### Schema Changes
-- None.
-- No migration was added.
-- No live Supabase schema change was made.
-- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
-  correction, count intake, bin_item retirement, destination semantics,
-  transaction-history, Clerk, Netlify, or app behavior was changed.
-
-### Code / File Changes
-- Updated `docs/ARCHITECTURE.md`.
-- Updated `HANDOFF.md`.
-- No app code was changed.
-- No package, Netlify, Supabase, migration, screenshot, attachment, scratch, or
-  proposal file was committed.
-
-### Verification
-- Confirmed `docs/ARCHITECTURE.md` now says v2.15.
-- Confirmed Section 10a exists after Section 10 and before Section 11.
-- Confirmed HANDOFF is gapless through Entry 062.
-- Confirmed Entry 062 appears only once.
-- Confirmed only `docs/ARCHITECTURE.md` and `HANDOFF.md` were staged.
-- Confirmed the Claude proposal/brief attachment was not staged.
-- Confirmed no app implementation work was performed.
-- Confirmed Milestone 5C.2 was not implemented as part of this prep milestone.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.14 to v2.15.
-- New Section 10a locks Scan Destination Behavior.
-- HANDOFF remains gapless through Entry 062.
-
-### What Codex Needs to Know
-- Milestone 5C.2 remains queued for implementation after this documentation
-  commit.
-- Scan destination behavior is now canonical in ARCHITECTURE v2.15 Section 10a.
-- First build sequence is read-before-write: location-scoped
-  contents/navigation first, then action bindings to existing engines.
-- Scan pages are not a permission bypass and must fail closed generically.
-- Bin pages are the action level; unit/shelf/bay pages are read + navigation
-  only.
-- QR payload remains `/scan/location/<uuid>` and identity remains the UUID.
-
-### What Claude Needs to Know
-- This was a Rule 20-cleared documentation application only.
-- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
-  count correction, count intake, bin_item retirement, destination semantics,
-  transaction history read-rule, `can_view_all_divisions`,
-  `can_view_financials`, inventory cost, label-template mechanism,
-  non-location QR entity, or Financials/job-cost behavior was changed.
-- Scan destination pages must use existing cart/checkout and
-  `physical_count_correction` engines rather than reimplementing transaction,
-  cart, or balance logic.
-
-### Next Steps (in order)
-1. Proceed to the planned Milestone 5C.2 implementation only after this v2.15
-   lock-document commit is in place.
-2. Build the read-first location-scoped contents/navigation view before adding
-   action bindings.
-3. Route to Claude before any implementation touches schema, RPCs, RLS,
-   permissions, ledger behavior, balance derivation, transaction-history scope,
-   destination semantics, or reserved features.
-
-### Open Questions / Concerns
-- None for this documentation-only milestone.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: v2.15 Scan Destination Behavior is now locked in
-  Section 10a.
-- RESERVED: Milestone 5C.2 implementation, scan page write/action bindings,
-  multi-bin batch cart actions, non-location QR entities, React Native companion
-  app, Label Template Designer implementation, `label_templates`, Avery
-  5164/8160 designer implementation, Grand Master UI surface, accounting export,
-  location create/rename/archive, Return-to-Inventory, Buyout, Tools locations,
-  vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, and catalog creation from count
-  UI.
-
-### Routing Verdict
-No Claude review needed - Rule 20-cleared documentation update applied as instructed (ARCHITECTURE v2.15, HANDOFF Entry 062).
-
----
-
-## Entry 063 - Milestone 5C.2 v2.15 Scan Destination Read-First Hierarchy Pages
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5C.2 read-first scan destination pages
-**Session type:** UI implementation / read-path reuse / static verification
-
-### Context
-Ryan requested Milestone 5C.2 after v2.15 Section 10a was locked by Entry 062.
-Required first actions were completed before implementation: `git pull --ff-only
-origin main` returned already up to date; local `main` matched `origin/main` at
-`c9ad6a4`; `docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a Scan
-Destination Behavior was confirmed present; HANDOFF was confirmed gapless
-through Entry 062; the Milestone 5C scanner route was confirmed present; the
-Milestone 5C.1 Chrome-compatible scanner fallback was confirmed present; and no
-stale coordination docs were used.
-
-### What Was Completed
-- Implemented read-first scan destination pages for location QR scans.
-- Added level-aware scan destination resolution for:
-  - Unit;
-  - Shelf;
-  - Bay;
-  - Bin.
-- Preserved UUID-based scan identity and `/scan/location/<location_uuid>` route
-  behavior.
-- Added scoped human-readable location code/path display.
-- Added hierarchy navigation:
-  - Bin pages navigate up to Bay, Shelf, and Unit;
-  - Bay pages navigate up to Shelf/Unit and down to Bins;
-  - Shelf pages navigate up to Unit and down to Bays/Bins;
-  - Unit pages navigate down to Shelves/Bays/Bins.
-- Added grouped read displays:
-  - Bin scan shows current material rows in that bin;
-  - Bay scan shows bins under the bay and material rows grouped by bin;
-  - Shelf scan shows bay/bin/material contents grouped by bay/bin;
-  - Unit scan shows shelf/bay/bin/material contents grouped by shelf/bay/bin.
-- Added read-first UI copy:
-  - "Scan result actions are read-first in this version."
-  - "Cart staging and count correction will be wired to existing engines in a
-    later milestone."
-- Added clearer empty states for unavailable scan targets, no bins, no shelves,
-  no material rows under scope, and no contents in a bin.
-- Kept scan destination components isolated so bin-level action bindings can be
-  added later without rewriting the read view.
-
-### Schema Changes
-- None.
-- No migration was added.
-- No live Supabase schema change was made.
-- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
-  correction, count intake, bin_item retirement, destination semantics,
-  transaction-history read-rule, `can_view_all_divisions`,
-  `can_view_financials`, inventory cost, Location QR payload, scanner payload,
-  Clerk, Netlify, or Financials/job-cost behavior was changed.
-
-### Code / File Changes
-- Updated `src/App.jsx`:
-  - added scan destination hierarchy model helpers;
-  - replaced the flat scan result contents table with level-aware read-first
-    scan destination components;
-  - reused existing `useInventoryCountSheet` read path and existing
-    `/scan/location/<uuid>` route helper.
-- Updated `src/styles.css`:
-  - added responsive hierarchy navigation and grouped contents styling.
-- No hooks, services, Supabase files, migrations, package files, architecture
-  docs, or scan parser files were changed.
-
-### Verification
-- `npm.cmd run build` passed.
-- Parser smoke test confirmed:
-  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes
-    correctly;
-  - relative `/scan/location/<uuid>` payload routes correctly;
-  - bare UUID manual entry routes correctly;
-  - `/scan/material/<uuid>` is rejected;
-  - `A111` is rejected.
-- Static scan confirmed no migration files were added or changed.
-- Static scan confirmed no Supabase hooks/services were changed.
-- Static scan confirmed no package files were changed.
-- Static scan confirmed no architecture docs were changed.
-- Static scan confirmed no direct `inventory_balances` write path was added.
-- Static scan confirmed no checkout/finalization function was changed.
-- Diff review confirmed newly added scan-page buttons are navigation-only and
-  route through `buildLocationScanPath()`.
-- Diff review confirmed no scan-page cart staging, count correction, transfer,
-  retire, checkout, quantity adjustment, plus/minus, note/reason form, or other
-  inventory-changing action was added.
-- Authenticated browser/camera verification was not available in this Codex
-  session and is not claimed here.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 063.
-
-### What Codex Needs to Know
-- Scan destination pages now implement the read-before-write step from v2.15
-  Section 10a.
-- Unit/Shelf/Bay/Bin scan pages are level-aware and use existing server-backed
-  read paths.
-- Bin-level cart/count action bindings remain deferred to a later milestone.
-- Hierarchy navigation is read/navigation only and continues to route by UUID.
-- Human-readable location codes and paths remain display text only.
-- Unsupported scan payload behavior from 5C/5C.1 is unchanged.
-
-### What Claude Needs to Know
-- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
-  count correction, count intake, bin_item retirement, destination semantics,
-  transaction history read-rule, `can_view_all_divisions`,
-  `can_view_financials`, inventory cost, label-template mechanism,
-  non-location QR entity, or Financials/job-cost behavior was changed.
-- No new read-only RPC/view was required.
-- No scan page write/action binding was added.
-
-### Next Steps (in order)
-1. Ryan may perform authenticated browser smoke verification on the
-   `rnsolutions.net` custom domain:
-   - Source shows server;
-   - manual entry or scan of valid Unit/Shelf/Bay/Bin QR opens the correct
-     scoped page;
-   - human-readable path displays;
-   - hierarchy navigation works up/down;
-   - contents display correctly where data exists;
-   - scan pages remain read-first with no inventory-changing buttons;
-   - unsupported payloads are rejected gracefully;
-   - Chrome scanner fallback still works;
-   - no Supabase 401 / PGRST301;
-   - no Clerk production-domain error.
-2. Keep bin-level cart/count action bindings deferred until a later milestone.
-3. Route to Claude before adding scan-page write actions, new RPCs/views,
-   non-location QR entities, human-code scan identity, transaction-history
-   changes, ledger/balance/checkout/count changes, permission changes, or any
-   reserved feature.
-
-### Open Questions / Concerns
-- Authenticated browser and camera verification were not available from this
-  Codex session.
-- Real production data should be used to visually confirm Unit/Shelf/Bay/Bin
-  grouping and empty states.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: read-first scan destination hierarchy pages for
-  Unit/Shelf/Bay/Bin.
-- RESERVED: bin-level action bindings, cart staging from scan pages, count
-  correction from scan pages, multi-bin batch cart actions, Transfer Location
-  surfacing from scan pages, non-location QR entities, React Native companion
-  app, Label Template Designer implementation, `label_templates`, Avery
-  5164/8160 designer implementation, Grand Master UI surface, accounting export,
-  location create/rename/archive, Return-to-Inventory, Buyout, Tools locations,
-  vehicle bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, and catalog creation from count
-  UI.
-
-### Routing Verdict
-No Claude review needed - read-first scan destination hierarchy within locked behavior (ARCHITECTURE v2.15, HANDOFF Entry 062).
-
----
-
-## Entry 064 - Milestone 5C.2a Manual Location Code Entry Closeout
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5C.2a manual scan fallback closeout
-**Session type:** Verification / documentation closeout
-
-### Context
-Ryan requested Milestone 5C.2a to close out the manual-entry refinement after
-Milestone 5C.2 read-first scan destination hierarchy pages. First-action checks
-confirmed a sequencing mismatch: the manual-entry refinement had already been
-committed and pushed as `d96e73e` (`Refine scan manual location lookup`) before
-this closeout request. Local `main` matched `origin/main` at `d96e73e`;
-`docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a remains present;
-HANDOFF was confirmed gapless through Entry 063; and no stale coordination docs
-were used.
-
-### What Was Completed
-- Verified the manual-entry fallback now accepts location codes as lookup
-  shortcuts.
-- Verified manual-entry lookup supports human-readable examples such as:
-  - Unit code: `C`;
-  - Shelf code: `C2`;
-  - Bay code: `C21`;
-  - Bin code: `C211`.
-- Verified manual-entry lookup resolves through the existing loaded
-  Unit/Shelf/Bay/Bin hierarchy.
-- Verified exact single manual-code matches route to
-  `/scan/location/<resolved_location_uuid>`.
-- Verified no-match manual entry shows `No matching location found.`
-- Verified ambiguous manual entry shows a disambiguation list rather than
-  guessing.
-- Verified the UI copy now says: `Scan a Northgate HQ location QR, paste a QR
-  link, or enter a location code like C211.`
-
-### Identity / Scanner Behavior
-- QR identity remains UUID-only.
-- Human-readable location codes are convenience lookup shortcuts only.
-- Human-readable codes are not encoded or treated as permanent scan identity.
-- Camera QR parsing remains strict and location-only.
-- Unsupported non-location QR payloads remain rejected gracefully by the existing
-  scan payload parser.
-
-### Schema Changes
-- None.
-- No migration was added.
-- No live Supabase schema change was made.
-- No RPC, RLS, permission, ledger, balance, checkout/finalization, count
-  correction, Count Intake, `physical_count_correction`, bin_item retirement,
-  destination semantics, transaction-history read-rule,
-  `can_view_all_divisions`, `can_view_financials`, inventory cost, Location QR
-  payload generation, Clerk, Netlify, or Financials/job-cost behavior was
-  changed.
-
-### Code / File Changes
-- Manual-entry refinement code was already committed in `d96e73e`:
-  - `src/App.jsx`;
-  - `src/styles.css`.
-- This closeout commit updates `HANDOFF.md`.
-- No Supabase files, migrations, hooks/services, package files, architecture
-  docs, or scan parser files were changed in this closeout.
-
-### Verification
-- `npm.cmd run build` passed.
-- Parser smoke test confirmed:
-  - full `https://rnsolutions.net/scan/location/<uuid>` payload routes
-    correctly;
-  - relative `/scan/location/<uuid>` payload routes correctly;
-  - bare UUID manual entry routes correctly;
-  - `/scan/material/<uuid>` is rejected;
-  - `A111` is rejected by strict QR parsing;
-  - `C211` is rejected by strict QR parsing and remains manual UI lookup only.
-- Static scan confirmed `allowCodeLookup` is used only for manual submit.
-- Static scan confirmed camera-decoded QR payloads still call strict
-  `handlePayload(rawValue)` without manual code lookup enabled.
-- Static scan confirmed no Supabase/hooks/services/package/architecture/scan
-  parser files changed.
-- Static diff review confirmed no write paths or inventory-changing controls
-  were added.
-- Static review confirmed scan result pages remain read-first and do not expose
-  cart/count/transfer/retire/checkout buttons.
-- Authenticated browser/camera verification was not available in this Codex
-  session and is not claimed here.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 064.
-
-### What Codex Needs to Know
-- Manual entry can resolve human-readable location codes as lookup shortcuts, but
-  scan identity remains UUID-only.
-- Camera QR parsing remains strict and location-only.
-- Manual lookup routing still lands on `/scan/location/<resolved_uuid>`.
-- No scan-page write actions were added.
-
-### What Claude Needs to Know
-- No schema, RPC, RLS, permission flag, ledger, balance, checkout/finalization,
-  count correction, Count Intake, `physical_count_correction`, bin_item
-  retirement, destination semantics, transaction-history read-rule,
-  `can_view_all_divisions`, `can_view_financials`, inventory cost, QR payload
-  generation, label-template mechanism, non-location QR entity, or
-  Financials/job-cost behavior was changed.
-- Human-readable codes remain lookup shortcuts only, not QR identity.
-
-### Next Steps (in order)
-1. Ryan may perform authenticated browser smoke verification on the
-   `rnsolutions.net` custom domain:
-   - manual entry of `/scan/location/<uuid>` routes correctly;
-   - manual entry of a full same-domain scan URL routes correctly;
-   - manual entry of a bare UUID routes correctly;
-   - manual entry of `C`, `C2`, `C21`, and `C211` resolves when exactly one
-     matching visible location exists;
-   - no-match manual entry shows `No matching location found.`;
-   - ambiguous manual entry shows a disambiguation list;
-   - unsupported non-location QR payloads are rejected gracefully;
-   - camera QR scanning remains strict and location-only;
-   - scan result pages remain read-first with no inventory-changing buttons.
-2. Keep bin-level cart/count action bindings deferred until a later milestone.
-3. Route to Claude before treating human-readable codes as QR identity, loosening
-   camera QR parsing, adding schema/RPC/RLS/permission behavior, adding
-   inventory-changing actions, or touching ledger/balance/checkout/count,
-   bin_item retirement, destination, transaction-history, `can_view_financials`,
-   or inventory cost behavior.
-
-### Open Questions / Concerns
-- Authenticated browser and camera verification were not available from this
-  Codex session.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: manual location code entry lookup closeout.
-- RESERVED: human-readable codes as QR identity, non-location QR entities,
-  scan-page write/action bindings, cart staging from scan pages, count
-  correction from scan pages, multi-bin batch cart actions, Transfer Location
-  surfacing from scan pages, React Native companion app, Label Template Designer
-  implementation, `label_templates`, Avery 5164/8160 designer implementation,
-  Grand Master UI surface, accounting export, location create/rename/archive,
-  Return-to-Inventory, Buyout, Tools locations, vehicle bins, van-stock
-  onboarding, Express Checkout, Manager Override, reorder/min-max, structured
-  count-type field, and catalog creation from count UI.
-
-### Routing Verdict
-No Claude review needed - manual-entry lookup refinement within locked scan behavior (ARCHITECTURE v2.15, HANDOFF Entry 063).
-
----
-
-## Entry 065 - Milestone 5D Label Template Designer Foundation + Hierarchy Summary Polish
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5D label template foundation
-**Session type:** Implementation / static verification
-
-### Context
-Ryan requested Milestone 5D to add the Label Template Designer foundation and
-hierarchy summary polish under ARCHITECTURE v2.15. First-action checks confirmed
-local `main` was pulled and matched `origin/main`; `docs/ARCHITECTURE.md` is
-v2.15; Section 10a remains present; HANDOFF was gapless through Entry 064; and
-no stale coordination docs were used. Milestones 5C.2 and 5C.2a were already
-committed and pushed before this work began.
-
-### What Was Completed
-- Added the `label_templates` foundation migration file.
-- Added a Label Designer tab under the Inventory surface.
-- Added a reusable template editor foundation for:
-  - Avery 5164 Unit/Shelf/Bay placards;
-  - Avery 8160 Bin labels;
-  - optional QR field;
-  - include/exclude toggles for QR, location code, location path, display label,
-    and contents summary;
-  - per-field color, alignment, opacity, bold, and underline controls.
-- Added live preview using the existing Section 10 scan payload format:
-  `/scan/location/<uuid>`.
-- Added saved-template read/create/update/archive UI using the new
-  `label_templates` table path.
-- Added archive-over-delete behavior for saved templates.
-- Added display-only hierarchy summaries to Location Management and scan
-  hierarchy navigation cards.
-
-### Schema / Migration Notes
-- Added `supabase/migrations/202606230001_label_templates_foundation.sql`.
-- The migration creates `public.label_templates` with:
-  - `id`;
-  - `name`;
-  - `avery_template`;
-  - `scope_level`;
-  - `include_qr`;
-  - `layout`;
-  - `created_by`;
-  - `created_at`;
-  - `archived_at`.
-- RLS is enabled.
-- Active templates are selectable by authenticated users with
-  `can_manage_inventory`.
-- Insert/update/archive is limited to Developer/Admin users with
-  `can_manage_inventory`.
-- No DELETE policy or DELETE grant was added.
-- No live Supabase migration was applied by Codex; Ryan/Supabase must apply the
-  migration through the approved deployment path.
-
-### QR / Scan Identity Behavior
-- QR payload generation remains UUID-only.
-- Label preview uses `/scan/location/<uuid>`.
-- Human-readable location codes remain lookup shortcuts only.
-- No non-location QR entity behavior was added.
-- No scan-page cart/count/transfer/retire/checkout action bindings were added.
-
-### Hierarchy Summary Polish
-- Location Management rows now show display-only child/location contents
-  summaries from already loaded Unit/Shelf/Bay/Bin and inventory count sheet
-  data.
-- Scan hierarchy up/down navigation cards now show display-only summaries from
-  existing readable data.
-- No new read RPC was added for hierarchy summaries.
-- No inventory write path was added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added data-driven Avery template geometry constants.
-  - Added label template draft/preview/editor UI.
-  - Added label template read/save/archive calls through the existing Supabase
-    client path.
-  - Added hierarchy summary helpers using existing loaded location/count data.
-- `src/styles.css`
-  - Added responsive Label Designer and preview styling.
-- `supabase/migrations/202606230001_label_templates_foundation.sql`
-  - Added the `label_templates` table, RLS policies, index, comments, and grants.
-- `HANDOFF.md`
-  - Added this Entry 065.
-
-### Verification
-- `npm.cmd run build` passed.
-- `git diff --check` passed.
-- Static scan confirmed no new direct `inventory_balances` write path was added.
-- Static review confirmed no checkout/finalization, ledger, count correction,
-  transaction history, bin_item retirement, destination semantics, or inventory
-  balance behavior was changed.
-- Static review confirmed the label preview keeps `/scan/location/<uuid>` as
-  the QR payload.
-- Static review confirmed template archival updates `archived_at` and does not
-  delete rows.
-- Static review confirmed no live Supabase migration was applied.
-- Browser verification was not available in this Codex session and is not
-  claimed here.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 065.
-
-### What Codex Needs to Know
-- Label Template Designer is a foundation surface, not a final print/PDF engine.
-- Avery geometry is data-driven for 5164 and 8160.
-- Saved templates require the new `label_templates` migration to be applied in
-  Supabase before production save/archive operations work.
-- QR identity remains the stable location UUID.
-- The hierarchy summaries are display-only and use existing loaded data.
-
-### What Claude Needs to Know
-- This milestone added one schema migration for `label_templates`, as requested
-  by the locked Milestone 5D scope.
-- No live database migration was applied from Codex.
-- No schema/RPC/RLS behavior outside `label_templates` was changed.
-- No ledger, balance, checkout/finalization, count correction, bin_item
-  retirement, transaction-history, destination semantics, permission model,
-  Clerk/Supabase JWT, `can_view_financials`, inventory cost, or reserved feature
-  behavior was changed.
-
-### Next Steps (in order)
-1. Ryan should apply the `label_templates` migration through the approved
-   Supabase deployment path before relying on saved label templates in
-   production.
-2. Ryan may perform authenticated production smoke verification:
-   - Label Designer tab appears for inventory users;
-   - Developer/Admin with `can_manage_inventory` can create/update/archive label
-     templates after migration application;
-   - non-Developer/Admin inventory users can preview/read but cannot manage
-     templates;
-   - QR preview routes to `/scan/location/<uuid>`;
-   - Location Management and scan hierarchy summaries render cleanly.
-3. Future label milestones may add print/PDF exact positioning and batch
-   selection after the foundation is verified.
-
-### Open Questions / Concerns
-- Production save/archive behavior is expected to fail gracefully until the
-  `label_templates` migration is applied.
-- Browser and authenticated production verification were not available from this
-  Codex session.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Label Template Designer foundation and display-only
-  hierarchy summary polish.
-- RESERVED: final print/PDF exact positioning, scan-page write/action bindings,
-  non-location QR entities, Grand Master UI surface, accounting export, location
-  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
-  bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, catalog creation from count UI,
-  ledger changes, balance changes, checkout/finalization changes, count
-  correction changes, bin_item retirement semantic changes, transaction-history
-  visibility changes, destination semantic changes, and permission model
-  changes.
-
-### Routing Verdict
-No Claude review needed - Label Template Designer foundation and display-only hierarchy summaries within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 065).
-
----
-
-## Entry 066 - Milestone 5D.1 Apply and Verify Label Templates Migration
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5D.1 live migration verification
-**Session type:** Live Supabase migration apply / verification / documentation
-
-### Context
-Ryan requested Milestone 5D.1 to apply and verify only the committed
-`label_templates` foundation migration from Milestone 5D. First-action checks
-confirmed local `main` was pulled and already up to date; local `HEAD` matched
-`origin/main` at `6fb56b1`; `docs/ARCHITECTURE.md` was confirmed as v2.15;
-Section 10a and Section 25 remain present; HANDOFF was confirmed gapless through
-Entry 065; and no stale coordination docs were used. The target Supabase project
-was confirmed as `keogysnoukbendfkfjcn` / `northgate-hq-v2.0`.
-
-### What Was Completed
-- Identified the committed but unapplied migration:
-  `supabase/migrations/202606230001_label_templates_foundation.sql`.
-- Verified the migration matches ARCHITECTURE v2.14/v2.15 Section 25.
-- Confirmed the migration creates only `public.label_templates`.
-- Confirmed the migration preserves archive-over-delete behavior.
-- Confirmed the migration does not create or modify unrelated tables.
-- Applied only the `label_templates` foundation migration to live Supabase.
-- Confirmed live migration history now includes:
-  - version `20260623174852`;
-  - name `label_templates_foundation`.
-
-### Table / Column Verification
-- Confirmed `public.label_templates` exists.
-- Confirmed columns:
-  - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`;
-  - `name TEXT NOT NULL`;
-  - `avery_template TEXT NOT NULL`;
-  - `scope_level TEXT`;
-  - `include_qr BOOLEAN NOT NULL DEFAULT true`;
-  - `layout JSONB NOT NULL`;
-  - `created_by TEXT NOT NULL`;
-  - `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
-  - `archived_at TIMESTAMPTZ`.
-- Confirmed `scope_level` is nullable, so `NULL` remains valid for any location
-  level.
-- Confirmed `label_templates_scope_level_check` allows `unit`, `shelf`, `bay`,
-  and `bin`.
-- Confirmed `archived_at` exists and is nullable.
-- Confirmed the active-template index exists:
-  `idx_label_templates_active_scope` on `(scope_level, avery_template, name)`
-  where `archived_at IS NULL`.
-
-### RLS / Grants / Archive Verification
-- Confirmed RLS is enabled on `public.label_templates`.
-- Confirmed policies exist for:
-  - inventory template SELECT;
-  - Developer/Admin template INSERT;
-  - Developer/Admin template UPDATE.
-- Confirmed authenticated role grants are limited to `SELECT`, `INSERT`, and
-  `UPDATE`.
-- Confirmed no authenticated/anon DELETE grant exists.
-- Confirmed no DELETE policy exists.
-- Supabase changelog review noted the 2026-04-28 breaking change that new tables
-  may not be automatically exposed to the Data API; this migration already
-  includes explicit authenticated grants with RLS.
-
-### Test Template Verification
-- Inserted one safe verification template with `scope_level = NULL`.
-- Confirmed the insert accepted `NULL` scope level.
-- Archived the verification template by setting `archived_at`.
-- Confirmed active verification rows: `0`.
-- Confirmed archived verification rows: `1`.
-- No hard-delete cleanup was performed.
-
-### App / Static Verification
-- `npm.cmd run build` passed.
-- Static scan confirmed Label Designer code still references `label_templates`
-  through the existing app client path.
-- Static scan confirmed QR payload behavior remains `/scan/location/<uuid>`.
-- Static scan confirmed human-readable code/path remains display text only.
-- Static scan confirmed no scan-page cart/count/transfer/checkout action was
-  introduced by this milestone.
-- No app code, migration file, schema file, RPC, hook/service, package file, or
-  production environment variable was changed in this milestone.
-
-### Browser Verification
-- Authenticated browser verification was not performed in this Codex session and
-  is not claimed here.
-- Because the table now exists live, the prior table-missing condition for saved
-  label templates should be resolved; Ryan should still perform production UI
-  smoke verification from the `rnsolutions.net` custom domain.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 066.
-
-### What Codex Needs to Know
-- `label_templates_foundation` is now applied live in Supabase project
-  `keogysnoukbendfkfjcn`.
-- The test verification row remains archived, not deleted.
-- Saved template operations now have the required live table path.
-- Browser verification of the Label Designer UI remains a Ryan/manual follow-up.
-
-### What Claude Needs to Know
-- No schema changes beyond the locked `label_templates` migration were applied.
-- No ad-hoc database changes outside the committed migration were made, except
-  the safe archived verification row.
-- No Clerk, Netlify, environment variable, scan behavior, QR identity, ledger,
-  balance, checkout, count correction, bin_item retirement, destination
-  semantics, `can_view_financials`, inventory cost visibility, transaction
-  history, or reserved feature behavior was changed.
-
-### Next Steps (in order)
-1. Ryan may smoke test production from the `rnsolutions.net` custom domain:
-   - Source shows server;
-   - Label Designer loads without table-missing errors;
-   - Avery 5164 and 8160 options appear;
-   - Developer/Admin with `can_manage_inventory` can save, reload, and archive a
-     test template;
-   - no Supabase 401/PGRST301 and no Clerk production-domain error.
-2. Continue future label work only within Section 25 unless a new architecture
-   decision is routed to Claude first.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: live application and verification of the locked
-  `label_templates` foundation migration.
-- RESERVED: final print/PDF exact positioning, scan-page write/action bindings,
-  non-location QR entities, Grand Master UI surface, accounting export, location
-  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
-  bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, catalog creation from count UI,
-  ledger changes, balance changes, checkout/finalization changes, count
-  correction changes, bin_item retirement semantic changes, transaction-history
-  visibility changes, destination semantic changes, permission model changes,
-  and inventory cost visibility changes.
-
-### Routing Verdict
-No Claude review needed - live migration/apply verification only for locked Label Template Designer foundation (ARCHITECTURE v2.15, HANDOFF Entry 065).
-
----
-
-## Entry 067 - Milestone 5E Label Designer Print/PDF + Template Management Polish
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5E label designer polish
-**Session type:** UI implementation / static verification / documentation
-
-### Context
-Ryan requested Milestone 5E to make the Label Template Designer more usable for
-template management, live preview, and printable output while staying within the
-existing `label_templates` schema. First-action checks confirmed local `main`
-was pulled and already up to date; local `HEAD` matched `origin/main` at
-`d9197d7`; `docs/ARCHITECTURE.md` was confirmed as v2.15; Section 10a and
-Section 25 remain present; HANDOFF was confirmed gapless through Entry 066; and
-Entry 066 documents the live `label_templates` migration apply. A live Supabase
-check confirmed `public.label_templates` exists in project
-`keogysnoukbendfkfjcn`.
-
-### What Was Completed
-- Improved active template list handling.
-- Added a `Show archived` template view/filter.
-- Kept archived templates hidden from the active list by default.
-- Made archived templates preview-only in the UI.
-- Kept archive behavior as `archived_at` update only.
-- Improved save/create/update messaging so success messages survive template
-  reloads.
-- Improved Avery selection behavior:
-  - choosing Avery 8160 moves the draft to Bin scope;
-  - choosing Avery 5164 clears Bin scope if needed;
-  - scope mismatch warnings are displayed instead of silently changing locked
-    behavior.
-- Added browser print output for:
-  - the selected preview label;
-  - the current scoped set of locations.
-- Browser print output uses the centralized Avery geometry from
-  `AVERY_LABEL_TEMPLATES`.
-- Live preview continues to reflect field toggles and styling choices.
-
-### Print / PDF Notes
-- No new dependency was added.
-- Exact `react-pdf` output remains deferred.
-- This milestone implemented browser print output with documented limitations.
-- Print output uses:
-  - `avery_template` for geometry key;
-  - `layout.fields` for field include/style/position values;
-  - `include_qr` for QR visibility;
-  - selected/scoped location records from already loaded hierarchy data.
-- Avery 5164 and 8160 geometry remains centralized and data-driven.
-- 8160 output uses smaller print font sizes and clipped label cells to fit the
-  smaller label stock.
-
-### QR / Identity Behavior
-- QR payload remains `/scan/location/<uuid>`.
-- Label print output calls the existing QR helper and encodes the location UUID.
-- Human-readable location code/path remains printed display text only.
-- Human-readable codes were not encoded or treated as permanent QR identity.
-- No non-location QR entity behavior was added.
-
-### Permissions / Template Persistence
-- Label viewing/printing remains gated by the existing inventory read gate.
-- Template create/update/archive controls remain visible only for
-  Developer/Admin users with `can_manage_inventory`.
-- No new permission flag was added.
-- Template persistence still uses the existing `label_templates` columns:
-  - `name`;
-  - `avery_template`;
-  - `scope_level`;
-  - `include_qr`;
-  - `layout`;
-  - `created_by`;
-  - `archived_at`.
-- No hard-delete UI or code path was added.
-
-### Hierarchy Summaries
-- No new hierarchy summary data source was added.
-- The existing display-only hierarchy summary helper remains in use for preview
-  and print output.
-- No schema, migration, RPC, RLS, or new Supabase read behavior was added for
-  summaries.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added label print document/window helpers.
-  - Added shared label value/render helpers.
-  - Added active/archived template filter state.
-  - Added print-selected and print-scoped label actions.
-  - Improved Avery/scope handling and template management messaging.
-- `src/styles.css`
-  - Added compact status chips and print action styling for the Label Designer.
-- No migrations were added.
-- No package/dependency files were changed.
-
-### Verification
-- `npm.cmd run build` passed.
-- `git diff --check` passed.
-- Static scan confirmed no migration files were added.
-- Static diff scan confirmed no `label_templates` schema changes were made.
-- Static diff scan confirmed no direct `inventory_balances` write path was
-  introduced.
-- Static diff scan confirmed no checkout/finalization functions were changed.
-- Static diff scan confirmed no scan-page inventory-changing actions were added.
-- Static review confirmed QR payload still uses `/scan/location/<uuid>`.
-- Static review confirmed human-readable code/path remains display text only.
-- Static review confirmed template archive uses `archived_at` and not hard
-  delete.
-- Static review confirmed unauthorized users do not receive template management
-  controls.
-- Static review confirmed 5164 and 8160 use data-driven geometry.
-- Static review confirmed browser print output was implemented without adding a
-  dependency.
-
-### Browser Verification
-- Authenticated browser verification was not performed in this Codex session and
-  is not claimed here.
-- Production smoke verification remains a Ryan/manual follow-up.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 067.
-
-### What Codex Needs to Know
-- Label Designer now has active/archived template filtering, preview-only
-  archived templates, and browser print output.
-- Exact PDF/react-pdf output is still deferred.
-- Label print output depends on browser print settings; use 100% scale for Avery
-  stock.
-- No package dependency was added.
-
-### What Claude Needs to Know
-- No schema change was made.
-- No new permission flag was added.
-- No scan behavior, QR identity rule, ledger, balance, checkout/finalization,
-  count correction, bin_item retirement, destination semantics,
-  `can_view_financials`, inventory cost visibility, transaction-history, or
-  Financials/job-cost behavior was changed.
-- Scan actions, Grand Master UI, accounting export, and non-location QR entities
-  remain unbuilt.
-
-### Next Steps (in order)
-1. Ryan may smoke test production from the `rnsolutions.net` custom domain:
-   - Source shows server;
-   - Label Designer loads;
-   - Avery 5164 and 8160 can be selected;
-   - a template can be saved, loaded, updated, and archived;
-   - archived templates disappear from the active list;
-   - archived templates appear in the archived view;
-   - preview updates when toggles/styling change;
-   - QR preview and print output point to `/scan/location/<uuid>`;
-   - browser print opens for selected label and scoped sheet;
-   - no Supabase 401/PGRST301 and no Clerk production-domain error.
-2. Defer exact `react-pdf` sheet positioning until the browser-print workflow is
-   verified with real Avery stock.
-
-### Open Questions / Concerns
-- Browser print was not visually verified in this Codex session.
-- Exact PDF output remains deferred.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Label Designer template management polish and
-  browser print output.
-- RESERVED: exact react-pdf output, scan-page write/action bindings,
-  non-location QR entities, Grand Master UI surface, accounting export, location
-  create/rename/archive, Return-to-Inventory, Buyout, Tools locations, vehicle
-  bins, van-stock onboarding, Express Checkout, Manager Override,
-  reorder/min-max, structured count-type field, catalog creation from count UI,
-  ledger changes, balance changes, checkout/finalization changes, count
-  correction changes, bin_item retirement semantic changes, transaction-history
-  visibility changes, destination semantic changes, permission model changes,
-  and inventory cost visibility changes.
-
-### Routing Verdict
-No Claude review needed - Label Designer polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 066).
-
----
-
-## Entry 068 - Milestone 5E.0 Label Designer React Render Hotfix
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5E.0 production render hotfix
-**Session type:** Narrow UI bugfix / static verification / documentation
-
-### Context
-Ryan reported a production crash after Milestone 5E: React minified error #31,
-`object with keys {width, height}`. The report also noted recurring Supabase
-GoTrue multiple-client warnings, but those were not assumed to be the immediate
-crash. First-action checks confirmed local `main` was pulled and already up to
-date; local `HEAD` matched `origin/main` at `1f86b26`; `docs/ARCHITECTURE.md`
-was confirmed as v2.15; Section 10a and Section 25 remain present; HANDOFF was
-confirmed gapless through Entry 067, which also confirms gaplessness through
-Entry 066; and Entries 065/066 document Milestone 5D and 5D.1 completion. No
-stale coordination docs were used.
-
-### Root Cause
-- Confirmed the React error was caused by raw object rendering in the Label
-  Designer Avery template UI.
-- `AVERY_LABEL_TEMPLATES` used the property name `label` twice per template:
-  - first as the human-readable display name;
-  - then as the geometry object `{ width, height }`.
-- JavaScript kept the second `label` property, so JSX rendered
-  `{template.label}` / `{AVERY_LABEL_TEMPLATES[draft.avery_template]?.label}`
-  as the raw geometry object.
-- That matches React error #31: object with keys `{width, height}`.
-
-### What Was Completed
-- Renamed the human-readable Avery template name to `displayName`.
-- Preserved `label` as the geometry object used for label dimensions.
-- Added safe formatting helpers for Avery template display text:
-  - `formatLabelMeasurement`;
-  - `formatLabelSize`;
-  - `formatAveryTemplateLabel`.
-- Updated the Avery sheet `<select>` to render a formatted string instead of a
-  geometry object.
-- Updated the Label Designer `Sheet:` fact to render a formatted string instead
-  of a geometry object.
-- Preserved existing preview, print, save, archive, and template management
-  behavior.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Narrow render hotfix only.
-- No `src/styles.css` change.
-- No migration, Supabase file, hook/service, package file, or architecture doc
-  change.
-
-### Verification
-- `npm.cmd run build` passed.
-- Static search confirmed no `template.label` JSX render path remains.
-- Static search confirmed Avery geometry object usage remains limited to numeric
-  sizing/print calculations or formatted text helpers.
-- Static review confirmed Avery 5164 and 8160 geometry now displays as readable
-  text, for example `Avery 5164 Placard / 4 in x 3.33 in`.
-- Static diff scan confirmed no migration files were added.
-- Static diff scan confirmed no Supabase/hooks/services/package files changed.
-- Static diff scan confirmed no direct `inventory_balances` write path was
-  introduced.
-- Static diff scan confirmed no checkout/finalization, scan action,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, or inventory-changing behavior was changed.
-
-### Browser Verification
-- Local browser verification was blocked by missing local `VITE_SUPABASE_URL`.
-- Production browser access reached the `rnsolutions.net` sign-in screen, but
-  authenticated Label Designer verification was not available in this Codex
-  session.
-- Therefore Codex does not claim authenticated browser verification.
-- The reported GoTrue warning was not addressed in this hotfix and should remain
-  a separate follow-up diagnostic unless Ryan still observes it after this
-  render fix deploys.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 068.
-
-### What Codex Needs to Know
-- The 5E production crash was a Label Designer render bug, not a schema or
-  Supabase migration issue.
-- The `label` property in `AVERY_LABEL_TEMPLATES` is now geometry-only.
-- The human-readable Avery template name is `displayName`.
-- Any future JSX display should use `formatAveryTemplateLabel(...)` or
-  `displayName`, not the raw geometry object.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, permission, QR payload, scan destination,
-  ledger, balance, checkout/finalization, Count Intake,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, or reserved feature behavior was changed.
-- GoTrue duplicate-client warnings were not investigated or changed in this
-  hotfix.
-
-### Next Steps (in order)
-1. Ryan may verify production after deploy:
-   - open `rnsolutions.net`;
-   - Source shows server;
-   - open Label Designer;
-   - select Avery 5164 and 8160;
-   - confirm no React error #31;
-   - confirm Avery sizes render as readable text;
-   - confirm preview still renders;
-   - note whether the GoTrue duplicate-client warning still appears.
-2. If the GoTrue warning remains noisy, handle it in a separate diagnostic
-   milestone rather than this render hotfix.
-
-### Open Questions / Concerns
-- Authenticated production Label Designer verification was unavailable from this
-  Codex session.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: narrow Label Designer raw-object render hotfix.
-- RESERVED: schema changes, `label_templates` schema changes, Supabase client
-  refactors, GoTrue duplicate-client cleanup, QR payload changes, scan action
-  changes, ledger changes, balance changes, checkout/finalization changes,
-  count correction changes, bin_item retirement semantic changes,
-  transaction-history visibility changes, destination semantic changes,
-  permission model changes, `can_view_financials` changes, inventory cost
-  visibility changes, and all reserved features.
-
-### Routing Verdict
-No Claude review needed - narrow React render hotfix within locked Label Designer behavior (ARCHITECTURE v2.15, HANDOFF Entry 066).
-
----
-
-## Entry 069 - Milestone 5E.1 Label Designer Layout + Contents Summary Polish
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5E.1 label designer polish
-**Session type:** UI implementation / static verification / documentation
-
-### Context
-Ryan requested Milestone 5E.1 to improve Label Designer contents summaries, QR
-layout controls, and print geometry reliability after the 5E.0 render hotfix.
-First-action checks confirmed local `main` was pulled and already up to date;
-local `HEAD` matched `origin/main` at `25f1281`; `docs/ARCHITECTURE.md` was
-confirmed as v2.15; Section 10a and Section 25 remain present; HANDOFF was
-confirmed gapless through Entry 068; the 5E.0 render hotfix was committed and
-pushed; and live Supabase project `keogysnoukbendfkfjcn` still has
-`public.label_templates`. No stale coordination docs were used.
-
-### What Was Completed
-- Improved hierarchy and label contents summaries to include material names from
-  existing readable inventory rows.
-- Added deterministic material-name summary helpers:
-  - one bin material shows the actual material name;
-  - two or three bin materials are listed cleanly;
-  - larger material sets show the first two names plus a `+ N more` count;
-  - bay/shelf/unit summaries use the same conservative list-first behavior
-    rather than invented category guesses.
-- Added QR layout controls for:
-  - X position;
-  - Y position;
-  - width;
-  - height.
-- QR layout controls update `layout.fields.qr`, preserving the existing
-  `label_templates.layout` JSONB shape.
-- Existing templates without explicit QR position/size continue to receive safe
-  defaults from `DEFAULT_LABEL_FIELDS.qr`.
-- Updated print guidance to call out 100% scale, no fit-to-page, and printer
-  margin settings.
-
-### Print Geometry Polish
-- Audited Avery 5164 and 8160 geometry definitions.
-- Kept sheet geometry centralized in `AVERY_LABEL_TEMPLATES`.
-- Added explicit `pitch` values to the centralized geometry:
-  - Avery 5164: whole sheet, label size, margins, columns, rows, horizontal
-    pitch, and vertical pitch are defined centrally.
-  - Avery 8160: whole sheet, label size, margins, columns, rows, horizontal
-    pitch, and vertical pitch are defined centrally.
-- Browser print placement now uses explicit pitch values instead of deriving
-  placement from label size plus gutters at the print callsite.
-- Exact PDF / `react-pdf` output remains deferred.
-
-### QR / Identity Behavior
-- QR payload remains `/scan/location/<uuid>`.
-- QR identity remains the stable location UUID.
-- Human-readable code/path remains display text only.
-- No human-readable code was encoded into QR payloads.
-- No non-location QR entity behavior was added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added material-name summary helpers.
-  - Added explicit Avery pitch values and geometry detail formatting.
-  - Updated print placement to use centralized pitch.
-  - Added QR position/size controls that write to `layout.fields.qr`.
-- `src/styles.css`
-  - Added responsive styling for the QR layout control panel.
-- No migrations were added.
-- No Supabase files, hooks/services, package files, or architecture docs were
-  changed.
-
-### Verification
-- `npm.cmd run build` passed.
-- `git diff --check` passed.
-- Static scan confirmed no migration files were added.
-- Static scan confirmed `label_templates` schema was not changed.
-- Static scan confirmed no Supabase/hooks/services/package files changed.
-- Static diff scan confirmed no direct `inventory_balances` write path was
-  introduced.
-- Static diff scan confirmed no checkout/finalization functions were changed.
-- Static diff scan confirmed no scan-page inventory-changing actions were added.
-- Static review confirmed QR payload still uses `/scan/location/<uuid>`.
-- Static review confirmed human-readable location code/path remains display text
-  only.
-- Static review confirmed QR size and position update `layout.fields.qr`.
-- Static review confirmed templates missing QR size/position render with safe
-  defaults.
-- Static review confirmed contents summaries include material names where data
-  exists and do not invent category language.
-- Static review confirmed Avery 5164 and 8160 geometry definitions include whole
-  sheet geometry and explicit pitch values.
-- Static review confirmed preview does not render raw geometry objects as React
-  children.
-
-### Browser Verification
-- Authenticated browser verification was not performed in this Codex session and
-  is not claimed here.
-- Production smoke verification remains a Ryan/manual follow-up.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains gapless through Entry 069.
-
-### What Codex Needs to Know
-- Label summaries now prefer material names from the already loaded inventory
-  rows.
-- QR placement/size lives in `layout.fields.qr`, not in a new schema column.
-- Avery print placement now uses explicit centralized pitch values.
-- Browser print remains the current print path; exact PDF remains deferred.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, permission, QR payload, scan destination,
-  ledger, balance, checkout/finalization, Count Intake,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, or reserved feature behavior was changed.
-- No new summary backend, RPC, view, table, or permission flag was added.
-
-### Next Steps (in order)
-1. Ryan may verify production after deploy:
-   - open `rnsolutions.net`;
-   - Source shows server;
-   - open Label Designer;
-   - select Avery 5164 and 8160;
-   - change QR X/Y/width/height;
-   - save/load a template and confirm QR layout persists;
-   - preview a stocked bin and confirm material names appear in the contents
-     summary;
-   - test browser print preview for obvious sheet skew;
-   - confirm no Supabase 401/PGRST301 and no Clerk production-domain error.
-2. Defer exact PDF output until browser print alignment is checked against real
-   Avery stock.
-
-### Open Questions / Concerns
-- Authenticated production Label Designer verification was unavailable from this
-  Codex session.
-- Browser print alignment still needs real printer/stock validation.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Label Designer contents summary, QR layout, and
-  print geometry polish.
-- RESERVED: schema changes, `label_templates` schema changes, new summary
-  backend/RPC/view, new permission flags, QR payload changes, scan action
-  changes, ledger changes, balance changes, checkout/finalization changes,
-  count correction changes, bin_item retirement semantic changes,
-  transaction-history visibility changes, destination semantic changes,
-  permission model changes, `can_view_financials` changes, inventory cost
-  visibility changes, exact PDF output, and all reserved features.
-
-### Routing Verdict
-No Claude review needed - Label Designer layout and summary polish within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 069).
-
----
-
-## Entry 070 - Milestone 5F Grand Master UI Surface
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5F Grand Master UI surface
-**Session type:** UI implementation / static verification / documentation
-
-### Context
-Ryan requested Milestone 5F to add a read-only Grand Master / Inventory
-Overview surface using existing readable inventory data only. First-action
-checks confirmed local `main` was pulled and already up to date; local `HEAD`
-matched `origin/main` at `815c51c`; `docs/ARCHITECTURE.md` was confirmed as
-v2.15; HANDOFF was confirmed gapless through Entry 069; Milestone 5E.1 was
-committed and pushed; and no stale coordination docs were used. Entry 069 also
-had the exact current-entry routing-verdict typo Ryan warned about, so Codex
-repaired only `HANDOFF Entry 068` to `HANDOFF Entry 069` before appending this
-entry.
-
-### What Was Completed
-- Added a new `Grand Master` tab as the first Inventory module surface.
-- Added a read-only `GrandMasterOverviewPanel` backed by the existing
-  `useInventoryCountSheet` read path.
-- Displayed consolidated authorized inventory rows with:
-  - material name and material code;
-  - category;
-  - quantity on hand;
-  - unit cost and extended value when already present in the authorized read
-    row;
-  - division from the existing visible row/location data;
-  - Unit / Shelf / Bay / Bin path and location labels;
-  - stocked vs empty status.
-- Added empty-location display rows for bins that have no active bin/material
-  rows returned by the existing read path.
-- Added summary cards for:
-  - stocked locations;
-  - empty locations;
-  - total stocked rows;
-  - total quantity;
-  - known stored value;
-  - visible rows after filters.
-- Added read-only filters/search for:
-  - material/code/location text;
-  - compact location shortcuts such as `C111`;
-  - Unit;
-  - Shelf;
-  - Bay;
-  - Bin;
-  - category;
-  - visible division;
-  - stocked vs empty.
-- Added a manual Refresh button that only reloads the existing read hook.
-
-### Sync / Last-Updated Behavior
-- Implemented last-updated/client-refresh status using the existing
-  `lastLoadedAt` value from `useInventoryCountSheet`.
-- Deeper backend sync-health was not invented because no existing backend
-  mechanism was available or needed for this milestone.
-- The UI states this explicitly as `Sync health: client last-loaded only`.
-
-### Read-Only / Scope Notes
-- The Grand Master surface uses existing server-side read rules and the data
-  already returned to the signed-in user.
-- No client-side-only permission override was added.
-- Inventory cost is displayed within the authorized inventory row scope when
-  cost data is already returned.
-- `can_view_financials` was not used as an inventory-cost gate.
-- No write buttons, inventory-changing controls, checkout controls, count
-  correction controls, scan actions, retirement controls, or export generation
-  were added to the Grand Master surface.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added Grand Master row-building/search helpers.
-  - Added the `GrandMasterOverviewPanel`.
-  - Added the `Grand Master` tab and made it the first Inventory module tab.
-- `src/styles.css`
-  - Added table/mobile responsive styling for the Grand Master surface.
-- `HANDOFF.md`
-  - Repaired the Entry 069 routing-verdict typo specifically called out by
-    Ryan.
-  - Appended this Entry 070.
-- No architecture docs, migrations, Supabase files, hooks/services, package
-  files, schema, RLS, grants, or RPC definitions were changed.
-
-### Verification
-- `npm.cmd run build` passed.
-- `git diff --check` passed.
-- HANDOFF was rechecked as gapless through Entry 069 before this append.
-- Static scan confirmed only `HANDOFF.md`, `src/App.jsx`, and `src/styles.css`
-  changed.
-- Static diff confirmed no migration files were added.
-- Static diff confirmed no schema/Supabase/RLS/grants files were changed.
-- Static diff confirmed no new RPC/view was added.
-- Static diff confirmed no direct `inventory_balances` write path was
-  introduced.
-- Static diff confirmed no checkout/finalization functions were changed.
-- Static diff confirmed no inventory-changing controls were added.
-- Static scan confirmed `can_view_financials` was not added as an
-  inventory-cost gate.
-- Static review confirmed QR/scan/label behavior was not changed.
-
-### Browser Verification
-- Authenticated production browser verification was not performed in this Codex
-  session and is not claimed here.
-- Ryan/manual production verification remains needed after deploy:
-  - open `rnsolutions.net`;
-  - Source shows server;
-  - open the Grand Master tab;
-  - confirm rows load;
-  - confirm filters/search work;
-  - confirm location paths display;
-  - confirm summary cards display;
-  - confirm no write controls are present;
-  - confirm no Supabase 401/PGRST301;
-  - confirm no Clerk production-domain error.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-- HANDOFF remains append-only aside from the Ryan-specified current-entry typo
-  repair in Entry 069.
-
-### What Codex Needs to Know
-- Grand Master is a UI-only overview surface.
-- It derives its rows from the existing count sheet/read path; there is no new
-  backend, RPC, view, table, or permission flag.
-- Sync-health is intentionally limited to client last-loaded/refresh state.
-- Empty locations are derived from already readable Bin records and returned
-  bin/material rows.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
-  destination, ledger, balance, checkout/finalization, Count Intake,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, Financials/job-cost, or reserved feature behavior
-  was changed.
-- No accounting export, scan-page cart staging, scan-page count correction
-  action binding, checkout from scan pages, plus/minus scan controls,
-  multi-bin batch cart actions, Transfer Location surfacing, non-location QR
-  generation, native companion app, location create/rename/archive,
-  Return-to-Inventory, Buyout, Tools locations, vehicle bins, van-stock
-  onboarding, Express Checkout, Manager Override, reorder/min-max,
-  low-stock thresholds, structured count-type fields, or catalog creation from
-  count UI was built.
-
-### Next Steps (in order)
-1. Ryan may verify the Grand Master tab in production after deploy.
-2. If production data reveals missing fields in the existing read path, route
-   any new read-only RPC/view/schema request to Claude before implementation.
-3. Proceed to accounting export only as a separate milestone.
-
-### Open Questions / Concerns
-- Authenticated production verification was unavailable from this Codex session.
-- Backend sync-health remains deferred because this milestone did not add a new
-  backend mechanism.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: read-only Grand Master UI surface.
-- RESERVED: accounting export generation, new read-only RPC/view, schema/RLS/
-  permission changes, inventory-changing actions, ledger changes, balance
-  changes, checkout/finalization changes, count correction changes, bin_item
-  retirement semantic changes, destination semantic changes, transaction-history
-  behavior changes, QR payload behavior changes, scan action behavior changes,
-  Financials/job-cost behavior, and all reserved features.
-
-### Routing Verdict
-No Claude review needed - read-only Grand Master UI surface within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 070).
-
----
-
-## Entry 071 - Milestone 5G Inventory Search Refinement
-
-**Date:** 2026-06-23
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5G search refinement
-**Session type:** implementation
-
-### Context
-Ryan requested inventory search refinement so Grand Master / Inventory Overview
-search no longer requires exact word order and handles common material-search
-format differences such as inch marks, case, spacing, punctuation, and simple
-plural/singular variants. Scope was explicitly client-side only if the
-authorized inventory data is already loaded, with no schema, migration, RPC,
-RLS, backend search index, balance, ledger, checkout, count correction, or
-permission changes.
-
-### What Was Completed
-- Added deterministic tokenized client-side search helpers in `src/App.jsx`.
-- Search now normalizes:
-  - case;
-  - extra spaces;
-  - straight/curly quote and inch marks;
-  - common hyphen/dash/underscore separators;
-  - practical slash spacing while preserving fraction tokens such as `1/2`.
-- Search now expands simple plural/singular tokens such as:
-  - `connector` / `connectors`;
-  - `coupling` / `couplings`.
-- Grand Master search now matches rows when every query token appears somewhere
-  in the searchable row text, regardless of word order.
-- Compact location code text remains searchable, so combined searches such as
-  `C211 connector` can match rows when the compact location and material token
-  are both present.
-- The shared count-sheet row matcher now uses the same tokenized search model
-  for existing authorized inventory rows.
-- Searchable row values include already-loaded row fields such as material code,
-  material name, category label, category tiers, unit of measure, description,
-  manufacturer/vendor part numbers, division, storage path, visible location
-  labels/codes, and compact location code.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, RLS changes, grants, RPCs, backend search
-  functions, or database indexes were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Expanded `normalizeSearchText`.
-  - Added tokenization, simple singular/plural expansion, searchable token-set,
-    and all-token match helpers.
-  - Updated Grand Master and shared count-row search to use all-token matching
-    while preserving compact-location matching.
-- `HANDOFF.md`
-  - Appended this Entry 071.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Inventory search remains client-side and filters only rows already returned by
-  the existing authorized read path.
-- Accounting Export is still not implemented as a separate surface in the
-  current app; no export generation was added.
-- If Accounting Export later shares this row matcher, it will inherit the
-  tokenized search behavior.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
-  destination, ledger, balance, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, Financials/job-cost, or reserved feature behavior
-  was changed.
-- Search filtering remains a read-only UI refinement over already-authorized
-  loaded rows.
-
-### Next Steps (in order)
-1. Ryan may verify the Grand Master tab in production after deploy with:
-   - `1/2 emt connectors`;
-   - `connector emt 1/2`;
-   - `emt set screw`;
-   - `C211 connector`.
-2. When Accounting Export is built as a separate milestone, reuse the same
-   search helper if it filters the same authorized inventory row model.
-
-### Open Questions / Concerns
-- Authenticated production verification was unavailable from this Codex session.
-- Accounting Export is not yet built, so Codex could only confirm that no
-  separate Accounting Export filter exists to update in this milestone.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: client-side read-only inventory search refinement.
-- RESERVED: accounting export generation, backend search/RPC/view/index work,
-  schema/RLS/permission changes, inventory-changing actions, ledger changes,
-  balance changes, checkout/finalization changes, count correction changes,
-  bin_item retirement semantic changes, destination semantic changes,
-  transaction-history behavior changes, QR payload behavior changes, scan action
-  behavior changes, Financials/job-cost behavior, and all reserved features.
-
-### Routing Verdict
-No Claude review needed - client-side read-only search refinement within locked Inventory module-completion decisions (ARCHITECTURE v2.15, HANDOFF Entry 071).
-
----
-
-## Entry 072 - Milestone 5G.1 Accounting Export Foundation
-
-**Date:** 2026-06-24
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5G.1 accounting export foundation
-**Session type:** implementation
-
-### Context
-Ryan requested the first Accounting Export Foundation surface for inventory /
-accounting review without changing backend, schema, RLS, permissions, or any
-locked inventory invariant. First-action checks were completed: `git pull
-origin main` reported already up to date; local `main` and `origin/main`
-matched at commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`;
-`docs/ARCHITECTURE.md` was confirmed as Version 2.15; `HANDOFF.md` was
-confirmed gapless through Entry 071; and only the canonical repo
-`HANDOFF.md` and `docs/ARCHITECTURE.md` were used for coordination.
-
-Entry 071 state was confirmed before implementation:
-- Grand Master UI surface exists.
-- Inventory Search Refinement is implemented client-side.
-- Accounting Export was not yet implemented as a separate surface.
-- Existing search helpers may be reused when filtering the same authorized
-  inventory row model.
-
-The working tree already contained the local Entry 071 changes in `src/App.jsx`
-and `HANDOFF.md`, so this milestone was built on top of that active local state
-without discarding it.
-
-### What Was Completed
-- Added a new `Accounting Export` Inventory tab.
-- Added a read-only `AccountingExportPreviewPanel`.
-- Reused the existing `useInventoryCountSheet` authorized read path.
-- Reused `buildGrandMasterRows` so the export preview uses the same loaded row
-  model as Grand Master / Inventory Overview.
-- Reused the Milestone 5G tokenized `matchesGrandMasterSearch` behavior for
-  export-preview search.
-- Added export-preview filters for:
-  - search;
-  - Unit;
-  - Shelf;
-  - Bay;
-  - Bin;
-  - category;
-  - visible division;
-  - stocked vs empty.
-- Added export-ready preview columns for:
-  - material code;
-  - material name;
-  - category;
-  - quantity on hand;
-  - unit cost where already present in authorized rows;
-  - extended value where computable from loaded quantity and unit cost;
-  - division;
-  - Unit / Shelf / Bay / Bin;
-  - compact location code and storage path;
-  - stocked vs empty status.
-- Added summary cards for:
-  - visible rows;
-  - stocked rows;
-  - empty locations;
-  - total quantity;
-  - known export value.
-- Added a clear on-screen note that this is a client-side export preview /
-  accounting review foundation, not a finalized accounting integration.
-- Added a purely client-side CSV download for the currently visible authorized
-  preview rows.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend export jobs, or database indexes
-  were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added client-side CSV formatting/download helpers.
-  - Added export-preview column definitions.
-  - Added `AccountingExportPreviewPanel`.
-  - Added the `Accounting Export` Inventory tab and render branch.
-- `src/styles.css`
-  - Added scoped Accounting Export preview table/action/mobile styles.
-- `HANDOFF.md`
-  - Appended this Entry 072.
-- No architecture docs, migrations, Supabase files, hooks/services, package
-  files, schema, RLS, grants, or RPC definitions were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Accounting Export now has a foundation preview surface inside Inventory.
-- It is read-only and client-side over already-authorized loaded rows.
-- The CSV button creates a local browser download from the currently visible
-  preview rows only; it does not create backend export files or jobs.
-- This is not a Financials/job-cost approval workflow and does not change
-  accounting semantics.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
-  destination, ledger, balance, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, Financials/job-cost, or reserved feature behavior
-  was changed.
-- Accounting Export Foundation is a read-only UI preview over already-authorized
-  inventory rows, plus an optional client-side CSV download from visible rows.
-
-### Next Steps (in order)
-1. Ryan may verify production after deploy:
-   - open `rnsolutions.net`;
-   - Source shows server;
-   - open Inventory -> Accounting Export;
-   - confirm preview rows load;
-   - confirm filters/search match Grand Master behavior;
-   - confirm summary cards update from visible rows;
-   - optionally download CSV and confirm it contains only currently visible
-     preview rows;
-   - confirm no write controls or accounting-approval workflow are present.
-2. If future Accounting Export requires backend jobs, scheduled exports,
-   storage buckets, new accounting fields, Financials/job-cost approval, or new
-   permission gates, route to Claude before implementation.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session and
-  is not claimed.
-- The CSV is intentionally basic and client-side only; finalized accounting
-  integration remains future work.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: read-only Accounting Export Foundation preview.
-- RESERVED: finalized accounting integration, backend export jobs, storage
-  export files, schema/RLS/permission changes, inventory-changing actions,
-  ledger changes, balance changes, checkout/finalization changes, count
-  correction changes, bin_item retirement semantic changes, destination
-  semantic changes, transaction-history behavior changes, QR payload behavior
-  changes, scan action behavior changes, Financials/job-cost behavior, and all
-  reserved features.
-
-### Routing Verdict
-No Claude review needed - within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).
-
----
-
-## Entry 073 - Milestone 5G.1 Follow-Up Accounting Export Visibility + Development Status Card
-
-**Date:** 2026-06-24
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5G.1 follow-up
-**Session type:** implementation
-
-### Context
-Ryan reported that production still showed only the old Inventory Count &
-Correction `Print / Export` button and did not show the new Accounting Export
-tab/surface. Codex was instructed not to assume 5G.1 was visually verified and
-to add a development-only status card so Ryan can quickly tell whether
-production has caught up to the latest milestone.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 072 before this append.
-- Netlify production project `northgate-hq-v2` was queried through the Netlify
-  connector.
-- Netlify production deploy `6a3bbccbba108e41830bd18b` was ready and serving
-  commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5`.
-
-### What Was Completed
-- Diagnosed the production visibility issue:
-  - the production commit `72736a2d82d5de29e4a5973f3c90a13f7867bcd5` does not
-    contain `Accounting Export`, `AccountingExportPreviewPanel`, or the new
-    development status card;
-  - that same production commit only contains the older Inventory Count &
-    Correction `Print / Export` buttons;
-  - therefore Ryan's production observation matches a deploy/commit mismatch,
-    not successful visual verification of 5G.1.
-- Confirmed the local working tree does include the Accounting Export tab in
-  the same Inventory `module-tabs` group Ryan uses.
-- Confirmed the local Accounting Export surface is rendered by the
-  `activeTab === 'accounting-export'` branch.
-- Confirmed the new CSV/download control is inside `AccountingExportPreviewPanel`
-  only and is now labeled `Download Preview CSV`.
-- Confirmed the old `Print / Export` buttons remain separate Count / Count
-  Intake controls and are not the Accounting Export preview.
-- Confirmed normal screen/mobile CSS does not hide `.module-tabs`; the only
-  `.module-tabs` hide rule is inside `@media print`.
-- Renamed the Accounting Export panel heading to `Accounting Export Preview`
-  so the surface identifies itself clearly.
-- Added a development-only `DevelopmentStatusCard` near the top dashboard card
-  group.
-- Updated the header build marker to the same current static marker.
-
-### Development Status Card
-The development card is hardcoded and UI-only. It displays:
-- Most recent change:
-  `Milestone 5G.1 follow-up - Accounting Export visibility / Development Status card`
-- Related HANDOFF:
-  `Entry 073`
-- Architecture:
-  `v2.15`
-- Current step:
-  `Accounting Export Foundation verification and UI reachability`
-- Build marker:
-  `Accounting export visibility build: 2026-06-24.1`
-- Deployment note:
-  production was checked before this patch and was serving `72736a2`; if the
-  card is visible, production has caught the follow-up UI.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend export jobs, or database indexes
-  were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added `DEVELOPMENT_STATUS`.
-  - Added `DevelopmentStatusCard`.
-  - Updated the app header build note to the current build marker.
-  - Updated Accounting Export headings to `Accounting Export Preview`.
-  - Renamed the Accounting Export CSV button to `Download Preview CSV`.
-- `src/styles.css`
-  - Added scoped development status card styles.
-  - Adjusted the dashboard grid to fit four top status cards on desktop.
-- `HANDOFF.md`
-  - Appended this Entry 073.
-- No architecture docs, migrations, Supabase files, hooks/services, package
-  files, schema, RLS, grants, or RPC definitions were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Production deploy status confirmed the live site was still serving commit
-  `72736a2`, which predates the local Accounting Export tab and Entry 073
-  development status card.
-- The Accounting Export tab is locally reachable in the Inventory tab list
-  immediately after Grand Master.
-- If Ryan still cannot see Accounting Export after deployment, first check for
-  whether the development status card/build marker is visible.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
-  destination, ledger, balance, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history, `can_view_all_divisions`, `can_view_financials`,
-  inventory cost visibility, Financials/job-cost, or reserved feature behavior
-  was changed.
-- This was a UI-only deploy/visibility diagnostic and development status marker
-  patch.
-
-### Next Steps (in order)
-1. Deploy/push the current local UI changes so production moves beyond commit
-   `72736a2`.
-2. Ryan may verify production after deploy:
-   - confirm the top development status card is visible;
-   - confirm the header build note says
-     `Accounting export visibility build: 2026-06-24.1`;
-   - open Inventory and confirm the `Accounting Export` tab appears immediately
-     after `Grand Master`;
-   - open the tab and confirm the heading says `Accounting Export Preview`;
-   - confirm the button says `Download Preview CSV`;
-   - confirm the old Inventory Count & Correction `Print / Export` button
-     remains separate.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session and
-  is not claimed.
-- Production will not show Entry 073 until the current local changes are pushed
-  and deployed.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Accounting Export visibility follow-up and
-  development status card.
-- RESERVED: finalized accounting integration, backend export jobs, storage
-  export files, schema/RLS/permission changes, inventory-changing actions,
-  ledger changes, balance changes, checkout/finalization changes, count
-  correction changes, bin_item retirement semantic changes, destination
-  semantic changes, transaction-history behavior changes, QR payload behavior
-  changes, scan action behavior changes, Financials/job-cost behavior, and all
-  reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 072).
-
----
-
-## Entry 074 - Milestone 5G.2 Accounting Export Usability + CSV Verification
-
-**Date:** 2026-06-24
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Milestone 5G.2 accounting export usability
-**Session type:** implementation
-
-### Context
-Ryan requested Milestone 5G.2 to harden the Accounting Export Preview as a
-clearer accounting review/export surface while keeping the work UI/client-side
-only. First-action checks were completed: `git pull origin main` reported
-already up to date; local `main` matched `origin/main` at
-`8aadafa567e48e2842c007e96ede32bbc7d46391`; `docs/ARCHITECTURE.md` was
-confirmed as Version 2.15; `HANDOFF.md` was confirmed gapless through Entry
-073; the working tree was clean before changes; and code inspection confirmed
-the Accounting Export tab plus Development Status card existed from the prior
-milestone.
-
-### What Was Completed
-- Improved the Accounting Export Preview summary cards:
-  - visible rows;
-  - stocked rows;
-  - empty / zero-quantity rows;
-  - total quantity;
-  - known inventory value where unit cost is present;
-  - rows missing cost.
-- Updated the Accounting Export Preview explanatory copy to clearly state:
-  `Development preview ‚Äî generated from currently authorized inventory rows.
-  Not a finalized accounting integration.`
-- Added the 5G.2 build marker to the export preview facts:
-  `Accounting export usability build: 2026-06-24.2`.
-- Added a visible `Print export: deferred` fact so the old Count print button is
-  not confused with Accounting Export.
-- Improved table structure by splitting location into separate accounting review
-  columns:
-  - Unit;
-  - Shelf;
-  - Bay;
-  - Bin;
-  - Storage Path / Compact Location.
-- Added safe display fallback handling for missing export table values.
-- Preserved existing tokenized search/filter behavior over authorized loaded
-  rows.
-- Updated the client-side CSV export filename to:
-  `northgate-inventory-accounting-export-preview-YYYY-MM-DD.csv`.
-- Kept CSV export client-side only and scoped to currently visible/filtered
-  authorized preview rows.
-- Updated the Development Status card to:
-  - Most recent change: `Milestone 5G.2 - Accounting Export usability / CSV
-    verification`;
-  - Related HANDOFF: `Entry 074`;
-  - Architecture: `v2.15`;
-  - Current step: `Accounting Export preview hardening`;
-  - Build marker: `Accounting export usability build: 2026-06-24.2`.
-
-### Print Behavior
-- No Accounting Export print button was added in this pass.
-- Clean print styling was intentionally deferred because the current print CSS
-  is count-sheet oriented, and CSV remains the safe export mechanism for this
-  milestone.
-- The old Inventory Count / Count Intake `Print / Export` controls remain
-  separate and were not reused for Accounting Export.
-
-### CSV Behavior
-- CSV export remains generated entirely in the browser.
-- CSV includes headers.
-- CSV exports only the currently visible/filtered Accounting Export Preview
-  rows that were already returned through the authorized inventory read path.
-- Currency and numeric columns export as plain numeric cell values where data is
-  available; missing cost/value fields export blank.
-- No hidden unauthorized data is exported.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend export jobs, or database indexes
-  were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated `DEVELOPMENT_STATUS` to Entry 074 / Milestone 5G.2.
-  - Added export display helpers for missing values and quantity formatting.
-  - Updated Accounting Export summary metrics.
-  - Updated Accounting Export preview copy, facts, table columns, and CSV
-    filename.
-- `src/styles.css`
-  - Adjusted Accounting Export table width for the expanded review columns.
-- `HANDOFF.md`
-  - Appended this Entry 074.
-- No architecture docs, migrations, Supabase files, hooks/services, package
-  files, schema, RLS, grants, or RPC definitions were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Accounting Export Preview remains UI/client-side only.
-- CSV is the only Accounting Export output mechanism in 5G.2.
-- Accounting Export print remains intentionally deferred until a clean,
-  scoped print layout is worth adding.
-- Development Status now points to Entry 074 and the 5G.2 build marker.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
-  destination, ledger, balance, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history permissions, `can_view_all_divisions`,
-  `can_view_financials`, inventory cost visibility, Financials/job-cost, or
-  reserved feature behavior was changed.
-- This was a UI-only accounting export usability and CSV verification pass over
-  already-authorized inventory rows.
-
-### Next Steps (in order)
-1. Ryan may verify production after deploy:
-   - confirm the Development Status card shows Entry 074 and
-     `Accounting export usability build: 2026-06-24.2`;
-   - open Inventory -> Accounting Export;
-   - confirm the heading says `Accounting Export Preview`;
-   - confirm the note says the preview is generated from currently authorized
-     inventory rows and is not a finalized accounting integration;
-   - confirm summary cards include rows missing cost;
-   - filter/search visible rows and download CSV;
-   - confirm the CSV filename includes
-     `northgate-inventory-accounting-export-preview`;
-   - confirm the old Count print/export button remains separate.
-2. Add a scoped Accounting Export print layout only in a future milestone if
-   Ryan wants a print-ready accounting review page.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session and
-  is not claimed.
-- Print export remains deferred by design for this pass.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Accounting Export usability and CSV verification.
-- RESERVED: finalized accounting integration, backend export jobs, storage
-  export files, schema/RLS/permission changes, inventory-changing actions,
-  ledger changes, balance changes, checkout/finalization changes, count
-  correction changes, bin_item retirement semantic changes, destination
-  semantic changes, transaction-history behavior changes, QR payload behavior
-  changes, scan action behavior changes, Financials/job-cost behavior, and all
-  reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 073).
-
----
-
-## Entry 075 - Inventory Count Print Sheet Patch
-
-**Date:** 2026-06-24
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Inventory Count print patch
-**Session type:** implementation
-
-### Context
-Ryan reported that the Inventory Count & Correction `Print / Export` button was
-printing the whole app/webpage layout instead of a useful count sheet. The goal
-was to replace the webpage-style print behavior with a basic formatted count
-table, staying UI/client-side only.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `43f7112f42520708e98a8e2a3154689c523ea144`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 074.
-- The working tree was clean before changes.
-- The current count print buttons and print CSS were inspected.
-
-### What Was Completed
-- Added a dedicated print-only `CountPrintSheet` component.
-- Replaced the old count-button label `Print / Export` with `Print Count Sheet`
-  on both existing count surfaces:
-  - Inventory Count & Correction;
-  - Inventory Count Intake.
-- The print-only count sheet uses the existing filtered/visible authorized rows
-  and existing local counted-quantity draft state.
-- Printed output now includes:
-  - `Northgate HQ - Inventory Count Sheet`;
-  - print timestamp;
-  - row count;
-  - selected client-side filter/search summary where available;
-  - Unit;
-  - Shelf;
-  - Bay;
-  - Bin;
-  - Material Code;
-  - Material Name / Description;
-  - System Qty;
-  - Counted Qty;
-  - Variance;
-  - Notes / Initials.
-- Added print-specific CSS that hides app chrome, tabs, filters, buttons,
-  cards, side panels, and the interactive count table during print.
-- Added compact, black/white, landscape-friendly print table styling with
-  repeating table headers.
-
-### Print Behavior
-- The old whole-webpage print behavior was replaced/scoped for count printing.
-- Clicking `Print Count Sheet` still uses browser print, but the print stylesheet
-  now displays the dedicated formatted count table instead of the app screen.
-- Authenticated browser print-preview verification was unavailable from this
-  Codex session and is not claimed.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend print/export services, or database
-  indexes were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added `CountPrintSheet`.
-  - Added count print filter summaries for the existing count screens.
-  - Updated count print button labels to `Print Count Sheet`.
-- `src/styles.css`
-  - Added hidden-on-screen count print sheet styles.
-  - Added print CSS for the dedicated count sheet table.
-- `HANDOFF.md`
-  - Appended this Entry 075.
-- No architecture docs, migrations, Supabase files, hooks/services, package
-  files, schema, RLS, grants, or RPC definitions were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Inventory Count printing is now handled by a dedicated print-only table, not
-  the interactive app/webpage layout.
-- The count print table is read-only/client-side and reflects currently visible
-  filtered rows plus local counted quantity draft values.
-- No count recording, count correction, retirement, balance, ledger, checkout,
-  transaction history, scan, Accounting Export, or Financials behavior changed.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, QR payload, scan
-  destination, ledger, balance, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history permissions, `can_view_all_divisions`,
-  `can_view_financials`, inventory cost visibility, Accounting Export,
-  Financials/job-cost, or reserved feature behavior was changed.
-- This was a UI-only print formatting patch for Inventory Count.
-
-### Next Steps (in order)
-1. Ryan may verify production after deploy:
-   - open Inventory -> Inventory Count & Correction;
-   - set any desired filters/search;
-   - enter sample counted quantities if desired;
-   - click `Print Count Sheet`;
-   - confirm print preview shows only the formatted count table, not the full
-     webpage/dashboard.
-2. If further polish is needed, tune only print CSS/table columns in a follow-up
-   UI-only patch.
-
-### Open Questions / Concerns
-- Authenticated browser print-preview verification was unavailable from this
-  Codex session and is not claimed.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Inventory Count print sheet patch.
-- RESERVED: backend export/print services, schema/RLS/permission changes,
-  inventory-changing actions, ledger changes, balance changes,
-  checkout/finalization changes, count correction changes, bin_item retirement
-  semantic changes, destination semantic changes, transaction-history behavior
-  changes, QR payload behavior changes, scan action behavior changes,
-  Accounting Export behavior, Financials/job-cost behavior, and all reserved
-  features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 074).
-
----
-
-## Entry 076 - 2026-06-24 - Milestone 5G.3 Accounting Export Grouping, Totals, and Print/Export Polish
-
-**Phase:** Inventory (Stage 1) - Accounting Export Foundation polish
-**Session type:** implementation
-
-### Context
-Ryan requested Milestone 5G.3 polish for the Accounting Export Preview surface:
-grouped review modes, grouped totals, current-view CSV behavior, scoped print
-polish, removal of the large dark print/export filler area, and a refreshed
-development status marker.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `029e39515bea0aba4d6c8b3130a8b5e92a396eec`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 075.
-- The working tree was clean before changes.
-
-### What Was Completed
-- Added Accounting Export review modes:
-  - Detail rows;
-  - By category;
-  - By location;
-  - By stocked status;
-  - By division.
-- Added grouped summary rows calculated client-side from the currently filtered,
-  already-authorized Accounting Export preview rows.
-- Grouped summary rows include:
-  - group label;
-  - row count;
-  - stocked row count;
-  - empty / zero row count;
-  - total quantity;
-  - known inventory value where cost exists;
-  - rows missing cost.
-- Updated CSV download behavior so it exports the current Accounting Export
-  view:
-  - detail mode downloads detail rows;
-  - grouped modes download grouped summary rows;
-  - filenames include the view token and date, such as
-    `northgate-inventory-accounting-detail-YYYY-MM-DD.csv` and
-    `northgate-inventory-accounting-by-category-YYYY-MM-DD.csv`.
-- Added scoped Accounting Export print support:
-  - `Print Export Preview` prints a dedicated Accounting Export preview sheet;
-  - print output includes `Northgate HQ - Accounting Export Preview`;
-  - print output includes printed date/time, current view, and row/group count;
-  - print output uses the active detail or grouped view;
-  - app chrome, buttons, tabs, development status card, backgrounds, and the
-    large dark filler/footer area are hidden for Accounting Export print output.
-- Kept the development-preview warning:
-  - `Development preview - generated from currently authorized inventory rows. Not a finalized accounting integration.`
-- Added the grouping explanation:
-  - `Grouping and totals are calculated client-side from the currently authorized inventory rows.`
-- Updated the Development Status card to:
-  - Most recent change:
-    `Milestone 5G.3 - Accounting Export grouping / totals / print polish`;
-  - Related HANDOFF: `Entry 076`;
-  - Architecture: `v2.15`;
-  - Current step: `Accounting Export review modes`;
-  - Build marker: `Accounting export grouping build: 2026-06-24.3`.
-
-### Verification
-- `npm run build` passed.
-- Static implementation review confirmed the change uses the existing
-  client-side Accounting Export / Grand Master inventory row model and
-  reuses the already-authorized rows returned to the signed-in user.
-- Authenticated browser and print-preview verification were unavailable from
-  this Codex session and are not claimed.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend export jobs, backend print
-  services, or database indexes were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added Accounting Export review-mode options and grouped summary helpers.
-  - Added current-view CSV export behavior.
-  - Added `AccountingExportPrintSheet`.
-  - Updated Accounting Export visible facts and development status marker.
-- `src/styles.css`
-  - Added grouped Accounting Export table styling.
-  - Added scoped Accounting Export print styles.
-  - Hid nonessential chrome/dev/status/background UI for Accounting Export
-    print output.
-- `HANDOFF.md`
-  - Appended this Entry 076.
-- No architecture docs, migrations, Supabase files, hooks/services, package
-  files, schema, RLS, grants, or RPC definitions were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Accounting Export Preview now has detail and grouped review modes.
-- Grouping, totals, CSV generation, and print output are all client-side and
-  operate only on currently authorized preview rows.
-- Accounting Export CSV and print behavior are scoped to the active Accounting
-  Export view and remain separate from the Inventory Count print sheet.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, backend export job,
-  backend print service, storage, QR payload, scan destination, ledger, balance,
-  checkout/finalization, Count Intake write path, `physical_count_correction`,
-  bin_item retirement, destination semantics, transaction-history permissions,
-  `can_view_all_divisions`, `can_view_financials`, inventory cost visibility,
-  Financials/job-cost, or reserved feature behavior was changed.
-- This was a UI/client-side Accounting Export polish milestone.
-
-### Next Steps (in order)
-1. Ryan may verify production after push/deploy:
-   - open Inventory -> Accounting Export;
-   - switch between Detail rows, By category, By location, By stocked status,
-     and By division;
-   - confirm grouped totals reflect the visible filtered rows;
-   - download CSV from detail and grouped views and confirm filenames/content;
-   - use `Print Export Preview` and confirm only the Accounting Export preview
-     sheet prints.
-2. If print layout needs additional column tuning, keep follow-up changes
-   UI/client-side only.
-
-### Open Questions / Concerns
-- Authenticated browser and print-preview verification were unavailable from
-  this Codex session and are not claimed.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Accounting Export grouped review modes, totals,
-  current-view CSV behavior, and scoped print polish.
-- RESERVED: backend export jobs, backend print services, schema/RLS/permission
-  changes, inventory-changing actions, ledger changes, balance changes,
-  checkout/finalization changes, count correction changes, bin_item retirement
-  semantic changes, destination semantic changes, transaction-history behavior
-  changes, QR payload behavior changes, scan action behavior changes,
-  Financials/job-cost behavior, and all reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 075).
-
----
-
-## Entry 077 - 2026-06-24 - Targeted Accounting Export Print Parent Card CSS Fix
-
-**Phase:** Inventory (Stage 1) - Accounting Export print polish
-**Session type:** implementation
-
-### Context
-Ryan reported that Accounting Export print/export output still showed a large
-dark blue box after the printable table/content. The inspect-only finding
-identified the likely source as the Inventory parent wrapper:
-`<article className="card card--wide">` in `InventoryReadOnlyPanel`.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `80731162dfab9dc3023ccea43e8e4639b9fb403b`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 076.
-- The working tree was clean before changes.
-- The relevant Accounting Export print CSS and Inventory wrapper path were
-  inspected before editing.
-
-### What Was Completed
-- Added a targeted `@media print` CSS fix scoped to Accounting Export print
-  output.
-- The fix uses the mounted Accounting Export panel as the selector hook:
-  - `.dashboard-grid:has(.accounting-export-panel)`;
-  - `.card.card--wide:has(.accounting-export-panel)`;
-  - `.card.card--wide:has(.accounting-export-panel) > :not(.accounting-export-panel)`.
-- The parent `.card.card--wide` / Inventory wrapper chrome is neutralized for
-  Accounting Export print output only.
-- Non-print siblings inside the Inventory parent card are hidden for Accounting
-  Export print output, while `.accounting-export-print-sheet` remains visible.
-- The Accounting Export print panel/sheet are forced to white background,
-  no border, no shadow, no filler min-height, and zero print padding.
-- Blank page space after printable content is intentional.
-
-### Verification
-- `npm run build` passed.
-- `git diff --check` passed.
-- Changed files were limited to `src/styles.css` before this HANDOFF append.
-- Static scan confirmed no migration files were added.
-- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
-  changed.
-- Static scan confirmed no inventory balance, ledger, checkout/finalization,
-  Count Intake write path, count correction, bin_item retirement, QR/scan,
-  transaction history permission, destination semantic, Accounting Export
-  authorization, or Financials/job-cost behavior changed.
-- Authenticated print-preview verification was unavailable from this Codex
-  session and is not claimed.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend export jobs, backend print
-  services, or database indexes were added.
-
-### Code / File Changes
-- `src/styles.css`
-  - Added targeted Accounting Export print CSS to hide/neutralize the wide
-    Inventory parent card chrome and non-print children.
-- `HANDOFF.md`
-  - Appended this Entry 077.
-- No app data logic, CSV logic, grouping logic, filters, row calculations,
-  authorization, backend files, hooks/services, package files, schema, RLS,
-  grants, or RPC definitions were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- The dark-blue Accounting Export print box was a print-layout artifact from
-  the parent `.card.card--wide` Inventory wrapper remaining visible around the
-  Accounting Export print sheet.
-- The fix is CSS-only and print-scoped to the Accounting Export mounted panel.
-- Inventory Count print behavior was not intentionally changed.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, backend export job,
-  backend print service, storage, QR payload, scan destination, ledger, balance,
-  checkout/finalization, Count Intake write path, `physical_count_correction`,
-  bin_item retirement, destination semantics, transaction-history permissions,
-  `can_view_all_divisions`, `can_view_financials`, inventory cost visibility,
-  Accounting Export authorization, Financials/job-cost, or reserved feature
-  behavior was changed.
-- This was a targeted UI/CSS print fix.
-
-### Next Steps (in order)
-1. Ryan may verify production after push/deploy:
-   - open Inventory -> Accounting Export;
-   - click `Print Export Preview`;
-   - confirm print output shows only the Accounting Export printable sheet/table;
-   - confirm the large dark-blue parent card/filler box is gone;
-   - confirm blank page space after content is white/empty.
-2. If further print polish is needed, keep follow-up changes UI/CSS-only.
-
-### Open Questions / Concerns
-- Authenticated print-preview verification was unavailable from this Codex
-  session and is not claimed.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: targeted Accounting Export print parent-card CSS
-  bugfix.
-- RESERVED: backend export jobs, backend print services, schema/RLS/permission
-  changes, inventory-changing actions, ledger changes, balance changes,
-  checkout/finalization changes, count correction changes, bin_item retirement
-  semantic changes, destination semantic changes, transaction-history behavior
-  changes, QR payload behavior changes, scan action behavior changes,
-  Accounting Export authorization changes, Financials/job-cost behavior, and
-  all reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 076).
-
----
-
-## Entry 078 - Targeted Inventory Count Print Parent Card CSS Fix
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Inventory Count print polish
-**Session type:** implementation
-
-### Context
-Ryan reported that Inventory Count & Correction print/export output still
-showed the same large dark-blue parent-card/filler box after the count
-sheet/table content. Accounting Export print had already been fixed with a
-targeted parent-card print CSS selector, and the request was to apply the same
-principle to Inventory Count while preserving normal screen layout.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `d45d5310dfa6d0c2fbe44d968b2aeb4865fb8f8a`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 077.
-- The working tree was clean before changes, aside from a local git-ignore
-  permission warning from `C:\Users\Ryan/.config/git/ignore`.
-- The recent Accounting Export print CSS fix was inspected before editing.
-- The Inventory Count print button, `.count-print-sheet`, `.count-workspace`,
-  and parent Inventory wrapper path were inspected before editing.
-
-### What Was Completed
-- Identified the actual Inventory Count print parent/wrapper source as
-  `InventoryReadOnlyPanel`'s `<article className="card card--wide">`, with the
-  active count tab mounting `.count-workspace` and `.count-print-sheet` inside
-  that parent card.
-- Added a targeted `@media print` CSS fix scoped to Inventory Count print
-  output using the mounted count print sheet as the selector hook:
-  - `.dashboard-grid:has(.count-print-sheet)`;
-  - `.dashboard-grid:has(.count-print-sheet) > .card:not(:has(.count-print-sheet))`;
-  - `.card.card--wide:has(.count-print-sheet)`;
-  - `.card.card--wide:has(.count-print-sheet) > :not(.count-workspace)`;
-  - `.count-workspace > :not(.count-print-sheet)`.
-- The Inventory parent `.card.card--wide` chrome/background is now neutralized
-  for Inventory Count print output only.
-- Non-print dashboard cards, parent-card children, controls, history panel,
-  app chrome, card backgrounds, shadows, filler spacing, and count workspace
-  siblings are hidden/neutralized for Inventory Count print output.
-- The dedicated Inventory Count printable sheet remains visible with white
-  background, no border, no shadow, zero print padding, and no filler
-  min-height.
-- The existing Accounting Export print fix was preserved and not changed.
-- Blank page space after printable content remains intentional.
-
-### Verification
-- `npm.cmd run build` passed. A direct `npm run build` invocation was blocked
-  by local PowerShell script execution policy before the build started, so the
-  Windows npm command shim was used.
-- `git diff --check` passed.
-- Changed source files were limited to `src/styles.css` before this HANDOFF
-  append.
-- Static scan confirmed no migration files were added.
-- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
-  changed.
-- Static scan confirmed no inventory balance, ledger, checkout/finalization,
-  Count Intake write path, count correction, bin_item retirement, QR/scan,
-  transaction-history permission, destination semantic, Accounting Export
-  authorization, or Financials/job-cost behavior changed.
-- Authenticated print-preview verification was unavailable from this Codex
-  session and is not claimed.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend export jobs, backend print
-  services, or database indexes were added.
-
-### Code / File Changes
-- `src/styles.css`
-  - Added targeted Inventory Count print CSS to hide/neutralize the wide
-    Inventory parent card chrome, sibling dashboard cards, and non-print count
-    workspace children.
-- `HANDOFF.md`
-  - Appended this Entry 078.
-- No app data logic, count write logic, Accounting Export behavior, backend
-  files, hooks/services, package files, schema, RLS, grants, or RPC definitions
-  were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- The dark-blue Inventory Count print box was a print-layout artifact from the
-  parent `.card.card--wide` Inventory wrapper and surrounding dashboard/card
-  chrome remaining in the print layout around `.count-print-sheet`.
-- The fix is CSS-only and print-scoped to the mounted Inventory Count print
-  sheet.
-- Accounting Export print behavior was preserved.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase, RLS, grant, permission, backend export job,
-  backend print service, storage, QR payload, scan destination, ledger, balance,
-  checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantics,
-  transaction-history permissions, `can_view_all_divisions`,
-  `can_view_financials`, inventory cost visibility, Accounting Export
-  authorization, Financials/job-cost, or reserved feature behavior was changed.
-- This was a targeted UI/CSS print fix for Inventory Count.
-
-### Next Steps (in order)
-1. Ryan may verify production after push/deploy:
-   - open Inventory -> Inventory Count & Correction;
-   - click `Print Count Sheet`;
-   - confirm print output shows only the Inventory Count printable sheet/table;
-   - confirm the large dark-blue parent card/filler box is gone;
-   - confirm blank page space after content is white/empty.
-2. If further print polish is needed, keep follow-up changes UI/CSS-only.
-
-### Open Questions / Concerns
-- Authenticated print-preview verification was unavailable from this Codex
-  session and is not claimed.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: targeted Inventory Count print parent-card CSS
-  bugfix.
-- RESERVED: backend export jobs, backend print services, schema/RLS/permission
-  changes, inventory-changing actions, ledger changes, balance changes,
-  checkout/finalization changes, Count Intake write path changes, count
-  correction changes, bin_item retirement semantic changes, destination
-  semantic changes, transaction-history behavior changes, QR payload behavior
-  changes, scan action behavior changes, Accounting Export authorization
-  changes, Financials/job-cost behavior, and all reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 077).
-
----
-
-## Entry 079 - Milestone 5H.1 Bin Scan Add-to-Cart Entry Point
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Scan destination action bindings
-**Session type:** implementation
-
-### Context
-Ryan requested Milestone 5H.1: add a safe Add-to-Cart entry point on
-bin-level scan destination pages so a field user who scans a bin can begin
-adding material from that scanned bin through the existing cart/checkout flow.
-The milestone was explicitly UI/client-side binding only and prohibited new
-schema, RPC, permission, transaction, checkout, balance, QR payload, route
-structure, transfer, return, buyout, Express Checkout, or Manager Override
-behavior.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `2491ff28841e856072f4050c0616287a57303641`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 078.
-- The working tree was clean before changes, aside from the existing local
-  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
-- Architecture Sections 10, 10a, 11, 17a, 23, 24, and 30 were checked for QR,
-  scan destination behavior, cart/checkout, transaction/balance, permission,
-  count-correction, and routing constraints.
-- The scan destination page, scan route parser, existing cart candidate picker,
-  `useInventoryCart`, and the approved cart RPC path were inspected before
-  coding.
-
-### What Was Completed
-- Added a bin-level scan page action card that appears only when the resolved
-  scan destination is a bin.
-- The action button text is:
-  `Add material from this bin to cart`.
-- The helper text states:
-  `Uses the existing cart checkout flow. Inventory is not changed until checkout is completed.`
-- The scan page action does not call any Supabase write RPC directly. It routes
-  to the existing dashboard Inventory Cart tab with scanned-bin context in the
-  dashboard query string:
-  `/?inventoryTab=cart&scanBinId=<bin_uuid>&scanBinCode=<display_code>`.
-- Added dashboard query parsing so `inventoryTab=cart` opens the existing Cart
-  Checkout tab and passes scanned-bin context into the already-built
-  `CartScaffold`.
-- Updated `CartScaffold` to use scanned-bin context as a client-side candidate
-  filter by existing `bin_id`.
-- The existing cart/add-to-cart flow is reused unchanged:
-  - users still open a cart through the existing `open_inventory_cart` RPC;
-  - users still enter quantities in the existing stocked-bin candidate picker;
-  - adding still calls `useInventoryCart().addItem()`;
-  - `useInventoryCart().addItem()` still calls the existing
-    `add_inventory_cart_item` RPC;
-  - checkout/finalization remains in the existing Cart Destinations area and
-    existing `finalize_inventory_cart` path.
-- Added a scanned-bin context panel inside the Cart tab so the user can see the
-  scanned bin, understand that checkout is unchanged, and clear the scanned-bin
-  filter to show all stocked candidates.
-- Added the required empty state for scanned bins with no authorized stocked
-  rows:
-  `No authorized stocked material was found for this scanned bin.`
-- Non-bin scan destinations do not show the bin-specific Add-to-Cart action.
-- Updated the scan page note to state that scan pages dispatch into existing
-  inventory workflows and that bin cart staging does not change inventory until
-  checkout.
-- Increased the existing authorized cart candidate read window in the frontend
-  read hook from 50 to 1000 rows so a scanned-bin filter is not accidentally
-  starved by the prior preview limit. This still reads from the existing
-  `inventory_cart_candidates_view` and does not change authorization.
-- Updated the Development Status card:
-  - Most recent change:
-    `Milestone 5H.1 ‚Äî Bin scan Add-to-Cart entry point`;
-  - Related HANDOFF: `Entry 079`;
-  - Architecture: `v2.15`;
-  - Current step: `Scan destination action bindings`;
-  - Build marker: `Scan Add-to-Cart build: 2491ff28`.
-
-### Verification
-- `cmd /c npm run build` passed. Vite reported only the existing chunk-size
-  warning.
-- `git diff --check` passed. Git emitted a line-ending normalization warning
-  for `src/hooks/useInventoryReadModel.js`; the actual diff in that file is one
-  query-limit line.
-- Changed source files before this HANDOFF append were limited to:
-  - `src/App.jsx`;
-  - `src/hooks/useInventoryReadModel.js`;
-  - `src/styles.css`.
-- Static scan confirmed no migration files were added.
-- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
-  changed.
-- Static scan confirmed no cart engine, transaction engine, balance mutation,
-  checkout/finalization, Count Intake write path, physical count correction,
-  bin_item retirement, QR payload, scan route structure, transaction-history
-  permission, destination semantic, Accounting Export authorization, or
-  Financials/job-cost behavior changed.
-- Authenticated browser verification was unavailable from this Codex session
-  and is not claimed.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added dashboard inventory query parsing for cart tab/scanned-bin context.
-  - Added `buildScanCartPath()`.
-  - Added `ScanBinCartEntry`.
-  - Added bin-only scan action rendering.
-  - Passed scanned-bin context into `InventoryReadOnlyPanel` and `CartScaffold`.
-  - Added scanned-bin filtering and clear-filter behavior inside the existing
-    cart candidate picker.
-  - Updated Development Status card values for Milestone 5H.1.
-- `src/hooks/useInventoryReadModel.js`
-  - Increased the existing authorized cart candidate read limit from 50 to
-    1000 rows.
-- `src/styles.css`
-  - Added responsive styling for the scan Add-to-Cart entry panel and scanned
-    cart context panel.
-- `HANDOFF.md`
-  - Appended this Entry 079.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Bin-level scan pages now provide a UI entry point into the existing cart flow.
-- The scan page itself does not stage a cart line, create a transaction, mutate
-  inventory balances, or finalize checkout.
-- The handoff from scan page to cart is client-side navigation to the dashboard
-  cart tab with scanned-bin context. The Cart tab then filters the existing
-  authorized cart candidate list by `bin_id`.
-- All cart writes remain through the pre-existing `useInventoryCart` hook and
-  existing cart RPCs.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase table, new RPC, RLS, grant, permission flag,
-  backend handler, backend action service, Clerk/auth, QR payload, scan route
-  structure, ledger, balance, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin_item retirement, destination semantic,
-  transaction-history permission, Accounting Export authorization,
-  Financials/job-cost, Express Checkout, Manager Override, transfer,
-  Return-to-Inventory, buyout, or reserved feature behavior was changed.
-- This was a UI/client-side binding from the bin scan page into the already
-  approved cart/add-to-cart workflow.
-
-### Next Steps (in order)
-1. Ryan may verify production after push/deploy:
-   - scan or manually open a bin QR route;
-   - confirm only bin-level scan pages show
-     `Add material from this bin to cart`;
-   - click the action and confirm the dashboard opens Inventory -> Cart
-     Checkout with the scanned bin context panel visible;
-   - open a cart through the existing cart button;
-   - enter quantity on an authorized stocked material from that bin;
-   - confirm Add uses the existing cart line workflow and inventory is not
-     changed until checkout;
-   - confirm non-bin scan pages do not show the bin-specific action.
-2. Keep any follow-up scan action work within the existing cart/checkout or
-   count-correction engines unless Claude review is triggered.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session
-  and is not claimed.
-- The Cart tab still depends on the existing authorized
-  `inventory_cart_candidates_view`; if a scanned bin has no authorized stocked
-  row in that view, the empty state is shown and no workaround is attempted.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: bin-level scan Add-to-Cart entry point.
-- RESERVED: schema/RLS/permission changes, new cart engines, new transaction
-  engines, direct balance writes, checkout/finalization changes, Count Intake
-  write path changes, physical count correction changes, bin_item retirement
-  semantic changes, QR payload changes, scan route structure changes,
-  transaction-history permission changes, destination semantic changes,
-  Accounting Export authorization changes, Financials/job-cost behavior,
-  location-to-location transfers, multi-bin batch actions, vehicle-bin stock
-  onboarding, Return-to-Inventory, buyout, Express Checkout, Manager Override,
-  backend handlers, backend action services, and all reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 078).
-
----
-
-## Entry 080 - Milestone 5H.2 Bin Scan Count Correction Entry Point
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Inventory (Stage 1) - Scan destination action bindings
-**Session type:** implementation
-
-### Context
-Ryan requested Milestone 5H.2: add a safe Count Correction entry point on
-bin-level scan destination pages so a field user who scans a bin can begin a
-count correction using the existing Inventory Count & Correction / Count Intake
-flow. The milestone was explicitly UI/client-side binding only and prohibited
-new schema, RPCs, permission changes, transaction engines, balance paths, count
-correction backend paths, QR payload changes, scan route structure changes, and
-all reserved workflows.
-
-The prior session summary referenced HANDOFF Entry 078 in its routing verdict
-even though Entry 079 had been appended. Before coding, HANDOFF was checked:
-Entry 079 is present and the file is gapless through Entry 079. The Entry
-078/079 mismatch was treated as a routing-reference typo, and this entry uses
-the correct latest handoff number after append.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `83d237056b79d2e655ef68068838c572ed82fed9`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15.
-- `HANDOFF.md` was confirmed gapless through Entry 079 before this append.
-- The working tree was clean before changes, aside from the existing local
-  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
-- Architecture Sections 10, 10a, 11, 12, 17a, 23, 24, and 30 were checked for
-  QR, scan destination behavior, Count Intake, physical count correction,
-  transaction/balance, permission, and routing constraints.
-- The scan destination page, scan route parser, existing Inventory Count Intake
-  UI, `useInventoryCountIntake`, and existing count submission path were
-  inspected before coding.
-
-### What Was Completed
-- Added a bin-level scan page Count Correction action that appears only when
-  the resolved scan destination is a bin.
-- The action button text is:
-  `Correct count for this bin`.
-- The helper text states:
-  `Uses the existing Inventory Count & Correction flow. Inventory is not changed until the count correction is submitted through the approved path.`
-- The scan page action does not call any Supabase write RPC directly. It routes
-  to the existing dashboard Inventory Count tab with scanned-bin context in the
-  dashboard query string:
-  `/?inventoryTab=count&scanBinId=<bin_uuid>&scanBinCode=<display_code>`.
-- Extended the 5H.1 dashboard query parser so scanned-bin context is routed to
-  the Cart tab only for `inventoryTab=cart` and to the Count tab only for
-  `inventoryTab=count`.
-- Added `buildScanCountPath()` alongside the existing scan cart path helper.
-- Updated `InventoryCountIntakePanel` to accept scanned-bin context.
-- When opened from a scanned bin, the Count Intake screen:
-  - shows a scanned-bin context panel;
-  - preselects the scanned bin path when hierarchy data is loaded;
-  - narrows existing authorized count rows to the scanned `bin_id`;
-  - preserves existing search/category/repeat filters within that scanned-bin
-    context;
-  - provides `Show all count rows` to clear the scanned-bin context and return
-    to the normal count view.
-- Existing count submission behavior is reused unchanged:
-  - existing bin/material count rows still use the current `Record` /
-    `Record Count` controls;
-  - new catalog-item count intake still uses the selected bin in the existing
-    Count Intake form;
-  - submissions still go through `useInventoryCountIntake().recordCount()`;
-  - `useInventoryCountIntake().recordCount()` still calls the existing
-    `intake_inventory_count` RPC.
-- Added the required scanned-bin empty state:
-  `No authorized material rows were found for this scanned bin.`
-- Non-bin scan destinations do not show the bin-specific Count Correction
-  action.
-- Updated the scan page note to state that bin cart staging and count correction
-  use existing approved flows and do not change inventory until those workflows
-  are completed.
-- Updated the Development Status card:
-  - Most recent change:
-    `Milestone 5H.2 ‚Äî Bin scan Count Correction entry point`;
-  - Related HANDOFF: `Entry 080`;
-  - Architecture: `v2.15`;
-  - Current step: `Scan destination action bindings`;
-  - Build marker: `Scan Count Correction build: 83d23705`.
-
-### Verification
-- `cmd /c npm run build` passed. Vite reported only the existing chunk-size
-  warning. An initial build attempt hit a transient Vite/Rolldown HTML emit path
-  error for `index.html`; an immediate rerun passed with no code changes.
-- `git diff --check` passed.
-- Changed source files before this HANDOFF append were limited to:
-  - `src/App.jsx`;
-  - `src/styles.css`.
-- Static scan confirmed no migration files were added.
-- Static scan confirmed no Supabase/RLS/grant/permission/backend behavior
-  changed.
-- Static scan confirmed no new Count Intake backend path,
-  `physical_count_correction` RPC behavior change, transaction engine, balance
-  mutation, cart checkout behavior, bin_item retirement, QR payload, scan route
-  structure, transaction-history permission, destination semantic, Accounting
-  Export behavior, or Financials/job-cost behavior changed.
-- Authenticated browser verification was unavailable from this Codex session
-  and is not claimed.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Imported `ClipboardCheck` for the Count Correction action button.
-  - Updated Development Status values for Milestone 5H.2.
-  - Added scanned-bin count route context parsing.
-  - Added `buildScanCountPath()`.
-  - Added `getCountPathFiltersForBin()`.
-  - Added `ScanBinCountEntry`.
-  - Rendered the bin-only Count Correction action on scan pages.
-  - Passed scanned-bin count context into `InventoryReadOnlyPanel` and
-    `InventoryCountIntakePanel`.
-  - Added scanned-bin filtering, path preselection, context panel, and
-    clear-context behavior to the existing Count Intake UI.
-- `src/styles.css`
-  - Added responsive styling for the scan Count Correction entry panel and the
-    scanned-bin count context panel.
-- `HANDOFF.md`
-  - Appended this Entry 080.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.15.
-
-### What Codex Needs to Know
-- Bin-level scan pages now provide both:
-  - Add-to-Cart entry point from 5H.1;
-  - Count Correction entry point from 5H.2.
-- The Count Correction scan action is client-side navigation into the existing
-  Inventory Count tab with scanned-bin context. It does not submit counts from
-  the scan page.
-- All count writes remain in the pre-existing Count Intake UI and existing
-  `useInventoryCountIntake` / `intake_inventory_count` path.
-- The prior Entry 078/079 routing mismatch was a summary/reference typo; the
-  actual HANDOFF file is gapless and now continues through Entry 080.
-
-### What Claude Needs to Know
-- No schema, migration, Supabase table, new RPC, RLS, grant, permission flag,
-  backend handler, backend action service, Clerk/auth, QR payload, scan route
-  structure, ledger, balance, cart checkout, Count Intake backend path,
-  `physical_count_correction` RPC behavior, bin_item retirement, destination
-  semantic, transaction-history permission, Accounting Export, Financials/job-
-  cost, Express Checkout, Manager Override, transfer, Return-to-Inventory,
-  buyout, or reserved feature behavior was changed.
-- This was a UI/client-side binding from the bin scan page into the already
-  approved Inventory Count & Correction / Count Intake workflow.
-
-### Next Steps (in order)
-1. Ryan may verify production after push/deploy:
-   - scan or manually open a bin QR route;
-   - confirm only bin-level scan pages show
-     `Correct count for this bin`;
-   - click the action and confirm the dashboard opens Inventory -> Inventory
-     Count & Correction with the scanned-bin context panel visible;
-   - confirm the visible count rows are narrowed to the scanned bin;
-   - submit a count only through the existing Count Intake controls if desired;
-   - confirm non-bin scan pages do not show the bin-specific Count Correction
-     action.
-2. Keep any follow-up scan action work within the existing cart/checkout or
-   Count Intake / physical count correction engines unless Claude review is
-   triggered.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session
-  and is not claimed.
-- The Count tab still depends on the existing authorized count rows loaded
-  through `useInventoryCountSheet`; if a scanned bin has no authorized material
-  rows, the required empty state is shown and no workaround is attempted.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: bin-level scan Count Correction entry point.
-- RESERVED: schema/RLS/permission changes, new Count Intake backend paths,
-  physical count correction RPC changes, new transaction engines, direct
-  balance writes, cart checkout changes, bin_item retirement semantic changes,
-  QR payload changes, scan route structure changes, transaction-history
-  permission changes, destination semantic changes, Accounting Export behavior,
-  Financials/job-cost behavior, location-to-location transfers, multi-bin batch
-  actions, vehicle-bin stock onboarding, Return-to-Inventory, buyout, Express
-  Checkout, Manager Override, backend handlers, backend action services, and all
-  reserved features.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.15, HANDOFF Entry 080).
-
----
-
-## Entry 081 - Standard Codex Operating Instructions adopted (ARCHITECTURE v2.16, new Section 35)
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Documentation / coordination doctrine
-**Session type:** implementation
-
-### Context
-Ryan identified Codex prompt length and usage burn as a coordination problem.
-Claude reviewed the proposed Standard Codex Operating Instructions and applied
-five tightening edits. ChatGPT then Rule 20 cross-cleared the adoption, and Ryan
-authorized this adoption pass.
-
-This was a documentation / lock-document adoption task only. No app-code,
-schema, backend, RLS, permission, auth, transaction, ledger, inventory balance,
-checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
-Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, or Manager
-Override behavior was changed.
-
-First-action checks were completed:
-- `git pull origin main` reported already up to date.
-- Local `main` matched `origin/main` at
-  `435e259c66256eeda4efa8779d3f32bcc21a9469`.
-- The working tree was clean before changes, aside from the existing local
-  git-ignore permission warning from `C:\Users\Ryan/.config/git/ignore`.
-- `docs/ARCHITECTURE.md` was confirmed as Version 2.15 before changes.
-- Section 34 was confirmed as the last ARCHITECTURE section before changes.
-- `HANDOFF.md` was confirmed gapless through Entry 080 before this append.
-- Standard Codex Operating Instructions were confirmed not already present in
-  ARCHITECTURE or HANDOFF before changes.
-
-### What Was Completed
-- Adopted Standard Codex Operating Instructions as standing operating doctrine.
-- Advanced ARCHITECTURE from v2.15 to v2.16.
-- Added new `## 35. Standard Codex Operating Instructions (locked v2.16 ‚Äî Entry 081)`.
-- Added the v2.16 version-line clause describing:
-  - reusable task classification buckets;
-  - the Bucket 2 positive confirmation gate;
-  - protected-scope rules with Section 10a / v2.15 references for
-    cross-location transfers and multi-bin batch actions;
-  - explicit RLS-bypass prohibition;
-  - explicit direct `inventory_balances` write-path verification;
-  - standard start procedure;
-  - HANDOFF requirement;
-  - routing verdict;
-  - short-prompt footer.
-- Preserved the prior v2.15 version history text in the ARCHITECTURE version
-  line.
-- Added Section 35H as the canonical short footer future Codex prompts may use.
-- Appended this HANDOFF Entry 081.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated the version line from v2.15 to v2.16.
-  - Added new Section 35 after Section 34.
-- `HANDOFF.md`
-  - Appended this Entry 081.
-- No `src/` files, migrations, Supabase files, package files, Clerk/auth files,
-  backend/RPC files, or app behavior files were changed.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.15 to v2.16.
-- New Section 35 is now locked as canonical Standard Codex Operating
-  Instructions.
-
-### What Codex Needs to Know
-- Future Codex prompts may use the Section 35H short footer instead of
-  restating the full operating instructions.
-- Codex must classify future tasks using Section 35B before coding.
-- Bucket 2 Existing-Flow Binding tasks require positive confirmation that the
-  existing flow accepts the new context without modification.
-- Protected scope is listed in Section 35C and must not be touched without an
-  existing lock or Claude routing.
-- Section 35E verification and Section 35G routing verdicts are now canonical.
-
-### What Claude Needs to Know
-- ChatGPT Rule 20 cross-cleared the v2.16 / Section 35 adoption before this
-  pass.
-- Ryan authorized adoption.
-- No source behavior or protected implementation scope changed.
-- This entry documents the adoption of coordination doctrine only.
-
-### Next Steps (in order)
-1. Future Codex prompts may reference the Section 35H short footer.
-2. Continue feature work under ARCHITECTURE v2.16 and HANDOFF Entry 081.
-3. Route any protected-scope or architecture-sensitive task through Claude per
-   Sections 30 and 35.
-
-### Open Questions / Concerns
-- None.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Standard Codex Operating Instructions adoption.
-- No app-code, schema, backend, RLS, permission, transaction, ledger, balance,
-  checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, cross-location transfer, or multi-bin batch action behavior changed.
-
-### Routing Verdict
-No Claude review needed ‚Äî Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.16, HANDOFF Entry 081).
-
----
-
-## Entry 082 - Selected Path count material-code search fixed
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Inventory Count Intake / Selected Path search
-**Session type:** implementation
-
-### Context
-Ryan reported that Count Loaded Stock search finds material code `C222` as
-`3/4" EMT Compression Couplings`, while the Selected Path count tool returns no
-results for `C222`. Ryan clarified that searching by the actual material code
-also does not return the item in Selected Path count.
-
-Section 35 classification: Bucket 1 ‚Äî Safe UI/client-side search/filter bugfix.
-The task was limited to already-loaded, already-authorized count rows and did
-not require backend, schema, RLS, permission, or write-path changes.
-
-### What Was Completed
-- Compared Count Loaded Stock / Grand Master search behavior against Selected
-  Path count search behavior.
-- Found that `matchesCountRowSearch` treated short hierarchy-looking search
-  values such as `C222` as location-only searches.
-- Updated the Selected Path count row matcher so count rows always include
-  material fields, including `material_code`, while preserving compact
-  location-code matching.
-- Preserved selected-path filters for storage unit, shelf, bay, bin, scan-bin
-  context, category, and Review Repeats.
-- Preserved Count Intake submission and write behavior.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added or changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated `matchesCountRowSearch` so token matching always searches
-    `getCountRowSearchValues(row)`, which includes `row.material_code`.
-  - Retained `compactLocationCode` and `compactLocationMatch` for selected-path
-    hierarchy searches.
-- `HANDOFF.md`
-  - Appended this Entry 082.
-
-### Verification
-- Confirmed `getCountRowSearchValues(row)` includes `row.material_code`.
-- Confirmed the Selected Path filters still run before the row search result is
-  returned.
-- Confirmed no broader fetch was added; `useInventoryCountSheet` was unchanged.
-- Confirmed no Count Intake submission/write hook changed.
-- Confirmed no Supabase, migration, backend, schema, RLS, permission, or
-  `inventory_balances` direct-write path changed.
-- `git diff -- src\hooks\useInventoryCountSheet.js src\hooks\useInventoryCountIntake.js src\hooks\useInventoryCountCorrection.js supabase`
-  returned no changes.
-- `npm.cmd run build` passed.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable from this Codex session
-  and is not claimed.
-- PowerShell blocked `npm run build` through `npm.ps1` because local script
-  execution is disabled; `npm.cmd run build` was used successfully instead.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Selected Path count material-code search bugfix.
-- No protected scope changed: schema, RLS, grants, permissions, backend/RPC,
-  Clerk/auth/login, inventory balance mutation logic, ledger behavior,
-  transaction tables, checkout/finalization, Count Intake write path,
-  `physical_count_correction`, bin item retirement, QR payload, scan route
-  structure, transaction-history permissions, destination semantics, Accounting
-  Export, Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock,
-  Express Checkout, Manager Override, cross-location transfer behavior, and
-  multi-bin batch actions were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.16, HANDOFF Entry 082).
-
----
-
-## Entry 083 - Tool Catalogue Foundation locked (ARCHITECTURE v2.17, new Section 36)
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Documentation / Tool Catalogue architecture doctrine
-**Session type:** implementation
-
-### Context
-Ryan requested a foundation for logging company tool inventory.
-
-The locked feature term is `Tool Catalogue`, not `Tool Inventory`. This phase
-is a catalogue/logging surface only, not a tracking/check-out system.
-
-Because this future feature introduces a new Supabase table and RLS, it is
-Architecture-sensitive under Section 35. Claude reviewed and approved the Tool
-Catalogue Foundation with edits. ChatGPT Rule 20 cross-cleared the adoption
-with corrected numbering, and Ryan authorized this adoption pass.
-
-Corrected numbering: Claude's draft referred to the Tool Catalogue entry as
-Entry 082, but Entry 082 already exists for the Selected Path count
-material-code search fix. Tool Catalogue adoption is Entry 083.
-
-### What Was Completed
-- Advanced ARCHITECTURE from v2.16 to v2.17.
-- Added new `## 36. Tool Catalogue (locked v2.17 ‚Äî Entry 083)`.
-- Locked Tool Catalogue as a catalogue/logging foundation, not a checkout,
-  tracking, custody, transfer, QR-label, vehicle-storage, or history-ledger
-  system.
-- Locked the future `public.tools` schema foundation, including:
-  - `division_id` FK to `divisions(id)`;
-  - soft-archive columns;
-  - nullable `tool_number` and `serial_number`;
-  - required `name`;
-  - CHECK-constrained `condition` and `status`;
-  - plain text placeholder fields for `home_location`, `current_location`, and
-    `assigned_to`;
-  - deferred `purchase_price` and `vendor`.
-- Locked partial unique indexes for non-null `tool_number` and `serial_number`.
-- Locked future RLS/permission doctrine:
-  - read by own division or `can_view_all_divisions`;
-  - write/create/edit/archive by `can_manage_inventory` within division scope;
-  - hard delete never;
-  - no new permission flags in this phase;
-  - `can_view_financials` is not a Tool Catalogue field gate.
-- Locked the first permitted UI surface and helper copy.
-- Reserved checkout/check-in, assignment history, custody chain, QR labels,
-  scan pages, transfers, vehicle-bin tool storage, employee/job linked
-  assignments, maintenance/inspection/calibration logs, repair history,
-  purchase accounting/depreciation, attachments/photos/receipts, canonical
-  accounting import/export, tool-specific permission flags, tool ledger, and
-  tool audit table for future architecture clearance.
-- Appended this HANDOFF Entry 083.
-
-### Schema Changes
-- None in this pass.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated the version line from v2.16 to v2.17.
-  - Added new Section 36 after Section 35.
-- `HANDOFF.md`
-  - Appended this Entry 083.
-- No app-code, migration, schema, RLS, permission, ledger, balance,
-  transaction, auth, or UI behavior changed in this docs-only pass.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.16 to v2.17.
-- Section 36 now canonically locks the Tool Catalogue Foundation.
-- HANDOFF remains gapless through Entry 083.
-
-### What Codex Needs to Know
-- Future Tool Catalogue implementation must be built in two steps:
-  1. Migration first.
-  2. UI second.
-- Before writing the migration, Codex must confirm:
-  - the existing `updated_at` trigger function name from live repo migrations;
-  - user profile/RLS patterns;
-  - Clerk auth helper/function pattern;
-  - `divisions` table shape.
-- Do not add `purchase_price` or `vendor` in the first Tool Catalogue
-  migration.
-- Do not add tool-specific permission flags, audit tables, tool ledgers,
-  attachments, checkout/check-in, QR labels, vehicle/bin linkage, job linkage,
-  assignment history, tracking history, custody chain, transfers, or purchase
-  accounting behavior without future architecture clearance.
-
-### What Claude Needs to Know
-- Claude reviewed and approved the Tool Catalogue Foundation with edits.
-- ChatGPT Rule 20 cross-cleared adoption with corrected numbering.
-- Entry 083 was used because Entry 082 was already consumed by the Selected
-  Path count material-code search fix.
-- No implementation, migration, RLS, permission, or runtime behavior was
-  changed in this pass.
-
-### Next Steps (in order)
-1. Future Codex implementation prompt should start with migration inspection:
-   updated_at trigger function, user profile/RLS pattern, Clerk auth helper, and
-   `divisions` table shape.
-2. Implement the locked Tool Catalogue migration.
-3. Implement the locked first Tool Catalogue UI surface only after the migration
-   shape is verified.
-
-### Open Questions / Concerns
-- None.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Tool Catalogue Foundation adoption.
-- No app-code, migration, schema, backend, RLS, permission, transaction, ledger,
-  balance, checkout, Count Intake, QR/scan, Accounting Export,
-  Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock, Express
-  Checkout, Manager Override, Tool Catalogue runtime behavior, cross-location
-  transfer, or multi-bin batch action behavior changed.
-
-### Routing Verdict
-No Claude review needed ‚Äî Rule 20 cross-cleared adoption applied (ARCHITECTURE v2.17, HANDOFF Entry 083).
-
----
-
-## Entry 084 - Section 36 Tool Catalogue division correction (ARCHITECTURE v2.18)
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Documentation / Tool Catalogue architecture correction
-**Session type:** implementation
-
-### Context
-Codex correctly stopped during Tool Catalogue migration preflight for Milestone
-5I.1 before writing a migration.
-
-The blocker was that Section 36 required
-`division_id uuid not null references divisions(id)`, but the current repo
-migration chain does not define `public.divisions` or a UUID division
-convention.
-
-Existing app convention uses `division text`, including
-`user_permissions.division` and `items.division`.
-
-Claude reviewed and approved correcting Section 36. ChatGPT Rule 20
-cross-cleared the correction, and Ryan authorized this docs-only correction
-pass.
-
-### What Was Completed
-- Advanced ARCHITECTURE from v2.17 to v2.18.
-- Corrected Section 36 so the Tool Catalogue first migration uses
-  `division text not null`.
-- Replaced the stale `division_id uuid not null references divisions(id)`
-  requirement for the Tool Catalogue first migration.
-- Clarified that Tool Catalogue RLS must use the existing text-division
-  convention:
-  - `user_permissions.division`;
-  - `items.division`;
-  - `auth.jwt() ->> 'sub'`;
-  - `user_permissions.clerk_user_id`;
-  - `effective_permissions_for_user(...)`;
-  - `can_view_all_divisions`;
-  - `can_manage_inventory`.
-- Added `divisions` table / UUID-based division normalization to the reserved
-  future architecture list.
-- Preserved the rest of the Tool Catalogue foundation: single `public.tools`
-  table, text CHECK constraints for `condition` and `status`, partial unique
-  indexes, soft archive, no new permission flags, no audit table, no
-  attachments, and reserved tracking/checkout features.
-- Appended this HANDOFF Entry 084.
-
-### Schema Changes
-- None in this pass.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated the version line from v2.17 to v2.18.
-  - Corrected Section 36 to use `division text not null`.
-  - Reserved divisions table / UUID-based division normalization for a future
-    architecture-cleared milestone.
-- `HANDOFF.md`
-  - Appended this Entry 084.
-- No app-code, migration, schema, RLS, permission, ledger, balance,
-  transaction, auth, or UI behavior changed in this docs-only correction.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.17 to v2.18.
-- Section 36 now matches the current app schema convention for division scope.
-- HANDOFF remains gapless through Entry 084.
-
-### What Codex Needs to Know
-- Next step is Milestone 5I.1 Tool Catalogue Migration Foundation using the
-  corrected Section 36 schema.
-- The first Tool Catalogue migration must use `division text not null`, not
-  `division_id uuid references divisions(id)`.
-- Do not introduce a `divisions` table or UUID-based division normalization as
-  part of Tool Catalogue. That is reserved for a dedicated
-  architecture-cleared milestone.
-- Future Tool Catalogue RLS must follow the existing text-division convention
-  and Clerk/user-permissions pattern.
-
-### What Claude Needs to Know
-- The v2.17 Section 36 division FK assumption was corrected through Rule 20.
-- ChatGPT cross-cleared the correction.
-- No implementation, migration, RLS, permission, or runtime behavior changed in
-  this pass.
-
-### Next Steps (in order)
-1. Resume Milestone 5I.1 Tool Catalogue Migration Foundation.
-2. Inspect existing migrations for the `updated_at` trigger function and
-   text-division RLS conventions.
-3. Create the Tool Catalogue migration using `division text not null`.
-
-### Open Questions / Concerns
-- None.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Section 36 Tool Catalogue division correction.
-- No app-code, migration, schema, backend, RLS, permission, transaction, ledger,
-  balance, checkout, Count Intake, QR/scan, Accounting Export,
-  Financials/job-cost, Return-to-Inventory, buyout, vehicle-bin stock, Express
-  Checkout, Manager Override, Tool Catalogue runtime behavior, cross-location
-  transfer, or multi-bin batch action behavior changed.
-
-### Routing Verdict
-No Claude review needed ‚Äî Rule 20 cross-cleared correction applied (ARCHITECTURE v2.18, HANDOFF Entry 084).
-
----
-
-## Entry 085 - Tool Catalogue Migration Foundation (Milestone 5I.1)
-
-**Date:** 2026-06-25
-**Updated by:** Codex
-**Phase:** Tool Catalogue / migration foundation
-**Session type:** implementation
-
-### Context
-Milestone 5I.1 is the first runtime implementation step for Tool Catalogue.
-ARCHITECTURE v2.18 Section 36 locks the corrected migration foundation:
-migration first, UI second, `public.tools` with `division text not null`, and
-no divisions table / UUID division normalization.
-
-Classification: Architecture-sensitive implementation of an already-cleared
-Section 36 design.
-
-Before writing SQL, Codex confirmed the existing repo conventions:
-- updated_at trigger function: `touch_user_permissions_updated_at()`;
-- Clerk convention: `auth.jwt() ->> 'sub'`;
-- user ID column: `user_permissions.clerk_user_id`;
-- division column: `user_permissions.division`;
-- permission function: `public.effective_permissions_for_user(up.role, up.division, up.permission_overrides)`;
-- permission flags: `can_view_all_divisions`, `can_manage_inventory`.
-
-### What Was Completed
-- Added migration `supabase/migrations/202606250001_tool_catalogue_foundation.sql`.
-- Created the canonical `public.tools` table foundation.
-- Used `division text not null`; no `division_id` field and no `divisions`
-  table were introduced.
-- Added `condition` CHECK constraint with allowed values `good`, `fair`,
-  `poor`, `damaged`, `unknown`, or null.
-- Added `status` CHECK constraint with allowed values `active`, `inactive`,
-  `retired`, and `missing`, defaulting to `active`.
-- Added partial unique indexes:
-  - `tools_tool_number_unique` on `tool_number` where non-null;
-  - `tools_serial_number_unique` on `serial_number` where non-null.
-- Added `trg_touch_tools_updated_at` using the existing
-  `touch_user_permissions_updated_at()` trigger function.
-- Enabled RLS on `public.tools`.
-- Added RLS policies:
-  - `tools_division_select` for own-division reads or
-    `can_view_all_divisions`;
-  - `tools_inventory_manager_insert` for `can_manage_inventory` within the
-    user's own division;
-  - `tools_inventory_manager_update` for `can_manage_inventory` within the
-    user's own division.
-- Granted only `SELECT`, `INSERT`, and `UPDATE` on `public.tools` to
-  authenticated users.
-- Did not create a DELETE policy or DELETE grant.
-- No UI was built.
-- No reserved tool-tracking features were added.
-
-### Schema Changes
-- Added new table `public.tools`.
-- Added two partial unique indexes on `public.tools`.
-- Added one `updated_at` trigger on `public.tools`.
-- Enabled RLS and added new RLS policies only for `public.tools`.
-- No existing tables, existing RLS policies, grants, permissions, RPCs,
-  inventory balances, ledger behavior, transaction behavior, checkout behavior,
-  Count Intake behavior, QR/scan behavior, Accounting Export behavior,
-  Financials/job-cost behavior, Return-to-Inventory, buyout, vehicle-bin stock,
-  Express Checkout, Manager Override, or existing Inventory behavior changed.
-
-### Code / File Changes
-- `supabase/migrations/202606250001_tool_catalogue_foundation.sql`
-  - New migration for the Tool Catalogue foundation.
-- `HANDOFF.md`
-  - Appended this Entry 085.
-- No `src/` files, package files, existing migrations, hooks, services,
-  routes, tabs, forms, or UI files were changed.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 085.
-
-### What Codex Needs to Know
-- Tool Catalogue migration foundation now exists.
-- The next implementation step is the Tool Catalogue UI.
-- UI work must consume the approved `public.tools` schema and must not add
-  checkout/check-in, assignment history, custody chain, QR labels, scan pages,
-  transfers, vehicle/bin linkage, job linkage, maintenance logs, repair
-  history, purchase accounting/depreciation, attachments/photos/receipts,
-  canonical accounting import/export, tool-specific permission flags, a tool
-  ledger, a tool audit table, `division_id`, or a `divisions` table.
-
-### What Claude Needs to Know
-- This pass implemented the already-cleared v2.18 Section 36 migration
-  foundation.
-- No UI or reserved Tool Catalogue runtime behavior was built.
-- No existing schema/RLS/permission behavior changed.
-- Supabase CLI was unavailable in this local environment, so local/live
-  migration application was not performed and is not claimed.
-
-### Next Steps (in order)
-1. Apply or verify the new migration in the target Supabase environment.
-2. Build the locked Tool Catalogue UI surface.
-3. Keep reserved Tool Catalogue features out of the UI until future
-   architecture clearance.
-
-### Open Questions / Concerns
-- Supabase local/live migration verification was not completed because the
-  `supabase` CLI was not available in this environment.
-- `npm run build` was blocked by PowerShell script execution policy, so
-  `npm.cmd run build` was used successfully.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Tool Catalogue migration foundation.
-- RESERVED: UI, checkout/check-in, assignment history, custody chain, QR labels,
-  scan pages, transfers, vehicle-bin tool storage, employee-linked
-  assignments, job/project-linked assignments, maintenance/inspection/
-  calibration logs, repair history, purchase accounting/depreciation,
-  attachments/photos/receipts, canonical accounting import/export,
-  tool-specific permission flags, tool ledger, tool audit table, divisions
-  table, and UUID-based division normalization.
-- No protected inventory behavior changed: inventory balances, ledger,
-  transaction behavior, checkout/finalization, Count Intake, QR/scan behavior,
-  Accounting Export, Financials/job-cost, Return-to-Inventory, buyout,
-  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
-  behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî implementing locked Tool Catalogue Foundation (ARCHITECTURE v2.18, HANDOFF Entry 085).
-
----
-
-## Entry 086 - Tool Catalogue UI (Milestone 5I.2)
-
-**Date:** 2026-06-26
-**Updated by:** Codex
-**Phase:** Tool Catalogue / first UI
-**Session type:** implementation
-
-### Context
-Milestone 5I.2 is the second Tool Catalogue implementation step under
-ARCHITECTURE v2.18 Section 36. The migration foundation from Entry 085 is
-already present, and this pass adds the first Supabase-backed Tool Catalogue
-UI only.
-
-Classification: Architecture-sensitive implementation of an already-locked
-Tool Catalogue UI surface.
-
-### What Was Completed
-- Added a Tool Catalogue tab inside the existing inventory module shell.
-- Added the locked Tool Catalogue title and helper copy:
-  "Catalogue-only foundation. Tool checkout, assignments, QR labels, vehicle
-  storage, and tracking history are reserved for future milestones."
-- Added live Supabase reads from `public.tools` using only the approved
-  Section 36 columns.
-- Added search across tool number, name, category, brand, model, serial
-  number, description, home location, current location, assigned-to text, and
-  notes.
-- Added category, status, condition, and Show archived filters.
-- Added active/default table and mobile list views with the first recommended
-  Tool Catalogue columns.
-- Added the required empty state text:
-  "No tools have been added yet."
-- Added an add/edit form for approved editable fields only.
-- Create uses the existing current-user `permissions.division` convention and
-  inserts `division` into `public.tools`.
-- Edit updates approved editable fields only and does not change `division`.
-- Added soft archive behavior that updates `archived_at`, `archived_by`,
-  optional `archive_reason`, and `status = 'retired'`.
-- No hard delete behavior was added.
-- Updated the Development Status card to Milestone 5I.2 / Entry 086 /
-  ARCHITECTURE v2.18 / Tool Catalogue / build marker `092da08`.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No schema, RLS, grants, permission flags, RPCs, backend functions, storage,
-  indexes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added Tool Catalogue constants, filters, add/edit form, table/mobile list,
-    Supabase read/create/update/soft-archive behavior, tab registration, and
-    Development Status updates.
-- `src/styles.css`
-  - Added Tool Catalogue layout, toolbar, form, responsive table/mobile, and
-    archived-row styling.
-- `HANDOFF.md`
-  - Appended this Entry 086.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 086.
-
-### What Codex Needs to Know
-- Tool Catalogue UI now exists as a catalogue-only foundation.
-- It intentionally uses the existing `can_manage_inventory` write gate and
-  current-user `division` value from `usePermissions`.
-- Cross-division visible rows remain read-only in the UI; writes are limited to
-  the current user division and remain server-enforced by RLS.
-- The UI does not expose archive metadata in the normal edit form.
-
-### What Claude Needs to Know
-- This pass implemented the already-locked Tool Catalogue UI.
-- No migration, schema, RLS, permission, backend, inventory balance, ledger,
-  checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing Inventory behavior changed.
-- Browser verification was attempted against `http://127.0.0.1:5173/`, but
-  the local app failed before render because `VITE_SUPABASE_URL` was not set in
-  the dev-server environment. Authenticated Tool Catalogue verification was not
-  completed in this Codex session.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed no migrations were added or edited in this pass.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no new permission flags were added.
-- Confirmed no DELETE behavior was added.
-- Confirmed no checkout/check-in, QR labels, assignment history, tracking
-  ledger, vehicle/bin linkage, accounting behavior, or reserved Tool Catalogue
-  features were added.
-- Confirmed no direct `inventory_balances` write path was added.
-- Browser verification was attempted but blocked by missing local
-  `VITE_SUPABASE_URL`; no authenticated visual verification is claimed.
-
-### Next Steps (in order)
-1. Perform authenticated browser verification with a user whose server
-   permissions include a division and `can_manage_inventory`.
-2. Begin logging company tools in Tool Catalogue.
-3. Reserve checkout/check-in, QR labels, assignments, vehicle storage, and
-   tracking history for future architecture-cleared milestones.
-
-### Open Questions / Concerns
-- Browser/authenticated verification was blocked by missing local
-  `VITE_SUPABASE_URL` in the dev-server environment.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: first Tool Catalogue UI.
-- RESERVED: checkout/check-in, assignment history, custody chain, QR labels,
-  scan pages, transfers, vehicle-bin tool storage, employee-linked
-  assignments, job/project-linked assignments, maintenance/inspection/
-  calibration logs, repair history, purchase accounting/depreciation,
-  attachments/photos/receipts, canonical accounting import/export,
-  tool-specific permission flags, tool ledger, tool audit table, divisions
-  table, and UUID-based division normalization.
-- No protected inventory behavior changed: inventory balances, ledger,
-  transaction behavior, checkout/finalization, Count Intake, QR/scan behavior,
-  Accounting Export, Financials/job-cost, Return-to-Inventory, buyout,
-  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
-  behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî implementing locked Tool Catalogue UI (ARCHITECTURE v2.18, HANDOFF Entry 086).
-
----
-
-## Entry 087 - Dashboard Width / Layout Usability Pass (Milestone 5I.3)
-
-**Date:** 2026-06-26
-**Updated by:** Codex
-**Phase:** Dashboard layout usability
-**Session type:** implementation
-
-### Context
-Milestone 5I.3 is a Safe UI/CSS layout pass under ARCHITECTURE v2.18 and
-Section 35. Ryan visually verified the Tool Catalogue UI from Entry 086 and
-identified the next usability issue: the desktop dashboard/app content was too
-narrow, causing excessive vertical stacking and avoidable horizontal scrolling
-inside content areas.
-
-Classification: Safe UI/CSS task.
-
-### What Was Completed
-- Widened the shared desktop app content container.
-- Added a shared `--app-content-width` CSS variable with a desktop cap of
-  `1600px` and viewport-based width behavior.
-- Updated `.app-header__inner` to use the shared app content width.
-- Updated `.app-main` to use the shared app content width.
-- Preserved the existing centered layout and balanced left/right margins.
-- Preserved existing dashboard grid, card, table wrapper, mobile list, and
-  responsive stacking behavior.
-- Reduced artificial horizontal scrolling pressure for Inventory, Accounting
-  Export, Count Intake, Tool Catalogue, and other wide table views by widening
-  their parent shell.
-- Updated the Development Status card to Milestone 5I.3 / Entry 087 /
-  ARCHITECTURE v2.18 / Layout usability / build marker `3f85fe7`.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No schema, RLS, grants, permission flags, RPCs, backend functions, storage,
-  indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/styles.css`
-  - Added `--app-content-width: min(96vw, 1600px)`.
-  - Changed `.app-header__inner` from the old 1180px cap to the shared width.
-  - Changed `.app-main` from the old 1180px cap to the shared width.
-- `src/App.jsx`
-  - Updated the Development Status card values only.
-- `HANDOFF.md`
-  - Appended this Entry 087.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 087.
-
-### What Codex Needs to Know
-- The desktop dashboard shell is intentionally wider after this pass.
-- The change is shared at the app container level rather than one-off table or
-  Tool Catalogue styling.
-- Existing table horizontal scrolling remains available where the table is
-  genuinely wider than the viewport.
-- Mobile/tablet breakpoint rules were not changed.
-
-### What Claude Needs to Know
-- This was a Safe UI/CSS layout pass only.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
-  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/styles.css` and
-  `src/App.jsx`, plus this HANDOFF append.
-- Confirmed no migrations were added or edited.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no new routes or data behavior changed.
-- Confirmed no Tool Catalogue CRUD/archive behavior changed.
-- Confirmed no existing Inventory/Cart/Checkout/Count Intake/QR/Accounting
-  Export behavior changed.
-
-### Manual Verification Notes For Ryan
-- Open the app on desktop.
-- Confirm main content is wider and centered.
-- Confirm margins are roughly even left/right.
-- Confirm Inventory and Tool Catalogue views require less horizontal scrolling.
-- Confirm mobile/tablet layout still works.
-
-### Next Steps (in order)
-1. Visually verify the widened dashboard on a desktop browser.
-2. Check Tool Catalogue and Inventory wide-table views for reduced horizontal
-   scrolling.
-3. Check one tablet/mobile viewport to confirm the existing stacking still
-   feels good.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: desktop dashboard width/layout usability pass.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, routes, inventory balances, ledger, transaction
-  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
-  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, and existing Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/CSS layout pass (ARCHITECTURE v2.18, HANDOFF Entry 087).
-
----
-
-## Entry 088 - Dev-only Layout Tuner (Milestone 5I.4)
-
-**Date:** 2026-06-26
-**Updated by:** Codex
-**Phase:** Dashboard layout tuning dev tool
-**Session type:** implementation
-
-### Context
-Milestone 5I.4 is a Safe UI/client-side dev tooling task under ARCHITECTURE
-v2.18 and Section 35. Entry 087 widened the dashboard shell; this pass adds a
-URL-gated local layout tuner so Ryan can visually tune layout variables without
-repeated CSS adjustment passes.
-
-Classification: Safe UI/client-side dev tooling task.
-
-### What Was Completed
-- Added a dev-only Layout Tuner panel gated behind `layoutTuner=1`.
-- The tuner is not added to normal navigation and does not render when the URL
-  flag is absent.
-- Added localStorage-only persistence under `northgate.layoutTuner.v1`.
-- Added live CSS-variable application through `document.documentElement`.
-- Added Reset behavior that clears the localStorage key, restores defaults,
-  and keeps the panel open.
-- Added Copy CSS behavior that copies a `:root { ... }` variable snippet for a
-  later commit.
-- Added a collapsible floating panel with sliders and numeric inputs.
-- Updated layout CSS variables so the tuner can adjust app width, page gutter,
-  dashboard card gap, dashboard card padding, and table density.
-- Updated the Development Status card to Milestone 5I.4 / Entry 088 /
-  ARCHITECTURE v2.18 / Dev-only layout tuner / build marker `07a2f44`.
-
-### CSS Variables Exposed
-- `--app-content-max`
-- `--app-content-vw`
-- `--app-page-gutter`
-- `--dashboard-card-gap`
-- `--dashboard-card-padding`
-- `--dense-table-font-size`
-- `--dense-table-cell-padding-y`
-- `--dense-table-cell-padding-x`
-
-### Selectors Affected
-- `.app-header__inner`
-- `.app-main`
-- `.dashboard-grid`
-- `.card`
-- `.data-table`
-- `.data-table th`
-- `.data-table td`
-- `.layout-tuner` and child Layout Tuner controls
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase, schema, RLS, grants, permission flags, RPCs, backend functions,
-  storage, indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added Layout Tuner field definitions, URL flag detection, localStorage
-    helpers, live CSS-variable application, Copy CSS, Reset, and the gated
-    floating panel.
-  - Updated Development Status values.
-- `src/styles.css`
-  - Added default layout CSS variables.
-  - Rewired the existing shared layout/table/card selectors to use those
-    variables.
-  - Added Layout Tuner panel styles.
-- `HANDOFF.md`
-  - Appended this Entry 088.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 088.
-
-### What Codex Needs to Know
-- Layout Tuner is a local/dev convenience only.
-- It appears only when the current URL contains `layoutTuner=1`.
-- It uses browser localStorage only and must not become a production settings
-  system.
-- Normal app usage without `layoutTuner=1` uses the committed CSS defaults.
-
-### What Claude Needs to Know
-- This was a Safe UI/client-side dev tooling pass only.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
-  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/App.jsx` and
-  `src/styles.css`, plus this HANDOFF append.
-- Confirmed no migrations were added or edited.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no route/data/write behavior changed.
-- Confirmed no Tool Catalogue CRUD/archive behavior changed.
-- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
-  behavior changed.
-- Confirmed tuner render is gated by `layoutTuner=1` in the current URL.
-
-### Manual Verification Notes For Ryan
-- Open the app normally and confirm Layout Tuner is not visible.
-- Open the app with `?layoutTuner=1` and confirm the panel appears.
-- Adjust content width and confirm the dashboard changes live.
-- Refresh and confirm localStorage keeps the tuned values.
-- Click Reset and confirm defaults return.
-- Click Copy CSS and confirm the variable snippet copies.
-- Confirm no app data behavior changes.
-
-### Next Steps (in order)
-1. Use `?layoutTuner=1` on desktop to dial in preferred layout values.
-2. Copy the CSS snippet after choosing values.
-3. Send the snippet back for a small follow-up commit that updates defaults.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: dev-only layout tuner.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, routes, inventory balances, ledger, transaction
-  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
-  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, and existing Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side dev layout tuner (ARCHITECTURE v2.18, HANDOFF Entry 088).
-
----
-
-## Entry 089 - UI Design System Preview / Tool Catalogue Skin (Milestone 5J.1)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** Tool Catalogue / UI design preview
-**Session type:** implementation
-
-### Context
-Milestone 5J.1 is a Safe UI/client-side style preview task under ARCHITECTURE
-v2.18 and Section 35. The attached Claude Design CSS was used as a visual
-reference for the Northgate navy/gold/light operations-dashboard direction, but
-its broad prototype selectors were not pasted into the live global stylesheet.
-
-Classification: Safe UI/client-side Tool Catalogue design preview.
-
-### What Was Completed
-- Added an opt-in Tool Catalogue design preview gated by `designPreview=1`.
-- Normal Tool Catalogue rendering remains on the existing classes unless the
-  URL flag is present.
-- Added the Tool Catalogue-only wrapper class `tool-catalogue-skin` when the
-  preview flag is active.
-- Added scoped design tokens behind `.tool-catalogue-skin`, including:
-  - navy `#0D1F3C`;
-  - gold `#C8922A`;
-  - light page/card surfaces;
-  - soft borders/shadows;
-  - semantic badge colors for ok/warn/error/info states.
-- Applied the preview skin to the real Tool Catalogue surface and real data:
-  - header/helper area;
-  - helper/info note;
-  - search/filter toolbar;
-  - table view;
-  - mobile list cards;
-  - add/edit form panel;
-  - archive action button styling;
-  - loading/muted, empty, and alert states.
-- Added visual-only Tool Catalogue badge tone classes for preview status and
-  condition display.
-- Updated the Development Status card to Milestone 5J.1 / Entry 089 /
-  ARCHITECTURE v2.18 / UI design preview / build marker `9693baa`.
-
-### URL Flag Behavior
-- Implemented `designPreview=1` gating.
-- Normal app use without `designPreview=1` does not add `tool-catalogue-skin`.
-- The existing `layoutTuner=1` dev tool remains unchanged.
-
-### Selectors / Wrappers Added or Changed
-- Added URL helper:
-  - `hasDesignPreviewFlag(path)`
-- Added prop flow:
-  - `Dashboard` -> `InventoryReadOnlyPanel` -> `ToolCataloguePanel`
-- Added wrapper class:
-  - `.tool-catalogue-skin`
-- Added scoped CSS selectors under:
-  - `.cart-panel.tool-catalogue-skin`
-  - `.tool-catalogue-skin .card__header`
-  - `.tool-catalogue-skin .tool-catalogue__note`
-  - `.tool-catalogue-skin .tool-catalogue__layout`
-  - `.tool-catalogue-skin .tool-catalogue__list-panel`
-  - `.tool-catalogue-skin .tool-catalogue__form-panel`
-  - `.tool-catalogue-skin .tool-toolbar`
-  - `.tool-catalogue-skin .tool-form`
-  - `.tool-catalogue-skin .table-wrap`
-  - `.tool-catalogue-skin .tool-table`
-  - `.tool-catalogue-skin .tool-catalogue__badge`
-  - `.tool-catalogue-skin .empty-state`
-  - `.tool-catalogue-skin .alert`
-  - `.tool-catalogue-skin .mobile-item`
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
-  storage, indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated Development Status values.
-  - Added `designPreview=1` URL flag detection.
-  - Passed the preview flag down to the Tool Catalogue panel.
-  - Added `tool-catalogue-skin` only when the flag is active.
-  - Added visual-only Tool Catalogue badge tone class helper.
-- `src/styles.css`
-  - Added scoped `.tool-catalogue-skin` design preview tokens and component
-    styling.
-  - Kept prototype/global selectors such as `.app`, `.body`, `.content`,
-    `.card`, `.btn`, and `.badge` out of global application scope.
-- `HANDOFF.md`
-  - Appended this Entry 089.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 089.
-
-### What Codex Needs to Know
-- This preview is intentionally Tool Catalogue-only.
-- The preview uses the real Tool Catalogue data and existing behavior.
-- The preview is URL-gated with `designPreview=1`.
-- The attached prototype CSS was adapted into scoped selectors rather than
-  applied globally.
-
-### What Claude Needs to Know
-- This was a Safe UI/client-side style preview task only.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, routes, Tool Catalogue CRUD/archive, Inventory, Cart,
-  Checkout, Count Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- Section 35 start procedure completed:
-  - pulled `origin/main` with fast-forward-only pull;
-  - local `main` now matches `origin/main` at `9693baa`;
-  - working tree was clean before implementation after the pull.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/App.jsx` and
-  `src/styles.css`, plus this HANDOFF append.
-- Confirmed no migrations were added or edited.
-- Confirmed `git diff --name-only -- supabase` is empty.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no route/data/write behavior changed, except reading the harmless
-  `designPreview=1` URL flag.
-- Confirmed no direct `inventory_balances` write path was added.
-- Confirmed no Tool Catalogue create/edit/archive behavior changed.
-- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
-  behavior changed.
-- Confirmed broad prototype CSS classes were not globally applied.
-- Confirmed `tool-catalogue-skin` is added only when `designPreview=1` is
-  present.
-
-### Manual Verification Notes For Ryan
-- Open normal Tool Catalogue and confirm expected behavior.
-- Open Tool Catalogue with `?designPreview=1`.
-- Confirm Tool Catalogue looks closer to the attached design system.
-- Confirm search/filter/add/edit/archive still work.
-- Confirm no page-level horizontal scrolling.
-- Confirm no overlapping UI.
-- Confirm mobile/tablet still stack cleanly.
-- Confirm other app areas were not unexpectedly restyled.
-
-### Next Steps (in order)
-1. Visually verify normal Tool Catalogue without `designPreview=1`.
-2. Visually verify Tool Catalogue with `?designPreview=1`.
-3. If the direction feels right, choose whether to keep it URL-gated longer or
-   graduate it into the default Tool Catalogue styling in a later UI-only pass.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-- Vite still reports the existing chunk-size warning after a successful build.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Tool Catalogue design preview skin.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, routes, inventory balances, ledger, transaction
-  behavior, checkout/finalization, Count Intake, QR/scan behavior, Accounting
-  Export, Tool Catalogue CRUD/archive, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, and existing Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side Tool Catalogue design preview (ARCHITECTURE v2.18, HANDOFF Entry 089).
-
----
-
-## Entry 090 - Deliverable App Shell / Navigation UI (Milestone 5J.2)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** App shell / deliverable navigation UI
-**Session type:** implementation
-
-### Context
-Milestone 5J.2 is a Safe UI/client-side app-shell styling task under
-ARCHITECTURE v2.18 and Section 35. The prior Tool Catalogue design preview
-from Entry 089 was directionally correct, and this pass starts applying the
-same Northgate deliverable UI direction to normal app use instead of leaving it
-only behind `designPreview=1`.
-
-Classification: Safe UI/client-side app-shell styling task.
-
-### What Was Completed
-- Updated the normal app shell toward the submitted prototype/design direction:
-  - light content background;
-  - navy sticky top header;
-  - gold active navigation accents;
-  - white cards with soft borders/shadows;
-  - compact operations-dashboard spacing.
-- Added a real top navigation strip in the header.
-- Top navigation uses existing client navigation/query handling only:
-  - Dashboard;
-  - Tool Catalogue;
-  - Scan QR;
-  - Cart;
-  - Count;
-  - Accounting.
-- Reworked the top-level dashboard content from one all-purpose grid into:
-  - a status-card grid;
-  - a full-width workflow/status banner;
-  - the existing live Inventory module below it.
-- Converted the existing Inventory module tab list into a deliverable-style
-  left module sidebar without changing tab state or module behavior.
-- Preserved the Development Status card and updated it to Milestone 5J.2 /
-  Entry 090 / ARCHITECTURE v2.18 / Deliverable UI shell / build marker
-  `a88a558`.
-- Added shared deliverable visual treatment for common cards, panels, tables,
-  inputs, buttons, badges, empty states, alerts, and mobile item cards.
-- Kept the prior `designPreview=1` Tool Catalogue preview flag in place.
-- Kept the prior `layoutTuner=1` dev-only Layout Tuner in place.
-
-### App Shell / Navigation Strategy
-- Adopted a top-nav plus module-sidebar structure rather than replacing the app
-  with prototype screens.
-- The top nav calls the existing `navigateTo('/?inventoryTab=...')` path that
-  was already used by scan/cart/count deep links.
-- The Inventory module sidebar still uses the existing `activeTab` React state
-  and the same `setActiveTab(...)` handlers.
-- No mock screens or fake data were introduced.
-
-### Selectors / Components Added or Changed
-- `src/App.jsx`
-  - Updated `DEVELOPMENT_STATUS`.
-  - Added `shellNavTab`.
-  - Added `.app-brand`.
-  - Added `.app-top-nav`.
-  - Added `.app-nav-item`.
-  - Added `.shell-status-grid`.
-  - Added `.inventory-module-card`.
-  - Added `.inventory-module-shell`.
-  - Added `.module-sidebar`.
-  - Added `.module-sidebar__header`.
-  - Added `.module-content`.
-  - Preserved existing module tab buttons and active-tab handlers.
-- `src/styles.css`
-  - Added deliverable shell tokens:
-    - `--ng-navy`;
-    - `--ng-gold`;
-    - `--ng-page-bg`;
-    - `--ng-card-bg`;
-    - `--ng-border`;
-    - semantic status variables.
-  - Restyled:
-    - `.app-shell`;
-    - `.app-header`;
-    - `.app-header__inner`;
-    - `.app-top-nav`;
-    - `.app-nav-item`;
-    - `.app-main`;
-    - `.card`;
-    - `.status-pill`;
-    - `.count-card`;
-    - `.module-sidebar`;
-    - `.module-tabs`;
-    - `.module-tab`;
-    - shared panels/tables/buttons/forms/alerts/empty states/mobile cards.
-  - Added responsive collapse rules for the new module sidebar and top nav.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
-  storage, indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated Development Status values.
-  - Added top navigation markup using existing client navigation.
-  - Rewrapped dashboard status cards.
-  - Rewrapped existing Inventory module tabs into a sidebar shell.
-- `src/styles.css`
-  - Added deliverable shell design tokens and normal-use shell styling.
-  - Added shared light dashboard component styling.
-  - Added responsive top-nav/sidebar behavior.
-- `HANDOFF.md`
-  - Appended this Entry 090.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 090.
-
-### What Codex Needs to Know
-- This is a normal-use deliverable shell pass, not a hidden preview.
-- The prior Tool Catalogue `designPreview=1` preview remains available.
-- The new top nav is a UI shortcut into existing tab/query behavior.
-- Inventory module tab behavior is still local React state.
-- Existing real modules and real data paths remain in place.
-
-### What Claude Needs to Know
-- This was a Safe UI/client-side app-shell styling pass only.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
-  Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- Section 35 start checks:
-  - local `main` and `origin/main` both pointed at `a88a558`;
-  - `docs/ARCHITECTURE.md` remains v2.18;
-  - HANDOFF was current through Entry 089;
-  - the working tree already contained uncommitted Entry 089 changes from the
-    immediately prior milestone and those changes were preserved.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/App.jsx` and
-  `src/styles.css`, plus this HANDOFF append.
-- Confirmed no migrations were added or edited.
-- Confirmed `git diff --name-only -- supabase` is empty.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no auth behavior changed.
-- Confirmed no direct `inventory_balances` write path was added.
-- Confirmed no Tool Catalogue data behavior changed.
-- Confirmed no Inventory/Cart/Checkout/Count Intake/QR/Accounting Export
-  behavior changed.
-- Confirmed existing app sections/tabs remain present in the module sidebar.
-- Confirmed no prototype mock data replaced real app data.
-- Confirmed no intentional page-level horizontal scrolling was introduced.
-
-### Manual Verification Notes For Ryan
-- Open the app normally.
-- Confirm the app shell/navigation looks closer to the submitted prototype.
-- Confirm Development Status/current-status info is still visible.
-- Confirm all existing main sections are still accessible.
-- Confirm Tool Catalogue still loads and add/edit/archive behavior still works.
-- Confirm Inventory still loads and normal actions are still accessible.
-- Confirm Cart/Checkout/Count/QR/Accounting Export access was not broken.
-- Confirm no overlapping UI.
-- Confirm no page-level horizontal scrolling.
-- Confirm laptop/mobile widths remain usable.
-
-### Next Steps (in order)
-1. Visually verify the normal app shell on desktop.
-2. Check the new module sidebar at laptop and mobile widths.
-3. Decide which individual module surfaces should receive deeper per-module
-   polish next, starting with the highest-traffic workflows.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-- Vite still reports the existing chunk-size warning after a successful build.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: deliverable app shell/navigation UI pass.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
-  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
-  Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side deliverable app shell pass (ARCHITECTURE v2.18, HANDOFF Entry 090).
-
----
-
-## Entry 091 - Development Dashboard Visibility Toggle (Milestone 5J.2a)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** App shell / development dashboard visibility
-**Session type:** implementation
-
-### Context
-Milestone 5J.2a is a Safe UI/client-side toggle task under ARCHITECTURE v2.18
-and Section 35. Entry 090 moved the app toward the deliverable shell, but Ryan
-still needs an easy way to hide the development/status dashboard area and see a
-team-facing UI without deleting the development information.
-
-Classification: Safe UI/client-side development dashboard visibility toggle.
-
-### What Was Completed
-- Added a header toggle for the development/status dashboard area.
-- Toggle labels:
-  - visible state: `Hide Dev Dashboard`;
-  - hidden state: `Show Dev Dashboard`.
-- Added browser-local persistence under `northgate.showDevDashboard`.
-- Default visibility remains visible unless localStorage contains `"false"`.
-- When hidden, the following development/status area does not render and does
-  not take layout space:
-  - Dashboard Shell card;
-  - Server Permissions card;
-  - Supabase Client card;
-  - Development Status card;
-  - Cart Write Gate / Per-Line Checkout status card.
-- When shown again, the same development/status cards render normally.
-- Updated the Development Status card values to Milestone 5J.2a / Entry 091 /
-  ARCHITECTURE v2.18 / Dev dashboard visibility toggle / build marker
-  `a88a558`.
-
-### Toggle / Storage Details
-- Toggle location: normal app shell header, next to the primary navigation and
-  before the user menu.
-- localStorage key: `northgate.showDevDashboard`.
-- Stored values:
-  - `"true"` when visible;
-  - `"false"` when hidden.
-- This is a browser preference only and is not a security boundary.
-- No backend settings or permission rules were added.
-
-### Selectors / Components Added or Changed
-- `src/App.jsx`
-  - Added `DEV_DASHBOARD_STORAGE_KEY`.
-  - Added `readDevDashboardVisibility()`.
-  - Added `writeDevDashboardVisibility(isVisible)`.
-  - Added `showDevDashboard` state in `Dashboard`.
-  - Added header button `.dev-dashboard-toggle`.
-  - Wrapped the development/status dashboard cards in conditional rendering.
-- `src/styles.css`
-  - Added `.dev-dashboard-toggle`.
-  - Added responsive mobile treatment for `.dev-dashboard-toggle`.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
-  storage, indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated Development Status values.
-  - Added localStorage-backed visibility helpers.
-  - Added the Dev Dashboard header toggle.
-  - Conditionally renders the dev/status card area.
-- `src/styles.css`
-  - Added the toggle styling.
-- `HANDOFF.md`
-  - Appended this Entry 091.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 091.
-
-### What Codex Needs to Know
-- The dev dashboard is visible by default.
-- Hiding it removes the development/status cards from layout flow.
-- The preference is per-browser localStorage only.
-- The real Inventory module remains visible and usable when the dev dashboard
-  is hidden.
-- The toggle does not change permissions, auth, data fetching, or module
-  behavior.
-
-### What Claude Needs to Know
-- This was a Safe UI/client-side toggle task only.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
-  Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- Section 35 start checks:
-  - local `main` and `origin/main` both pointed at `a88a558`;
-  - `docs/ARCHITECTURE.md` remains v2.18;
-  - HANDOFF was current through Entry 090 in the working tree;
-  - the working tree already contained uncommitted Entry 089 and Entry 090
-    changes from the immediately prior milestones and those changes were
-    preserved.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/App.jsx` and
-  `src/styles.css`, plus this HANDOFF append.
-- Confirmed no migrations were added or edited.
-- Confirmed `git diff --name-only -- supabase` is empty.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no auth behavior changed.
-- Confirmed no module data/write behavior changed.
-- Confirmed no direct `inventory_balances` write path was added.
-- Static code review confirmed hiding the dev dashboard removes the status card
-  branch from rendering, leaving no placeholder element.
-- Static code review confirmed showing the dev dashboard restores the same
-  branch.
-- Static code review confirmed refresh persistence uses
-  `northgate.showDevDashboard`.
-
-### Manual Verification Notes For Ryan
-- Open the app and find the Dev Dashboard toggle.
-- Hide the dev dashboard.
-- Confirm the Inventory Command Center / Development Status dashboard area
-  disappears.
-- Confirm the page closes the gap and looks like the team-facing UI.
-- Refresh and confirm it stays hidden.
-- Show it again and confirm the cards return.
-- Confirm Inventory, Tool Catalogue, Cart, Count, QR/scan, and Accounting
-  Export access still works.
-
-### Next Steps (in order)
-1. Visually verify the toggle in normal app use.
-2. Refresh once with the dashboard hidden and once with it shown.
-3. Decide whether the toggle should remain always visible in the shell or move
-   behind a dev-only affordance later.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-- Vite still reports the existing chunk-size warning after a successful build.
-- The toggle is client-side convenience only and is not a permission/security
-  boundary.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: development dashboard visibility toggle.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
-  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
-  Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side development dashboard visibility toggle (ARCHITECTURE v2.18, HANDOFF Entry 091).
-
----
-
-## Entry 092 - Workspace Navigation / Dev Dashboard Separation (Milestone 5J.3)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** App shell / workspace navigation separation
-**Session type:** implementation
-
-### Context
-Milestone 5J.3 is a Safe UI/client-side navigation/layout task under
-ARCHITECTURE v2.18 and Section 35. Recent work moved the app toward the
-deliverable UI shell and added a Dev Dashboard visibility toggle. This pass
-separates top-level workspaces from inventory tool navigation and moves
-development/status content out of normal Inventory screens.
-
-Classification: Safe UI/client-side navigation/layout task.
-
-### What Was Completed
-- Added top-level workspace routing/state through the existing client-side URL
-  query model.
-- Top nav now represents workspaces/pages:
-  - Dashboard;
-  - Inventory;
-  - Jobs;
-  - Estimating;
-  - Tools;
-  - Employees;
-  - Vehicles;
-  - Developer.
-- Inventory remains the default workspace for normal app entry.
-- Inventory left nav remains the tool/view navigation for existing inventory
-  tools.
-- Added a top-level Tools workspace that renders the existing real Tool
-  Catalogue behavior with a Tools workspace sidebar.
-- Added clean Coming Soon workspace panels for:
-  - Dashboard;
-  - Jobs;
-  - Estimating;
-  - Employees;
-  - Vehicles.
-- Moved development/status cards into a clearly labeled Developer Dashboard
-  workspace.
-- Normal Inventory workspace no longer renders the Dashboard Shell, Server
-  Permissions, Supabase Client, Development Status, or Cart Write Gate cards
-  above the selected tool.
-- Updated the Dev Dashboard toggle so:
-  - default browser state is hidden unless localStorage contains `"true"`;
-  - `Show Dev Dashboard` opens the Developer workspace and shows the
-    development/status dashboard;
-  - `Hide Dev Dashboard` hides the Developer Dashboard content and persists the
-    preference under `northgate.showDevDashboard`;
-  - selecting a non-Developer workspace returns to the clean team-facing view.
-- Changed visible label `Grand Master` to `Inventory Overview`.
-- Updated the Development Status card values to Milestone 5J.3 / Entry 092 /
-  ARCHITECTURE v2.18 / Deliverable UI shell / build marker `a88a558`.
-
-### Workspace / Navigation Strategy
-- Top nav controls the active workspace using `?workspace=...`.
-- Old deep links with `?inventoryTab=...` still resolve to the Inventory
-  workspace.
-- Inventory tool nav still uses existing `activeTab` state and existing
-  `setActiveTab(...)` handlers.
-- Tools workspace reuses the existing `ToolCataloguePanel`.
-- Coming Soon workspaces are placeholders only and contain no fake workflow
-  behavior or mock operational data.
-
-### Selectors / Components Added or Changed
-- `src/App.jsx`
-  - Added `WORKSPACES`.
-  - Added `activeWorkspace` to dashboard route context.
-  - Added `ComingSoonWorkspace`.
-  - Added `ToolsWorkspace`.
-  - Added `DeveloperDashboard`.
-  - Reworked top-nav buttons to select workspaces.
-  - Reworked normal main content to render only the active workspace.
-  - Moved development/status cards into `DeveloperDashboard`.
-  - Changed visible `Grand Master` copy to `Inventory Overview`.
-- `src/styles.css`
-  - Added `.developer-dashboard`.
-  - Added `.workspace-placeholder`.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
-  storage, indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated Development Status values.
-  - Added workspace navigation/rendering.
-  - Added Developer Dashboard separation.
-  - Added Coming Soon workspace panels.
-  - Updated visible `Grand Master` labels to `Inventory Overview`.
-- `src/styles.css`
-  - Added workspace placeholder and Developer Dashboard layout styling.
-- `HANDOFF.md`
-  - Appended this Entry 092.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 092.
-
-### What Codex Needs to Know
-- Top nav now represents workspaces/pages.
-- Left nav inside Inventory represents Inventory tools/views.
-- Developer/status content should live under the Developer workspace, not above
-  normal Inventory tools.
-- Inventory remains the default workspace.
-- The `grand-master` internal identifier and CSS class remain for stability;
-  only user-visible labels changed to `Inventory Overview`.
-- This is not a route/security model; it is client-side workspace organization.
-
-### What Claude Needs to Know
-- This was a Safe UI/client-side navigation/layout task only.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
-  Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- Section 35 start checks:
-  - local `main` and `origin/main` both pointed at `a88a558`;
-  - `docs/ARCHITECTURE.md` remains v2.18;
-  - HANDOFF was current through Entry 091 in the working tree;
-  - the working tree already contained uncommitted Entry 089, Entry 090, and
-    Entry 091 changes from the immediately prior milestones and those changes
-    were preserved.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/App.jsx` and
-  `src/styles.css`, plus this HANDOFF append.
-- Confirmed no migrations were added or edited.
-- Confirmed `git diff --name-only -- supabase` is empty.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no auth behavior changed.
-- Confirmed no module data/write behavior changed.
-- Confirmed no direct `inventory_balances` write path was added.
-- Static code review confirmed Inventory workspace renders without the
-  development/status dashboard branch by default.
-- Static code review confirmed Developer workspace renders the development
-  dashboard branch when opened from top navigation.
-- Static code review confirmed visible `Grand Master` strings were removed from
-  `src/App.jsx` and replaced with `Inventory Overview`.
-- Static code review confirmed existing Inventory tools remain present in the
-  Inventory sidebar.
-- Static code review confirmed Tool Catalogue remains reachable from both the
-  Inventory sidebar and the top-level Tools workspace.
-- Static code review confirmed Coming Soon workspaces render placeholders only.
-
-### Manual Verification Notes For Ryan
-- Open app normally.
-- Confirm top nav shows workspaces/pages.
-- Confirm left nav changes based on active workspace.
-- Open Inventory.
-- Confirm Inventory Command Center/dev notes do not appear by default.
-- Confirm `Inventory Overview` replaces `Grand Master`.
-- Navigate Inventory tools from the left nav.
-- Confirm selected tool is the only main content visible.
-- Open Developer workspace/dashboard.
-- Confirm developer/status information is there and clearly labeled.
-- Open Coming Soon workspaces and confirm they are clean placeholders.
-- Confirm Inventory, Tool Catalogue, Cart, Count, QR/scan, and Accounting
-  Export access still works.
-
-### Next Steps (in order)
-1. Visually verify workspace navigation on desktop.
-2. Check mobile/laptop wrapping for the top nav and Inventory sidebar.
-3. Decide whether the top-level Tools workspace should eventually replace or
-   simply mirror the Inventory sidebar Tool Catalogue entry.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-- Vite still reports the existing chunk-size warning after a successful build.
-- Workspace navigation is client-side organization only and is not a
-  permission/security boundary.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: workspace navigation and dev dashboard separation.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
-  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
-  Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side workspace navigation and dev dashboard separation (ARCHITECTURE v2.18, HANDOFF Entry 092).
-
----
-
-## Entry 093 - Deliverable Shell Styling Global Pass (Milestone 5J.4)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** App shell / deliverable UI polish
-**Session type:** implementation
-
-### Context
-Milestone 5J.4 is a Safe UI/client-side global styling pass under
-ARCHITECTURE v2.18 and Section 35. Entry 092 already separated workspaces,
-Inventory left navigation, Coming Soon pages, and the Developer Dashboard. This
-pass maps the submitted Northgate HQ v2 design CSS direction onto the real app
-selectors without replacing live modules with prototype markup or mock data.
-
-Classification: Safe UI/client-side global styling pass.
-
-The pasted milestone brief referenced HANDOFF Entry 091, but the local canonical
-HANDOFF was already gapless through Entry 092. This entry was therefore appended
-as Entry 093 to preserve the required sequential log.
-
-### What Was Completed
-- Applied the Northgate navy/gold/light operations-dashboard visual language to
-  the real app shell and shared UI elements.
-- Polished top workspace navigation with clearer active state, hover state,
-  compact spacing, and responsive wrapping behavior.
-- Polished Inventory and Tools left navigation/sidebar surfaces while keeping
-  existing tool/view routing intact.
-- Updated shared page/content spacing, card borders, shadows, padding, headers,
-  badges, buttons, table shells, filter/search rows, mobile item cards, alerts,
-  empty states, Coming Soon panels, and Developer Dashboard panels.
-- Added scoped table overflow refinements so wide operational tables remain
-  contained inside their table wrappers rather than creating intentional
-  page-level horizontal scroll.
-- Preserved the prior `layoutTuner=1` dev tool and `designPreview=1` Tool
-  Catalogue preview behavior.
-- Updated the Development Status card values to Milestone 5J.4 / Entry 093 /
-  ARCHITECTURE v2.18 / Deliverable UI polish / build marker `4513851`.
-
-### Visual Styling Strategy
-- Used the submitted Northgate HQ v2 design CSS as a visual reference.
-- Reused existing real selectors and CSS variables instead of pasting broad
-  prototype selectors such as `.app`, `.content`, `.card`, `.btn`, or `.badge`
-  wholesale.
-- Kept styling additive and scoped to the current React app shell and shared
-  component classes.
-- Preserved live data modules and existing workflow entry points.
-
-### Selectors / Components Added or Changed
-- `:root` design tokens:
-  - added panel, raised shadow, radius, and focus-ring variables;
-  - adjusted content width, gutters, card gap, and dense table sizing defaults.
-- Shell / navigation:
-  - `.app-shell`;
-  - `.app-header`;
-  - `.app-header__inner`;
-  - `.app-brand`;
-  - `.app-top-nav`;
-  - `.app-nav-item`;
-  - `.dev-dashboard-toggle`;
-  - `.app-main`.
-- Shared UI:
-  - `.card`;
-  - `.card__header`;
-  - `.card__icon`;
-  - `.status-pill`;
-  - `.primary-button`;
-  - `.secondary-button`;
-  - `.secondary-button--danger`;
-  - `.empty-state`;
-  - `.alert`.
-- Workspace/module surfaces:
-  - `.inventory-module-card`;
-  - `.inventory-module-shell`;
-  - `.module-sidebar`;
-  - `.module-tab`;
-  - `.module-content`;
-  - `.workspace-placeholder`;
-  - `.developer-dashboard`;
-  - `.developer-dashboard-hidden`;
-  - `.development-status-card`;
-  - `.development-status-grid`.
-- Inventory / Tool Catalogue shared surfaces:
-  - `.cart-panel`;
-  - `.tool-catalogue`;
-  - `.tool-catalogue__list-panel`;
-  - `.tool-catalogue__form-panel`;
-  - `.tool-toolbar`;
-  - `.tool-form`;
-  - `.count-section-header`;
-  - `.count-toolbar`;
-  - `.history-toolbar`;
-  - `.cart-apply-all`;
-  - `.count-correction-form`;
-  - `.count-intake-form`;
-  - `.table-wrap`;
-  - `.data-table`;
-  - `.tool-table`;
-  - `.grand-master-table`;
-  - `.history-table`;
-  - `.accounting-export-table`;
-  - `.mobile-list` and module-specific mobile lists.
-- Responsive breakpoints:
-  - added a 1200px shell/dashboard breakpoint;
-  - expanded existing 900px and 640px responsive behavior.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permission flags, RPCs, backend functions,
-  storage, indexes, auth, routes, or database behavior changed.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Updated Development Status metadata only.
-- `src/styles.css`
-  - Added and adjusted deliverable shell, navigation, sidebar, shared card,
-    button, badge, form, table, panel, Tool Catalogue, Inventory, Developer
-    Dashboard, Coming Soon, and responsive styling.
-- `HANDOFF.md`
-  - Appended this Entry 093.
-
-### Lock Document Changes
-- None.
-- ARCHITECTURE remains v2.18.
-- HANDOFF remains gapless through Entry 093.
-
-### What Codex Needs to Know
-- This was a styling/layout consistency pass only.
-- Normal team-facing workspaces remain clean; Developer Dashboard content stays
-  inside the Developer workspace.
-- Tool Catalogue behavior remains the real `ToolCataloguePanel`; no reserved
-  Tool Catalogue features were added.
-- Inventory Overview, Count, Cart/Checkout, QR/scan, and Accounting Export
-  behavior were not altered.
-- The prior `designPreview=1` and `layoutTuner=1` flags remain intact.
-
-### What Claude Needs to Know
-- This was a Safe UI/client-side styling task only.
-- No architecture decision was made or changed.
-- No behavior, data fetching, write behavior, permissions, schema, RLS,
-  backend, auth, Tool Catalogue CRUD/archive, Inventory, Cart, Checkout, Count
-  Intake, QR/scan, Accounting Export, Financials/job-cost,
-  Return-to-Inventory, buyout, vehicle-bin stock, Express Checkout, Manager
-  Override, or existing runtime behavior changed.
-- Authenticated browser verification was not completed in this Codex session.
-
-### Verification
-- Section 35 start checks:
-  - working tree was clean before changes;
-  - `docs/ARCHITECTURE.md` remains v2.18;
-  - HANDOFF was current through Entry 092 in the working tree;
-  - task classified as Safe UI/client-side global styling pass.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Build completed with Vite's chunk-size warning only.
-- Confirmed changed files are UI/client-side only: `src/App.jsx` and
-  `src/styles.css`, plus this HANDOFF append.
-- Confirmed `git diff --name-only -- supabase` is empty.
-- Confirmed no migrations were added or edited.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no auth behavior changed.
-- Confirmed no module data/write behavior changed.
-- Confirmed no direct `inventory_balances` write path was added.
-- Static code review confirmed existing workspaces remain represented in the
-  top navigation.
-- Static code review confirmed existing Inventory tools remain represented in
-  the Inventory sidebar.
-- Static code review confirmed Tool Catalogue remains reachable through the
-  current UI and still uses the existing real component.
-- Static code review confirmed Developer Dashboard remains separate from normal
-  workspaces.
-- Static code review confirmed Coming Soon pages remain placeholder panels only.
-- Static code review confirmed no prototype/mock data replaced real app data.
-- Authenticated browser verification was unavailable/not completed, so no
-  visual browser verification is claimed.
-
-### Manual Verification Notes For Ryan
-- Open app normally.
-- Confirm top nav looks polished and active workspace is clear.
-- Confirm left nav looks polished and active tool is clear.
-- Confirm normal workspaces do not show dev notes by default.
-- Confirm Developer Dashboard still shows development/status information.
-- Confirm Coming Soon pages look intentional.
-- Confirm Inventory Overview, Count, Cart/Checkout, QR/scan, and Accounting
-  Export remain accessible.
-- Confirm Tool Catalogue remains accessible and add/edit/archive behavior still
-  works.
-- Confirm no page-level horizontal scrolling.
-- Confirm no overlapping UI.
-- Confirm mobile/tablet widths remain usable.
-
-### Next Steps (in order)
-1. Perform authenticated visual QA on desktop, tablet, and mobile widths.
-2. Check the widest Tool Catalogue, Inventory Overview, and Accounting Export
-   tables with real data to confirm overflow stays scoped to the table wrapper.
-3. Decide whether the top-level Tools workspace should eventually replace or
-   simply mirror the Inventory sidebar Tool Catalogue entry.
-
-### Open Questions / Concerns
-- Authenticated browser verification was unavailable/not completed in this
-  local Codex session.
-- Vite still reports the existing chunk-size warning after a successful build.
-- The milestone brief's requested handoff/routing entry number was stale
-  relative to the local canonical HANDOFF; this entry preserves the gapless log
-  as Entry 093.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: deliverable shell styling global pass.
-- No protected runtime behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Tool Catalogue CRUD/archive, Financials/job-cost, Return-to-Inventory,
-  buyout, vehicle-bin stock, Express Checkout, Manager Override, and existing
-  Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side deliverable shell styling pass (ARCHITECTURE v2.18, HANDOFF Entry 093).
-
----
-
-## Entry 094 - Job Material Workflow architecture locked (ARCHITECTURE v2.19, new Section 37)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** Milestone 5K.1 - Job Material Workflow architecture lock adoption
-**Session type:** alignment
-
-### Context
-Milestone 5K.1 is a docs-only architecture lock adoption. Ryan provided the
-Claude-reviewed and ChatGPT cross-cleared Job Material Workflow architecture
-text and instructed Codex to apply it to the canonical repo documents only.
-
-Classification: docs-only architecture lock adoption already Claude-reviewed
-and ChatGPT cross-cleared.
-
-### What Was Completed
-- Updated `docs/ARCHITECTURE.md` from v2.18 to v2.19.
-- Added new Section 37: Job Material Workflow ‚Äî Demand, Issue, Buyout, Return.
-- Locked the Job Material Workflow domain for future gated implementation
-  slices.
-- Locked demand layer vs movement layer separation:
-  - Job Material List / `job_materials` is demand/planning only;
-  - it never writes balances;
-  - it never creates transactions;
-  - fulfillment is derived from the ledger.
-- Locked Issue to Job as an Assign to Job movement through the existing
-  Inventory Cart / Checkout engine only.
-- Locked that no parallel job stock movement write path is permitted.
-- Locked Buyout as derived and demand-side:
-  - requested minus net issued per line;
-  - status is demand/procurement state;
-  - no inventory movement;
-  - no ledger row;
-  - no auto-post to Financials.
-- Locked Return-to-Inventory as future 5K.5 scope via a Return-from-Job inbound
-  RPC.
-- Locked the future Return-from-Job RPC gate on `can_inventory_transactions`.
-- Locked that the future Return-from-Job RPC follows the existing Section 11
-  checkout RPC pattern and never writes `inventory_balances` directly.
-- Locked that no new transaction types are introduced.
-- Locked that reservations are not part of the 5K series.
-- Locked that "Allocation" is reserved for a future reservation concept and
-  must not be used for movement terminology.
-- Locked the `jobs` table as a hard prerequisite before any 5K implementation
-  slice.
-- Locked that Jobs foundation is Bucket 3 / Architecture-sensitive and requires
-  its own Claude review before Codex implementation.
-- Locked the milestone sequence:
-  5K.1 ‚Üí Jobs foundation ‚Üí 5K.2 ‚Üí 5K.3 ‚Üí 5K.4 ‚Üí 5K.5.
-- No code, schema, RPC, RLS, permission, backend, balance, checkout,
-  transaction, UI, or runtime behavior was implemented.
-
-### Schema Changes
-- None applied.
-- Section 37 reserves future schema slices but does not create migrations.
-- No migrations were added or edited.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated version line to v2.19.
-  - Added new Section 37 after Section 36.
-- `HANDOFF.md`
-  - Appended this Entry 094.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.18 to v2.19.
-- New Section 37 locks the Job Material Workflow architecture:
-  - demand/movement layer separation;
-  - Job Material List as demand/planning only;
-  - Issue to Job through existing Cart / Checkout only;
-  - Buyout as derived demand-side state;
-  - Return-to-Inventory as future 5K.5 via Return-from-Job inbound RPC;
-  - no new transaction types;
-  - no reservations / no "Allocation" movement terminology;
-  - Jobs table prerequisite;
-  - Jobs foundation requires its own Claude review;
-  - 5K milestone sequence.
-- HANDOFF remains gapless through Entry 094.
-
-### What Codex Needs to Know
-- 5K.1 is docs-only. Do not treat it as implementation permission.
-- Future Jobs foundation must go to Claude as its own Bucket 3 review before
-  Codex implementation.
-- No 5K implementation slice may proceed unless the slice is Claude-reviewed or
-  Section 37 already locks the exact shape and the work implements that shape
-  without changing protected behavior.
-- Job Material List is demand/planning only and cannot write balances or ledger
-  rows.
-- Issue to Job must go through the existing Inventory Cart / Checkout engine.
-- Buyout is derived/demand-side and cannot auto-post to Financials.
-- Return-to-Inventory is future 5K.5 and requires a new inbound RPC reviewed at
-  that milestone.
-
-### What Claude Needs to Know
-- Codex applied the Claude-reviewed / ChatGPT cross-cleared lock text as a
-  docs-only adoption.
-- No implementation occurred.
-- No schema, RLS, grant, permission, backend, balance, checkout, transaction,
-  UI, auth, Jobs, Job Material List, Issue to Job, Buyout, or
-  Return-to-Inventory behavior changed.
-
-### Verification
-- Section 35 start checks:
-  - `git pull --ff-only origin main` completed and reported already up to date;
-  - working tree was clean before changes;
-  - `docs/ARCHITECTURE.md` was v2.18 with Section 36 as the last section;
-  - HANDOFF was gapless through Entry 093;
-  - task classified as docs-only architecture lock adoption already
-    Claude-reviewed and ChatGPT cross-cleared.
-- Confirmed `docs/ARCHITECTURE.md` is updated to v2.19.
-- Confirmed new Section 37 is added after Section 36.
-- Confirmed HANDOFF Entry 094 is appended.
-- `git diff --check` passed.
-- Build was skipped because this task changed documentation only and no app-code
-  files changed.
-- Confirmed changed files are docs-only:
-  - `docs/ARCHITECTURE.md`;
-  - `HANDOFF.md`.
-- Confirmed no migrations were added or edited.
-- Confirmed no `src` files changed.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no implementation of Jobs, Job Material List, Issue to Job, Buyout,
-  or Return-to-Inventory occurred.
-
-### Next Steps (in order)
-1. Route Jobs foundation to Claude as its own Bucket 3 review before Codex
-   implementation.
-2. After Jobs foundation is reviewed and implemented, proceed only through the
-   locked 5K sequence:
-   5K.2 ‚Üí 5K.3 ‚Üí 5K.4 ‚Üí 5K.5.
-3. Keep each 5K implementation slice scoped to the reviewed slice and verify
-   no protected behavior changes outside that slice.
-
-### Open Questions / Concerns
-- None for this docs-only adoption.
-- Future Jobs foundation is explicitly not cleared by this entry for Codex
-  implementation; it requires its own Claude review.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Material Workflow architecture lock adoption.
-- No runtime/protected behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Jobs, Job Material List, Issue to Job, Buyout, Return-to-Inventory, Tool
-  Catalogue behavior, Financials/job-cost, vehicle-bin stock, Express Checkout,
-  Manager Override, and existing Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.19, HANDOFF Entry 094).
-
----
-
-## Entry 095 - Jobs Foundation locked (ARCHITECTURE v2.20, new Section 38)
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** Jobs Foundation architecture lock adoption
-**Session type:** alignment
-
-### Context
-This milestone is a docs-only architecture lock adoption. Ryan provided the
-Claude-reviewed and ChatGPT cross-cleared Jobs Foundation architecture lock and
-instructed Codex to apply it to the canonical repo documents only.
-
-Jobs Foundation is the prerequisite after Section 37 / Milestone 5K.1. It locks
-the minimal `jobs` table and first Jobs workspace scope required before future
-Job Material Workflow implementation slices.
-
-Classification: docs-only Jobs Foundation architecture lock adoption already
-Claude-reviewed and ChatGPT cross-cleared.
-
-### What Was Completed
-- Updated `docs/ARCHITECTURE.md` from v2.19 to v2.20.
-- Added new Section 38: Jobs Foundation.
-- Added a Section 5 cross-reference note pointing Jobs implementation details
-  to Section 38.
-- Locked the `jobs` table shape.
-- Locked `division text not null` as the division-scoping convention.
-- Locked `job_type` and `service_call_number` as included from day one per
-  Section 5b.
-- Locked `status` values:
-  - `active`;
-  - `on_hold`;
-  - `complete`;
-  - `cancelled`.
-- Locked that `archived` is not a status value.
-- Locked `job_number` as nullable and unique-when-non-null through a partial
-  unique index.
-- Locked soft archive only; no hard delete and no DELETE policy.
-- Locked read permission as own division or `can_view_all_divisions`.
-- Locked create permission as `can_create_jobs`.
-- Locked edit/archive permission as `can_manage_jobs`.
-- Locked that no new permission flags are introduced.
-- Locked future Jobs workspace UI scope:
-  - Jobs workspace/page;
-  - list/table;
-  - search/filter;
-  - create/edit forms;
-  - archive action;
-  - detail/read view;
-  - empty state;
-  - status badge/display;
-  - job type display.
-- Locked reserved scope outside Jobs Foundation:
-  - material workflow;
-  - `job_materials`;
-  - Issue to Job;
-  - Buyout;
-  - Return-to-Inventory;
-  - QR/job tote labels;
-  - phases/schedule;
-  - employee assignments;
-  - documents/photos;
-  - financials;
-  - estimates/contracts;
-  - financial exports.
-- No code, schema, RPC, RLS, permission, backend, balance, checkout,
-  transaction, UI, or runtime behavior was implemented.
-
-### Schema Changes
-- None applied.
-- Section 38 locks future Jobs Foundation schema shape but does not create a
-  migration.
-- No migrations were added or edited.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated version line to v2.20.
-  - Added Section 5 cross-reference note to Section 38.
-  - Added new Section 38 after Section 37.
-- `HANDOFF.md`
-  - Appended this Entry 095.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.19 to v2.20.
-- New Section 38 locks Jobs Foundation:
-  - `jobs` table foundation;
-  - status and job type values;
-  - `job_number` partial unique index;
-  - `set_jobs_updated_at` trigger using the existing
-    `touch_user_permissions_updated_at()` function;
-  - RLS/permissions;
-  - permitted first UI;
-  - reserved features.
-- Section 5 now points to Section 38 for Jobs implementation details.
-- HANDOFF remains gapless through Entry 095.
-
-### What Codex Needs to Know
-- This entry is docs-only and does not implement Jobs Foundation.
-- After Ryan commits v2.20 / Entry 095, Codex may implement Jobs Foundation
-  migration and UI within the locked decisions, provided preflight confirms
-  `can_create_jobs` and `can_manage_jobs` exist in the live schema.
-- Jobs Foundation implementation must not include material workflow,
-  `job_materials`, Issue to Job, Buyout, Return-to-Inventory, QR/job tote
-  labels, phases, assignments, documents, financials, estimates/contracts, or
-  financial exports.
-- `archived` is not a job status. Archive via `archived_at`, `archived_by`, and
-  `archive_reason`.
-
-### What Claude Needs to Know
-- Codex applied the Claude-reviewed / ChatGPT cross-cleared Jobs Foundation lock
-  as a docs-only adoption.
-- No implementation occurred.
-- No schema, RLS, grant, permission, backend, balance, checkout, transaction,
-  UI, auth, Jobs runtime, Job Material Workflow, Buyout, Return-to-Inventory,
-  QR, assignments, documents, or financial behavior changed.
-
-### Verification
-- Section 35 start checks:
-  - `git pull --ff-only origin main` completed and reported already up to date;
-  - working tree was clean before changes;
-  - `docs/ARCHITECTURE.md` was v2.19 with Section 37 canonical;
-  - HANDOFF was gapless through Entry 094;
-  - task classified as docs-only Jobs Foundation architecture lock adoption
-    already Claude-reviewed and ChatGPT cross-cleared.
-- Confirmed `docs/ARCHITECTURE.md` is updated to v2.20.
-- Confirmed Section 38 is added after Section 37.
-- Confirmed Section 5 cross-reference note is added.
-- Confirmed HANDOFF Entry 095 is appended.
-- `git diff --check` passed.
-- Build was skipped because this task changed documentation only and no app-code
-  files changed.
-- Confirmed changed files are docs-only:
-  - `docs/ARCHITECTURE.md`;
-  - `HANDOFF.md`.
-- Confirmed no migrations were added or edited.
-- Confirmed no `src` files changed.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no implementation of Jobs Foundation occurred yet.
-
-### Next Steps (in order)
-1. Ryan commits v2.20 / Entry 095.
-2. Codex may then implement Jobs Foundation migration and UI within the locked
-   decisions, provided preflight confirms `can_create_jobs` and
-   `can_manage_jobs` exist in the live schema.
-3. Keep any future Jobs Foundation implementation strictly inside Section 38.
-
-### Open Questions / Concerns
-- None for this docs-only adoption.
-- Future implementation must preflight-confirm `can_create_jobs` and
-  `can_manage_jobs` before writing migration/RLS.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Jobs Foundation architecture lock adoption.
-- No runtime/protected behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Jobs runtime, Job Material Workflow, Buyout, Return-to-Inventory, Tool
-  Catalogue behavior, Financials/job-cost, vehicle-bin stock, Express Checkout,
-  Manager Override, and existing Inventory behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Jobs Foundation architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.20, HANDOFF Entry 095).
-
----
-
-## Entry 096 - Jobs Foundation implemented
-
-**Date:** 2026-06-29
-**Updated by:** Codex
-**Phase:** Jobs Foundation
-**Session type:** implementation
-
-### Context
-Ryan instructed Codex to implement only the locked Jobs Foundation scope from
-ARCHITECTURE v2.20 Section 38. The design was already Claude-reviewed and
-ChatGPT-cross-cleared, so Codex did not reclassify or expand the milestone.
-
-This implementation follows the Section 38 sequence:
-1. Add the `public.jobs` migration.
-2. Add the Jobs workspace UI.
-
-### What Was Completed
-- Added Jobs Foundation migration under `supabase/migrations`.
-- Created `public.jobs` with `division TEXT NOT NULL` using the existing app
-  division convention.
-- Included `job_type` and `service_call_number` from day one.
-- Locked `status` to:
-  - `active`;
-  - `on_hold`;
-  - `complete`;
-  - `cancelled`.
-- Preserved the Section 38 rule that `archived` is not a status value.
-- Added nullable `job_number` with a partial unique index.
-- Added `updated_at` maintenance through the existing
-  `touch_user_permissions_updated_at()` trigger function.
-- Enabled RLS and added:
-  - `jobs_read`;
-  - `jobs_insert`;
-  - `jobs_update`.
-- Did not add a DELETE policy or DELETE grant.
-- Added the Jobs workspace UI in the deliverable shell.
-- Added list, search, status filter, division filter for authorized
-  cross-division users, create form, edit form, archive action, detail/read
-  view, status badge display, job type display, empty state, loading state, and
-  error state.
-- Added the locked helper copy that reserves material workflow and future job
-  management features.
-
-### Schema Changes
-- Added `supabase/migrations/202606290001_jobs_foundation.sql`.
-- `public.jobs` fields include the Section 38 foundation columns only.
-- RLS read scope:
-  - active non-archived jobs;
-  - own division;
-  - or `can_view_all_divisions`.
-- RLS insert scope:
-  - own division only;
-  - gated by `can_create_jobs`.
-- RLS update scope:
-  - own division only;
-  - gated by `can_manage_jobs`;
-  - used for edit and soft archive.
-- Soft archive uses `archived_at`, `archived_by`, and `archive_reason`.
-- No hard delete path was introduced.
-
-### UI Changes
-- Added `JobsWorkspace` to `src/App.jsx`.
-- Replaced the Jobs coming-soon placeholder with the active Jobs workspace.
-- Jobs create uses the authenticated user's current division and does not allow
-  arbitrary division entry.
-- Jobs edit/archive controls are shown only when the row is in the user's own
-  division and the user has `can_manage_jobs`.
-- Jobs create controls are shown only with `can_create_jobs`.
-- The UI reads/writes only approved Jobs Foundation fields.
-- Added a `.jobs-table` width rule in `src/styles.css`.
-- Updated the Development Status panel to mark Jobs Foundation / Entry 096.
-
-### Explicitly Not Implemented
-- No `job_materials`.
-- No Issue to Job.
-- No Buyout.
-- No Return-to-Inventory.
-- No QR labels or job tote labels.
-- No phases or schedule.
-- No employee assignments.
-- No documents/photos.
-- No financials, estimates/contracts, accounting, cost, or financial exports.
-- No customer/client CRM features.
-- No inventory balance behavior changes.
-- No checkout, cart, count, QR/scan, Accounting Export, Tool Catalogue, vehicle,
-  bin, or ledger behavior changes.
-
-### Code / File Changes
-- `supabase/migrations/202606290001_jobs_foundation.sql`
-  - Added Jobs Foundation table, index, trigger, RLS policies, revokes, and
-    grants.
-- `src/App.jsx`
-  - Added Jobs workspace data loading, filters, forms, detail view, and archive
-    behavior.
-- `src/styles.css`
-  - Added Jobs table layout support.
-- `HANDOFF.md`
-  - Appended this Entry 096.
-
-### Preflight / Existing Lock Confirmation
-- Confirmed ARCHITECTURE is v2.20 with Section 38 canonical.
-- Confirmed Section 37 remains the Job Material Workflow lock and was not
-  implemented.
-- Confirmed HANDOFF was gapless through Entry 095 before this append.
-- Confirmed existing repo migrations define
-  `touch_user_permissions_updated_at()`.
-- Confirmed existing repo migrations define `user_permissions` with
-  `clerk_user_id`, `division`, `role`, `permission_overrides`, and `is_active`.
-- Confirmed existing repo migrations define
-  `effective_permissions_for_user(p_role TEXT, p_division TEXT,
-  p_permission_overrides JSONB)`.
-- Confirmed `can_create_jobs` and `can_manage_jobs` are present in the repo's
-  canonical permission defaults/effective permission model.
-- Live Supabase schema was not queried in this local session; the migration was
-  added to the repo and still needs to be applied through the project's normal
-  Supabase migration/deploy process.
-
-### Verification
-- `git pull --ff-only origin main` completed and reported already up to date
-  before implementation.
-- Working tree was clean before implementation.
-- `git diff --check` passed before this handoff append.
-- `npm.cmd run build` passed.
-- Static scan confirmed the new Jobs migration does not include
-  `inventory_balances`, `job_materials`, or DELETE behavior.
-- Static scan confirmed Jobs UI changes are limited to the locked Jobs
-  Foundation workspace and required helper copy.
-- Authenticated browser verification was not performed in this local session.
-- Live Supabase migration application was not performed in this local session.
-
-### Next Steps
-1. Apply `202606290001_jobs_foundation.sql` through the normal Supabase
-   migration path.
-2. Verify the Jobs workspace with an authenticated user that has
-   `can_create_jobs` and/or `can_manage_jobs`.
-3. Continue future Job Material Workflow slices only after the Jobs Foundation
-   migration is live.
-
-### Open Questions / Concerns
-- No architecture blocker found.
-- Runtime Jobs UI depends on the new `public.jobs` table existing in Supabase.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Jobs Foundation migration and workspace UI.
-- Protected behavior remained unchanged: inventory balances, ledger,
-  transactions, checkout/finalization, Count Intake, QR/scan, Accounting
-  Export, Tool Catalogue, financial/job-cost behavior, vehicle-bin stock,
-  Express Checkout, Manager Override, and existing Inventory behavior were not
-  changed.
-- Reserved Jobs and Job Material Workflow scope remained unimplemented except
-  for the locked helper copy naming future reserved areas.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.20, HANDOFF Entry 096).
-
----
-
-## Entry 097 - Job Material List locked (ARCHITECTURE v2.21, new Section 39)
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Job Material List / architecture lock adoption
-**Session type:** implementation
-
-### Context
-Jobs Foundation is implemented and live. Ryan instructed Codex to adopt the
-Claude-reviewed and ChatGPT cross-cleared Job Material List architecture lock.
-
-This is a docs-only architecture adoption. No code, schema, migration, RPC, RLS,
-permission, backend, balance, checkout, transaction, UI, or runtime behavior was
-implemented in this pass.
-
-### What Was Completed
-- Advanced ARCHITECTURE from v2.20 to v2.21.
-- Added new `## 39. Job Material List (locked v2.21 ‚Äî Entry 097)`.
-- Locked Job Material List as the Section 37 demand layer.
-- Locked `job_materials` as planning-only demand:
-  - never writes `inventory_balances`;
-  - never creates ledger transactions;
-  - never reserves stock;
-  - stores no fulfillment counter;
-  - fulfillment remains derived later from ledger activity.
-- Locked the `job_materials` table shape:
-  - `job_id uuid not null references public.jobs(id)`;
-  - `division text not null`;
-  - `requested_quantity numeric not null check (requested_quantity > 0)`;
-  - soft-archive fields;
-  - `item_id` references the existing catalog `items` table;
-  - exact `items` primary key column/type must be confirmed by Codex preflight
-    before migration;
-  - optional display-only `material_name_snapshot` and
-    `material_code_snapshot`;
-  - `created_by text null`.
-- Explicitly excluded fulfillment/procurement/accounting/transaction fields:
-  - no `issued_quantity`;
-  - no `fulfilled_quantity`;
-  - no `remaining_quantity`;
-  - no `reserved_quantity`;
-  - no `allocated_quantity`;
-  - no `buyout_quantity`;
-  - no `purchased_quantity`;
-  - no `procurement_status`;
-  - no `purchase_order_id`;
-  - no `cost`;
-  - no `vendor`;
-  - no `checkout_transaction_id`;
-  - no `return_transaction_id`;
-  - no `line_number`;
-  - no `unit_of_measure`;
-  - no `source_note`.
-- Locked read permission to own division or `can_view_all_divisions`.
-- Locked write permission for insert/edit/archive to `can_manage_jobs`.
-- Locked that Job Material List must not use `can_manage_inventory` as its
-  table write gate.
-- Aligned the Section 37 Job Material Workflow permission placeholder to point
-  to Section 39 and `can_manage_jobs`.
-- Locked no new permission flags and no hard delete / DELETE policy.
-- Locked first UI scope:
-  - lives inside Jobs workspace on the job detail view;
-  - not Inventory workspace;
-  - not a new top-level workspace;
-  - add material lines from existing catalog items only;
-  - edit requested quantity and note;
-  - soft archive/remove line;
-  - search/filter material lines;
-  - empty/loading/error states;
-  - display-only requested quantity count/sum;
-  - no fulfillment/issued/remaining/buyout language;
-  - "Issue to Job" affordance may appear disabled/coming soon only and must not
-    be wired.
-- Locked helper copy:
-  `Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Issue to Job, Buyout, and Return-to-Inventory are reserved for future milestones.`
-- Appended this HANDOFF Entry 097.
-
-### Schema Changes
-- None.
-- No migrations, schema changes, Supabase tables, RPCs, storage buckets, RLS
-  policies, grants, permission flags, backend handlers, database indexes, or
-  backend action services were added or changed.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated the version line from v2.20 to v2.21.
-  - Added new Section 39 after Section 38.
-  - Aligned the Section 37 Job Material List permission note with Section 39.
-- `HANDOFF.md`
-  - Appended this Entry 097.
-- No source app code, styles, migrations, Supabase files, package files,
-  backend/RPC files, auth files, or runtime behavior files were changed.
-
-### Lock Document Changes
-- ARCHITECTURE advanced from v2.20 to v2.21.
-- Section 39 is now canonical for Job Material List.
-- HANDOFF remains gapless through Entry 097.
-
-### What Codex Needs to Know
-- After Ryan commits v2.21 / Entry 097, Codex may implement Job Material List
-  migration and UI within the locked decisions, provided preflight confirms the
-  catalog `items` table primary key column/type.
-- Job Material List is demand/planning only.
-- It must not implement Issue to Job, Buyout, Return-to-Inventory,
-  cart/checkout, transaction, balance, QR, accounting, or job-cost behavior.
-- Write permission is `can_manage_jobs`, not `can_manage_inventory`.
-- The UI belongs inside Jobs workspace on the job detail view.
-
-### What Claude Needs to Know
-- Claude reviewed the Job Material List architecture lock before this adoption.
-- ChatGPT cross-cleared the lock.
-- No implementation occurred in this pass.
-
-### Next Steps (in order)
-1. Ryan commits v2.21 / Entry 097.
-2. Codex may implement Job Material List migration and UI within locked
-   decisions after preflight confirms the catalog `items` table primary key
-   column/type.
-3. Keep Issue to Job, Buyout, and Return-to-Inventory reserved for 5K.3, 5K.4,
-   and 5K.5 respectively.
-
-### Open Questions / Concerns
-- None for this docs-only adoption.
-- Future implementation must preflight-confirm the existing catalog `items`
-  table primary key column/type before writing the `job_materials.item_id`
-  foreign key.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Material List architecture lock adoption.
-- No runtime/protected behavior changed: schema, RLS, grants, permissions,
-  backend behavior, auth, inventory balances, ledger, transaction behavior,
-  checkout/finalization, Count Intake, QR/scan behavior, Accounting Export,
-  Jobs runtime, Job Material Workflow runtime, Issue to Job, Buyout,
-  Return-to-Inventory, Tool Catalogue behavior, Financials/job-cost,
-  vehicle-bin stock, Express Checkout, Manager Override, and existing Inventory
-  behavior were untouched.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Job Material List architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.21, HANDOFF Entry 097).
-
----
-
-## Entry 098 - Job Material List implemented
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Job Material List / migration foundation + Jobs detail UI
-**Session type:** implementation
-
-### Context
-Ryan instructed Codex to implement Milestone 5K.2 within locked ARCHITECTURE
-v2.21 Section 39. Classification was provided as Bucket 3 / architecture-
-sensitive implementation, already Claude-reviewed and ChatGPT cross-cleared;
-Codex did not reclassify.
-
-### Preflight Confirmed Before Implementation
-- Working tree was clean before implementation.
-- `items.id` is the catalog primary key and is `UUID`.
-- `public.jobs(id)` exists and is `UUID`.
-- `touch_user_permissions_updated_at()` exists.
-- `user_permissions` contains `clerk_user_id`, `division`, `role`, and
-  `permission_overrides`.
-- `effective_permissions_for_user(role, division, permission_overrides)`
-  exists.
-- `can_manage_jobs` exists in the permission model.
-- Division convention is `text`; no `division_id` was introduced.
-- No existing `public.job_materials` table was found.
-
-### What Was Completed
-- Added the Job Material List migration foundation.
-- Added Job Material List UI inside the existing Jobs workspace job detail
-  view.
-- Added create, edit, refresh, search/filter, and soft archive/remove flows
-  for planning material rows.
-- Added empty, loading, error, and success states.
-- Added requested-line count and requested-quantity sum display.
-- Included the locked helper copy exactly:
-  `Job Material List is planning only. It records what the job needs; it does not reserve stock, issue inventory, create transactions, or update balances. Issue to Job, Buyout, and Return-to-Inventory are reserved for future milestones.`
-- Updated Development Status to:
-  - Most recent: `Milestone 5K.2 - Job Material List`
-  - Handoff Entry 098
-  - Architecture v2.21
-  - Current step: `Job Material List`
-  - Build marker: current short commit `7be81b5`
-
-### Schema Changes
-- Added one migration:
-  `supabase/migrations/202606300001_job_materials_foundation.sql`.
-- Created `public.job_materials` with:
-  - `id uuid primary key default gen_random_uuid()`;
-  - `job_id uuid not null references public.jobs(id)`;
-  - `division text not null`;
-  - `created_at timestamptz not null default now()`;
-  - `updated_at timestamptz not null default now()`;
-  - soft archive fields: `archived_at`, `archived_by`, `archive_reason`;
-  - `item_id uuid not null references public.items(id)`;
-  - `requested_quantity numeric not null check (requested_quantity > 0)`;
-  - `note text null`;
-  - display-only snapshots: `material_name_snapshot`,
-    `material_code_snapshot`;
-  - `created_by text null`.
-- Added trigger `set_job_materials_updated_at` using the existing
-  `touch_user_permissions_updated_at()` function.
-- Enabled RLS.
-- Added policies:
-  - `job_materials_read`: active rows only, own division or
-    `can_view_all_divisions`;
-  - `job_materials_insert`: own division and `can_manage_jobs`;
-  - `job_materials_update`: active row, own division, and `can_manage_jobs`.
-- Granted only `SELECT`, `INSERT`, and `UPDATE` to `authenticated`.
-- Added no DELETE policy and no DELETE grant.
-
-### UI / Code Changes
-- `src/App.jsx`
-  - Added Job Material List constants and helpers.
-  - Added job material and catalog item Supabase reads.
-  - Added insert/update soft-archive handlers.
-  - Added material search/select from existing active, non-archived catalog
-    items in the selected job division.
-  - Added requested quantity and note create/edit UI.
-  - Added line search/filter, table/mobile rendering, and refresh.
-  - Preserved selected Jobs workspace and job detail behavior.
-- `src/styles.css`
-  - Added responsive Job Material List form/table styling.
-
-### Preserved / Not Implemented
-- Count Loaded Stock behavior unchanged.
-- Selected Path count behavior unchanged.
-- Count Intake submission/write behavior unchanged.
-- Authorization behavior outside the new `job_materials` RLS unchanged.
-- Inventory balances were not touched.
-- No inventory ledger, transaction, checkout, cart, issue, buyout, return,
-  reservation, allocation, fulfillment, financial, QR, accounting, or job-cost
-  behavior was implemented.
-- No new permission flags were added.
-- No `can_manage_inventory` gate was used for Job Material List writes.
-- No hard delete was added.
-- Tool Catalogue behavior was unchanged.
-
-### Verification
-- `git diff --check` passed before and after this handoff append.
-- `npm.cmd run build` passed.
-- Static scan confirmed the migration has no prohibited Job Material List
-  columns, no `division_id`, no inventory balance reference, no DELETE policy,
-  and no DELETE grant.
-- Static scan confirmed the expected migration anchors:
-  `public.job_materials`, `public.jobs(id)`, `public.items(id)`,
-  `division TEXT NOT NULL`, `set_job_materials_updated_at`,
-  `job_materials_read`, `job_materials_insert`, `job_materials_update`, and
-  `GRANT SELECT, INSERT, UPDATE`.
-- Changed files are limited to the new migration, `src/App.jsx`,
-  `src/styles.css`, and this `HANDOFF.md` append.
-- No existing migrations were edited.
-- Authenticated browser verification was not performed in this local session.
-- Live Supabase migration application was not performed in this local session.
-
-### Next Steps
-1. Apply `202606300001_job_materials_foundation.sql` through the normal
-   Supabase migration path.
-2. Verify the Jobs workspace with an authenticated user that has
-   `can_manage_jobs`.
-3. Create, edit, and soft archive one Job Material List row from the job detail
-   view after the migration is live.
-
-### Open Questions / Concerns
-- No architecture blocker found.
-- Runtime Job Material List UI depends on the new `public.job_materials` table
-  being applied in Supabase.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Material List migration foundation and Jobs
-  detail UI.
-- Reserved future behavior remains unimplemented: Issue to Job, Buyout,
-  Return-to-Inventory, cart/checkout, inventory transactions, balance writes,
-  fulfillment counters, procurement, financials, job costing, QR, and
-  accounting behavior.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.21, HANDOFF Entry 098).
-
----
-
-## Entry 099 - Job Material List UI containment fix
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Job Material List / UI containment bugfix
-**Session type:** implementation
-
-### Context
-Ryan reported that the Job Material List form overflowed horizontally from the
-visible card/container, blocking live app testing after opening a job detail.
-This was classified as a safe UI/CSS containment bugfix.
-
-### What Was Completed
-- Added a Jobs-specific layout state class for selected job detail mode.
-- Updated the selected job detail layout so the Job Material List is no longer
-  constrained to the narrow right-side form column.
-- Updated Job Material List CSS containment so the form and controls stay
-  inside the visible card.
-- Changed the Job Material List form grid to use responsive auto-fit columns.
-- Added `min-width: 0` and `max-width: 100%` containment to the relevant
-  Material List wrappers, controls, toolbar, helper copy, and locked edit row.
-- Allowed Job Material List action buttons and helper copy to wrap cleanly.
-- Kept dense table horizontal overflow scoped to the table wrapper only.
-
-### Files Changed
-- `src/App.jsx`
-  - Added `jobs-foundation-layout` and selected-detail modifier class to the
-    existing Jobs layout wrapper.
-- `src/styles.css`
-  - Updated `jobs-foundation-layout`, `job-material-list`,
-    `job-material-form`, `job-material-toolbar`, and related Material List
-    containment selectors.
-- `HANDOFF.md`
-  - Appended this Entry 099.
-
-### Behavior / Data Safety
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permissions, auth, backend, or data behavior
-  changed.
-- No `job_materials` create/edit/archive/query behavior changed.
-- No Jobs Foundation behavior changed outside layout containment.
-- No inventory/cart/checkout/count/QR/accounting behavior changed.
-- No Tool Catalogue behavior changed.
-- No direct `inventory_balances` write path was added.
-- No Issue to Job, Buyout, Return-to-Inventory, hard delete, or reserved Job
-  Material List behavior was added.
-
-### Verification
-- `git pull --ff-only origin main` completed and reported already up to date.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
-- Static review confirmed no migration/schema/RLS/grant/permission/backend
-  files were changed.
-- Authenticated browser verification was not performed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Open Jobs.
-2. Open a job detail.
-3. Confirm Job Material List stays inside the card.
-4. Confirm Material search, Catalog material, Requested quantity, Note, Add
-   Material Line, New Material Line, and Refresh controls are visible and
-   usable.
-5. Confirm no page-level horizontal scrolling.
-6. Add a material line.
-7. Edit requested quantity/note.
-8. Archive/remove the material line.
-9. Confirm no Issue to Job / Buyout / Return-to-Inventory behavior appears.
-
-### Open Questions / Concerns
-- No architecture blocker found.
-- Authenticated visual verification remains a manual browser step.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Material List UI containment.
-- Protected runtime behavior remained unchanged.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/CSS Job Material List containment fix (ARCHITECTURE v2.21, HANDOFF Entry 099).
-
----
-
-## Entry 100 - Job Material List material search/add fix
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Job Material List / material search and add bugfix
-**Session type:** implementation
-
-### Context
-Ryan reported that the Job Material List UI was now contained correctly, but
-the material search/select/add flow still could not be completed. This was
-classified as a safe UI/client-side bugfix within locked ARCHITECTURE v2.21
-Section 39 behavior.
-
-### Root Cause
-- The Job Material List catalog loader was filtering `items` by the selected
-  job division.
-- Existing app catalog/count paths read active catalog items without that
-  division filter.
-- Valid catalog materials with global, blank, null, or otherwise non-matching
-  `items.division` values could be hidden from the Material List select, which
-  blocked search/select/add even though the materials existed.
-
-### What Was Completed
-- Fixed Job Material List catalog loading to read active, non-archived catalog
-  `items` through the existing authorized client read path without the extra
-  job-division filter.
-- Expanded catalog select fields to include `description` and
-  `unit_of_measure`.
-- Expanded Material List catalog search to match material code, name,
-  description, and unit of measure.
-- Updated catalog option labels to include unit of measure when present.
-- Improved add/save failure messaging so live Supabase insert errors surface in
-  the UI during testing.
-- Preserved the approved insert payload fields:
-  `job_id`, `division`, `item_id`, `requested_quantity`, `note`,
-  `material_name_snapshot`, `material_code_snapshot`, and `created_by`.
-
-### Files Changed
-- `src/App.jsx`
-  - Updated Job Material List catalog select fields.
-  - Updated catalog search matching.
-  - Removed the overly strict catalog division filter.
-  - Improved Job Material List save error message detail.
-- `HANDOFF.md`
-  - Appended this Entry 100.
-
-### Behavior / Data Safety
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permissions, auth, backend, or database
-  behavior changed.
-- No `job_materials` table shape, RLS policy, grant, or write path changed.
-- No requested quantity validation rule changed; submit still requires a
-  numeric quantity greater than zero.
-- No edit requested quantity/note behavior changed.
-- No soft archive/remove behavior changed.
-- No Jobs Foundation behavior changed outside the Job Material List UI.
-- No inventory/cart/checkout/count/QR/accounting behavior changed.
-- No Tool Catalogue behavior changed.
-- No direct `inventory_balances` write path was added.
-- No Issue to Job, Buyout, Return-to-Inventory, hard delete, cart/checkout,
-  transaction, fulfillment, remaining, reservation/allocation, procurement, or
-  financial behavior was added.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `HANDOFF.md`.
-- Static review confirmed no migration/schema/RLS/grant/permission/backend
-  files were changed.
-- Static review confirmed no auth, inventory/cart/checkout/count/QR/accounting,
-  Tool Catalogue, or direct `inventory_balances` write path changed.
-- Authenticated browser verification was not performed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Open Jobs.
-2. Open a job detail.
-3. Search for a material, such as `1/2 EMT`.
-4. Confirm matching catalog materials appear/select correctly.
-5. Select a catalog material.
-6. Enter requested quantity greater than zero.
-7. Add Material Line.
-8. Confirm the material line appears in the list.
-9. Edit requested quantity/note.
-10. Archive/remove the material line.
-11. Confirm no Issue to Job / Buyout / Return-to-Inventory behavior appears.
-12. Confirm Inventory, Cart/Checkout, Count, QR/scan, Accounting Export, and
-    Tool Catalogue still work.
-
-### Open Questions / Concerns
-- No architecture blocker found.
-- Authenticated visual/live add verification remains a manual browser step.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Material List material search/add bugfix.
-- Protected runtime behavior outside the approved Job Material List UI remained
-  unchanged.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side Job Material List material search/add fix (ARCHITECTURE v2.21, HANDOFF Entry 100).
-
----
-
-## Entry 101 - Job Material List quantity validation fix
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Job Material List / requested quantity validation bugfix
-**Session type:** implementation
-
-### Context
-Ryan reported that the Job Material List material add flow was still rejecting
-normal whole-number requested quantities. This was classified as a safe UI /
-client-side bugfix within locked ARCHITECTURE v2.21 Section 39 behavior.
-
-### Root Cause
-- The requested quantity input was still carrying a narrow numeric constraint
-  that did not line up cleanly with the locked `requested_quantity > 0` rule.
-- That client-side constraint made the field behave more strictly than the
-  database rule, so normal quantities like `1` could be blocked before submit.
-
-### What Was Completed
-- Relaxed the Job Material List requested quantity input configuration so it
-  matches the locked rule instead of a tighter browser constraint.
-- Kept submit-time validation aligned to `requested_quantity > 0`.
-- Preserved the existing clear error message:
-  `Requested quantity must be greater than zero.`
-
-### Files Changed
-- `src/App.jsx`
-  - Updated the requested quantity input constraint to allow normal whole
-    numbers while still supporting decimal entry.
-- `HANDOFF.md`
-  - Appended this Entry 101.
-
-### Behavior / Data Safety
-- No migrations were added or edited.
-- No Supabase schema, RLS, grants, permissions, auth, backend, or database
-  behavior changed.
-- No Jobs Foundation behavior changed.
-- No inventory/cart/checkout/count/QR/accounting behavior changed.
-- No direct `inventory_balances` write path was added.
-- No Issue to Job, Buyout, Return-to-Inventory, cart/checkout, inventory
-  transaction, fulfillment, remaining, reservation/allocation, procurement, or
-  financial behavior was added.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `HANDOFF.md`.
-- Static review confirmed no migration/schema/RLS/grant/permission/backend
-  files were changed.
-- Static review confirmed no auth, inventory/cart/checkout/count/QR/accounting,
-  or direct `inventory_balances` write path changed.
-- Authenticated browser verification was not performed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Open Jobs.
-2. Open a job detail.
-3. Search/select a catalog material.
-4. Enter requested quantity `1`.
-5. Add Material Line.
-6. Confirm the material line appears.
-7. Try requested quantity `0` and confirm it is rejected.
-8. Try blank quantity and confirm it is rejected.
-9. Confirm no Issue to Job / Buyout / Return-to-Inventory behavior appears.
-
-### Open Questions / Concerns
-- No architecture blocker found.
-- Authenticated visual/live add verification remains a manual browser step.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Material List requested quantity validation
-  fix.
-- Protected runtime behavior outside the approved Job Material List UI remained
-  unchanged.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side Job Material List quantity validation fix (ARCHITECTURE v2.21, HANDOFF Entry 101).
-
----
-
-## Entry 102 - Issue to Job locked (ARCHITECTURE v2.22, new Section 40)
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Issue to Job / architecture lock adoption
-**Session type:** decision
-
-### Context
-Job Material List is live and verified through Entry 101. This session is a
-docs-only adoption of the Claude-reviewed and ChatGPT cross-cleared Issue to
-Job lock.
-
-### Decisions Made This Session (locked)
-- Added Section 40 to `docs/ARCHITECTURE.md`.
-- Updated the architecture version from v2.21 to v2.22.
-- Locked Issue to Job as a UI-only binding that closes a Cart / Checkout
-  destination-selection gap.
-- Locked that Section 11 already supports `destination_type = 'job'` /
-  `destination_id`, so no schema or RPC change is required for the future
-  implementation slice.
-- Locked that the existing checkout RPC is the only writer.
-- Locked that Job Material List issue actions hand off through the existing
-  Cart / Checkout flow and do not write directly.
-
-### Schema Changes
-- None.
-- No migrations, Supabase schema changes, RLS changes, grants, or permission
-  changes were made.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated the version line to v2.22.
-  - Added new Section 40 - Issue to Job.
-  - Aligned Section 39 wording with the new lock so the document remains
-    consistent.
-- `HANDOFF.md`
-  - Appended this Entry 102.
-
-### What Codex Needs to Know
-- No implementation occurred in this task.
-- No App.jsx changes, styles changes, RPC changes, schema changes, or runtime
-  changes were made.
-- The locked future implementation slice is UI navigation/prefill only.
-- Mandatory Codex preflight before implementation:
-  - confirm the live `transaction_items.destination_type` CHECK includes
-    `'job'`;
-  - confirm `transaction_items.destination_id` is `TEXT`.
-- After Ryan commits v2.22 / Entry 102, Codex may implement Issue to Job only
-  if that preflight passes.
-
-### What Claude Needs to Know
-- The new Section 40 is docs-only and does not change runtime behavior.
-- Issue to Job remains gated to the future existing-flow binding slice.
-
-### Next Steps (in order)
-1. Ryan commits `docs/ARCHITECTURE.md` and `HANDOFF.md`.
-2. Codex may later implement Issue to Job only after the required live
-   preflight confirms `transaction_items.destination_type` includes `'job'`
-   and `destination_id` is `TEXT`.
-
-### Open Questions / Concerns
-- None for this docs-only adoption.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: docs-only Issue to Job lock adoption.
-- No implementation/code/schema/RPC/UI/runtime changes were made.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Issue to Job architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.22, HANDOFF Entry 102).
-
----
-
-## Entry 103 - Issue to Job implemented
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Issue to Job / UI binding implementation
-**Session type:** implementation
-
-### Context
-Job Material List is live and verified through Entry 101. Ryan committed and
-pushed the v2.22 / Entry 102 architecture lock, and this session implements
-the Issue to Job UI binding within the locked Section 40 existing-flow slice.
-
-### What Was Completed
-- Added Job as a destination option in the existing Cart / Checkout UI.
-- Added a division-scoped job picker backed by the live Jobs read path.
-- Added an `Issue to Job` action on Job Material List lines.
-- Wired the Job Material List action to a local handoff that routes into the
-  existing Cart / Checkout flow with job + item context.
-- Prefilled the Job destination selection and candidate search context when
-  the handoff is used.
-- Kept requested quantity as a suggestion only.
-- Updated the development status card to reflect Milestone 5K.3.
-
-### Schema Changes
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grant, or permission changes were made.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added Issue to Job handoff helpers.
-  - Added a job destination picker for Cart / Checkout.
-  - Added Issue to Job navigation/prefill support from Job Material List
-    rows.
-  - Updated Jobs helper copy and Job Material List helper copy so the visible
-    app text matches the new lock.
-  - Updated the development status card values.
-- `src/styles.css`
-  - Added small job destination picker / summary styling.
-- `HANDOFF.md`
-  - Appended this Entry 103.
-
-### What Codex Needs to Know
-- Existing checkout/finalization remains the only inventory movement writer.
-- The new Issue to Job behavior is navigation/prefill only.
-- No direct RPC call is made from the Job Material List action.
-- No direct write to `job_materials` or `inventory_balances` was added.
-- Requested quantity is a suggestion only and can still be changed in checkout.
-- Existing user and vehicle destinations remain unchanged.
-- Tool Catalogue behavior remains unchanged.
-
-### What Claude Needs to Know
-- No schema or RPC changes were made.
-- The change stays inside the locked Section 40 existing-flow binding.
-- The Job picker uses the existing Jobs read pattern.
-
-### Verification
-- Repo preflight confirmed the local migration set already includes
-  `transaction_items.destination_type` with `'job'` and `destination_id` as
-  `TEXT`.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
-- Static review confirmed no migrations, schema, RLS, grant, permission,
-  backend, or auth files were changed.
-- Static review confirmed no direct `inventory_balances` write path and no
-  new transaction type were introduced.
-- Authenticated browser verification was not performed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Open Inventory Cart / Checkout.
-2. Confirm destination options include User/Employee, Vehicle, and Job.
-3. Select Job.
-4. Search/select a job.
-5. Confirm helper copy appears:
-   `Issue to Job moves stock out of inventory through checkout. This is not a reservation.`
-6. Complete a normal checkout to job if safe test inventory exists.
-7. Confirm existing user/vehicle destination checkout still works or remains
-   visually unchanged.
-8. Open Jobs.
-9. Open a job detail.
-10. In Job Material List, click `Issue to Job` on a material line.
-11. Confirm it routes to Cart/Checkout.
-12. Confirm job destination is preselected.
-13. Confirm material/item context or search context is carried forward if
-   supported.
-14. Confirm requested quantity is only a suggestion and can be changed.
-15. Confirm no issued/fulfilled/remaining/buyout/return behavior appears.
-
-### Open Questions / Concerns
-- No architecture blocker found.
-- Authenticated visual/live verification remains a manual browser step.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Issue to Job UI binding.
-- Protected runtime behavior outside the approved existing-flow binding
-  remained unchanged.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.22, HANDOFF Entry 103).
-
----
-
-## Entry 104 - Issue to Job helper copy runtime fix
-
-**Date:** 2026-06-30
-**Updated by:** Codex
-**Phase:** Issue to Job / UI runtime bugfix
-**Session type:** implementation
-
-### Context
-Ryan hit a runtime crash while testing the locked Issue to Job flow. The Cart /
-Checkout destination UI was referencing `ISSUE_TO_JOB_HELPER_COPY` before that
-constant existed in the module scope.
-
-### What Was Completed
-- Added the locked Issue to Job helper copy constant once at top-level scope.
-- Kept the helper copy text consistent wherever the Job destination checkout UI
-  renders.
-- Confirmed the Issue to Job destination UI now reads the same locked copy
-  string without a missing reference.
-
-### Root Cause
-- `ISSUE_TO_JOB_HELPER_COPY` was referenced by the Job destination rendering
-  path in `src/App.jsx`, but the constant was not declared in that module.
-
-### Schema / Backend / Data Safety
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grant, permission, RPC, or backend behavior changes
-  were made.
-- No transaction/finalization behavior changes were made.
-- No direct `inventory_balances` write path was added.
-- No writes to `job_materials` were added.
-- No Buyout, Return-to-Inventory, reservation/allocation, issued, fulfilled, or
-  remaining-quantity behavior was added.
-
-### Supabase Client Check
-- No new direct `createClient(...)` call was introduced by this fix.
-- The repeated GoTrue warning was not traced to a new client construction path in
-  this patch.
-- Carry-forward note: if the warning persists in browser testing, it likely
-  comes from the existing client pattern rather than this helper-copy fix.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added `ISSUE_TO_JOB_HELPER_COPY` at module scope.
-  - Left the locked Issue to Job UI behavior otherwise unchanged.
-- `HANDOFF.md`
-  - Appended this Entry 104.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files remain UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `HANDOFF.md`.
-- No migrations, schema, RLS, grant, permission, RPC, or backend files were
-  changed.
-- Authenticated browser verification was not performed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Hard refresh the deployed app.
-2. Open Inventory Cart / Checkout.
-3. Select Job destination.
-4. Confirm the helper copy renders:
-   `Issue to Job moves stock out of inventory through checkout. This is not a reservation.`
-5. Confirm the page no longer crashes.
-6. Open Jobs.
-7. Open a job detail.
-8. Click `Issue to Job` on a material line.
-9. Confirm it routes to Cart/Checkout without crashing.
-10. Confirm job destination is preselected if that was part of 5K.3.
-11. Confirm no Buyout / Return-to-Inventory / issued / fulfilled / remaining
-    behavior appears.
-
-### Open Questions / Concerns
-- No new blocker found.
-- GoTrue warnings remain a carry-forward observation unless browser testing
-  proves they are caused by something else.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: safe UI/client-side helper-copy runtime fix.
-- The patch stayed inside the locked Issue to Job UI binding surface.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI/client-side Issue to Job runtime fix (ARCHITECTURE v2.22, HANDOFF Entry 104).
-
----
-
-## Entry 105 - Job-detail Issue to Job shortcut hidden
-
-**Date:** 2026-07-01
-**Updated by:** Codex
-**Phase:** Issue to Job / UI visibility toggle
-**Session type:** implementation
-
-### Context
-Ryan decided the Job screen should stop presenting `Issue to Job` as the place
-where material movement begins. The existing Cart / Checkout Job destination
-flow stays active, but the Job detail shortcut should be hidden for now behind a
-local toggle.
-
-### What Was Completed
-- Added a local client-side feature flag to hide the Job-detail / Job Material
-  List `Issue to Job` shortcut UI.
-- Kept the underlying shortcut code available behind the toggle for possible
-  future reactivation.
-- Preserved the Cart / Checkout Job destination option and job picker flow.
-- Kept the existing checkout/finalization path unchanged.
-
-### Operational Decision
-- Job-detail Issue to Job shortcut is intentionally hidden for now.
-- Material movement should originate from Inventory / future Vehicle Inventory,
-  with Job selected as the checkout destination.
-
-### Schema / Backend / Data Safety
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grant, permission, RPC, or backend behavior changes
-  were made.
-- No transaction/finalization behavior changes were made.
-- No direct `inventory_balances` write path was added.
-- No writes to `job_materials` were added.
-- No Buyout, Return-to-Inventory, reservation/allocation, issued, fulfilled, or
-  remaining-quantity behavior was added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION = false`.
-  - Added the carry-forward comment explaining why the shortcut is hidden.
-  - Wrapped the Job Material List `Issue to Job` buttons in a local toggle so
-    they do not render while the flag is false.
-- `HANDOFF.md`
-  - Appended this Entry 105.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files remain UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `HANDOFF.md`.
-- No migrations, schema, RLS, grant, permission, RPC, or backend files were
-  changed.
-- Authenticated browser verification was not performed in this local session.
-- Static review confirms Cart / Checkout still includes Job as a destination
-  option and the job picker path remains in place.
-
-### Manual Verification Notes For Ryan
-1. Open Inventory Cart / Checkout.
-2. Confirm Job remains available as a destination.
-3. Confirm the Job picker still works in Cart / Checkout.
-4. Open a job detail.
-5. Confirm the Job Material List no longer shows an active `Issue to Job`
-   shortcut button.
-6. Confirm the page still renders normally and no crash is introduced.
-7. Confirm no Buyout / Return-to-Inventory / issued / fulfilled / remaining
-   behavior appears.
-
-### Open Questions / Concerns
-- No blocker found.
-- The hidden shortcut code remains available for future reactivation if Ryan
-  wants that workflow restored later.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: safe UI/client-side visibility toggle.
-- The patch stayed within the locked Issue to Job decisions.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI visibility toggle within locked Issue to Job decisions (ARCHITECTURE v2.22).
-
----
-
-## Entry 106 - Buyout Planning locked (ARCHITECTURE v2.23, new Section 41)
-
-**Date:** 2026-07-01
-**Updated by:** Codex
-**Phase:** Buyout Planning / architecture lock adoption
-**Session type:** docs-only
-
-### Context
-Issue to Job remains live through Entry 105. This session adopts the Claude-
-reviewed and ChatGPT cross-cleared Buyout Planning architecture lock as a
-docs-only update, with no implementation work.
-
-### What Was Completed
-- Added new Section 41 - Buyout Planning to `docs/ARCHITECTURE.md`.
-- Updated the architecture version to v2.23.
-- Locked Buyout Planning as a PM procurement checklist for jobs.
-- Locked `job_buyout_lines` as a standalone table with no FK to
-  `job_materials`.
-- Locked optional catalog `item_id` plus free-text `item_description`.
-- Locked nullable `quantity_ordered` semantics where null means not yet ordered
-  and 0 means ordered but quantity TBD.
-- Locked status values to `pending`, `ordered`, `received`, and `cancelled`.
-- Locked the read-time `In Stock` signal as a display-only read from
-  `inventory_balances`.
-- Approved simple print-to-PDF and CSV export for display-only planning data.
-
-### Schema / Backend / Data Safety
-- None.
-- No migrations were added or edited.
-- No Supabase schema, RLS, grant, permission, RPC, or backend behavior changes
-  were made.
-- No implementation, code, runtime, or UI changes were made.
-- No transaction/finalization behavior changes were made.
-- No direct `inventory_balances` write path was added.
-- No writes to `job_materials` were added.
-- No Buyout / Return-to-Inventory / reservation/allocation behavior was added.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated the version line to v2.23.
-  - Added Section 41 - Buyout Planning.
-- `HANDOFF.md`
-  - Appended this Entry 106.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` was run and passed, although this task was docs-only.
-- Changed files are docs-only for this task:
-  `docs/ARCHITECTURE.md`, `HANDOFF.md`.
-- No `src` files were changed in this task.
-- No migrations were added or edited.
-- No schema, RLS, grant, permission, RPC, or backend files were changed.
-- Authenticated browser verification was not performed in this local session.
-- No implementation of Buyout Planning occurred yet.
-
-### Manual Verification Notes For Ryan
-1. Commit the docs lock.
-2. Later, implement Buyout Planning only after the lock is adopted.
-3. Confirm the future implementation stays inside the new Section 41 scope.
-
-### Open Questions / Concerns
-- None.
-- Buyout Planning remains reserved for a later implementation milestone.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: docs-only Buyout Planning architecture lock adoption.
-- No runtime or schema drift was introduced.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Buyout Planning architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.23, HANDOFF Entry 106).
-
----
-
-## Entry 107 - Buyout Planning implemented
-
-**Date:** 2026-07-01
-**Updated by:** Codex
-**Phase:** Buyout Planning / implementation
-**Session type:** implementation
-
-### Context
-Buyout Planning is now implemented inside the locked ARCHITECTURE v2.23
-Section 41 slice. Issue to Job remains live through Entry 105, and this work
-adds the Buyout List as a separate planning surface in the Jobs workspace job
-detail view.
-
-### What Was Completed
-- Added the `public.job_buyout_lines` migration foundation.
-- Confirmed the catalog `items` primary key type during preflight as `uuid`
-  (`public.items(id)`).
-- Implemented `job_id uuid references public.jobs(id)`.
-- Implemented `division text not null`.
-- Implemented nullable `item_id` plus free-text `item_description`.
-- Implemented nullable `quantity_ordered` with distinct null/zero handling.
-- Locked the status values to `pending`, `ordered`, `received`, and
-  `cancelled`.
-- Added the `touch_user_permissions_updated_at()` trigger pattern for
-  `updated_at`.
-- Added RLS policies:
-  - `job_buyout_lines_read`
-  - `job_buyout_lines_insert`
-  - `job_buyout_lines_update`
-- Kept the table soft-archive only with no DELETE policy.
-- Added the Jobs workspace job detail Buyout List UI.
-- Added add/edit/archive, status badges, search, on-hand display, empty state,
-  loading state, and error state handling.
-- Added the locked Buyout List helper copy.
-- Implemented read-time only In Stock lookup from the existing inventory read
-  pattern backed by `inventory_balances`.
-- Added CSV export and print-to-PDF support for the current job's Buyout List.
-- Implemented quantity inputs so users can temporarily blank the field while
-  typing.
-
-### Schema / Backend / Data Safety
-- No inventory movement was added.
-- No cart/checkout changes were added.
-- No Issue to Job shortcut changes were added.
-- No Return-to-Inventory behavior was added.
-- No reservation/allocation behavior was added.
-- No accounting / Financials / PO behavior was added.
-- No direct `inventory_balances` write path was added.
-- No writes to `job_materials` were added.
-- No new transaction type was added.
-- No new permission flags were added.
-- No FK/link to `job_materials` was added.
-- No cost, price, PO number, vendor ID, or structured accounting columns were
-  added.
-
-### Code / File Changes
-- `supabase/migrations/202607010001_job_buyout_lines_foundation.sql`
-  - New Buyout Planning foundation migration.
-- `src/App.jsx`
-  - Added Buyout Planning state, CRUD wiring, on-hand lookup, print/export, and
-    development status updates.
-- `src/styles.css`
-  - Added Buyout List form/table/layout styles.
-- `HANDOFF.md`
-  - Appended this Entry 107.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are the new migration plus UI/client-side files and this
-  HANDOFF append:
-  `supabase/migrations/202607010001_job_buyout_lines_foundation.sql`,
-  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
-- No existing migrations were edited.
-- No schema, RLS, grant, permission, RPC, auth, or backend behavior outside the
-  Buyout Planning migration scope was changed.
-- No authenticated browser verification was performed in this local session.
-- The migration has been added to the repo but still needs to be applied to the
-  live Supabase project manually.
-
-### Manual Verification Notes For Ryan
-1. Open Jobs.
-2. Open a job detail.
-3. Confirm Buyout List appears inside the job detail.
-4. Add a catalog-item buyout line.
-5. Add a free-text buyout line.
-6. Confirm Qty Needed accepts `1`.
-7. Confirm Qty Needed can be cleared temporarily while typing.
-8. Confirm blank Qty Needed cannot be saved.
-9. Confirm Qty Ordered can be blank/null.
-10. Confirm Qty Ordered can be `0`.
-11. Change status to ordered, received, and cancelled.
-12. Edit vendor note, lead time note, and note.
-13. Archive/remove a line.
-14. Confirm In Stock appears only as read-only context.
-15. Confirm print-to-PDF works.
-16. Confirm CSV export works.
-17. Confirm no inventory movement, cart/checkout, reservation, or accounting
-    behavior appears.
-
-### Open Questions / Concerns
-- No blocker found.
-- Live Supabase migration application still remains as a manual follow-up.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Buyout Planning implementation within locked
-  decisions.
-- The work remained inside ARCHITECTURE v2.23 Section 41.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.23, HANDOFF Entry 107).
-
----
-
-## Entry 108 - Workspace Detail Sub-Navigation Pattern locked (ARCHITECTURE v2.24, new Section 42)
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Workspace Detail Sub-Navigation Pattern / architecture lock adoption
-**Session type:** docs-only
-
-### Context
-Buyout Planning is live through Entry 107, and the Jobs detail screen had
-grown into one long stacked page. This entry locks the reusable workspace detail
-sub-navigation pattern in ARCHITECTURE v2.24 Section 42 so Jobs can become the
-first application of the pattern.
-
-### What Was Decided
-- Added a persistent selected-record header for the detail view.
-- Added a horizontal sub-navigation under the header.
-- Locked a single focused content area below the sub-nav.
-- Locked Jobs as the first application of the reusable detail pattern.
-- Locked the Jobs tab order to:
-  - Overview
-  - Details
-  - Materials
-  - Buyout
-  - Transactions
-  - Financials
-  - Documents
-  - Schedule
-- Locked Overview as a lightweight read-only summary, not a renamed old card.
-- Locked Details to the existing job edit form.
-- Locked Materials to the existing Job Material List.
-- Locked Buyout to the existing Buyout List.
-- Locked Transactions, Financials, Documents, and Schedule as disabled Coming
-  Soon tabs using the existing 5J shell placeholder pattern.
-- Confirmed the Jobs directory/list screen remains unchanged.
-- Confirmed there is no sidebar for the job sub-navigation.
-- Confirmed mobile responsiveness is required.
-- Confirmed `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` remains false/hidden.
-
-### Schema / Backend / Data Safety
-- No schema changes were added.
-- No Supabase migration changes were added.
-- No RPC changes were added.
-- No permission changes were added.
-- No runtime behavior changes were added.
-- No backend write path changes were added.
-- No UI implementation changes were added yet.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated to v2.24 and added Section 42.
-- `HANDOFF.md`
-  - Appended this Entry 108.
-
-### Verification
-- Docs only; no implementation code was changed in this task.
-- No authenticated browser verification was performed in this local session.
-- No schema, RLS, grant, permission, RPC, auth, or backend behavior outside the
-  documented lock changed.
-
-### Open Questions / Concerns
-- No blocker found.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: docs-only Workspace Detail Sub-Navigation Pattern
-  lock adoption.
-- No runtime or schema drift was introduced.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Workspace Detail Sub-Navigation Pattern lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.24, HANDOFF Entry 108).
-
----
-
-## Entry 109 - Jobs detail sub-nav implemented
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Jobs detail sub-nav / implementation
-**Session type:** implementation
-
-### Context
-This milestone implements the locked ARCHITECTURE v2.24 Section 42 pattern for
-Jobs. The prior job detail experience had become one long stacked page, so this
-work refactors the selected-job detail surface into a persistent header, a
-horizontal sub-nav, and a single focused content area without changing the
-existing data flows.
-
-### What Was Completed
-- Added a persistent selected-job header above the detail content.
-- Added a horizontal job sub-nav under the header.
-- Implemented the locked tab set:
-  - Overview
-  - Details
-  - Materials
-  - Buyout
-  - Transactions
-  - Financials
-  - Documents
-  - Schedule
-- Implemented the active tabs:
-  - Overview
-  - Details
-  - Materials
-  - Buyout
-- Implemented the disabled / Coming Soon tabs:
-  - Transactions
-  - Financials
-  - Documents
-  - Schedule
-- Created a new lightweight read-only Overview tab.
-- Relocated the existing job edit form into Details with no behavior change.
-- Relocated the existing Job Material List into Materials with no behavior
-  change.
-- Relocated the existing Buyout List into Buyout with no behavior change.
-- Kept the Jobs directory/list screen accessible and unchanged.
-- Kept `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION` false / hidden.
-- Updated the Development Status card to ARCHITECTURE v2.24 / Entry 109.
-
-### UI / UX Notes
-- The selected job header now shows compact identity data:
-  - job number
-  - job name
-  - status badge
-  - job type / service call number when present
-  - address summary when present
-- The sub-nav is horizontal and visually distinguishes active vs Coming Soon
-  tabs.
-- The tab strip remains mobile-safe through horizontal scrolling.
-- The page no longer stacks Details, Materials, and Buyout into one long detail
-  surface.
-
-### Behavior / Data Safety
-- No schema changes were added.
-- No migration files were added or edited.
-- No RLS, grant, permission, or auth changes were added.
-- No RPC changes were added.
-- No backend behavior changes were added.
-- No inventory movement behavior was added or changed.
-- No cart / checkout behavior was added or changed.
-- No Job Material List write behavior was changed beyond relocation.
-- No Buyout List write behavior was changed beyond relocation.
-- No direct `inventory_balances` write path was added.
-- No Transactions, Financials, Documents, or Schedule implementation was added.
-- Tool Catalogue behavior remained unchanged.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Added the selected-job header, horizontal sub-nav, Overview tab, and tab
-    relocation wiring.
-- `src/styles.css`
-  - Added Jobs detail header / tab / overview styling and responsive tab-strip
-    behavior.
-- `HANDOFF.md`
-  - Appended this Entry 109.
-
-### Verification
-- Mandatory preflight passed:
-  - working tree was clean before implementation
-  - `docs/ARCHITECTURE.md` was already at v2.24
-  - HANDOFF was gapless through Entry 108
-  - current Jobs detail structure, Job Material List flow, Buyout List flow,
-    existing 5J Coming Soon pattern, and the `ENABLE_JOB_DETAIL_ISSUE_TO_JOB_ACTION`
-    false flag were confirmed before editing
-  - no schema / RPC / permission changes were needed
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side only plus this HANDOFF append:
-  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
-- No authenticated browser verification was performed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Open Jobs.
-2. Select a job.
-3. Confirm the selected-job header appears.
-4. Confirm the sub-nav shows Overview, Details, Materials, Buyout,
-   Transactions, Financials, Documents, and Schedule.
-5. Confirm Transactions, Financials, Documents, and Schedule are disabled /
-   Coming soon.
-6. Open Overview and confirm it is lightweight and read-only.
-7. Open Details and confirm job edit/save still works.
-8. Open Materials and confirm Job Material List add/edit/archive still works.
-9. Open Buyout and confirm Buyout List add/edit/archive/print/export still
-   works.
-10. Confirm the page no longer feels like one long stacked detail card.
-11. Confirm the Issue-to-Job shortcut is still hidden from Job detail.
-12. Confirm Inventory Cart / Checkout Job destination behavior remains
-    unchanged.
-
-### Open Questions / Concerns
-- No blocker found.
-- Authenticated browser verification remains a manual follow-up.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Jobs detail sub-nav implementation within locked
-  decisions.
-- The work remained inside ARCHITECTURE v2.24 Section 42.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.24, HANDOFF Entry 109).
-
----
-
-## Entry 110 - Job Transactions Log locked (ARCHITECTURE v2.25, new Section 43)
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Job Transactions Log / architecture lock adoption
-**Session type:** docs-only
-
-### Context
-Jobs detail is live through Entry 109, and this milestone splits the remaining
-Jobs detail transaction work away from Financials. Section 43 now locks a
-read-only Job Transactions Log so the Transactions tab can be activated later
-without pulling Financials into the same decision set.
-
-### What Was Decided
-- Locked a new read-only `public.job_transaction_log` view.
-- Locked the view as a read over `transaction_items` plus `inventory_transactions`.
-- Locked the view filter to `destination_type = 'job'`.
-- Locked the job match on `destination_id = jobs.id::text`.
-- Locked the Transactions tab as a read-only log of job-coded material only.
-- Locked the display shape to:
-  - date / occurred_at
-  - item / material
-  - quantity
-  - source location / bin
-  - transaction type
-  - performed by
-  - notes / reference
-- Locked the Transactions tab as read-only with no edit, delete, return, or
-  print/export actions in this milestone.
-- Locked no cost/value column and no unit-cost or financial actuals display.
-- Confirmed Financials is intentionally split out and remains unlocked /
-  deferred.
-- Confirmed source-location-agnostic behavior so future Vehicle Inventory
-  transactions appear automatically when they use the same ledger and
-  `destination_type = 'job'`.
-- Flagged Return-from-Job as a future 5K.5 delta, not solved in this lock.
-- Confirmed no new permission flags, RPCs, or tables are introduced by this
-  docs-only adoption.
-
-### Schema / Backend / Data Safety
-- No implementation code was added.
-- No schema migration was added.
-- No RLS grant or permission change was added.
-- No RPC change was added.
-- No auth behavior change was added.
-- No runtime behavior change was added.
-- No Financials work was introduced.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated to v2.25 and added Section 43.
-- `HANDOFF.md`
-  - Appended this Entry 110.
-
-### Verification
-- Docs only; no implementation files were changed in this task.
-- No authenticated browser verification was performed in this local session.
-- No schema, RLS, grant, permission, RPC, auth, or backend behavior outside the
-  documented lock changed.
-
-### Open Questions / Concerns
-- No blocker found.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: docs-only Job Transactions Log architecture lock
-  adoption.
-- No runtime or schema drift was introduced.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Job Transactions Log architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.25, HANDOFF Entry 110).
-
----
-
-## Entry 111 - Job Transactions Log implemented
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Job Transactions Log / implementation
-**Session type:** implementation
-
-### Context
-Section 43 is now implemented inside the locked ARCHITECTURE v2.25 slice.
-Transactions was previously a placeholder tab in the Jobs detail sub-nav, and
-this milestone activates it as a read-only log sourced from the existing
-inventory ledger.
-
-### What Was Completed
-- Added a new read-only `public.job_transaction_log` migration view.
-- Confirmed the source ledger table columns during preflight:
-  - `transaction_items.id`
-  - `transaction_items.transaction_id`
-  - `transaction_items.occurred_at`
-  - `transaction_items.division`
-  - `transaction_items.destination_id`
-  - `transaction_items.item_id`
-  - `transaction_items.quantity`
-  - `transaction_items.transaction_type`
-  - `transaction_items.note`
-  - `transaction_items.ledger_sequence`
-  - `inventory_transactions.id`
-  - `inventory_transactions.created_at`
-  - `inventory_transactions.user_id`
-  - `inventory_transactions.performed_by_name`
-  - `inventory_transactions.notes`
-  - `inventory_transactions.source_vehicle_id`
-- Locked the view to rows where `destination_type = 'job'`.
-- Matched the job with `destination_id = jobs.id::text`.
-- Included read-model fields for material/item, quantity, source location/bin,
-  transaction type, performed by, and notes/reference.
-- Activated the Transactions tab in the Jobs detail sub-nav.
-- Added the read-only Transactions table/log UI.
-- Added the required helper copy verbatim.
-- Kept Financials disabled / placeholder.
-- Kept edit, delete, return, print, and export actions out of the Transactions
-  tab.
-- Updated the Development Status card to ARCHITECTURE v2.25 / Entry 111.
-
-### View / UI Shape
-- View columns support the Transactions tab with:
-  - transaction item id
-  - occurred date/time
-  - division
-  - job id
-  - item id
-  - material code / item name / unit of measure
-  - quantity
-  - transaction type
-  - source bin id
-  - source bin code
-  - source bin label
-  - source location label
-  - performed by
-  - performed by user id
-  - note
-  - ledger sequence
-- UI table columns are:
-  - Date
-  - Material / Item
-  - Quantity
-  - Source location / bin
-  - Transaction type
-  - Performed by
-  - Notes / reference
-- Empty, loading, and error states are present.
-- The tab remains read-only and source-location-agnostic.
-
-### Permissions / RLS / View Behavior
-- The source transaction tables are RLS-disabled in the repo‚Äôs existing phase 1
-  inventory migrations, so the view follows the project‚Äôs existing plain-view
-  pattern instead of introducing a SECURITY DEFINER bypass.
-- No new permission flags were introduced.
-- No RPC changes were introduced.
-- No backend write path changes were introduced.
-- No direct `inventory_balances` write path was introduced.
-
-### Code / File Changes
-- `supabase/migrations/202607020001_job_transaction_log_view.sql`
-  - New read-only job transaction log view.
-- `src/App.jsx`
-  - Added Transactions tab state, loading, table/log UI, and tab activation.
-- `src/styles.css`
-  - Added Transactions tab styling.
-- `HANDOFF.md`
-  - Appended this Entry 111.
-
-### Verification
-- Mandatory preflight passed:
-  - working tree was clean before implementation
-  - `docs/ARCHITECTURE.md` was already at v2.25
-  - HANDOFF was gapless through Entry 110
-  - exact ledger table columns, `jobs.id` UUID shape, and the repo‚Äôs view
-    pattern were confirmed before editing
-  - no schema / RPC / permission changes were required
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are migration plus UI/client-side files and this HANDOFF append:
-  `supabase/migrations/202607020001_job_transaction_log_view.sql`,
-  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
-- No authenticated browser verification was performed in this local session.
-- The new migration has been added to the repo but still needs to be applied to
-  the live Supabase project manually.
-
-### Manual Verification Notes For Ryan
-1. Open Jobs.
-2. Select a job.
-3. Open Transactions tab.
-4. Confirm the helper copy appears:
-   `This is a read-only log of material coded to this job through Inventory Checkout.`
-5. Confirm transactions coded to that job appear if any exist.
-6. Confirm the empty state appears if none exist.
-7. Confirm the table shows date, material/item, quantity, source location/bin,
-   transaction type, performed by, and notes/reference.
-8. Confirm there are no edit, delete, or return buttons.
-9. Confirm no cost/value or financial columns appear.
-10. Confirm Financials remains Coming soon / disabled.
-
-### Open Questions / Concerns
-- No blocker found.
-- Live Supabase migration application still needs manual follow-up.
-
-### Architecture Drift Warnings
-- CLOSED for this milestone: Job Transactions Log implementation within locked
-  decisions.
-- The work remained inside ARCHITECTURE v2.25 Section 43.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.25, HANDOFF Entry 111).
-
----
-
-## Entry 112 - Transactions tab activation fix
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Job Transactions Log / UI wiring fix
-**Session type:** bugfix
-
-### Context
-Ryan reported that the Jobs detail Transactions tab was still behaving like an
-inactive placeholder after the Section 43 implementation landed. This follow-up
-was limited to a safe UI/client-side wiring fix under the locked
-ARCHITECTURE v2.25 decisions.
-
-### Root Cause
-- The Jobs detail sub-nav still relied on loose inline disabled-state wiring
-  instead of an explicit active-tab allowlist.
-- Transactions existed in the render switch and data loader, but the sub-nav
-  needed a single source of truth that clearly treated `transactions` as a live
-  tab rather than legacy Section 42 placeholder behavior.
-
-### What Was Completed
-- Added an explicit active-tab allowlist for:
-  - Overview
-  - Details
-  - Materials
-  - Buyout
-  - Transactions
-- Added an explicit Coming Soon allowlist for:
-  - Financials
-  - Documents
-  - Schedule
-- Normalized Jobs detail tab selection through a shared helper so live tabs
-  stay clickable and placeholder tabs stay blocked.
-- Kept the Transactions tab rendering the read-only Job Transactions Log panel.
-- Kept the required helper copy intact:
-  `This is a read-only log of material coded to this job through Inventory Checkout.`
-
-### Safety Confirmations
-- Safe UI/client-side wiring fix only.
-- No schema, migration, RLS, grant, permission, RPC, or backend behavior
-  changes.
-- No transaction write behavior changes.
-- No changes to cart / checkout / inventory movement behavior.
-- No changes to `job_materials` or `job_buyout_lines`.
-- No Financials, Return-to-Inventory, cost, or value behavior added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Replaced loose inline disabled logic with explicit live-tab and Coming Soon
-    tab allowlists.
-  - Ensured Transactions is normalized as an active detail tab.
-  - Kept Financials / Documents / Schedule visible but disabled.
-- `HANDOFF.md`
-  - Appended this Entry 112.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side plus this HANDOFF append only:
-  `src/App.jsx`, `HANDOFF.md`.
-- No migrations were added or edited in this milestone.
-- No authenticated browser verification was performed in this local session.
-
-### Outcome
-- Transactions is now active / clickable in the Jobs detail sub-nav.
-- Transactions renders the read-only Job Transactions Log panel.
-- Financials, Documents, and Schedule remain disabled / Coming soon.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI tab activation fix within locked Job Transactions Log decisions (ARCHITECTURE v2.25).
-
----
-
-## Entry 113 - Transactions tab clickability fix
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Job Transactions Log / UI clickability fix
-**Session type:** bugfix
-
-### Context
-Ryan reported that the Jobs detail Transactions tab still was not actually
-clickable even after the prior activation wiring pass. This follow-up remained
-strictly inside the locked ARCHITECTURE v2.25 UI/client-side scope.
-
-### Root Cause
-- The Jobs detail sub-nav still split tab status across generic helper sets,
-  inline button behavior, and shared button styling.
-- Transactions was logically intended to be active, but the tab bar did not
-  have one direct source of truth for clickability, and the CSS did not
-  explicitly reserve pointer blocking for only the true Coming Soon tabs.
-
-### What Was Completed
-- Moved Jobs detail tab status into one explicit config source of truth.
-- Kept these tabs active and clickable:
-  - Overview
-  - Details
-  - Materials
-  - Buyout
-  - Transactions
-- Kept these tabs visible but disabled / Coming Soon:
-  - Financials
-  - Documents
-  - Schedule
-- Added a shared Jobs detail tab-change handler so clicking Transactions sets
-  the selected tab to `transactions`.
-- Updated tab styling so active tabs use normal pointer behavior and only
-  disabled / Coming Soon tabs block pointer interaction.
-- Kept Transactions rendering the existing read-only Job Transactions Log panel.
-
-### Safety Confirmations
-- Safe UI/client-side clickability fix only.
-- No schema, RLS, grant, permission, migration, RPC, or backend behavior
-  changes.
-- No transaction write behavior changes.
-- No inventory movement, cart, or checkout behavior changes.
-- No changes to the transaction view itself.
-- No Financials, Return-to-Inventory, cost, or value behavior added.
-
-### Code / File Changes
-- `src/App.jsx`
-  - Replaced split helper-set tab status wiring with explicit per-tab config.
-  - Added a shared tab-change handler for Jobs detail tabs.
-  - Ensured Transactions routes into the read-only log panel.
-- `src/styles.css`
-  - Added explicit active-tab pointer/cursor styling.
-  - Restricted pointer blocking to disabled / Coming Soon tabs only.
-- `HANDOFF.md`
-  - Appended this Entry 113.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Changed files are UI/client-side plus this HANDOFF append only:
-  `src/App.jsx`, `src/styles.css`, `HANDOFF.md`.
-- No migrations were added or edited in this milestone.
-- No authenticated browser verification was completed.
-- In-app browser verification against localhost was not available because the
-  browser session could not connect to the local Vite app from this environment.
-
-### Outcome
-- Transactions tab/button is now active and clickable in code and styling.
-- Clicking Transactions routes the Jobs detail panel to the read-only Job
-  Transactions Log.
-- Financials, Documents, and Schedule remain disabled / Coming soon.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe UI clickability fix within locked Job Transactions Log decisions (ARCHITECTURE v2.25).
-
----
-
-## Entry 114 - Developer Dashboard build marker sync fix
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Developer Dashboard / build metadata sync
-**Session type:** diagnostic + bugfix
-
-### Context
-Ryan reported that the Developer Dashboard showed a stale build marker even
-though recent work was committed, pushed, and reportedly deployed. This raised
-the possibility that the browser was serving an older bundle and also made it
-hard to trust whether the Transactions tab clickability fix had reached the
-served app.
-
-### Root Cause
-- The Developer Dashboard build marker was hardcoded in `src/App.jsx`.
-- The displayed hash was therefore manual metadata, not the actual commit SHA of
-  the bundle being served.
-- No service worker or other app-side cache layer was found in the repo.
-
-### What Was Completed
-- Replaced the stale manual build-marker string with build-time metadata from
-  Vite.
-- Added a Vite-defined `__APP_BUILD_SHA__` value sourced from:
-  `git rev-parse --short HEAD`
-- Updated the Developer Dashboard / header build note to display the actual
-  built commit SHA.
-- Updated the deployment note to clarify that the dashboard now reports the
-  bundle commit rather than a hand-maintained UI marker.
-
-### Build Marker Strategy
-- Build metadata is now automatic at build time.
-- Current displayed build marker from this local build path is:
-  `579d9ba`
-- This means the served app should reflect whichever commit Netlify actually
-  builds and serves, instead of whichever manual string was last edited in
-  source.
-
-### Transactions Relationship
-- The Transactions tab clickability code is present in source.
-- Build output verification confirmed the built bundle still contains the locked
-  Job Transactions Log helper copy, indicating the Transactions panel code is
-  included in the built app.
-- If Netlify still shows older behavior after this fix is deployed and the
-  Developer Dashboard shows an older SHA, that points to an older deployed
-  bundle or browser caching outside the app code.
-
-### Safety Confirmations
-- No schema, migration, RLS, grant, permission, RPC, or backend behavior
-  changes.
-- No transaction write behavior changes.
-- No Financials, Return-to-Inventory, cost, or value behavior added.
-- No cart, checkout, inventory movement, `job_materials`, or
-  `job_buyout_lines` behavior changed.
-
-### Code / File Changes
-- `vite.config.js`
-  - Added build-time SHA injection via Vite `define`.
-- `src/App.jsx`
-  - Switched `DEVELOPMENT_STATUS.buildMarker` to the build-time SHA.
-  - Updated Development Status metadata for this milestone.
-- `HANDOFF.md`
-  - Appended this Entry 114.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Built bundle inspection confirmed:
-  - the current build SHA `579d9ba` is embedded in the output;
-  - the Transactions Log helper copy is present in the built bundle.
-- No migrations were added or edited.
-- No authenticated browser verification was completed in this local session.
-
-### Manual Verification Notes For Ryan
-1. Deploy this fix.
-2. Hard refresh the deployed app.
-3. Open Developer Dashboard.
-4. Confirm the current build marker matches the latest deployed commit or at
-   least clearly identifies the actual served build.
-5. Open Jobs.
-6. Select a job.
-7. Confirm Transactions tab clickability again.
-8. If Transactions still does not click after the deployed build marker is
-   current, capture screenshot/console and treat it as the next separate UI
-   bug.
-
-### Routing Verdict
-No Claude review needed ‚Äî Safe Developer Dashboard build marker/deploy sync fix.
-
----
-
-## Entry 115 - Job Financials v1 Budget Foundation locked (ARCHITECTURE v2.26, new Section 44)
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Job Financials / Budget Foundation
-**Session type:** docs-only
-
-### Context
-Job Transactions Log is live and verified through Entry 114. This milestone
-locks the next Financials step as Budget Foundation only, keeping it fully
-separate from actuals, profit, accounting, and the existing Transactions /
-Buyout work.
-
-### What Was Completed
-- Added new Section 44 to ARCHITECTURE.
-- Updated ARCHITECTURE version to v2.26.
-- Locked the new `job_budget_lines` table shape.
-- Locked Financials v1 as budget-only and standalone.
-- Locked `category` to six required values:
-  - material
-  - labor
-  - subcontractor
-  - equipment
-  - permit
-  - other
-- Locked `cost_code` as free-text in v1.
-- Reserved a formal cost-code table for later.
-- Locked `description` as required.
-- Locked `budget_amount` as numeric with explicit zero allowed and `>= 0`.
-- Locked soft archive only and no status column.
-- Locked read access to `can_view_financials`.
-- Locked write access to `can_approve_budget`.
-- Confirmed `can_manage_jobs` is not the Financials gate.
-- Locked the Financials tab to be hidden from users lacking `can_view_financials`.
-- Locked read-only access for users with view permission but without write
-  permission.
-- Locked no print/export in v1.
-- Locked no reads from Job Transactions Log or Buyout List in v1.
-
-### Safety Confirmations
-- Docs-only architecture lock adoption.
-- No migrations were added or edited.
-- No `src` files were changed.
-- No schema, RLS, grant, permission, backend, RPC, or runtime changes were
-  made.
-- No Financials implementation was added yet.
-- No actuals, profit, revenue, accounting, or Return-to-Inventory behavior was
-  introduced.
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-  - Updated to v2.26.
-  - Added Section 44.
-- `HANDOFF.md`
-  - Appended this Entry 115.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` was not required for this docs-only task.
-- Confirmed changed files are docs-only:
-  - `docs/ARCHITECTURE.md`
-  - `HANDOFF.md`
-- Confirmed no migrations were added or edited.
-- Confirmed no `src` files changed.
-- Confirmed no schema/RLS/grant/permission/backend behavior changed.
-- Confirmed no Financials implementation occurred yet.
-
-### Outcome
-- Financials v1 is now locked as Budget Foundation only.
-- The model is standalone from Job Transactions Log and Buyout List.
-- The next implementation step, if Ryan later approves it, is Bucket 3 Job
-  Financials v1 after the mandatory permission preflight confirms
-  `can_view_financials` and `can_approve_budget` are functional.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Job Financials v1 Budget Foundation architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.26, HANDOFF Entry 115).
-
----
-
-## Entry 116 - Job Financials v1 Budget Foundation implemented
-
-**Date:** 2026-07-02
-**Updated by:** Codex
-**Phase:** Job Financials / Budget Foundation
-**Session type:** implementation
-
-### Context
-Implemented the locked Budget Foundation milestone under ARCHITECTURE v2.26
-Section 44. This is the first real consumer of `can_view_financials` and
-`can_approve_budget`, so the work started with the mandatory permission
-preflight and then stayed inside the locked schema and UI decisions.
-
-### What Was Completed
-- Implemented under ARCHITECTURE v2.26 Section 44.
-- Mandatory preflight confirmed `can_view_financials` is present and functional
-  in the current permission model and returned through
-  `effective_permissions_for_user`.
-- Mandatory preflight confirmed `can_approve_budget` is present and functional
-  in the current permission model and returned through
-  `effective_permissions_for_user`.
-- Added migration `supabase/migrations/202607020002_job_budget_lines_foundation.sql`
-  for `public.job_budget_lines`.
-- Migration uses `job_id uuid references public.jobs(id)` and `division text not
-  null`.
-- Added category CHECK values:
-  - `material`
-  - `labor`
-  - `subcontractor`
-  - `equipment`
-  - `permit`
-  - `other`
-- Added free-text nullable `cost_code`.
-- Added required `description`.
-- Added `budget_amount` with explicit zero allowed and CHECK `>= 0`.
-- Added no status column and no actual / committed / issued-value / revenue /
-  profit / PO / invoice / change-order / accounting columns.
-- Added the `updated_at` trigger using `touch_user_permissions_updated_at()`.
-- Added RLS policies:
-  - `job_budget_lines_read`
-  - `job_budget_lines_insert`
-  - `job_budget_lines_update`
-- Read is gated by `can_view_financials`.
-- Write is gated by `can_approve_budget`.
-- Added no DELETE policy and no delete grant.
-- Activated the Financials tab for users with `can_view_financials`.
-- Hid the Financials tab entirely for users without `can_view_financials`.
-- Users without `can_approve_budget` now see read-only Financials.
-- Included the locked helper copy verbatim.
-- Added summary cards, budget-by-category summary, budget line count, read-only
-  table, and add / edit / archive controls for authorized users.
-- Implemented numeric input blank typing behavior for budget amount.
-- Blank final budget blocks save.
-- Added no print/export.
-- Added no reads from Transactions, Buyout, Job Materials, inventory, or
-  transaction data into Financials.
-- Added no actuals/accounting behavior.
-- Added no transaction/inventory behavior changes and no direct
-  `inventory_balances` write.
-
-### Safety Confirmations
-- No migration changes outside the new `job_budget_lines` migration.
-- No existing table definitions were changed.
-- No RLS, grant, permission, or auth behavior changed on existing tables.
-- No new permission flags were added.
-- Policies use `can_view_financials` and `can_approve_budget`, not
-  `can_manage_jobs`.
-- No reserved financial fields were added to schema or UI.
-- No reads from `job_transaction_log`, `job_buyout_lines`, `job_materials`, or
-  `inventory_balances` were added to Financials.
-- No transaction write behavior or inventory movement behavior was introduced.
-- No print/export was added to Financials.
-
-### Code / File Changes
-- `supabase/migrations/202607020002_job_budget_lines_foundation.sql`
-  - Added `public.job_budget_lines` table, trigger, RLS policies, and grants.
-- `src/App.jsx`
-  - Added Financials tab permission gating and rendering.
-  - Added budget-line loading, summary, add/edit/archive, and read-only mode.
-  - Updated Development Status metadata for Entry 116 / v2.26.
-- `src/styles.css`
-  - Added Financials mini-module styles matching the Jobs tab pattern.
-- `HANDOFF.md`
-  - Appended this Entry 116.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Confirmed changed files include:
-  - one new migration for `job_budget_lines`
-  - `src/App.jsx`
-  - `src/styles.css`
-  - `HANDOFF.md`
-- Confirmed no existing migrations were edited.
-- Confirmed no existing schema / RLS / grant / permission behavior changed.
-- Confirmed no inventory / cart / checkout / count / QR / accounting behavior
-  changed.
-- Confirmed Jobs workspace still builds.
-- Confirmed Financials tab visibility is permission-gated in the client.
-- Confirmed users without `can_approve_budget` are rendered read-only in the
-  client.
-- Confirmed budget summaries calculate from budget lines only.
-- Confirmed blank budget input can be temporarily cleared while typing but
-  cannot be saved blank.
-- No authenticated browser verification was completed in this local session.
-- Live Supabase migration still needs manual application.
-
-### Manual Verification Notes For Ryan
-1. Apply the new Supabase migration in the live environment.
-2. Open Jobs.
-3. Select a job.
-4. Confirm Financials tab appears for a user with `can_view_financials`.
-5. Confirm Financials tab is hidden for a user without `can_view_financials`.
-6. Confirm the locked helper copy appears.
-7. Add a budget line.
-8. Confirm category, cost code, description, budget amount, and note save
-   correctly.
-9. Confirm explicit `0` budget amount is allowed.
-10. Confirm blank budget amount cannot be saved.
-11. Confirm the budget input can be temporarily blank while typing.
-12. Confirm Total Budget updates.
-13. Confirm Budget by Category updates.
-14. Edit a budget line.
-15. Archive/remove a budget line.
-16. Confirm no actuals, revenue, profit, inventory value, PO, invoice, change
-   order, print/export, or accounting behavior appears.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.26, HANDOFF Entry 116).
-
----
-
-## Entry 117 - Job Financials v1 live verification
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Job Financials / Budget Foundation
-**Session type:** verification
-
-### Context
-Job Financials v1 was already implemented under ARCHITECTURE v2.26 Section 44.
-This entry records the live verification step after Ryan confirmed the live
-Supabase migration was applied and the deployed app/browser path was tested
-successfully.
-
-### What Was Verified
-- Live Supabase migration for `public.job_budget_lines` is applied and verified.
-- `public.job_budget_lines` exists live in the `northgate-hq-v2.0` Supabase
-  project.
-- RLS is enabled on `public.job_budget_lines`.
-- Verified policies present:
-  - `job_budget_lines_read`
-  - `job_budget_lines_insert`
-  - `job_budget_lines_update`
-- Verified no DELETE policy exists for `public.job_budget_lines`.
-- Verified no reserved Financials columns were added.
-- Verified the live table columns match the repo migration shape.
-- Deployed app/browser verification was completed by Ryan.
-- Ryan built an entire job budget in Financials successfully with no issues.
-- Minor UI polish remains for a later pass and is not blocking.
-- Financials v1 is now considered live verified.
-
-### Safety Confirmations
-- No code changes were made in this verification entry.
-- No schema changes were made in this verification entry.
-- No ARCHITECTURE changes were made in this verification entry.
-- No actuals, revenue, profit, issued inventory value, accounting, or print /
-  export behavior was added.
-- No new Financials behavior was introduced beyond the already locked
-  Budget Foundation scope.
-
-### Verification
-- Live Supabase table existence confirmed.
-- Live RLS configuration confirmed.
-- Live policy set confirmed.
-- Live table shape confirmed against the repo migration.
-- Deployed UI verification completed successfully by Ryan.
-- Financials workflow proven usable end-to-end for budget entry.
-
-### Manual Verification Notes For Ryan
-1. Keep the minor UI polish items for a later, non-blocking pass.
-2. Continue with the next milestone when ready.
-
-### Routing Verdict
-No Claude review needed ‚Äî verification-only HANDOFF update within locked decisions (ARCHITECTURE v2.26, HANDOFF Entry 117).
-
----
-
-## Entry 118 - Jobs Module Completion Roadmap locked (ARCHITECTURE v2.27, new Sections 45-47, Section 44 delta)
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Jobs Module / Completion Roadmap
-**Session type:** docs-only / architecture lock
-
-### Context
-Job Financials v1 is live verified through Entry 117. Ryan wants to finish Jobs
-before Vehicle Inventory, so this entry locks the next Jobs-module sequence as
-the Claude-reviewed and ChatGPT cross-cleared roadmap for ARCHITECTURE v2.27.
-
-### What Was Completed
-- Confirmed Job Financials v1 is live verified through Entry 117.
-- Locked the Jobs Module Completion Roadmap in ARCHITECTURE v2.27.
-- Locked the next sequence as:
-  - Formatting Tuner
-  - Budget Ordering
-  - Documents v1
-  - Schedule v1
-  - Export later
-- Confirmed the Formatting Tuner is Bucket 1 / no-lock if it stays localStorage
-  and CSS-variable only.
-- Added the Section 44 delta for Financials budget line ordering via
-  `sort_order`.
-- Locked Job Documents v1 as the first implementation of the generic Section 20
-  `documents` design, scoped to jobs first.
-- Confirmed Job Documents use Supabase Storage.
-- Confirmed Job Documents are individually downloadable/openable.
-- Confirmed Job Documents are not bundled into a full job export.
-- Locked Job Schedule v1 as a flat milestone/task list only.
-- Confirmed Job Export is not locked yet and remains reserved as Section 48.
-- Added no code changes in this docs-only task.
-- Added no schema changes in this docs-only task.
-
-### Safety Confirmations
-- No runtime code was changed.
-- No migrations were created.
-- No Supabase schema was modified.
-- No `src` files were changed.
-- No ARCHITECTURE decisions outside the approved roadmap were added.
-- No Financials actuals, revenue, profit, issued inventory value, accounting,
-  or print/export behavior was added.
-
-### Verification
-- Confirmed the coordination documents were updated only.
-- Confirmed the roadmap sequence is recorded for later implementation.
-- Confirmed Section 48 is still reserved and not locked in v2.27.
-
-### Manual Verification Notes For Ryan
-1. Proceed with the roadmap in the locked sequence when ready.
-2. Keep Job Export reserved until Documents and Schedule are live.
-
-### Routing Verdict
-No Claude review needed ‚Äî docs-only Jobs Module Completion Roadmap architecture lock adoption already Claude-reviewed and ChatGPT cross-cleared (ARCHITECTURE v2.27, HANDOFF Entry 118).
-
----
-
-## Entry 119 - Financials Budget Ordering implemented
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Job Financials / Budget Ordering
-**Session type:** implementation
-
-### Context
-Implemented under ARCHITECTURE v2.27 Section 44 delta and Section 45 roadmap.
-This is the first milestone after the Jobs Module Completion Roadmap lock and
-adds ordering support to the live Financials budget lines model.
-
-### What Was Completed
-- Added `sort_order` to `public.job_budget_lines`.
-- Backfilled existing budget lines per job using `created_at` and `id` order.
-- Updated Financials UI to load and display budget lines ordered by
-  `sort_order`, then `created_at`, then `id`.
-- Added simple Up / Down rearrangement controls for budget lines.
-- Persisted reorder changes by updating `sort_order`.
-- Reorder is gated by `can_approve_budget`.
-- View-only users with `can_view_financials` remain read-only.
-- Added no grouping field.
-- Added no `cost_report_group`.
-- Added no formal cost code table.
-- Added no actuals, revenue, profit, issued inventory value, accounting, or
-  print/export behavior.
-- Added no Documents, Schedule, or Export work.
-- Added no inventory/cart/checkout behavior changes.
-
-### Safety Confirmations
-- No existing migration was edited.
-- No existing RLS policies were changed.
-- No existing grants were changed.
-- No new permission flags were added.
-- No reserved Financials fields were added.
-- No Financials permission model changes were introduced.
-
-## Entry 120 - Job Documents v1 implemented
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Documents
-**Session type:** implementation
-
-### Context
-Implemented under ARCHITECTURE v2.27 Section 46 as the first live slice of the
-generic Section 20 documents system.
-
-Job Documents v1 is job-scoped only. The other Section 20 owner types remain
-schema-declared but are not RLS-permitted in this milestone.
-
-### What Was Completed
-- Added `supabase/migrations/202607060002_job_documents_foundation.sql`.
-- Created the new generic `public.documents` table with the Section 46 field
-  set and the Section 20 owner-type check.
-- Added the `set_documents_updated_at` trigger path for `public.documents`.
-- Used a local trigger helper function because `touch_user_permissions_updated_at()`
-  was not confirmed as present in the live project during preflight.
-- Bootstrapped the `northgate-files` storage bucket in the migration so the
-  Job Documents upload path has a live bucket target if it is missing.
-- Enabled RLS on `public.documents`.
-- Added the locked RLS policies:
-  - `documents_read`
-  - `documents_insert`
-  - `documents_update`
-- Added storage policies for the live `northgate-files` bucket so job documents
-  can be uploaded and downloaded through Supabase Storage.
-- Did not create or use a bespoke `job_documents` table.
-- Activated the Documents tab in the Jobs workspace.
-- Added the job document upload flow:
-  - file picker
-  - free-text document type
-  - optional description
-  - suggested Section 20-style file naming
-  - upload to `northgate-files`
-  - insert document row after upload
-- Added the job document list view:
-  - file name
-  - document type
-  - description
-  - upload date
-  - uploaded by
-  - file size
-  - MIME type
-- Added open/download actions for individual documents.
-- Added soft-archive only behavior for documents.
-- Kept Documents out of bundling/export behavior.
-- Kept Schedule, Financials, inventory, cart, checkout, accounting, and other
-  job modules unchanged.
-
-### Live Verification
-- Confirmed the live v2 Supabase project is `keogysnoukbendfkfjcn`.
-- Confirmed the live `northgate-files` bucket exists after the migration apply.
-- Confirmed the live `public.documents` table now exists.
-- Confirmed the live project now exposes `set_documents_updated_at()`.
-- Confirmed the live project now has the `documents_read`, `documents_insert`,
-  and `documents_update` policies on `public.documents`.
-- Confirmed the live project now has the `documents_storage_read` and
-  `documents_storage_insert` policies on `storage.objects`.
-- Confirmed the live project has no DELETE policy for `public.documents`.
-- Confirmed the live `public.documents` columns match the repo migration shape.
-- Confirmed the live project did not already expose the `touch_user_permissions_updated_at()`
-  function during preflight, so the migration uses a local `set_documents_updated_at`
-  helper function instead.
-
-### Safety Confirmations
-- No ARCHITECTURE.md changes were made.
-- No hard delete path was added.
-- No new permission flag was added.
-- No accounting integration was added.
-- No Job Export bundling was added.
-- No Schedule implementation was added.
-- No Financials, inventory, cart, checkout, or transaction-log behavior was
-  changed.
-- No reads from `job_transaction_log`, `job_buyout_lines`, `job_materials`,
-  `inventory_balances`, or transaction tables were added.
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Confirmed the only new schema file is the `sort_order` migration.
-- Confirmed the Financials tab still supports add/edit/archive plus budget
-  summaries.
-- Confirmed reorder uses the existing `can_approve_budget` path.
-- Live Supabase migration still needs manual application.
-
-### Manual Verification Notes For Ryan
-1. Apply the live `sort_order` migration if not already applied.
-2. Open the deployed app.
-3. Open Jobs.
-4. Select a job with Financials budget lines.
-5. Confirm existing line order appears stable.
-6. Move a budget line up or down.
-7. Refresh the page.
-8. Confirm order persists.
-9. Confirm Total Budget and Budget by Category did not change.
-10. Confirm Add / Edit / Archive still work.
-11. Confirm no actuals, revenue, profit, accounting, or export behavior
-    appears.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 119).
-
-## Entry 121 - Job Documents upload RLS bugfix
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Documents
-**Session type:** bugfix
-
-### Context
-After Entry 120 went live, a user attempted to upload a Job Document in the
-deployed app and hit an RLS-looking failure:
-`new row violates row-level security policy`.
-
-The error initially looked like a `public.documents` insert policy problem, but
-diagnosis confirmed the first failure was actually Storage RLS on
-`storage.objects`.
-
-### Root Cause
-- The live `documents_storage_insert` policy had a name-shadowing / path-parsing
-  bug.
-- Inside the policy subquery, the folder parsing effectively referenced
-  `storage.foldername(j.name)[3]` instead of the outer storage object path.
-- The policy was parsing the job display name instead of the uploaded storage
-  object path, so the `jobs.id` match failed and the upload was blocked before
-  the `public.documents` row insert.
-- A second bug existed in `documents_read`: it incorrectly required
-  `can_view_all_divisions = true` even for same-division reads, instead of
-  allowing own-division reads under the locked Section 46 model.
-
-### What Was Completed
-- Added `supabase/migrations/202607060003_job_documents_rls_bugfix.sql`.
-- Fixed `documents_storage_insert` so the job-id path segment is parsed from
-  `storage.objects.name`.
-- Fixed `documents_read` so own-division reads are allowed, with
-  `can_view_all_divisions` still permitting cross-division reads where
-  authorized.
-- Applied the same fix live to the v2 Supabase project
-  `keogysnoukbendfkfjcn`.
-- Kept Job Documents v1 locked to:
-  - generic `public.documents`
-  - `owner_type = 'job'`
-  - division-scoped reads
-  - `can_manage_jobs` for upload/archive
-  - no hard delete
-
-### Confirmed Behavior
-- Frontend upload flow is storage upload first, then `public.documents` row
-  insert.
-- Storage upload was rejected first during the failed production attempt.
-- No `storage.objects` row was created for the failed upload attempt.
-- No `public.documents` row was created for the failed upload attempt.
-- No orphaned storage file or document row was left behind.
-
-### Safety Confirmations
-- No Schedule work was started.
-- No Job Export work was started.
-- No new permission flags were added.
-- No hard delete behavior was added.
-- No unrelated Documents, Jobs, Financials, inventory, cart, checkout, or
-  export behavior was changed.
-
-### Verification
-- Confirmed repo branch remained `main`.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
-- Confirmed HANDOFF was gapless through Entry 120 before this append.
-- Confirmed `supabase/migrations/202607060003_job_documents_rls_bugfix.sql`
-  exists in repo.
-- Confirmed no Schedule implementation was added.
-- Confirmed no Job Export implementation was added.
-- Confirmed no new permission flags were introduced.
-- Confirmed no DELETE policy was added for `public.documents`.
-- Confirmed no hard delete path was introduced.
-- Confirmed the live project now exposes the corrected `documents_read` and
-  `documents_storage_insert` policies.
-- `git diff --check` passed.
-- `npm.cmd run build` was not required because no runtime code changed in this
-  finalization/logging pass.
-
-### Routing Verdict
-No Claude review needed ‚Äî Job Documents upload RLS bugfix stayed within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 121).
-
-## Entry 122 - Developer Formatting Tuner and Jobs readability cleanup
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Bucket 1 UI cleanup
-**Session type:** implementation
-
-### Context
-Completed the requested Bucket 1 local-only UI pass under ARCHITECTURE v2.27
-Section 45, with Schedule still paused and Job Export still reserved. This pass
-stayed strictly inside local formatting controls plus Jobs readability cleanup.
-
-### What Was Completed
-- Replaced the old query-param Layout Tuner with a Developer-only Formatting
-  Tuner inside the Developer workspace.
-- Gated the Developer nav/toggle/workspace with the existing
-  `can_access_developer` permission already exposed through
-  `permissions.canAccessDeveloper`.
-- Added the new browser-local storage key
-  `northgate.formattingTuner.v1`.
-- Kept the tuner local-only by applying CSS variables through
-  `document.documentElement.style.setProperty(...)`, with no Supabase writes.
-- Added preset/reset/copy-CSS behavior and safe clamping for the tuner fields.
-- Added a best-effort legacy read path from `northgate.layoutTuner.v1`, while
-  persisting only to `northgate.formattingTuner.v1`.
-- Tuned Jobs workspace readability across the split layout, detail header, tab
-  strip, forms, cards, and responsive stacking so wide content stays more
-  contained and readable.
-
-### Safety Confirmations
-- No Supabase schema, migrations, RLS, storage, auth, RPC, or backend behavior
-  was changed.
-- No new permission flag was added.
-- No Documents upload/archive logic was changed.
-- No Schedule work was started.
-- No Job Export work was started.
-- No inventory, cart, checkout, Financials logic, buyout logic, or data model
-  behavior was changed.
-- No hard delete path was added.
-- No `docs/ARCHITECTURE.md` changes were made.
-
-### Files Changed
-- `src/App.jsx`
-- `src/styles.css`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch remained `main`.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
-- Confirmed HANDOFF was gapless through Entry 121 before this append.
-- Confirmed no Schedule implementation was added.
-- Confirmed no Job Export implementation was added.
-- Confirmed no new permission flags were introduced.
-- Confirmed no Supabase migrations were added in this pass.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-
-### Notes
-- Formatting Tuner defaults remain the committed baseline and Reset returns the
-  browser back to those defaults.
-- The Developer workspace now shows a locked placeholder if someone routes to
-  `?workspace=developer` without `can_access_developer`.
-- No unrelated behavior changed outside the local UI/readability scope.
-
-### Routing Verdict
-No Claude review needed ‚Äî Developer Formatting Tuner and Jobs readability cleanup stayed within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 122).
-
-## Entry 123 - Job Schedule v1 implemented
-
-**Date:** 2026-07-06
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Schedule
-**Session type:** implementation
-
-### Context
-Implemented Job Schedule v1 under ARCHITECTURE v2.27 Section 47 as the next
-locked Jobs completion milestone after Documents and the Developer Formatting
-Tuner cleanup. This stayed inside the flat milestone/task-list scope only.
-
-### What Was Completed
-- Created `public.job_schedule_items`.
-- Added fields `title`, `description`, `target_date`, `status`, `sort_order`,
-  `note`, plus the standard division/archive/created metadata columns.
-- Locked status values to `pending`, `in_progress`, `complete`, and `delayed`.
-- Added the `set_job_schedule_items_updated_at` trigger using the existing
-  `touch_user_permissions_updated_at()` function.
-- Enabled the Schedule tab in the Jobs workspace.
-- Implemented add, edit, archive, and up/down reorder behavior for schedule
-  items.
-- Kept archive behavior soft-only through `archived_at`, `archived_by`, and
-  optional `archive_reason`.
-- Added division-scoped read behavior and `can_manage_jobs` write/archive/
-  reorder gating through the new table RLS.
-
-### Safety Confirmations
-- No hard delete policy was added.
-- No new permission flag was added.
-- No calendar integration was added.
-- No Google Calendar integration was added.
-- No dependency model was added.
-- No employee assignments were added.
-- No reminders or notifications were added.
-- No recurring-event behavior was added.
-- No Job Export implementation was added.
-- No Documents behavior was changed.
-- No Financials behavior was changed.
-- No Formatting Tuner behavior was changed.
-- No accounting, actuals, revenue, profit, or issued inventory value behavior
-  was added.
-- No inventory, cart, or checkout behavior was changed.
-- No existing migrations were edited.
-- No existing RLS, grants, or permissions were changed outside the new
-  `job_schedule_items` table.
-
-### Files Changed
-- `supabase/migrations/202607060004_job_schedule_items_foundation.sql`
-- `src/App.jsx`
-- `src/styles.css`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch remained `main`.
-- Confirmed the working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
-- Confirmed HANDOFF was gapless through Entry 122 before this append.
-- Confirmed Section 47 exists and locks Job Schedule v1.
-- Confirmed no existing `public.job_schedule_items` migration already existed.
-- Confirmed `touch_user_permissions_updated_at()` remains the shared updated_at
-  trigger function used by adjacent Jobs tables.
-- Confirmed the Jobs workspace already exposed a Schedule placeholder tab and
-  activated that existing tab slot instead of creating a new navigation model.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Live Supabase migration still needs manual application.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
-
-## Entry 124 - Job Schedule archive RLS bugfix prepared
-
-**Date:** 2026-07-08
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Schedule
-**Session type:** bugfix
-
-### Context
-Ryan browser-tested Job Schedule v1 after the Schedule milestone went live and
-confirmed add, edit, status changes, and ordering worked, but archive/remove
-still failed in both the in-app browser and a regular browser.
-
-### What Was Completed
-- Reproduced the live archive failure after confirming the deployed site was on
-  the current Schedule build.
-- Confirmed the Schedule archive client path was sending
-  `archived_at`, `archived_by`, and `archive_reason`.
-- Confirmed the active Schedule load query already filters
-  `archived_at is null`.
-- Confirmed the target live rows were still unarchived after archive attempts.
-- Confirmed the authenticated user's effective permissions include
-  `can_manage_jobs`.
-- Simulated the archive update in live Supabase under the authenticated role and
-  confirmed the database rejected the update with `new row violates row-level security policy for table "job_schedule_items"`.
-- Isolated the failure to the `job_schedule_items_update` RLS policy:
-  ordinary updates succeed, but changing `archived_at` fails.
-- Added `supabase/migrations/202607080001_job_schedule_items_archive_rls_bugfix.sql`
-  to allow the soft-archive transition while blocking later mutation of already
-  archived Schedule rows.
-
-### Safety Confirmations
-- No new Schedule features were added.
-- No Job Export work was started.
-- No Documents, Financials, Formatting Tuner, inventory, cart, or checkout
-  behavior was changed.
-- No application code was changed in this bugfix.
-- No hard delete behavior was added.
-- The fix stays inside the existing Section 47 soft-archive model.
-
-### Files Changed
-- `supabase/migrations/202607080001_job_schedule_items_archive_rls_bugfix.sql`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch `main`.
-- Confirmed the working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.27.
-- Confirmed HANDOFF was gapless through Entry 123 before this append.
-- Confirmed `supabase/migrations/202607060004_job_schedule_items_foundation.sql`
-  exists in repo.
-- Confirmed the live `job_schedule_items` migration had already been applied.
-- Confirmed the live `job_schedule_items_update` policy still required
-  `archived_at is null` in `USING`.
-- Confirmed the live archive failure is a database RLS rejection, not a stale
-  deploy or browser-cache issue.
-- Attempted to apply the live RLS bugfix, but production policy/trigger changes
-  require fresh explicit approval in this environment before they can be run.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
-
-## Entry 125 - Job Schedule archive select-policy fix prepared
-
-**Date:** 2026-07-09
-**Updated by:** Codex
-**Phase:** Jobs Module Completion / Schedule
-**Session type:** bugfix
-
-### Context
-After Entry 124's live RLS adjustment was run, Ryan still saw the same Schedule
-archive failure in both browsers. A second live-policy check was required
-because the update-policy fix alone did not clear the archive transition.
-
-### What Was Completed
-- Re-checked the live `job_schedule_items` policy state and confirmed the
-  `job_schedule_items_update` policy and archive-protection trigger from Entry
-  124 were present in production.
-- Re-ran the live authenticated archive simulation and confirmed it still failed
-  with `new row violates row-level security policy for table "job_schedule_items"`.
-- Proved the remaining blocker is the Schedule `SELECT` path, not the update
-  path, by running a rollback-only test that temporarily added manager read
-  access and saw the archive update succeed immediately.
-- Added `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
-  to grant same-division `can_manage_jobs` users Schedule-row read access needed
-  for the soft-archive transition.
-
-### Safety Confirmations
-- No new Schedule features were added.
-- No application code changed.
-- No Job Export work was started.
-- No Documents, Financials, Formatting Tuner, inventory, cart, or checkout
-  behavior was changed.
-- Active Schedule UI still filters `archived_at is null`, so archived items do
-  not reappear in the normal list after this fix.
-- The added read policy is limited to same-division users who already have
-  `can_manage_jobs`.
-
-### Files Changed
-- `supabase/migrations/202607090001_job_schedule_items_archive_select_rls_fix.sql`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed the live `job_schedule_items_update` policy no longer requires
-  `archived_at is null`.
-- Confirmed the live archive-protection trigger exists.
-- Confirmed the live archive simulation still failed before the select-policy
-  test.
-- Confirmed a rollback-only temporary manager-read policy makes the exact same
-  live archive update succeed.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.27, HANDOFF Entry 123).
-
-
-‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê
-‚ñà DOCUMENT REPAIR ‚Äî APPROVED BY RYAN ‚Äî 2026-07-09
-‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê
-
-The two entries immediately above this marker (Entry 124, dated 2026-07-08, and
-Entry 125, dated 2026-07-09) were discovered during a Claude architecture
-reconciliation session to be physically OUT OF ORDER in this file ‚Äî Entry 125
-had been appended above Entry 124, despite being dated one day later. Both
-entries' own Routing Verdict lines cited "HANDOFF Entry 123" as the prior
-entry, indicating neither drafting session was aware of the other at the time.
-
-This is the same class of defect previously documented and repaired under
-Rule 20 in ARCHITECTURE v2.14 ("HANDOFF Entry 051/052 presentation order
-repaired under Rule 20, Entry 056").
-
-Per Constitutional Rule 20, this was surfaced to Ryan rather than silently
-corrected. Ryan reviewed the finding and explicitly approved the repair on
-2026-07-09. The two entries above have been physically reordered into correct
-chronological sequence (124 before 125). Their content is otherwise UNCHANGED
-‚Äî no facts, decisions, or verification claims were altered, only position.
-
-Entry 126 (immediately below) is the permanent, standard-format log entry for
-this repair, for the audit trail.
-
-STANDING POLICY, EFFECTIVE FROM THIS POINT FORWARD:
-Any discrepancy found in these coordination documents ‚Äî ordering defects,
-numbering gaps, content conflicts, or any other integrity issue ‚Äî must be
-brought to Ryan for explicit approval before any correction is made. This
-applies regardless of which model or session discovers the discrepancy.
-Normal append-only logging remains exempt, per the existing Rule 20 carve-out.
-
-‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê
-
-## Entry 126 - HANDOFF Entry 124/125 ordering defect repaired (Rule 20)
-
-**Date:** 2026-07-09
-**Updated by:** Claude
-**Phase:** Coordination document integrity
-**Session type:** repair (Rule 20)
-
-### Context
-During a Claude architecture reconciliation session (Silas AI Assistant
-renumbering request), direct inspection of this file found Entry 125 physically
-positioned before Entry 124, despite Entry 125 being dated one day later
-(2026-07-09 vs. 2026-07-08). Both entries' Routing Verdict lines cited Entry 123
-as the prior entry, indicating each was drafted without visibility into the
-other ‚Äî consistent with two separate bugfix sessions each appending after what
-they believed was the current tail.
-
-This defect was not identified in the request packet that prompted the
-reconciliation session; it was found only by reading the canonical file
-directly rather than relying on a summarized checkpoint description.
-
-Precedent: ARCHITECTURE v2.14 documents an identical prior repair ("HANDOFF
-Entry 051/052 presentation order repaired under Rule 20, Entry 056").
-
-### What Was Completed
-- Confirmed the ordering defect at the byte/line level (Entry 125 at the
-  original line 12672, Entry 124 at the original line 12724).
-- Surfaced the finding to Ryan per Rule 20, with a recommended resolution
-  (physical reorder, matching the Entry 051/052 precedent) and an alternative
-  (leave in place with an explanatory note).
-- Ryan reviewed and explicitly approved the physical-reorder resolution on
-  2026-07-09.
-- Entries 124 and 125 were reordered into correct chronological sequence.
-  **Content of both entries is unchanged** ‚Äî only their position in the file
-  was corrected. No fact, decision, or verification claim in either entry was
-  altered.
-- A visible repair marker was inserted immediately following the reordered
-  entries, documenting the defect, the approval, and a standing policy for
-  handling future discrepancies.
-
-### Safety Confirmations
-- No application code changed.
-- No schema, RLS, or permission changed as a result of this repair ‚Äî the
-  underlying Schedule archive RLS fix (documented in Entries 124-125
-  themselves) was already live and verified prior to this repair.
-- No content was deleted or rewritten ‚Äî this was a position-only correction.
-- This repair itself was explicitly approved by Ryan before being applied,
-  consistent with Rule 20's requirement that coordination documents are never
-  edited or repaired silently.
-
-### Files Changed
-- `HANDOFF.md` (Entries 124/125 reordered; repair marker and this entry
-  appended)
-
-### Verification
-- Confirmed the reordered entries' content is byte-identical to the original,
-  only their sequence changed.
-- Confirmed no other entry in the file was touched.
-- Confirmed HANDOFF is gapless in entry numbering (123, 124, 125, 126) even
-  though the pre-repair file had 124/125 reversed in position.
-
-### New Standing Policy (effective from this entry forward)
-Any discrepancy found in the coordination documents ‚Äî ordering defects,
-numbering gaps, content conflicts, or any other integrity issue ‚Äî must be
-brought to Ryan for explicit approval before any correction is made, regardless
-of which model or session discovers it. Normal append-only logging remains
-exempt, per the existing Rule 20 carve-out. This formalizes, as an explicit
-standing instruction, what Rule 20 already implied.
-
-### Routing Verdict
-Repair approved directly by Ryan (2026-07-09) ‚Äî Rule 20 satisfied by sole
-decision authority approval. No further cross-clearance required for this
-repair specifically, though the standing policy above applies to all future
-discrepancies.
-
----
-## Entry 127 - Silas (AI Assistant) locked (ARCHITECTURE v2.28, new Section 48); Section 47 delta (Schedule archive RLS fix documentation)
-
-**Date:** 2026-07-09
-**Updated by:** Claude
-**Phase:** Silas - AI Assistant foundation; Jobs Module - Schedule RLS documentation
-**Session type:** decision / architecture / reconciliation
-
-### Context
-Job Schedule v1 (Section 47) is live, browser-tested, and its archive/remove
-functionality failed live RLS testing after initial deployment. Codex diagnosed
-and fixed this across two sessions (Entries 124-125): an UPDATE policy fix,
-then a SELECT policy fix, both required together for the soft-archive
-transition to succeed. Ryan confirmed live resolution.
-
-Entries 124-125 were also found to be physically out of order in this file;
-that defect was repaired immediately prior to this entry (see Entry 126) with
-Ryan's explicit approval.
-
-Separately, Ryan requested Silas (AI Assistant) architecture, previously
-drafted against a stale checkpoint (v2.27/Entry 124 assumed as prior state).
-Reconciled this session against the actual canonical state: v2.27, gapless
-through Entry 126 following the repair above. This entry is 127.
-
-### Decisions Made This Session (locked)
-- Section 47 delta: documents that Schedule's soft-archive transition required
-  TWO coordinated RLS policies (UPDATE + SELECT), not one - archived_at IS
-  NULL must not gate the UPDATE policy's USING clause, and the SELECT policy
-  must allow same-division can_manage_jobs users to read the row through the
-  transition. No design change - soft-archive-only, can_manage_jobs,
-  own-division, no hard delete, no new permission flag all remain exactly as
-  originally locked. - Claude, documenting Codex's live-verified fix
-  (Entries 124-125).
-- General principle logged for future RLS work: soft-archive transition
-  failures should be checked against BOTH the UPDATE and SELECT policy, not
-  the UPDATE policy in isolation - now a known failure shape for this
-  project. - Claude.
-- Silas: all prior design decisions unchanged from the working session with
-  Ryan - permission-aware interface layer; reads only through requesting
-  user's own RLS context; Netlify function must use user JWT, not
-  service-role, for Supabase reads; Silas never writes directly to business
-  tables; approved actions route through existing RPCs/flows only; three
-  response options (Approve / Deny / Other-specify), with Other-specify
-  producing a revised suggestion; no silent writes; dedicated Silas workspace
-  plus floating chat bubble sharing one backend and one conversation history;
-  chat history persisted in Supabase, per-user RLS (not division-scoped);
-  API key server-side only, never client-exposed; Developer kill switch
-  (silas_settings.silas_enabled) enforced server-side in the Netlify function,
-  not just hidden client-side; no new permission flags beyond reusing
-  can_access_developer for the kill switch; no cross-user chat visibility; no
-  direct inventory_balances writes; receipt-derived transactions attach the
-  receipt image via the existing Documents path (owner_type='job'); Job
-  Export remains unscoped and is not part of Silas. - Ryan (operational
-  model, working session), formalized by Claude.
-- New section: Section 48 (Silas), filling the "Future AI Assistant" slot
-  reserved in Section 4 since the project's original architecture pass. -
-  Claude.
-- Job Export moves to reserved Section 49 (was reserved as 48; Silas took 48
-  since it was ready and Export explicitly is not). - Claude.
-- Version advances to v2.28. - Claude.
-
-### Schema Changes
-- None applied live in this entry. Section 47 delta is documentation-only -
-  the actual schema/RLS was already applied live via the two migrations
-  referenced in the Section 47 delta text (202607080001, 202607090001).
-- Silas schema (silas_conversations, silas_messages, silas_settings) is
-  LOCKED but NOT YET IMPLEMENTED. This entry authorizes the docs update only,
-  not implementation.
-
-### Code / File Changes
-- None this session (decision/architecture/reconciliation only).
-
-### Lock Document Changes
-- ARCHITECTURE -> v2.28: Section 47.2 replaced with the archive RLS delta
-  text; new Section 48 (Silas, full text); version line updated.
-- Reviewed and finalized by Claude; Ryan applies and commits.
-- This entry authorizes a DOCS-ONLY update to ARCHITECTURE.md. It does NOT
-  authorize Silas implementation.
-
-### What Codex Needs to Know
-- This entry is DOCS-ONLY. Do not implement Silas. Do not touch
-  job_schedule_items, its RLS, or any other existing table/RPC/UI - the
-  Schedule fix is already live; Section 47's delta only documents it
-  retroactively at the architecture level.
-- Silas implementation (migration, Netlify function, UI) is a SEPARATE future
-  request, gated on Ryan's decision to proceed after this docs update is
-  committed.
-- When Silas implementation is eventually requested: the single highest-stakes
-  preflight item is confirming the Netlify function authenticates to Supabase
-  using the requesting user's JWT, not a service-role key - this determines
-  whether Silas correctly inherits existing RLS or accidentally gets
-  admin-level read access. This must be confirmed explicitly, not assumed.
-
-### What Claude Needs to Know
-- Silas design is fully locked and stable. Implementation-prompt generation
-  is the next step once Ryan commits this docs-only update, and is a separate
-  future request.
-- The two-policy soft-archive RLS lesson (Section 47 delta) should be treated
-  as a standing checklist item for any future table gaining soft-archive/RLS
-  for the first time, not just a one-off Schedule fix.
-- The HANDOFF ordering-defect repair (Entry 126) established a standing
-  policy: all future coordination-document discrepancies route to Ryan for
-  approval before correction. Apply this going forward without being
-  re-reminded.
-
-### Next Steps (in order)
-1. Ryan applies and commits ARCHITECTURE v2.28 (Section 47 delta + Section 48)
-   and this HANDOFF entry.
-2. Silas implementation prompt generation happens as a separate future
-   request, once the docs-only update is committed.
-
-### Open Questions / Concerns
-- (Carried forward) Supabase auth-context approach for the Silas Netlify
-  function remains the highest-stakes open implementation question, to be
-  resolved at Codex preflight when implementation begins - not part of this
-  docs-only entry.
-
-### Architecture Drift Warnings
-- CARRIED FORWARD: all Silas reserved items unchanged (proactive actions,
-  multi-step autonomous chains, voice I/O, cross-user chat visibility,
-  self-modifying configuration, general-purpose feature-flag system beyond
-  silas_settings). Job Export remains unscoped, now Section 49.
-- CARRIED FORWARD: no direct inventory_balances writes; no new permission
-  flags beyond can_access_developer reuse for the Silas kill switch.
-
-### Routing Verdict
-No Claude review needed ‚Äî within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 127).
-
----
-
-## Entry 128 - Silas foundation implemented
-
-**Date:** 2026-07-09
-**Updated by:** Codex
-**Phase:** Silas foundation
-**Session type:** implementation
-
-### Context
-This is the first implementation pass after the docs-only Silas architecture
-lock in ARCHITECTURE v2.28 Section 48. Ryan approved Option A / Phase 1 only:
-schema, RLS, global kill switch, Netlify proxy foundation, dedicated workspace
-shell, floating bubble shell, and Developer toggle ‚Äî without any business-data
-write capability or advanced suggested actions.
-
-### What Was Completed
-- Created `supabase/migrations/202607090002_silas_foundation.sql`.
-- Created `public.silas_conversations`.
-- Created `public.silas_messages`.
-- Created `public.silas_settings`.
-- Seeded a single-row Silas settings record with `silas_enabled = true`.
-- Enforced the single-row settings convention with a unique index on a constant
-  expression.
-- Added `set_silas_conversations_updated_at`.
-- Added `set_silas_settings_updated_at`.
-- Added per-user RLS for Silas conversations/messages.
-- Added authenticated read + Developer-only update for `silas_settings` using
-  the existing `can_access_developer` effective-permissions pattern.
-- Added no DELETE policies on any Silas table.
-- Added `netlify/functions/silas-chat.js` as the Silas proxy foundation.
-- Confirmed the proxy uses the requesting user's Clerk-issued Supabase JWT for
-  Supabase reads/writes by creating the function-side client from the anon/public
-  key plus the incoming `Authorization: Bearer <jwt>` header.
-- Confirmed the proxy does not use `SUPABASE_SERVICE_ROLE_KEY` and does not use
-  service-role plus manual filtering.
-- Confirmed the backend checks `silas_settings.silas_enabled` before any
-  user-scoped Silas conversation read or Claude API call.
-- Added a dedicated Silas workspace shell to the main app navigation.
-- Added a floating Silas bubble shell that shares the same conversation history.
-- Added a Developer Dashboard Silas Enabled / Silas Disabled toggle.
-- Added Developer-visible missing-key messaging for
-  `SILAS_ANTHROPIC_API_KEY`.
-- Added foundation chat persistence for user/assistant message history through
-  the new Silas tables only.
-
-### Safety Confirmations
-- No new permission flags were added.
-- No existing permissions were changed.
-- No existing business-data table RLS/grants/policies were changed.
-- No direct `inventory_balances` write path was added.
-- No service-role Supabase read path was added for Silas.
-- No business-data writes are performed by the Silas proxy.
-- No inventory, cart, checkout, Documents, Financials, Schedule, or Formatting
-  Tuner behavior was changed beyond shared app-shell exposure of the Silas
-  workspace and bubble.
-- No Job Export work was started.
-
-### Phase 1 limitations
-- No receipt parsing.
-- No suggested-action execution.
-- No business-data writes.
-- No Cart/Checkout wiring.
-- No Documents upload wiring.
-- No Job Budget Line wiring.
-- No Schedule wiring.
-- No Job Export.
-
-### Files Changed
-- `supabase/migrations/202607090002_silas_foundation.sql`
-- `netlify/functions/silas-chat.js`
-- `src/hooks/useSilas.js`
-- `src/components/SilasPanels.jsx`
-- `src/App.jsx`
-- `src/styles.css`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch `main`.
-- Confirmed working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
-- Confirmed HANDOFF was current through Entry 127 before this append.
-- Confirmed Section 48 exists and locks Silas.
-- Confirmed Section 48 explicitly requires requesting-user JWT Supabase access,
-  not service-role access.
-- Confirmed no prior Silas migrations existed in repo.
-- Confirmed no prior `silas_conversations`, `silas_messages`, or
-  `silas_settings` migrations existed in repo.
-- Confirmed no `netlify/functions` implementation existed before this pass.
-- Confirmed the frontend already had a reusable authenticated Supabase client
-  pattern using Clerk `getToken({ template: 'supabase' })` plus
-  `createSupabaseClient(token)`.
-- Confirmed the function-side Silas Supabase client is built from anon/public
-  credentials plus the requesting user's JWT in the Authorization header.
-- Confirmed no `SUPABASE_SERVICE_ROLE_KEY` reference was added.
-- Confirmed `silas_settings.silas_enabled` is checked inside the backend
-  function.
-- Confirmed only one new migration file was added and no existing migration file
-  was edited.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Live Supabase migration was not applied in this session and still needs manual
-  application if Ryan wants the deployed app to use Silas immediately.
-- Netlify env var `SILAS_ANTHROPIC_API_KEY` still needs deployment-time setup or
-  verification unless Ryan already configured it in Netlify outside this
-  session.
-
-### Routing Verdict
-No Claude review needed ‚Äî Silas foundation stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 128).
-
-## Entry 129 - Silas foundation live verification
-
-**Date:** 2026-07-10
-**Updated by:** Codex
-**Phase:** Silas foundation
-**Session type:** live verification documentation
-
-### Context
-Silas Foundation was implemented under ARCHITECTURE v2.28 Section 48 and
-shipped in implementation commit `b459c3a`. Ryan then manually applied the live
-Supabase migration, confirmed the Netlify/API-key foundation was sufficiently
-configured for responses, and completed a browser-based live verification pass.
-
-### What Was Verified
-- Implementation commit `b459c3a` was already pushed before this entry.
-- Live Supabase migration
-  `supabase/migrations/202607090002_silas_foundation.sql` was applied
-  manually.
-- Ryan confirmed Silas Phase 1 works live.
-- Silas workspace appears when enabled.
-- Floating Silas bubble appears when enabled.
-- A basic chat message sends successfully.
-- Message history persists in the Silas workspace.
-- The same conversation/history is shared with the floating bubble.
-- Developer Dashboard Silas Enabled / Disabled toggle works.
-- Disabled state persists after refresh.
-- Re-enabling restores the Silas workspace and bubble.
-- The backend foundation response still confirms Phase 1-only behavior:
-  `Silas foundation is online. I saved your message about "What can you do in Phase 1?" and will stay inside your existing permissions. Approve/Deny business actions, receipts, and module-specific automations are not enabled yet in Phase 1.`
-
-### Safety Confirmations
-- No Approve/Deny business actions are enabled.
-- No receipt import is enabled.
-- No module-specific automations are enabled.
-- No Job Export work was added.
-- No business-data writes are enabled from Silas yet.
-- No app, schema, RLS, Supabase, or Netlify changes were made in this
-  verification entry.
-
-### Files Changed
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch `main`.
-- Confirmed working tree was clean before this append.
-- Confirmed local `main` matched `origin/main` before this append.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
-- Confirmed HANDOFF latest entry was 128 before this append.
-- Confirmed implementation commit `b459c3a` is in history.
-- Confirmed migration file
-  `supabase/migrations/202607090002_silas_foundation.sql` exists in repo.
-- Confirmed no implementation changes were needed for this documentation-only
-  pass.
-- Confirmed only `HANDOFF.md` changed in this entry.
-
-### Next Steps (in order)
-1. Keep Silas Phase 1 as the current live baseline.
-2. Scope the next Silas milestone separately before implementation.
-3. Do not start receipts, Approve/Deny business actions, module-specific
-   automations, or Job Export without a new architecture-cleared task prompt.
-
-### Routing Verdict
-No Claude review needed ‚Äî documentation-only Silas foundation live verification (ARCHITECTURE v2.28, HANDOFF Entry 129).
-
-## Entry 130 - Silas casual conversation enabled
-
-**Date:** 2026-07-10
-**Updated by:** Codex
-**Phase:** Silas Phase 2A
-**Session type:** implementation
-
-### Context
-Silas Foundation was already live under ARCHITECTURE v2.28 Section 48, with
-the dedicated workspace, floating bubble, per-user chat history, backend kill
-switch, and JWT-scoped Supabase access already verified by Ryan. This pass
-stayed inside that locked architecture and upgraded the existing Netlify Silas
-proxy from the canned Phase 1 foundation reply to real Claude-backed casual
-conversation and general Q&A.
-
-### What Was Completed
-- Enabled real Claude-backed casual conversation through the existing
-  `netlify/functions/silas-chat.js` proxy.
-- Refined the server-side Silas system prompt so Silas can handle normal
-  conversation and general questions while explicitly staying inside Phase 2A
-  limits.
-- Preserved server-side-only use of `SILAS_ANTHROPIC_API_KEY`.
-- Preserved the backend `silas_settings.silas_enabled` kill-switch check before
-  any Claude API call.
-- Preserved requesting-user JWT Supabase access for Silas conversation/message
-  reads and writes.
-- Did not use `SUPABASE_SERVICE_ROLE_KEY` or any service-role Supabase access.
-- Preserved per-user chat history and kept conversation context limited to the
-  current user's selected conversation only.
-- Corrected conversation-context loading so the Claude request includes recent
-  messages rather than the oldest messages in the thread.
-- Removed the canned fallback assistant reply path so backend Claude failures no
-  longer create a fake assistant message.
-- Kept the existing Silas workspace and floating bubble.
-- Added a clearer in-UI responding state while Silas is waiting on Claude.
-- Kept friendly frontend/backend error handling so a failed Claude response
-  leaves the saved user message visible without crashing the app.
-
-### Safety Confirmations
-- No web search was added.
-- No browsing provider was added.
-- No receipt parsing was added.
-- No suggested-action execution was added.
-- No Approve/Deny business action execution was added.
-- No business-data writes were added.
-- No Cart/Checkout behavior changed.
-- No Documents behavior changed.
-- No Financials behavior changed.
-- No Schedule behavior changed.
-- No Inventory behavior changed.
-- No Job Export work was started.
-- No new migrations were added.
-- No new permission flags were added.
-- No business-table RLS, grants, or policies were changed.
-
-### Files Changed
-- `netlify/functions/silas-chat.js`
-- `src/hooks/useSilas.js`
-- `src/components/SilasPanels.jsx`
-- `src/App.jsx`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch `main`.
-- Confirmed working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
-- Confirmed HANDOFF already included Entry 129 before this append.
-- Confirmed no migration files changed or were added.
-- Confirmed no package files changed.
-- Confirmed no business-data write calls were added.
-- Confirmed no `SUPABASE_SERVICE_ROLE_KEY` usage was added.
-- Confirmed `silas_settings.silas_enabled` is still checked in the backend
-  before Claude API calls.
-- Confirmed the backend prompt now tells Silas to refuse/defer current web
-  lookup because web search is not enabled yet.
-- Confirmed the backend prompt now tells Silas not to claim receipt handling or
-  action execution that is not enabled yet.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- `node --check netlify/functions/silas-chat.js` passed.
-- Live/browser verification of casual conversation, current-info refusal, and
-  no-action claims still needs Ryan to test on the deployed app after this
-  commit is pushed, because this session did not execute a live Anthropic call.
-
-### Next Steps (in order)
-1. Push/deploy this commit.
-2. Ryan verifies a normal casual message gets a real Silas reply.
-3. Ryan verifies a current/live-info request is refused/deferred because web
-   search is not enabled yet.
-4. Ryan verifies Silas does not claim it can execute receipts/actions yet.
-
-### Routing Verdict
-No Claude review needed ‚Äî Silas casual conversation stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 130).
-
-## Entry 131 - Silas Phase 2A assistant response failure bugfix
-
-**Date:** 2026-07-10
-**Updated by:** Codex
-**Phase:** Silas Phase 2A
-**Session type:** bugfix / implementation
-
-### Context
-Ryan live-tested Silas Phase 2A after Entry 130 was pushed. The user message
-save path succeeded, but the assistant reply failed with:
-`Silas could not respond right now. Your message was saved, but no assistant reply was generated. Please try again.`
-
-That exact message came from the inner Claude-request failure branch in the
-existing Netlify function, not from the missing-key branch, not from the
-empty-response branch, and not from the assistant-message insert path.
-
-### What Was Diagnosed
-- Confirmed branch `main`.
-- Confirmed working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
-- Confirmed latest HANDOFF entry before this pass was Entry 130.
-- Confirmed the latest Silas Phase 2A commit `851c3f4` was present in history.
-- Confirmed `netlify/functions/silas-chat.js` exists.
-- Confirmed no Job Export work had started.
-- Confirmed no receipt/action/business-write work had started.
-- Confirmed the function still did not use `SUPABASE_SERVICE_ROLE_KEY`.
-- Confirmed the function still checked `silas_settings.silas_enabled` before
-  the Claude API call.
-- Confirmed the function still used the requesting user's JWT for Supabase
-  access.
-- Confirmed `SILAS_ANTHROPIC_API_KEY` was referenced exactly by that name.
-- Confirmed the live failure Ryan saw maps specifically to the function's
-  `claude_unavailable` path.
-- Ruled out missing API key as the observed failure, because that branch would
-  have returned `missing_api_key`, not the message Ryan saw.
-- Ruled out empty content parsing as the observed failure, because that branch
-  would have returned the separate `claude_empty` message.
-- Ruled out assistant-message insert / post-Claude Supabase failure as the
-  observed failure, because those would fall through to the outer generic 500
-  branch rather than the specific saved-message / no-assistant-reply branch.
-- Narrowed the most likely failure point to the Anthropic HTTP request itself.
-- The strongest request-shape mismatch in the pre-bugfix code was the model
-  identifier `claude-sonnet-4-20250514`, which did not match Ryan's expected
-  direct Anthropic Messages API example and was the highest-probability cause
-  of a provider rejection.
-
-### What Was Completed
-- Changed the Silas Anthropic model from `claude-sonnet-4-20250514` to
-  `claude-3-5-haiku-latest`.
-- Increased `max_tokens` from 350 to 800 to align the request more closely
-  with the intended casual-conversation Messages API shape.
-- Preserved the same endpoint:
-  `https://api.anthropic.com/v1/messages`.
-- Preserved the same `anthropic-version: 2023-06-01` header.
-- Preserved server-side-only use of `SILAS_ANTHROPIC_API_KEY`.
-- Preserved the backend kill-switch check before the Claude call.
-- Preserved requesting-user JWT Supabase access and did not use service-role.
-- Added developer-visible backend error detail passthrough for the
-  `claude_unavailable` path so future provider rejections surface the actual
-  Anthropic error text to a Developer session instead of only the generic
-  assistant failure banner.
-
-### Safety Confirmations
-- No web search was added.
-- No receipt parsing was added.
-- No Approve/Deny business actions were added.
-- No business-data writes were added.
-- No Job Export work was started.
-- No business-table RLS, grants, or policies were changed.
-- No new migrations were added.
-- No new permission flags were added.
-
-### Files Changed
-- `netlify/functions/silas-chat.js`
-- `src/hooks/useSilas.js`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- `node --check netlify/functions/silas-chat.js` passed.
-- Confirmed only the Silas function, Silas hook, and HANDOFF changed in this
-  bugfix pass.
-- Confirmed `SUPABASE_SERVICE_ROLE_KEY` still does not appear in the Silas
-  function.
-- Confirmed `silas_settings.silas_enabled` is still checked before the Claude
-  API call.
-- Confirmed `SILAS_ANTHROPIC_API_KEY` is still read exactly by that name.
-- Live confirmation of the repaired assistant reply path still requires Ryan to
-  test after deployment, because this session did not execute a live Anthropic
-  request with production secrets.
-
-### Next Steps (in order)
-1. Push/deploy this bugfix.
-2. Ryan re-tests a normal Silas message live.
-3. If the reply still fails, Ryan checks the new Developer-visible Claude error
-   detail in the UI so the exact provider rejection can be captured directly.
-
-### Routing Verdict
-No Claude review needed ‚Äî focused Silas Phase 2A assistant-response bugfix within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 131).
-
-## Entry 132 - Silas Claude model ID fix
-
-**Date:** 2026-07-10
-**Updated by:** Codex
-**Phase:** Silas Phase 2A
-**Session type:** bugfix / implementation
-
-### Context
-Ryan captured the live Silas provider error after Entry 131:
-`Anthropic request failed: 404 {"type":"error","error":{"type":"not_found_error","message":"model: claude-3-5-haiku-latest"}...}`
-
-This isolated the root cause to the Anthropic model ID rather than the
-Supabase persistence path, kill switch, or JWT-scoped conversation access.
-
-### What Was Completed
-- Replaced the Silas Anthropic model ID in
-  `netlify/functions/silas-chat.js`.
-- Old model: `claude-3-5-haiku-latest`
-- New model: `claude-haiku-4-5-20251001`
-- Kept the Messages API endpoint unchanged:
-  `https://api.anthropic.com/v1/messages`
-- Kept the existing request headers unchanged, including
-  `anthropic-version: 2023-06-01`.
-- Preserved safe backend logging of Anthropic status code/error text without
-  exposing secrets.
-
-### Safety Confirmations
-- No web search was added.
-- No receipt parsing was added.
-- No suggested-action execution was added.
-- No business-data writes were added.
-- No service-role Supabase access was added.
-- Backend kill switch was preserved.
-- Requesting-user JWT Supabase access was preserved.
-- No Job Export work was started.
-- No migrations were added.
-- No Supabase changes were made.
-- No new permission flags were added.
-
-### Files Changed
-- `netlify/functions/silas-chat.js`
-- `HANDOFF.md`
-
-### Verification
-- Confirmed branch `main`.
-- Confirmed working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
-- Confirmed latest HANDOFF entry before this pass was Entry 131.
-- Confirmed current `netlify/functions/silas-chat.js` used
-  `claude-3-5-haiku-latest` before this fix.
-- Confirmed `silas_settings.silas_enabled` is still checked before the
-  Anthropic call.
-- Confirmed `SUPABASE_SERVICE_ROLE_KEY` is still not used.
-- Confirmed requesting-user JWT Supabase access is still used.
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- `node --check netlify/functions/silas-chat.js` passed.
-- Confirmed no migrations changed.
-- Confirmed no package files changed.
-- Confirmed no web search was added.
-- Confirmed no business-data write path was added.
-
-### Next Steps (in order)
-1. Push/deploy this model fix.
-2. Ryan sends `What can you do right now?` in Silas and confirms a real reply.
-3. Ryan refreshes and confirms the reply persists.
-4. Ryan asks `Can you search the web?` and confirms Silas says web search is
-   not enabled yet.
-
-### Routing Verdict
-No Claude review needed ‚Äî Silas Claude model ID fix stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 132).
-
-## Entry 133 - Silas chat scroll fix
-
-**Date:** 2026-07-10
-**Updated by:** Codex
-**Phase:** Silas Phase 2A
-**Session type:** UI bugfix / implementation
-
-### Context
-Ryan reported that in the dedicated Silas module, after sending a message, the
-screen jumped back to the top instead of staying near the latest message and
-chat input. Silas casual conversation itself was already working live; this was
-an interaction bug in the chat UI only.
-
-### What Was Diagnosed
-- Confirmed branch `main`.
-- Confirmed working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` before edits.
-- Confirmed `docs/ARCHITECTURE.md` remained v2.28.
-- Confirmed latest HANDOFF entry before this pass was Entry 132.
-- Confirmed Silas chat UI files exist:
-  - `src/components/SilasPanels.jsx`
-  - `src/hooks/useSilas.js`
-  - `src/App.jsx`
-  - `src/styles.css`
-- Confirmed no implementation work was pending outside this safe UI pass.
-- Identified the likely root cause as the message thread not being a stable
-  internal scroll container inside the dedicated workspace chat card, allowing
-  page-level viewport movement during rerender/focus changes after message send
-  and response load.
-
-### What Was Completed
-- Added a stable scroll-to-latest behavior to the shared Silas message list.
-- Added a bottom anchor ref so the chat can scroll to the newest content after:
-  - initial message load
-  - user send
-  - assistant response insert/load
-  - active conversation change
-- Added pinned-to-bottom detection so the UI stays naturally anchored during
-  normal chat flow without needing backend/state changes.
-- Added safe textarea refocus after send completion so the input remains easy
-  to continue using without forcing the page back to the top.
-- Converted the dedicated Silas chat card into a stable two-row layout with an
-  internal scrolling message list.
-- Applied the same scroll-to-latest behavior to the floating bubble so its chat
-  behavior remains sensible too.
-
-### Safety Confirmations
-- UI-only change.
-- No backend changes were made.
-- No Netlify function changed.
-- No migrations were added.
-- No Supabase changes were made.
-- No RLS or permission changes were made.
-- No web search was added.
-- No memory was added.
-- No user-profile read implementation was added.
-- No business-data writes were added.
-- No Job Export work was started.
-
-### Files Changed
-- `src/components/SilasPanels.jsx`
-- `src/styles.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm.cmd run build` passed.
-- Confirmed expected files only changed in this pass.
-- Confirmed no migrations changed.
-- Confirmed no Netlify function changed.
-- Confirmed no package files changed.
-- Confirmed no backend or business-data logic changed.
-
-### Next Steps (in order)
-1. Push/deploy this UI fix.
-2. Ryan sends a message in the Silas workspace and confirms the view stays near
-   the latest message/input.
-3. Ryan sends a second message and confirms the workspace no longer jumps to
-   the top.
-4. Ryan checks the floating bubble and confirms its scroll behavior is also
-   sensible.
-
-### Routing Verdict
-No Claude review needed ‚Äî Silas chat scroll UI fix stayed within locked decisions (ARCHITECTURE v2.28, HANDOFF Entry 133).
-
-## Entry 134 - Granular Permission Overrides superseded placeholder
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Coordination sync
-**Session type:** alignment
-
-### Context
-The local repository stopped at Entry 133, while the authoritative coordination
-checkpoint for the Granular Permission Overrides milestone was supplied
-externally. ARCHITECTURE v2.29 and final HANDOFF Entry 136 both state that
-Entries 134 and 135 are superseded and not implementation-accurate.
-
-### Decisions Made This Session (locked)
-- This placeholder exists only to preserve sequential local HANDOFF numbering
-  before recording the authoritative final Entry 136 text.
-- Do not implement from Entry 134.
-- Use Entry 136 only for Granular Permission Overrides work.
-
-### What Codex Needs to Know
-- Entry 134 is superseded.
-- Entry 135 is superseded.
-- Entry 136 is the first implementation-authoritative handoff for this
-  milestone in the local repository.
-
-### Next Steps (in order)
-1. Record the Entry 135 superseded placeholder.
-2. Record the authoritative Entry 136 final text.
-
-### Architecture Drift Warnings
-- Entry 134 is not implementation-accurate and is superseded by Entry 136.
-
-### Routing Verdict
-No implementation authority here ‚Äî coordination placeholder only. Use Entry 136.
-
-## Entry 135 - Granular Permission Overrides superseded placeholder
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Coordination sync
-**Session type:** alignment
-
-### Context
-ARCHITECTURE v2.29 and authoritative HANDOFF Entry 136 both state that Entry
-135 was a first-pass correction that was later superseded by the second-pass
-final correction. The original text was not present in the local repository at
-the time of synchronization.
-
-### Decisions Made This Session (locked)
-- This placeholder exists only to preserve sequential local HANDOFF numbering
-  before recording the authoritative final Entry 136 text.
-- Do not implement from Entry 135.
-- Use Entry 136 only for Granular Permission Overrides work.
-
-### What Codex Needs to Know
-- Entry 135 is superseded and not implementation-accurate.
-- Entry 136 is final for Section 17b and supersedes both 134 and 135.
-
-### Next Steps (in order)
-1. Record the authoritative Entry 136 final text.
-2. Implement from Entry 136 only.
-
-### Architecture Drift Warnings
-- Entry 135 is not implementation-accurate and is superseded by Entry 136.
-
-### Routing Verdict
-No implementation authority here ‚Äî coordination placeholder only. Use Entry 136.
-
-## Entry 136 ‚Äî Granular Permission Overrides: Second Correction Pass (Final)
-
-**Date:** 2026-07-14
-**Updated by:** Claude
-**Phase:** Architecture Lock Correction (second pass)
-**Session type:** Rule 20 Cross-Clearance / Decision
-
-### Context
-
-Entry 135 corrected the identity model, invalid FK, history-loss, and Developer-
-escalation gap found in the original Entry 134 draft. Before handing Section 17b
-to Codex, Ryan ran a second Rule 20 cross-clearance pass, which surfaced three
-additional implementation-blocking issues that would not have been caught until
-migration time. This entry documents the final correction.
-
-### What Was Wrong in Entry 135 (identified by second cross-clearance pass)
-
-1. **RLS recursion risk.** The write/read-all access gate called
-   `effective_permissions_for_user()`. Once that function is updated to resolve
-   overrides (per this same milestone), calling it from inside the override
-   table's own RLS policy creates a self-referential loop: RLS on
-   `user_permission_overrides` ‚Üí calls the function ‚Üí function queries
-   `user_permission_overrides` ‚Üí re-triggers RLS ‚Üí repeats. This would either
-   fail outright or behave unpredictably depending on how Postgres resolves the
-   recursion.
-
-2. **Wrong role table.** Entry 135 still said "fetch the user's role from
-   `users.role`." There is no `users` table anywhere else in this architecture ‚Äî
-   every other locked section reads identity/role/division from
-   `user_permissions`. This was Claude's error, not a change in the underlying
-   schema.
-
-3. **Client-writable table.** The original design let authenticated Developers
-   write directly to `user_permission_overrides` via an `INSERT` RLS policy,
-   with additional validation happening in the application layer. That's weaker
-   than this project's server-authoritative standard (Section 17, Non-
-   Negotiable Rule) and weaker than the pattern already used for cart-open
-   (Section 11) and other sensitive writes, which route through controlled
-   RPCs rather than direct table access.
-
-### Final Corrected Design (Section 17b, v2.29, Entry 136 ‚Äî final)
-
-**Role source (fixed):** `user_permissions.role`, not `users.role`. Codex
-confirms the exact live column name before implementation, but the reference
-table is `user_permissions`.
-
-**Non-recursive Developer authority check (new):** A dedicated check ‚Äî
-implemented as a small `SECURITY DEFINER` helper function or equivalent inline
-query ‚Äî reads `can_access_developer` directly from the user's role/Owner-path
-assignment and never queries `user_permission_overrides`. This same check gates
-both:
-- who can read all users' override history (vs. only their own), and
-- who can call the write RPC.
-
-This works naturally because `can_access_developer` was already excluded from
-the override table in Entry 135 ‚Äî it's never written there and never resolved
-from there. Entry 136 makes the non-recursive requirement explicit so Codex
-doesn't accidentally wire the check through `effective_permissions_for_user()`
-in a way that touches the override table.
-
-**RPC-only writes (new):** All direct client `INSERT`/`UPDATE`/`DELETE` on
-`user_permission_overrides` are denied by RLS. Every grant or revoke goes
-through one controlled RPC (`set_permission_override`), which in a single
-transaction:
-1. Verifies the caller's Developer authority (non-recursive check)
-2. Rejects targeting `can_access_developer`
-3. Rejects targeting another Developer (reserved for the future Owner-only
-   path)
-4. Validates the permission flag against the canonical Section 17 list
-5. Requires a non-null reason
-6. Deactivates the user's existing active row for that flag, if any
-7. Inserts the new override row
-8. Writes the `change_logs` audit entry
-9. Commits all of the above atomically
-
-This guarantees the override and its audit record can never end up out of sync
-‚Äî either both happen or neither does.
-
-**Everything else from Entry 135 stands unchanged:** Clerk identity model,
-`permission_flag` validation against the canonical list (not an FK),
-partial-unique-index history preservation, manual-only overrides (no
-expiration), immediate refresh behavior, and the Owner-only reserved path for
-future Developer-access management.
-
-### Lock Document Changes
-
-**ARCHITECTURE.md v2.29 (second-pass corrected)**
-
-- Section 17b fully rewritten a second time with the three corrections above
-- Entries 134 and 135 both explicitly marked superseded / not
-  implementation-accurate
-- Version header updated with the full second-pass correction summary
-
-### What Codex Needs to Know
-
-1. **Use Entry 136 only.** Entries 134 and 135 are both superseded.
-2. **Confirm `user_permissions.role` live column name** before implementation ‚Äî
-   the table is settled, the exact column name should still be verified.
-3. **Build the non-recursive Developer-authority check first**, before wiring
-   any RLS policy or RPC that depends on it. Do not let this check call
-   `effective_permissions_for_user()` unless that function's
-   `can_access_developer` branch is verified to never touch
-   `user_permission_overrides`.
-4. **Do not create any RLS `INSERT`/`UPDATE`/`DELETE` policy on
-   `user_permission_overrides`.** RLS should deny all direct client writes.
-   The only write path is the `set_permission_override` RPC.
-5. **The RPC must be atomic** ‚Äî override row + audit entry in one transaction,
-   using the confirmed `change_logs` schema.
-6. Confirm `change_logs` schema before implementing the audit write (carried
-   over from Entry 135, still applies).
-
-### Next Steps (in order)
-
-1. Ryan confirms this finalized entry and the second-pass corrected
-   ARCHITECTURE v2.29
-2. Codex confirms live schema: `user_permissions.role` column name and
-   `change_logs` column structure
-3. Codex builds the non-recursive Developer-authority check
-4. Codex builds `set_permission_override` RPC per the nine-step sequence above
-5. Codex adds RLS: SELECT-only for clients (own row + Developer-authority
-   read-all), deny-all writes
-6. Codex updates `effective_permissions_for_user()` per the resolution logic
-   (baseline role + active overrides, `can_access_developer` excluded)
-7. Ryan tests: grant/revoke via RPC, confirm audit trail, confirm direct
-   table writes are rejected, confirm no RLS recursion errors under load,
-   confirm developer-targeting and `can_access_developer`-targeting are both
-   rejected
-
-### Open Questions / Concerns
-
-None currently. The Owner-only Developer-access path remains a known future
-item, not an open question for this milestone.
-
-### Architecture Drift Warnings
-
-None active.
-
----
-
-## Routing Verdict
-
-**Rule 20 cross-clearance: complete (second pass).** ChatGPT identified three
-further implementation-blocking issues after the first correction pass ‚Äî all
-three confirmed against the live document and corrected here. Section 17b is
-now final.
-
-**For Codex:** Cleared to proceed with schema confirmation and implementation
-per the "What Codex Needs to Know" section above, once Ryan confirms this entry.
-
-**For Claude:** No further architecture review anticipated for this milestone
-unless schema confirmation surfaces something Codex cannot resolve alone.
-
-## Entry 137 - Granular Permission Overrides backend foundation implemented
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Granular Permission Overrides backend foundation
-**Session type:** implementation
-
-### Context
-Ryan provided authoritative attachment copies of ARCHITECTURE v2.29
-(second-pass corrected) and HANDOFF Entry 136 because the local repo on
-`main` still stopped at ARCHITECTURE v2.28 and HANDOFF Entry 133.
-
-Per the milestone preflight, implementation proceeded only after confirming the
-actual live/repo shapes for `user_permissions`, `change_logs`,
-`effective_permissions_for_user(...)`, existing Clerk JWT identity usage, and
-Developer-access gating patterns.
-
-### What Was Diagnosed
-- Confirmed branch `main`.
-- Confirmed working tree was clean before edits.
-- Confirmed local `main` matched `origin/main` at `06884ab`.
-- Confirmed local repo docs were behind the authoritative checkpoint:
-  - `docs/ARCHITECTURE.md` was still v2.28
-  - `HANDOFF.md` still ended at Entry 133
-- Confirmed live `public.user_permissions` shape:
-  - primary key: `id uuid`
-  - Clerk identity: `clerk_user_id text unique`
-  - role: `role text`
-  - division: `division text`
-  - legacy JSON column: `permission_overrides jsonb not null default '{}'::jsonb`
-  - no dedicated boolean columns for individual flags
-- Confirmed live `public.change_logs` shape:
-  - `id`, `user_id`, `user_name`, `table_name`, `record_id`, `action`,
-    `before_data`, `after_data`, `note`, `created_at`
-  - `action` already allows `permission_change`
-- Confirmed live `public.effective_permissions_for_user(...)` shape before this
-  pass:
-  - args: `(p_role text, p_division text, p_permission_overrides jsonb)`
-  - return: `jsonb`
-  - security: invoker
-  - no `search_path`
-  - behavior: role defaults + Admin-division read widening + direct JSON merge
-- Confirmed there was no live or repo `user_permission_overrides` table.
-- Confirmed current live callers of `effective_permissions_for_user(...)` are
-  all current-authenticated-user permission checks, which allowed preserving the
-  existing function signature while resolving active overrides by
-  `auth.jwt() ->> 'sub'`.
-- Confirmed legacy `user_permissions.permission_overrides` data is currently
-  empty in live data (`0` non-empty rows), including `0` rows with
-  `can_access_developer = true`.
-- Identified live inventory/cart RPCs that still merged
-  `default_permissions_for_role(...) || permission_overrides` directly instead
-  of using `effective_permissions_for_user(...)`; these needed to be updated so
-  the new override table would actually take effect in backend enforcement.
-
-### What Was Completed
-- Synced `docs/ARCHITECTURE.md` to the authoritative v2.29 header and inserted
-  Section 17b from the approved attachment text.
-- Backfilled local HANDOFF coordination sync so the repo now carries:
-  - Entry 134 superseded placeholder
-  - Entry 135 superseded placeholder
-  - authoritative Entry 136 final text
-- Added migration
-  `supabase/migrations/202607140001_granular_permission_overrides_foundation.sql`.
-- Created `public.user_permission_overrides` with the locked columns and
-  history-preserving partial unique index.
-- Enabled RLS on `public.user_permission_overrides`.
-- Added a dedicated non-recursive Developer-authority helper:
-  `public.current_user_has_developer_access()`
-  - reads `can_access_developer` from role plus legacy
-    `user_permissions.permission_overrides`
-  - never queries `user_permission_overrides`
-- Added controlled RPC `public.set_permission_override(...)`:
-  - requires authenticated Clerk JWT
-  - requires Developer authority via the non-recursive helper
-  - rejects `can_access_developer`
-  - rejects targeting any user who already has Developer access
-  - validates `permission_flag` against the canonical Section 17 list
-  - requires non-empty reason capped at 500 chars
-  - deactivates the prior active row for the same user/flag
-  - inserts the new active row
-  - writes `change_logs` action `permission_change`
-  - returns inserted row plus previous/new effective permission snapshots
-- Added SELECT-only client access on `user_permission_overrides`:
-  - self history read
-  - Developer read-all history
-  - no direct client `INSERT`/`UPDATE`/`DELETE`
-- Updated `public.effective_permissions_for_user(...)`:
-  - preserved the existing signature and `jsonb` return shape
-  - switched implementation to resolve active overrides from
-    `user_permission_overrides` for the authenticated caller
-  - kept `can_access_developer` on the role/legacy path only
-  - prevented `can_access_developer` from ever being sourced from the new table
-- Updated direct backend permission call sites so the new override table is
-  respected in real RPC enforcement:
-  - `open_inventory_cart(...)`
-  - `add_inventory_cart_item(...)`
-  - both `finalize_inventory_cart(...)` overloads
-  - `read_inventory_cart_items(...)`
-  - `remove_inventory_cart_item(...)`
-  - `retire_bin_item(...)`
-
-### Schema Changes
-- New table: `public.user_permission_overrides`
-- New partial unique index:
-  `one_active_override_per_user_flag`
-- New helper function:
-  `public.current_user_has_developer_access()`
-- Replaced function body:
-  `public.effective_permissions_for_user(...)`
-- New controlled RPC:
-  `public.set_permission_override(...)`
-- New RLS policies:
-  - `user_permission_overrides_self_read`
-  - `user_permission_overrides_developer_read_all`
-
-### Code / File Changes
-- `docs/ARCHITECTURE.md`
-- `HANDOFF.md`
-- `supabase/migrations/202607140001_granular_permission_overrides_foundation.sql`
-
-### Lock Document Changes
-- Local `ARCHITECTURE.md` now reflects the approved v2.29 second-pass-corrected
-  Section 17b text.
-- Local `HANDOFF.md` now contains the authoritative Entry 136 checkpoint and a
-  sequential bridge from Entry 133 to Entry 136 before this implementation
-  entry.
-
-### What Codex Needs to Know
-- The compatibility-preserving implementation keeps the existing
-  `effective_permissions_for_user(p_role, p_division, p_permission_overrides)`
-  signature intact because all current live callers are current-user checks.
-- The new override table is now the active source for user-level grants/revokes
-  in the shared effective-permissions resolver.
-- `can_access_developer` remains outside the override table and outside the new
-  RPC by design.
-- The helper used for override-management authority is intentionally separate
-  from `effective_permissions_for_user(...)` to avoid RLS recursion on
-  `user_permission_overrides`.
-
-### What Claude Needs to Know
-- The backend foundation for Section 17b is now implemented in migration form
-  and aligned to the final Entry 136 design.
-- No UI for override management was built in this pass.
-- No Owner-only Developer-access path was built in this pass.
-
-### Verification
-- `git diff --check` passed.
-- Confirmed local repo status before commit consists only of:
-  - `docs/ARCHITECTURE.md`
-  - `HANDOFF.md`
-  - `supabase/migrations/202607140001_granular_permission_overrides_foundation.sql`
-- Confirmed local docs now contain:
-  - ARCHITECTURE v2.29
-  - Section 17b
-  - HANDOFF Entries 134, 135, 136
-- Confirmed live schema preflight facts used for implementation:
-  - no existing `user_permission_overrides` table
-  - `user_permissions.role` exists
-  - `change_logs` supports `permission_change`
-  - current live `permission_overrides` data is empty
-- Live migration execution was **not** performed in this session; this pass
-  prepares the migration file and repo updates only.
-
-### Next Steps (in order)
-1. Commit and push this backend foundation.
-2. Apply the migration in the intended database environment.
-3. Ryan tests:
-   - grant a non-Developer user permission via `set_permission_override`
-   - revoke a permission via `set_permission_override`
-   - confirm direct table writes are rejected
-   - confirm `change_logs` records the write
-   - confirm targeting `can_access_developer` is rejected
-   - confirm targeting a Developer user is rejected
-4. Build the Developer Console UI for managing overrides in a later milestone.
-
-### Open Questions / Concerns
-- Entries 134 and 135 were not available as full local source text during repo
-  synchronization; local placeholders were added only to preserve sequential
-  numbering before inserting the authoritative final Entry 136.
-- Because the migration was not executed live here, runtime verification of the
-  SQL itself still depends on applying it in the target Supabase environment.
-
-### Architecture Drift Warnings
-- None active relative to Entry 136. This pass stayed within the locked backend
-  scope and did not add UI, Owner-path logic, expiration, or new permission
-  flags.
-
-### Routing Verdict
-No additional Claude review required before migration application ‚Äî this stayed
-inside the locked Section 17b / Entry 136 backend scope after live schema
-confirmation.
-
-## Entry 138 - Granular Permission Overrides: Runtime Behavior Confirmed & Documented
-
-**Date:** 2026-07-14
-**Updated by:** Claude
-**Phase:** Post-Implementation Verification
-**Session type:** Documentation / Verification (no schema or behavior change)
-
-### Context
-
-Following Entry 137's backend implementation, Ryan requested inspection of the
-live `effective_permissions_for_user()` function body and database role
-configuration before beginning permission-flow testing with the two live
-Clerk users. This surfaced three facts that were true of the implementation but
-not explicitly recorded in Entry 136 or Entry 137. No code, schema, or RLS
-policy was changed in this pass ‚Äî this entry documents confirmed runtime
-behavior only.
-
-### What Was Verified
-
-1. **Caller-scoped resolution only.** Inspected the live function definition
-   via `pg_get_functiondef()`. Confirmed `effective_permissions_for_user()`
-   resolves active overrides using `auth.jwt() ->> 'sub'` internally, with no
-   parameter accepting an arbitrary target Clerk user ID. The function can only
-   return the calling session's own effective permissions. Confirmed this is
-   safe for all current call sites (all check-caller-own-access), and recorded
-   as a permanent design boundary: this function must not be reused or have its
-   signature changed to check another user's permissions. Any future feature
-   needing that (e.g., an admin view of another user's access) requires a new,
-   explicitly target-scoped function.
-
-2. **Legacy JSONB is single-purpose.** Confirmed via the same function body
-   inspection that `user_permissions.permission_overrides` (the legacy JSONB
-   column) is read for exactly one flag: `can_access_developer`. All other
-   flags resolve exclusively from `default_permissions_for_role()` plus active
-   rows in `user_permission_overrides`. This was implied but not explicit in
-   Entry 137's summary; now recorded directly.
-
-3. **No RLS recursion ‚Äî mechanism confirmed.** Ran:
-   ```sql
-   select p.proname, r.rolname, r.rolbypassrls
-   from pg_proc p
-   join pg_roles r on r.oid = p.proowner
-   where p.proname = 'effective_permissions_for_user';
-   ```
-   Confirmed live result: owner `postgres`, `rolbypassrls = true`. Combined
-   with `effective_permissions_for_user()` being `SECURITY DEFINER`, this
-   function's internal read of `user_permission_overrides` bypasses that
-   table's RLS entirely, which is what prevents the recursion risk originally
-   flagged in the second Rule 20 cross-clearance pass (Entry 136). Confirmed
-   this is a distinct, non-conflicting mechanism from the separate
-   non-recursive `current_user_has_developer_access()` helper, which avoids
-   recursion by never querying the override table at all rather than by
-   bypassing RLS. Both are correct and serve different purposes; they should
-   not be collapsed into a single mechanism.
-
-### What Was Completed
-
-- Added a new "Confirmed Runtime Behavior" subsection to Section 17b in
-  `docs/ARCHITECTURE.md`, recording all three findings above as permanent,
-  load-bearing facts about the system rather than transient implementation
-  notes.
-- Version header updated to reflect this documentation-only pass.
-
-### Schema Changes
-
-None. This entry is documentation-only.
-
-### Code / File Changes
-
-- `docs/ARCHITECTURE.md` (Section 17b addition, version header)
-- `HANDOFF.md` (this entry)
-
-### What Codex Needs to Know
-
-- No action required. This confirms existing behavior; nothing to implement or
-  change.
-- If a future milestone requires checking another user's effective
-  permissions, do not modify `effective_permissions_for_user()`'s signature or
-  behavior ‚Äî build a new, separately named, explicitly target-scoped function
-  instead, and route that through Claude review first per Section 17b.
-
-### What Claude Needs to Know
-
-- Section 17b now contains a permanent record of these three runtime facts.
-  Future architecture review involving `effective_permissions_for_user()`
-  should treat caller-scoped resolution and legacy-JSONB single-purpose
-  behavior as settled, documented constraints, not open questions.
-
-### Next Steps (in order)
-
-1. Ryan proceeds with the planned test sequence (grant/revoke via
-   `set_permission_override`, audit trail confirmation, direct-write rejection
-   test using `set role authenticated` or a real app session, Developer/
-   `can_access_developer` targeting rejection) using the two live Clerk users.
-2. No further documentation work is required for Section 17b unless testing
-   surfaces a genuine discrepancy.
-
-### Open Questions / Concerns
-
-None. All three items in this pass were verification/documentation only; no
-open items resulted.
-
-### Architecture Drift Warnings
-
-None active.
-
----
-
-## Routing Verdict
-
-**No Rule 20 cross-clearance required.** This entry documents confirmed runtime
-behavior of already-locked, already-implemented functionality; it does not
-change architecture, schema, or permission semantics. Informational record only.
-
-**For Codex:** No action required.
-
-**For Claude:** Treat the three confirmed facts in this entry as settled going
-forward; no further review needed on this topic absent a new discrepancy.
-
-## Entry 139 - Northgate UI System Locked (Cross-Application Visual Standard)
-
-**Date:** 2026-07-14
-**Updated by:** Claude
-**Phase:** Architecture Lock ‚Äî UI/Navigation Standard
-**Session type:** Architecture-Sensitive UI Decision (docs-only)
-
-### Context
-
-Ryan approved a reference mockup (attached image, this session) establishing
-the target visual and navigation direction for the entire Northgate HQ v2
-application ‚Äî global header, primary/secondary sidebars, workspace layout
-hierarchy, table density, color language, and responsive behavior. This entry
-locks that direction as new Section 50 in ARCHITECTURE.md, per the existing
-governance process for architecture-sensitive UI decisions.
-
-This is a **docs-only lock**. No React, CSS, Supabase, migration, or runtime
-work was performed or authorized in this session.
-
-### What Was Reviewed
-
-- The approved reference mockup (Dashboard/Jobs view showing global header,
-  primary sidebar "My Jobs" workspace, secondary sidebar "Active Jobs" status
-  list, selected-job record header, and the existing horizontal detail tabs)
-- The full written design-direction brief accompanying the mockup
-- The complete existing ARCHITECTURE.md for conflicts, with particular
-  attention to Section 42 (Workspace Detail Sub-Navigation Pattern)
-
-### Conflict Identified and Resolved
-
-**Section 42 vs. new sidebar concept.** Section 42 (locked v2.24) states "no
-sidebar for job sub-nav" within a selected record's detail view. The new
-design direction introduces primary/secondary sidebars at the workspace
-level. These operate at different layers of the shell ‚Äî the sidebar governs
-navigation *between* records/views; Section 42's horizontal tabs govern
-navigation *within* a selected record's detail surface ‚Äî and are not
-actually in conflict. However, the proximity of the two concepts warranted an
-explicit reconciliation statement rather than leaving it to inference. Section
-50.1 states this directly: Section 42 remains fully in force and unchanged;
-the new sidebars never appear inside a selected record's detail view and never
-replace the horizontal tab pattern.
-
-No other conflicts were found. Permission-aware navigation, protected-column
-hiding, and responsive requirements all restate existing locked rules
-(Section 17, Section 17 `can_view_financials`, Constitutional Rule 18) rather
-than introducing new ones.
-
-### What Was Locked
-
-New Section 50 ("Northgate UI System") in `docs/ARCHITECTURE.md`, covering:
-
-- Global application header (branding, permission-aware top nav, compact
-  profile menu)
-- Primary sidebar (stable workspace navigation, existing routes/permissions
-  only)
-- Optional secondary sidebar (filters/saved views/status groups; one
-  consistent meaning per workspace; never replaces Section 42 tabs)
-- Main workspace structural hierarchy
-- Table density standard and protected-column omission rule (restates
-  `can_view_financials`, no new flag)
-- Summary card usage guidance
-- Permission-aware rendering (restates existing server-authoritative rule,
-  no new mechanism)
-- Color/styling language (Northgate red as active-state accent; bright green
-  excluded from nav)
-- Spacing/hierarchy standard
-- Full responsive behavior spec for desktop/tablet/mobile (Constitutional
-  Rule 18 compliance, designed in from Phase 1)
-- Reusable design-system primitive naming (illustrative, not a required file
-  layout)
-- Locked three-phase rollout sequence
-- Explicit out-of-scope list
-- Implementation gate (docs-only; does not authorize code)
-
-### Lock Document Changes
-
-**ARCHITECTURE.md v2.29 ‚Üí v2.30**
-
-- New Section 50 appended after Section 48 (Section 49 remains reserved for
-  Job Export, unchanged, no collision)
-- Version header updated with the v2.30 summary
-
-### What Codex May Implement First (Phase 1 scope)
-
-- The reusable application shell primitives (AppShell, TopNavigation,
-  PrimarySidebar, SecondarySidebar, WorkspaceHeader, TabBar, etc. ‚Äî naming
-  flexible) and design tokens (color, spacing, typography per Section 50.8‚Äì
-  50.9)
-- Conversion of the **Inventory module** to the new shell, with all existing
-  Inventory functionality, permissions, and business rules preserved exactly
-- Responsive behavior for the shell across desktop/tablet/mobile, per Section
-  50.10, built in from the start (not retrofitted)
-
-### What Remains Out of Scope (this milestone and Phase 1)
-
-- Jobs, Estimates, Employees, Vehicles, Developer, and Silas module
-  conversions (Phase 2/3 ‚Äî sequenced later)
-- Any change to Section 42's horizontal detail-tab pattern
-- Any schema change, migration, new permission flag, new RPC, or direct
-  database write
-- Any change to inventory ledger, checkout, Jobs financial logic,
-  authentication, or Section 17b (granular permission override) behavior
-- Any new route or module not already approved elsewhere in this document
-
-### What Codex Needs to Know
-
-1. Build the shell and design tokens first; convert Inventory second. Do not
-   start Jobs/Estimates/etc. shell conversion until Phase 1 is confirmed
-   stable.
-2. Every existing Inventory permission check, RLS policy, and business rule
-   carries over unchanged ‚Äî this is a presentation-layer conversion only.
-3. Section 42 is not being touched. When Phase 2 (Jobs) begins, the existing
-   horizontal detail-tab implementation is reused as-is inside the new shell,
-   not rebuilt.
-4. Protected columns (e.g., financial data gated on `can_view_financials`)
-   must be omitted from table markup entirely for unauthorized users ‚Äî not
-   rendered blank/masked client-side.
-5. Responsive behavior is not a follow-up task ‚Äî build mobile/tablet behavior
-   alongside desktop in the same implementation pass, per Constitutional Rule
-   18.
-
-### Next Steps (in order)
-
-1. Ryan confirms this entry and ARCHITECTURE v2.30
-2. Codex scopes Phase 1: shell primitives + design tokens + Inventory
-   conversion, as a Bucket classification per Section 35
-3. Codex implements Phase 1, preserving all existing Inventory functionality
-4. Ryan reviews Phase 1 against the reference mockup and existing Inventory
-   behavior before Phase 2 (Jobs) begins
-
-### Open Questions / Concerns
-
-None blocking. The Section 42/sidebar reconciliation above resolves the only
-ambiguity found during review.
-
-### Architecture Drift Warnings
-
-None active.
-
----
-
-## Routing Verdict
-
-**Docs-only architecture lock, Rule 20 cross-clearance not required** ‚Äî this
-session did not touch schema, permissions, RPCs, or business logic; it
-resolved one internal-consistency question (Section 42 vs. new sidebars) by
-direct textual reconciliation within the same document, which does not rise
-to the cross-model clearance threshold used for backend/security-sensitive
-changes.
-
-**For Codex:** Cleared to scope and begin Phase 1 (shell + Inventory
-conversion) per the "What Codex May Implement First" section above, once Ryan
-confirms this entry and the updated ARCHITECTURE v2.30.
-
-**For Claude:** No further review needed for this milestone unless Phase 1
-implementation surfaces a conflict with Section 42 or existing Inventory
-permission logic that Codex cannot resolve alone.
-
-## Entry 140 - Northgate UI shell adopted for Inventory
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Northgate UI System Phase 1
-**Session type:** implementation
-
-### Context
-Phase 1 implementation proceeded from the locked UI checkpoint in
-`docs/ARCHITECTURE.md` v2.30 and `HANDOFF.md` Entry 139 after confirming:
-
-- branch `main`
-- clean pre-edit working tree
-- local `HEAD` matched `origin/main`
-- starting commit `165eb327fe8f920f01f93b596910a47dc8a05abe`
-- Section 50 was present
-- Section 42 remained unchanged and compatible with the workspace-shell
-  decision
-
-This pass stayed inside the approved presentation-only scope: reusable shell,
-shared design tokens, Inventory conversion, and responsive behavior. No
-schema, RPC, permission, auth, audit, ledger, checkout, or business-rule work
-was authorized or performed.
-
-### What Was Diagnosed
-- Confirmed the existing app shell and Inventory presentation still lived
-  inside a monolithic `src/App.jsx`.
-- Confirmed the current live Inventory experience already included these
-  implemented surfaces and needed to remain wired to their existing handlers:
-  - Inventory Overview
-  - Accounting Export
-  - Catalog Preview
-  - Storage Browser
-  - Locations & QR
-  - Scan QR
-  - Label Designer
-  - Tool Catalogue
-  - Cart Checkout
-  - Inventory Count & Correction
-  - Transactions
-- Confirmed the new shell had to preserve the direct location-scan path, the
-  existing top-level workspaces, and the current permission-aware module
-  visibility model.
-- Confirmed the project has no separate automated test command beyond
-  `npm run build`.
-
-### What Was Completed
-- Added reusable light-theme design tokens for the locked Northgate visual
-  system:
-  - Northgate red brand and selected-state tints
-  - page/surface/border/text/status colors
-  - radius, shadow, spacing, header height, and sidebar width variables
-- Added reusable shell/layout components:
-  - `AppShell`
-  - `TopNavigation`
-  - `PrimarySidebar`
-  - `SecondarySidebar`
-  - `WorkspaceHeader`
-  - `SummaryCard`
-- Added shared shell/layout styles for:
-  - persistent global header
-  - responsive top navigation
-  - collapsible primary sidebar
-  - optional secondary context sidebar
-  - light workspace surfaces, compact operational spacing, and selected-state
-    red accents
-  - print-mode suppression of shell/navigation chrome
-- Integrated the new shell into `Dashboard()` while preserving existing
-  workspace routing and authorization behavior.
-- Converted Inventory from the old read-only shell wrapper into the new
-  `InventoryWorkspacePanel`, keeping the existing live panels and handlers for:
-  - overview
-  - accounting export
-  - catalog
-  - storage
-  - locations / QR
-  - scan flow
-  - labels
-  - tool catalogue
-  - cart
-  - count / correction
-  - transactions
-- Added Inventory-specific section metadata, summary-card counts, sidebar
-  navigation, and a context rail without creating new routes.
-- Preserved the direct location-scan route under the new global shell.
-- Left Dashboard, Jobs, Estimates, Employees, Vehicles, Silas, and Developer
-  internal workflows functionally unchanged aside from inheriting the new
-  top-level shell.
-
-### Code / File Changes
-- `HANDOFF.md`
-- `src/App.jsx`
-- `src/main.jsx`
-- `src/components/layout/AppShell.jsx`
-- `src/components/layout/PrimarySidebar.jsx`
-- `src/components/layout/SecondarySidebar.jsx`
-- `src/components/layout/TopNavigation.jsx`
-- `src/components/ui/SummaryCard.jsx`
-- `src/components/ui/WorkspaceHeader.jsx`
-- `src/styles/layout.css`
-- `src/styles/tokens.css`
-
-### Lock Document Changes
-- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
-- Prior HANDOFF checkpoint remained Entry 139; this entry appends Entry 140
-  only.
-
-### What Claude Needs to Know
-- This pass stayed inside the locked Section 50 / Entry 139 presentation scope.
-- Inventory now uses the Northgate shell primitives, but no backend or
-  permission semantics were changed.
-- Jobs/Estimates/Employees/Vehicles/Silas/Developer still need future
-  workspace-level visual conversion if later phases authorize it.
-
-### Verification
-- Confirmed preflight before edits:
-  - branch `main`
-  - clean working tree
-  - local `HEAD` = `origin/main` = `165eb327fe8f920f01f93b596910a47dc8a05abe`
-  - ARCHITECTURE v2.30
-  - HANDOFF gapless through Entry 139
-- `cmd /c npm run build` passed.
-- `git diff --check` passed aside from a line-ending warning on `src/main.jsx`
-  caused by Git normalization; no whitespace error blocked the build.
-- Confirmed no migration files were added or changed.
-- Confirmed no backend files, Supabase schema files, RLS files, or RPC files
-  were changed in this pass.
-- Confirmed the new shell/layout/style files contain no direct Supabase
-  `insert`, `update`, `delete`, `rpc`, or `inventory_balances` write path.
-- Confirmed print-specific shell suppression exists in `src/styles/layout.css`
-  so the new navigation chrome does not appear in print mode.
-- Confirmed responsive behavior was implemented in code for:
-  - desktop default / 1440px class of layout
-  - 1279px secondary-sidebar collapse
-  - 1024px primary-sidebar drawer behavior
-  - 768px compact mobile/tablet spacing
-  - 390px narrow-screen action wrapping
-- Manual logged-in runtime verification was not completed in this session.
-  Browser-authenticated exercise of Inventory workflows, Clerk profile menu,
-  and responsive interaction states remains pending.
-- The final implementation commit hash was not yet knowable at the moment this
-  entry was written; it is the commit that introduces Entry 140 and is
-  reported in the session summary / git history.
-
-### Next Steps (in order)
-1. Review the visual result in a logged-in browser session at desktop, tablet,
-   and mobile widths.
-2. Exercise the existing Inventory read/action paths non-destructively:
-   section switching, catalog, storage, cart, count, transactions, scan, and
-   print/export surfaces as permissions allow.
-3. If runtime verification is clean, proceed with future module conversions in
-   later phases rather than expanding scope inside this commit.
-
-### Open Questions / Concerns
-- The approved mockup image was not available as a directly inspectable local
-  image file in the workspace attachments during this session, so visual
-  implementation followed the locked written design brief plus the current app
-  structure.
-- Because runtime browser/auth testing was not completed here, the responsive
-  layout and shell interactions are verified by build output and code review,
-  not by full live operator walkthrough.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside ARCHITECTURE v2.30 / Entry 139 and did
-  not alter Section 42, schema, RPCs, permissions, auth, or inventory source
-  of truth.
-
-### Routing Verdict
-No Claude review needed before commit/push - this implementation stayed within
-the locked Phase 1 UI shell + Inventory conversion scope from ARCHITECTURE
-v2.30 / HANDOFF Entry 139 and did not cross backend or architecture-sensitive
-boundaries.
-
-## Entry 141 - Theme alignment follow-up for Northgate UI shell and Jobs workspace
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Northgate UI System follow-up refinement
-**Session type:** implementation
-
-### Context
-Ryan supplied a new approved visual reference image after Entry 140 and asked
-for the same general shell direction to be retuned toward that lighter
-construction-dashboard aesthetic. The specific requested addition was a
-`Create Job` action on the far-left Jobs navigation rail.
-
-This pass was treated as a presentation-only refinement on top of the pushed
-Phase 1 shell commit. No architecture, schema, permission, RPC, auth, or
-business-rule work was authorized.
-
-### What Was Diagnosed
-- Confirmed the app repo was clean on `main` at starting commit
-  `f88db7402dae8fbd5e80e307b436dd06f7d8dd21`.
-- Confirmed the reference image emphasizes:
-  - flatter white header treatment
-  - red underline active navigation
-  - softer warm page background
-  - lighter panel borders and shadows
-  - dual-left-rail Jobs layout
-  - `Create Job` as a prominent far-left action
-- Confirmed the existing Jobs workspace already had real live create/edit/view
-  flows, so the new left-rail `Create Job` action should call the current
-  `startNewJob()` path instead of creating a parallel flow.
-- Confirmed the current Jobs schema/read model does **not** expose PM /
-  superintendent fields like the mockup image, so the visual adaptation had
-  to stay within actual available job fields.
-
-### What Was Completed
-- Retuned shared shell tokens and layout styling closer to the supplied
-  reference:
-  - warmer white / light-cream page background
-  - flatter white header
-  - slimmer top navigation with red underline active state
-  - lighter borders and softer shadows
-  - wider application content area
-- Updated the global shell branding treatment so the app header reads more like
-  a product wordmark than a page-title banner.
-- Reworked the Jobs workspace into a more reference-aligned dashboard layout:
-  - far-left utility rail
-  - left status/filter rail
-  - main jobs directory panel
-  - selected-job detail panel below / alongside existing detail tabs
-- Added the requested far-left `Create Job` action and wired it to the
-  existing `startNewJob()` behavior.
-- Added status-rail filters for:
-  - All Jobs
-  - Active Jobs
-  - On Hold
-  - Completed
-  - Cancelled
-- Restyled the selected-job header and overview summary to better match the
-  supplied design language while preserving the existing detail-tab pattern.
-- Kept all existing Jobs create/edit/archive/detail flows on their current
-  handlers and Supabase paths.
-
-### Code / File Changes
-- `HANDOFF.md`
-- `src/App.jsx`
-- `src/styles/layout.css`
-- `src/styles/tokens.css`
-
-### Lock Document Changes
-- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
-- Prior HANDOFF checkpoint remained Entry 140; this entry appends Entry 141
-  only.
-
-### What Claude Needs to Know
-- This was a design-alignment follow-up, not a new architecture pass.
-- The Jobs workspace now visually borrows more from the supplied reference
-  image, but it still uses the same existing Jobs data fields and handlers.
-- The left-rail `Create Job` action is presentation-only and simply routes into
-  the already existing create-job flow.
-
-### Verification
-- Confirmed starting commit:
-  `f88db7402dae8fbd5e80e307b436dd06f7d8dd21`
-- `cmd /c npm run build` passed.
-- Confirmed only UI-layer files changed:
-  - `src/App.jsx`
-  - `src/styles/layout.css`
-  - `src/styles/tokens.css`
-  - `HANDOFF.md`
-- Confirmed no migrations, schema files, RLS files, RPC files, auth files, or
-  permission files changed in this pass.
-- Confirmed the requested `Create Job` left-rail action calls the existing Jobs
-  workspace create flow rather than introducing a new write path.
-- Manual logged-in runtime testing was not completed in this session.
-  Browser-authenticated verification of the refined Jobs layout and its mobile
-  interaction states remains pending.
-- The final implementation commit hash was not yet knowable at the moment this
-  entry was written; it is the commit that introduces Entry 141 and is
-  reported in the session summary / git history.
-
-### Next Steps (in order)
-1. Review the refined shell and Jobs workspace visually against the supplied
-   reference image.
-2. In a logged-in browser session, test:
-   - far-left `Create Job`
-   - status-rail filtering
-   - jobs search
-   - selected-job switching
-   - detail-tab navigation
-3. If the refined theme is approved, continue applying the same visual language
-   to later module phases without changing protected backend boundaries.
-
-### Open Questions / Concerns
-- The supplied reference image contains PM / superintendent / revenue-style
-  fields that are not all present in the current live Jobs foundation, so the
-  implementation matched the visual system rather than reproducing unavailable
-  fields literally.
-- Runtime browser verification is still needed for final confidence on mobile
-  and tablet Jobs interactions.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside the UI/presentation layer and did not
-  alter schema, RPCs, permissions, auth, or Section 42 detail-tab behavior.
-
-### Routing Verdict
-No Claude review needed before commit/push - this follow-up remained inside
-the locked Northgate UI presentation scope and did not cross backend or
-architecture-sensitive boundaries.
-
-## Entry 142 - Jobs rails made collapsible and shell corners sharpened
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Northgate UI System refinement
-**Session type:** implementation
-
-### Context
-Ryan requested one more visual refinement pass after Entry 141:
-
-- make the Jobs side panels collapsible like the supplied reference image
-- sharpen the corner radius across the interface so the shell feels more like
-  the mockup and less pill-rounded
-
-This remained a presentation-only follow-up on top of the pushed Jobs-theme
-alignment commit. No backend, schema, auth, permission, or business-rule work
-was authorized.
-
-### What Was Diagnosed
-- Confirmed starting commit:
-  `04336f205897034a021a4375d65298cec677eaad`
-- Confirmed the Jobs utility rail and Jobs status rail were static-width panels
-  with no user-controlled collapse state.
-- Confirmed the shell still relied on radius values that were softer/rounder
-  than the supplied reference, especially on cards, controls, rails, and Jobs
-  detail surfaces.
-
-### What Was Completed
-- Added independent collapse state for both Jobs side rails:
-  - far-left utility rail
-  - Jobs status/filter rail
-- Added desktop collapse/expand controls for each rail and reduced the grid
-  widths when either rail is collapsed.
-- Preserved useful collapsed affordances:
-  - utility rail keeps icon-only actions
-  - status rail keeps compact short-label glyphs
-- Sharpened the shared visual language by reducing radius values across the
-  shell:
-  - card radius
-  - control radius
-  - rail radius
-  - selected-job header radius
-  - supporting fact-card / icon-panel radius
-  - search/filter input radius
-  - button radius
-- Kept the existing Jobs create/view/edit/archive flows unchanged while
-  applying the new collapse behavior.
-
-### Code / File Changes
-- `HANDOFF.md`
-- `src/App.jsx`
-- `src/styles/layout.css`
-- `src/styles/tokens.css`
-
-### Lock Document Changes
-- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
-- Prior HANDOFF checkpoint remained Entry 141; this entry appends Entry 142
-  only.
-
-### What Claude Needs to Know
-- This pass only adds presentational collapse behavior and radius refinement.
-- The collapsible Jobs rails do not introduce any new route, permission, or
-  data write path.
-- The left-rail `Create Job` action from Entry 141 remains wired to the
-  existing create-job behavior.
-
-### Verification
-- `cmd /c npm run build` passed.
-- Confirmed only UI-layer files changed:
-  - `src/App.jsx`
-  - `src/styles/layout.css`
-  - `src/styles/tokens.css`
-  - `HANDOFF.md`
-- Confirmed no migrations, schema files, RLS files, RPC files, auth files, or
-  permission files changed in this pass.
-- Confirmed the collapse behavior is local UI state only and does not affect
-  existing Jobs data loading or write semantics.
-- Manual logged-in runtime testing was not completed in this session.
-  Browser verification of the collapsed-rail interactions and narrow-screen
-  behavior remains pending.
-- The final implementation commit hash was not yet knowable at the moment this
-  entry was written; it is the commit that introduces Entry 142 and is
-  reported in the session summary / git history.
-
-### Next Steps (in order)
-1. Review the sharper-radius shell and the collapsible Jobs rails visually.
-2. In a logged-in browser session, test:
-   - collapse and expand on both Jobs rails
-   - left-rail `Create Job`
-   - status-rail filtering after collapse/expand
-   - selected-job switching and detail-tab navigation
-3. If the corner language now feels right, carry the sharper radius system
-   into later module conversions for consistency.
-
-### Open Questions / Concerns
-- The collapse behavior is currently scoped to the Jobs rails, which matches
-  the most direct interpretation of Ryan's request and the supplied image.
-- Runtime visual confirmation is still needed for final polish on the
-  collapsed desktop state and tablet/mobile layout feel.
-
-### Architecture Drift Warnings
-- None active. This pass stayed entirely within UI presentation scope and did
-  not alter schema, RPCs, permissions, auth, or Section 42 detail-tab rules.
-
-### Routing Verdict
-No Claude review needed before commit/push - this stayed inside the locked UI
-presentation scope and did not cross backend or architecture-sensitive
-boundaries.
-
-## Entry 143 - Jobs Create mode split from All Jobs browse view
-
-**Date:** 2026-07-14
-**Updated by:** Codex
-**Phase:** Northgate UI System refinement
-**Session type:** implementation
-
-### Context
-Ryan requested one behavior correction after Entry 142:
-
-- `Create Job` should operate as its own left-panel function
-- navigating to `All Jobs` should show only the jobs list, not the create form
-
-This was a UI behavior refinement only. No backend or permission work was
-authorized.
-
-### What Was Diagnosed
-- Confirmed the Jobs workspace still fell back to the create-job form whenever
-  no job was selected.
-- Confirmed that made `All Jobs` behave like a browse-plus-form state instead
-  of a pure directory view.
-- Confirmed the desired fix was to separate browse mode from create mode rather
-  than changing the existing save handler or introducing a new route.
-
-### What Was Completed
-- Added an explicit Jobs workspace mode split:
-  - `browse`
-  - `create`
-- Updated the left-rail `Create Job` action to open the create panel
-  intentionally instead of relying on the no-selection fallback.
-- Updated `All Jobs` / status navigation to:
-  - clear the selected job
-  - exit create mode
-  - return to a pure jobs directory view
-- Updated job row selection / edit flows to return the workspace to normal
-  browse mode before showing the selected-job detail surface.
-- Updated the create panel to include a direct `Back to All Jobs` action.
-- Removed the automatic behavior where `All Jobs` implicitly displayed the
-  create form when no job was selected.
-
-### Code / File Changes
-- `HANDOFF.md`
-- `src/App.jsx`
-
-### Lock Document Changes
-- None. `docs/ARCHITECTURE.md` remained at v2.30 and was not edited.
-- Prior HANDOFF checkpoint remained Entry 142; this entry appends Entry 143
-  only.
-
-### What Claude Needs to Know
-- This is a behavior correction inside the Jobs presentation layer, not a new
-  feature milestone.
-- `Create Job` now behaves as an explicit mode, while `All Jobs` behaves as a
-  pure browse state.
-- The existing job save path and write semantics were preserved exactly.
-
-### Verification
-- `cmd /c npm run build` passed.
-- Confirmed only `src/App.jsx` plus this HANDOFF entry changed in this pass.
-- Confirmed no schema, migration, RPC, RLS, auth, or permission files changed.
-- Confirmed the new behavior is local UI state only and does not alter existing
-  Jobs create/edit data writes.
-- Manual logged-in runtime testing was not completed in this session.
-  Browser verification of `Create Job`, `All Jobs`, and detail switching
-  remains pending.
-- The final implementation commit hash was not yet knowable at the moment this
-  entry was written; it is the commit that introduces Entry 143 and is
-  reported in the session summary / git history.
-
-### Next Steps (in order)
-1. In a logged-in browser session, test:
-   - left-rail `Create Job`
-   - `Back to All Jobs`
-   - `All Jobs` status selection
-   - job row selection after returning to browse mode
-2. If the browse/create separation feels correct, keep this state model for any
-   future Jobs workspace refinements.
-
-### Open Questions / Concerns
-- None blocking. This pass was a targeted state-model correction with no
-  backend impact.
-
-### Architecture Drift Warnings
-- None active. This pass stayed entirely within the Jobs UI state layer.
-
-### Routing Verdict
-No Claude review needed before commit/push - this remained inside locked UI
-presentation scope and did not cross backend or architecture-sensitive
-boundaries.
-
-## Entry 144 - Build remaining Northgate module layouts
-
-**Date:** 2026-07-15
-**Updated by:** Codex
-**Phase:** Northgate UI System Phase 3
-**Session type:** implementation
-
-### Context
-Ryan requested the application-wide layout foundation pass for the remaining
-top-level Northgate HQ modules while preserving the existing shell, Inventory,
-and Jobs behavior:
-
-- Dashboard
-- Estimates
-- Employees
-- Vehicles
-- Silas
-- Developer
-
-This remained a front-end presentation/layout pass only. No backend, schema,
-permission, RPC, authentication, ledger, audit, or business-rule changes were
-authorized.
-
-### Starting Point
-- Starting commit: `32ea81926781586b611f3a48d4c4d23ab366c858`
-- Architecture version confirmed: `v2.30`
-- Previous HANDOFF checkpoint confirmed: `Entry 143`
-- `Section 50` remained present and authoritative
-- `Section 42` remained present and authoritative
-- `main` matched `origin/main` before edits and `git pull --ff-only origin main`
-  reported `Already up to date.`
-
-### What Was Diagnosed
-- Confirmed the shared Northgate shell already existed in:
-  - `src/components/layout/AppShell.jsx`
-  - `src/components/layout/TopNavigation.jsx`
-  - `src/components/layout/PrimarySidebar.jsx`
-  - `src/components/layout/SecondarySidebar.jsx`
-- Confirmed `Jobs` already carried the explicit browse/create split from
-  Entry 143 and remained the correct structural reference for record-oriented
-  modules.
-- Confirmed `Dashboard`, `Estimates`, `Employees`, and `Vehicles` still
-  rendered placeholder workspace cards.
-- Confirmed `Silas` already had working chat behavior but needed a more
-  polished workspace wrapper only.
-- Confirmed `Developer` already had live status/utility content but was not
-  yet presented as a clearer Northgate module workspace.
-- Confirmed the existing Inventory read model already exposed live destination
-  user and destination vehicle references that could safely support
-  presentation-only Employees and Vehicles directory shells.
-
-### What Was Completed
-- Built a role-aware Dashboard workspace shell with:
-  - workspace header
-  - compact real-data summary cards
-  - quick links into real modules
-  - notices/attention region
-  - honest placeholders for activity/schedule regions that do not yet have an
-    approved live data source
-- Built an Estimates workspace foundation with:
-  - primary rail views
-  - explicit browse vs create state
-  - selected-record shell
-  - honest no-data / not-yet-implemented states
-  - no fabricated estimate records or financial values
-- Built an Employees workspace foundation with:
-  - directory/list shell
-  - selected employee detail shell
-  - horizontal detail tabs
-  - `My Information` view
-  - live destination-user reference rows where available
-  - no role, permission, or account-management editing
-- Built a Vehicles workspace foundation with:
-  - directory/list shell
-  - selected vehicle detail shell
-  - horizontal detail tabs
-  - live destination-vehicle reference rows where available
-  - no fabricated assignment, service, mileage, or maintenance records
-- Polished the Silas workspace presentation around the existing chat behavior:
-  - shared workspace header
-  - shared disabled-state presentation
-  - preserved existing conversation/message/composer behavior
-- Reframed the Developer module inside a clearer Developer workspace shell
-  around the already existing diagnostics and utilities.
-- Added reusable presentation primitives shared across the new workspaces:
-  - `src/components/ui/StatePanel.jsx`
-  - `src/components/ui/RecordHeader.jsx`
-  - `src/components/ui/WorkspaceTabs.jsx`
-- Extended shared layout CSS for:
-  - state panels
-  - selected-record headers
-  - horizontal tabs
-  - workspace summary grids
-  - directory/detail module panels
-  - quick-link cards
-  - responsive module behavior
-
-### Routes / Local UI State Affected
-- Preserved existing top-level workspace routing semantics using the existing
-  `workspace` query-string model.
-- Added local presentation state only for:
-  - Dashboard sidebar view selection
-  - Estimates sidebar view selection
-  - Estimates explicit create/browse mode
-  - Employees sidebar view selection
-  - Employees selected employee and active detail tab
-  - Vehicles sidebar view selection
-  - Vehicles selected vehicle and active detail tab
-  - shared sidebar mobile-open / collapsed presentation state
-- Added no database-backed UI preference persistence and no new routes.
-
-### Files Changed
-- `HANDOFF.md`
-- `src/App.jsx`
-- `src/components/SilasPanels.jsx`
-- `src/components/ui/RecordHeader.jsx`
-- `src/components/ui/StatePanel.jsx`
-- `src/components/ui/WorkspaceTabs.jsx`
-- `src/styles/layout.css`
-
-### Lock Document Changes
-- None. `docs/ARCHITECTURE.md` remained at `v2.30` and was not edited.
-- Prior HANDOFF checkpoint remained `Entry 143`; this entry appends
-  `Entry 144` only.
-
-### Verification
-- `git status` reviewed before and after implementation.
-- `git diff --stat` and `git diff` reviewed.
-- `cmd /c npm run build` passed.
-- No repository test command existed beyond `build`; no additional automated
-  test suite was available to run in this repository.
-- Confirmed changed files stayed in the UI/presentation layer plus this
-  HANDOFF append.
-- Confirmed no migration files were added.
-- Confirmed no schema, RPC, RLS, auth, permission, ledger, audit, financial,
-  or business-rule files were edited in this pass.
-- Confirmed no new direct Supabase writes were introduced for the new layout
-  foundations; new shared module shells either reused existing read-model data
-  or rendered honest placeholders.
-- Confirmed Inventory and Jobs were preserved as existing modules and were not
-  intentionally reworked in this pass.
-- Confirmed `Create Job` remains separate from `All Jobs` browse mode.
-- Logged-in browser runtime verification was not completed in this session.
-  Responsive inspection at `1440px`, `1024px`, `768px`, and `390px` remains
-  pending in a browser session.
-- Browser print-preview verification was not completed in this session.
-  Existing print-hiding rules were preserved and extended only at the shared
-  shell/layout layer.
-
-### Remaining Deferred Functionality
-- Dashboard recent activity, schedule/deadline surfaces, and richer notices
-  still need approved live sources before they can move beyond placeholders.
-- Estimates still needs its approved read path, create flow, selected-record
-  data source, and any permission-gated financial rendering.
-- Employees still needs approved employee source-of-truth detail surfaces such
-  as assignments, credentials, documents, and activity.
-- Vehicles still needs approved assignment, service, documents, and history
-  sources.
-- Silas still needs logged-in runtime verification for narrow-screen layout
-  polish after this presentation update.
-- Developer still needs browser-authenticated visual verification, but no new
-  backend utilities were introduced.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside locked Northgate UI presentation
-  boundaries and did not alter protected backend behavior.
-
-### Routing Verdict
-No Claude review needed before commit/push - this remained inside locked
-Northgate UI decisions (`ARCHITECTURE v2.30`, `HANDOFF Entry 143`) and did not
-cross backend or architecture-sensitive boundaries.
-
-## Entry 145 - Refine Dashboard Inventory and Jobs UI
-
-**Date:** 2026-07-15
-**Updated by:** Codex
-**Phase:** Northgate UI System Phase 3
-**Session type:** implementation
-
-### Context
-Ryan requested a focused UI refinement pass on top of Entry 144 to make the
-Dashboard behave like a personal work center, remove Inventory-heavy summary
-presentation from Dashboard and Inventory, and tighten the Jobs selected-record
-tab presentation without changing backend behavior or authorization rules.
-
-This remained a front-end presentation/layout pass only. No backend, schema,
-permission, RPC, authentication, ledger, audit, financial, inventory write, or
-business-rule changes were authorized.
-
-### Starting Point
-- Starting commit:
-  `3c85de48ab936e47df2743608011756a3a6c4d83`
-- Architecture version confirmed: `v2.30`
-- Previous HANDOFF checkpoint confirmed: `Entry 144`
-- `Section 50` remained present and authoritative
-- `Section 42` remained present and authoritative
-- `main` matched `origin/main` before edits and `git pull --ff-only origin main`
-  reported `Already up to date.`
-
-### What Was Diagnosed
-- Confirmed the Entry 144 Dashboard still behaved like a module overview with
-  Inventory-oriented metrics and quick links instead of a personal work-center
-  shell.
-- Confirmed the Inventory workspace still rendered a large top
-  `Inventory Command Center` summary region plus a right-side context rail that
-  Ryan explicitly wanted removed.
-- Confirmed the Inventory left module-sections rail needed a stronger sticky +
-  scroll container treatment so long section lists would remain usable.
-- Confirmed the Jobs selected-record tab strip was still too loose at common
-  desktop widths and could cause tabs to wrap or feel crowded.
-- Confirmed the repository exposes estimate permissions but does not expose an
-  approved Job-to-Estimate relationship or a production estimate read path in
-  the current UI layer.
-- Confirmed the current Jobs read model does not expose worker,
-  superintendent, or project-manager assignment fields that would safely power
-  a personalized `My Work` dashboard section.
-- Confirmed the current vehicle reference source does not expose direct
-  user-assignment or reporting relationships that would safely power
-  personalized `My Vehicles` views.
-- Confirmed the current tool catalogue exposes company tool rows but does not
-  provide an approved user-linked personal-tools data model for Dashboard use.
-- Confirmed universal Job visibility / authorization rules were left untouched
-  in this pass.
-
-### What Was Completed
-- Rebuilt Dashboard as a personal work-center layout with the left rail
-  sections:
-  - `My Info`
-  - `My Work`
-  - `My Vehicles`
-  - `My Tools`
-  - `My Estimates` only when estimate permissions apply
-  - `My Preferences`
-- Removed Inventory-specific counts, command-center summaries, quick-link
-  launch cards, and the right context rail from Dashboard.
-- Bound `My Info` only to approved current-user / permission context already
-  available in the application:
-  - authenticated name
-  - email
-  - phone when present
-  - role
-  - division
-- Kept `My Work`, `My Vehicles`, `My Tools`, `My Estimates`, and
-  `My Preferences` honest by rendering explicit deferred states where approved
-  live sources do not yet exist.
-- Added direct module launch actions from deferred dashboard states only where
-  the full module already exists:
-  - `Jobs`
-  - `Vehicles`
-  - `Tools`
-  - `Estimates`
-- Simplified Inventory by removing:
-  - the top `Inventory Command Center` header block
-  - toolbar meta chips
-  - count-summary cards
-  - the right `Inventory Context` rail
-- Kept the Inventory module content, existing navigation, read model, and
-  Silas entry behavior intact while moving the active section header into the
-  main workspace surface.
-- Added a direct Inventory `Refresh` action at the active section header.
-- Tightened sidebar layout CSS so the primary module-sections rail remains
-  sticky and independently scrollable on desktop while falling back cleanly on
-  mobile.
-- Compacted the Jobs selected-record tab strip so all eight tabs fit more
-  reliably at standard desktop widths.
-- Added an honest disabled selected-job estimate action only for users who can
-  estimate or approve estimates, explicitly indicating that no approved
-  Job-to-Estimate relationship exists yet.
-
-### Routes / Local UI State Affected
-- Preserved the existing top-level `workspace` query-string routing model.
-- Preserved existing Jobs routing / selection behavior and did not alter
-  authorization gates.
-- Reduced Dashboard dependency on the shared Inventory read model so Dashboard
-  no longer loads Inventory summary data just to render overview cards.
-- Added no new persisted preferences, no localStorage preference writes, and no
-  new routes.
-
-### Files Changed
-- `HANDOFF.md`
-- `src/App.jsx`
-- `src/styles/layout.css`
-
-### Lock Document Changes
-- None. `docs/ARCHITECTURE.md` remained at `v2.30` and was not edited.
-- Prior HANDOFF checkpoint remained `Entry 144`; this entry appends
-  `Entry 145` only.
-
-### Verification
-- `git fetch origin` and `git pull --ff-only origin main` completed before the
-  refinement pass; local `main` was already current with `origin/main`.
-- `git status`, `git diff --stat`, and `git diff` were reviewed during the
-  pass.
-- `cmd /c npm run build` passed.
-- No repository test command existed beyond `build`; no additional automated
-  test suite was available to run in this repository.
-- Confirmed changed files stayed in the UI/presentation layer plus this
-  HANDOFF append.
-- Confirmed no schema, migration, RPC, RLS, auth, permission, ledger, audit,
-  financial, or business-rule files were edited in this pass.
-- Confirmed no Inventory write flow, cart behavior, count behavior, or
-  transaction behavior was intentionally changed in this pass.
-- Confirmed Job visibility authorization rules were deliberately not changed.
-- Confirmed the Job estimate action is presentational only and does not invent
-  an estimate relationship, read path, or write flow.
-- Logged-in browser runtime verification was not completed in this session.
-- Responsive inspection at common widths remains pending in a browser session,
-  although the updated sidebar and tab-strip CSS compiled successfully.
-- The final implementation commit hash was not yet knowable at the moment this
-  entry was written; it is the commit that introduces Entry 145 and is
-  reported in the session summary / git history.
-
-### Remaining Deferred Functionality
-- `My Work` still needs an approved assignment source for workers,
-  superintendents, and project managers before it can render personalized job
-  lists.
-- `My Vehicles` still needs approved assignment and reporting relationships
-  before it can render personal or direct-report vehicle lists.
-- `My Tools` still needs an approved personal-tools data model before the
-  dashboard can distinguish personal tools from the general company catalogue.
-- `My Estimates` still needs an approved estimate read model plus any approved
-  Job-to-Estimate relationship before dashboard or job-detail estimate views can
-  become live.
-- `My Preferences` still needs an approved persistence strategy before it can
-  move beyond layout reservation and deferred states.
-- Authenticated browser verification remains pending for the refined Dashboard,
-  Inventory, and Jobs presentation at desktop and mobile breakpoints.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside locked Northgate UI presentation
-  boundaries and did not alter protected backend behavior.
-
-### Routing Verdict
-No Claude review needed before commit/push for this pass because it remained
-inside locked UI presentation scope. Claude review is still required before any
-future change to universal Job visibility or authorization behavior.
-
-## Entry 146 - NGG-PM Integration: Architecture Review Complete, Decisions Captured, Lock Pending Cross-Clearance
-
-**Date:** 2026-08-02
-**Updated by:** Claude
-**Phase:** Architecture Review (pre-lock)
-**Session type:** Decision Capture / Review √¢‚Ç¨‚Äù NO architecture change made
-
-### Context
-
-Ryan directed a review of using the standalone NGG-PM app
-(`RNSolutions-electrical/NGG-PM`, deployed at
-`rnsolutions-electrical.github.io/NGG-PM/`) as the basis for the selected-Job
-workspace inside Northgate HQ. Claude inspected the NGG-PM source directly
-(`index.html`, 53,781 bytes, single file, no external scripts) alongside the
-full ARCHITECTURE v2.30 and HANDOFF through Entry 145.
-
-The complete review is captured in
-`NGG-PM_Integration_Architecture_Review.md` (delivered to Ryan this session).
-
-**This entry records decisions only. No ARCHITECTURE.md change has been made
-and none is authorized yet.** All schema-affecting decisions below are pending
-Rule 20 cross-clearance.
-
-### Findings √¢‚Ç¨‚Äù four conflicts with locked architecture
-
-1. **Multi-division projects (structural).** NGG-PM projects span Electrical
-   and Construction simultaneously √¢‚Ç¨‚Äù budget lines, schedule tasks, permits,
-   and checklists each carry their own division inside one project. Northgate
-   `jobs.division` is single-valued NOT NULL and is the RLS access gate
-   (√Ç¬ß38.1, √Ç¬ß38.4). A single NGG-PM project cannot be represented as one
-   Northgate Job under current architecture.
-2. **Budget columns.** NGG-PM stores Actual / Committed / Forecast. √Ç¬ß44.2
-   explicitly excludes `actual_amount` and `committed_amount`; √Ç¬ß44.9 reserves
-   actual and committed cost.
-3. **Schedule dependencies.** NGG-PM has predecessor, lag, duration, computed
-   dates, and Gantt. √Ç¬ß47.0 locks Schedule v1 as "flat milestone/task list
-   only√¢‚Ç¨¬¶ does not model dependencies"; √Ç¬ß47.5 explicitly reserves Dependencies.
-4. **No owner exists** for PM Checklist, Permits, or Inspections.
-
-### Defects identified in NGG-PM (must not be ported)
-
-- **Checklist completion is positionally keyed** (`phaseIndex_taskIndex`
-  against a template hardcoded in source). Inserting one item silently
-  re-maps every subsequent completion to the wrong task.
-- **JSON import is a blind whole-state overwrite** √¢‚Ç¨‚Äù no validation, no
-  version check, no diff, no confirmation.
-- **Client-side PIN gate** (`requestPin()`) guards edit mode. Incompatible
-  with √Ç¬ß17's server-authoritative rule; must not survive in any form.
-- Schedule task IDs are sequential integers referenced as free text by
-  `predecessor`; migration to UUID requires a stable display sequence.
-
-### Ryan's Decisions (16 of 16, all captured)
-
-**Authorization model:**
-1. Any authenticated user may open any Job and see basic operational
-   information. Financial values remain gated. *(This collapses the
-   multi-division conflict √¢‚Ç¨‚Äù the job header stops being a division access
-   gate.)*
-2. Permission checks are wired in from day one, with flags granted broadly via
-   `user_permission_overrides` (√Ç¬ß17b) initially. Tightening later is a data
-   change, not a code change. **Deferring the checks themselves was
-   explicitly rejected.**
-3. Financial queries are division-scoped **at the query layer** from the
-   start √¢‚Ç¨‚Äù not fetched broadly and filtered client-side.
-
-**Budget (Conflict 2):**
-4. Add `budget_changes`, `actual_amount`, `committed_amount`,
-   `forecast_to_complete` as **manual PM planning inputs**, explicitly
-   labeled non-accounting. Auto-derivation from the ledger was rejected as
-   materially incomplete (material only √¢‚Ç¨‚Äù no labor, no subs).
-5. Budget category remains required (√Ç¬ß44.3 CHECK constraint unchanged).
-6. Summary card totals show the viewer's own division.
-
-**Schedule (Conflict 3):**
-7. Add `duration`, `predecessor`, `lag`, `trade` plus computed dates and
-   Gantt.
-8. Northgate's existing status vocabulary is retained
-   (`pending`/`in_progress`/`complete`/`delayed`); NGG-PM's four map onto it.
-
-**Checklist (Conflict 4):**
-9. Master template editing is Developer-only.
-10. PMs may add job-specific items on top of the template.
-
-**Structure:**
-11. Permits & Inspections get their own tab.
-12. `jobs` gains `pm_user_id`, `superintendent_user_id`, `foreman_user_id`
-    (Clerk TEXT per √Ç¬ß17b identity model) and `gc_company`.
-13. Export: Job info, contacts, permits, inspections, schedule, checklist,
-    document metadata (names only). Budget only with `can_view_financials`.
-    **No materials, buyout, or transaction data** √¢‚Ç¨‚Äù ledger-adjacent data must
-    not be duplicated into a portable file.
-14. **No JSON import in this integration.** Export only.
-15. Codex Phase 1 is a read-only visual port.
-16. Existing Jobs workspace retained behind a feature flag until parity is
-    confirmed.
-
-**Navigation:** Option B extended √¢‚Ç¨‚Äù Northgate's eight locked tabs remain
-canonical (√Ç¬ß42 unchanged), plus PM Checklist and Permits & Inspections.
-NGG-PM's four-tab structure is absorbed, not adopted; this avoids the
-Budgets/Financials and Schedules/Schedule duplication.
-
-### Anticipated ARCHITECTURE changes (NOT YET APPLIED)
-
-Pending cross-clearance, the lock is expected to require:
-
-- √Ç¬ß38 delta √¢‚Ç¨‚Äù job assignment columns, `gc_company`, and the changed meaning of
-  `jobs.division` (label rather than access gate)
-- √Ç¬ß44 delta √¢‚Ç¨‚Äù the four manual budget columns
-- √Ç¬ß47 delta √¢‚Ç¨‚Äù the four schedule columns + computed dates
-- New sections √¢‚Ç¨‚Äù PM Checklist (templates + instances), Job Permits &
-  Inspections, Job Contacts, JSON Export
-- √Ç¬ß42 note √¢‚Ç¨‚Äù two added tabs
-- √Ç¬ß50 note √¢‚Ç¨‚Äù PM workspace visual integration
-- New tables √¢‚Ç¨‚Äù `job_contacts`, `job_permits`, `job_inspections`,
-  `checklist_templates`, `checklist_template_items`, `job_checklist_items`
-- **No new permission flags.** Everything maps to existing `can_manage_jobs`,
-  `can_approve_budget`, `can_view_financials`, `can_view_all_divisions`.
-
-### What Codex is authorized to do NOW
-
-**Phase 1 only √¢‚Ç¨‚Äù read-only visual port.** This requires no architecture change
-and may proceed in parallel with cross-clearance:
-
-- Build NGG-PM's screens as React components inside the existing Northgate
-  shell, restyled to Northgate red/white/gray
-- Bind read-only to data that already exists; render unlocked columns as
-  visibly disabled placeholders, never fabricated values
-- Reuse existing shell components; no second design system
-- Responsive from this pass (Constitutional Rule 18)
-- Route behind a feature flag, Developer-only; existing Jobs workspace stays
-  default and untouched
-
-**Codex must NOT, in Phase 1:** create or alter any table, column, migration,
-RLS policy, or RPC; add or modify any permission flag or check; write to any
-table; modify the existing Jobs workspace; port the PIN gate, localStorage
-persistence, HTML-save, dark theme, mobile-preview toggle, or JSON import.
-
-### Next Steps (in order)
-
-1. ChatGPT Rule 20 cross-clearance on the direction above
-2. Claude corrects per findings
-3. Claude writes the ARCHITECTURE lock (expected v2.31) and the next HANDOFF
-   entry
-4. Codex Phase 1 (read-only visual port) √¢‚Ç¨‚Äù may run in parallel with 1√¢‚Ç¨‚Äú3
-5. Codex Phases 2+ (schema deltas) √¢‚Ç¨‚Äù blocked until the lock exists
-
-### Open Questions / Concerns
-
-Cross-clearance should specifically examine: whether `jobs.division` changing
-from access gate to label creates problems in any locked section; whether
-universal Job visibility conflicts with √Ç¬ß17a's division-scoping principle as
-applied elsewhere; whether manual budget actuals create a competing source of
-truth against √Ç¬ß37/√Ç¬ß43 ledger rules; whether the new tables' soft-archive RLS
-requires the Entries 124√¢‚Ç¨‚Äú125 two-policy pattern; and whether any of this
-requires a permission flag not already canonical.
-
-### Architecture Drift Warnings
-
-None active. No architecture change was made in this session.
-
----
-
-## Routing Verdict
-
-**ChatGPT Rule 20 cross-clearance required before any ARCHITECTURE.md edit.**
-Decisions are captured and internally consistent, but every schema-affecting
-item above is pending review.
-
-**For Codex:** Phase 1 (read-only visual port) is authorized now and requires
-no lock. All schema work is blocked until the ARCHITECTURE lock is written and
-cross-cleared.
-
-**For Claude:** Write the ARCHITECTURE lock only after cross-clearance findings
-are returned and corrected.
-
-## Entry 147 - Add read-only NGG-PM Jobs preview
-
-**Date:** 2026-08-03
-**Updated by:** Codex
-**Phase:** NGG-PM Integration Phase 1
-**Session type:** implementation
-
-### Context
-Ryan requested Phase 1 of the NGG-PM integration into Northgate HQ v2 and
-provided the missing Entry 146 HANDOFF artifact. Before implementation, Codex
-confirmed the downloaded HANDOFF matched the repository through Entry 145 and
-appended Entry 146 exactly as the required authorization baseline. Entry 146 was
-then committed and pushed as a documentation-only checkpoint before application
-work began.
-
-Starting commit for the implementation pass:
-`63b60d5` (`Document NGG-PM integration architecture review`).
-
-Prior application-code checkpoint remained:
-`8c5c490` (`Refine Dashboard Inventory and Jobs UI`).
-
-Architecture version confirmed: `v2.30`.
-Prior HANDOFF checkpoint confirmed: `Entry 146`.
-Entry 146 was physically present in the repository before implementation and
-explicitly authorized Phase 1 only: a read-only visual port, Developer-only,
-feature-flagged, with no schema, persistence, permission, RLS, RPC, backend, or
-write-path changes.
-
-The complete NGG-PM source inspected for this pass was the standalone
-`RNSolutions-electrical/NGG-PM/index.html` downloaded from GitHub raw source.
-`NGG-PM_Integration_Architecture_Review.md` was searched for in the repository
-and was absent.
-
-### What Was Completed
-- Added source-controlled feature flag:
-  `ENABLE_NGG_PM_READ_ONLY_PREVIEW`.
-- Added a Developer-only selected-job launch action:
-  `PM Workspace Preview`.
-- Kept the existing selected-Job workspace as the default experience.
-- Added a read-only `pm-preview` Jobs workspace mode separate from:
-  - All Jobs browse mode
-  - Create Job mode
-  - the existing selected-Job detail tabs
-- Added clear back paths from the preview to:
-  - Current Job Workspace
-  - All Jobs
-- Built the PM preview sections:
-  - Overview
-  - Budgets
-  - Schedules
-  - PM Checklist
-  - Permits & Inspections
-- Reused the existing Northgate shell, `RecordHeader`, `StatePanel`,
-  `SummaryCard`, and `WorkspaceTabs`.
-- Kept the Northgate red / white / gray visual identity and did not port the
-  standalone NGG-PM blue/navy theme.
-
-### Schema Changes
-None.
-
-### Code / File Changes
-- `src/App.jsx`
-- `src/styles/layout.css`
-- `HANDOFF.md`
-
-### Lock Document Changes
-None. `docs/ARCHITECTURE.md` remains v2.30 and was not edited.
-
-### What Was Implemented
-- Overview binds only to existing selected Job fields:
-  - job number
-  - job name
-  - address
-  - status
-  - division
-  - description
-  - notes
-- General Contractor / client, Project Manager, Superintendent, contacts,
-  permits, and inspections render as honest not-yet-connected states.
-- Budget preview uses existing authorized `job_budget_lines` rows only.
-- Budget columns render in the requested NGG-PM order:
-  Division, Cost Code, Description, Original, Budget Changes, Revised, Actual,
-  Committed, Forecast to Complete, Forecast Final, Remaining, Notes.
-- Existing available Budget values bind from current rows:
-  - division
-  - cost_code
-  - description
-  - budget_amount as Original
-  - note as Notes
-- Unavailable Budget fields render as disabled placeholder cells, not zero:
-  - Budget Changes
-  - Actual
-  - Committed
-  - Forecast to Complete
-- Budget calculation utilities distinguish unavailable values from real zero and
-  only calculate derived values when every required input is available.
-- Schedule preview uses existing `job_schedule_items` rows only.
-- Existing available Schedule values bind from current rows:
-  - title/task
-  - division
-  - status
-  - target_date as Manual Start
-  - description/note
-- Unavailable Schedule fields render as disabled placeholder cells:
-  - duration
-  - predecessor
-  - lag
-  - trade
-  - computed finish
-- Schedule calculation utilities stay pure and do not fabricate dependencies or
-  duration bars.
-- Gantt preview renders only real dated schedule rows as milestone markers.
-  It does not fabricate duration bars.
-- PM Checklist renders from an isolated temporary constant copied as a
-  read-only Phase 1 presentation template.
-- PM Checklist controls are real disabled checkboxes; no completion state is
-  stored.
-- Permits and Inspections render empty table structures with honest empty
-  states and no add/save controls.
-- Added responsive safeguards:
-  - `min-width: 0` grid/flex containment
-  - contained table overflow
-  - compact preview tabs
-  - mobile card conversion for Budget and Schedule
-  - sticky identifying columns where practical
-  - contained Gantt horizontal scroll
-- Added print behavior so preview controls, back controls, shell navigation,
-  sidebars, and Silas bubble are hidden in print. The active preview section is
-  what prints.
-
-### What Codex Needs to Know
-- This is a Developer-only preview behind a source-controlled feature flag.
-- It does not replace the production selected-Job workspace.
-- It does not add production PM Checklist or Permits tabs.
-- It does not widen Job visibility.
-- It does not add a new permission flag.
-- It does not modify any Supabase table, migration, RPC, RLS policy, auth,
-  audit, inventory, financial, or business rule.
-- It does not write to Supabase and does not add local browser persistence.
-- The existing Jobs workspace remains default and intact.
-
-### Verification
-- Required preflight passed after Entry 146 was appended, committed, and pushed:
-  - branch `main`
-  - local `main` matched `origin/main`
-  - working tree clean before implementation
-  - `8c5c490` present in lineage
-  - Entry 146 present in repository
-  - ARCHITECTURE v2.30 present
-- `npm ci` was run because `node_modules` was missing on this machine.
-- `npm run build` passed.
-- `git diff --check` passed.
-- Repository has no existing test script beyond `build`; no unit test framework
-  is configured, so no focused automated utility tests were added in this pass.
-- Safety scans of the diff found no new Supabase write calls:
-  `.insert(`, `.update(`, `.delete(`, `.upsert(`.
-- Safety scans found no new browser persistence:
-  `localStorage`, `sessionStorage`, `indexedDB`.
-- Safety scans found no PIN gate, JSON import, JSON restore, HTML save, dark
-  theme toggle, mobile-preview toggle, migration change, RPC change, RLS change,
-  permission change, or architecture change introduced by this pass.
-- Only UI/application files plus this HANDOFF append changed.
-- Authenticated browser runtime verification was not completed in this session.
-  Manual verification remains required for Developer vs normal-user visibility,
-  live selected-job data, responsive widths, and print output.
-- Final implementation commit hash was not knowable at the moment this entry was
-  written; it is the commit that introduces Entry 147 and is reported in the
-  session summary / git history.
-
-### Next Steps (in order)
-1. Ryan performs logged-in runtime verification with a Developer account.
-2. Verify a normal user does not see `PM Workspace Preview`.
-3. Verify the current selected-Job workspace remains the default.
-4. Verify the preview at 1440px, 1024px, 768px, and 390px.
-5. Verify browser print output for each PM preview section.
-6. Continue Rule 20 cross-clearance for schema-affecting Phase 2/3 decisions.
-
-### Open Questions / Concerns
-- Runtime visual QA is still pending because authenticated browser testing was
-  not available in this implementation session.
-- `NGG-PM_Integration_Architecture_Review.md` was referenced by Entry 146 but
-  was not present in the repository.
-- `npm ci` reported existing dependency warnings, including high-severity audit
-  findings and an `@clerk/clerk-react` deprecation warning. These were not
-  changed in this Phase 1 UI pass.
-
-### Architecture Drift Warnings
-- Phases 2 and 3 remain blocked until the architecture lock is written and
-  ChatGPT Rule 20 cross-clearance is complete.
-- Do not implement universal Job visibility, schema deltas, PM Checklist
-  persistence, Permits persistence, Inspections persistence, Job Contacts,
-  JSON export/import, or any PM write path from this preview.
-
-### Routing Verdict
-No Claude review needed for Phase 1 implementation ‚Äî explicitly authorized as a
-read-only visual port by ARCHITECTURE v2.30 / HANDOFF Entry 146. Phases 2 and 3
-remain blocked pending architecture lock and ChatGPT Rule 20 cross-clearance.
-
-## Entry 148 - Fix Jobs tabs and Inventory navigation layout
-
-**Date:** 2026-08-03
-**Updated by:** Codex
-**Phase:** Northgate UI defect correction
-**Session type:** implementation
-
-### Context
-Ryan completed available manual review after the Phase 1 NGG-PM read-only
-preview and reported two presentation defects only:
-
-1. Production selected-Job tabs were still oversized and produced an
-   unnecessary horizontal scrollbar at desktop width.
-2. The Inventory Module Sections rail had overlapping navigation text and
-   cramped item spacing.
-
-This pass was limited to CSS/layout correction only. No user provisioning,
-backend, schema, permission, auth, financial, inventory workflow, Jobs data, PM
-preview data, or architecture work was authorized.
-
-Starting commit: `d416a66` (`Add read-only NGG-PM Jobs preview`).
-Architecture version confirmed: `v2.30`.
-Prior HANDOFF checkpoint confirmed: `Entry 147`.
-
-### What Was Completed
-- Corrected the production selected-Job tab strip layout.
-- Corrected the Inventory Module Sections rail item layout.
-- Preserved the existing eight canonical selected-Job tabs:
-  Overview, Details, Materials, Buyout, Transactions, Financials, Documents,
-  Schedule.
-- Preserved the NGG-PM preview as additive, Developer-only, feature-flagged,
-  and non-default.
-
-### Root Cause
-- Jobs tabs: the production tab strip always allowed horizontal scrolling and
-  did not explicitly constrain the desktop row as a compact, content-sized,
-  non-growing tab list.
-- Inventory rail: sidebar items had insufficient explicit line-height,
-  top-alignment, scrollbar gutter, and auto-height spacing for a title plus
-  description plus optional badge.
-
-### Code / File Changes
-- `src/styles/layout.css`
-- `HANDOFF.md`
-
-### CSS Corrections
-- Jobs tab strip now:
-  - uses compact content-based tab widths
-  - keeps `flex: 0 0 auto`
-  - prevents desktop horizontal scrolling
-  - avoids oversized equal-width behavior
-  - keeps labels on one line
-  - restores contained scrolling only at narrow/mobile widths
-- Inventory rail items now:
-  - use a three-column grid: fixed icon, flexible text, fixed badge
-  - align icon and badge near the top of wrapped text
-  - use readable title and description line heights
-  - let each row size naturally with a minimum height as a floor only
-  - reserve scrollbar gutter space so scrollbars do not cover text or badges
-  - keep collapse behavior intact
-
-### Verification
-- Required preflight passed:
-  - branch `main`
-  - working tree clean before edits
-  - local `main` matched `origin/main`
-  - current commit `d416a66`
-  - ARCHITECTURE v2.30 present
-  - HANDOFF gapless through Entry 147
-- `npm run build` passed.
-- `git diff --check` passed.
-- Diff reviewed; only CSS plus this HANDOFF append changed.
-- No file under `supabase/migrations` changed.
-- `docs/ARCHITECTURE.md` was not edited.
-- No RPC, RLS, permission, auth, financial, inventory workflow, Jobs data
-  binding, PM preview data binding, or business-rule change was introduced.
-- Authenticated browser runtime verification was not completed in this session.
-  Ryan should verify the corrected screens at 1440px, 1024px, 768px, and 390px.
-- Final implementation commit hash was not knowable when this entry was
-  written; it is the commit that introduces Entry 148 and is reported in the
-  session summary / git history.
-
-### Next Steps (in order)
-1. Verify production selected-Job tabs at 1440px with all eight tabs visible
-   and no desktop tab-strip scrollbar.
-2. Verify selected-Job tabs at 1024px, 768px, and 390px with contained
-   scrolling only where genuinely needed.
-3. Verify the Inventory Module Sections rail at 1440px and 1024px with no
-   overlapping labels/descriptions or badge collision.
-4. Verify Inventory drawer behavior at 768px and 390px.
-5. Complete the separate normal non-Developer PM preview visibility test when
-   a suitable test account is available.
-
-### Open Questions / Concerns
-- Logged-in runtime visual verification remains pending from Ryan's browser.
-- Normal non-Developer preview visibility still needs a separate test account,
-  carried forward from Entry 147.
-
-### Architecture Drift Warnings
-- None active. This pass stayed strictly inside UI/CSS presentation scope and
-  did not alter protected application behavior.
-
-### Routing Verdict
-No Claude review needed ‚Äî UI defect corrections remained within ARCHITECTURE
-v2.30 / HANDOFF Entry 148.
-
-## Entry 149 - Correct unresolved Jobs tabs and Inventory navigation defects
-
-### Scope
-- Corrected the two remaining UI defects reported after commit `66d3130`.
-- Stayed strictly inside UI/CSS presentation scope.
-- Did not add Developer Helpful Links.
-- Did not alter Jobs data binding, Inventory workflows, NGG-PM preview behavior,
-  permissions, RPCs, RLS, auth, financial rules, or database migrations.
-
-### Required Preflight
-- Repository was pulled from `origin/main`; local `main` was already up to date.
-- Working tree was clean before edits.
-- Current branch: `main`.
-- Current HEAD before edits: `d416a66`.
-- `origin/main` before edits: `d416a66`.
-- ARCHITECTURE v2.30 confirmed present.
-- HANDOFF confirmed gapless through Entry 148.
-
-### Root Cause
-- Jobs selected-record tabs: `src/styles.css` still contained older grid /
-  equal-width tab rules, including `width: 100%` on `.job-detail-tab`. Because
-  `src/main.jsx` imports `src/styles/layout.css` after `src/styles.css`, the
-  correct fix needed explicit later overrides in `layout.css` for width,
-  flex-growth, shrink behavior, and overflow.
-- Inventory Module Sections navigation: the active production DOM uses
-  `PrimarySidebar` (`workspace-sidebar__nav` and `workspace-sidebar__item`),
-  not the older `module-tabs` path. The previous spacing fix did not fully lock
-  the active sidebar item rows into natural-height stacked rows with explicit
-  visible overflow and separated text/badge columns.
-
-### Code / File Changes
-- `src/styles/layout.css`
-- `HANDOFF.md`
-
-### CSS Corrections
-- Jobs selected-record tabs now:
-  - use a non-wrapping flex row
-  - use compact content-based tab widths
-  - explicitly reset tab width to `auto`
-  - explicitly prevent flex growth and shrink compression
-  - keep `min-width: max-content` so labels do not collapse
-  - retain contained horizontal scrolling fallback instead of hiding overflow
-- Inventory Module Sections nav now:
-  - stacks nav items vertically with a computed 12px gap
-  - keeps each nav item `height: auto` with a minimum-height floor only
-  - uses a fixed icon / flexible copy / fixed badge grid
-  - keeps title and description in a flex column
-  - allows visible overflow inside each item
-  - preserves nav-list scrolling separately from the header/footer shell
-
-### Verification
-- `npm run build` passed before and after this HANDOFF append.
-- `git diff --check` passed before this HANDOFF append.
-- Headless Chrome fixture using the built CSS verified the actual cascade at:
-  - 1440px: Jobs tabs `clientWidth=728`, `scrollWidth=728`, compact max tab
-    width `93.97px`; Inventory nav flex column, 12px item gap.
-  - 1024px: Jobs tabs `clientWidth=728`, `scrollWidth=728`, compact max tab
-    width `93.97px`; Inventory nav flex column, 12px item gap.
-  - 768px: Jobs tabs `clientWidth=728`, `scrollWidth=728`, compact max tab
-    width `93.97px`; Inventory nav flex column, 12px item gap.
-  - 390px: Jobs tabs `clientWidth=354`, `scrollWidth=624`, contained
-    horizontal scroll active; Inventory nav flex column, 12px item gap.
-- Fixture confirmed `.job-detail-tabs` computes to `display:flex` and
-  `overflow-x:auto`.
-- Fixture confirmed each `.job-detail-tab` computes to `flex: 0 0 auto` and
-  `min-width: max-content`.
-- Fixture confirmed `.workspace-sidebar__nav` computes to a vertical flex
-  column with 12px gaps.
-- Fixture confirmed `.workspace-sidebar__item` computes to grid layout with
-  visible overflow and natural row heights for wrapped labels/descriptions.
-- Authenticated production browser verification was not available in this
-  session. Ryan should perform the final live UI verification below.
-
-### Next Steps (in order)
-1. Open the production app with a logged-in account.
-2. Navigate to Jobs and open any selected Job record.
-3. At 1440px, verify all eight selected-record tabs are visible without an
-   unusable clipped row: Overview, Details, Materials, Buyout, Transactions,
-   Financials, Documents, Schedule.
-4. At 1024px and 768px, verify the same tab row remains compact and reachable.
-5. At 390px, verify the selected-record tabs use contained horizontal scrolling
-   and that later tabs are reachable.
-6. Navigate to Inventory.
-7. At 1440px and 1024px, verify Module Sections items do not overlap titles,
-   descriptions, icons, or badges.
-8. At 768px and 390px, open the Inventory drawer and verify items stack with
-   clear vertical separation and no text/badge collision.
-9. Complete the separate normal non-Developer PM preview visibility test when
-   a suitable test account is available.
-
-### Open Questions / Concerns
-- Logged-in runtime verification remains pending from Ryan's browser.
-- Normal non-Developer preview visibility still needs a separate test account,
-  carried forward from Entry 147.
-
-### Architecture Drift Warnings
-- None active. This pass stayed within ARCHITECTURE v2.30 and corrected only
-  unresolved UI presentation defects.
-
-### Routing Verdict
-No Claude review needed - corrective UI work remained within ARCHITECTURE v2.30
-/ HANDOFF Entry 149.
-
-## Entry 150 - Add Developer Console helpful links
-
-**Date:** 2026-08-08
-**Updated by:** Codex
-**Phase:** Developer Console usability
-**Session type:** implementation
-
-### Context
-- Starting commit: `e7cb202` (`Correct unresolved Jobs and Inventory navigation defects`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 149`.
-- Ryan reported that he manually force deployed production before this milestone
-  because the prior deployment status was uncertain. The user-reported checkpoint
-  was `main @ e7cb202`.
-- Codex independently confirmed that the public production bundle at
-  `https://rnsolutions.net/` embedded build marker `e7cb202` during preflight.
-- No additional manual or force deploy was triggered by this milestone.
-
-### What Was Completed
-- Added a `Helpful Links` section to the existing Developer workspace.
-- Preserved the current server-resolved `canAccessDeveloper` gate; the section is
-  rendered only inside the already protected Developer workspace.
-- Added source-controlled definitions for four administrative destinations:
-  - Supabase - Northgate HQ v2
-  - Clerk - User Accounts
-  - GitHub - Northgate HQ v2
-  - Netlify - Production Deployment
-- Added concise purpose, instruction, and caution content for each service.
-- Added a non-interactive `Future: User Management` callout labeled
-  `Planned - not yet implemented`.
-
-### Link And Safety Behavior
-- Supabase opens the stable project dashboard URL built from public project
-  reference `keogysnoukbendfkfjcn`.
-- The Supabase card displays that reference and provides a copy button with an
-  accessible success or failure status message.
-- Clerk opens the general Clerk dashboard because no application-specific Clerk
-  dashboard URL was present in source-controlled configuration.
-- GitHub opens `RNSolutions-electrical/Northgate-HQ-v2.0` directly.
-- Netlify opens the general Netlify dashboard because the repository contains the
-  `npm run build` / `dist` configuration but no source-controlled site ID or
-  dashboard slug.
-- Every external destination uses a semantic anchor, opens in a new tab, uses
-  `rel="noopener noreferrer"`, and has an accessible label stating that behavior.
-- No administrative API was called and no credentials were placed in a URL.
-
-### Code / File Changes
-- `src/config/developerHelpfulLinks.js`
-- `src/App.jsx`
-- `src/styles/layout.css`
-- `HANDOFF.md`
-
-### Secret And Architecture Review
-- Helpful Links contains only public dashboard URLs, the GitHub repository name,
-  explanatory text, and the non-secret Supabase project reference.
-- No Supabase service-role key, Clerk Secret Key, database password, Netlify
-  access token, GitHub PAT, bearer token, JWT, invitation token, or private
-  environment value was added.
-- No schema, migration, RPC, RLS, auth, permission, backend, or Developer-access
-  resolution change occurred.
-- `docs/ARCHITECTURE.md` was not modified.
-- User Management remains future work; no invitation, role, division, status,
-  override, or audit backend was added.
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- `git diff --check` passed.
-- The repository has no test script beyond `build`, so no additional automated
-  test suite was available.
-- A rendered fixture using the compiled application CSS was checked at 1440px,
-  1024px, 768px, and 390px.
-- All four cards rendered at every checked width with no card clipping, no caution
-  clipping, and no page-level horizontal overflow.
-- The grid rendered in two columns at 1440px and 1024px, then one column at 768px
-  and 390px. Mobile actions stacked vertically at 390px.
-- Authenticated Developer runtime verification was not available in this session.
-  Ryan should verify live Developer and normal-user visibility after deployment.
-- The final implementation commit was not knowable when this entry was written;
-  it is the commit that introduces Entry 150 and is reported in git history.
-
-### Next Steps (in order)
-1. Deploy through the normal Git-connected Netlify process; do not force deploy
-   unless the normal deployment fails.
-2. Sign in as a Developer and open Developer, then verify Helpful Links appears.
-3. Confirm all four external links open the intended destinations in new tabs.
-4. Confirm Copy Project Reference copies `keogysnoukbendfkfjcn` and announces
-   success.
-5. Verify the section at 1440px, 1024px, 768px, and 390px in the authenticated
-   application.
-6. Sign in as a normal non-Developer user and confirm Developer navigation and
-   Helpful Links remain unavailable.
-7. Confirm the production build marker matches the new implementation commit.
-
-### Open Questions / Concerns
-- Authenticated live UI verification remains pending from Ryan's browser.
-- The repository does not provide a Netlify site ID or dashboard slug, so the
-  Netlify card intentionally opens the general dashboard.
-
-### Architecture Drift Warnings
-- None active. This milestone stayed inside Developer-only, source-controlled UI,
-  external navigation, documentation, and responsive presentation scope.
-
-### Routing Verdict
-No Claude review needed - Developer Helpful Links remained a Developer-only
-source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 150.
-
-## Entry 151 - Port Developer workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Developer module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `f5a26d5` (`Allow root production router path`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 150`.
-- Northgate HQ v3.0 is live on the existing GitHub / Netlify / Supabase
-  infrastructure, so the v3 rebuild continues inside the same repository and
-  project connections.
-- `MIGRATION_MAP.md` identifies Dashboard as the first migrated module and
-  Developer as the second lowest-risk module. Inventory remains intentionally
-  late because cart, checkout, ledger, count, overdraw, and concurrency behavior
-  carry the highest invariant load.
-
-### What Was Completed
-- Added a v3 `DeveloperWorkspace` module under `src/modules/developer/`.
-- Registered the Developer screen in `src/modules/screens.js`.
-- Changed the Developer module registry status from `stub` to `live` while
-  preserving the existing `canAccessDeveloper` route/nav gate.
-- Reintroduced source-controlled Developer Helpful Links in the v3 module
-  structure using `src/config/developerHelpfulLinks.js`.
-- Added read-only session diagnostics for:
-  - signed-in Clerk email / user id
-  - effective server role and division
-  - permission source
-  - current Vite mode
-  - v3 build label
-- Added a read-only effective-permission snapshot table using the existing
-  server-backed `usePermissions` hook.
-- Added responsive Developer card, helpful-link, caution, and future-user-
-  management presentation styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, permission flag, checkout,
-  inventory ledger, Jobs, Financials, or backend behavior changed.
-- No Developer permission editor, SQL console, service-role access, target-user
-  effective-permission lookup, invitation flow, or secret/environment viewer was
-  added.
-- Helpful Links contain only public dashboard URLs, the GitHub repository name,
-  explanatory text, and the non-secret Supabase project reference
-  `keogysnoukbendfkfjcn`.
-- Visible labels now say `Northgate HQ` rather than `Northgate HQ v2` where the
-  underlying project name would otherwise make the v3 rebuild appear stale. The
-  exact GitHub / Netlify / Supabase destinations remain unchanged.
-
-### Code / File Changes
-- `src/config/developerHelpfulLinks.js`
-- `src/modules/developer/DeveloperWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Developer runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Developer-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in as a Developer and open the Developer workspace.
-4. Confirm the Developer module no longer shows the v3 placeholder.
-5. Confirm Helpful Links render and external links open in new tabs.
-6. Confirm Copy reference copies `keogysnoukbendfkfjcn`.
-7. Confirm normal non-Developer users still cannot see or route into Developer.
-8. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- The v3 Developer workspace is intentionally status/read-only in this pass; the
-  prior v2 Silas kill-switch control was not ported here yet.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside Developer-only, source-controlled UI,
-  external navigation, diagnostics, and responsive presentation scope.
-
-### Routing Verdict
-No Claude review needed - Developer v3 migration remained a Developer-only
-source-controlled UI feature within ARCHITECTURE v2.30 / HANDOFF Entry 151.
-
-## Entry 152 - Port Reports workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Reports module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `678fac8` (`Port Developer workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 151`.
-- `MIGRATION_MAP.md` identifies Reports as the third low-risk module because it
-  is read-only by definition.
-- The preserved v2 `App.jsx` did not contain a standalone Reports workspace to
-  port. Existing report concepts were scattered across future/reserved module
-  surfaces, so this pass created a source-honest v3 Reports center rather than
-  inventing operational report rows.
-
-### What Was Completed
-- Added a v3 `ReportsWorkspace` module under `src/modules/reports/`.
-- Registered the Reports screen in `src/modules/screens.js`.
-- Changed the Reports module registry status from `stub` to `live` while
-  preserving the existing `canViewReports` route/nav gate.
-- Added a read-only report library showing:
-  - the live Effective Access Snapshot report
-  - reserved Inventory Activity, Job Cost Summary, Open Jobs, and Document Index
-    report surfaces
-- Added a read-only effective-access snapshot for report-relevant permission
-  flags using the existing server-backed `usePermissions` hook.
-- Added an Operational Sources readiness view that records why Inventory, Jobs,
-  Financials, and Documents reports stay deferred until their v3 source modules
-  and permission filters are explicit.
-- Added minimal responsive Reports layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase query, schema, migration, RPC, RLS, auth, permission flag, export,
-  backend, inventory, checkout, ledger, Jobs, Documents, or Financials behavior
-  changed.
-- No protected operational rows are selected or rendered by the Reports module
-  in this pass.
-- Financial report visibility remains tied to existing `canViewFinancials`;
-  protected fields stay omitted where that flag is not granted.
-- Reserved report rows are roadmap slots only. They do not grant data access or
-  imply that the underlying module read path has been migrated.
-
-### Code / File Changes
-- `src/modules/reports/ReportsWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Reports runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Reports-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_view_reports` and open Reports.
-4. Confirm Reports no longer shows the v3 placeholder.
-5. Confirm the Report Library, Access Snapshot, and Operational Sources sections
-   render without overflow at desktop and mobile widths.
-6. Confirm a user without `can_view_reports` cannot see or route into Reports.
-7. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- The first operational data report should be added only after its source module
-  has been migrated into v3 and the report-specific permission/filter contract
-  is explicit.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside read-only Reports UI, source-readiness
-  presentation, permission-context display, and responsive presentation scope.
-
-### Routing Verdict
-No Claude review needed - Reports v3 migration remained read-only UI within
-ARCHITECTURE v2.30 / HANDOFF Entry 152.
-
-## Entry 153 - Port Documents workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Documents module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `42eb641` (`Port Reports workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 152`.
-- `MIGRATION_MAP.md` identifies Documents as the fourth low-risk module, with
-  storage paths and RLS unchanged.
-- The existing live Documents implementation is Job Documents v1 inside the
-  Jobs detail Documents tab. Jobs has not been migrated into v3 yet, so this
-  pass did not relocate upload/archive/download actions into a top-level module.
-
-### What Was Completed
-- Added a v3 `DocumentsWorkspace` module under `src/modules/documents/`.
-- Registered the Documents screen in `src/modules/screens.js`.
-- Changed the Documents module registry status from `stub` to `live`.
-- Added a top-level Documents center with:
-  - Overview
-  - Owner Scopes
-  - Controls
-- Documented the approved generic owner vocabulary and storage path convention
-  for job, estimate, vehicle, tool, employee, change-order, report, and snapshot
-  owner types.
-- Marked Job documents as the only job-scoped live owner path today.
-- Added read-oriented summaries for live/reserved scopes, existing
-  `can_manage_jobs` context, and the locked `northgate-files` storage boundary.
-- Added minimal responsive Documents layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase query, schema, migration, RPC, RLS, auth, permission flag, storage
-  policy, upload, archive, download, signed URL, Jobs, Financials, export, or
-  backend behavior changed.
-- No top-level document mutation path was added.
-- The existing Job Documents v1 owner workflow remains the approved place for
-  job document upload/open/download/archive until Jobs is migrated into v3.
-- Non-job owner types remain reserved until their source modules and RLS/read
-  behavior are explicitly implemented.
-- Change orders remain financial records, not documents.
-
-### Code / File Changes
-- `src/modules/documents/DocumentsWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Documents runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Documents-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in and open Documents.
-4. Confirm Documents no longer shows the v3 placeholder.
-5. Confirm Overview, Owner Scopes, and Controls render without overflow at
-   desktop and mobile widths.
-6. Confirm no top-level upload/archive/download actions are exposed.
-7. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Top-level document row listing should be added only after owner-specific read
-  filters are explicit, or after Jobs is migrated and job document context can
-  be preserved.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside read-oriented Documents UI,
-  source-readiness presentation, owner-scope mapping, and responsive
-  presentation scope.
-
-### Routing Verdict
-No Claude review needed - Documents v3 migration remained read-oriented UI
-within ARCHITECTURE v2.30 / HANDOFF Entry 153.
-
-## Entry 154 - Port Vehicles workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Vehicles module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `c067c5e` (`Port Documents workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 153`.
-- `MIGRATION_MAP.md` identifies Vehicles as the fifth low-risk module because it
-  is self-contained.
-- The preserved v2 Vehicles workspace used the existing
-  `inventory_destination_vehicles_view` read path. This v3 port reuses that
-  authenticated read path and does not create a new vehicle data contract.
-
-### What Was Completed
-- Added a v3 `VehiclesWorkspace` module under `src/modules/vehicles/`.
-- Registered the Vehicles screen in `src/modules/screens.js`.
-- Changed the Vehicles module registry status from `stub` to `live` while
-  preserving the existing `canManageVehicles` route/nav gate.
-- Added an authenticated read-only vehicle reference hook using
-  `inventory_destination_vehicles_view`.
-- Added vehicle directory views:
-  - All Vehicles
-  - Stock Vehicles
-  - General Fleet
-- Added search across visible vehicle reference fields.
-- Added selected-record detail shell with tabs for:
-  - Overview
-  - Assignment
-  - Service
-  - History
-- Kept Assignment, Service, and History as deferred source-honest panels.
-- Added disabled Add Vehicle affordance and boundary panels documenting that
-  create/edit, assignment mutations, service workflow, and history rows are not
-  part of this pass.
-- Added minimal responsive Vehicles layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, permission flag, storage,
-  vehicle assignment, cart-open snapshot, inventory, checkout, ledger, service,
-  maintenance, document, history, or backend behavior changed.
-- The only Supabase access added is a SELECT from the existing
-  `inventory_destination_vehicles_view` with the caller's Clerk/Supabase token.
-- No vehicle create, edit, archive, assignment, service, or history mutation path
-  was added.
-- The existing vehicle assignment model and cart-open vehicle snapshot behavior
-  remain unchanged.
-
-### Code / File Changes
-- `src/modules/vehicles/VehiclesWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Vehicles runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Vehicles-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_manage_vehicles` and open Vehicles.
-4. Confirm Vehicles no longer shows the v3 placeholder.
-5. Confirm visible vehicle rows load where the existing reference view permits
-   them.
-6. Confirm All / Stock / General Fleet filters and search work.
-7. Confirm Add Vehicle is disabled and no assignment/service/history mutations
-   are exposed.
-8. Continue the v3 rebuild with the next low-risk module from `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future vehicle create/edit and assignment management need an explicit write
-  contract before being ported.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside read-only Vehicles UI, existing
-  vehicle-reference reads, selected-record presentation, and responsive
-  presentation scope.
-
-### Routing Verdict
-No Claude review needed - Vehicles v3 migration reused existing read paths and
-remained within ARCHITECTURE v2.30 / HANDOFF Entry 154.
-
-## Entry 155 - Port Tools workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Tools module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `d8c3b61` (`Port Vehicles workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 154`.
-- `MIGRATION_MAP.md` identifies Tools as the sixth low-risk module.
-- ARCHITECTURE Section 36 locks this feature as **Tool Catalogue**, not Tool
-  Inventory. Checkout, assignment history, QR labels, vehicle/bin linkage, job
-  linkage, tracking history, audit table, tool-specific permission flags, and
-  purchase accounting remain reserved.
-
-### What Was Completed
-- Added a v3 `ToolsWorkspace` module under `src/modules/tools/`.
-- Registered the Tools screen in `src/modules/screens.js`.
-- Changed the Tools module registry status from `stub` to `live` while
-  preserving the existing `canManageTools` route/nav gate.
-- Added an authenticated read-only catalogue hook using the existing
-  `public.tools` table.
-- Added Tool Catalogue views:
-  - Active Tools
-  - Missing
-  - Archived
-- Added search across visible tool catalogue fields.
-- Added selected-record detail shell with tabs for:
-  - Overview
-  - Location
-  - Assignment
-  - History
-- Kept Location, Assignment, and History source-honest by showing current
-  catalogue placeholder fields and reserved-state panels rather than inventing
-  custody, storage, transfer, or history behavior.
-- Added disabled Add Tool affordance and boundary panels documenting that
-  create/edit/archive, checkout/custody, and financial fields are not part of
-  this pass.
-- Added minimal responsive Tools layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, permission flag, storage,
-  checkout, assignment, QR, vehicle/bin linkage, tracking history, audit,
-  purchase accounting, or backend behavior changed.
-- The only Supabase access added is a SELECT from existing `public.tools` with
-  the caller's Clerk/Supabase token.
-- No tool create, edit, archive, checkout, assignment, or history mutation path
-  was added.
-- The v3 copy explicitly preserves Section 36's catalogue-only boundary.
-
-### Code / File Changes
-- `src/modules/tools/ToolsWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- Static scan confirmed the Tools module only calls `from('tools')` for SELECT
-  and contains no insert/update/delete/upsert/rpc/storage/upload/download signed
-  URL calls.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Tools runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Tools-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_manage_tools` and open Tools.
-4. Confirm Tools no longer shows the v3 placeholder.
-5. Confirm active/missing/archived views and search render correctly.
-6. Confirm Add Tool is disabled and no checkout/assignment/history mutations are
-   exposed.
-7. Continue the v3 rebuild with the next low-risk module from
-   `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future Tool Catalogue writes should be ported only after deciding whether v3
-  should preserve the existing `can_manage_inventory` RLS write gate or align UI
-  routing/copy with a later tool-specific permission model.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside read-only Tool Catalogue UI, existing
-  `public.tools` reads, selected-record presentation, and responsive
-  presentation scope.
-
-### Routing Verdict
-No Claude review needed - Tools v3 migration reused existing read paths and
-remained within ARCHITECTURE v2.30 / HANDOFF Entry 155.
-
-## Entry 156 - Port Employees workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Employees module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `ce8f9ef` (`Port Tools workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 155`.
-- `MIGRATION_MAP.md` identifies Employees as the seventh module and notes that
-  PII needs a presentation-contract audit.
-- The preserved v2 Employees workspace used the existing
-  `inventory_destination_users_view` read path. This v3 port reuses that
-  authenticated reference view and does not create a new HR or identity data
-  contract.
-
-### What Was Completed
-- Added a v3 `EmployeesWorkspace` module under `src/modules/employees/`.
-- Registered the Employees screen in `src/modules/screens.js`.
-- Changed the Employees module registry status from `stub` to `live` while
-  preserving the existing `canManageEmployees` route/nav gate.
-- Added an authenticated read-only directory hook using
-  `inventory_destination_users_view`.
-- Added Employee Directory and My Information views.
-- Added search across visible display name, email, role, and division fields.
-- Added selected-record detail shell with tabs for:
-  - Overview
-  - Contact
-  - Assignments
-  - Activity
-- Kept contact, assignment, and activity regions source-honest by showing only
-  fields exposed by the existing reference view and reserving other sections.
-- Added disabled Create Employee affordance and boundary panels documenting that
-  HR records, account creation, role edits, permission edits, and additional PII
-  fields are not part of this pass.
-- Added minimal responsive Employees layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, permission flag, Clerk identity,
-  HR source record, role, permission override, vehicle/tool/job assignment,
-  document, activity-history, or backend behavior changed.
-- The only Supabase access added is a SELECT from existing
-  `inventory_destination_users_view` with the caller's Clerk/Supabase token.
-- No employee create, edit, archive, role, permission, Clerk, invitation, or
-  identity mutation path was added.
-- Only the fields exposed by the existing reference view are rendered:
-  `clerk_user_id`, `display_name`, `email`, `role`, and `division`.
-
-### Code / File Changes
-- `src/modules/employees/EmployeesWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed with Vite 8.1.0.
-- Static scan confirmed the Employees module only calls
-  `from('inventory_destination_users_view')` for SELECT and contains no
-  insert/update/delete/upsert/rpc/storage/upload/download signed URL calls.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Employees runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Employees-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_manage_employees` and open Employees.
-4. Confirm Employees no longer shows the v3 placeholder.
-5. Confirm Employee Directory, My Information, and search render correctly.
-6. Confirm Create Employee is disabled and no role/permission/Clerk/identity
-   mutations are exposed.
-7. Continue the v3 rebuild with the next low-risk module from
-   `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future employee create/edit and richer PII fields need an explicit source and
-  visibility contract before being ported.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside read-only Employees UI, existing
-  user-reference reads, selected-record presentation, and responsive
-  presentation scope.
-
-### Routing Verdict
-No Claude review needed - Employees v3 migration reused existing read paths and
-remained within ARCHITECTURE v2.30 / HANDOFF Entry 156.
-
-## Entry 157 - Port Silas workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Silas module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `b5a9078` (`Port Employees workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 156`.
-- `MIGRATION_MAP.md` identifies Silas as the eighth module.
-- Existing Silas Phase 1/2A behavior already lived in `useSilas`,
-  `SilasPanels`, the `silas_*` Supabase tables, and
-  `netlify/functions/silas-chat.js`.
-
-### What Was Completed
-- Added a v3 `SilasWorkspace` wrapper under `src/modules/silas/`.
-- Registered the Silas screen in `src/modules/screens.js`.
-- Changed the Silas module registry status from `stub` to `live`.
-- Reused the existing `useSilas` hook for authenticated settings,
-  conversations, messages, and `/api/silas-chat` requests.
-- Reused the existing `SilasWorkspacePanel` chat UI rather than creating a new
-  chat implementation.
-- Corrected dormant relative imports in `SilasPanels.jsx` so the extracted
-  panel resolves the shared UI components and Silas helper copy from its v3
-  module location.
-- Added responsive Silas workspace, conversation list, message list, and
-  composer styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag, or
-  business-data table behavior changed.
-- No Netlify function behavior changed.
-- No service-role Supabase path was added.
-- No business-data write capability was added.
-- Silas still uses the caller's Clerk/Supabase token for client-side table
-  reads/writes, and the existing Netlify function enforces the
-  `silas_settings.silas_enabled` kill switch before the Claude call.
-- The floating Silas bubble was not reintroduced in this pass; only the
-  dedicated `/silas` workspace route was made live.
-
-### Code / File Changes
-- `src/modules/silas/SilasWorkspace.jsx`
-- `src/modules/silas/SilasPanels.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `node --check netlify/functions/silas-chat.js` passed.
-- `npm run build` passed with Vite 8.1.0.
-- Supabase changelog was checked for relevant breaking changes; none affected
-  this existing client-side Supabase usage.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Silas runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Silas-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in and open Silas.
-4. Confirm Silas no longer shows the v3 placeholder.
-5. Confirm conversations load, a new message can be typed, and the composer
-   handles the response/error state cleanly.
-6. Continue the v3 rebuild with the next low-risk module from
-   `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future Silas work should decide separately whether to reintroduce the floating
-  bubble globally in v3.
-- Silas live-response behavior depends on the current Netlify
-  `SILAS_ANTHROPIC_API_KEY` environment variable.
-- Ryan confirmed Silas is good to go in production, but noted a non-blocking UI
-  bug for later: when a new chat is sent, the screen jumps to the top.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside the existing Silas hook, existing
-  Supabase tables/RLS, existing Netlify function route, and dedicated workspace
-  presentation scope.
-
-### Routing Verdict
-No Claude review needed - Silas v3 migration reused the locked existing
-Silas client/function paths and remained within ARCHITECTURE v2.30 / HANDOFF
-Entry 157.
-
-## Entry 158 - Port Estimates workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Estimates module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `24792a7` (`Track Silas scroll follow-up`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 157`.
-- `MIGRATION_MAP.md` identifies Estimates as the ninth module and calls out
-  snapshot immutability as the key invariant to preserve.
-- Prior Entries 144 and 145 confirmed the repository exposes estimate
-  permissions but not an approved production estimate read model or
-  Job-to-Estimate relationship in this UI layer.
-
-### What Was Completed
-- Added a v3 `EstimatesWorkspace` module under `src/modules/estimates/`.
-- Registered the Estimates screen in `src/modules/screens.js`.
-- Changed the Estimates module registry status from `stub` to `live` while
-  preserving the existing `canEstimate` / `canApproveEstimates` route/nav gate.
-- Rebuilt the accepted Estimates foundation shape from the preserved v2 UI:
-  - Estimate views rail
-  - browse vs explicit create mode
-  - directory surface
-  - selected-record header and disabled detail tabs
-  - snapshot / status / approval boundary panels
-  - locked estimate-status vocabulary
-- Kept the module source-honest by showing the operational shell without
-  fabricating estimate rows, pricing values, approvals, snapshots, or linked
-  jobs.
-- Added minimal responsive Estimates layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
-  estimate table, snapshot table, job relationship, or backend behavior
-  changed.
-- No Supabase client read path was added because there is not yet an approved
-  production estimate read model in this UI layer.
-- No estimate create, edit, approval, archive, delete, pricing, snapshot, job
-  push, budget, or document write path was added.
-- `estimate_snapshots` immutability remains untouched; this pass does not edit
-  snapshot triggers, locked rows, or any snapshot mutation behavior.
-- Protected pricing remains presented as permission-gated future state only.
-
-### Code / File Changes
-- `src/modules/estimates/EstimatesWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- Static scan of `src/modules/estimates/EstimatesWorkspace.jsx` found no
-  Supabase client, `.from(...)`, insert, update, delete, upsert, RPC, storage,
-  or fetch calls.
-- Supabase changelog was checked for relevant breaking changes; none affected
-  this presentation-only Estimates port.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Estimates runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Estimates-module migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_estimate` or `can_approve_estimates` and
-   open Estimates.
-4. Confirm Estimates no longer shows the v3 placeholder.
-5. Confirm browse/create mode, search empty state, disabled detail tabs, and
-   snapshot/status boundary panels render correctly.
-6. Continue the v3 rebuild with the next module from `MIGRATION_MAP.md`.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future live Estimates work needs an approved estimate table/read model,
-  Job-to-Estimate relationship, create/edit contract, approval flow, and
-  snapshot write contract before real records or actions can be added.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside presentation-only Estimates workspace
-  scope and deliberately avoided estimate data reads/writes and snapshot
-  behavior.
-
-### Routing Verdict
-No Claude review needed - Estimates v3 migration made the already accepted
-foundation shell live and did not change schema, RLS, read models, write paths,
-approval behavior, or snapshot immutability under ARCHITECTURE v2.30 /
-HANDOFF Entry 158.
-
-## Entry 159 - Port Jobs workspace foundation into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Jobs module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `87e3182` (`Port Estimates workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 158`.
-- `MIGRATION_MAP.md` identifies Jobs as the tenth module and the largest
-  migration slice.
-- ARCHITECTURE Sections 38-47 lock a broad Jobs surface. This pass intentionally
-  ports the first safe v3 slice only: Jobs foundation read/presentation.
-
-### What Was Completed
-- Added a v3 `JobsWorkspace` module under `src/modules/jobs/`.
-- Registered the Jobs screen in `src/modules/screens.js`.
-- Changed the Jobs module registry status from `stub` to `live` while
-  preserving the ungated authenticated-user route/nav model noted in the
-  registry.
-- Added an authenticated read-only directory hook using the existing
-  `public.jobs` table and the caller's Clerk/Supabase token.
-- Added Jobs views:
-  - Active Jobs
-  - On Hold
-  - Completed
-  - Cancelled
-  - All Visible
-- Added search across visible Jobs foundation fields.
-- Added selected-job detail shell with the locked Section 42 horizontal tab
-  shape:
-  - Overview
-  - Details
-  - Materials
-  - Buyout
-  - Transactions
-  - Financials, only when `canViewFinancials` is true
-  - Documents
-  - Schedule
-- Made Overview and Details render existing `public.jobs` fields.
-- Kept Materials, Buyout, Transactions, Financials, Documents, and Schedule
-  source-honest with reserved-state panels rather than porting their reads or
-  writes in this first Jobs slice.
-- Added explicit Create Job mode as a non-writing state that documents whether
-  the session has `canCreateJobs`.
-- Added boundary panels documenting that Issue to Job, budget/financial values,
-  documents, and schedule remain deferred.
-- Added minimal responsive Jobs layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
-  inventory, checkout, transaction, budget, document, schedule, material,
-  buyout, estimate, or backend behavior changed.
-- The only Supabase access added is a SELECT from existing `public.jobs` with
-  the caller's Clerk/Supabase token.
-- No job create, edit, archive, delete, material, buyout, checkout handoff,
-  transaction, financial, document, schedule, or estimate-link write path was
-  added.
-- No `job_materials`, `job_buyout_lines`, `job_budget_lines`,
-  `job_transaction_log`, `documents`, `job_schedule_items`,
-  `transaction_items`, `inventory_transactions`, or `inventory_balances` reads
-  were added.
-- `Issue to Job` remains unimplemented in v3; cart/checkout behavior and
-  inventory balance derivation are untouched.
-- Financial values remain omitted entirely because this first Jobs slice does
-  not select any budget/actual/accounting table.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- Static scan confirmed `src/modules/jobs/JobsWorkspace.jsx` only calls
-  `from('jobs')` for SELECT and contains no insert, update, delete, upsert,
-  RPC, storage, fetch, inventory balance, transaction, material, buyout,
-  budget, document, or schedule data access.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables, but this pass
-  only reuses the existing `public.jobs` table and adds no migration.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Jobs runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Jobs foundation migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in and open Jobs.
-4. Confirm Jobs no longer shows the v3 placeholder.
-5. Confirm job rows load, view filters/search work, and selected-job
-   Overview/Details render correctly.
-6. Confirm Create Job is non-writing and heavier submodule tabs show deferred
-   states only.
-7. Decide the next Jobs slice before porting writes or submodule reads.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future Jobs work should be split deliberately:
-  - controlled create/edit/archive;
-  - Job Material List;
-  - Buyout;
-  - Transactions read-only log;
-  - Financials/Budget Foundation;
-  - Documents;
-  - Schedule;
-  - Issue to Job handoff only after its required live preflight.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside the existing Jobs foundation table read
-  path and selected-record presentation scope.
-
-### Routing Verdict
-No Claude review needed - Jobs v3 migration made only the read-only Jobs
-foundation slice live and did not change schema, RLS, permissions, writes,
-inventory movement, checkout behavior, financials, documents, schedule, or
-Issue to Job under ARCHITECTURE v2.30 / HANDOFF Entry 159.
-
-## Entry 160 - Port Inventory read workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `b49001f` (`Port Jobs foundation workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 159`.
-- `MIGRATION_MAP.md` identifies Inventory as the eleventh module and calls out
-  cart, checkout, ledger, counts, and overdraw locks as the densest invariant
-  load in the app.
-- The preserved v2 front end already retained the critical inventory hooks:
-  `useInventoryReadModel`, `useInventoryTransactionHistory`,
-  `useInventoryCart`, count hooks, and bin-item retirement.
-
-### What Was Completed
-- Added a v3 `InventoryWorkspace` module under `src/modules/inventory/`.
-- Registered the Inventory screen in `src/modules/screens.js`.
-- Changed the Inventory module registry status from `stub` to `live` while
-  preserving the existing `canInventoryTransactions` / `canManageInventory`
-  route/nav gate.
-- Reused the retained `useInventoryReadModel` hook for authenticated read-model
-  data.
-- Reused the retained `useInventoryTransactionHistory` hook for the read-only
-  transaction history surface.
-- Added Inventory views:
-  - Catalogue
-  - Storage
-  - Checkout Candidates
-  - Destinations
-  - Transaction History
-  - Reserved Controls
-- Added summary cards for active items, storage/bin counts, bin-item/balance
-  counts, and cart-candidate preview rows.
-- Added bounded client-side filtering over current preview rows.
-- Added read-only tables for:
-  - active catalogue preview
-  - storage unit preview
-  - bin preview
-  - checkout candidates
-  - user destination references
-  - vehicle destination references
-  - transaction history through `read_inventory_transaction_history`
-- Added explicit boundary panels for cart/checkout, count correction, and
-  transaction-derived balances.
-- Added minimal responsive Inventory layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
-  cart, checkout, count, bin retirement, inventory transaction, balance,
-  destination, QR, accounting, or backend behavior changed.
-- No `useInventoryCart`, count, count-correction, count-intake, count-sheet, or
-  bin-item-retirement write surface was wired in this pass.
-- No cart open, cart add/remove, checkout finalize, count correction, count
-  intake, bin-item retirement, archive, label generation, transfer, or QR scan
-  action was added.
-- No direct `inventory_balances` write path was added. Balance data remains
-  transaction-derived and server-controlled.
-- The only active data paths are the existing retained inventory read hooks and
-  the existing `read_inventory_transaction_history` RPC.
-
-### Code / File Changes
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- Static scan of `src/modules/inventory/InventoryWorkspace.jsx` found no
-  insert, update, delete, upsert, cart-finalize/open/add/remove RPC, physical
-  count write, count-intake write, bin-retirement write, or
-  `inventory_balances` mutation path.
-- Static scan confirmed Inventory data access stays in retained hooks:
-  `useInventoryReadModel` and `useInventoryTransactionHistory`.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables, but this pass
-  only reuses existing inventory tables/views/RPCs and adds no migration.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Inventory runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Inventory read-workspace migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has inventory access and open Inventory.
-4. Confirm Inventory no longer shows the v3 placeholder.
-5. Confirm Catalogue, Storage, Checkout Candidates, Destinations, Transaction
-   History, and Reserved Controls render correctly.
-6. Confirm cart/checkout/count/retirement controls are not exposed yet.
-7. Decide whether to port Inventory writes in smaller follow-up slices or move
-   to Accounting first.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future Inventory write work should be split deliberately:
-  - cart open/read/add/remove;
-  - checkout finalization;
-  - count sheet;
-  - count intake;
-  - physical count correction;
-  - bin-item retirement;
-  - scan/QR entry surfaces.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside retained inventory read hooks and
-  preserved all cart, checkout, count, retirement, and balance invariants.
-
-### Routing Verdict
-No Claude review needed - Inventory v3 migration made only the read-first
-workspace live and did not change schema, RLS, permissions, writes, cart,
-checkout, count correction, count intake, bin retirement, ledger derivation, or
-`inventory_balances` behavior under ARCHITECTURE v2.30 / HANDOFF Entry 160.
-
-## Entry 161 - Port Accounting review workspace into Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Accounting module migration
-**Session type:** implementation
-
-### Context
-- Starting commit: `d946144` (`Port Inventory read workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 160`.
-- `MIGRATION_MAP.md` identifies Accounting as the twelfth module and notes
-  that it depends on Jobs and Inventory being migrated first.
-- ARCHITECTURE v2.26 Section 44 locks the Job Financials Budget Foundation as
-  `job_budget_lines` only; actual cost, committed cost, issued inventory
-  value, contract value, revenue, profit, PO, invoice, change order, and
-  accounting integration remain reserved.
-
-### What Was Completed
-- Added a v3 `AccountingWorkspace` module under `src/modules/accounting/`.
-- Registered the Accounting screen in `src/modules/screens.js`.
-- Changed the Accounting module registry status from `stub` to `live` while
-  preserving the existing `canViewFinancials` route/nav gate.
-- Added an authenticated read-only Accounting review surface over the existing
-  `job_budget_lines` table.
-- Added Accounting views:
-  - Budget Review
-  - Category Totals
-  - Export Readiness
-  - Reserved Controls
-- Added summary cards for active authorized budget lines, total budget
-  foundation amount, distinct jobs, and visible divisions.
-- Added bounded client-side filtering over authorized budget review rows.
-- Added category totals derived client-side from already-authorized budget
-  rows.
-- Added explicit reserved-state panels for export behavior, pricing controls,
-  actuals, purchase orders, invoices, and accounting posting.
-- Added minimal responsive Accounting layout styles in `src/styles/base.css`.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RPC, RLS, auth, storage, permission flag,
-  export, invoice, purchase order, pricing, inventory, job, estimate, budget
-  write, or backend behavior changed.
-- No accounting export file is generated.
-- No pricing-control write path was added.
-- No actuals, committed cost, issued inventory value, contract value, revenue,
-  profit, PO, invoice, change order, reconciliation, or external accounting
-  integration was added.
-- The only active data path is a caller-token SELECT from existing
-  `job_budget_lines`, filtered to active rows with `archived_at IS NULL`.
-- The Accounting route remains hidden unless `canViewFinancials` is true, and
-  Supabase RLS remains authoritative for every returned budget row.
-
-### Code / File Changes
-- `src/modules/accounting/AccountingWorkspace.jsx`
-- `src/modules/screens.js`
-- `src/modules/registry.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- Static scan of `src/modules/accounting/AccountingWorkspace.jsx` confirmed the
-  only Supabase data call is `from('job_budget_lines')`.
-- Static scan confirmed no insert, update, delete, upsert, RPC, storage, fetch,
-  invoice, purchase-order, export-generation, inventory, job, estimate, or
-  pricing-write path was added.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables, but this pass
-  only reuses the existing `public.job_budget_lines` table and adds no
-  migration.
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live Accounting runtime verification remains pending from
-  Ryan's browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Accounting review-workspace migration.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_view_financials` and open Accounting.
-4. Confirm Accounting no longer shows the v3 placeholder.
-5. Confirm Budget Review, Category Totals, Export Readiness, and Reserved
-   Controls render correctly.
-6. Confirm no export, invoice, purchase order, pricing, approval, or accounting
-   posting action is exposed.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Future Accounting work should be split deliberately:
-  - controlled exports;
-  - job-cost/accounting approval mechanism;
-  - invoice review;
-  - purchase-order integration;
-  - external accounting-system integration.
-
-### Architecture Drift Warnings
-- None active. This pass stayed inside the existing Budget Foundation read path
-  and did not add accounting semantics beyond read-only review.
-
-### Routing Verdict
-No Claude review needed - Accounting v3 migration made only a read-only review
-workspace live over the existing Budget Foundation and did not change schema,
-RLS, permissions, writes, exports, invoices, purchase orders, pricing controls,
-actuals, inventory, jobs, estimates, or accounting posting under ARCHITECTURE
-v2.30 / HANDOFF Entry 161.
-
-## Entry 162 - Northgate HQ v3 top-level module migration complete
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / top-level module migration checkpoint
-**Session type:** coordination checkpoint
-
-### Context
-- Starting commit: `2da86e1` (`Port Accounting review workspace to v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 161`.
-- Ryan verified Accounting in production and replied "good to go. proceed."
-- Accounting was the twelfth and final module listed in `MIGRATION_MAP.md`.
-
-### What Was Confirmed
-- All twelve top-level v3 modules listed in `MIGRATION_MAP.md` have now been
-  migrated out of the not-yet-migrated placeholder route:
-  - Dashboard
-  - Developer
-  - Reports
-  - Documents
-  - Vehicles
-  - Tools
-  - Employees
-  - Silas
-  - Estimates
-  - Jobs
-  - Inventory
-  - Accounting
-- `src/modules/registry.js` now marks every top-level module as `status:
-  'live'`.
-- `src/modules/screens.js` now registers all twelve top-level module screens.
-- Static search found no active `status: 'stub'` module entries. The only
-  remaining `status: 'stub'` hit is the registry comment explaining the
-  migration pattern.
-- Ryan has browser-verified each migrated module in production through the
-  Accounting checkpoint.
-
-### Safety And Boundary Notes
-- This checkpoint made no app-code, schema, RLS, permission, auth, storage,
-  RPC, Netlify function, Supabase, or runtime behavior change.
-- Existing deferred/reserved feature panels remain intentionally deferred. This
-  checkpoint only closes the top-level placeholder migration.
-- The known non-blocking Silas UI bug remains carried forward: when a new chat
-  is sent, the screen can jump to the top. Ryan explicitly asked to track this
-  for later rather than fix it during the module migration pass.
-
-### Verification
-- `git status --short` was clean before this checkpoint entry.
-- `MIGRATION_MAP.md` was reviewed and Accounting was confirmed as the final
-  planned top-level module.
-- `src/modules/registry.js` was inspected and all module registry entries are
-  live.
-- `src/modules/screens.js` was inspected and all twelve module screens are
-  registered.
-- Static search confirmed no active `status: 'stub'` module entries remain.
-
-### Next Steps (in order)
-1. Commit and push this completion checkpoint.
-2. Start the next v3 rebuild phase from the carried-forward functional slices,
-   not from placeholder removal.
-3. Recommended next slice: Inventory write-flow restoration in small bounded
-   passes, beginning with cart open/read/add/remove before checkout
-   finalization, count workflows, or bin-item retirement.
-4. Separately schedule the known Silas scroll-jump bug as a focused UI fix.
-
-### Open Questions / Concerns
-- Top-level module placeholders are complete, but several intentionally
-  deferred sub-features remain:
-  - Inventory cart/checkout/count/retirement writes;
-  - Jobs materials, buyout, transactions, financials, documents, and schedule
-    deeper slices;
-  - Accounting controlled exports, approvals, invoices, POs, and external
-    integration;
-  - Silas floating bubble reintroduction and scroll polish.
-- Each deferred feature should still get its own architecture/boundary preflight
-  before implementation.
-
-### Architecture Drift Warnings
-- None active. This is a documentation checkpoint only.
-
-### Routing Verdict
-No Claude review needed - this checkpoint only records that the top-level v3
-module migration is complete and does not modify application behavior under
-ARCHITECTURE v2.30 / HANDOFF Entry 162.
-
-## Entry 163 - Restore Inventory cart staging in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory cart staging
-**Session type:** implementation
-
-### Context
-- Starting commit: `f99f940` (`Record v3 module migration completion`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 162`.
-- Ryan approved proceeding after the top-level module migration was completed.
-- Entry 162 recommended the next slice as Inventory write-flow restoration,
-  beginning with cart open/read/add/remove before checkout finalization, count
-  workflows, or bin-item retirement.
-- The preserved `useInventoryCart` hook already wraps the approved cart RPCs:
-  `open_inventory_cart`, `read_inventory_cart_items`,
-  `add_inventory_cart_item`, and `remove_inventory_cart_item`.
-
-### What Was Completed
-- Updated the v3 Inventory workspace Cart view from read-only checkout
-  candidates to the first live cart-staging surface.
-- Added `useInventoryCart` to `InventoryWorkspace`.
-- Replaced the old `Checkout Candidates` sidebar item with `Cart`.
-- Added an `Open Cart` action that calls the preserved `open_inventory_cart`
-  RPC through `useInventoryCart`.
-- Added active cart facts for status, row count, cart ID, and expiration.
-- Added a staged cart-lines table sourced from
-  `read_inventory_cart_items`.
-- Added remove buttons for staged cart lines that call
-  `remove_inventory_cart_item` through `useInventoryCart`.
-- Added stocked candidate quantity inputs and Add buttons that call
-  `add_inventory_cart_item` through `useInventoryCart`.
-- Added per-candidate success/error messages after add attempts.
-- Updated Inventory copy and summary cards to show cart staging is live while
-  checkout finalization, counts, and retirement remain deferred.
-- Added focused CSS for cart facts, action cells, and row messages.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, or RPC definition changed.
-- No direct `inventory_carts`, `inventory_cart_items`, `inventory_balances`,
-  `inventory_transactions`, or `transaction_items` client mutation was added.
-- Cart open, add, remove, and read are performed only through the preserved
-  server RPC wrappers in `useInventoryCart`.
-- Checkout/finalization remains deferred. The v3 Inventory module does not call
-  `checkoutCart` or expose `finalize_inventory_cart`.
-- Staging cart lines does not change inventory balances. Balances remain
-  transaction-derived and change only through future checkout finalization.
-- Count intake, count correction, bin-item retirement, QR scan dispatch, and
-  checkout destination handling remain separate future slices.
-
-### Code / File Changes
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Static scan confirmed the v3 Inventory workspace imports and uses
-  `useInventoryCart`.
-- Static scan confirmed the v3 Inventory workspace calls only:
-  - `cartState.openCart`
-  - `cartState.addItem`
-  - `cartState.removeItem`
-- Static scan confirmed the v3 Inventory workspace does not call
-  `cartState.checkoutCart`, `checkoutCart`, `finalize_inventory_cart`, or a
-  checkout handler.
-- Static scan confirmed the v3 Inventory workspace does not contain direct
-  insert, update, delete, or upsert calls.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables/functions, but
-  this pass adds no new table, function, migration, or grant and reuses
-  existing cart RPCs.
-- Authenticated live cart-staging runtime verification remains pending from
-  Ryan's browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Inventory cart-staging slice.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_inventory_transactions`.
-4. Open Inventory > Cart.
-5. Confirm Open Cart works and shows an active cart.
-6. Add one stocked candidate row with a small quantity and confirm it appears
-   in the staged cart table.
-7. Remove that staged cart line and confirm the row disappears.
-8. Confirm no checkout/finalize action is exposed yet.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- The next Inventory slice should be decided after cart staging is verified:
-  likely checkout destination UI/finalization, then count workflows, then
-  bin-item retirement.
-
-### Architecture Drift Warnings
-- None active. This pass reintroduced only the preserved cart-staging RPC
-  wrappers and did not change checkout, ledger derivation, count correction, or
-  balance behavior.
-
-### Routing Verdict
-No Claude review needed - Inventory cart staging reused existing approved RPCs
-and did not change schema, RLS, permissions, checkout finalization, count
-workflows, bin retirement, direct balance writes, or ledger derivation under
-ARCHITECTURE v2.30 / HANDOFF Entry 163.
-
-## Entry 164 - Restore Inventory normal checkout finalization in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory normal checkout
-**Session type:** implementation
-
-### Context
-- Starting commit: `43b5178` (`Restore Inventory cart staging in v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 163`.
-- Ryan verified Inventory cart staging in production and replied "good to go.
-  proceed."
-- Normal checkout/finalization is already locked in ARCHITECTURE Section 11
-  and preserved in `useInventoryCart.checkoutCart`.
-- The live RPC supports per-line destinations through
-  `finalize_inventory_cart(..., p_line_destinations jsonb)`.
-
-### What Was Completed
-- Added normal checkout destination controls to the v3 Inventory Cart view.
-- Added the locked destination types:
-  - Job
-  - Service Call
-  - Vehicle Stock
-  - User Possession
-  - Vendor Return
-  - Scrap
-  - Unknown / Missing
-- Added per-line destination type, destination ID, and note controls for staged
-  cart lines.
-- Added Apply Destination To Lines controls so one destination can be applied
-  to every current cart line before checkout.
-- Added validation that requires:
-  - destination ID for job, service call, vehicle, and user destinations;
-  - note for unknown destinations.
-- Added a `Checkout Selected Destinations` action that calls the preserved
-  `cartState.checkoutCart` wrapper with per-line destination payloads.
-- Added a checkout completion panel showing the number of transaction items
-  written by the preserved checkout RPC.
-- Updated cart and Inventory copy to show normal checkout is live while count
-  correction and retirement remain deferred.
-- Changed the stale `useInventoryCart.checkoutCart` default destination from
-  `office` to `unknown`, matching the v2.11 architectural retirement of
-  `office` as a material destination.
-- Added focused responsive CSS for checkout controls and destination cells.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, or RPC definition changed.
-- Checkout finalization is performed only through the preserved
-  `finalize_inventory_cart` RPC wrapper in `useInventoryCart`.
-- The v3 UI does not write `inventory_balances` directly.
-- No direct `inventory_carts`, `inventory_cart_items`, `inventory_balances`,
-  `inventory_transactions`, or `transaction_items` client mutation was added.
-- Express checkout remains unimplemented.
-- Count intake, count correction, bin-item retirement, QR scan dispatch, and
-  return-from-job remain separate future slices.
-- The UI does not offer `office` as a destination type.
-
-### Code / File Changes
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/hooks/useInventoryCart.js`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Static scan confirmed the v3 Inventory workspace calls
-  `cartState.checkoutCart` and exposes `Checkout Selected Destinations`.
-- Static scan confirmed checkout is routed through the existing
-  `finalize_inventory_cart` RPC wrapper with `p_line_destinations`.
-- Static scan confirmed no `office`, express checkout, count correction,
-  bin-item retirement, direct insert, direct update, direct delete, or direct
-  upsert path was added in the v3 Inventory workspace or cart hook.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables/functions, but
-  this pass adds no new table, function, migration, or grant and reuses the
-  existing checkout RPC.
-- Authenticated live checkout runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Inventory normal-checkout slice.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_inventory_transactions`.
-4. Open Inventory > Cart.
-5. Open a cart, add one stocked candidate row, and choose a valid destination.
-6. Click `Checkout Selected Destinations`.
-7. Confirm the checkout completion panel appears with transaction item count.
-8. Confirm no Express Checkout, count correction, or bin-item retirement action
-   is exposed in this slice.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- The next Inventory slice should likely be Count Sheet / Count Intake or
-  Physical Count Correction, before bin-item retirement.
-
-### Architecture Drift Warnings
-- None active. This pass reintroduced only the preserved normal checkout RPC
-  wrapper and did not change schema, RLS, permissions, express checkout, count
-  workflows, bin retirement, direct balance writes, or ledger derivation.
-
-### Routing Verdict
-No Claude review needed - Inventory normal checkout reused the existing
-approved `finalize_inventory_cart` RPC wrapper and did not change schema, RLS,
-permissions, express checkout, count correction, bin retirement, direct balance
-writes, or ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 164.
-
-## Entry 165 - Restore Inventory count workflows in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory count workflows
-**Session type:** implementation
-
-### Context
-- Starting commit: `816e418` (`Restore Inventory normal checkout in v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 164`.
-- Ryan verified Inventory normal checkout in production and replied "good to
-  go. proceed."
-- Count Intake is locked as the approved physical quantity establishment path.
-- The preserved hooks already call the locked RPCs:
-  - `set_inventory_count_quantity`
-  - `intake_inventory_count`
-
-### What Was Completed
-- Added an Inventory `Count` view to the v3 sidebar.
-- Restored count sheet loading through `useInventoryCountSheet`.
-- Added searchable count rows with material, location, system quantity, unit,
-  and minimum quantity.
-- Added existing-row physical count correction controls:
-  - counted quantity input;
-  - reason selector;
-  - custom reason field;
-  - `Set Count` action.
-- Wired existing-row count writes through the preserved
-  `useInventoryCountCorrection.setCountQuantity` hook.
-- Added new bin/material count intake controls:
-  - bin selector;
-  - catalog item selector excluding items already active in the selected bin;
-  - counted quantity input;
-  - reason selector;
-  - custom reason field;
-  - `Record Count Intake` action.
-- Wired new bin/material count intake through the preserved
-  `useInventoryCountIntake.recordCount` hook.
-- Preserved zero as a valid physical count quantity.
-- Matched the UI write gate to the server RPC contract: inventory management
-  can read the count sheet, while count writes require Developer/Admin role.
-- Updated Inventory boundary copy to show cart, checkout, and count workflows
-  are live while retirement remains deferred.
-- Added focused responsive CSS for count reason/action cells and the intake
-  controls.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, or RPC definition changed.
-- Count writes are performed only through the preserved count RPC wrappers.
-- The v3 UI does not write `inventory_balances` directly.
-- No direct `inventory_balances`, `inventory_transactions`,
-  `transaction_items`, or `bin_items` client mutation was added.
-- Bin-item retirement remains unimplemented in v3.
-- QR scan dispatch remains unimplemented in this v3 slice.
-- Express checkout and return-from-job remain separate future slices.
-
-### Code / File Changes
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Static scan confirmed the v3 Inventory workspace does not directly call
-  `insert`, `update`, `delete`, `upsert`, `retire_bin_item`, or
-  `inventory_balances`.
-- Static scan confirmed count writes appear only in the preserved hooks via:
-  - `set_inventory_count_quantity`
-  - `intake_inventory_count`
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables/functions, but
-  this pass adds no new table, function, migration, or grant and reuses
-  existing count RPCs and tables.
-- Authenticated live count runtime verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Inventory count-workflows slice.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_manage_inventory`.
-4. Open Inventory > Count.
-5. Confirm count rows load and can be searched.
-6. With a Developer/Admin user, set one existing row count to its current
-   system quantity and confirm the success message appears.
-7. With a Developer/Admin user, optionally test a new bin/material count intake
-   for a catalog item that is not already active in that bin.
-8. Confirm no bin-item retirement or direct archive action is exposed in this
-   slice.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- The next Inventory slice should likely be bin-item retirement after the count
-  workflow is verified, then QR scan dispatch or return-from-job depending on
-  operational priority.
-
-### Architecture Drift Warnings
-- None active. This pass reintroduced only the preserved count RPC wrappers and
-  did not change schema, RLS, permissions, retirement, direct balance writes, or
-  ledger derivation.
-
-### Routing Verdict
-No Claude review needed - Inventory count workflows reused the existing
-approved count RPC wrappers and did not change schema, RLS, permissions,
-retirement, direct balance writes, or ledger derivation under ARCHITECTURE
-v2.30 / HANDOFF Entry 165.
-
-## Entry 166 - Restore Inventory bin/material retirement in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory bin-material retirement
-**Session type:** implementation
-
-### Context
-- Starting commit: `b219801` (`Restore Inventory count workflows in v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 165`.
-- Ryan verified Inventory count workflows in production and replied "good to
-  go. proceed."
-- Bin/material retirement is already locked as a soft-retirement workflow for
-  mistaken structural links.
-- The preserved hook already calls the locked `retire_bin_item` RPC.
-
-### What Was Completed
-- Added guarded retirement controls to the Inventory `Count` table.
-- Added `Retire` action per count row.
-- Added zero-system-quantity UI enforcement before retirement can be started.
-- Added inline reason capture and confirm/cancel controls for the selected
-  retirement row.
-- Matched the UI write gate to the server RPC contract:
-  - Developer/Admin role;
-  - `can_archive_records`;
-  - zero balance;
-  - required reason.
-- Wired retirement through the preserved
-  `useBinItemRetirement.retireBinItem` hook.
-- Refreshed count sheet, inventory read model, and transaction history after a
-  successful retirement.
-- Updated Inventory boundary copy to show zero-balance retirement is live while
-  scanner dispatch remains deferred.
-- Added focused CSS for retirement cells and confirm/cancel controls.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, or RPC definition changed.
-- Retirement writes are performed only through the preserved `retire_bin_item`
-  RPC wrapper.
-- The v3 UI does not write `inventory_balances` directly.
-- Retirement is disabled unless the row's displayed system quantity is zero;
-  the RPC still recalculates ledger-derived balance and remains authoritative.
-- Retirement archives the bin/material link only and does not write a ledger
-  quantity transaction.
-- QR scan dispatch remains unimplemented in this v3 slice.
-- Express checkout and return-from-job remain separate future slices.
-
-### Code / File Changes
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Static scan confirmed retirement is routed only through the preserved
-  `useBinItemRetirement` hook and `retire_bin_item` RPC.
-- Static scan confirmed count writes remain routed only through:
-  - `set_inventory_count_quantity`
-  - `intake_inventory_count`
-  - `retire_bin_item`
-- Static scan confirmed the v3 Inventory workspace and count hooks do not
-  directly call `insert`, `update`, `delete`, `upsert`, or
-  `inventory_balances`.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables/functions, but
-  this pass adds no new table, function, migration, or grant and reuses the
-  existing retirement RPC.
-- Authenticated live retirement runtime verification remains pending from
-  Ryan's browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Inventory retirement slice.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a Developer/Admin user that also has `can_archive_records`.
-4. Open Inventory > Count.
-5. Confirm non-zero rows show "Zero count required first" and cannot be
-   retired.
-6. Confirm a zero-count row exposes Retire, reason, Confirm, and Cancel.
-7. Retire only a known mistaken zero-balance bin/material link.
-8. Confirm the retired row leaves active count views after refresh.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- The next Inventory slice should likely be QR scan dispatch into existing
-  cart/count flows or return-from-job depending on operational priority.
-
-### Architecture Drift Warnings
-- None active. This pass reintroduced only the preserved retirement RPC wrapper
-  and did not change schema, RLS, permissions, direct balance writes, or ledger
-  derivation.
-
-### Routing Verdict
-No Claude review needed - Inventory bin/material retirement reused the existing
-approved `retire_bin_item` RPC wrapper and did not change schema, RLS,
-permissions, direct balance writes, or ledger derivation under ARCHITECTURE
-v2.30 / HANDOFF Entry 166.
-
-## Entry 167 - Restore Inventory location QR dispatch in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory QR dispatch
-**Session type:** implementation
-
-### Context
-- Starting commit: `95a906d` (`Restore Inventory bin material retirement in v3`).
-- Architecture version confirmed: `v2.30`.
-- Prior HANDOFF checkpoint confirmed: `Entry 166`.
-- Ryan verified Inventory bin/material retirement in production and replied
-  "good to go. proceed."
-- v2 location QR behavior was routing/context only: scanning resolves a
-  location and dispatches into existing Cart or Count flows.
-- The preserved location helpers already parse `/scan/location/<uuid>` payloads.
-
-### What Was Completed
-- Added authenticated `/scan/location/:locationId` route inside the v3 shell.
-- Added an Inventory `Scan` view.
-- Added manual scan payload entry that accepts:
-  - full Northgate QR URLs;
-  - `/scan/location/<uuid>` paths;
-  - raw location UUIDs;
-  - exact unit, shelf, bay, or bin codes.
-- Added code disambiguation when more than one location matches manual input.
-- Added read-only scan result resolution through `useInventoryCountSheet`.
-- Added scan result summary with location level, code/path, UUID, material row
-  count, and total quantity in scope.
-- Added dispatch from scanned bin to:
-  - Inventory Cart filtered to the scanned bin;
-  - Inventory Count filtered to the scanned bin.
-- Added unit/shelf/bay scan support by listing bins in the scanned scope and
-  requiring the operator to choose a bin before opening Cart or Count.
-- Added scanned-bin context panels in Cart and Count.
-- Defaulted Count intake bin selection to the scanned bin when Count is opened
-  from a scan result.
-- Updated Inventory boundary copy to show QR dispatch is live.
-- Added focused CSS for scan payload, match, and bin-dispatch controls.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, or RPC definition changed.
-- QR scanning does not create, update, archive, checkout, count, or retire
-  inventory by itself.
-- Scan resolution uses the existing inventory count sheet/location read path.
-- Cart, Count, and Retirement actions remain inside their existing restored
-  workflows and RPC wrappers.
-- The v3 UI does not write `inventory_balances` directly.
-- Camera decoding remains deferred; this slice restores route/manual QR
-  dispatch and printed-link behavior.
-- Express checkout and return-from-job remain separate future slices.
-
-### Code / File Changes
-- `src/App.jsx`
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Static scan confirmed scan dispatch introduced no direct `insert`, `update`,
-  `delete`, `upsert`, or `inventory_balances` write path.
-- Static scan confirmed Inventory write RPC names remain limited to:
-  - `set_inventory_count_quantity`
-  - `intake_inventory_count`
-  - `retire_bin_item`
-- Static scan confirmed `/scan/location/:locationId` route and
-  `parseLocationScanPayload` are present in the v3 bundle source.
-- Supabase changelog was checked for relevant breaking changes. The current
-  Data API grant change matters for newly created public tables/functions, but
-  this pass adds no new table, function, migration, or grant and reuses
-  existing read paths.
-- Authenticated live scan dispatch verification remains pending from Ryan's
-  browser after deployment.
-- No separate automated test script exists beyond `npm run build`.
-
-### Next Steps (in order)
-1. Commit and push this Inventory QR dispatch slice.
-2. Let the normal Git-connected Netlify production deploy complete.
-3. Sign in with a user that has `can_manage_inventory`.
-4. Open Inventory > Scan.
-5. Paste a known `/scan/location/<uuid>` payload or exact bin code.
-6. Confirm the scan result page resolves read-only.
-7. Open Cart from the scan result and confirm candidates are filtered to the
-   scanned bin.
-8. Open Count from the scan result and confirm rows/intake are filtered to the
-   scanned bin.
-
-### Open Questions / Concerns
-- Authenticated production verification requires Ryan's browser session.
-- Camera decoding can be restored behind the same Scan view later if field use
-  requires in-browser camera scanning.
-- The next Inventory slice should likely be return-from-job or another
-  remaining material movement workflow.
-
-### Architecture Drift Warnings
-- None active. This pass reintroduced only scan route/context dispatch and did
-  not change schema, RLS, permissions, direct balance writes, or ledger
-  derivation.
-
-### Routing Verdict
-No Claude review needed - Inventory location QR dispatch is read-only context
-routing into existing approved workflows and did not change schema, RLS,
-permissions, direct balance writes, or ledger derivation under ARCHITECTURE
-v2.30 / HANDOFF Entry 167.
-
-## Entry 168 - Fix Inventory QR scan payload acceptance in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory QR dispatch hotfix
-**Session type:** bug fix
-
-### Context
-- Starting commit: `38c5b11` (`Restore Inventory QR dispatch in v3`).
-- Ryan reported Inventory > Scan would not accept input and kept showing
-  "Only Northgate HQ location QR payloads are supported."
-- Production can encounter QR URLs with either `/scan/location/<uuid>` or the
-  deployed `/northgate/scan/location/<uuid>` basename.
-- Manual location code lookup was too strict and surfaced the QR parser error
-  even when the operator intended a code lookup.
-
-### What Was Completed
-- Updated `parseLocationScanPayload` to accept basename-prefixed
-  `/northgate/scan/location/<uuid>` payload paths as valid Northgate location
-  QR payloads.
-- Kept raw UUID and root `/scan/location/<uuid>` payload support intact.
-- Added friendlier manual location lookup normalization:
-  - ignores spaces, slashes, punctuation, and dashes;
-  - matches location code, label, path, UUID, and path segments.
-- Added loading/error messages for manual code lookup so operators get
-  location-read feedback instead of the QR-only parser error.
-- Changed no-match copy to clarify that both QR payloads and location codes are
-  accepted.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, or RPC definition changed.
-- This pass changed only scan parsing and manual lookup behavior.
-- QR scanning remains read-only context dispatch and still does not mutate
-  inventory.
-
-### Code / File Changes
-- `src/lib/locationQr.js`
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live input verification remains pending from Ryan's browser
-  after deployment.
-
-### Next Steps
-1. Commit and push this QR input hotfix.
-2. Deploy to production.
-3. Re-test Inventory > Scan with:
-   - a `/northgate/scan/location/<uuid>` URL;
-   - a `/scan/location/<uuid>` URL;
-   - an exact location/bin code.
-
-### Routing Verdict
-No Claude review needed - this is a QR parser/manual lookup hotfix only and
-does not change schema, RLS, permissions, write paths, balance writes, or
-ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 168.
-
-## Entry 169 - Fix scan dispatch route guard race in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / Inventory QR dispatch hotfix
-**Session type:** bug fix
-
-### Context
-- Starting commit: `513daef` (`Fix Inventory QR scan input acceptance`).
-- Ryan reported opening Cart from the material scan component redirected back
-  to Dashboard.
-- The scan result dispatch navigates to `/inventory?view=cart&scanBinId=...`.
-- `ModuleScreen` was re-checking permissions immediately and redirecting if
-  inventory permission flags were still at their default loading/deny state.
-
-### What Was Completed
-- Updated `ModuleScreen` to wait while `usePermissions()` is loading before
-  applying the module authorization redirect.
-- Added a compact access-checking state instead of redirecting during the
-  permission refresh window.
-- Left the server-authoritative route permission check intact once permissions
-  finish loading.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, RPC definition, or inventory workflow changed.
-- This fix affects route-guard timing only.
-- Unauthorized users are still redirected after permissions load.
-
-### Code / File Changes
-- `src/modules/ModuleScreen.jsx`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- The build produced the expected Vite chunk-size warning only.
-- Authenticated live scan-to-cart verification remains pending from Ryan's
-  browser after deployment.
-
-### Next Steps
-1. Commit and push this route-guard hotfix.
-2. Deploy to production.
-3. Re-test opening Cart and Count from the scan result.
-
-### Routing Verdict
-No Claude review needed - this is a route-guard loading-state fix only and
-does not change schema, RLS, permissions, write paths, balance writes, or
-ledger derivation under ARCHITECTURE v2.30 / HANDOFF Entry 169.
-
-## Entry 170 - Restore unchanged Inventory utility surfaces in Northgate HQ v3
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 rebuild / unchanged Inventory utility sweep
-**Session type:** implementation
-
-### Context
-- Starting commit: `6e956ad` (`Fix scan dispatch route guard`).
-- Ryan requested applying all unchanged functional pieces from v2.0 to v3.0 as
-  efficiently as possible, without wasting effort on pieces that are changing.
-- The lowest-risk unchanged functions left in Inventory were read-only utility
-  surfaces over existing count-sheet/location helpers.
-
-### What Was Completed
-- Added Inventory `Overview` view.
-- Added Grand Master Inventory read-only table using the existing count sheet
-  read model.
-- Added visible-row summary cards:
-  - rows in view;
-  - quantity in view;
-  - low/min rows;
-  - inventory value.
-- Added Inventory `Accounting Export` view.
-- Added read-only valuation export preview using existing quantity and
-  catalogue unit-cost fields.
-- Added CSV download for visible non-zero export rows.
-- Added Inventory `Locations & QR` view.
-- Added read-only unit/shelf/bay/bin location table from existing location
-  read paths.
-- Added selected location QR preview.
-- Added selected location QR SVG download.
-- Added selected location Open Scan Result action.
-- Restored camera QR decoding in Inventory `Scan`.
-- Kept QR camera decoding lazy-loaded with a separate `jsQR` chunk so the main
-  bundle does not pay that cost unless camera scanning is used.
-- Updated Inventory copy to reflect the restored unchanged utility surfaces.
-
-### Safety And Boundary Notes
-- No Supabase schema, migration, RLS, permission flag, storage, Netlify
-  function, backend, RPC definition, or new table access changed.
-- New Overview, Accounting Export, and Locations/QR surfaces are read-only.
-- CSV and QR SVG downloads are browser-local exports from already-visible data.
-- Camera scanning resolves QR context only and does not mutate inventory.
-- Cart, Count, and Retirement actions remain inside their existing restored
-  workflows and RPC wrappers.
-- The v3 UI does not write `inventory_balances` directly.
-
-### Code / File Changes
-- `src/modules/inventory/InventoryWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### Verification
-- `git diff --check` passed.
-- `npm run build` passed with Vite 8.1.0.
-- Build output split `jsQR` into a lazy chunk:
-  - `jsQR-D3aEslr3.js`
-- The build produced the expected Vite chunk-size warning only.
-- Static scan confirmed the Inventory workspace introduced no direct `insert`,
-  `update`, `delete`, `upsert`, or `inventory_balances` write path.
-- Static scan confirmed Inventory write RPC names remain limited to:
-  - `set_inventory_count_quantity`
-  - `intake_inventory_count`
-  - `retire_bin_item`
-- Authenticated live verification remains pending from Ryan's browser after
-  deployment.
-
-### Next Steps
-1. Commit and push this unchanged Inventory utility sweep.
-2. Deploy to production.
-3. Verify Inventory > Overview loads rows.
-4. Verify Inventory > Accounting Export downloads CSV.
-5. Verify Inventory > Locations & QR previews/downloads QR SVG and opens the
-   scan result.
-6. Verify Inventory > Scan camera scanner starts on HTTPS and opens a known QR
-   payload.
-
-### Remaining App Work Snapshot
-- Inventory: remaining changed/deferred workflows include return-from-job,
-  express checkout/manager override, and any additional movement flows not yet
-  intentionally restored.
-- Estimates: currently shell/foundation only; needs approved estimate read
-  model, create/edit workflow, pricing, approval snapshot, documents, and
-  history wiring.
-- Jobs: live read-only foundation exists; remaining job detail submodules,
-  write workflows, materials/buyout/schedule/completion, and documents wiring
-  still need finish work.
-- Vehicles: live directory foundation exists; assignment, service, history,
-  inspections, mileage, and maintenance workflows remain.
-- Employees: live directory foundation exists; assignments, credentials, HR
-  profile source fields, activity, and controlled create/edit remain.
-- Tools: live catalogue foundation exists; custody, checkout, QR labels,
-  assignment history, transfer/location linkage, and controlled create/edit
-  remain.
-- Reports: shell/readiness exists; operational reports need source modules and
-  approved read models.
-- Accounting: review/export foundation exists; final accounting posts depend on
-  completed Jobs, Estimates, and Inventory workflows.
-- Documents: workspace exists; owner-specific document wiring should be tied to
-  each source module as those modules finish.
-
-### Routing Verdict
-No Claude review needed - this pass restored read-only Inventory utility
-surfaces and camera QR context dispatch using existing hooks/helpers, with no
-schema, RLS, permission, write-path, balance-write, or ledger-derivation change
-under ARCHITECTURE v2.30 / HANDOFF Entry 170.
-
----
-
-## Entry 171 ‚Äî Jobs Materials Tab Visibility Cleanup
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan confirmed the Jobs Materials tab is not needed as a visible Jobs detail
-surface right now. The code path should remain in place so future materials
-work is not broken or removed prematurely.
-
-### What Was Completed
-- Hid the `Materials` tab from the visible Jobs detail navigation.
-- Preserved the existing reserved `materials` tab definition and fallback
-  reserved-panel behavior.
-- Added an active-tab guard so a hidden or stale tab selection returns to
-  `Overview`.
-- Left Buyout, Transactions, Financials, Documents, and Schedule as visible
-  deferred tabs for the next Jobs cleanup slices.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- The existing `job_buyout_lines` foundation table already exists but does not
-  yet include Ryan's requested structured buyout checklist fields for budget,
-  initial value, actual value, initial lead time, or actual lead time.
-- The existing `documents` foundation uses one generic `public.documents`
-  table with the `northgate-files` storage bucket. Job is currently the only
-  live owner type in RLS.
-
-### Next Steps (in order)
-1. Define the Jobs Documents v3 owner-scoped UX and required document categories.
-2. Add the buyout checklist schema extension or replacement fields after the
-   desired attention rules are locked.
-3. Rebuild Buyout as a live Supabase-backed Jobs tab.
-4. Rebuild Financials and Schedule from their standalone HTML designs as
-   Supabase-backed Jobs tabs once Ryan attaches the source.
-
-### Open Questions / Concerns
-- Decide whether `Transactions` remains a visible Jobs tab, becomes a read-only
-  inventory issue history panel, or is folded into Financials/Inventory history.
-- Decide whether Buyout attention should be based on status, missing actual
-  values, overdue lead times, budget variance, or an explicit attention flag.
-
-### Architecture Drift Warnings
-- None. This was UI visibility only and did not change data access, schema,
-  RLS, storage, RPCs, or write behavior.
-
----
-
-## Entry 172 ‚Äî Jobs Documents Checklist Foundation
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan attached `C:\Users\crncm\OneDrive\Desktop\index.html` as the standalone
-Financials/Schedule/PM reference. The HTML is reference material only; v3 app
-instructions and data behavior come from Ryan's chat decisions and the locked
-Supabase foundations.
-
-Ryan locked the Jobs Documents direction:
-- Required categories are Contracts, Plans, Permits, Photos, Change Orders,
-  Closeout Docs, Invoices, Misc, and Pay Apps.
-- The checklist is visual only and does not block workflow.
-- Documents belong to the job, not the uploading user.
-- If a user can view the job, they can view the job documents; editing follows
-  the job-management boundary.
-
-### What Was Completed
-- Added a shared `JOB_DOCUMENT_CATEGORIES` contract for Jobs and Documents.
-- Added a `Job Checklist` section to the top-level Documents workspace.
-- Updated Documents workspace copy to reflect job-owned document access and
-  edit boundaries.
-- Rebuilt the selected Job `Documents` tab as a live read-only Supabase-backed
-  surface.
-- The Jobs `Documents` tab now reads existing `public.documents` rows for the
-  selected job and shows:
-  - visual uploaded/missing category checklist
-  - uploaded document count
-  - owner/access/edit summaries
-  - uploaded documents table
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/documents/documentCategories.js`
-- `src/modules/documents/DocumentsWorkspace.jsx`
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- The checklist status is derived from `documents.document_type` matching the
-  shared category keys.
-- This pass intentionally does not add upload, archive, download, signed URL,
-  Supabase Storage, RLS, or migration changes.
-- The existing `documents` RLS bugfix already supports job-visible document
-  reads by division or all-division visibility.
-
-### Next Steps (in order)
-1. Add the upload action inside the selected Job Documents tab.
-2. Ensure uploaded rows use the shared `document_type` category keys.
-3. Add open/download signed URL behavior from the selected Job workflow.
-4. Add archive behavior as soft archive only.
-5. After Documents is verified, proceed to Buyout schema extension and live
-   checklist UI.
-
-### Open Questions / Concerns
-- Confirm whether editing documents means metadata/category/archive only, or
-  also replacing the underlying file object.
-- Confirm whether Pay Apps should later surface in Financials as a linked
-  billing artifact or remain only a document category.
-
-### Architecture Drift Warnings
-- None. This pass reused the existing job-owned `public.documents` foundation
-  and did not create a new document table or user-owned document model.
-
----
-
-## Entry 173 ‚Äî Jobs Document Upload Flow
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-After verifying the visual checklist looked good, Ryan approved proceeding with
-the next Documents slice. The target was selected-job document upload using the
-shared category keys from Entry 172.
-
-### What Was Completed
-- Added an upload form to the selected Job `Documents` tab.
-- Upload is only visible when the viewer has `canManageJobs`.
-- Uploads require:
-  - selected category
-  - selected file
-  - selected job with a division
-- Inserted the `public.documents` row first with the final storage path.
-- Uploaded the file to the existing private `northgate-files` bucket at:
-  `documents/job/{jobId}/{documentId}/{sanitizedFileName}`.
-- Stored metadata on the document row:
-  - `owner_type = 'job'`
-  - `owner_id = selectedJob.id`
-  - `division = selectedJob.division`
-  - `document_type = shared category key`
-  - original file name, file size, MIME type, optional description, created by
-- If object upload fails after row creation, the row is soft-archived with an
-  upload-failed archive reason before surfacing the error.
-- Successful upload resets the form, shows confirmation, and reloads the Job
-  document list/checklist.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- Upload uses the existing Supabase Storage policy from the Job Documents
-  foundation. No service role, backend function, or public bucket behavior was
-  introduced.
-- This pass creates document rows before object upload so the storage read
-  policy can later authorize object reads by matching `documents.storage_path`.
-- The upload path uses sanitized file names but preserves the original file name
-  in `documents.file_name`.
-
-### Next Steps (in order)
-1. Ryan verifies upload from a real selected job and confirms checklist status
-   updates by category.
-2. Add open/download signed URL behavior from the selected Job Documents tab.
-3. Add soft archive controls for uploaded job documents.
-4. Proceed to Buyout schema extension and live checklist UI.
-
-### Open Questions / Concerns
-- Authenticated runtime upload still needs verification from Ryan's browser.
-- If upload succeeds but the app loses connectivity before refresh, the row and
-  file should still exist; a manual Refresh should show it.
-
-### Architecture Drift Warnings
-- None. This pass used the existing job-owned document model and private storage
-  bucket without changing RLS, storage policies, schema, or permission flags.
-
----
-
-## Entry 174 ‚Äî Jobs Document Open And Download
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the Job document upload flow worked and approved proceeding with
-the next Documents slice.
-
-### What Was Completed
-- Added `storage_path` to the selected Job document read model.
-- Added `Open` and `Download` row actions to uploaded documents in the selected
-  Job `Documents` tab.
-- Each action creates a short-lived signed URL from the existing private
-  `northgate-files` bucket only when clicked.
-- `Open` opens the signed URL in a new browser tab.
-- `Download` creates a signed URL with Supabase's `download` option using the
-  stored original file name.
-- Added inline error handling for failed signed URL creation.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- Signed URLs expire after 300 seconds.
-- This pass does not make the bucket public and does not add any service role or
-  backend signing function.
-- Access remains controlled by the existing document row visibility and Storage
-  object select policy.
-
-### Next Steps (in order)
-1. Ryan verifies Open and Download on a real uploaded job document.
-2. Add soft archive controls for uploaded job documents.
-3. Proceed to Buyout schema extension and live checklist UI.
-
-### Open Questions / Concerns
-- Browser popup behavior should be checked for Open. The implementation opens a
-  blank tab immediately on click and redirects it after the signed URL returns
-  to reduce popup-blocker friction.
-
-### Architecture Drift Warnings
-- None. This pass used existing Supabase Storage signed URLs and did not change
-  schema, RLS, storage policies, or permission flags.
-
----
-
-## Entry 175 ‚Äî Jobs Document Soft Archive
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified Job document Open and Download worked and approved proceeding
-with the next Documents slice.
-
-### What Was Completed
-- Added an `Archive` row action for uploaded documents in the selected Job
-  `Documents` tab.
-- Archive action is visible only when the viewer has `canManageJobs`.
-- Archive prompts for confirmation before updating the document row.
-- Archive updates only existing row metadata:
-  - `archived_at`
-  - `archived_by`
-  - `archive_reason`
-- Archive filters the update by:
-  - `documents.id`
-  - `owner_type = 'job'`
-  - `owner_id = selectedJob.id`
-- Successful archive reloads the Job document list/checklist, causing the
-  archived row to disappear under existing RLS/read filters.
-- Added a small red-outline secondary button variant for the archive action.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- This is a soft archive only. The Supabase Storage object is intentionally not
-  deleted.
-- Access remains controlled by existing job document RLS and the job management
-  permission boundary.
-- The implementation uses Supabase JS targeted update filters, matching current
-  Supabase update guidance.
-
-### Next Steps (in order)
-1. Ryan verifies Archive on a real uploaded job document.
-2. If archive is good, Jobs Documents has upload/open/download/archive covered
-   for the current v3 slice.
-3. Proceed to Buyout schema extension and live checklist UI.
-
-### Open Questions / Concerns
-- There is no restore UI yet. Archived rows remain recoverable from the
-  database, but not from the v3 app.
-
-### Architecture Drift Warnings
-- None. This pass changed no schema, RLS, storage policies, storage objects, or
-  permission flags.
-
----
-
-## Entry 176 ‚Äî Jobs Buyout Checklist
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan confirmed the Job document Open/Download flow worked. Archive failed due
-to live `documents` RLS behavior. Ryan chose to defer RLS modifications until
-the end, so Archive was changed to a disabled pending action and work moved to
-the next Jobs slice: Buyout.
-
-### What Was Completed
-- Deferred Job document Archive in the UI without applying RLS changes.
-- Added explicit `archived_at IS NULL` filtering to Job document reads.
-- Extended `public.job_buyout_lines` with structured checklist fields:
-  - `budget_amount`
-  - `initial_value`
-  - `actual_value`
-  - `initial_lead_time_days`
-  - `actual_lead_time_days`
-- Added nonnegative constraints for the new numeric/lead-time fields.
-- Added a partial index on `job_buyout_lines(job_id)` for active rows.
-- Rebuilt the selected Job `Buyout` tab as a live Supabase-backed surface.
-- Buyout tab now shows:
-  - received checklist count
-  - budget total
-  - initial value total
-  - actual value total
-  - attention count for open/over-budget/over-lead items
-  - buyout item table
-  - status checklist buttons
-  - add item form with budget/value/lead-time fields
-- Write controls now use selected-job division matching so the UI better matches
-  existing RLS boundaries.
-
-### Schema Changes
-- `supabase/migrations/20260815203520_extend_job_buyout_checklist_fields.sql`
-- `supabase/migrations/20260815203821_index_job_buyout_lines_job_id.sql`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice.
-- Production DDL was applied through the Supabase connector for the two Buyout
-  migrations.
-- Supabase advisors were run. They reported pre-existing security/performance
-  findings across older tables/functions/views; the directly relevant Buyout
-  `job_id` index finding was addressed in this slice.
-- Job document Archive remains pending for the final RLS pass.
-
-### Next Steps (in order)
-1. Ryan verifies Buyout tab loads for a selected job.
-2. Ryan adds a buyout item and verifies the table/checklist updates.
-3. Ryan changes a buyout status to `Ordered` or `Received`.
-4. If Buyout is good, proceed to the next Jobs slice: Financials or Schedule,
-   using the standalone HTML as reference.
-5. Final RLS pass should include Job document archive behavior and any other
-   deferred policy cleanup.
-
-### Open Questions / Concerns
-- Buyout currently supports add and status updates. Editing budget/value/lead
-  fields after creation can be added as a follow-up if needed.
-- Dashboard attention wiring is not added yet; the tab calculates attention
-  locally for now.
-
-### Architecture Drift Warnings
-- None. Buyout remains planning/checklist only and does not create purchase
-  orders, accounting posts, or inventory movements.
-
----
-
-## Entry 177 ‚Äî Buyout Edit And Audit Follow-Up
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** decision
-
-### Context
-Ryan verified the Jobs Buyout checklist slice works.
-
-### Decisions Made This Session (locked)
-- Buyout items should be editable after creation.
-- Editing Buyout items is not part of the current slice and should be added
-  later.
-- Buyout item edits must write to the audit log when implemented.
-
-### What Codex Needs to Know
-- The current Buyout tab supports add and status changes only.
-- Future edit behavior should cover Buyout item fields such as item
-  description, vendor/source, budget, initial value, actual value, initial lead
-  time, actual lead time, quantity, and notes.
-- The audit-log requirement applies to edits, not only status changes.
-
-### Next Steps (in order)
-1. Continue with the next Jobs slice.
-2. During the final Jobs hardening pass, add Buyout edit controls and audit-log
-   writes.
-3. Verify audit entries include before/after values, acting user, timestamp,
-   job id, and buyout line id.
-
-### Open Questions / Concerns
-- Confirm which table/function should serve as the canonical audit log for
-  Buyout edits during the final wiring pass.
-
----
-
-## Entry 178 ‚Äî Jobs Financials Forecast Foundation
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the Buyout slice and asked to proceed. The next Jobs cleanup
-slice was Financials, rebuilt from the standalone HTML reference while keeping
-the existing Supabase project, repo, and permission gates.
-
-### What Was Completed
-- Extended the existing `public.job_budget_lines` model with forecast fields:
-  - `budget_change_amount`
-  - `actual_cost_amount`
-  - `committed_cost_amount`
-  - `forecast_to_complete_amount`
-- Added nonnegative constraints for the new numeric fields.
-- Added a partial active-row index on `job_budget_lines(job_id)`.
-- Rebuilt the selected Job `Financials` tab as a live Supabase-backed surface.
-- Financials now shows summary totals for:
-  - original budget
-  - revised budget
-  - actual cost
-  - committed cost
-  - forecast final
-  - remaining budget
-- Financials table now shows budget, change, revised, actual, committed,
-  forecast-to-complete, forecast-final, remaining, category, cost code, and
-  notes.
-- Authorized users with selected-job budget approval permission can add
-  financial lines.
-- View-only users with financial visibility can read Financials without write
-  controls.
-- Jobs shell copy was updated so Financials no longer presents as a deferred
-  placeholder.
-
-### Schema Changes
-- `supabase/migrations/20260815205345_extend_job_budget_forecast_fields.sql`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice, per Ryan's preference to defer
-  RLS changes until the end.
-- Production DDL was applied through the Supabase connector before this handoff
-  entry was written.
-- Financials remains planning/forecasting only. It does not create purchase
-  orders, invoices, accounting exports, or accounting sync.
-- The formula ported from the HTML reference is:
-  - revised budget = original budget + changes
-  - forecast final = actual cost + committed cost + forecast to complete
-  - remaining = revised budget - forecast final
-- Supabase advisors were run after DDL; they surfaced broad pre-existing
-  findings that should be revisited during the final security/RLS pass.
-
-### Next Steps (in order)
-1. Ryan verifies the Financials tab appears for a user with
-   `can_view_financials`.
-2. Ryan adds a Financials line and verifies the table refreshes.
-3. Ryan confirms totals calculate correctly against the standalone HTML
-   reference.
-4. Proceed to the next Jobs slice: Schedule.
-5. Final RLS/security pass should include Job document Archive, Financials
-   write boundaries, and any advisor findings that are still relevant.
-
-### Open Questions / Concerns
-- Financial line editing/archive controls are not added yet.
-- Dashboard attention wiring is not added yet.
-- External accounting, pay apps, invoices, and purchase order workflows remain
-  out of scope for this slice.
-
----
-
-## Entry 179 ‚Äî Financials Edit Audit And Cost Report Import Requirements
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** decision
-
-### Context
-Ryan verified the Financials information is live. Before moving to the next
-slice, Ryan defined the requirements for the future Financials edit/archive
-controls, audit behavior, cost report import, and permission model.
-
-### Decisions Made This Session (locked)
-- Financial line edit controls must allow all Financials fields to be edited.
-- All Financials changes must be permission based.
-- All Financials edits and archives must write to the audit log when
-  implemented.
-- The Financials tool needs an "import cost report" function that
-  automatically updates the `Actual` column.
-- Forecasting, actual costs, and change orders are normal workflow edits and
-  do not need the stricter justification flow.
-- Editing original budget, cost code, description, or category is more
-  sensitive and must require a description of why the change was made.
-- Only Developers and users assigned to the project should be able to edit
-  Financials by default.
-- Developers must be able to assign additional individuals through the
-  Developer Console when a job needs extra Financials assistance.
-
-### What Codex Needs to Know
-- The current Financials tab supports add and read only. Edit/archive/import
-  are not implemented yet.
-- The audit log for Financials changes should include before/after values,
-  acting user, timestamp, job id, budget line id, changed fields, and the
-  required reason when sensitive fields change.
-- Cost report import should update `actual_cost_amount` rather than replacing
-  forecast, committed, change-order, or original-budget values.
-- Developer-granted extra Financials assistance should be additive and scoped,
-  not a broad global bypass.
-- Final implementation should confirm the canonical project-assignment source
-  and the canonical audit-log table/function before writing policies or UI.
-
-### Next Steps (in order)
-1. Continue to the next Jobs slice unless Ryan asks to implement Financials
-   edit/archive/import immediately.
-2. During the Financials hardening pass, design the permission model for:
-   Developers, project-assigned users, and Developer Console assigned helpers.
-3. Add edit/archive controls with audit-log writes.
-4. Add the cost report import workflow and map imported cost values into
-   `actual_cost_amount`.
-5. Verify normal workflow edits do not require extra justification, while
-   sensitive field edits do.
-
-### Open Questions / Concerns
-- Confirm the source and file shape of the cost report before building the
-  importer.
-- Confirm whether Developer Console helper assignment should be per job, per
-  division, or time-limited.
-- Confirm which audit-log table/function is canonical for Financials changes.
-
----
-
-## Entry 180 ‚Äî Jobs Schedule v3 Port
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan said to proceed after Financials was live and the Financials edit/import
-requirements were captured. The next Jobs cleanup slice was Schedule. The v2
-schema and architecture already contained the locked `job_schedule_items`
-foundation and archive RLS fixes, so this v3 pass reused that table rather than
-creating new schema.
-
-### What Was Completed
-- Activated the selected Job `Schedule` tab in v3.
-- Added live Supabase reads from `public.job_schedule_items`.
-- Active Schedule reads explicitly filter `archived_at IS NULL`.
-- Added Schedule summary cards:
-  - active items
-  - complete count
-  - delayed count
-  - overdue count
-  - next dated open item
-- Added Schedule table columns for:
-  - sort order
-  - milestone/task title
-  - status
-  - target date
-  - timing
-  - description
-  - notes
-- Added Schedule add/edit form for:
-  - title
-  - description
-  - target date
-  - status
-  - sort order
-  - note
-- Added soft-archive control with required archive reason prompt.
-- Added up/down ordering controls that renumber visible items in 10-point
-  increments after each move.
-- Updated Jobs overview/boundary copy so Schedule no longer presents as
-  deferred.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice.
-- No production DDL was applied in this slice.
-- Production table inspection confirmed `public.job_schedule_items` already
-  exists with RLS enabled.
-- Schedule remains the locked flat milestone/task list only.
-- This slice does not add calendar sync, dependency management, assignments,
-  reminders, notifications, recurring events, or any broader scheduling engine.
-- Archive uses the existing soft-archive columns:
-  `archived_at`, `archived_by`, and `archive_reason`.
-
-### Next Steps (in order)
-1. Ryan verifies the Schedule tab loads for a selected job.
-2. Ryan adds a schedule item and confirms it appears in the table.
-3. Ryan edits a schedule item.
-4. Ryan tests up/down ordering.
-5. Ryan archives a test schedule item with a reason.
-6. Proceed to the next Jobs slice after Schedule is verified.
-
-### Open Questions / Concerns
-- Archive is prompted with `window.prompt` for now. A polished modal can replace
-  it during final hardening if desired.
-- Schedule edit/archive actions currently rely on the existing table policies;
-  no new audit-log behavior was introduced in this slice.
-- Calendar sync, dependency logic, and assignments remain reserved.
-
----
-
-## Entry 181 ‚Äî Jobs Schedule Dates Gantt And Print
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified Schedule input works properly and requested additional Schedule
-fields plus a Gantt graph and print options for the list, graph, or both.
-
-### What Was Completed
-- Extended `public.job_schedule_items` with:
-  - `initial_start_date`
-  - `actual_start_date`
-  - `initial_completion_date`
-  - `actual_completion_date`
-  - `duration_days`
-  - `dependencies`
-- Added nonnegative duration constraint.
-- Added initial and actual date-order constraints.
-- Updated the Schedule table to show initial/actual starts, initial/actual
-  completions, duration, dependencies, timing, description, and notes.
-- Updated the Schedule add/edit form to collect the new date, duration, and
-  dependency fields.
-- Added a Schedule Gantt graph:
-  - planned/initial bars use initial dates
-  - actual bars use actual dates
-  - duration is used to infer an end date when only a start is present
-- Added print controls for:
-  - list only
-  - graph only
-  - list and graph
-- Updated Schedule summary timing to use completion/start fields instead of only
-  the legacy `target_date`.
-
-### Schema Changes
-- `supabase/migrations/20260815214633_extend_job_schedule_dates.sql`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `supabase/migrations/20260815214633_extend_job_schedule_dates.sql`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- Production DDL was applied through the Supabase connector.
-- Production verification confirmed all six new columns exist.
-- No RLS policies were changed in this slice.
-- `target_date` is kept for legacy compatibility and is populated from initial
-  completion when no explicit target date is supplied.
-- `dependencies` is currently stored as free text / predecessor notes. No
-  automatic dependency engine, calendar sync, assignment logic, or reminder
-  system was introduced.
-
-### Next Steps (in order)
-1. Ryan verifies new Schedule fields save and reload.
-2. Ryan verifies the Gantt graph displays planned and actual bars.
-3. Ryan prints list only, graph only, and both.
-4. Decide later whether dependencies should remain free text or become a
-   structured predecessor relationship.
-5. Reconcile ARCHITECTURE Section 47 with this user-approved v3 Schedule
-   expansion.
-
-### Open Questions / Concerns
-- Existing ARCHITECTURE Section 47 described Schedule v1 as no dependencies.
-  This entry records Ryan's v3 expansion request; the architecture document
-  should be updated in a follow-up documentation pass.
-- The Gantt graph is display/print only; it does not calculate dependency-based
-  critical paths.
-
----
-
-## Entry 182 ‚Äî Jobs Transactions Read-Only Log
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-After the Schedule expansion was deployed, Ryan said to proceed with the next
-step. The remaining Jobs tab needing cleanup was Transactions. The v2
-architecture already locked Transactions as a read-only log of material coded
-to a job through Inventory Checkout, sourced from `public.job_transaction_log`.
-
-### What Was Completed
-- Activated the selected Job `Transactions` tab in v3.
-- Reused the existing `public.job_transaction_log` view.
-- Verified production columns for `public.job_transaction_log` before wiring
-  the UI.
-- Added live Supabase reads filtered by selected `job_id`.
-- Added read-only transaction summary cards:
-  - row count
-  - total line quantity
-  - distinct item count
-  - latest transaction
-- Added transaction table columns:
-  - date
-  - item
-  - material code
-  - quantity
-  - source location
-  - transaction type
-  - performed by
-  - notes
-- Updated Jobs overview/boundary copy so only transaction edits/returns remain
-  deferred, not the read-only Transactions tab itself.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice.
-- No production DDL was applied in this slice.
-- No new RPC, table, permission flag, return workflow, edit workflow, export,
-  accounting behavior, or cost/value display was added.
-- Transactions remains read-only and source-honest: Inventory Checkout remains
-  the source of material movement.
-- Cost/value display remains reserved for Financials.
-
-### Next Steps (in order)
-1. Ryan verifies Transactions loads for a selected job.
-2. Ryan verifies a job with material checked out to it shows transaction rows.
-3. Ryan verifies jobs with no checked-out material show the empty read-only
-   state.
-4. Continue Jobs cleanup / hardening after Transactions is verified.
-
-### Open Questions / Concerns
-- Return-to-Inventory remains reserved and is not represented as an action in
-  this tab.
-- Final RLS/security pass still needs to address older public tables/views,
-  including the known broad RLS-disabled advisory findings.
-
----
-
-## Entry 183 ‚Äî Jobs Create Form Activation
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-After Ryan verified the Transactions tab, the next Jobs cleanup/hardening step
-was to remove the last obvious placeholder in the Jobs shell: `Create Job`.
-The existing `public.jobs` table and RLS policy already support inserts gated
-by `can_create_jobs` and the user's own division.
-
-### What Was Completed
-- Replaced the deferred Create Job placeholder with a live controlled form.
-- Added form fields for:
-  - job name
-  - job number
-  - locked current division
-  - status
-  - job type
-  - service call number
-  - address lines
-  - city/state/postal code
-  - description
-  - notes
-- Wired create submits to the existing Supabase `jobs` table.
-- Kept division locked to the server permission division so inserts satisfy
-  the existing `jobs_insert` RLS policy.
-- Added create error handling for missing job name, missing division, duplicate
-  or rejected inserts, and unexpected Supabase failures.
-- After a successful insert, the Jobs directory reloads, browse mode resumes,
-  and the new job is selected.
-- Updated stale Jobs tab metadata so Buyout and Documents show as live.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice.
-- No production DDL was applied in this slice.
-- No new permission flag, RPC, audit table, or job edit/archive workflow was
-  added.
-- Create remains gated by the existing `can_create_jobs` permission and
-  `public.jobs` RLS.
-- Job edit/archive remains a future Jobs hardening step.
-
-### Next Steps (in order)
-1. Ryan verifies the Create Job button opens the form.
-2. Ryan creates a test job in the browser.
-3. Ryan verifies the new job appears in the directory and opens in the selected
-   job panel.
-4. Continue Jobs hardening with edit/archive controls, audit-log coverage, and
-   the deferred final RLS/security cleanup.
-
-### Open Questions / Concerns
-- If a user needs cross-division job creation later, that should be designed as
-  an explicit developer/admin workflow instead of relaxing the current insert
-  path.
-- Final RLS/security pass still needs to address older public tables/views,
-  including the known broad RLS-disabled advisory findings.
-
----
-
-## Entry 184 ‚Äî Jobs Edit And Archive Controls
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified that the Jobs Create form worked and asked to proceed. The next
-Jobs hardening step was selected-job maintenance: editing the foundation job
-record and archiving jobs without exposing hidden write paths to read-only
-users.
-
-### What Was Completed
-- Added selected-job `Edit` and `Archive` actions.
-- Actions are visible only when the current user has `can_manage_jobs` for the
-  selected job division.
-- Reused the controlled Jobs form for edit mode.
-- Job edits now update the existing `public.jobs` row fields:
-  - job number
-  - name
-  - status
-  - job type
-  - service call number
-  - address lines
-  - city/state/postal code
-  - description
-  - notes
-- Job archive now requires a reason and updates:
-  - `archived_at`
-  - `archived_by`
-  - `archive_reason`
-- Job create, edit, and archive actions now write `public.change_logs` entries
-  using the existing canonical audit columns:
-  - `user_id`
-  - `user_name`
-  - `table_name`
-  - `record_id`
-  - `action`
-  - `before_data`
-  - `after_data`
-  - `note`
-- Audit snapshots include before/after foundation job fields and archive
-  metadata.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice.
-- No production DDL was applied in this slice.
-- Live `public.change_logs` was verified to include the expected columns and to
-  accept `create`, `update`, and `archive`.
-- The audit writes are currently client-side inserts into the existing
-  `change_logs` table. This matches the current available app path but is not
-  atomic with the job update/archive operation.
-- Final RLS/security hardening should replace or protect these audit writes
-  with a server-validated atomic path if the app requires strict audit/update
-  inseparability.
-
-### Next Steps (in order)
-1. Ryan verifies editing a test job saves and reloads.
-2. Ryan verifies archiving a test job requires a reason and removes it from the
-   visible Jobs directory.
-3. During the final security pass, tighten `change_logs` exposure and confirm
-   the desired atomic audit strategy for Jobs, Buyout, Financials, and other
-   editable modules.
-4. Continue Jobs cleanup with the next remaining page/module gap.
-
-### Open Questions / Concerns
-- Because final RLS cleanup is intentionally deferred, `change_logs` remains
-  broader than the final desired security posture.
-- Edit/archive controls are live for the foundation `jobs` row only. Related
-  module rows such as Buyout, Financials, Documents, and Schedule keep their
-  own edit/archive hardening requirements.
-
----
-
-## Entry 185 ‚Äî Jobs Archive RLS Return Fix
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** bug fix
-
-### Context
-Ryan reported an RLS issue when archiving a job. The cause was the client
-archive handler updating `archived_at` and then immediately requesting the
-updated row with `.select().single()`. The existing `jobs_read` policy hides
-archived rows, so the update path could trip RLS/read behavior after the row
-was correctly soft-archived.
-
-### What Was Completed
-- Removed the post-archive selected-row return from the Jobs archive handler.
-- The archive update now performs the soft archive without asking Supabase to
-  return the archived row.
-- The audit `after_data` snapshot is built from the selected job plus the
-  archive metadata that was sent in the update.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No RLS policies were changed in this fix.
-- This preserves the existing rule that archived jobs are hidden from ordinary
-  Jobs reads.
-- Final RLS/security cleanup remains deferred.
-
-### Next Steps
-1. Ryan retries archiving a test job.
-2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 186 ‚Äî Jobs Archive RPC Hardening
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** bug fix
-
-### Context
-Ryan reported that job archive was still blocked after removing the client-side
-post-archive row return. The remaining issue required moving archive into a
-server-side database function so the job soft archive and audit entry happen
-together under the database's permission check.
-
-### What Was Completed
-- Added `public.archive_job(p_job_id uuid, p_reason text)`.
-- The RPC:
-  - requires an authenticated Clerk subject
-  - requires a non-empty archive reason
-  - locks the active job row
-  - validates the caller has effective `can_manage_jobs` for the job division
-  - sets `archived_at`, `archived_by`, and `archive_reason`
-  - writes the `change_logs` archive entry in the same transaction
-- Updated the Jobs UI archive action to call `archive_job` instead of updating
-  `public.jobs` directly.
-- Tightened function grants so client execution is limited to `authenticated`
-  plus service/admin roles.
-
-### Schema Changes
-- Added migration:
-  - `supabase/migrations/20260815212436_archive_job_rpc.sql`
-- Applied production migrations:
-  - `archive_job_rpc`
-  - `archive_job_rpc_revoke_anon`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `supabase/migrations/20260815212436_archive_job_rpc.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production function signature verified:
-  - `archive_job(p_job_id uuid, p_reason text) returns void`
-  - `SECURITY DEFINER = true`
-- Production routine grants verified:
-  - `authenticated` has `EXECUTE`
-  - `anon` does not have `EXECUTE`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- This is a targeted archive fix, not the final RLS/security cleanup.
-- The RPC uses the existing canonical `user_permissions` and
-  `effective_permissions_for_user(...)` model.
-- The RPC records `archived_by` as the authenticated Clerk subject, not a
-  display name.
-- Final RLS cleanup should still review broad legacy grants and the broader
-  `change_logs` posture.
-
-### Next Steps
-1. Ryan retries archiving the test job.
-2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 187 ‚Äî Jobs Buyout Edit Archive Audit
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the Jobs archive RPC fix and asked to proceed. The next parked
-Jobs cleanup item was Buyout hardening: users needed to be able to edit buyout
-items later, and edits needed to land in the audit log.
-
-### What Was Completed
-- Added editable Buyout rows.
-- Reused the Buyout form for Add and Edit mode.
-- Added `Cancel Edit`.
-- Added editable fields for:
-  - item description
-  - quantity needed
-  - status
-  - vendor/source note
-  - budget
-  - initial value
-  - actual value
-  - initial lead time
-  - actual lead time
-  - notes
-- Added row-level Archive action with required reason.
-- Buyout reads now explicitly filter `archived_at is null`.
-- Buyout create, edit, status change, and archive actions now write
-  `public.change_logs` entries with before/after snapshots.
-
-### Schema Changes
-- None.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No RLS policies were changed in this slice.
-- No production DDL was applied in this slice.
-- Buyout archive uses the existing table update path and does not request the
-  archived row back after setting `archived_at`.
-- Audit writes are still client-side `change_logs` inserts until the final
-  RLS/security pass decides which additional actions need RPC-level atomicity.
-
-### Next Steps
-1. Ryan verifies editing a Buyout row saves and reloads.
-2. Ryan verifies status buttons still work.
-3. Ryan verifies archiving a Buyout row requires a reason and removes it from
-   the visible Buyout list.
-4. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 188 ‚Äî Jobs Buyout Archive RPC Fix
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** bug fix
-
-### Context
-Ryan reported the same RLS archive issue on Buyout rows that appeared on Jobs.
-The direct client update path was replaced with a server-side archive RPC.
-
-### What Was Completed
-- Added `public.archive_job_buyout_line(p_buyout_line_id uuid, p_reason text)`.
-- The RPC:
-  - requires an authenticated Clerk subject
-  - requires a non-empty archive reason
-  - locks the active buyout line
-  - validates effective `can_manage_jobs` for the line division
-  - sets `archived_at`, `archived_by`, and `archive_reason`
-  - writes the `change_logs` archive entry in the same transaction
-- Updated the Buyout Archive button to call the RPC instead of directly
-  updating `job_buyout_lines`.
-
-### Schema Changes
-- Added migration:
-  - `supabase/migrations/20260815213520_archive_job_buyout_line_rpc.sql`
-- Applied production migration:
-  - `archive_job_buyout_line_rpc`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `supabase/migrations/20260815213520_archive_job_buyout_line_rpc.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production function signature verified:
-  - `archive_job_buyout_line(p_buyout_line_id uuid, p_reason text) returns void`
-  - `SECURITY DEFINER = true`
-- Production routine grants verified:
-  - `authenticated` has `EXECUTE`
-  - `anon` does not have `EXECUTE`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### Next Steps
-1. Ryan retries archiving a Buyout item.
-2. If archive succeeds, continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 189 ‚Äî Jobs Financials Edit Archive Audit
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the Buyout archive RPC fix and asked to proceed. The next Jobs
-cleanup gap was Financials hardening: edits, archives, and audit coverage.
-Ryan previously specified that forecasting, actual costs, and change orders are
-normal workflow, while edits to original budget, cost codes, descriptions, and
-categories require a reason.
-
-### What Was Completed
-- Added editable Financials rows.
-- Reused the Financials form for Add and Edit mode.
-- Added `Cancel Edit`.
-- Added row-level Edit and Archive actions.
-- Financials reads now explicitly filter `archived_at is null`.
-- Financial create/edit actions write `public.change_logs` entries with
-  before/after snapshots.
-- Edits to protected fields require `Change reason` before save:
-  - original budget
-  - cost code
-  - description
-  - category
-- Normal workflow fields can be updated without a special reason:
-  - budget changes
-  - actual costs
-  - committed costs
-  - forecast to complete
-  - notes
-- Added `public.archive_job_budget_line(p_budget_line_id uuid, p_reason text)`.
-- The archive RPC validates effective `can_approve_budget`, soft-archives the
-  line, and writes the archive audit entry in the same transaction.
-
-### Schema Changes
-- Added migration:
-  - `supabase/migrations/20260815214015_archive_job_budget_line_rpc.sql`
-- Applied production migration:
-  - `archive_job_budget_line_rpc`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `supabase/migrations/20260815214015_archive_job_budget_line_rpc.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production function signature verified:
-  - `archive_job_budget_line(p_budget_line_id uuid, p_reason text) returns void`
-  - `SECURITY DEFINER = true`
-- Production routine grants verified:
-  - `authenticated` has `EXECUTE`
-  - `anon` does not have `EXECUTE`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No existing RLS policy was changed in this slice.
-- Archive is RPC-backed to avoid the active-row RLS disappearance issue.
-- Create/edit audit writes remain client-side `change_logs` inserts until the
-  final RLS/security pass determines broader atomic audit requirements.
-- The cost report import function is still deferred.
-
-### Next Steps
-1. Ryan verifies editing normal workflow fields saves.
-2. Ryan verifies protected field edits require a reason.
-3. Ryan verifies archiving a Financials row requires a reason and removes it
-   from the visible list.
-4. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 190 ‚Äî Jobs Documents Archive RPC
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified Financials hardening and asked to proceed. The next visible Jobs
-gap was Documents archive, which was still disabled as `Archive Pending`.
-
-### What Was Completed
-- Added `public.archive_job_document(p_document_id uuid, p_reason text)`.
-- The RPC:
-  - requires an authenticated Clerk subject
-  - requires a non-empty archive reason
-  - locks an active job-owned document row
-  - validates effective `can_manage_jobs` for the document division
-  - sets `archived_at`, `archived_by`, and `archive_reason`
-  - writes the `change_logs` archive entry in the same transaction
-- Updated the Jobs Documents tab:
-  - removed the disabled `Archive Pending` button
-  - added live Archive action with a required reason prompt
-  - reloads the document list after archive
-- Expanded the document select fields to include division/archive metadata.
-
-### Schema Changes
-- Added migration:
-  - `supabase/migrations/20260815214742_archive_job_document_rpc.sql`
-- Applied production migration:
-  - `archive_job_document_rpc`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `supabase/migrations/20260815214742_archive_job_document_rpc.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production function signature verified:
-  - `archive_job_document(p_document_id uuid, p_reason text) returns void`
-  - `SECURITY DEFINER = true`
-- Production routine grants verified:
-  - `authenticated` has `EXECUTE`
-  - `anon` does not have `EXECUTE`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No existing RLS policy was changed in this slice.
-- Archive is RPC-backed to avoid active-row RLS disappearance issues.
-- The file is not deleted from Supabase Storage; this is a document row
-  soft-archive.
-
-### Next Steps
-1. Ryan verifies archiving a job document requires a reason and removes it from
-   the visible document list/checklist.
-2. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 191 ‚Äî Jobs Schedule Audit and Archive RPC
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified Documents archive and asked to proceed. The next Jobs cleanup gap
-was Schedule: create/edit/reorder actions were not writing audit entries, and
-archive still used a direct table update against active-row RLS.
-
-### What Was Completed
-- Added schedule audit snapshots for `job_schedule_items`.
-- Updated Schedule create/edit to:
-  - return the saved row
-  - write `change_logs` entries for create and update
-  - include schedule date, duration, dependency, status, order, note, and
-    archive metadata in audit snapshots
-- Updated Schedule reorder to write a `change_logs` update entry for the moved
-  schedule item.
-- Added `public.archive_job_schedule_item(p_schedule_item_id uuid, p_reason text)`.
-- The RPC:
-  - requires an authenticated Clerk subject
-  - requires a non-empty archive reason
-  - locks an active schedule item row
-  - validates effective `can_manage_jobs` for the schedule item division
-  - sets `archived_at`, `archived_by`, and `archive_reason`
-  - writes the `change_logs` archive entry in the same transaction
-- Updated the Schedule archive button to call the RPC instead of directly
-  updating `job_schedule_items`.
-
-### Schema Changes
-- Added migration:
-  - `supabase/migrations/20260815215341_archive_job_schedule_item_rpc.sql`
-- Applied production migration:
-  - `archive_job_schedule_item_rpc`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `supabase/migrations/20260815215341_archive_job_schedule_item_rpc.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production function signature verified:
-  - `archive_job_schedule_item(p_schedule_item_id uuid, p_reason text) returns void`
-  - `SECURITY DEFINER = true`
-- Production routine grants verified:
-  - `authenticated` has `EXECUTE`
-  - `anon` does not have `EXECUTE`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No existing RLS policy was changed in this slice.
-- Schedule archive is RPC-backed to avoid active-row RLS disappearance issues.
-- Schedule create/edit/reorder audit writes remain client-side `change_logs`
-  inserts until the final RLS/security pass determines broader atomic audit
-  requirements.
-
-### Next Steps
-1. Ryan verifies adding, editing, moving, and archiving Schedule items.
-2. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 192 ‚Äî Jobs Schedule Display Order Fix
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified Schedule actions worked, but moving a row caused visible order
-numbers to change from `1, 2, 3, 4, 5` to raw stored sort values like
-`10, 20, 30, 40, 50`.
-
-### What Was Completed
-- Kept the database `sort_order` values spaced internally for stable
-  reordering.
-- Changed the Schedule table `#` column to display row position as
-  `1, 2, 3...`.
-- Changed the Schedule edit form to show the display order rather than raw
-  `sort_order`.
-- Converted display order back to spaced internal `sort_order` values only when
-  saving.
-- Updated the add form placeholder to show the next visible order number.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### Next Steps
-1. Ryan verifies moving Schedule rows keeps visible numbering as `1, 2, 3...`.
-2. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 193 ‚Äî Jobs History Tab
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the Schedule display-order fix and asked to proceed. The next
-Jobs cleanup gap was visibility into the audit records already being written by
-Jobs, Buyout, Financials, Documents, and Schedule actions.
-
-### What Was Completed
-- Added `public.read_job_change_history(p_job_id uuid, p_limit integer)`.
-- The RPC:
-  - requires an authenticated Clerk subject
-  - validates the target job exists and is active
-  - allows reads only for users in the job division or users with effective
-    `can_view_all_divisions`
-  - returns recent related `change_logs` rows for the job record, job-owned
-    Buyout, Financials, Schedule, and Documents records
-  - derives `changed_fields` from `before_data` / `after_data`
-- Added a live Jobs `History` tab.
-- The History tab:
-  - loads through the RPC only when selected
-  - shows summary counters for events, updates, archives, areas, and latest
-    event
-  - renders a read-only table with timestamp, area, action, user, changed
-    fields, and note
-  - includes a refresh action
-
-### Schema Changes
-- Added migration:
-  - `supabase/migrations/20260815220434_read_job_change_history_rpc.sql`
-- Applied production migration:
-  - `read_job_change_history_rpc`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `supabase/migrations/20260815220434_read_job_change_history_rpc.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production function signature verified:
-  - `read_job_change_history(p_job_id uuid, p_limit integer)`
-  - returns the expected history table shape
-  - `SECURITY DEFINER = true`
-- Production routine grants verified:
-  - `authenticated` has `EXECUTE`
-  - `anon` does not have `EXECUTE`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No existing RLS policy was changed in this slice.
-- The RPC intentionally avoids exposing `change_logs` directly because
-  `change_logs` is an older broad audit table with RLS disabled.
-- Existing client-side audit writes still use `table_name = 'jobs'` for some
-  child-section edits; the history RPC compensates by checking job identifiers
-  in JSON snapshots.
-
-### Next Steps
-1. Ryan verifies the History tab loads and shows recent job activity.
-2. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 194 ‚Äî Jobs Financials Cost Report Import
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the Jobs History tab and asked to proceed. A previously requested
-Financials gap was an "Import Cost Report" function that updates the `Actual`
-column from an accounting/export file.
-
-### What Was Completed
-- Added an `Import cost report` form to the Jobs Financials tab.
-- The importer:
-  - accepts `.csv`, `.tsv`, and `.txt` files
-  - detects comma, tab, semicolon, or pipe delimiters
-  - parses quoted delimited rows
-  - recognizes common cost-code and actual-cost column headers
-  - normalizes cost codes for matching, including accounting-style numeric
-    values such as `16,050.00`
-  - aggregates repeated cost-code rows before updating Financials
-  - updates only `actual_cost_amount`
-  - skips matched rows where the Actual value is already current
-  - writes a `change_logs` audit entry for every updated line
-- The import path uses the existing Financials edit permission gate
-  (`canApproveSelectedBudget`) and existing `job_budget_lines` RLS/update path.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No schema change was made in this slice.
-- No RLS policy was changed in this slice.
-- Import is intentionally limited to the `Actual` column; original budget, cost
-  code, description, category, committed, forecast, and change orders still use
-  the manual edit path.
-- Audit entries use the same client-side `change_logs` helper as other
-  Financials edits.
-
-### Next Steps
-1. Ryan tests importing a cost report with matching cost codes.
-2. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 195 ‚Äî Jobs Financials PDF Cost Report Import
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan provided a sample PDF cost report:
-`Report_from_Northgate_Group_Construction_Company_LLC (Toro).pdf`. The
-Financials import path needed to read this PDF format, not just CSV/TSV text
-exports.
-
-### What Was Completed
-- Added `pdfjs-dist` as a pinned client dependency.
-- Updated the Financials cost report importer to accept PDF files.
-- PDF.js is lazy-loaded only when a PDF is imported.
-- Added PDF text extraction that groups positioned text items into readable
-  lines.
-- Added support for Northgate "Job Estimates vs. Actuals Detail" rows shaped
-  like:
-  - cost code
-  - description
-  - estimated cost
-  - actual cost
-  - difference
-  - actual revenue
-- The parser uses the second money column as `Actual`.
-- Total rows and non-cost-code rows are ignored.
-- Existing CSV/TSV/TXT import support remains intact.
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `package.json`
-- `package-lock.json`
-- `HANDOFF.md`
-
-### Verification
-- Extracted the provided Toro PDF with `pdfplumber`.
-- Sanity check found 46 cost-code rows, including:
-  - `16.1 -> 743.12`
-  - `16.11 -> 279.43`
-  - `16.4 -> 704.40`
-  - `16.6 -> 885.68`
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No schema change was made in this slice.
-- No RLS policy was changed in this slice.
-- `npm audit --omit=dev` could not complete because the registry audit endpoint
-  returned an error in this environment.
-- The build now emits a separate PDF.js chunk/worker. This is expected and keeps
-  PDF parsing out of the normal app path until a PDF import is used.
-
-### Next Steps
-1. Ryan tests importing the Toro PDF into a job with matching Financials cost
-   codes.
-2. Continue Jobs cleanup with the next remaining gap.
-
----
-
-## Entry 196 ‚Äî Dashboard Buyout Attention
-
-**Date:** 2026-08-15
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs cleanup
-**Session type:** implementation
-
-### Context
-Ryan verified the PDF cost report import worked and asked to proceed. One
-remaining Jobs decision was that Buyout items only need to talk to the dashboard
-when they need attention.
-
-### What Was Completed
-- Added a read-only Dashboard attention loader.
-- The loader uses existing Supabase/RLS reads for:
-  - visible active `jobs`
-  - visible active `job_buyout_lines`
-- Added buyout attention rules:
-  - open item: status is not `received` or `cancelled`
-  - actual value over budget
-  - actual lead time over initial lead time
-- Updated the Dashboard hero `Needs attention` panel to show the live attention
-  count.
-- Added a `Job Attention` summary card.
-- Added a `My Work` Dashboard table for buyout attention rows with:
-  - job label
-  - buyout item
-  - status
-  - attention reason
-  - refresh action
-
-### Code / File Changes
-- `src/modules/dashboard/DashboardWorkspace.jsx`
-- `HANDOFF.md`
-
-### Verification
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- No schema change was made in this slice.
-- No RLS policy was changed in this slice.
-- This is intentionally read-only and uses existing table grants/RLS.
-- Personalized worker/superintendent/project-manager assignments remain
-  deferred because no approved assignment source exists yet.
-
-### Next Steps
-1. Ryan verifies the Dashboard attention count and My Work attention table.
-2. Continue with the next module/page cleanup item.
-
----
-
-## Entry 197 ‚Äî Dashboard Company Tool Catalogue
-
-**Date:** 2026-08-16
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Dashboard cleanup
-**Session type:** implementation
-
-### Context
-The latest completed Dashboard slice added direct vehicle assignments. The next
-Dashboard section was My Tools, but ARCHITECTURE v2.30 explicitly reserves
-employee-linked assignment, custody, checkout, and assignment history. The safe
-bounded slice was therefore a read-only view of the existing company catalogue.
-
-### What Was Completed
-- Added a Dashboard company-tool loader using the existing `tools` table.
-- Kept reads inside existing division-scoped RLS and authenticated Clerk token
-  handling.
-- Added a `Company Tools` summary card showing visible active catalogue rows.
-- Replaced the company-tool placeholder with a live read-only table showing:
-  - tool number and name
-  - category and brand
-  - condition
-  - current catalogue location
-- Added Refresh and Open Tools Module actions.
-- Kept Personal Tools explicitly deferred.
-
-### Code / File Changes
-- `src/modules/dashboard/DashboardWorkspace.jsx`
-- `HANDOFF.md`
-
-### What Codex Needs to Know
-- No schema, migration, RPC, RLS, grant, auth, or permission change was made.
-- The Dashboard does not use `assigned_to` to infer custody because that field
-  remains a plain-text catalogue placeholder under ARCHITECTURE v2.30.
-- True employee-linked tools, personal tools, checkout, and custody remain
-  architecture-reserved.
-
-### Verification
-- Production build passed.
-- `git diff --check` passed.
-
-### Next Steps
-1. Ryan verifies the Company Tools summary and My Tools catalogue table.
-2. Decide the next Dashboard cleanup slice; personalized tool custody and job
-   assignments still require an approved backend source.
-
----
-
-## Entry 198 ‚Äî Vehicle Assignment Write Controls
-
-**Date:** 2026-08-16
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Vehicles cleanup
-**Session type:** implementation
-**Risk classification:** HIGH ‚Äî REVIEW REQUIRED
-
-### High-Risk Review Flag
-This milestone adds authenticated `SECURITY DEFINER` production write RPCs that
-mutate vehicle-assignment history. Active assignments also affect the
-server-derived vehicle snapshot used when opening an Inventory cart. Review this
-slice again before widening vehicle, employee, custody, or inventory workflows.
-
-Future review should specifically examine:
-- effective `can_manage_vehicles` enforcement
-- employee division/read-scope enforcement
-- concurrent assignment and transfer behavior
-- one-active-vehicle-per-user uniqueness behavior
-- whether multiple active users per vehicle remains the intended model
-- assignment/release audit completeness
-- cart-open vehicle snapshot behavior after assign, transfer, and release
-
-### What Was Completed
-- Added `assign_vehicle_to_user(p_vehicle_id, p_user_id, p_reason)`.
-- Added `release_vehicle_assignment(p_assignment_id, p_reason)`.
-- Both RPCs:
-  - require an authenticated Clerk subject
-  - require an active permission row and effective `can_manage_vehicles`
-  - require a non-empty audit reason
-  - use `SECURITY DEFINER` with fixed `search_path = public, pg_temp`
-  - revoke `PUBLIC` and `anon` execution
-  - grant execution only to `authenticated`
-  - write `change_logs` audit records for mutations
-- Assignment validates an active vehicle and an active employee inside the
-  caller's approved division/read scope.
-- Assigning a user who already has an active vehicle closes the prior row before
-  inserting the new assignment.
-- Release ends the selected active assignment without deleting history.
-- Added Vehicle Assignment controls for employee selection, assign/transfer,
-  release, required reasons, success states, and error states.
-
-### Production Migration
-- Local file:
-  `supabase/migrations/20260817030521_vehicle_assignment_writes.sql`
-- Production migration:
-  `20260817031213_vehicle_assignment_writes`
-- Project:
-  `keogysnoukbendfkfjcn`
-
-### Verification
-- Production migration application succeeded.
-- Production migration history includes `20260817031213`.
-- Verified function signatures:
-  - `assign_vehicle_to_user(uuid, text, text)`
-  - `release_vehicle_assignment(bigint, text)`
-- Verified both functions are `SECURITY DEFINER` with fixed search paths.
-- Verified `anon EXECUTE = false` and `authenticated EXECUTE = true`.
-- Security and performance advisors were rerun.
-- No test assignment or release mutation was executed in production.
-- Production front-end build passed.
-- `git diff --check` passed.
-
-### Advisor Context
-The project has pre-existing security and performance advisor findings,
-including exposed-schema/RLS, security-definer-view, mutable-search-path, and
-RLS performance findings. They were present before this migration and were not
-expanded or remediated by this slice. The new authenticated write RPCs are
-intentional but must remain on the high-risk review list because authenticated
-`SECURITY DEFINER` functions are surfaced by Supabase advisors for manual
-assessment.
-
-### Code / File Changes
-- `src/modules/vehicles/VehiclesWorkspace.jsx`
-- `supabase/migrations/20260817030521_vehicle_assignment_writes.sql`
-- `HANDOFF.md`
-
-### Next Steps
-1. Ryan live-tests assign, transfer, and release using controlled records.
-2. Confirm Dashboard My Vehicles and Inventory cart-open reflect the expected
-   active assignment after each action.
-3. Keep this milestone flagged HIGH RISK until that live review is complete.
-
----
-
-## Entry 199 - Jobs Financials Cost and SOV Revenue Split
-
-**Date:** 2026-08-23
-**Updated by:** Codex
-**Phase:** Northgate HQ v3 Jobs Financials cleanup
-**Session type:** implementation
-**Risk classification:** MEDIUM - schema-backed financial UI refinement
-
-### Context
-Ryan reviewed the Jobs Financials tab and clarified that the cost table should
-track PM-facing budget/cost forecasts, while billing revenue should follow a
-Schedule of Values rather than pretending revised budget equals billable
-contract value.
-
-### What Was Completed
-- Renamed cost-control labels in the Financials tab:
-  - Original Estimate
-  - Actual Costs
-  - Committed Costs
-  - Monthly Forecast
-  - Final Forecast
-- Replaced the old forecasted-remainder presentation with:
-  - Remaining Budget = Revised Budget minus Actual Costs
-  - Forecasted Remaining Budget = Revised Budget minus Final Forecast
-- Added a separate Schedule of Values revenue section inside Financials.
-- Added SOV revenue line support for:
-  - SOV line
-  - description
-  - scheduled value
-  - approved changes
-  - revised contract value
-  - billed to date
-  - remaining to bill
-  - percent billed
-- Added project-level summary cards for revised contract, billed to date, and
-  projected gross profit/margin.
-- Added `job_revenue_lines` as a new persisted SOV/revenue table.
-- Reused existing financial gates:
-  - read: `can_view_financials`
-  - write: `can_approve_budget`
-- Kept revenue lines planning/billing visibility only; no invoice creation,
-  accounting post, payment collection, PO, or external accounting sync.
-- Added a Vite local-preview cache/host configuration so Dropbox-backed
-  workspaces can use an external cache and, when DNS is explicitly configured,
-  the production hostname can be used for local Clerk-compatible preview.
-
-### Production Migration
-- Local file:
-  `supabase/migrations/20260823101500_job_revenue_lines_foundation.sql`
-- Production migration:
-  `20260823162947_job_revenue_lines_foundation`
-- Project:
-  `keogysnoukbendfkfjcn`
-
-### Code / File Changes
-- `src/modules/jobs/JobsWorkspace.jsx`
-- `src/styles/base.css`
-- `vite.config.js`
-- `supabase/migrations/20260823101500_job_revenue_lines_foundation.sql`
-- `HANDOFF.md`
-
-### Verification
-- Production migration application succeeded.
-- Production `job_revenue_lines` columns were verified.
-- Production migration history includes `20260823162947`.
-- `npm run build` passed.
-- `git diff --check` passed.
-
-### What Codex Needs to Know
-- The new SOV section is deliberately separate from cost-code budget lines.
-- `Billed to Date` is revenue billed, not cash collected.
-- `Projected Gross Profit` uses Revised Contract Value minus Final Forecast.
-- Approved changes on SOV lines are manually entered for now; automatic
-  mapping from Change Orders to SOV lines remains a future design step.
-- Production already had `schedule_of_values_amount` on `job_budget_lines`
-  from migration `20260822201747`; this slice leaves that column alone and
-  adds separate revenue lines for billing progress.
-
-### Next Steps
-1. Ryan tests adding/editing SOV lines and confirms the revenue summary math.
-2. Decide later whether Change Orders should map directly to SOV lines.
+- Accepted payload foÎmy⁄⁄$z{-ÆÈ‹j◊ùY]ö\⁄[€àôXY»[ô\àHÿ⁄ŸYŸX›[€àà[Ÿ[ÇÇà»»»⁄]ÿ\»€€\]YãHYY›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃå◊⁄õÿóŸÿ›[Y[ù◊‹õ◊ÿùYŸö^ú‹[ÇãHö^Yÿ›[Y[ù◊‹›‹òYŸW⁄[úŸ\ù€»HõÿãZY]ŸY€Y[ù\»\úŸYúõ€Bà›‹òYŸKõÿöôX›Àõò[YXÇãHö^Yÿ›[Y[ù◊‹ôXY€»›€ãY]ö\⁄[€àôXY»\ôH[›ŸY⁄]àÿ[ó›öY]◊ÿ[Ÿ]ö\⁄[€úÿ›[\õZ][ô»‹õ‹‹ÀY]ö\⁄[€àôXY»⁄\ôBà]]‹ö^ôYÇãH\YYHÿ[YHö^]ôH»Håà›\Xò\ŸHõ⁄ôX›àŸ[Ÿﬁ\€õ›Zÿô[ôöŸöò€òÇãHŸ\õÿàÿ›[Y[ù»åHÿ⁄ŸYŒÇàHŸ[ô\öX»XõXÀôÿ›[Y[ùÿàH›€ô\ó›\HH	⁄õÿâÿàH]ö\⁄[€ã\ÿ€‹YôXY¬àHÿ[ó€X[òYŸW⁄õÿúÿõ‹à\ÿYÿ\ò⁄]ôBàHõ»\ô[]BÇà»»»€€ôö\õYYôZ]ö[‹ÇãHúõ€ù[ô\ÿYõ›»\»›‹òYŸH\ÿYö\ú›[àXõXÀôÿ›[Y[ùÿõ›¬à[úŸ\ùÇãH›‹òYŸH\ÿYÿ\»ôZôX›Yö\ú›\ö[ô»HòZ[YõŸX›[€à][\ÇãHõ»›‹òYŸKõÿöôX›ÿõ›»ÿ\»‹ôX]Yõ‹àHòZ[Y\ÿY][\ÇãHõ»XõXÀôÿ›[Y[ùÿõ›»ÿ\»‹ôX]Yõ‹àHòZ[Y\ÿY][\ÇãHõ»‹ú[ôY›‹òYŸHö[H‹àÿ›[Y[ùõ›»ÿ\»YùôZ[ôÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ÿ⁄Y[H€‹ö»ÿ\»›\ùYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôHYYÇãHõ»\ô[]HôZ]ö[‹àÿ\»YYÇãHõ»[úô[]Yÿ›[Y[ùÀõÿúÀö[ò[ò⁄X[À[ùô[ù‹ûKÿ\ù⁄X⁄€›]‹Çà^‹ùôZ]ö[‹àÿ\»⁄[ôŸYÇÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYô\»úò[ò⁄ô[XZ[ôYXZ[òÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåçÀÇãH€€ôö\õYYSë—ëàÿ\»ÿ\\‹»õ›Y⁄[ùûHLåôYõ‹ôH\»\[ôÇãH€€ôö\õYY›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃå◊⁄õÿóŸÿ›[Y[ù◊‹õ◊ÿùYŸö^ú‹[à^\›»[àô\ÀÇãH€€ôö\õYYõ»ÿ⁄Y[H[\[Y[ù][€àÿ\»YYÇãH€€ôö\õYYõ»õÿà^‹ù[\[Y[ù][€àÿ\»YYÇãH€€ôö\õYYõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôH[ùõŸXŸYÇãH€€ôö\õYYõ»SUH€XﬁHÿ\»YYõ‹àXõXÀôÿ›[Y[ùÿÇãH€€ôö\õYYõ»\ô[]H]ÿ\»[ùõŸXŸYÇãH€€ôö\õYYH]ôHõ⁄ôX›õ›»^‹Ÿ\»H€‹úôX›Yÿ›[Y[ù◊‹ôXY[ôàÿ›[Y[ù◊‹›‹òYŸW⁄[úŸ\ù€X⁄Y\ÀÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[ÿ\»õ›ô\]Z\ôYôXÿ]\ŸHõ»ù[ù[YH€ŸH⁄[ôŸY[à\¬àö[ò[^ò][€ã€ŸŸ⁄[ô»\‹ÀÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%õÿàÿ›[Y[ù»\ÿYì»ùYŸö^›^YY⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåçÀSë—ëà[ùûHLåJKÇÇà»»[ùûHLåàH]ô[‹\àõ‹õX][ô»[ô\à[ôõÿú»ôXYXö[]H€X[ù\Çääë]NääàåçãLÀLÇääï\]YûNääà€Ÿ^ääî\ŸNääàõÿú»[Ÿ[H€€\][€à»ùX⁄Ÿ]HRH€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ê€€\]YHô\]Y\›YùX⁄Ÿ]Hÿÿ[[€õHRH\‹»[ô\àTê“UP’TëHåãåç¬îŸX›[€àK⁄]ÿ⁄Y[H›[]\ŸY[ôõÿà^‹ù›[ô\Ÿ\ùôYà\»\‹¬ú›^YY›öX›H[ú⁄YHÿÿ[õ‹õX][ô»€€ùõ€»\»õÿú»ôXYXö[]H€X[ù\ÇÇà»»»⁄]ÿ\»€€\]YãHô\XŸYH€]Y\ûK\\ò[H^[›][ô\à⁄]H]ô[‹\ã[€õHõ‹õX][ô¬à[ô\à[ú⁄YHH]ô[‹\à€‹ö‹‹XŸKÇãHÿ]YH]ô[‹\àò]ã›ŸŸ€K›€‹ö‹‹XŸH⁄]H^\›[ô¬àÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò\õZ\‹⁄[€à[ôXYH^‹ŸYõ›Y⁄à\õZ\‹⁄[€úÀòÿ[êXÿŸ\‹—]ô[‹\òÇãHYYHô]»úõ›‹Ÿ\ã[ÿÿ[›‹òYŸHŸ^Bàõ‹ùÿ]Kôõ‹õX][ô’[ô\ãùåXÇãHŸ\H[ô\àÿÿ[[€õHûH\Z[ô»‘‘»ò\öXXõ\»õ›Y⁄àÿ›[Y[ùôÿ›[Y[ù[[Y[ùú›[KúŸ]õ‹\ùJããäX⁄]õ»›\Xò\ŸH‹ö]\ÀÇãHYYô\Ÿ]‹ô\Ÿ]ÿ€‹KP‘‘»ôZ]ö[‹à[ôÿYôH€[\[ô»õ‹àH[ô\àöY[ÀÇãHYYHô\›YYôõ‹ùYÿXﬁHôXY]úõ€Hõ‹ùÿ]Kõ^[›][ô\ãùåX⁄[Bà\ú⁄\›[ô»€õH»õ‹ùÿ]Kôõ‹õX][ô’[ô\ãùåXÇãH[ôYõÿú»€‹ö‹‹XŸHôXYXö[]HX‹õ‹‹»H‹]^[›]]Z[XY\ãXÇà›ö\õ‹õ\Àÿ\ôÀ[ôô\‹€ú⁄]ôH›X⁄⁄[ô»€»⁄YH€€ù[ù›^\»[‹ôBà€€ùZ[ôY[ôôXYXõKÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€úÀìÀ›‹òYŸK]]îÀ‹àòX⁄Ÿ[ôôZ]ö[‹Çàÿ\»⁄[ôŸYÇãHõ»ô]»\õZ\‹⁄[€àõY»ÿ\»YYÇãHõ»ÿ›[Y[ù»\ÿYÿ\ò⁄]ôHŸ⁄X»ÿ\»⁄[ôŸYÇãHõ»ÿ⁄Y[H€‹ö»ÿ\»›\ùYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»[ùô[ù‹ûKÿ\ù⁄X⁄€›]ö[ò[ò⁄X[»Ÿ⁄XÀù^[›]Ÿ⁄XÀ‹à]H[Ÿ[àôZ]ö[‹àÿ\»⁄[ôŸYÇãHõ»\ô[]H]ÿ\»YYÇãHõ»ÿ‹À–Tê“UP’TëKõY⁄[ôŸ\»Ÿ\ôHXYKÇÇà»»»ö[\»⁄[ôŸYãH‹òÀ–\öúﬁãH‹òÀ‹›[\Àò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄ô[XZ[ôYXZ[òÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåçÀÇãH€€ôö\õYYSë—ëàÿ\»ÿ\\‹»õ›Y⁄[ùûHLåHôYõ‹ôH\»\[ôÇãH€€ôö\õYYõ»ÿ⁄Y[H[\[Y[ù][€àÿ\»YYÇãH€€ôö\õYYõ»õÿà^‹ù[\[Y[ù][€àÿ\»YYÇãH€€ôö\õYYõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôH[ùõŸXŸYÇãH€€ôö\õYYõ»›\Xò\ŸHZY‹ò][€ú»Ÿ\ôHYY[à\»\‹ÀÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇÇà»»»õ›\¬ãHõ‹õX][ô»[ô\àYò][»ô[XZ[àH€€[Z]Yò\Ÿ[[ôH[ôô\Ÿ]ô]\õú»Bàúõ›‹Ÿ\àòX⁄»»‹ŸHYò][ÀÇãHH]ô[‹\à€‹ö‹‹XŸHõ›»⁄›‹»Hÿ⁄ŸYXŸZ€\àYà€€Y[€ôHõ›]\»¬à›€‹ö‹‹XŸOY]ô[‹\ò⁄]›]ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òÇãHõ»[úô[]YôZ]ö[‹à⁄[ôŸY›]⁄YHHÿÿ[RK‹ôXYXö[]Hÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%]ô[‹\àõ‹õX][ô»[ô\à[ôõÿú»ôXYXö[]H€X[ù\›^YY⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåçÀSë—ëà[ùûHLåäKÇÇà»»[ùûHLå»Hõÿàÿ⁄Y[HåH[\[Y[ùYÇääë]NääàåçãLÀLÇääï\]YûNääà€Ÿ^ääî\ŸNääàõÿú»[Ÿ[H€€\][€à»ÿ⁄Y[BääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^í[\[Y[ùYõÿàÿ⁄Y[HåH[ô\àTê“UP’TëHåãåç»ŸX›[€à»\»Hô^õÿ⁄ŸYõÿú»€€\][€àZ[\›€ôHYù\àÿ›[Y[ù»[ôH]ô[‹\àõ‹õX][ô¬ï[ô\à€X[ù\à\»›^YY[ú⁄YHHõ]Z[\›€ôK›\⁄À[\›ÿ€‹H€õKÇÇà»»»⁄]ÿ\»€€\]YãH‹ôX]YXõXÀöõÿó‹ÿ⁄Y[W⁄][\ÿÇãHYYöY[»]X\ÿ‹ö\[€ò\ôŸ]Ÿ]X›]\ÿ€‹ù€‹ô\òàõ›X\»H›[ô\ô]ö\⁄[€ãÿ\ò⁄]ôKÿ‹ôX]YY]Y]H€€[[úÀÇãHÿ⁄ŸY›]\»ò[Y\»»[ô[ôÿ[ó‹õŸ‹ô\‹ÿ€€\]X[ô[^YYÇãHYYHŸ]⁄õÿó‹ÿ⁄Y[W⁄][\◊›\]Yÿ]öYŸŸ\à\⁄[ô»H^\›[ô¬à›X⁄›\Ÿ\ó‹\õZ\‹⁄[€ú◊›\]Yÿ]
+
+Xù[ò›[€ãÇãH[òXõYHÿ⁄Y[HXà[àHõÿú»€‹ö‹‹XŸKÇãH[\[Y[ùYYY]\ò⁄]ôK[ô\Ÿ›€àô[‹ô\àôZ]ö[‹àõ‹àÿ⁄Y[Bà][\ÀÇãHŸ\\ò⁄]ôHôZ]ö[‹à€Ÿù[€õHõ›Y⁄\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ôà‹[€ò[\ò⁄]ôW‹ôX\€€òÇãHYY]ö\⁄[€ã\ÿ€‹YôXYôZ]ö[‹à[ôÿ[ó€X[òYŸW⁄õÿúÿ‹ö]Kÿ\ò⁄]ôK¬àô[‹ô\àÿ][ô»õ›Y⁄Hô]»XõHìÀÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»\ô[]H€XﬁHÿ\»YYÇãHõ»ô]»\õZ\‹⁄[€àõY»ÿ\»YYÇãHõ»ÿ[[ô\à[ùY‹ò][€àÿ\»YYÇãHõ»€€Ÿ€Hÿ[[ô\à[ùY‹ò][€àÿ\»YYÇãHõ»\[ô[òﬁH[Ÿ[ÿ\»YYÇãHõ»[\ﬁYYH\‹⁄Y€õY[ù»Ÿ\ôHYYÇãHõ»ô[Z[ô\ú»‹àõ›YöXÿ][€ú»Ÿ\ôHYYÇãHõ»ôX›\úö[ôÀY]ô[ùôZ]ö[‹àÿ\»YYÇãHõ»õÿà^‹ù[\[Y[ù][€àÿ\»YYÇãHõ»ÿ›[Y[ù»ôZ]ö[‹àÿ\»⁄[ôŸYÇãHõ»ö[ò[ò⁄X[»ôZ]ö[‹àÿ\»⁄[ôŸYÇãHõ»õ‹õX][ô»[ô\àôZ]ö[‹àÿ\»⁄[ôŸYÇãHõ»Xÿ€›[ù[ôÀX›X[Àô]ô[ùYKõŸö]‹à\‹›YY[ùô[ù‹ûHò[YHôZ]ö[‹Çàÿ\»YYÇãHõ»[ùô[ù‹ûKÿ\ù‹à⁄X⁄€›]ôZ]ö[‹àÿ\»⁄[ôŸYÇãHõ»^\›[ô»ZY‹ò][€ú»Ÿ\ôHY]YÇãHõ»^\›[ô»ìÀ‹ò[ùÀ‹à\õZ\‹⁄[€ú»Ÿ\ôH⁄[ôŸY›]⁄YHHô]¬àõÿó‹ÿ⁄Y[W⁄][\ÿXõKÇÇà»»»ö[\»⁄[ôŸYãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃå⁄õÿó‹ÿ⁄Y[W⁄][\◊Ÿõ›[ô][€ãú‹[ãH‹òÀ–\öúﬁãH‹òÀ‹›[\Àò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄ô[XZ[ôYXZ[òÇãH€€ôö\õYYH€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåçÀÇãH€€ôö\õYYSë—ëàÿ\»ÿ\\‹»õ›Y⁄[ùûHLåàôYõ‹ôH\»\[ôÇãH€€ôö\õYYŸX›[€à»^\›»[ôÿ⁄‹»õÿàÿ⁄Y[HåKÇãH€€ôö\õYYõ»^\›[ô»XõXÀöõÿó‹ÿ⁄Y[W⁄][\ÿZY‹ò][€à[ôXYH^\›YÇãH€€ôö\õYY›X⁄›\Ÿ\ó‹\õZ\‹⁄[€ú◊›\]Yÿ]
+
+Xô[XZ[ú»H⁄\ôY\]Yÿ]àöYŸŸ\àù[ò›[€à\ŸYûHYòXŸ[ùõÿú»Xõ\ÀÇãH€€ôö\õYYHõÿú»€‹ö‹‹XŸH[ôXYH^‹ŸYHÿ⁄Y[HXŸZ€\àXà[ôàX›]ò]Y]^\›[ô»Xà€›[ú›XYŸà‹ôX][ô»Hô]»ò]öYÿ][€à[Ÿ[ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇãH]ôH›\Xò\ŸHZY‹ò][€à›[ôYY»X[ùX[\Xÿ][€ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåçÀSë—ëà[ùûHLå KÇÇà»»[ùûHLçHõÿàÿ⁄Y[H\ò⁄]ôHì»ùYŸö^ô\\ôYÇääë]NääàåçãLÀLääï\]YûNääà€Ÿ^ääî\ŸNääàõÿú»[Ÿ[H€€\][€à»ÿ⁄Y[BääîŸ\‹⁄[€à\NääàùYŸö^Çà»»»€€ù^îûX[àúõ›‹Ÿ\ã]\›Yõÿàÿ⁄Y[HåHYù\àHÿ⁄Y[HZ[\›€ôHŸ[ù]ôH[ôò€€ôö\õYYYY]›]\»⁄[ôŸ\À[ô‹ô\ö[ô»€‹öŸYù]\ò⁄]ôK‹ô[[›ôBú›[òZ[Y[àõ›H[ãX\úõ›‹Ÿ\à[ôHôY›[\àúõ›‹Ÿ\ãÇÇà»»»⁄]ÿ\»€€\]YãHô\õŸXŸYH]ôH\ò⁄]ôHòZ[\ôHYù\à€€ôö\õZ[ô»H\ﬁYY⁄]Hÿ\»€ÇàH›\úô[ùÿ⁄Y[HùZ[ÇãH€€ôö\õYYHÿ⁄Y[H\ò⁄]ôH€Y[ù]ÿ\»Ÿ[ô[ô¬à\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ô\ò⁄]ôW‹ôX\€€òÇãH€€ôö\õYYHX›]ôHÿ⁄Y[HÿY]Y\ûH[ôXYHö[\ú¬à\ò⁄]ôYÿ]\»ù[ÇãH€€ôö\õYYH\ôŸ]]ôHõ›‹»Ÿ\ôH›[[ò\ò⁄]ôYYù\à\ò⁄]ôH][\ÀÇãH€€ôö\õYYH]][ùXÿ]Y\Ÿ\â‹»YôôX›]ôH\õZ\‹⁄[€ú»[ò€YBàÿ[ó€X[òYŸW⁄õÿúÿÇãH⁄[][]YH\ò⁄]ôH\]H[à]ôH›\Xò\ŸH[ô\àH]][ùXÿ]Yõ€H[ôà€€ôö\õYYH]Xò\ŸHôZôX›YH\]H⁄]ô]»õ›»ö[€]\»õ›À[]ô[ŸX›\ö]H€XﬁHõ‹àXõHöõÿó‹ÿ⁄Y[W⁄][\»òÇãH\€€]YHòZ[\ôH»Hõÿó‹ÿ⁄Y[W⁄][\◊›\]Xì»€XﬁNÇà‹ô[ò\ûH\]\»›XÿŸYYù]⁄[ô⁄[ô»\ò⁄]ôYÿ]òZ[ÀÇãHYY›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃW⁄õÿó‹ÿ⁄Y[W⁄][\◊ÿ\ò⁄]ôW‹õ◊ÿùYŸö^ú‹[à»[›»H€ŸùX\ò⁄]ôHò[ú⁄][€à⁄[Hõÿ⁄⁄[ô»]\à]]][€àŸà[ôXYBà\ò⁄]ôYÿ⁄Y[Hõ›‹ÀÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ô]»ÿ⁄Y[HôX]\ô\»Ÿ\ôHYYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»ÿ›[Y[ùÀö[ò[ò⁄X[Àõ‹õX][ô»[ô\ã[ùô[ù‹ûKÿ\ù‹à⁄X⁄€›]àôZ]ö[‹àÿ\»⁄[ôŸYÇãHõ»\Xÿ][€à€ŸHÿ\»⁄[ôŸY[à\»ùYŸö^ÇãHõ»\ô[]HôZ]ö[‹àÿ\»YYÇãHHö^›^\»[ú⁄YHH^\›[ô»ŸX›[€à»€ŸùX\ò⁄]ôH[Ÿ[ÇÇà»»»ö[\»⁄[ôŸYãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃW⁄õÿó‹ÿ⁄Y[W⁄][\◊ÿ\ò⁄]ôW‹õ◊ÿùYŸö^ú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYYH€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåçÀÇãH€€ôö\õYYSë—ëàÿ\»ÿ\\‹»õ›Y⁄[ùûHLå»ôYõ‹ôH\»\[ôÇãH€€ôö\õYY›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃå⁄õÿó‹ÿ⁄Y[W⁄][\◊Ÿõ›[ô][€ãú‹[à^\›»[àô\ÀÇãH€€ôö\õYYH]ôHõÿó‹ÿ⁄Y[W⁄][\ÿZY‹ò][€àY[ôXYHôY[à\YYÇãH€€ôö\õYYH]ôHõÿó‹ÿ⁄Y[W⁄][\◊›\]X€XﬁH›[ô\]Z\ôYà\ò⁄]ôYÿ]\»ù[[àT“SëÿÇãH€€ôö\õYYH]ôH\ò⁄]ôHòZ[\ôH\»H]Xò\ŸHì»ôZôX›[€ãõ›H›[Bà\ﬁH‹àúõ›‹Ÿ\ãXÿX⁄H\‹›YKÇãH][\Y»\HH]ôHì»ùYŸö^ù]õŸX›[€à€XﬁK›öYŸŸ\à⁄[ôŸ\¬àô\]Z\ôHúô\⁄^X⁄]\õ›ò[[à\»[ùö\õ€õY[ùôYõ‹ôH^Hÿ[àôHù[ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåçÀSë—ëà[ùûHLå KÇÇà»»[ùûHLçHHõÿàÿ⁄Y[H\ò⁄]ôHŸ[X›\€XﬁHö^ô\\ôYÇääë]NääàåçãLÀLBääï\]YûNääà€Ÿ^ääî\ŸNääàõÿú»[Ÿ[H€€\][€à»ÿ⁄Y[BääîŸ\‹⁄[€à\NääàùYŸö^Çà»»»€€ù^êYù\à[ùûHLç	‹»]ôHì»Yù\›Y[ùÿ\»ù[ãûX[à›[ÿ]»Hÿ[YHÿ⁄Y[Bò\ò⁄]ôHòZ[\ôH[àõ›úõ›‹Ÿ\úÀàHŸX€€ô]ôK\€XﬁH⁄X⁄»ÿ\»ô\]Z\ôYòôXÿ]\ŸHH\]K\€XﬁHö^[€ôHYõ›€X\àH\ò⁄]ôHò[ú⁄][€ãÇÇà»»»⁄]ÿ\»€€\]YãHôKX⁄X⁄ŸYH]ôHõÿó‹ÿ⁄Y[W⁄][\ÿ€XﬁH›]H[ô€€ôö\õYYBàõÿó‹ÿ⁄Y[W⁄][\◊›\]X€XﬁH[ô\ò⁄]ôK\õ›X›[€àöYŸŸ\àúõ€H[ùûBàLçŸ\ôHô\Ÿ[ù[àõŸX›[€ãÇãHôK\ò[àH]ôH]][ùXÿ]Y\ò⁄]ôH⁄[][][€à[ô€€ôö\õYY]›[òZ[Yà⁄]ô]»õ›»ö[€]\»õ›À[]ô[ŸX›\ö]H€XﬁHõ‹àXõHöõÿó‹ÿ⁄Y[W⁄][\»òÇãHõ›ôYHô[XZ[ö[ô»õÿ⁄Ÿ\à\»Hÿ⁄Y[H—SP’]õ›H\]Bà]ûHù[õö[ô»Hõ€òX⁄À[€õH\›][\‹ò\ö[HYYX[òYŸ\àôXYàXÿŸ\‹»[ôÿ]»H\ò⁄]ôH\]H›XÿŸYY[[YYX][KÇãHYY›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃLW⁄õÿó‹ÿ⁄Y[W⁄][\◊ÿ\ò⁄]ôW‹Ÿ[X›‹õ◊Ÿö^ú‹[à»‹ò[ùÿ[YKY]ö\⁄[€àÿ[ó€X[òYŸW⁄õÿúÿ\Ÿ\ú»ÿ⁄Y[K\õ›»ôXYXÿŸ\‹»ôYYYàõ‹àH€ŸùX\ò⁄]ôHò[ú⁄][€ãÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ô]»ÿ⁄Y[HôX]\ô\»Ÿ\ôHYYÇãHõ»\Xÿ][€à€ŸH⁄[ôŸYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»ÿ›[Y[ùÀö[ò[ò⁄X[Àõ‹õX][ô»[ô\ã[ùô[ù‹ûKÿ\ù‹à⁄X⁄€›]àôZ]ö[‹àÿ\»⁄[ôŸYÇãHX›]ôHÿ⁄Y[HRH›[ö[\ú»\ò⁄]ôYÿ]\»ù[€»\ò⁄]ôY][\»¬àõ›ôX\X\à[àHõ‹õX[\›Yù\à\»ö^ÇãHHYYôXY€XﬁH\»[Z]Y»ÿ[YKY]ö\⁄[€à\Ÿ\ú»⁄»[ôXYH]ôBàÿ[ó€X[òYŸW⁄õÿúÿÇÇà»»»ö[\»⁄[ôŸYãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃLW⁄õÿó‹ÿ⁄Y[W⁄][\◊ÿ\ò⁄]ôW‹Ÿ[X›‹õ◊Ÿö^ú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYH]ôHõÿó‹ÿ⁄Y[W⁄][\◊›\]X€XﬁHõ»€ôŸ\àô\]Z\ô\¬à\ò⁄]ôYÿ]\»ù[ÇãH€€ôö\õYYH]ôH\ò⁄]ôK\õ›X›[€àöYŸŸ\à^\›ÀÇãH€€ôö\õYYH]ôH\ò⁄]ôH⁄[][][€à›[òZ[YôYõ‹ôHHŸ[X›\€XﬁBà\›ÇãH€€ôö\õYYHõ€òX⁄À[€õH[\‹ò\ûHX[òYŸ\ã\ôXY€XﬁHXZŸ\»H^X›ÿ[YBà]ôH\ò⁄]ôH\]H›XÿŸYYÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåçÀSë—ëà[ùûHLå KÇÇÇ∏•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d∏•¢–’SQSïëTRTà8†%Tì’ëQñHñPSà8†%åçãLÀLB∏•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•dÇïH€»[ùöY\»[[YYX][HXõ›ôH\»X\öŸ\à
+[ùûHLç]YåçãLÀL[ôë[ùûHLçK]YåçãLÀLJHŸ\ôH\ÿ€›ô\ôY\ö[ô»H€]YH\ò⁄]X›\ôBúôX€€ò⁄[X][€àŸ\‹⁄[€à»ôH\⁄Xÿ[H’U—à‘ëTà[à\»ö[H8†%[ùûHLçBöYôY[à\[ôYXõ›ôH[ùûHLç\‹]HôZ[ô»]Y€ôH^H]\ãàõ›ô[ùöY\…»›€àõ›][ô»ô\ôX›[ô\»⁄]YíSë—ëà[ùûHLå»à\»Hö[‹Çô[ùûK[ôXÿ][ô»ôZ]\àòYù[ô»Ÿ\‹⁄[€àÿ\»]ÿ\ôHŸàH›\à]H[YKÇÇï\»\»Hÿ[YH€\‹»ŸàYôX›ô]ö[›\€Hÿ›[Y[ùY[ôô\Z\ôY[ô\Çîù[Hå[àTê“UP’TëHåãåM
+íSë—ëà[ùûHLKÃLàô\Ÿ[ù][€à‹ô\Çúô\Z\ôY[ô\àù[Hå[ùûHMàäKÇÇî\à€€ú›]][€ò[ù[Hå\»ÿ\»›\ôòXŸY»ûX[àò]\à[à⁄[[ùBò€‹úôX›YàûX[àô]öY]ŸYHö[ô[ô»[ô^X⁄]H\õ›ôYHô\Z\à€ÇååçãLÀLKàH€»[ùöY\»Xõ›ôH]ôHôY[à\⁄Xÿ[Hô[‹ô\ôY[ù»€‹úôX›ò⁄õ€õ€Ÿ⁄Xÿ[Ÿ\]Y[òŸH
+LçôYõ‹ôHLçJKàZ\à€€ù[ù\»›\ù⁄\ŸHSê“Së—Q∏†%õ»òX›ÀX⁄\⁄[€úÀ‹àô\öYöXÿ][€à€Z[\»Ÿ\ôH[\ôY€õH‹⁄][€ãÇÇë[ùûHLçà
+[[YYX][Hô[› H\»H\õX[ô[ù›[ô\ôYõ‹õX]Ÿ»[ùûHõ‹Çù\»ô\Z\ãõ‹àH]Y]òZ[ÇÇî’SëSë»”P÷KQëëP’UëHîì”HT»“Sïì‘ï–TëÇê[ûH\ÿ‹ô\[òﬁHõ›[ô[à\ŸH€€‹ô[ò][€àÿ›[Y[ù»8†%‹ô\ö[ô»YôX›Àõù[Xô\ö[ô»ÿ\À€€ù[ù€€ôõX›À‹à[ûH›\à[ùY‹ö]H\‹›YH8†%]\›ôBòúõ›Y⁄»ûX[àõ‹à^X⁄]\õ›ò[ôYõ‹ôH[ûH€‹úôX›[€à\»XYKà\¬ò\Y\»ôYÿ\ô\‹»Ÿà⁄X⁄[Ÿ[‹àŸ\‹⁄[€à\ÿ€›ô\ú»H\ÿ‹ô\[òﬁKÇìõ‹õX[\[ô[€õHŸŸ⁄[ô»ô[XZ[ú»^[\\àH^\›[ô»ù[Håÿ\ùôK[›]ÇÇ∏•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•d8•dÇà»»[ùûHLçàHSë—ëà[ùûHLçÃLçH‹ô\ö[ô»YôX›ô\Z\ôY
+ù[Hå
+BÇääë]NääàåçãLÀLBääï\]YûNääà€]YBääî\ŸNääà€€‹ô[ò][€àÿ›[Y[ù[ùY‹ö]BääîŸ\‹⁄[€à\Nääàô\Z\à
+ù[Hå
+BÇà»»»€€ù^ë\ö[ô»H€]YH\ò⁄]X›\ôHôX€€ò⁄[X][€àŸ\‹⁄[€à
+⁄[\»RH\‹⁄\›[ùúô[ù[Xô\ö[ô»ô\]Y\›
+K\ôX›[ú‹X›[€àŸà\»ö[Hõ›[ô[ùûHLçH\⁄Xÿ[Bú‹⁄][€ôYôYõ‹ôH[ùûHLç\‹]H[ùûHLçHôZ[ô»]Y€ôH^H]\ÇäåçãLÀLHúÀàåçãLÀL
+Kàõ›[ùöY\…»õ›][ô»ô\ôX›[ô\»⁄]Y[ùûHLå¬ò\»Hö[‹à[ùûK[ôXÿ][ô»XX⁄ÿ\»òYùY⁄]›]ö\⁄Xö[]H[ù»Bõ›\à8†%€€ú⁄\›[ù⁄]€»Ÿ\\ò]HùYŸö^Ÿ\‹⁄[€ú»XX⁄\[ô[ô»Yù\à⁄]ù^Hô[Y]ôYÿ\»H›\úô[ùZ[ÇÇï\»YôX›ÿ\»õ›Y[ùYöYY[àHô\]Y\›X⁄Ÿ]]õ€\YBúôX€€ò⁄[X][€àŸ\‹⁄[€é»]ÿ\»õ›[ô€õHûHôXY[ô»Hÿ[õ€öXÿ[ö[Bô\ôX›Hò]\à[àô[Z[ô»€àH›[[X\ö^ôY⁄X⁄‹⁄[ù\ÿ‹ö\[€ãÇÇîôXŸY[ùàTê“UP’TëHåãåMÿ›[Y[ù»[àY[ùXÿ[ö[‹àô\Z\à
+íSë—ëÇë[ùûHLKÃLàô\Ÿ[ù][€à‹ô\àô\Z\ôY[ô\àù[Hå[ùûHMàäKÇÇà»»»⁄]ÿ\»€€\]YãH€€ôö\õYYH‹ô\ö[ô»YôX›]Hû]K€[ôH]ô[
+[ùûHLçH]Bà‹öY⁄[ò[[ôHLççÃã[ùûHLç]H‹öY⁄[ò[[ôHLçÃç
+KÇãH›\ôòXŸYHö[ô[ô»»ûX[à\àù[Hå⁄]HôX€€[Y[ôYô\€€][€Çà
+\⁄Xÿ[ô[‹ô\ãX]⁄[ô»H[ùûHLKÃLàôXŸY[ù
+H[ô[à[\õò]]ôBà
+X]ôH[àXŸH⁄][à^[ò]‹ûHõ›JKÇãHûX[àô]öY]ŸY[ô^X⁄]H\õ›ôYH\⁄Xÿ[\ô[‹ô\àô\€€][€à€ÇàåçãLÀLKÇãH[ùöY\»Lç[ôLçHŸ\ôHô[‹ô\ôY[ù»€‹úôX›⁄õ€õ€Ÿ⁄Xÿ[Ÿ\]Y[òŸKÇà
+äê€€ù[ùŸàõ›[ùöY\»\»[ò⁄[ôŸY
+äà8†%€õHZ\à‹⁄][€à[àHö[Bàÿ\»€‹úôX›Yàõ»òX›X⁄\⁄[€ã‹àô\öYöXÿ][€à€Z[H[àZ]\à[ùûHÿ\¬à[\ôYÇãHHö\⁄XõHô\Z\àX\öŸ\àÿ\»[úŸ\ùY[[YYX][Hõ€›⁄[ô»Hô[‹ô\ôYà[ùöY\Àÿ›[Y[ù[ô»HYôX›H\õ›ò[[ôH›[ô[ô»€XﬁHõ‹Çà[ô[ô»ù]\ôH\ÿ‹ô\[ò⁄Y\ÀÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»\Xÿ][€à€ŸH⁄[ôŸYÇãHõ»ÿ⁄[XKìÀ‹à\õZ\‹⁄[€à⁄[ôŸY\»Hô\›[Ÿà\»ô\Z\à8†%Bà[ô\õZ[ô»ÿ⁄Y[H\ò⁄]ôHì»ö^
+ÿ›[Y[ùY[à[ùöY\»LçLLçBà[\Ÿ[ô\ Hÿ\»[ôXYH]ôH[ôô\öYöYYö[‹à»\»ô\Z\ãÇãHõ»€€ù[ùÿ\»[]Y‹àô]‹ö][à8†%\»ÿ\»H‹⁄][€ã[€õH€‹úôX›[€ãÇãH\»ô\Z\à]Ÿ[àÿ\»^X⁄]H\õ›ôYûHûX[àôYõ‹ôHôZ[ô»\YYà€€ú⁄\›[ù⁄]ù[Hå	‹»ô\]Z\ô[Y[ù]€€‹ô[ò][€àÿ›[Y[ù»\ôHô]ô\ÇàY]Y‹àô\Z\ôY⁄[[ùKÇÇà»»»ö[\»⁄[ôŸYãHSë—ëãõY
+[ùöY\»LçÃLçHô[‹ô\ôY»ô\Z\àX\öŸ\à[ô\»[ùûBà\[ôY
+BÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYHô[‹ô\ôY[ùöY\…»€€ù[ù\»û]KZY[ùXÿ[»H‹öY⁄[ò[à€õHZ\àŸ\]Y[òŸH⁄[ôŸYÇãH€€ôö\õYYõ»›\à[ùûH[àHö[Hÿ\»›X⁄YÇãH€€ôö\õYYSë—ëà\»ÿ\\‹»[à[ùûHù[Xô\ö[ô»
+LåÀLçLçKLçäH]ô[Çà›Y⁄HôK\ô\Z\àö[HYLçÃLçHô]ô\úŸY[à‹⁄][€ãÇÇà»»»ô]»›[ô[ô»€XﬁH
+YôôX›]ôHúõ€H\»[ùûHõ‹ùÿ\ô
+Bê[ûH\ÿ‹ô\[òﬁHõ›[ô[àH€€‹ô[ò][€àÿ›[Y[ù»8†%‹ô\ö[ô»YôX›Àõù[Xô\ö[ô»ÿ\À€€ù[ù€€ôõX›À‹à[ûH›\à[ùY‹ö]H\‹›YH8†%]\›ôBòúõ›Y⁄»ûX[àõ‹à^X⁄]\õ›ò[ôYõ‹ôH[ûH€‹úôX›[€à\»XYKôYÿ\ô\‹¬õŸà⁄X⁄[Ÿ[‹àŸ\‹⁄[€à\ÿ€›ô\ú»]àõ‹õX[\[ô[€õHŸŸ⁄[ô»ô[XZ[ú¬ô^[\\àH^\›[ô»ù[Håÿ\ùôK[›]à\»õ‹õX[^ô\À\»[à^X⁄]ú›[ô[ô»[ú›ùX›[€ã⁄]ù[Hå[ôXYH[\YYÇÇà»»»õ›][ô»ô\ôX›îô\Z\à\õ›ôY\ôX›HûHûX[à
+åçãLÀLJH8†%ù[Håÿ]\ŸöYYûH€€BôX⁄\⁄[€à]]‹ö]H\õ›ò[àõ»ù\ù\à‹õ‹‹ÀX€X\ò[òŸHô\]Z\ôYõ‹à\¬úô\Z\à‹X⁄YöXÿ[K›Y⁄H›[ô[ô»€XﬁHXõ›ôH\Y\»»[ù]\ôBô\ÿ‹ô\[ò⁄Y\ÀÇÇãKKBà»»[ùûHLç»H⁄[\»
+RH\‹⁄\›[ù
+Hÿ⁄ŸY
+Tê“UP’TëHåãåéô]»ŸX›[€à
+N»ŸX›[€à»[H
+ÿ⁄Y[H\ò⁄]ôHì»ö^ÿ›[Y[ù][€äBÇääë]NääàåçãLÀLBääï\]YûNääà€]YBääî\ŸNääà⁄[\»HRH\‹⁄\›[ùõ›[ô][€é»õÿú»[Ÿ[HHÿ⁄Y[Hì»ÿ›[Y[ù][€ÇääîŸ\‹⁄[€à\NääàX⁄\⁄[€à»\ò⁄]X›\ôH»ôX€€ò⁄[X][€ÇÇà»»»€€ù^íõÿàÿ⁄Y[HåH
+ŸX›[€à H\»]ôKúõ›‹Ÿ\ã]\›Y[ô]»\ò⁄]ôK‹ô[[›ôBôù[ò›[€ò[]HòZ[Y]ôHì»\›[ô»Yù\à[ö]X[\ﬁ[Y[ùà€Ÿ^XY€õ‹ŸYò[ôö^Y\»X‹õ‹‹»€»Ÿ\‹⁄[€ú»
+[ùöY\»LçLLçJNà[àTUH€XﬁHö^ù[àH—SP’€XﬁHö^õ›ô\]Z\ôYŸŸ]\àõ‹àH€ŸùX\ò⁄]ôBùò[ú⁄][€à»›XÿŸYYàûX[à€€ôö\õYY]ôHô\€€][€ãÇÇë[ùöY\»LçLLçHŸ\ôH[€»õ›[ô»ôH\⁄Xÿ[H›]Ÿà‹ô\à[à\»ö[N¬ù]YôX›ÿ\»ô\Z\ôY[[YYX][Hö[‹à»\»[ùûH
+ŸYH[ùûHLçäH⁄]îûX[â‹»^X⁄]\õ›ò[ÇÇîŸ\\ò][KûX[àô\]Y\›Y⁄[\»
+RH\‹⁄\›[ù
+H\ò⁄]X›\ôKô]ö[›\€BôòYùYYÿZ[ú›H›[H⁄X⁄‹⁄[ù
+åãåçÀ—[ùûHLç\‹›[YY\»ö[‹à›]JKÇîôX€€ò⁄[Y\»Ÿ\‹⁄[€àYÿZ[ú›HX›X[ÿ[õ€öXÿ[›]NàåãåçÀÿ\\‹¬ùõ›Y⁄[ùûHLçàõ€›⁄[ô»Hô\Z\àXõ›ôKà\»[ùûH\»LçÀÇÇà»»»X⁄\⁄[€ú»XYH\»Ÿ\‹⁄[€à
+ÿ⁄ŸY
+BãHŸX›[€à»[Nàÿ›[Y[ù»]ÿ⁄Y[I‹»€ŸùX\ò⁄]ôHò[ú⁄][€àô\]Z\ôYà”»€€‹ô[ò]Yì»€X⁄Y\»
+TUH
+»—SP’
+Kõ›€ôHH\ò⁄]ôYÿ]T¬àïS]\›õ›ÿ]HHTUH€XﬁI‹»T“Së»€]\ŸK[ôH—SP’€XﬁBà]\›[›»ÿ[YKY]ö\⁄[€àÿ[ó€X[òYŸW⁄õÿú»\Ÿ\ú»»ôXYHõ›»õ›Y⁄Bàò[ú⁄][€ãàõ»\⁄Y€à⁄[ôŸHH€ŸùX\ò⁄]ôK[€õKÿ[ó€X[òYŸW⁄õÿúÀà›€ãY]ö\⁄[€ãõ»\ô[]Kõ»ô]»\õZ\‹⁄[€àõY»[ô[XZ[à^X›H\¬à‹öY⁄[ò[Hÿ⁄ŸYàH€]YKÿ›[Y[ù[ô»€Ÿ^	‹»]ôK]ô\öYöYYö^à
+[ùöY\»LçLLçJKÇãHŸ[ô\ò[ö[ò⁄\HŸŸŸYõ‹àù]\ôHì»€‹öŒà€ŸùX\ò⁄]ôHò[ú⁄][€ÇàòZ[\ô\»⁄›[ôH⁄X⁄ŸYYÿZ[ú›ì’HTUH[ô—SP’€XﬁKõ›àHTUH€XﬁH[à\€€][€àHõ›»H€õ›€àòZ[\ôH⁄\Hõ‹à\¬àõ⁄ôX›àH€]YKÇãH⁄[\Œà[ö[‹à\⁄Y€àX⁄\⁄[€ú»[ò⁄[ôŸYúõ€HH€‹ö⁄[ô»Ÿ\‹⁄[€à⁄]àûX[àH\õZ\‹⁄[€ãX]ÿ\ôH[ù\ôòXŸH^Y\é»ôXY»€õHõ›Y⁄ô\]Y\›[ô¬à\Ÿ\â‹»›€àì»€€ù^»ô]YûHù[ò›[€à]\›\ŸH\Ÿ\àï’õ›àŸ\ùöXŸK\õ€Kõ‹à›\Xò\ŸHôXYŒ»⁄[\»ô]ô\à‹ö]\»\ôX›H»ù\⁄[ô\‹¬àXõ\Œ»\õ›ôYX›[€ú»õ›]Hõ›Y⁄^\›[ô»î‹ÀŸõ›‹»€õN»ôYBàô\‹€úŸH‹[€ú»
+\õ›ôH»[ûH»›\ã\‹X⁄YûJK⁄]›\ã\‹X⁄YûBàõŸX⁄[ô»Hô]ö\ŸY›YŸŸ\›[€é»õ»⁄[[ù‹ö]\Œ»YXÿ]Y⁄[\»€‹ö‹‹XŸBà\»õÿ][ô»⁄]ùXòõH⁄\ö[ô»€ôHòX⁄Ÿ[ô[ô€ôH€€ùô\úÿ][€à\›‹ûN¬à⁄]\›‹ûH\ú⁄\›Y[à›\Xò\ŸK\ã]\Ÿ\àì»
+õ›]ö\⁄[€ã\ÿ€‹Y
+N¬àTHŸ^HŸ\ùô\ã\⁄YH€õKô]ô\à€Y[ùY^‹ŸY»]ô[‹\à⁄[›⁄]⁄à
+⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY
+H[ôõ‹òŸYŸ\ùô\ã\⁄YH[àHô]YûHù[ò›[€ãàõ›ù\›Y[à€Y[ù\⁄YN»õ»ô]»\õZ\‹⁄[€àõY‹»ô^[€ôô]\⁄[ô¬àÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\àõ‹àH⁄[›⁄]⁄»õ»‹õ‹‹À]\Ÿ\à⁄]ö\⁄Xö[]N»õ¬à\ôX›[ùô[ù‹ûWÿò[[òŸ\»‹ö]\Œ»ôXŸZ\Y\ö]ôYò[úÿX›[€ú»]X⁄BàôXŸZ\[XYŸHöXHH^\›[ô»ÿ›[Y[ù»]
+›€ô\ó›\OI⁄õÿâ N»õÿÇà^‹ùô[XZ[ú»[úÿ€‹Y[ô\»õ›\ùŸà⁄[\ÀàHûX[à
+‹\ò][€ò[à[Ÿ[€‹ö⁄[ô»Ÿ\‹⁄[€äKõ‹õX[^ôYûH€]YKÇãHô]»ŸX›[€éàŸX›[€à
+⁄[\ Kö[[ô»Hëù]\ôHRH\‹⁄\›[ùà€›àô\Ÿ\ùôY[àŸX›[€à⁄[òŸHHõ⁄ôX›	‹»‹öY⁄[ò[\ò⁄]X›\ôH\‹ÀàBà€]YKÇãHõÿà^‹ù[›ô\»»ô\Ÿ\ùôYŸX›[€àH
+ÿ\»ô\Ÿ\ùôY\»»⁄[\»€⁄»à⁄[òŸH]ÿ\»ôXYH[ô^‹ù^X⁄]H\»õ›
+KàH€]YKÇãHô\ú⁄[€àYò[òŸ\»»åãåéàH€]YKÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôH\YY]ôH[à\»[ùûKàŸX›[€à»[H\»ÿ›[Y[ù][€ã[€õHBàHX›X[ÿ⁄[XK‘ì»ÿ\»[ôXYH\YY]ôHöXHH€»ZY‹ò][€ú¬àôYô\ô[òŸY[àHŸX›[€à»[H^
+åçåÃKåçåÃLJKÇãH⁄[\»ÿ⁄[XH
+⁄[\◊ÿ€€ùô\úÿ][€úÀ⁄[\◊€Y\‹ÿYŸ\À⁄[\◊‹Ÿ][ô‹ H\¬à–“—Qù]ì’QUSTSQSïQà\»[ùûH]]‹ö^ô\»Hÿ‹»\]H€õKàõ›[\[Y[ù][€ãÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãHõ€ôH\»Ÿ\‹⁄[€à
+X⁄\⁄[€ãÿ\ò⁄]X›\ôK‹ôX€€ò⁄[X][€à€õJKÇÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHTê“UP’TëHOàåãåéàŸX›[€àÀåàô\XŸY⁄]H\ò⁄]ôHì»[Bà^»ô]»ŸX›[€à
+⁄[\Àù[^
+N»ô\ú⁄[€à[ôH\]YÇãHô]öY]ŸY[ôö[ò[^ôYûH€]YN»ûX[à\Y\»[ô€€[Z]ÀÇãH\»[ùûH]]‹ö^ô\»H–‘ÀS”ìH\]H»Tê“UP’TëKõYà]Ÿ\»ì’à]]‹ö^ôH⁄[\»[\[Y[ù][€ãÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH\»[ùûH\»–‘ÀS”ìKà»õ›[\[Y[ù⁄[\Àà»õ››X⁄àõÿó‹ÿ⁄Y[W⁄][\À]»ìÀ‹à[ûH›\à^\›[ô»XõK‘îÀ’RHHBàÿ⁄Y[Hö^\»[ôXYH]ôN»ŸX›[€à…‹»[H€õHÿ›[Y[ù»]àô]õÿX›]ô[H]H\ò⁄]X›\ôH]ô[ÇãH⁄[\»[\[Y[ù][€à
+ZY‹ò][€ãô]YûHù[ò›[€ãRJH\»H—TTêUHù]\ôBàô\]Y\›ÿ]Y€àûX[â‹»X⁄\⁄[€à»õÿŸYYYù\à\»ÿ‹»\]H\¬à€€[Z]YÇãH⁄[à⁄[\»[\[Y[ù][€à\»]ô[ùX[Hô\]Y\›YàH⁄[ô€HY⁄\›\›ZŸ\¬àôYõY⁄][H\»€€ôö\õZ[ô»Hô]YûHù[ò›[€à]][ùXÿ]\»»›\Xò\ŸBà\⁄[ô»Hô\]Y\›[ô»\Ÿ\â‹»ï’õ›HŸ\ùöXŸK\õ€HŸ^HH\»]\õZ[ô\¬à⁄]\à⁄[\»€‹úôX›H[ö\ö]»^\›[ô»ì»‹àXÿ⁄Y[ù[HŸ]¬àYZ[ã[]ô[ôXYXÿŸ\‹Àà\»]\›ôH€€ôö\õYY^X⁄]Kõ›\‹›[YYÇÇà»»»⁄]€]YHôYY»»€õ›¬ãH⁄[\»\⁄Y€à\»ù[Hÿ⁄ŸY[ô›XõKà[\[Y[ù][€ã\õ€\Ÿ[ô\ò][€Çà\»Hô^›\€òŸHûX[à€€[Z]»\»ÿ‹À[€õH\]K[ô\»HŸ\\ò]Bàù]\ôHô\]Y\›ÇãHH€À\€XﬁH€ŸùX\ò⁄]ôHì»\‹€€à
+ŸX›[€à»[JH⁄›[ôHôX]Yà\»H›[ô[ô»⁄X⁄€\›][Hõ‹à[ûHù]\ôHXõHÿZ[ö[ô»€ŸùX\ò⁄]ôK‘ì¬àõ‹àHö\ú›[YKõ›ù\›H€ôK[Ÿôàÿ⁄Y[Hö^ÇãHHSë—ëà‹ô\ö[ôÀYYôX›ô\Z\à
+[ùûHLçäH\›Xõ\⁄YH›[ô[ô¬à€XﬁNà[ù]\ôH€€‹ô[ò][€ãYÿ›[Y[ù\ÿ‹ô\[ò⁄Y\»õ›]H»ûX[àõ‹Çà\õ›ò[ôYõ‹ôH€‹úôX›[€ãà\H\»€⁄[ô»õ‹ùÿ\ô⁄]›]ôZ[ô¬àôK\ô[Z[ôYÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[à\Y\»[ô€€[Z]»Tê“UP’TëHåãåé
+ŸX›[€à»[H
+»ŸX›[€à
+Bà[ô\»Së—ëà[ùûKÇåãà⁄[\»[\[Y[ù][€àõ€\Ÿ[ô\ò][€à\[ú»\»HŸ\\ò]Hù]\ôBàô\]Y\›€òŸHHÿ‹À[€õH\]H\»€€[Z]YÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH
+ÿ\úöYYõ‹ùÿ\ô
+H›\Xò\ŸH]]X€€ù^\õÿX⁄õ‹àH⁄[\»ô]YûBàù[ò›[€àô[XZ[ú»HY⁄\›\›ZŸ\»‹[à[\[Y[ù][€à]Y\›[€ã»ôBàô\€€ôY]€Ÿ^ôYõY⁄⁄[à[\[Y[ù][€àôY⁄[ú»Hõ›\ùŸà\¬àÿ‹À[€õH[ùûKÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãH–TîíQQì‘ï–Tëà[⁄[\»ô\Ÿ\ùôY][\»[ò⁄[ôŸY
+õÿX›]ôHX›[€úÀà][K\›\]]€õ€[›\»⁄Z[úÀõ⁄XŸHK”À‹õ‹‹À]\Ÿ\à⁄]ö\⁄Xö[]KàŸ[ã[[ŸYûZ[ô»€€ôöY›\ò][€ãŸ[ô\ò[\\ú‹ŸHôX]\ôKYõY»ﬁ\›[Hô^[€ôà⁄[\◊‹Ÿ][ô‹ Kàõÿà^‹ùô[XZ[ú»[úÿ€‹Yõ›»ŸX›[€àKÇãH–TîíQQì‘ï–Tëàõ»\ôX›[ùô[ù‹ûWÿò[[òŸ\»‹ö]\Œ»õ»ô]»\õZ\‹⁄[€ÇàõY‹»ô^[€ôÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\àô]\ŸHõ‹àH⁄[\»⁄[›⁄]⁄ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåéSë—ëà[ùûHLç KÇÇãKKBÇà»»[ùûHLéH⁄[\»õ›[ô][€à[\[Y[ùYÇääë]NääàåçãLÀLBääï\]YûNääà€Ÿ^ääî\ŸNääà⁄[\»õ›[ô][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ï\»\»Hö\ú›[\[Y[ù][€à\‹»Yù\àHÿ‹À[€õH⁄[\»\ò⁄]X›\ôBõÿ⁄»[àTê“UP’TëHåãåéŸX›[€ààûX[à\õ›ôY‹[€àH»\ŸHH€õNÇúÿ⁄[XKìÀ€ÿò[⁄[›⁄]⁄ô]YûHõﬁHõ›[ô][€ãYXÿ]Y€‹ö‹‹XŸBú⁄[õÿ][ô»ùXòõH⁄[[ô]ô[‹\àŸŸ€H8†%⁄]›][ûHù\⁄[ô\‹ÀY]Bù‹ö]Hÿ\Xö[]H‹àYò[òŸY›YŸŸ\›YX›[€úÀÇÇà»»»⁄]ÿ\»€€\]YãH‹ôX]Y›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃLó‹⁄[\◊Ÿõ›[ô][€ãú‹[ÇãH‹ôX]YXõXÀú⁄[\◊ÿ€€ùô\úÿ][€úÿÇãH‹ôX]YXõXÀú⁄[\◊€Y\‹ÿYŸ\ÿÇãH‹ôX]YXõXÀú⁄[\◊‹Ÿ][ô‹ÿÇãHŸYYYH⁄[ô€K\õ›»⁄[\»Ÿ][ô‹»ôX€‹ô⁄]⁄[\◊Ÿ[òXõYHùYXÇãH[ôõ‹òŸYH⁄[ô€K\õ›»Ÿ][ô‹»€€ùô[ù[€à⁄]H[ö\]YH[ô^€àH€€ú›[ùà^ô\‹⁄[€ãÇãHYYŸ]‹⁄[\◊ÿ€€ùô\úÿ][€ú◊›\]Yÿ]ÇãHYYŸ]‹⁄[\◊‹Ÿ][ô‹◊›\]Yÿ]ÇãHYY\ã]\Ÿ\àì»õ‹à⁄[\»€€ùô\úÿ][€úÀ€Y\‹ÿYŸ\ÀÇãHYY]][ùXÿ]YôXY
+»]ô[‹\ã[€õH\]Hõ‹à⁄[\◊‹Ÿ][ô‹ÿ\⁄[ô¬àH^\›[ô»ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òYôôX›]ôK\\õZ\‹⁄[€ú»]\õãÇãHYYõ»SUH€X⁄Y\»€à[ûH⁄[\»XõKÇãHYYô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ\»H⁄[\»õﬁHõ›[ô][€ãÇãH€€ôö\õYYHõﬁH\Ÿ\»Hô\]Y\›[ô»\Ÿ\â‹»€\öÀZ\‹›YY›\Xò\ŸHï’õ‹Çà›\Xò\ŸHôXYÀ›‹ö]\»ûH‹ôX][ô»Hù[ò›[€ã\⁄YH€Y[ùúõ€HH[õ€ã‹XõX¬àŸ^H\»H[ò€€Z[ô»]]‹ö^ò][€éàôX\ô\àù›òXY\ãÇãH€€ôö\õYYHõﬁHŸ\»õ›\ŸH’TPêT—W‘—TïíP—W‘ì”W“—VX[ôŸ\»õ›\ŸBàŸ\ùöXŸK\õ€H\»X[ùX[ö[\ö[ôÀÇãH€€ôö\õYYHòX⁄Ÿ[ô⁄X⁄‹»⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõYôYõ‹ôH[ûBà\Ÿ\ã\ÿ€‹Y⁄[\»€€ùô\úÿ][€àôXY‹à€]YHTHÿ[ÇãHYYHYXÿ]Y⁄[\»€‹ö‹‹XŸH⁄[»HXZ[à\ò]öYÿ][€ãÇãHYYHõÿ][ô»⁄[\»ùXòõH⁄[]⁄\ô\»Hÿ[YH€€ùô\úÿ][€à\›‹ûKÇãHYYH]ô[‹\à\⁄õÿ\ô⁄[\»[òXõY»⁄[\»\ÿXõYŸŸ€KÇãHYY]ô[‹\ã]ö\⁄XõHZ\‹⁄[ôÀZŸ^HY\‹ÿY⁄[ô»õ‹Çà“ST◊–Sïì‘P◊–TW“—VXÇãHYYõ›[ô][€à⁄]\ú⁄\›[òŸHõ‹à\Ÿ\ãÿ\‹⁄\›[ùY\‹ÿYŸH\›‹ûHõ›Y⁄àHô]»⁄[\»Xõ\»€õKÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôHYYÇãHõ»^\›[ô»\õZ\‹⁄[€ú»Ÿ\ôH⁄[ôŸYÇãHõ»^\›[ô»ù\⁄[ô\‹ÀY]HXõHìÀŸ‹ò[ùÀ‹€X⁄Y\»Ÿ\ôH⁄[ôŸYÇãHõ»\ôX›[ùô[ù‹ûWÿò[[òŸ\ÿ‹ö]H]ÿ\»YYÇãHõ»Ÿ\ùöXŸK\õ€H›\Xò\ŸHôXY]ÿ\»YYõ‹à⁄[\ÀÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\»\ôH\ôõ‹õYYûHH⁄[\»õﬁKÇãHõ»[ùô[ù‹ûKÿ\ù⁄X⁄€›]ÿ›[Y[ùÀö[ò[ò⁄X[Àÿ⁄Y[K‹àõ‹õX][ô¬à[ô\àôZ]ö[‹àÿ\»⁄[ôŸYô^[€ô⁄\ôY\\⁄[^‹›\ôHŸàH⁄[\¬à€‹ö‹‹XŸH[ôùXòõKÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇÇà»»»\ŸHH[Z]][€ú¬ãHõ»ôXŸZ\\ú⁄[ôÀÇãHõ»›YŸŸ\›YXX›[€à^X›][€ãÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\ÀÇãHõ»ÿ\ù–⁄X⁄€›]⁄\ö[ôÀÇãHõ»ÿ›[Y[ù»\ÿY⁄\ö[ôÀÇãHõ»õÿàùYŸ][ôH⁄\ö[ôÀÇãHõ»ÿ⁄Y[H⁄\ö[ôÀÇãHõ»õÿà^‹ùÇÇà»»»ö[\»⁄[ôŸYãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃLó‹⁄[\◊Ÿõ›[ô][€ãú‹[ãHô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿãH‹òÀ⁄€⁄‹À›\ŸT⁄[\ÀöúÿãH‹òÀÿ€€\€ô[ùÀ‘⁄[\‘[ô[ÀöúﬁãH‹òÀ–\öúﬁãH‹òÀ‹›[\Àò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåéÇãH€€ôö\õYYSë—ëàÿ\»›\úô[ùõ›Y⁄[ùûHLç»ôYõ‹ôH\»\[ôÇãH€€ôö\õYYŸX›[€à^\›»[ôÿ⁄‹»⁄[\ÀÇãH€€ôö\õYYŸX›[€à^X⁄]Hô\]Z\ô\»ô\]Y\›[ôÀ]\Ÿ\àï’›\Xò\ŸHXÿŸ\‹Ààõ›Ÿ\ùöXŸK\õ€HXÿŸ\‹ÀÇãH€€ôö\õYYõ»ö[‹à⁄[\»ZY‹ò][€ú»^\›Y[àô\ÀÇãH€€ôö\õYYõ»ö[‹à⁄[\◊ÿ€€ùô\úÿ][€úÿ⁄[\◊€Y\‹ÿYŸ\ÿ‹Çà⁄[\◊‹Ÿ][ô‹ÿZY‹ò][€ú»^\›Y[àô\ÀÇãH€€ôö\õYYõ»ô]YûKŸù[ò›[€úÿ[\[Y[ù][€à^\›YôYõ‹ôH\»\‹ÀÇãH€€ôö\õYYHúõ€ù[ô[ôXYHYHô]\ÿXõH]][ùXÿ]Y›\Xò\ŸH€Y[ùà]\õà\⁄[ô»€\ö»Ÿ]⁄Ÿ[ä»[\]Nà	‹›\Xò\ŸI»JX\¬à‹ôX]T›\Xò\ŸP€Y[ù
+⁄Ÿ[äXÇãH€€ôö\õYYHù[ò›[€ã\⁄YH⁄[\»›\Xò\ŸH€Y[ù\»ùZ[úõ€H[õ€ã‹XõX¬à‹ôY[ùX[»\»Hô\]Y\›[ô»\Ÿ\â‹»ï’[àH]]‹ö^ò][€àXY\ãÇãH€€ôö\õYYõ»’TPêT—W‘—TïíP—W‘ì”W“—VXôYô\ô[òŸHÿ\»YYÇãH€€ôö\õYY⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY\»⁄X⁄ŸY[ú⁄YHHòX⁄Ÿ[ôàù[ò›[€ãÇãH€€ôö\õYY€õH€ôHô]»ZY‹ò][€àö[Hÿ\»YY[ôõ»^\›[ô»ZY‹ò][€àö[Bàÿ\»Y]YÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇãH]ôH›\Xò\ŸHZY‹ò][€àÿ\»õ›\YY[à\»Ÿ\‹⁄[€à[ô›[ôYY»X[ùX[à\Xÿ][€àYàûX[àÿ[ù»H\ﬁYY\»\ŸH⁄[\»[[YYX][KÇãHô]YûH[ùàò\à“ST◊–Sïì‘P◊–TW“—VX›[ôYY»\ﬁ[Y[ù][YHŸ]\‹Çàô\öYöXÿ][€à[õ\‹»ûX[à[ôXYH€€ôöY›\ôY][àô]YûH›]⁄YH\¬àŸ\‹⁄[€ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄[\»õ›[ô][€à›^YY⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåéSë—ëà[ùûHLé
+KÇÇà»»[ùûHLéHH⁄[\»õ›[ô][€à]ôHô\öYöXÿ][€ÇÇääë]NääàåçãLÀLLääï\]YûNääà€Ÿ^ääî\ŸNääà⁄[\»õ›[ô][€ÇääîŸ\‹⁄[€à\Nääà]ôHô\öYöXÿ][€àÿ›[Y[ù][€ÇÇà»»»€€ù^î⁄[\»õ›[ô][€àÿ\»[\[Y[ùY[ô\àTê“UP’TëHåãåéŸX›[€à[ôú⁄\Y[à[\[Y[ù][€à€€[Z]çNXÃÿXàûX[à[àX[ùX[H\YYH]ôBî›\Xò\ŸHZY‹ò][€ã€€ôö\õYYHô]YûK–TKZŸ^Hõ›[ô][€àÿ\»›YôöX⁄Y[ùBò€€ôöY›\ôYõ‹àô\‹€úŸ\À[ô€€\]YHúõ›‹Ÿ\ãXò\ŸY]ôHô\öYöXÿ][€à\‹ÀÇÇà»»»⁄]ÿ\»ô\öYöYYãH[\[Y[ù][€à€€[Z]çNXÃÿXÿ\»[ôXYH\⁄YôYõ‹ôH\»[ùûKÇãH]ôH›\Xò\ŸHZY‹ò][€Çà›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃLó‹⁄[\◊Ÿõ›[ô][€ãú‹[ÿ\»\YYàX[ùX[KÇãHûX[à€€ôö\õYY⁄[\»\ŸHH€‹ö‹»]ôKÇãH⁄[\»€‹ö‹‹XŸH\X\ú»⁄[à[òXõYÇãHõÿ][ô»⁄[\»ùXòõH\X\ú»⁄[à[òXõYÇãHHò\⁄X»⁄]Y\‹ÿYŸHŸ[ô»›XÿŸ\‹Ÿù[KÇãHY\‹ÿYŸH\›‹ûH\ú⁄\›»[àH⁄[\»€‹ö‹‹XŸKÇãHHÿ[YH€€ùô\úÿ][€ã⁄\›‹ûH\»⁄\ôY⁄]Hõÿ][ô»ùXòõKÇãH]ô[‹\à\⁄õÿ\ô⁄[\»[òXõY»\ÿXõYŸŸ€H€‹ö‹ÀÇãH\ÿXõY›]H\ú⁄\›»Yù\àôYúô\⁄ÇãHôKY[òXõ[ô»ô\›‹ô\»H⁄[\»€‹ö‹‹XŸH[ôùXòõKÇãHHòX⁄Ÿ[ôõ›[ô][€àô\‹€úŸH›[€€ôö\õ\»\ŸHK[€õHôZ]ö[‹éÇà⁄[\»õ›[ô][€à\»€õ[ôKàHÿ]ôY[›\àY\‹ÿYŸHXõ›]ï⁄]ÿ[à[›H»[à\ŸHO»à[ô⁄[›^H[ú⁄YH[›\à^\›[ô»\õZ\‹⁄[€úÀà\õ›ôK—[ûHù\⁄[ô\‹»X›[€úÀôXŸZ\À[ô[Ÿ[K\‹X⁄YöX»]]€X][€ú»\ôHõ›[òXõYY][à\ŸHKòÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»\õ›ôK—[ûHù\⁄[ô\‹»X›[€ú»\ôH[òXõYÇãHõ»ôXŸZ\[\‹ù\»[òXõYÇãHõ»[Ÿ[K\‹X⁄YöX»]]€X][€ú»\ôH[òXõYÇãHõ»õÿà^‹ù€‹ö»ÿ\»YYÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\»\ôH[òXõYúõ€H⁄[\»Y]ÇãHõ»\ÿ⁄[XKìÀ›\Xò\ŸK‹àô]YûH⁄[ôŸ\»Ÿ\ôHXYH[à\¬àô\öYöXÿ][€à[ùûKÇÇà»»»ö[\»⁄[ôŸYãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôH\»\[ôÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôH\»\[ôÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåéÇãH€€ôö\õYYSë—ëà]\›[ùûHÿ\»LéôYõ‹ôH\»\[ôÇãH€€ôö\õYY[\[Y[ù][€à€€[Z]çNXÃÿX\»[à\›‹ûKÇãH€€ôö\õYYZY‹ò][€àö[Bà›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃLó‹⁄[\◊Ÿõ›[ô][€ãú‹[^\›»[àô\ÀÇãH€€ôö\õYYõ»[\[Y[ù][€à⁄[ôŸ\»Ÿ\ôHôYYYõ‹à\»ÿ›[Y[ù][€ã[€õBà\‹ÀÇãH€€ôö\õYY€õHSë—ëãõY⁄[ôŸY[à\»[ùûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàŸY\⁄[\»\ŸHH\»H›\úô[ù]ôHò\Ÿ[[ôKÇåãàÿ€‹HHô^⁄[\»Z[\›€ôHŸ\\ò][HôYõ‹ôH[\[Y[ù][€ãÇåÀà»õ››\ùôXŸZ\À\õ›ôK—[ûHù\⁄[ô\‹»X›[€úÀ[Ÿ[K\‹X⁄YöX¬à]]€X][€úÀ‹àõÿà^‹ù⁄]›]Hô]»\ò⁄]X›\ôKX€X\ôY\⁄»õ€\ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%ÿ›[Y[ù][€ã[€õH⁄[\»õ›[ô][€à]ôHô\öYöXÿ][€à
+Tê“UP’TëHåãåéSë—ëà[ùûHLéJKÇÇà»»[ùûHLÃH⁄[\»ÿ\›X[€€ùô\úÿ][€à[òXõYÇääë]NääàåçãLÀLLääï\]YûNääà€Ÿ^ääî\ŸNääà⁄[\»\ŸHêBääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^î⁄[\»õ›[ô][€àÿ\»[ôXYH]ôH[ô\àTê“UP’TëHåãåéŸX›[€à⁄]ùHYXÿ]Y€‹ö‹‹XŸKõÿ][ô»ùXòõK\ã]\Ÿ\à⁄]\›‹ûKòX⁄Ÿ[ô⁄[ú›⁄]⁄[ôï’\ÿ€‹Y›\Xò\ŸHXÿŸ\‹»[ôXYHô\öYöYYûHûX[ãà\»\‹¬ú›^YY[ú⁄YH]ÿ⁄ŸY\ò⁄]X›\ôH[ô\‹òYYH^\›[ô»ô]YûH⁄[\¬úõﬁHúõ€HHÿ[õôY\ŸHHõ›[ô][€àô\H»ôX[€]YKXòX⁄ŸYÿ\›X[ò€€ùô\úÿ][€à[ôŸ[ô\ò[IêKÇÇà»»»⁄]ÿ\»€€\]YãH[òXõYôX[€]YKXòX⁄ŸYÿ\›X[€€ùô\úÿ][€àõ›Y⁄H^\›[ô¬àô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿõﬁKÇãHôYö[ôYHŸ\ùô\ã\⁄YH⁄[\»ﬁ\›[Hõ€\€»⁄[\»ÿ[à[ôHõ‹õX[à€€ùô\úÿ][€à[ôŸ[ô\ò[]Y\›[€ú»⁄[H^X⁄]H›^Z[ô»[ú⁄YH\ŸHêBà[Z]ÀÇãHô\Ÿ\ùôYŸ\ùô\ã\⁄YK[€õH\ŸHŸà“ST◊–Sïì‘P◊–TW“—VXÇãHô\Ÿ\ùôYHòX⁄Ÿ[ô⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY⁄[\›⁄]⁄⁄X⁄»ôYõ‹ôBà[ûH€]YHTHÿ[ÇãHô\Ÿ\ùôYô\]Y\›[ôÀ]\Ÿ\àï’›\Xò\ŸHXÿŸ\‹»õ‹à⁄[\»€€ùô\úÿ][€ã€Y\‹ÿYŸBàôXY»[ô‹ö]\ÀÇãHYõ›\ŸH’TPêT—W‘—TïíP—W‘ì”W“—VX‹à[ûHŸ\ùöXŸK\õ€H›\Xò\ŸHXÿŸ\‹ÀÇãHô\Ÿ\ùôY\ã]\Ÿ\à⁄]\›‹ûH[ôŸ\€€ùô\úÿ][€à€€ù^[Z]Y»Bà›\úô[ù\Ÿ\â‹»Ÿ[X›Y€€ùô\úÿ][€à€õKÇãH€‹úôX›Y€€ùô\úÿ][€ãX€€ù^ÿY[ô»€»H€]YHô\]Y\›[ò€Y\»ôXŸ[ùàY\‹ÿYŸ\»ò]\à[àH€\›Y\‹ÿYŸ\»[àHôXYÇãHô[[›ôYHÿ[õôYò[òX⁄»\‹⁄\›[ùô\H]€»òX⁄Ÿ[ô€]YHòZ[\ô\»õ¬à€ôŸ\à‹ôX]HHòZŸH\‹⁄\›[ùY\‹ÿYŸKÇãHŸ\H^\›[ô»⁄[\»€‹ö‹‹XŸH[ôõÿ][ô»ùXòõKÇãHYYH€X\ô\à[ãURHô\‹€ô[ô»›]H⁄[H⁄[\»\»ÿZ][ô»€à€]YKÇãHŸ\úöY[ôHúõ€ù[ôÿòX⁄Ÿ[ô\úõ‹à[ô[ô»€»HòZ[Y€]YHô\‹€úŸBàX]ô\»Hÿ]ôY\Ÿ\àY\‹ÿYŸHö\⁄XõH⁄]›]‹ò\⁄[ô»H\ÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ŸXàŸX\ò⁄ÿ\»YYÇãHõ»úõ›‹⁄[ô»õ›öY\àÿ\»YYÇãHõ»ôXŸZ\\ú⁄[ô»ÿ\»YYÇãHõ»›YŸŸ\›YXX›[€à^X›][€àÿ\»YYÇãHõ»\õ›ôK—[ûHù\⁄[ô\‹»X›[€à^X›][€àÿ\»YYÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\»Ÿ\ôHYYÇãHõ»ÿ\ù–⁄X⁄€›]ôZ]ö[‹à⁄[ôŸYÇãHõ»ÿ›[Y[ù»ôZ]ö[‹à⁄[ôŸYÇãHõ»ö[ò[ò⁄X[»ôZ]ö[‹à⁄[ôŸYÇãHõ»ÿ⁄Y[HôZ]ö[‹à⁄[ôŸYÇãHõ»[ùô[ù‹ûHôZ]ö[‹à⁄[ôŸYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»ô]»ZY‹ò][€ú»Ÿ\ôHYYÇãHõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôHYYÇãHõ»ù\⁄[ô\‹À]XõHìÀ‹ò[ùÀ‹à€X⁄Y\»Ÿ\ôH⁄[ôŸYÇÇà»»»ö[\»⁄[ôŸYãHô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿãH‹òÀ⁄€⁄‹À›\ŸT⁄[\ÀöúÿãH‹òÀÿ€€\€ô[ùÀ‘⁄[\‘[ô[ÀöúﬁãH‹òÀ–\öúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåéÇãH€€ôö\õYYSë—ëà[ôXYH[ò€YY[ùûHLéHôYõ‹ôH\»\[ôÇãH€€ôö\õYYõ»ZY‹ò][€àö[\»⁄[ôŸY‹àŸ\ôHYYÇãH€€ôö\õYYõ»X⁄ÿYŸHö[\»⁄[ôŸYÇãH€€ôö\õYYõ»ù\⁄[ô\‹ÀY]H‹ö]Hÿ[»Ÿ\ôHYYÇãH€€ôö\õYYõ»’TPêT—W‘—TïíP—W‘ì”W“—VX\ÿYŸHÿ\»YYÇãH€€ôö\õYY⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY\»›[⁄X⁄ŸY[àHòX⁄Ÿ[ôàôYõ‹ôH€]YHTHÿ[ÀÇãH€€ôö\õYYHòX⁄Ÿ[ôõ€\õ›»[»⁄[\»»ôYù\ŸKŸYô\à›\úô[ùŸXÇà€⁄›\ôXÿ]\ŸHŸXàŸX\ò⁄\»õ›[òXõYY]ÇãH€€ôö\õYYHòX⁄Ÿ[ôõ€\õ›»[»⁄[\»õ›»€Z[HôXŸZ\[ô[ô»‹ÇàX›[€à^X›][€à]\»õ›[òXõYY]ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇãHõŸHKX⁄X⁄»ô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ\‹ŸYÇãH]ôKÿúõ›‹Ÿ\àô\öYöXÿ][€àŸàÿ\›X[€€ùô\úÿ][€ã›\úô[ùZ[ôõ»ôYù\ÿ[[ôàõÀXX›[€à€Z[\»›[ôYY»ûX[à»\›€àH\ﬁYY\Yù\à\¬à€€[Z]\»\⁄YôXÿ]\ŸH\»Ÿ\‹⁄[€àYõ›^X›]HH]ôH[ùõ‹X»ÿ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà\⁄Ÿ\ﬁH\»€€[Z]ÇåãàûX[àô\öYöY\»Hõ‹õX[ÿ\›X[Y\‹ÿYŸHŸ]»HôX[⁄[\»ô\KÇåÀàûX[àô\öYöY\»H›\úô[ù€]ôKZ[ôõ»ô\]Y\›\»ôYù\ŸYŸYô\úôYôXÿ]\ŸHŸXÇàŸX\ò⁄\»õ›[òXõYY]ÇçàûX[àô\öYöY\»⁄[\»Ÿ\»õ›€Z[H]ÿ[à^X›]HôXŸZ\ÀÿX›[€ú»Y]ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄[\»ÿ\›X[€€ùô\úÿ][€à›^YY⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåéSë—ëà[ùûHLÃ
+KÇÇà»»[ùûHLÃHH⁄[\»\ŸHêH\‹⁄\›[ùô\‹€úŸHòZ[\ôHùYŸö^Çääë]NääàåçãLÀLLääï\]YûNääà€Ÿ^ääî\ŸNääà⁄[\»\ŸHêBääîŸ\‹⁄[€à\NääàùYŸö^»[\[Y[ù][€ÇÇà»»»€€ù^îûX[à]ôK]\›Y⁄[\»\ŸHêHYù\à[ùûHLÃÿ\»\⁄YàH\Ÿ\àY\‹ÿYŸBúÿ]ôH]›XÿŸYYYù]H\‹⁄\›[ùô\HòZ[Y⁄]Çò⁄[\»€›[õ›ô\‹€ôöY⁄õ›Àà[›\àY\‹ÿYŸHÿ\»ÿ]ôYù]õ»\‹⁄\›[ùô\Hÿ\»Ÿ[ô\ò]YàX\ŸHûHYÿZ[ãòÇï]^X›Y\‹ÿYŸHÿ[YHúõ€HH[õô\à€]YK\ô\]Y\›òZ[\ôHúò[ò⁄[àBô^\›[ô»ô]YûHù[ò›[€ãõ›úõ€HHZ\‹⁄[ôÀZŸ^Húò[ò⁄õ›úõ€HBô[\K\ô\‹€úŸHúò[ò⁄[ôõ›úõ€HH\‹⁄\›[ù[Y\‹ÿYŸH[úŸ\ù]ÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåéÇãH€€ôö\õYY]\›Së—ëà[ùûHôYõ‹ôH\»\‹»ÿ\»[ùûHLÃÇãH€€ôö\õYYH]\›⁄[\»\ŸHêH€€[Z]LXÃŸçÿ\»ô\Ÿ[ù[à\›‹ûKÇãH€€ôö\õYYô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ^\›ÀÇãH€€ôö\õYYõ»õÿà^‹ù€‹ö»Y›\ùYÇãH€€ôö\õYYõ»ôXŸZ\ÿX›[€ãÿù\⁄[ô\‹À]‹ö]H€‹ö»Y›\ùYÇãH€€ôö\õYYHù[ò›[€à›[Yõ›\ŸH’TPêT—W‘—TïíP—W‘ì”W“—VXÇãH€€ôö\õYYHù[ò›[€à›[⁄X⁄ŸY⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõYôYõ‹ôBàH€]YHTHÿ[ÇãH€€ôö\õYYHù[ò›[€à›[\ŸYHô\]Y\›[ô»\Ÿ\â‹»ï’õ‹à›\Xò\ŸBàXÿŸ\‹ÀÇãH€€ôö\õYY“ST◊–Sïì‘P◊–TW“—VXÿ\»ôYô\ô[òŸY^X›HûH]ò[YKÇãH€€ôö\õYYH]ôHòZ[\ôHûX[àÿ]»X\»‹X⁄YöXÿ[H»Hù[ò›[€â‹¬à€]YW›[ò]òZ[XõX]ÇãHù[Y›]Z\‹⁄[ô»THŸ^H\»HÿúŸ\ùôYòZ[\ôKôXÿ]\ŸH]úò[ò⁄€›[à]ôHô]\õôYZ\‹⁄[ô◊ÿ\W⁄Ÿ^Xõ›HY\‹ÿYŸHûX[àÿ]ÀÇãHù[Y›][\H€€ù[ù\ú⁄[ô»\»HÿúŸ\ùôYòZ[\ôKôXÿ]\ŸH]úò[ò⁄à€›[]ôHô]\õôYHŸ\\ò]H€]YWŸ[\XY\‹ÿYŸKÇãHù[Y›]\‹⁄\›[ù[Y\‹ÿYŸH[úŸ\ù»‹›P€]YH›\Xò\ŸHòZ[\ôH\»BàÿúŸ\ùôYòZ[\ôKôXÿ]\ŸH‹ŸH€›[ò[õ›Y⁄»H›]\àŸ[ô\öX»Làúò[ò⁄ò]\à[àH‹X⁄YöX»ÿ]ôY[Y\‹ÿYŸH»õÀX\‹⁄\›[ù\ô\Húò[ò⁄ÇãHò\úõ›ŸYH[‹›ZŸ[HòZ[\ôH⁄[ù»H[ùõ‹X»ô\]Y\›]Ÿ[ãÇãHH›õ€ôŸ\›ô\]Y\›\⁄\HZ\€X]⁄[àHôKXùYŸö^€ŸHÿ\»H[Ÿ[àY[ùYöY\à€]YK\€€õô]MLåçLLM⁄X⁄Yõ›X]⁄ûX[â‹»^X›Yà\ôX›[ùõ‹X»Y\‹ÿYŸ\»TH^[\H[ôÿ\»HY⁄\›\õÿòXö[]Hÿ]\ŸBàŸàHõ›öY\àôZôX›[€ãÇÇà»»»⁄]ÿ\»€€\]YãH⁄[ôŸYH⁄[\»[ùõ‹X»[Ÿ[úõ€H€]YK\€€õô]MLåçLLM¬à€]YKLÀMKZZZ›K[]\›ÇãH[ò‹ôX\ŸYX^›⁄Ÿ[úÿúõ€HÕL»»[Y€àHô\]Y\›[‹ôH€‹Ÿ[Bà⁄]H[ù[ôYÿ\›X[X€€ùô\úÿ][€àY\‹ÿYŸ\»TH⁄\KÇãHô\Ÿ\ùôYHÿ[YH[ô⁄[ùÇàŒãÀÿ\Kò[ùõ‹XÀò€€K›åK€Y\‹ÿYŸ\ÿÇãHô\Ÿ\ùôYHÿ[YH[ùõ‹XÀ]ô\ú⁄[€éàååÀLãLXXY\ãÇãHô\Ÿ\ùôYŸ\ùô\ã\⁄YK[€õH\ŸHŸà“ST◊–Sïì‘P◊–TW“—VXÇãHô\Ÿ\ùôYHòX⁄Ÿ[ô⁄[\›⁄]⁄⁄X⁄»ôYõ‹ôHH€]YHÿ[ÇãHô\Ÿ\ùôYô\]Y\›[ôÀ]\Ÿ\àï’›\Xò\ŸHXÿŸ\‹»[ôYõ›\ŸHŸ\ùöXŸK\õ€KÇãHYY]ô[‹\ã]ö\⁄XõHòX⁄Ÿ[ô\úõ‹à]Z[\‹›õ›Y⁄õ‹àBà€]YW›[ò]òZ[XõX]€»ù]\ôHõ›öY\àôZôX›[€ú»›\ôòXŸHHX›X[à[ùõ‹X»\úõ‹à^»H]ô[‹\àŸ\‹⁄[€à[ú›XYŸà€õHHŸ[ô\öX¬à\‹⁄\›[ùòZ[\ôHò[õô\ãÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ŸXàŸX\ò⁄ÿ\»YYÇãHõ»ôXŸZ\\ú⁄[ô»ÿ\»YYÇãHõ»\õ›ôK—[ûHù\⁄[ô\‹»X›[€ú»Ÿ\ôHYYÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\»Ÿ\ôHYYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»ù\⁄[ô\‹À]XõHìÀ‹ò[ùÀ‹à€X⁄Y\»Ÿ\ôH⁄[ôŸYÇãHõ»ô]»ZY‹ò][€ú»Ÿ\ôHYYÇãHõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôHYYÇÇà»»»ö[\»⁄[ôŸYãHô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿãH‹òÀ⁄€⁄‹À›\ŸT⁄[\ÀöúÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇãHõŸHKX⁄X⁄»ô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ\‹ŸYÇãH€€ôö\õYY€õHH⁄[\»ù[ò›[€ã⁄[\»€⁄À[ôSë—ëà⁄[ôŸY[à\¬àùYŸö^\‹ÀÇãH€€ôö\õYY’TPêT—W‘—TïíP—W‘ì”W“—VX›[Ÿ\»õ›\X\à[àH⁄[\¬àù[ò›[€ãÇãH€€ôö\õYY⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY\»›[⁄X⁄ŸYôYõ‹ôHH€]YBàTHÿ[ÇãH€€ôö\õYY“ST◊–Sïì‘P◊–TW“—VX\»›[ôXY^X›HûH]ò[YKÇãH]ôH€€ôö\õX][€àŸàHô\Z\ôY\‹⁄\›[ùô\H]›[ô\]Z\ô\»ûX[à¬à\›Yù\à\ﬁ[Y[ùôXÿ]\ŸH\»Ÿ\‹⁄[€àYõ›^X›]HH]ôH[ùõ‹X¬àô\]Y\›⁄]õŸX›[€àŸX‹ô]ÀÇÇà»»»ô^›\»
+[à‹ô\äBåKà\⁄Ÿ\ﬁH\»ùYŸö^ÇåãàûX[àôK]\›»Hõ‹õX[⁄[\»Y\‹ÿYŸH]ôKÇåÀàYàHô\H›[òZ[ÀûX[à⁄X⁄‹»Hô]»]ô[‹\ã]ö\⁄XõH€]YH\úõ‹Çà]Z[[àHRH€»H^X›õ›öY\àôZôX›[€àÿ[àôHÿ\\ôY\ôX›KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%õÿ›\ŸY⁄[\»\ŸHêH\‹⁄\›[ù\ô\‹€úŸHùYŸö^⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåéSë—ëà[ùûHLÃJKÇÇà»»[ùûHLÃàH⁄[\»€]YH[Ÿ[Qö^Çääë]NääàåçãLÀLLääï\]YûNääà€Ÿ^ääî\ŸNääà⁄[\»\ŸHêBääîŸ\‹⁄[€à\NääàùYŸö^»[\[Y[ù][€ÇÇà»»»€€ù^îûX[àÿ\\ôYH]ôH⁄[\»õ›öY\à\úõ‹àYù\à[ùûHLÃNÇò[ùõ‹X»ô\]Y\›òZ[Yà»ù\Héàô\úõ‹àãô\úõ‹àéû»ù\Héàõõ›Ÿõ›[ôŸ\úõ‹àãõY\‹ÿYŸHéàõ[Ÿ[à€]YKLÀMKZZZ›K[]\›üKããüXÇï\»\€€]YHõ€›ÿ]\ŸH»H[ùõ‹X»[Ÿ[Qò]\à[àBî›\Xò\ŸH\ú⁄\›[òŸH]⁄[›⁄]⁄‹àï’\ÿ€‹Y€€ùô\úÿ][€àXÿŸ\‹ÀÇÇà»»»⁄]ÿ\»€€\]YãHô\XŸYH⁄[\»[ùõ‹X»[Ÿ[Q[Çàô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿÇãH€[Ÿ[à€]YKLÀMKZZZ›K[]\›ãHô]»[Ÿ[à€]YKZZZ›KMMKLåçLLXãHŸ\HY\‹ÿYŸ\»TH[ô⁄[ù[ò⁄[ôŸYÇàŒãÀÿ\Kò[ùõ‹XÀò€€K›åK€Y\‹ÿYŸ\ÿãHŸ\H^\›[ô»ô\]Y\›XY\ú»[ò⁄[ôŸY[ò€Y[ô¬à[ùõ‹XÀ]ô\ú⁄[€éàååÀLãLXÇãHô\Ÿ\ùôYÿYôHòX⁄Ÿ[ôŸŸ⁄[ô»Ÿà[ùõ‹X»›]\»€ŸKŸ\úõ‹à^⁄]›]à^‹⁄[ô»ŸX‹ô]ÀÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHõ»ŸXàŸX\ò⁄ÿ\»YYÇãHõ»ôXŸZ\\ú⁄[ô»ÿ\»YYÇãHõ»›YŸŸ\›YXX›[€à^X›][€àÿ\»YYÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\»Ÿ\ôHYYÇãHõ»Ÿ\ùöXŸK\õ€H›\Xò\ŸHXÿŸ\‹»ÿ\»YYÇãHòX⁄Ÿ[ô⁄[›⁄]⁄ÿ\»ô\Ÿ\ùôYÇãHô\]Y\›[ôÀ]\Ÿ\àï’›\Xò\ŸHXÿŸ\‹»ÿ\»ô\Ÿ\ùôYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇãHõ»ZY‹ò][€ú»Ÿ\ôHYYÇãHõ»›\Xò\ŸH⁄[ôŸ\»Ÿ\ôHXYKÇãHõ»ô]»\õZ\‹⁄[€àõY‹»Ÿ\ôHYYÇÇà»»»ö[\»⁄[ôŸYãHô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåéÇãH€€ôö\õYY]\›Së—ëà[ùûHôYõ‹ôH\»\‹»ÿ\»[ùûHLÃKÇãH€€ôö\õYY›\úô[ùô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ\ŸYà€]YKLÀMKZZZ›K[]\›ôYõ‹ôH\»ö^ÇãH€€ôö\õYY⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY\»›[⁄X⁄ŸYôYõ‹ôHBà[ùõ‹X»ÿ[ÇãH€€ôö\õYY’TPêT—W‘—TïíP—W‘ì”W“—VX\»›[õ›\ŸYÇãH€€ôö\õYYô\]Y\›[ôÀ]\Ÿ\àï’›\Xò\ŸHXÿŸ\‹»\»›[\ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇãHõŸHKX⁄X⁄»ô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ\‹ŸYÇãH€€ôö\õYYõ»ZY‹ò][€ú»⁄[ôŸYÇãH€€ôö\õYYõ»X⁄ÿYŸHö[\»⁄[ôŸYÇãH€€ôö\õYYõ»ŸXàŸX\ò⁄ÿ\»YYÇãH€€ôö\õYYõ»ù\⁄[ô\‹ÀY]H‹ö]H]ÿ\»YYÇÇà»»»ô^›\»
+[à‹ô\äBåKà\⁄Ÿ\ﬁH\»[Ÿ[ö^ÇåãàûX[àŸ[ô»⁄]ÿ[à[›H»öY⁄õ›œÿ[à⁄[\»[ô€€ôö\õ\»HôX[ô\KÇåÀàûX[àôYúô\⁄\»[ô€€ôö\õ\»Hô\H\ú⁄\›ÀÇçàûX[à\⁄‹»ÿ[à[›HŸX\ò⁄HŸXèÿ[ô€€ôö\õ\»⁄[\»ÿ^\»ŸXàŸX\ò⁄\¬àõ›[òXõYY]ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄[\»€]YH[Ÿ[Qö^›^YY⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåéSë—ëà[ùûHLÃäKÇÇà»»[ùûHLÃ»H⁄[\»⁄]ÿ‹õ€ö^Çääë]NääàåçãLÀLLääï\]YûNääà€Ÿ^ääî\ŸNääà⁄[\»\ŸHêBääîŸ\‹⁄[€à\NääàRHùYŸö^»[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\‹ùY][àHYXÿ]Y⁄[\»[Ÿ[KYù\àŸ[ô[ô»HY\‹ÿYŸKBúÿ‹ôY[àù[\YòX⁄»»H‹[ú›XYŸà›^Z[ô»ôX\àH]\›Y\‹ÿYŸH[ôò⁄][ú]à⁄[\»ÿ\›X[€€ùô\úÿ][€à]Ÿ[àÿ\»[ôXYH€‹ö⁄[ô»]ôN»\»ÿ\¬ò[à[ù\òX›[€àùY»[àH⁄]RH€õKÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]ÀÇãH€€ôö\õYYÿ‹À–Tê“UP’TëKõYô[XZ[ôYåãåéÇãH€€ôö\õYY]\›Së—ëà[ùûHôYõ‹ôH\»\‹»ÿ\»[ùûHLÃãÇãH€€ôö\õYY⁄[\»⁄]RHö[\»^\›ÇàH‹òÀÿ€€\€ô[ùÀ‘⁄[\‘[ô[ÀöúﬁàH‹òÀ⁄€⁄‹À›\ŸT⁄[\ÀöúÿàH‹òÀ–\öúﬁàH‹òÀ‹›[\Àò‹‹ÿãH€€ôö\õYYõ»[\[Y[ù][€à€‹ö»ÿ\»[ô[ô»›]⁄YH\»ÿYôHRH\‹ÀÇãHY[ùYöYYHZŸ[Hõ€›ÿ]\ŸH\»HY\‹ÿYŸHôXYõ›ôZ[ô»H›XõBà[ù\õò[ÿ‹õ€€€ùZ[ô\à[ú⁄YHHYXÿ]Y€‹ö‹‹XŸH⁄]ÿ\ô[›⁄[ô¬àYŸK[]ô[öY]‹‹ù[›ô[Y[ù\ö[ô»ô\ô[ô\ãŸõÿ›\»⁄[ôŸ\»Yù\àY\‹ÿYŸHŸ[ôà[ôô\‹€úŸHÿYÇÇà»»»⁄]ÿ\»€€\]YãHYYH›XõHÿ‹õ€]À[]\›ôZ]ö[‹à»H⁄\ôY⁄[\»Y\‹ÿYŸH\›ÇãHYYHõ›€H[ò⁄‹àôYà€»H⁄]ÿ[àÿ‹õ€»Hô]Ÿ\›€€ù[ùYù\éÇàH[ö]X[Y\‹ÿYŸHÿYàH\Ÿ\àŸ[ôàH\‹⁄\›[ùô\‹€úŸH[úŸ\ù€ÿYàHX›]ôH€€ùô\úÿ][€à⁄[ôŸBãHYY[õôY]ÀXõ›€H]X›[€à€»HRH›^\»ò]\ò[H[ò⁄‹ôY\ö[ô¬àõ‹õX[⁄]õ›»⁄]›]ôYY[ô»òX⁄Ÿ[ô‹›]H⁄[ôŸ\ÀÇãHYYÿYôH^\ôXHôYõÿ›\»Yù\àŸ[ô€€\][€à€»H[ú]ô[XZ[ú»X\ﬁBà»€€ù[ùYH\⁄[ô»⁄]›]õ‹ò⁄[ô»HYŸHòX⁄»»H‹ÇãH€€ùô\ùYHYXÿ]Y⁄[\»⁄]ÿ\ô[ù»H›XõH€À\õ›»^[›]⁄][Çà[ù\õò[ÿ‹õ€[ô»Y\‹ÿYŸH\›ÇãH\YYHÿ[YHÿ‹õ€]À[]\›ôZ]ö[‹à»Hõÿ][ô»ùXòõH€»]»⁄]àôZ]ö[‹àô[XZ[ú»Ÿ[ú⁄XõH€ÀÇÇà»»»ÿYô]H€€ôö\õX][€ú¬ãHRK[€õH⁄[ôŸKÇãHõ»òX⁄Ÿ[ô⁄[ôŸ\»Ÿ\ôHXYKÇãHõ»ô]YûHù[ò›[€à⁄[ôŸYÇãHõ»ZY‹ò][€ú»Ÿ\ôHYYÇãHõ»›\Xò\ŸH⁄[ôŸ\»Ÿ\ôHXYKÇãHõ»ì»‹à\õZ\‹⁄[€à⁄[ôŸ\»Ÿ\ôHXYKÇãHõ»ŸXàŸX\ò⁄ÿ\»YYÇãHõ»Y[[‹ûHÿ\»YYÇãHõ»\Ÿ\ã\õŸö[HôXY[\[Y[ù][€àÿ\»YYÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]\»Ÿ\ôHYYÇãHõ»õÿà^‹ù€‹ö»ÿ\»›\ùYÇÇà»»»ö[\»⁄[ôŸYãH‹òÀÿ€€\€ô[ùÀ‘⁄[\‘[ô[ÀöúﬁãH‹òÀ‹›[\Àò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúKò€Yù[àùZ[\‹ŸYÇãH€€ôö\õYY^X›Yö[\»€õH⁄[ôŸY[à\»\‹ÀÇãH€€ôö\õYYõ»ZY‹ò][€ú»⁄[ôŸYÇãH€€ôö\õYYõ»ô]YûHù[ò›[€à⁄[ôŸYÇãH€€ôö\õYYõ»X⁄ÿYŸHö[\»⁄[ôŸYÇãH€€ôö\õYYõ»òX⁄Ÿ[ô‹àù\⁄[ô\‹ÀY]HŸ⁄X»⁄[ôŸYÇÇà»»»ô^›\»
+[à‹ô\äBåKà\⁄Ÿ\ﬁH\»RHö^ÇåãàûX[àŸ[ô»HY\‹ÿYŸH[àH⁄[\»€‹ö‹‹XŸH[ô€€ôö\õ\»HöY]»›^\»ôX\ÇàH]\›Y\‹ÿYŸK⁄[ú]ÇåÀàûX[àŸ[ô»HŸX€€ôY\‹ÿYŸH[ô€€ôö\õ\»H€‹ö‹‹XŸHõ»€ôŸ\àù[\»¬àH‹ÇçàûX[à⁄X⁄‹»Hõÿ][ô»ùXòõH[ô€€ôö\õ\»]»ÿ‹õ€ôZ]ö[‹à\»[€¬àŸ[ú⁄XõKÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%⁄[\»⁄]ÿ‹õ€RHö^›^YY⁄][àÿ⁄ŸYX⁄\⁄[€ú»
+Tê“UP’TëHåãåéSë—ëà[ùûHLÃ KÇÇà»»[ùûHLÕH‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»›\\úŸYYXŸZ€\ÇÇääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääà€€‹ô[ò][€àﬁ[ò¬ääîŸ\‹⁄[€à\Nääà[Y€õY[ùÇà»»»€€ù^ïHÿÿ[ô\‹⁄]‹ûH›‹Y][ùûHLÃÀ⁄[HH]]‹ö]]]ôH€€‹ô[ò][€Çò⁄X⁄‹⁄[ùõ‹àH‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»Z[\›€ôHÿ\»›\YYô^\õò[KàTê“UP’TëHåãåéH[ôö[ò[Së—ëà[ùûHLÕàõ››]H]ë[ùöY\»LÕ[ôLÕH\ôH›\\úŸYY[ôõ›[\[Y[ù][€ãXXÿ›\ò]KÇÇà»»»X⁄\⁄[€ú»XYH\»Ÿ\‹⁄[€à
+ÿ⁄ŸY
+BãH\»XŸZ€\à^\›»€õH»ô\Ÿ\ùôHŸ\]Y[ùX[ÿÿ[Së—ëàù[Xô\ö[ô¬àôYõ‹ôHôX€‹ô[ô»H]]‹ö]]]ôHö[ò[[ùûHLÕà^ÇãH»õ›[\[Y[ùúõ€H[ùûHLÕÇãH\ŸH[ùûHLÕà€õHõ‹à‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»€‹öÀÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH[ùûHLÕ\»›\\úŸYYÇãH[ùûHLÕH\»›\\úŸYYÇãH[ùûHLÕà\»Hö\ú›[\[Y[ù][€ãX]]‹ö]]]ôH[ôŸôàõ‹à\¬àZ[\›€ôH[àHÿÿ[ô\‹⁄]‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàôX€‹ôH[ùûHLÕH›\\úŸYYXŸZ€\ãÇåãàôX€‹ôH]]‹ö]]]ôH[ùûHLÕàö[ò[^ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãH[ùûHLÕ\»õ›[\[Y[ù][€ãXXÿ›\ò]H[ô\»›\\úŸYYûH[ùûHLÕãÇÇà»»»õ›][ô»ô\ôX›ìõ»[\[Y[ù][€à]]‹ö]H\ôH8†%€€‹ô[ò][€àXŸZ€\à€õKà\ŸH[ùûHLÕãÇÇà»»[ùûHLÕHH‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»›\\úŸYYXŸZ€\ÇÇääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääà€€‹ô[ò][€àﬁ[ò¬ääîŸ\‹⁄[€à\Nääà[Y€õY[ùÇà»»»€€ù^êTê“UP’TëHåãåéH[ô]]‹ö]]]ôHSë—ëà[ùûHLÕàõ››]H][ùûBåLÕHÿ\»Hö\ú›\\‹»€‹úôX›[€à]ÿ\»]\à›\\úŸYYûHHŸX€€ô\\‹¬ôö[ò[€‹úôX›[€ãàH‹öY⁄[ò[^ÿ\»õ›ô\Ÿ[ù[àHÿÿ[ô\‹⁄]‹ûH]ùH[YHŸàﬁ[ò⁄õ€ö^ò][€ãÇÇà»»»X⁄\⁄[€ú»XYH\»Ÿ\‹⁄[€à
+ÿ⁄ŸY
+BãH\»XŸZ€\à^\›»€õH»ô\Ÿ\ùôHŸ\]Y[ùX[ÿÿ[Së—ëàù[Xô\ö[ô¬àôYõ‹ôHôX€‹ô[ô»H]]‹ö]]]ôHö[ò[[ùûHLÕà^ÇãH»õ›[\[Y[ùúõ€H[ùûHLÕKÇãH\ŸH[ùûHLÕà€õHõ‹à‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»€‹öÀÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH[ùûHLÕH\»›\\úŸYY[ôõ›[\[Y[ù][€ãXXÿ›\ò]KÇãH[ùûHLÕà\»ö[ò[õ‹àŸX›[€àMÿà[ô›\\úŸY\»õ›LÕ[ôLÕKÇÇà»»»ô^›\»
+[à‹ô\äBåKàôX€‹ôH]]‹ö]]]ôH[ùûHLÕàö[ò[^Çåãà[\[Y[ùúõ€H[ùûHLÕà€õKÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãH[ùûHLÕH\»õ›[\[Y[ù][€ãXXÿ›\ò]H[ô\»›\\úŸYYûH[ùûHLÕãÇÇà»»»õ›][ô»ô\ôX›ìõ»[\[Y[ù][€à]]‹ö]H\ôH8†%€€‹ô[ò][€àXŸZ€\à€õKà\ŸH[ùûHLÕãÇÇà»»[ùûHLÕà8†%‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\ŒàŸX€€ô€‹úôX›[€à\‹»
+ö[ò[
+BÇääë]NääàåçãLÀLMääï\]YûNääà€]YBääî\ŸNääà\ò⁄]X›\ôHÿ⁄»€‹úôX›[€à
+ŸX€€ô\‹ BääîŸ\‹⁄[€à\Nääàù[Hå‹õ‹‹ÀP€X\ò[òŸH»X⁄\⁄[€ÇÇà»»»€€ù^Çë[ùûHLÕH€‹úôX›YHY[ù]H[Ÿ[[ùò[YíÀ\›‹ûK[‹‹À[ô]ô[‹\ãBô\ÿÿ[][€àÿ\õ›[ô[àH‹öY⁄[ò[[ùûHLÕòYùàôYõ‹ôH[ô[ô»ŸX›[€àMÿÇù»€Ÿ^ûX[àò[àHŸX€€ôù[Hå‹õ‹‹ÀX€X\ò[òŸH\‹À⁄X⁄›\ôòXŸYôYBòY][€ò[[\[Y[ù][€ãXõÿ⁄⁄[ô»\‹›Y\»]€›[õ›]ôHôY[àÿ]Y⁄[ù[õZY‹ò][€à[YKà\»[ùûHÿ›[Y[ù»Hö[ò[€‹úôX›[€ãÇÇà»»»⁄]ÿ\»‹õ€ô»[à[ùûHLÕH
+Y[ùYöYYûHŸX€€ô‹õ‹‹ÀX€X\ò[òŸH\‹ BÇåKà
+äîì»ôX›\ú⁄[€àö\⁄ÀääàH‹ö]K‹ôXYX[XÿŸ\‹»ÿ]Hÿ[YàYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+Xà€òŸH]ù[ò›[€à\»\]Y»ô\€€ôBà›ô\úöY\»
+\à\»ÿ[YHZ[\›€ôJKÿ[[ô»]úõ€H[ú⁄YHH›ô\úöYBàXõI‹»›€àì»€XﬁH‹ôX]\»HŸ[ã\ôYô\ô[ùX[€‹àì»€Çà\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿ8°§àÿ[»Hù[ò›[€à8°§àù[ò›[€à]Y\öY\¬à\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿ8°§àôK]öYŸŸ\ú»ì»8°§àô\X]Àà\»€›[Z]\ÇàòZ[›]öY⁄‹àôZ]ôH[úôYX›XõH\[ô[ô»€à›»‹›‹ô\»ô\€€ô\»BàôX›\ú⁄[€ãÇÇåãà
+äï‹õ€ô»õ€HXõKääà[ùûHLÕH›[ÿZYôô]⁄H\Ÿ\â‹»õ€Húõ€Bà\Ÿ\úÀúõ€Xàà\ôH\»õ»\Ÿ\úÿXõH[û]⁄\ôH[ŸH[à\»\ò⁄]X›\ôH8†%à]ô\ûH›\àÿ⁄ŸYŸX›[€àôXY»Y[ù]K‹õ€KŸ]ö\⁄[€àúõ€Bà\Ÿ\ó‹\õZ\‹⁄[€úÿà\»ÿ\»€]YI‹»\úõ‹ãõ›H⁄[ôŸH[àH[ô\õZ[ô¬àÿ⁄[XKÇÇåÀà
+äê€Y[ù]‹ö]XõHXõKääàH‹öY⁄[ò[\⁄Y€à]]][ùXÿ]Y]ô[‹\ú¬à‹ö]H\ôX›H»\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿöXH[àSî—Tïì»€XﬁKà⁄]Y][€ò[ò[Y][€à\[ö[ô»[àH\Xÿ][€à^Y\ãà]	‹»ŸXZŸ\Çà[à\»õ⁄ôX›	‹»Ÿ\ùô\ãX]]‹ö]]]ôH›[ô\ô
+ŸX›[€àMÀõ€ãBàôY€›XXõHù[JH[ôŸXZŸ\à[àH]\õà[ôXYH\ŸYõ‹àÿ\ù[‹[Çà
+ŸX›[€àLJH[ô›\àŸ[ú⁄]]ôH‹ö]\À⁄X⁄õ›]Hõ›Y⁄€€ùõ€Yàî‹»ò]\à[à\ôX›XõHXÿŸ\‹ÀÇÇà»»»ö[ò[€‹úôX›Y\⁄Y€à
+ŸX›[€àMÿãåãåéK[ùûHLÕà8†%ö[ò[
+BÇääîõ€H€›\òŸH
+ö^Y
+Nääà\Ÿ\ó‹\õZ\‹⁄[€úÀúõ€Xõ›\Ÿ\úÀúõ€Xà€Ÿ^ò€€ôö\õ\»H^X›]ôH€€[[àò[YHôYõ‹ôH[\[Y[ù][€ãù]HôYô\ô[òŸBùXõH\»\Ÿ\ó‹\õZ\‹⁄[€úÿÇÇääìõ€ã\ôX›\ú⁄]ôH]ô[‹\à]]‹ö]H⁄X⁄»
+ô] NääàHYXÿ]Y⁄X⁄»8†%ö[\[Y[ùY\»H€X[—P’TíUHQíSëTò[\àù[ò›[€à‹à\]Z]ò[[ù[õ[ôBú]Y\ûH8†%ôXY»ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò\ôX›Húõ€HH\Ÿ\â‹»õ€K”›€ô\ã\]ò\‹⁄Y€õY[ù[ôô]ô\à]Y\öY\»\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿà\»ÿ[YH⁄X⁄»ÿ]\¬òõ›ÇãH⁄»ÿ[àôXY[\Ÿ\ú…»›ô\úöYH\›‹ûH
+úÀà€õHZ\à›€äK[ôãH⁄»ÿ[àÿ[H‹ö]HîÀÇÇï\»€‹ö‹»ò]\ò[HôXÿ]\ŸHÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òÿ\»[ôXYH^€YYúõ€BùH›ô\úöYHXõH[à[ùûHLÕH8†%]	‹»ô]ô\à‹ö][à\ôH[ôô]ô\àô\€€ôYôúõ€H\ôKà[ùûHLÕàXZŸ\»Hõ€ã\ôX›\ú⁄]ôHô\]Z\ô[Y[ù^X⁄]€»€Ÿ^ôŸ\€â›Xÿ⁄Y[ù[H⁄\ôHH⁄X⁄»õ›Y⁄YôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+Xö[àHÿ^H]›X⁄\»H›ô\úöYHXõKÇÇääîîÀ[€õH‹ö]\»
+ô] Nääà[\ôX›€Y[ùSî—TïÿTUXÿSUX€Çò\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿ\ôH[öYYûHìÀà]ô\ûH‹ò[ù‹àô]õ⁄ŸH€Ÿ\¬ùõ›Y⁄€ôH€€ùõ€Yî»
+Ÿ]‹\õZ\‹⁄[€ó€›ô\úöYX
+K⁄X⁄[àH⁄[ô€Bùò[úÿX›[€éÇåKàô\öYöY\»Hÿ[\â‹»]ô[‹\à]]‹ö]H
+õ€ã\ôX›\ú⁄]ôH⁄X⁄ BåãàôZôX›»\ôŸ][ô»ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òåÀàôZôX›»\ôŸ][ô»[õ›\à]ô[‹\à
+ô\Ÿ\ùôYõ‹àHù]\ôH›€ô\ã[€õBà]
+Bçàò[Y]\»H\õZ\‹⁄[€àõY»YÿZ[ú›Hÿ[õ€öXÿ[ŸX›[€àM»\›çKàô\]Z\ô\»Hõ€ã[ù[ôX\€€ÇçãàXX›]ò]\»H\Ÿ\â‹»^\›[ô»X›]ôHõ›»õ‹à]õYÀYà[ûBçÀà[úŸ\ù»Hô]»›ô\úöYHõ›¬éà‹ö]\»H⁄[ôŸW€Ÿ‹ÿ]Y][ùûBéKà€€[Z]»[ŸàHXõ›ôH]€ZXÿ[BÇï\»›X\ò[ùY\»H›ô\úöYH[ô]»]Y]ôX€‹ôÿ[àô]ô\à[ô\›]Ÿàﬁ[ò¬∏†%Z]\àõ›\[à‹àôZ]\àŸ\ÀÇÇääë]ô\û][ô»[ŸHúõ€H[ùûHLÕH›[ô»[ò⁄[ôŸYääà€\ö»Y[ù]H[Ÿ[ò\õZ\‹⁄[€óŸõYÿò[Y][€àYÿZ[ú›Hÿ[õ€öXÿ[\›
+õ›[àí Kú\ùX[][ö\]YKZ[ô^\›‹ûHô\Ÿ\ùò][€ãX[ùX[[€õH›ô\úöY\»
+õ¬ô^\ò][€äK[[YYX]HôYúô\⁄ôZ]ö[‹ã[ôH›€ô\ã[€õHô\Ÿ\ùôY]õ‹Çôù]\ôH]ô[‹\ãXXÿŸ\‹»X[òYŸ[Y[ùÇÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ÇääêTê“UP’TëKõYåãåéH
+ŸX€€ô\\‹»€‹úôX›Y
+JäÇÇãHŸX›[€àMÿàù[Hô]‹ö][àHŸX€€ô[YH⁄]HôYH€‹úôX›[€ú»Xõ›ôBãH[ùöY\»LÕ[ôLÕHõ›^X⁄]HX\öŸY›\\úŸYY»õ›à[\[Y[ù][€ãXXÿ›\ò]BãHô\ú⁄[€àXY\à\]Y⁄]Hù[ŸX€€ô\\‹»€‹úôX›[€à›[[X\ûBÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ÇåKà
+äï\ŸH[ùûHLÕà€õKääà[ùöY\»LÕ[ôLÕH\ôHõ››\\úŸYYÇåãà
+äê€€ôö\õH\Ÿ\ó‹\õZ\‹⁄[€úÀúõ€X]ôH€€[[àò[YJäàôYõ‹ôH[\[Y[ù][€à8†%àHXõH\»Ÿ]YH^X›€€[[àò[YH⁄›[›[ôHô\öYöYYÇåÀà
+äêùZ[Hõ€ã\ôX›\ú⁄]ôH]ô[‹\ãX]]‹ö]H⁄X⁄»ö\ú›
+äãôYõ‹ôH⁄\ö[ô¬à[ûHì»€XﬁH‹àî»]\[ô»€à]à»õ›]\»⁄X⁄»ÿ[àYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+X[õ\‹»]ù[ò›[€â‹¬àÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òúò[ò⁄\»ô\öYöYY»ô]ô\à›X⁄à\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿÇçà
+äë»õ›‹ôX]H[ûHì»Sî—TïÿTUXÿSUX€XﬁH€Çà\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿääàì»⁄›[[ûH[\ôX›€Y[ù‹ö]\ÀÇàH€õH‹ö]H]\»HŸ]‹\õZ\‹⁄[€ó€›ô\úöYXîÀÇçKà
+äïHî»]\›ôH]€ZX äà8†%›ô\úöYHõ›»
+»]Y][ùûH[à€ôHò[úÿX›[€ãà\⁄[ô»H€€ôö\õYY⁄[ôŸW€Ÿ‹ÿÿ⁄[XKÇçãà€€ôö\õH⁄[ôŸW€Ÿ‹ÿÿ⁄[XHôYõ‹ôH[\[Y[ù[ô»H]Y]‹ö]H
+ÿ\úöYYà›ô\àúõ€H[ùûHLÕK›[\Y\ KÇÇà»»»ô^›\»
+[à‹ô\äBÇåKàûX[à€€ôö\õ\»\»ö[ò[^ôY[ùûH[ôHŸX€€ô\\‹»€‹úôX›YàTê“UP’TëHåãåéBåãà€Ÿ^€€ôö\õ\»]ôHÿ⁄[XNà\Ÿ\ó‹\õZ\‹⁄[€úÀúõ€X€€[[àò[YH[ôà⁄[ôŸW€Ÿ‹ÿ€€[[à›ùX›\ôBåÀà€Ÿ^ùZ[»Hõ€ã\ôX›\ú⁄]ôH]ô[‹\ãX]]‹ö]H⁄X⁄¬çà€Ÿ^ùZ[»Ÿ]‹\õZ\‹⁄[€ó€›ô\úöYXî»\àHö[ôK\›\Ÿ\]Y[òŸHXõ›ôBçKà€Ÿ^Y»ìŒà—SP’[€õHõ‹à€Y[ù»
+›€àõ›»
+»]ô[‹\ãX]]‹ö]BàôXYX[
+K[ûKX[‹ö]\¬çãà€Ÿ^\]\»YôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+X\àHô\€€][€àŸ⁄X¬à
+ò\Ÿ[[ôHõ€H
+»X›]ôH›ô\úöY\Àÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò^€YY
+BçÀàûX[à\›Œà‹ò[ù‹ô]õ⁄ŸHöXHîÀ€€ôö\õH]Y]òZ[€€ôö\õH\ôX›àXõH‹ö]\»\ôHôZôX›Y€€ôö\õHõ»ì»ôX›\ú⁄[€à\úõ‹ú»[ô\àÿYà€€ôö\õH]ô[‹\ã]\ôŸ][ô»[ôÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò]\ôŸ][ô»\ôHõ›àôZôX›YÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬Çìõ€ôH›\úô[ùKàH›€ô\ã[€õH]ô[‹\ãXXÿŸ\‹»]ô[XZ[ú»H€õ›€àù]\ôBö][Kõ›[à‹[à]Y\›[€àõ‹à\»Z[\›€ôKÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬Çìõ€ôHX›]ôKÇÇãKKBÇà»»õ›][ô»ô\ôX›Çääîù[Hå‹õ‹‹ÀX€X\ò[òŸNà€€\]H
+ŸX€€ô\‹ Kääà⁄]‘Y[ùYöYYôYBôù\ù\à[\[Y[ù][€ãXõÿ⁄⁄[ô»\‹›Y\»Yù\àHö\ú›€‹úôX›[€à\‹»8†%[ùôYH€€ôö\õYYYÿZ[ú›H]ôHÿ›[Y[ù[ô€‹úôX›Y\ôKàŸX›[€àMÿà\¬õõ›»ö[ò[ÇÇääëõ‹à€Ÿ^ääà€X\ôY»õÿŸYY⁄]ÿ⁄[XH€€ôö\õX][€à[ô[\[Y[ù][€Çú\àHï⁄]€Ÿ^ôYY»»€õ›»àŸX›[€àXõ›ôK€òŸHûX[à€€ôö\õ\»\»[ùûKÇÇääëõ‹à€]YNääàõ»ù\ù\à\ò⁄]X›\ôHô]öY]»[ùX⁄\]Yõ‹à\»Z[\›€ôBù[õ\‹»ÿ⁄[XH€€ôö\õX][€à›\ôòXŸ\»€€Y][ô»€Ÿ^ÿ[õõ›ô\€€ôH[€ôKÇÇà»»[ùûHLÕ»H‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»òX⁄Ÿ[ôõ›[ô][€à[\[Y[ùYÇääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääà‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\»òX⁄Ÿ[ôõ›[ô][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àõ›öYY]]‹ö]]]ôH]X⁄Y[ù€‹Y\»ŸàTê“UP’TëHåãåéBäŸX€€ô\\‹»€‹úôX›Y
+H[ôSë—ëà[ùûHLÕàôXÿ]\ŸHHÿÿ[ô\»€ÇòXZ[ò›[›‹Y]Tê“UP’TëHåãåé[ôSë—ëà[ùûHLÃÀÇÇî\àHZ[\›€ôHôYõY⁄[\[Y[ù][€àõÿŸYYY€õHYù\à€€ôö\õZ[ô»BòX›X[]ôK‹ô\»⁄\\»õ‹à\Ÿ\ó‹\õZ\‹⁄[€úÿ⁄[ôŸW€Ÿ‹ÿòYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäX^\›[ô»€\ö»ï’Y[ù]H\ÿYŸK[ôë]ô[‹\ãXXÿŸ\‹»ÿ][ô»]\õúÀÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYúò[ò⁄XZ[òÇãH€€ôö\õYY€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH€€ôö\õYYÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[ò]éXòÇãH€€ôö\õYYÿÿ[ô\»ÿ‹»Ÿ\ôHôZ[ôH]]‹ö]]]ôH⁄X⁄‹⁄[ùÇàHÿ‹À–Tê“UP’TëKõYÿ\»›[åãåéàHSë—ëãõY›[[ôY][ùûHLÃ¬ãH€€ôö\õYY]ôHXõXÀù\Ÿ\ó‹\õZ\‹⁄[€úÿ⁄\NÇàHö[X\ûHŸ^NàY]ZYàH€\ö»Y[ù]Nà€\ö◊›\Ÿ\ó⁄Y^[ö\]YXàHõ€Nàõ€H^àH]ö\⁄[€éà]ö\⁄[€à^àHYÿXﬁHî””à€€[[éà\õZ\‹⁄[€ó€›ô\úöY\»ú€€òàõ›ù[Yò][	ﬁﬂIŒéöú€€òòàHõ»YXÿ]Yõ€€X[à€€[[ú»õ‹à[ô]öYX[õY‹¬ãH€€ôö\õYY]ôHXõXÀò⁄[ôŸW€Ÿ‹ÿ⁄\NÇàHY\Ÿ\ó⁄Y\Ÿ\ó€ò[YXXõW€ò[YXôX€‹ô⁄YX›[€òàôYõ‹ôWŸ]XYù\óŸ]Xõ›X‹ôX]Yÿ]àHX›[€ò[ôXYH[›‹»\õZ\‹⁄[€óÿ⁄[ôŸXãH€€ôö\õYY]ôHXõXÀôYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäX⁄\HôYõ‹ôH\¬à\‹ŒÇàH\ô‹Œà
+‹õ€H^Ÿ]ö\⁄[€à^‹\õZ\‹⁄[€ó€›ô\úöY\»ú€€òäXàHô]\õéàú€€òòàHŸX›\ö]Nà[ùõ⁄Ÿ\ÇàHõ»ŸX\ò⁄‹]àHôZ]ö[‹éàõ€HYò][»
+»YZ[ãY]ö\⁄[€àôXY⁄Y[ö[ô»
+»\ôX›î””àY\ôŸBãH€€ôö\õYY\ôHÿ\»õ»]ôH‹àô\»\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿXõKÇãH€€ôö\õYY›\úô[ù]ôHÿ[\ú»ŸàYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäX\ôBà[›\úô[ùX]][ùXÿ]Y]\Ÿ\à\õZ\‹⁄[€à⁄X⁄‹À⁄X⁄[›ŸYô\Ÿ\ùö[ô»Bà^\›[ô»ù[ò›[€à⁄Y€ò]\ôH⁄[Hô\€€ö[ô»X›]ôH›ô\úöY\»ûBà]]öù›
+
+HOèà	‹›XâÿÇãH€€ôö\õYYYÿXﬁH\Ÿ\ó‹\õZ\‹⁄[€úÀú\õZ\‹⁄[€ó€›ô\úöY\ÿ]H\»›\úô[ùBà[\H[à]ôH]H
+õ€ãY[\Hõ›‹ K[ò€Y[ô»õ›‹»⁄]àÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\àHùYXÇãHY[ùYöYY]ôH[ùô[ù‹ûKÿÿ\ùî‹»]›[Y\ôŸYàYò][‹\õZ\‹⁄[€ú◊Ÿõ‹ó‹õ€JããäH\õZ\‹⁄[€ó€›ô\úöY\ÿ\ôX›H[ú›XYàŸà\⁄[ô»YôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäX»\ŸHôYYY»ôH\]Y€¬àHô]»›ô\úöYHXõH€›[X›X[HZŸHYôôX›[àòX⁄Ÿ[ô[ôõ‹òŸ[Y[ùÇÇà»»»⁄]ÿ\»€€\]YãHﬁ[òŸYÿ‹À–Tê“UP’TëKõY»H]]‹ö]]]ôHåãåéHXY\à[ô[úŸ\ùYàŸX›[€àMÿàúõ€HH\õ›ôY]X⁄Y[ù^ÇãHòX⁄Ÿö[Yÿÿ[Së—ëà€€‹ô[ò][€àﬁ[ò»€»Hô\»õ›»ÿ\úöY\ŒÇàH[ùûHLÕ›\\úŸYYXŸZ€\ÇàH[ùûHLÕH›\\úŸYYXŸZ€\ÇàH]]‹ö]]]ôH[ùûHLÕàö[ò[^ãHYYZY‹ò][€Çà›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃMWŸ‹ò[ù[\ó‹\õZ\‹⁄[€ó€›ô\úöY\◊Ÿõ›[ô][€ãú‹[ÇãH‹ôX]YXõXÀù\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿ⁄]Hÿ⁄ŸY€€[[ú»[ôà\›‹ûK\ô\Ÿ\ùö[ô»\ùX[[ö\]YH[ô^ÇãH[òXõYì»€àXõXÀù\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿÇãHYYHYXÿ]Yõ€ã\ôX›\ú⁄]ôH]ô[‹\ãX]]‹ö]H[\éÇàXõXÀò›\úô[ù›\Ÿ\ó⁄\◊Ÿ]ô[‹\óÿXÿŸ\‹ 
+XàHôXY»ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òúõ€Hõ€H\»YÿXﬁBà\Ÿ\ó‹\õZ\‹⁄[€úÀú\õZ\‹⁄[€ó€›ô\úöY\ÿàHô]ô\à]Y\öY\»\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿãHYY€€ùõ€Yî»XõXÀúŸ]‹\õZ\‹⁄[€ó€›ô\úöYJããäXÇàHô\]Z\ô\»]][ùXÿ]Y€\ö»ï’àHô\]Z\ô\»]ô[‹\à]]‹ö]HöXHHõ€ã\ôX›\ú⁄]ôH[\ÇàHôZôX›»ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òàHôZôX›»\ôŸ][ô»[ûH\Ÿ\à⁄»[ôXYH\»]ô[‹\àXÿŸ\‹¬àHò[Y]\»\õZ\‹⁄[€óŸõYÿYÿZ[ú›Hÿ[õ€öXÿ[ŸX›[€àM»\›àHô\]Z\ô\»õ€ãY[\HôX\€€àÿ\Y]L⁄\ú¬àHXX›]ò]\»Hö[‹àX›]ôHõ›»õ‹àHÿ[YH\Ÿ\ãŸõY¬àH[úŸ\ù»Hô]»X›]ôHõ›¬àH‹ö]\»⁄[ôŸW€Ÿ‹ÿX›[€à\õZ\‹⁄[€óÿ⁄[ôŸXàHô]\õú»[úŸ\ùYõ›»\»ô]ö[›\À€ô]»YôôX›]ôH\õZ\‹⁄[€à€ò\⁄›¬ãHYY—SP’[€õH€Y[ùXÿŸ\‹»€à\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿÇàHŸ[à\›‹ûHôXYàH]ô[‹\àôXYX[\›‹ûBàHõ»\ôX›€Y[ùSî—TïÿTUXÿSUXãH\]YXõXÀôYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäXÇàHô\Ÿ\ùôYH^\›[ô»⁄Y€ò]\ôH[ôú€€òòô]\õà⁄\BàH›⁄]⁄Y[\[Y[ù][€à»ô\€€ôHX›]ôH›ô\úöY\»úõ€Bà\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿõ‹àH]][ùXÿ]Yÿ[\ÇàHŸ\ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò€àHõ€K€YÿXﬁH]€õBàHô]ô[ùYÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òúõ€H]ô\àôZ[ô»€›\òŸYúõ€HHô]»XõBãH\]Y\ôX›òX⁄Ÿ[ô\õZ\‹⁄[€àÿ[⁄]\»€»Hô]»›ô\úöYHXõH\¬àô\‹X›Y[àôX[î»[ôõ‹òŸ[Y[ùÇàH‹[ó⁄[ùô[ù‹ûWÿÿ\ù
+ããäXàHY⁄[ùô[ù‹ûWÿÿ\ù⁄][JããäXàHõ›ö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ù
+ããäX›ô\õÿY¬àHôXY⁄[ùô[ù‹ûWÿÿ\ù⁄][\ ããäXàHô[[›ôW⁄[ùô[ù‹ûWÿÿ\ù⁄][JããäXàHô]\ôWÿö[ó⁄][JããäXÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHô]»XõNàXõXÀù\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿãHô]»\ùX[[ö\]YH[ô^Çà€ôWÿX›]ôW€›ô\úöYW‹\ó›\Ÿ\óŸõYÿãHô]»[\àù[ò›[€éÇàXõXÀò›\úô[ù›\Ÿ\ó⁄\◊Ÿ]ô[‹\óÿXÿŸ\‹ 
+XãHô\XŸYù[ò›[€àõŸNÇàXõXÀôYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäXãHô]»€€ùõ€YîŒÇàXõXÀúŸ]‹\õZ\‹⁄[€ó€›ô\úöYJããäXãHô]»ì»€X⁄Y\ŒÇàH\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\◊‹Ÿ[ó‹ôXYàH\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\◊Ÿ]ô[‹\ó‹ôXYÿ[Çà»»»€ŸH»ö[H⁄[ôŸ\¬ãHÿ‹À–Tê“UP’TëKõYãHSë—ëãõYãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃMWŸ‹ò[ù[\ó‹\õZ\‹⁄[€ó€›ô\úöY\◊Ÿõ›[ô][€ãú‹[Çà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHÿÿ[Tê“UP’TëKõYõ›»ôYõX›»H\õ›ôYåãåéHŸX€€ô\\‹ÀX€‹úôX›YàŸX›[€àMÿà^ÇãHÿÿ[Së—ëãõYõ›»€€ùZ[ú»H]]‹ö]]]ôH[ùûHLÕà⁄X⁄‹⁄[ù[ôBàŸ\]Y[ùX[úöYŸHúõ€H[ùûHLÃ»»[ùûHLÕàôYõ‹ôH\»[\[Y[ù][€Çà[ùûKÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHH€€\]Xö[]K\ô\Ÿ\ùö[ô»[\[Y[ù][€àŸY\»H^\›[ô¬àYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä‹õ€KŸ]ö\⁄[€ã‹\õZ\‹⁄[€ó€›ô\úöY\ Xà⁄Y€ò]\ôH[ùX›ôXÿ]\ŸH[›\úô[ù]ôHÿ[\ú»\ôH›\úô[ù]\Ÿ\à⁄X⁄‹ÀÇãHHô]»›ô\úöYHXõH\»õ›»HX›]ôH€›\òŸHõ‹à\Ÿ\ã[]ô[‹ò[ùÀ‹ô]õ⁄Ÿ\¬à[àH⁄\ôYYôôX›]ôK\\õZ\‹⁄[€ú»ô\€€ô\ãÇãHÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òô[XZ[ú»›]⁄YHH›ô\úöYHXõH[ô›]⁄YHHô]¬àî»ûH\⁄Y€ãÇãHH[\à\ŸYõ‹à›ô\úöYK[X[òYŸ[Y[ù]]‹ö]H\»[ù[ù[€ò[HŸ\\ò]Bàúõ€HYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäX»]õ⁄Yì»ôX›\ú⁄[€à€Çà\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿÇÇà»»»⁄]€]YHôYY»»€õ›¬ãHHòX⁄Ÿ[ôõ›[ô][€àõ‹àŸX›[€àMÿà\»õ›»[\[Y[ùY[àZY‹ò][€àõ‹õBà[ô[Y€ôY»Hö[ò[[ùûHLÕà\⁄Y€ãÇãHõ»RHõ‹à›ô\úöYHX[òYŸ[Y[ùÿ\»ùZ[[à\»\‹ÀÇãHõ»›€ô\ã[€õH]ô[‹\ãXXÿŸ\‹»]ÿ\»ùZ[[à\»\‹ÀÇÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãH€€ôö\õYYÿÿ[ô\»›]\»ôYõ‹ôH€€[Z]€€ú⁄\›»€õHŸéÇàHÿ‹À–Tê“UP’TëKõYàHSë—ëãõYàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåÃMWŸ‹ò[ù[\ó‹\õZ\‹⁄[€ó€›ô\úöY\◊Ÿõ›[ô][€ãú‹[ãH€€ôö\õYYÿÿ[ÿ‹»õ›»€€ùZ[éÇàHTê“UP’TëHåãåéBàHŸX›[€àMÿÇàHSë—ëà[ùöY\»LÕLÕKLÕÇãH€€ôö\õYY]ôHÿ⁄[XHôYõY⁄òX›»\ŸYõ‹à[\[Y[ù][€éÇàHõ»^\›[ô»\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿXõBàH\Ÿ\ó‹\õZ\‹⁄[€úÀúõ€X^\›¬àH⁄[ôŸW€Ÿ‹ÿ›\‹ù»\õZ\‹⁄[€óÿ⁄[ôŸXàH›\úô[ù]ôH\õZ\‹⁄[€ó€›ô\úöY\ÿ]H\»[\BãH]ôHZY‹ò][€à^X›][€àÿ\»
+äõõ›
+äà\ôõ‹õYY[à\»Ÿ\‹⁄[€é»\»\‹¬àô\\ô\»HZY‹ò][€àö[H[ôô\»\]\»€õKÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»òX⁄Ÿ[ôõ›[ô][€ãÇåãà\HHZY‹ò][€à[àH[ù[ôY]Xò\ŸH[ùö\õ€õY[ùÇåÀàûX[à\›ŒÇàH‹ò[ùHõ€ãQ]ô[‹\à\Ÿ\à\õZ\‹⁄[€àöXHŸ]‹\õZ\‹⁄[€ó€›ô\úöYXàHô]õ⁄ŸHH\õZ\‹⁄[€àöXHŸ]‹\õZ\‹⁄[€ó€›ô\úöYXàH€€ôö\õH\ôX›XõH‹ö]\»\ôHôZôX›YàH€€ôö\õH⁄[ôŸW€Ÿ‹ÿôX€‹ô»H‹ö]BàH€€ôö\õH\ôŸ][ô»ÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò\»ôZôX›YàH€€ôö\õH\ôŸ][ô»H]ô[‹\à\Ÿ\à\»ôZôX›YçàùZ[H]ô[‹\à€€ú€€HRHõ‹àX[òY⁄[ô»›ô\úöY\»[àH]\àZ[\›€ôKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH[ùöY\»LÕ[ôLÕHŸ\ôHõ›]òZ[XõH\»ù[ÿÿ[€›\òŸH^\ö[ô»ô\¬àﬁ[ò⁄õ€ö^ò][€é»ÿÿ[XŸZ€\ú»Ÿ\ôHYY€õH»ô\Ÿ\ùôHŸ\]Y[ùX[àù[Xô\ö[ô»ôYõ‹ôH[úŸ\ù[ô»H]]‹ö]]]ôHö[ò[[ùûHLÕãÇãHôXÿ]\ŸHHZY‹ò][€àÿ\»õ›^X›]Y]ôH\ôKù[ù[YHô\öYöXÿ][€àŸàBà‘S]Ÿ[à›[\[ô»€à\Z[ô»][àH\ôŸ]›\Xò\ŸH[ùö\õ€õY[ùÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôHô[]]ôH»[ùûHLÕãà\»\‹»›^YY⁄][àHÿ⁄ŸYòX⁄Ÿ[ôàÿ€‹H[ôYõ›YRK›€ô\ã\]Ÿ⁄XÀ^\ò][€ã‹àô]»\õZ\‹⁄[€ÇàõY‹ÀÇÇà»»»õ›][ô»ô\ôX›ìõ»Y][€ò[€]YHô]öY]»ô\]Z\ôYôYõ‹ôHZY‹ò][€à\Xÿ][€à8†%\»›^YYö[ú⁄YHHÿ⁄ŸYŸX›[€àMÿà»[ùûHLÕàòX⁄Ÿ[ôÿ€‹HYù\à]ôHÿ⁄[XBò€€ôö\õX][€ãÇÇà»»[ùûHLŒH‹ò[ù[\à\õZ\‹⁄[€à›ô\úöY\Œàù[ù[YHôZ]ö[‹à€€ôö\õYY	àÿ›[Y[ùYÇääë]NääàåçãLÀLMääï\]YûNääà€]YBääî\ŸNääà‹›R[\[Y[ù][€àô\öYöXÿ][€ÇääîŸ\‹⁄[€à\Nääàÿ›[Y[ù][€à»ô\öYöXÿ][€à
+õ»ÿ⁄[XH‹àôZ]ö[‹à⁄[ôŸJBÇà»»»€€ù^Çëõ€›⁄[ô»[ùûHLÕ…‹»òX⁄Ÿ[ô[\[Y[ù][€ãûX[àô\]Y\›Y[ú‹X›[€àŸàBõ]ôHYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+Xù[ò›[€àõŸH[ô]Xò\ŸHõ€Bò€€ôöY›\ò][€àôYõ‹ôHôY⁄[õö[ô»\õZ\‹⁄[€ãYõ›»\›[ô»⁄]H€»]ôBê€\ö»\Ÿ\úÀà\»›\ôòXŸYôYHòX›»]Ÿ\ôHùYHŸàH[\[Y[ù][€àù]õõ›^X⁄]HôX€‹ôY[à[ùûHLÕà‹à[ùûHLÕÀàõ»€ŸKÿ⁄[XK‹àì¬ú€XﬁHÿ\»⁄[ôŸY[à\»\‹»8†%\»[ùûHÿ›[Y[ù»€€ôö\õYYù[ù[YBòôZ]ö[‹à€õKÇÇà»»»⁄]ÿ\»ô\öYöYYÇåKà
+äêÿ[\ã\ÿ€‹Yô\€€][€à€õKääà[ú‹X›YH]ôHù[ò›[€àYö[ö][€ÇàöXH◊ŸŸ]Ÿù[ò›[€ôYä
+Xà€€ôö\õYYYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+Xàô\€€ô\»X›]ôH›ô\úöY\»\⁄[ô»]]öù›
+
+HOèà	‹›Xâÿ[ù\õò[K⁄]õ¬à\ò[Y]\àXÿŸ\[ô»[à\òö]ò\ûH\ôŸ]€\ö»\Ÿ\àQàHù[ò›[€àÿ[à€õBàô]\õàHÿ[[ô»Ÿ\‹⁄[€â‹»›€àYôôX›]ôH\õZ\‹⁄[€úÀà€€ôö\õYY\»\¬àÿYôHõ‹à[›\úô[ùÿ[⁄]\»
+[⁄X⁄ÀXÿ[\ã[›€ãXXÿŸ\‹ K[ôôX€‹ôYà\»H\õX[ô[ù\⁄Y€àõ›[ô\ûNà\»ù[ò›[€à]\›õ›ôHô]\ŸY‹à]ôH]¬à⁄Y€ò]\ôH⁄[ôŸY»⁄X⁄»[õ›\à\Ÿ\â‹»\õZ\‹⁄[€úÀà[ûHù]\ôHôX]\ôBàôYY[ô»]
+KôÀã[àYZ[àöY]»Ÿà[õ›\à\Ÿ\â‹»XÿŸ\‹ Hô\]Z\ô\»Hô]Àà^X⁄]H\ôŸ]\ÿ€‹Yù[ò›[€ãÇÇåãà
+äìYÿXﬁHî””êà\»⁄[ô€K\\ú‹ŸKääà€€ôö\õYYöXHHÿ[YHù[ò›[€àõŸBà[ú‹X›[€à]\Ÿ\ó‹\õZ\‹⁄[€úÀú\õZ\‹⁄[€ó€›ô\úöY\ÿ
+HYÿXﬁHî””êÇà€€[[äH\»ôXYõ‹à^X›H€ôHõYŒàÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\òà[›\ÇàõY‹»ô\€€ôH^€\⁄]ô[Húõ€HYò][‹\õZ\‹⁄[€ú◊Ÿõ‹ó‹õ€J
+X\»X›]ôBàõ›‹»[à\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿà\»ÿ\»[\YYù]õ›^X⁄][Çà[ùûHLÕ…‹»›[[X\ûN»õ›»ôX€‹ôY\ôX›KÇÇåÀà
+äìõ»ì»ôX›\ú⁄[€à8†%YX⁄[ö\€H€€ôö\õYYääàò[éÇà‹[àŸ[X›úõ€ò[YKãúõ€ò[YKãúõ€û\\‹‹õ¬àúõ€H◊‹õÿ»àõ⁄[à◊‹õ€\»à€àãõ⁄YHúõ€›€ô\Çà⁄\ôHúõ€ò[YHH	ŸYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\âŒ¬àà€€ôö\õYY]ôHô\›[à›€ô\à‹›‹ô\ÿõ€û\\‹‹õ»HùYXà€€Xö[ôYà⁄]YôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+XôZ[ô»—P’TíUHQíSëTò\¬àù[ò›[€â‹»[ù\õò[ôXYŸà\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿû\\‹Ÿ\»]àXõI‹»ì»[ù\ô[K⁄X⁄\»⁄]ô]ô[ù»HôX›\ú⁄[€àö\⁄»‹öY⁄[ò[BàõYŸŸY[àHŸX€€ôù[Hå‹õ‹‹ÀX€X\ò[òŸH\‹»
+[ùûHLÕäKà€€ôö\õYYà\»\»H\›[ò›õ€ãX€€ôõX›[ô»YX⁄[ö\€Húõ€HHŸ\\ò]Bàõ€ã\ôX›\ú⁄]ôH›\úô[ù›\Ÿ\ó⁄\◊Ÿ]ô[‹\óÿXÿŸ\‹ 
+X[\ã⁄X⁄]õ⁄Y¬àôX›\ú⁄[€àûHô]ô\à]Y\ûZ[ô»H›ô\úöYHXõH][ò]\à[àûBàû\\‹⁄[ô»ìÀàõ›\ôH€‹úôX›[ôŸ\ùôHYôô\ô[ù\ú‹Ÿ\Œ»^H⁄›[àõ›ôH€€\ŸY[ù»H⁄[ô€HYX⁄[ö\€KÇÇà»»»⁄]ÿ\»€€\]YÇãHYYHô]»ê€€ôö\õYYù[ù[YHôZ]ö[‹àà›XúŸX›[€à»ŸX›[€àMÿà[Çàÿ‹À–Tê“UP’TëKõYôX€‹ô[ô»[ôYHö[ô[ô‹»Xõ›ôH\»\õX[ô[ùàÿYXôX\ö[ô»òX›»Xõ›]Hﬁ\›[Hò]\à[àò[ú⁄Y[ù[\[Y[ù][€Çàõ›\ÀÇãHô\ú⁄[€àXY\à\]Y»ôYõX›\»ÿ›[Y[ù][€ã[€õH\‹ÀÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬Çìõ€ôKà\»[ùûH\»ÿ›[Y[ù][€ã[€õKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ÇãHÿ‹À–Tê“UP’TëKõY
+ŸX›[€àMÿàY][€ãô\ú⁄[€àXY\äBãHSë—ëãõY
+\»[ùûJBÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ÇãHõ»X›[€àô\]Z\ôYà\»€€ôö\õ\»^\›[ô»ôZ]ö[‹é»õ›[ô»»[\[Y[ù‹Çà⁄[ôŸKÇãHYàHù]\ôHZ[\›€ôHô\]Z\ô\»⁄X⁄⁄[ô»[õ›\à\Ÿ\â‹»YôôX›]ôBà\õZ\‹⁄[€úÀ»õ›[ŸYûHYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+X	‹»⁄Y€ò]\ôH‹ÇàôZ]ö[‹à8†%ùZ[Hô]ÀŸ\\ò][Hò[YY^X⁄]H\ôŸ]\ÿ€‹Yù[ò›[€Çà[ú›XY[ôõ›]H]õ›Y⁄€]YHô]öY]»ö\ú›\àŸX›[€àMÿãÇÇà»»»⁄]€]YHôYY»»€õ›¬ÇãHŸX›[€àMÿàõ›»€€ùZ[ú»H\õX[ô[ùôX€‹ôŸà\ŸHôYHù[ù[YHòX›ÀÇàù]\ôH\ò⁄]X›\ôHô]öY]»[ùõ€ö[ô»YôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\ä
+Xà⁄›[ôX]ÿ[\ã\ÿ€‹Yô\€€][€à[ôYÿXﬁKRî””êà⁄[ô€K\\ú‹ŸBàôZ]ö[‹à\»Ÿ]Yÿ›[Y[ùY€€ú›òZ[ùÀõ›‹[à]Y\›[€úÀÇÇà»»»ô^›\»
+[à‹ô\äBÇåKàûX[àõÿŸYY»⁄]H[õôY\›Ÿ\]Y[òŸH
+‹ò[ù‹ô]õ⁄ŸHöXBàŸ]‹\õZ\‹⁄[€ó€›ô\úöYX]Y]òZ[€€ôö\õX][€ã\ôX›]‹ö]HôZôX›[€Çà\›\⁄[ô»Ÿ]õ€H]][ùXÿ]Y‹àHôX[\Ÿ\‹⁄[€ã]ô[‹\ã¬àÿ[óÿXÿŸ\‹◊Ÿ]ô[‹\ò\ôŸ][ô»ôZôX›[€äH\⁄[ô»H€»]ôH€\ö»\Ÿ\úÀÇåãàõ»ù\ù\àÿ›[Y[ù][€à€‹ö»\»ô\]Z\ôYõ‹àŸX›[€àMÿà[õ\‹»\›[ô¬à›\ôòXŸ\»HŸ[ùZ[ôH\ÿ‹ô\[òﬁKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬Çìõ€ôKà[ôYH][\»[à\»\‹»Ÿ\ôHô\öYöXÿ][€ãŸÿ›[Y[ù][€à€õN»õ¬õ‹[à][\»ô\›[YÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬Çìõ€ôHX›]ôKÇÇãKKBÇà»»õ›][ô»ô\ôX›Çääìõ»ù[Hå‹õ‹‹ÀX€X\ò[òŸHô\]Z\ôYääà\»[ùûHÿ›[Y[ù»€€ôö\õYYù[ù[YBòôZ]ö[‹àŸà[ôXYK[ÿ⁄ŸY[ôXYKZ[\[Y[ùYù[ò›[€ò[]N»]Ÿ\»õ›ò⁄[ôŸH\ò⁄]X›\ôKÿ⁄[XK‹à\õZ\‹⁄[€àŸ[X[ùX‹Àà[ôõ‹õX][€ò[ôX€‹ô€õKÇÇääëõ‹à€Ÿ^ääàõ»X›[€àô\]Z\ôYÇÇääëõ‹à€]YNääàôX]HôYH€€ôö\õYYòX›»[à\»[ùûH\»Ÿ]Y€⁄[ô¬ôõ‹ùÿ\ô»õ»ù\ù\àô]öY]»ôYYY€à\»‹X»XúŸ[ùHô]»\ÿ‹ô\[òﬁKÇÇà»»[ùûHLŒHHõ‹ùÿ]HRHﬁ\›[Hÿ⁄ŸY
+‹õ‹‹ÀP\Xÿ][€àö\›X[›[ô\ô
+BÇääë]NääàåçãLÀLMääï\]YûNääà€]YBääî\ŸNääà\ò⁄]X›\ôHÿ⁄»8†%RK”ò]öYÿ][€à›[ô\ôääîŸ\‹⁄[€à\Nääà\ò⁄]X›\ôKTŸ[ú⁄]]ôHRHX⁄\⁄[€à
+ÿ‹À[€õJBÇà»»»€€ù^ÇîûX[à\õ›ôYHôYô\ô[òŸH[ÿ⁄›\
+]X⁄Y[XYŸK\»Ÿ\‹⁄[€äH\›Xõ\⁄[ô¬ùH\ôŸ]ö\›X[[ôò]öYÿ][€à\ôX›[€àõ‹àH[ù\ôHõ‹ùÿ]HHåÇò\Xÿ][€à8†%€ÿò[XY\ãö[X\ûK‹ŸX€€ô\ûH⁄YXò\úÀ€‹ö‹‹XŸH^[›]öY\ò\ò⁄KXõH[ú⁄]K€€‹à[ô›XYŸK[ôô\‹€ú⁄]ôHôZ]ö[‹ãà\»[ùûBõÿ⁄‹»]\ôX›[€à\»ô]»ŸX›[€àL[àTê“UP’TëKõY\àH^\›[ô¬ô€›ô\õò[òŸHõÿŸ\‹»õ‹à\ò⁄]X›\ôK\Ÿ[ú⁄]]ôHRHX⁄\⁄[€úÀÇÇï\»\»H
+äôÿ‹À[€õHÿ⁄ äãàõ»ôXX›‘‘À›\Xò\ŸKZY‹ò][€ã‹àù[ù[YBù€‹ö»ÿ\»\ôõ‹õYY‹à]]‹ö^ôY[à\»Ÿ\‹⁄[€ãÇÇà»»»⁄]ÿ\»ô]öY]ŸYÇãHH\õ›ôYôYô\ô[òŸH[ÿ⁄›\
+\⁄õÿ\ô“õÿú»öY]»⁄›⁄[ô»€ÿò[XY\ãàö[X\ûH⁄YXò\àì^Hõÿú»à€‹ö‹‹XŸKŸX€€ô\ûH⁄YXò\àêX›]ôHõÿú»à›]\¬à\›Ÿ[X›YZõÿàôX€‹ôXY\ã[ôH^\›[ô»‹ö^õ€ù[]Z[Xú BãHHù[‹ö][à\⁄Y€ãY\ôX›[€àúöYYàXÿ€€\[ûZ[ô»H[ÿ⁄›\ãHH€€\]H^\›[ô»Tê“UP’TëKõYõ‹à€€ôõX›À⁄]\ùX›[\Çà][ù[€à»ŸX›[€àà
+€‹ö‹‹XŸH]Z[›XãSò]öYÿ][€à]\õäBÇà»»»€€ôõX›Y[ùYöYY[ôô\€€ôYÇääîŸX›[€ààúÀàô]»⁄YXò\à€€òŸ\ääàŸX›[€àà
+ÿ⁄ŸYåãåç
+H›]\»õõ¬ú⁄YXò\àõ‹àõÿà›Xã[ò]àà⁄][àHŸ[X›YôX€‹ô	‹»]Z[öY]ÀàHô]¬ô\⁄Y€à\ôX›[€à[ùõŸXŸ\»ö[X\ûK‹ŸX€€ô\ûH⁄YXò\ú»]H€‹ö‹‹XŸBõ]ô[à\ŸH‹\ò]H]Yôô\ô[ù^Y\ú»ŸàH⁄[8†%H⁄YXò\à€›ô\õú¬õò]öYÿ][€à
+òô]ŸY[äàôX€‹ôÀ›öY]‹Œ»ŸX›[€àâ‹»‹ö^õ€ù[Xú»€›ô\õÇõò]öYÿ][€à
+ù⁄][äàHŸ[X›YôX€‹ô	‹»]Z[›\ôòXŸH8†%[ô\ôHõ›òX›X[H[à€€ôõX›à›Ÿ]ô\ãHõﬁ[Z]HŸàH€»€€òŸ\»ÿ\úò[ùY[Çô^X⁄]ôX€€ò⁄[X][€à›][Y[ùò]\à[àX]ö[ô»]»[ôô\ô[òŸKàŸX›[€ÇçLåH›]\»\»\ôX›NàŸX›[€ààô[XZ[ú»ù[H[àõ‹òŸH[ô[ò⁄[ôŸY¬ùHô]»⁄YXò\ú»ô]ô\à\X\à[ú⁄YHHŸ[X›YôX€‹ô	‹»]Z[öY]»[ôô]ô\Çúô\XŸHH‹ö^õ€ù[Xà]\õãÇÇìõ»›\à€€ôõX›»Ÿ\ôHõ›[ôà\õZ\‹⁄[€ãX]ÿ\ôHò]öYÿ][€ãõ›X›YX€€[[ÇöY[ôÀ[ôô\‹€ú⁄]ôHô\]Z\ô[Y[ù»[ô\›]H^\›[ô»ÿ⁄ŸYù[\¬äŸX›[€àMÀŸX›[€àM»ÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿ€€ú›]][€ò[ù[HN
+Hò]\Çù[à[ùõŸX⁄[ô»ô]»€ô\ÀÇÇà»»»⁄]ÿ\»ÿ⁄ŸYÇìô]»ŸX›[€àL
+ìõ‹ùÿ]HRHﬁ\›[HäH[àÿ‹À–Tê“UP’TëKõY€›ô\ö[ôŒÇÇãH€ÿò[\Xÿ][€àXY\à
+úò[ô[ôÀ\õZ\‹⁄[€ãX]ÿ\ôH‹ò]ã€€\X›àõŸö[HY[ùJBãHö[X\ûH⁄YXò\à
+›XõH€‹ö‹‹XŸHò]öYÿ][€ã^\›[ô»õ›]\À‹\õZ\‹⁄[€ú¬à€õJBãH‹[€ò[ŸX€€ô\ûH⁄YXò\à
+ö[\úÀ‹ÿ]ôYöY]‹À‹›]\»‹õ›\Œ»€ôBà€€ú⁄\›[ùYX[ö[ô»\à€‹ö‹‹XŸN»ô]ô\àô\XŸ\»ŸX›[€ààXú BãHXZ[à€‹ö‹‹XŸH›ùX›\ò[Y\ò\ò⁄BãHXõH[ú⁄]H›[ô\ô[ôõ›X›YX€€[[à€Z\‹⁄[€àù[H
+ô\›]\¬àÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿõ»ô]»õY BãH›[[X\ûHÿ\ô\ÿYŸH›ZY[òŸBãH\õZ\‹⁄[€ãX]ÿ\ôHô[ô\ö[ô»
+ô\›]\»^\›[ô»Ÿ\ùô\ãX]]‹ö]]]ôHù[Kàõ»ô]»YX⁄[ö\€JBãH€€‹ã‹›[[ô»[ô›XYŸH
+õ‹ùÿ]HôY\»X›]ôK\›]HXÿŸ[ù»úöY⁄‹ôY[Çà^€YYúõ€Hò]äBãH‹X⁄[ôÀ⁄Y\ò\ò⁄H›[ô\ôãHù[ô\‹€ú⁄]ôHôZ]ö[‹à‹X»õ‹à\⁄›‹›Xõ]€[ÿö[H
+€€ú›]][€ò[àù[HN€€\X[òŸK\⁄Y€ôY[àúõ€H\ŸHJBãHô]\ÿXõH\⁄Y€ã\ﬁ\›[Hö[Z]]ôHò[Z[ô»
+[\›ò]]ôKõ›Hô\]Z\ôYö[Bà^[›]
+BãHÿ⁄ŸYôYK\\ŸHõ€›]Ÿ\]Y[òŸBãH^X⁄]›][Ÿã\ÿ€‹H\›ãH[\[Y[ù][€àÿ]H
+ÿ‹À[€õN»Ÿ\»õ›]]‹ö^ôH€ŸJBÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ÇääêTê“UP’TëKõYåãåéH8°§àåãåÃ
+äÇÇãHô]»ŸX›[€àL\[ôYYù\àŸX›[€à
+ŸX›[€àHô[XZ[ú»ô\Ÿ\ùôYõ‹Çàõÿà^‹ù[ò⁄[ôŸYõ»€€\⁄[€äBãHô\ú⁄[€àXY\à\]Y⁄]HåãåÃ›[[X\ûBÇà»»»⁄]€Ÿ^X^H[\[Y[ùö\ú›
+\ŸHHÿ€‹JBÇãHHô]\ÿXõH\Xÿ][€à⁄[ö[Z]]ô\»
+\⁄[‹ò]öYÿ][€ãàö[X\ûT⁄YXò\ãŸX€€ô\ûT⁄YXò\ã€‹ö‹‹XŸRXY\ãXêò\ã]Àà8†%ò[Z[ô¬àõ^XõJH[ô\⁄Y€à⁄Ÿ[ú»
+€€‹ã‹X⁄[ôÀ\Ÿ‹ò\H\àŸX›[€àLé8†$¬àLéJBãH€€ùô\ú⁄[€àŸàH
+äí[ùô[ù‹ûH[Ÿ[Jäà»Hô]»⁄[⁄][^\›[ô¬à[ùô[ù‹ûHù[ò›[€ò[]K\õZ\‹⁄[€úÀ[ôù\⁄[ô\‹»ù[\»ô\Ÿ\ùôY^X›BãHô\‹€ú⁄]ôHôZ]ö[‹àõ‹àH⁄[X‹õ‹‹»\⁄›‹›Xõ]€[ÿö[K\àŸX›[€ÇàLåLùZ[[àúõ€HH›\ù
+õ›ô]õŸö]Y
+BÇà»»»⁄]ô[XZ[ú»›]Ÿàÿ€‹H
+\»Z[\›€ôH[ô\ŸHJBÇãHõÿúÀ\›[X]\À[\ﬁYY\ÀôZX€\À]ô[‹\ã[ô⁄[\»[Ÿ[Bà€€ùô\ú⁄[€ú»
+\ŸHãÃ»8†%Ÿ\]Y[òŸY]\äBãH[ûH⁄[ôŸH»ŸX›[€àâ‹»‹ö^õ€ù[]Z[]Xà]\õÇãH[ûHÿ⁄[XH⁄[ôŸKZY‹ò][€ãô]»\õZ\‹⁄[€àõYÀô]»îÀ‹à\ôX›à]Xò\ŸH‹ö]BãH[ûH⁄[ôŸH»[ùô[ù‹ûHYŸ\ã⁄X⁄€›]õÿú»ö[ò[ò⁄X[Ÿ⁄XÀà]][ùXÿ][€ã‹àŸX›[€àMÿà
+‹ò[ù[\à\õZ\‹⁄[€à›ô\úöYJHôZ]ö[‹ÇãH[ûHô]»õ›]H‹à[Ÿ[Hõ›[ôXYH\õ›ôY[Ÿ]⁄\ôH[à\»ÿ›[Y[ùÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ÇåKàùZ[H⁄[[ô\⁄Y€à⁄Ÿ[ú»ö\ú›»€€ùô\ù[ùô[ù‹ûHŸX€€ôà»õ›à›\ùõÿúÀ—\›[X]\ÀŸ]Àà⁄[€€ùô\ú⁄[€à[ù[\ŸHH\»€€ôö\õYYà›XõKÇåãà]ô\ûH^\›[ô»[ùô[ù‹ûH\õZ\‹⁄[€à⁄X⁄Àì»€XﬁK[ôù\⁄[ô\‹»ù[Bàÿ\úöY\»›ô\à[ò⁄[ôŸY8†%\»\»Hô\Ÿ[ù][€ã[^Y\à€€ùô\ú⁄[€à€õKÇåÀàŸX›[€àà\»õ›ôZ[ô»›X⁄Yà⁄[à\ŸHà
+õÿú HôY⁄[úÀH^\›[ô¬à‹ö^õ€ù[]Z[]Xà[\[Y[ù][€à\»ô]\ŸY\ÀZ\»[ú⁄YHHô]»⁄[àõ›ôXùZ[Ççàõ›X›Y€€[[ú»
+KôÀãö[ò[ò⁄X[]Hÿ]Y€àÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿ
+Bà]\›ôH€Z]Yúõ€HXõHX\ö›\[ù\ô[Hõ‹à[ò]]‹ö^ôY\Ÿ\ú»8†%õ›àô[ô\ôYõ[öÀ€X\⁄ŸY€Y[ù\⁄YKÇçKàô\‹€ú⁄]ôHôZ]ö[‹à\»õ›Hõ€›À]\\⁄»8†%ùZ[[ÿö[K›Xõ]ôZ]ö[‹Çà[€ô‹⁄YH\⁄›‹[àHÿ[YH[\[Y[ù][€à\‹À\à€€ú›]][€ò[ù[BàNÇÇà»»»ô^›\»
+[à‹ô\äBÇåKàûX[à€€ôö\õ\»\»[ùûH[ôTê“UP’TëHåãåÃåãà€Ÿ^ÿ€‹\»\ŸHNà⁄[ö[Z]]ô\»
+»\⁄Y€à⁄Ÿ[ú»
+»[ùô[ù‹ûBà€€ùô\ú⁄[€ã\»HùX⁄Ÿ]€\‹⁄YöXÿ][€à\àŸX›[€àÕBåÀà€Ÿ^[\[Y[ù»\ŸHKô\Ÿ\ùö[ô»[^\›[ô»[ùô[ù‹ûHù[ò›[€ò[]BçàûX[àô]öY]‹»\ŸHHYÿZ[ú›HôYô\ô[òŸH[ÿ⁄›\[ô^\›[ô»[ùô[ù‹ûBàôZ]ö[‹àôYõ‹ôH\ŸHà
+õÿú HôY⁄[ú¬Çà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬Çìõ€ôHõÿ⁄⁄[ôÀàHŸX›[€àã‹⁄YXò\àôX€€ò⁄[X][€àXõ›ôHô\€€ô\»H€õBò[XöY›Z]Hõ›[ô\ö[ô»ô]öY]ÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬Çìõ€ôHX›]ôKÇÇãKKBÇà»»õ›][ô»ô\ôX›Çääëÿ‹À[€õH\ò⁄]X›\ôHÿ⁄Àù[Hå‹õ‹‹ÀX€X\ò[òŸHõ›ô\]Z\ôY
+äà8†%\¬úŸ\‹⁄[€àYõ››X⁄ÿ⁄[XK\õZ\‹⁄[€úÀî‹À‹àù\⁄[ô\‹»Ÿ⁄XŒ»]úô\€€ôY€ôH[ù\õò[X€€ú⁄\›[òﬁH]Y\›[€à
+ŸX›[€ààúÀàô]»⁄YXò\ú HûBô\ôX›^X[ôX€€ò⁄[X][€à⁄][àHÿ[YHÿ›[Y[ù⁄X⁄Ÿ\»õ›ö\ŸBù»H‹õ‹‹À[[Ÿ[€X\ò[òŸHô\⁄€\ŸYõ‹àòX⁄Ÿ[ô‹ŸX›\ö]K\Ÿ[ú⁄]]ôBò⁄[ôŸ\ÀÇÇääëõ‹à€Ÿ^ääà€X\ôY»ÿ€‹H[ôôY⁄[à\ŸHH
+⁄[
+»[ùô[ù‹ûBò€€ùô\ú⁄[€äH\àHï⁄]€Ÿ^X^H[\[Y[ùö\ú›àŸX›[€àXõ›ôK€òŸHûX[Çò€€ôö\õ\»\»[ùûH[ôH\]YTê“UP’TëHåãåÃÇÇääëõ‹à€]YNääàõ»ù\ù\àô]öY]»ôYYYõ‹à\»Z[\›€ôH[õ\‹»\ŸHBö[\[Y[ù][€à›\ôòXŸ\»H€€ôõX›⁄]ŸX›[€àà‹à^\›[ô»[ùô[ù‹ûBú\õZ\‹⁄[€àŸ⁄X»]€Ÿ^ÿ[õõ›ô\€€ôH[€ôKÇÇà»»[ùûHMHõ‹ùÿ]HRH⁄[Y‹Yõ‹à[ùô[ù‹ûBÇääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHﬁ\›[H\ŸHBääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^î\ŸHH[\[Y[ù][€àõÿŸYYYúõ€HHÿ⁄ŸYRH⁄X⁄‹⁄[ù[Çòÿ‹À–Tê“UP’TëKõYåãåÃ[ôSë—ëãõY[ùûHLŒHYù\à€€ôö\õZ[ôŒÇÇãHúò[ò⁄XZ[òãH€X[àôKYY]€‹ö⁄[ô»ôYBãHÿÿ[PQX]⁄Y‹öY⁄[ã€XZ[òãH›\ù[ô»€€[Z]MçYXåÃçŸôNéLååYéLÿçNMéLLMŸŒLXXôXãHŸX›[€àLÿ\»ô\Ÿ[ùãHŸX›[€ààô[XZ[ôY[ò⁄[ôŸY[ô€€\]XõH⁄]H€‹ö‹‹XŸK\⁄[àX⁄\⁄[€ÇÇï\»\‹»›^YY[ú⁄YHH\õ›ôYô\Ÿ[ù][€ã[€õHÿ€‹Nàô]\ÿXõH⁄[ú⁄\ôY\⁄Y€à⁄Ÿ[úÀ[ùô[ù‹ûH€€ùô\ú⁄[€ã[ôô\‹€ú⁄]ôHôZ]ö[‹ãàõ¬úÿ⁄[XKîÀ\õZ\‹⁄[€ã]]]Y]YŸ\ã⁄X⁄€›]‹àù\⁄[ô\‹À\ù[H€‹ö¬ùÿ\»]]‹ö^ôY‹à\ôõ‹õYYÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYH^\›[ô»\⁄[[ô[ùô[ù‹ûHô\Ÿ[ù][€à›[]ôYà[ú⁄YHH[€õ€]X»‹òÀ–\öúﬁÇãH€€ôö\õYYH›\úô[ù]ôH[ùô[ù‹ûH^\öY[òŸH[ôXYH[ò€YY\ŸBà[\[Y[ùY›\ôòXŸ\»[ôôYYY»ô[XZ[à⁄\ôY»Z\à^\›[ô»[ô\úŒÇàH[ùô[ù‹ûH›ô\ùöY]¬àHXÿ€›[ù[ô»^‹ùàHÿ][Ÿ»ô]öY]¬àH›‹òYŸHúõ›‹Ÿ\ÇàHÿÿ][€ú»	àTÇàHÿÿ[àTÇàHXô[\⁄Y€ô\ÇàH€€ÿ][Ÿ›YBàHÿ\ù⁄X⁄€›]àH[ùô[ù‹ûH€›[ù	à€‹úôX›[€ÇàHò[úÿX›[€ú¬ãH€€ôö\õYYHô]»⁄[Y»ô\Ÿ\ùôHH\ôX›ÿÿ][€ã\ÿÿ[à]Bà^\›[ô»‹[]ô[€‹ö‹‹XŸ\À[ôH›\úô[ù\õZ\‹⁄[€ãX]ÿ\ôH[Ÿ[Bàö\⁄Xö[]H[Ÿ[ÇãH€€ôö\õYYHõ⁄ôX›\»õ»Ÿ\\ò]H]]€X]Y\›€€[X[ôô^[€ôàúHù[àùZ[ÇÇà»»»⁄]ÿ\»€€\]YãHYYô]\ÿXõHY⁄][YH\⁄Y€à⁄Ÿ[ú»õ‹àHÿ⁄ŸYõ‹ùÿ]Hö\›X[àﬁ\›[NÇàHõ‹ùÿ]HôYúò[ô[ôŸ[X›Y\›]H[ù¬àHYŸK‹›\ôòXŸKÿõ‹ô\ã›^‹›]\»€€‹ú¬àHòY]\À⁄Y›À‹X⁄[ôÀXY\àZY⁄[ô⁄YXò\à⁄Yò\öXXõ\¬ãHYYô]\ÿXõH⁄[€^[›]€€\€ô[ùŒÇàH\⁄[àH‹ò]öYÿ][€òàHö[X\ûT⁄YXò\òàHŸX€€ô\ûT⁄YXò\òàH€‹ö‹‹XŸRXY\òàH›[[X\ûPÿ\ôãHYY⁄\ôY⁄[€^[›]›[\»õ‹éÇàH\ú⁄\›[ù€ÿò[XY\ÇàHô\‹€ú⁄]ôH‹ò]öYÿ][€ÇàH€€\⁄XõHö[X\ûH⁄YXò\ÇàH‹[€ò[ŸX€€ô\ûH€€ù^⁄YXò\ÇàHY⁄€‹ö‹‹XŸH›\ôòXŸ\À€€\X›‹\ò][€ò[‹X⁄[ôÀ[ôŸ[X›Y\›]BàôYXÿŸ[ù¬àHö[ù[[ŸH›\ô\‹⁄[€àŸà⁄[€ò]öYÿ][€à⁄õ€YBãH[ùY‹ò]YHô]»⁄[[ù»\⁄õÿ\ô
+
+X⁄[Hô\Ÿ\ùö[ô»^\›[ô¬à€‹ö‹‹XŸHõ›][ô»[ô]]‹ö^ò][€àôZ]ö[‹ãÇãH€€ùô\ùY[ùô[ù‹ûHúõ€HH€ôXY[€õH⁄[‹ò\\à[ù»Hô]¬à[ùô[ù‹ûU€‹ö‹‹XŸT[ô[ŸY\[ô»H^\›[ô»]ôH[ô[»[ô[ô\ú»õ‹éÇàH›ô\ùöY]¬àHXÿ€›[ù[ô»^‹ùàHÿ][Ÿ¬àH›‹òYŸBàHÿÿ][€ú»»TÇàHÿÿ[àõ›¬àHXô[¬àH€€ÿ][Ÿ›YBàHÿ\ùàH€›[ù»€‹úôX›[€ÇàHò[úÿX›[€ú¬ãHYY[ùô[ù‹ûK\‹X⁄YöX»ŸX›[€àY]Y]K›[[X\ûKXÿ\ô€›[ùÀ⁄YXò\Çàò]öYÿ][€ã[ôH€€ù^òZ[⁄]›]‹ôX][ô»ô]»õ›]\ÀÇãHô\Ÿ\ùôYH\ôX›ÿÿ][€ã\ÿÿ[àõ›]H[ô\àHô]»€ÿò[⁄[ÇãHYù\⁄õÿ\ôõÿúÀ\›[X]\À[\ﬁYY\ÀôZX€\À⁄[\À[ô]ô[‹\Çà[ù\õò[€‹öŸõ›‹»ù[ò›[€ò[H[ò⁄[ôŸY\⁄YHúõ€H[ö\ö][ô»Hô]¬à‹[]ô[⁄[ÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãHSë—ëãõYãH‹òÀ–\öúﬁãH‹òÀ€XZ[ãöúﬁãH‹òÀÿ€€\€ô[ùÀ€^[›]–\⁄[öúﬁãH‹òÀÿ€€\€ô[ùÀ€^[›]‘ö[X\ûT⁄YXò\ãöúﬁãH‹òÀÿ€€\€ô[ùÀ€^[›]‘ŸX€€ô\ûT⁄YXò\ãöúﬁãH‹òÀÿ€€\€ô[ùÀ€^[›]’‹ò]öYÿ][€ãöúﬁãH‹òÀÿ€€\€ô[ùÀ›ZK‘›[[X\ûPÿ\ôöúﬁãH‹òÀÿ€€\€ô[ùÀ›ZK’€‹ö‹‹XŸRXY\ãöúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿãH‹òÀ‹›[\À›⁄Ÿ[úÀò‹‹ÿÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ôY]åãåÃ[ôÿ\»õ›Y]YÇãHö[‹àSë—ëà⁄X⁄‹⁄[ùô[XZ[ôY[ùûHLŒN»\»[ùûH\[ô»[ùûHMà€õKÇÇà»»»⁄]€]YHôYY»»€õ›¬ãH\»\‹»›^YY[ú⁄YHHÿ⁄ŸYŸX›[€àL»[ùûHLŒHô\Ÿ[ù][€àÿ€‹KÇãH[ùô[ù‹ûHõ›»\Ÿ\»Hõ‹ùÿ]H⁄[ö[Z]]ô\Àù]õ»òX⁄Ÿ[ô‹Çà\õZ\‹⁄[€àŸ[X[ùX‹»Ÿ\ôH⁄[ôŸYÇãHõÿúÀ—\›[X]\À—[\ﬁYY\À’ôZX€\À‘⁄[\À—]ô[‹\à›[ôYYù]\ôBà€‹ö‹‹XŸK[]ô[ö\›X[€€ùô\ú⁄[€àYà]\à\Ÿ\»]]‹ö^ôH]ÇÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYYôYõY⁄ôYõ‹ôHY]ŒÇàHúò[ò⁄XZ[òàH€X[à€‹ö⁄[ô»ôYBàHÿÿ[PQH‹öY⁄[ã€XZ[òHMçYXåÃçŸôNéLååYéLÿçNMéLLMŸŒLXXôXàHTê“UP’TëHåãåÃàHSë—ëàÿ\\‹»õ›Y⁄[ùûHLŒBãH€Yÿ»úHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸY\⁄YHúõ€HH[ôKY[ô[ô»ÿ\õö[ô»€à‹òÀ€XZ[ãöúﬁàÿ]\ŸYûH⁄]õ‹õX[^ò][€é»õ»⁄]\‹XŸH\úõ‹àõÿ⁄ŸYHùZ[ÇãH€€ôö\õYYõ»ZY‹ò][€àö[\»Ÿ\ôHYY‹à⁄[ôŸYÇãH€€ôö\õYYõ»òX⁄Ÿ[ôö[\À›\Xò\ŸHÿ⁄[XHö[\Àì»ö[\À‹àî»ö[\¬àŸ\ôH⁄[ôŸY[à\»\‹ÀÇãH€€ôö\õYYHô]»⁄[€^[›]‹›[Hö[\»€€ùZ[àõ»\ôX››\Xò\ŸBà[úŸ\ù\]X[]Xúÿ‹à[ùô[ù‹ûWÿò[[òŸ\ÿ‹ö]H]ÇãH€€ôö\õYYö[ù\‹X⁄YöX»⁄[›\ô\‹⁄[€à^\›»[à‹òÀ‹›[\À€^[›]ò‹‹ÿà€»Hô]»ò]öYÿ][€à⁄õ€YHŸ\»õ›\X\à[àö[ù[ŸKÇãH€€ôö\õYYô\‹€ú⁄]ôHôZ]ö[‹àÿ\»[\[Y[ùY[à€ŸHõ‹éÇàH\⁄›‹Yò][»M€\‹»Ÿà^[›]àHLçŒ\ŸX€€ô\ûK\⁄YXò\à€€\ŸBàHLçö[X\ûK\⁄YXò\àò]Ÿ\àôZ]ö[‹ÇàHÕé€€\X›[ÿö[K›Xõ]‹X⁄[ô¬àHŒLò\úõ›À\ÿ‹ôY[àX›[€à‹ò\[ô¬ãHX[ùX[ŸŸŸYZ[àù[ù[YHô\öYöXÿ][€àÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàúõ›‹Ÿ\ãX]][ùXÿ]Y^\ò⁄\ŸHŸà[ùô[ù‹ûH€‹öŸõ›‹À€\ö»õŸö[HY[ùKà[ôô\‹€ú⁄]ôH[ù\òX›[€à›]\»ô[XZ[ú»[ô[ôÀÇãHHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›Y]€õ›ÿXõH]H[€Y[ù\¬à[ùûHÿ\»‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHM[ô\¬àô\‹ùY[àHŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàô]öY]»Hö\›X[ô\›[[àHŸŸŸYZ[àúõ›‹Ÿ\àŸ\‹⁄[€à]\⁄›‹Xõ]à[ô[ÿö[H⁄YÀÇåãà^\ò⁄\ŸHH^\›[ô»[ùô[ù‹ûHôXYÿX›[€à]»õ€ãY\›ùX›]ô[NÇàŸX›[€à›⁄]⁄[ôÀÿ][ŸÀ›‹òYŸKÿ\ù€›[ùò[úÿX›[€úÀÿÿ[ã[ôàö[ùŸ^‹ù›\ôòXŸ\»\»\õZ\‹⁄[€ú»[›ÀÇåÀàYàù[ù[YHô\öYöXÿ][€à\»€X[ãõÿŸYY⁄]ù]\ôH[Ÿ[H€€ùô\ú⁄[€ú»[Çà]\à\Ÿ\»ò]\à[à^[ô[ô»ÿ€‹H[ú⁄YH\»€€[Z]ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHH\õ›ôY[ÿ⁄›\[XYŸHÿ\»õ›]òZ[XõH\»H\ôX›H[ú‹X›XõHÿÿ[à[XYŸHö[H[àH€‹ö‹‹XŸH]X⁄Y[ù»\ö[ô»\»Ÿ\‹⁄[€ã€»ö\›X[à[\[Y[ù][€àõ€›ŸYHÿ⁄ŸY‹ö][à\⁄Y€àúöYYà\»H›\úô[ù\à›ùX›\ôKÇãHôXÿ]\ŸHù[ù[YHúõ›‹Ÿ\ãÿ]]\›[ô»ÿ\»õ›€€\]Y\ôKHô\‹€ú⁄]ôBà^[›][ô⁄[[ù\òX›[€ú»\ôHô\öYöYYûHùZ[›]][ô€ŸHô]öY]Ààõ›ûHù[]ôH‹\ò]‹àÿ[›õ›Y⁄ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHTê“UP’TëHåãåÃ»[ùûHLŒH[ôYàõ›[\àŸX›[€àãÿ⁄[XKî‹À\õZ\‹⁄[€úÀ]]‹à[ùô[ù‹ûH€›\òŸBàŸàù]ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYôYõ‹ôH€€[Z]‹\⁄H\»[\[Y[ù][€à›^YY⁄][ÇùHÿ⁄ŸY\ŸHHRH⁄[
+»[ùô[ù‹ûH€€ùô\ú⁄[€àÿ€‹Húõ€HTê“UP’TëBùåãåÃ»Së—ëà[ùûHLŒH[ôYõ›‹õ‹‹»òX⁄Ÿ[ô‹à\ò⁄]X›\ôK\Ÿ[ú⁄]]ôBòõ›[ô\öY\ÀÇÇà»»[ùûHMHH[YH[Y€õY[ùõ€›À]\õ‹àõ‹ùÿ]HRH⁄[[ôõÿú»€‹ö‹‹XŸBÇääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHﬁ\›[Hõ€›À]\ôYö[ô[Y[ùääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[à›\YYHô]»\õ›ôYö\›X[ôYô\ô[òŸH[XYŸHYù\à[ùûHM[ô\⁄ŸYôõ‹àHÿ[YHŸ[ô\ò[⁄[\ôX›[€à»ôHô][ôY›ÿ\ô]Y⁄\Çò€€ú›ùX›[€ãY\⁄õÿ\ôY\›]XÀàH‹X⁄YöX»ô\]Y\›YY][€àÿ\»Bò‹ôX]HõÿòX›[€à€àHò\ã[Yùõÿú»ò]öYÿ][€àòZ[ÇÇï\»\‹»ÿ\»ôX]Y\»Hô\Ÿ[ù][€ã[€õHôYö[ô[Y[ù€à‹ŸàH\⁄Yî\ŸHH⁄[€€[Z]àõ»\ò⁄]X›\ôKÿ⁄[XK\õZ\‹⁄[€ãîÀ]]‹Çòù\⁄[ô\‹À\ù[H€‹ö»ÿ\»]]‹ö^ôYÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYH\ô\»ÿ\»€X[à€àXZ[ò]›\ù[ô»€€[Z]àéçÕôYNòôYNLÃÿçÕôôçŸåXÇãH€€ôö\õYYHôYô\ô[òŸH[XYŸH[\\⁄^ô\ŒÇàHõ]\à⁄]HXY\àôX]Y[ùàHôY[ô\õ[ôHX›]ôHò]öYÿ][€ÇàH€Ÿù\àÿ\õHYŸHòX⁄Ÿ‹õ›[ôàHY⁄\à[ô[õ‹ô\ú»[ô⁄Y›‹¬àHX[[Yù\òZ[õÿú»^[›]àH‹ôX]Hõÿò\»Hõ€Z[ô[ùò\ã[YùX›[€ÇãH€€ôö\õYYH^\›[ô»õÿú»€‹ö‹‹XŸH[ôXYHYôX[]ôH‹ôX]KŸY]›öY]¬àõ›‹À€»Hô]»Yù\òZ[‹ôX]HõÿòX›[€à⁄›[ÿ[H›\úô[ùà›\ùô]“õÿä
+X][ú›XYŸà‹ôX][ô»H\ò[[õ›ÀÇãH€€ôö\õYYH›\úô[ùõÿú»ÿ⁄[XK‹ôXY[Ÿ[Ÿ\»
+äõõ›
+äà^‹ŸHH¬à›\\ö[ù[ô[ùöY[»ZŸHH[ÿ⁄›\[XYŸK€»Hö\›X[Y\][€àYà»›^H⁄][àX›X[]òZ[XõHõÿàöY[ÀÇÇà»»»⁄]ÿ\»€€\]YãHô][ôY⁄\ôY⁄[⁄Ÿ[ú»[ô^[›]›[[ô»€‹Ÿ\à»H›\YYàôYô\ô[òŸNÇàHÿ\õY\à⁄]H»Y⁄X‹ôX[HYŸHòX⁄Ÿ‹õ›[ôàHõ]\à⁄]HXY\ÇàH€[[Y\à‹ò]öYÿ][€à⁄]ôY[ô\õ[ôHX›]ôH›]BàHY⁄\àõ‹ô\ú»[ô€Ÿù\à⁄Y›‹¬àH⁄Y\à\Xÿ][€à€€ù[ù\ôXBãH\]YH€ÿò[⁄[úò[ô[ô»ôX]Y[ù€»H\XY\àôXY»[‹ôHZŸBàHõŸX›€‹ôX\ö»[àHYŸK]]Hò[õô\ãÇãHô]€‹öŸYHõÿú»€‹ö‹‹XŸH[ù»H[‹ôHôYô\ô[òŸKX[Y€ôY\⁄õÿ\ô^[›]ÇàHò\ã[Yù][]HòZ[àHYù›]\ÀŸö[\àòZ[àHXZ[àõÿú»\ôX›‹ûH[ô[àHŸ[X›YZõÿà]Z[[ô[ô[›»»[€ô‹⁄YH^\›[ô»]Z[Xú¬ãHYYHô\]Y\›Yò\ã[Yù‹ôX]HõÿòX›[€à[ô⁄\ôY]»Bà^\›[ô»›\ùô]“õÿä
+XôZ]ö[‹ãÇãHYY›]\À\òZ[ö[\ú»õ‹éÇàH[õÿú¬àHX›]ôHõÿú¬àH€à€àH€€\]YàHÿ[òŸ[YãHô\›[YHŸ[X›YZõÿàXY\à[ô›ô\ùöY]»›[[X\ûH»ô]\àX]⁄Bà›\YY\⁄Y€à[ô›XYŸH⁄[Hô\Ÿ\ùö[ô»H^\›[ô»]Z[]Xà]\õãÇãHŸ\[^\›[ô»õÿú»‹ôX]KŸY]ÿ\ò⁄]ôKŸ]Z[õ›‹»€àZ\à›\úô[ùà[ô\ú»[ô›\Xò\ŸH]ÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãHSë—ëãõYãH‹òÀ–\öúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿãH‹òÀ‹›[\À›⁄Ÿ[úÀò‹‹ÿÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ôY]åãåÃ[ôÿ\»õ›Y]YÇãHö[‹àSë—ëà⁄X⁄‹⁄[ùô[XZ[ôY[ùûHM»\»[ùûH\[ô»[ùûHMBà€õKÇÇà»»»⁄]€]YHôYY»»€õ›¬ãH\»ÿ\»H\⁄Y€ãX[Y€õY[ùõ€›À]\õ›Hô]»\ò⁄]X›\ôH\‹ÀÇãHHõÿú»€‹ö‹‹XŸHõ›»ö\›X[Hõ‹úõ›‹»[‹ôHúõ€HH›\YYôYô\ô[òŸBà[XYŸKù]]›[\Ÿ\»Hÿ[YH^\›[ô»õÿú»]HöY[»[ô[ô\úÀÇãHHYù\òZ[‹ôX]HõÿòX›[€à\»ô\Ÿ[ù][€ã[€õH[ô⁄[\Hõ›]\»[ù¬àH[ôXYH^\›[ô»‹ôX]KZõÿàõ›ÀÇÇà»»»ô\öYöXÿ][€ÇãH€€ôö\õYY›\ù[ô»€€[Z]ÇàéçÕôYNòôYNLÃÿçÕôôçŸåXãH€Yÿ»úHù[àùZ[\‹ŸYÇãH€€ôö\õYY€õHRK[^Y\àö[\»⁄[ôŸYÇàH‹òÀ–\öúﬁàH‹òÀ‹›[\À€^[›]ò‹‹ÿàH‹òÀ‹›[\À›⁄Ÿ[úÀò‹‹ÿàHSë—ëãõYãH€€ôö\õYYõ»ZY‹ò][€úÀÿ⁄[XHö[\Àì»ö[\Àî»ö[\À]]ö[\À‹Çà\õZ\‹⁄[€àö[\»⁄[ôŸY[à\»\‹ÀÇãH€€ôö\õYYHô\]Y\›Y‹ôX]HõÿòYù\òZ[X›[€àÿ[»H^\›[ô»õÿú¬à€‹ö‹‹XŸH‹ôX]Hõ›»ò]\à[à[ùõŸX⁄[ô»Hô]»‹ö]H]ÇãHX[ùX[ŸŸŸYZ[àù[ù[YH\›[ô»ÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàúõ›‹Ÿ\ãX]][ùXÿ]Yô\öYöXÿ][€àŸàHôYö[ôYõÿú»^[›][ô]»[ÿö[Bà[ù\òX›[€à›]\»ô[XZ[ú»[ô[ôÀÇãHHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›Y]€õ›ÿXõH]H[€Y[ù\¬à[ùûHÿ\»‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHMH[ô\¬àô\‹ùY[àHŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàô]öY]»HôYö[ôY⁄[[ôõÿú»€‹ö‹‹XŸHö\›X[HYÿZ[ú›H›\YYàôYô\ô[òŸH[XYŸKÇåãà[àHŸŸŸYZ[àúõ›‹Ÿ\àŸ\‹⁄[€ã\›ÇàHò\ã[Yù‹ôX]HõÿòàH›]\À\òZ[ö[\ö[ô¬àHõÿú»ŸX\ò⁄àHŸ[X›YZõÿà›⁄]⁄[ô¬àH]Z[]Xàò]öYÿ][€ÇåÀàYàHôYö[ôY[YH\»\õ›ôY€€ù[ùYH\Z[ô»Hÿ[YHö\›X[[ô›XYŸBà»]\à[Ÿ[H\Ÿ\»⁄]›]⁄[ô⁄[ô»õ›X›YòX⁄Ÿ[ôõ›[ô\öY\ÀÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHH›\YYôYô\ô[òŸH[XYŸH€€ùZ[ú»H»›\\ö[ù[ô[ù»ô]ô[ùYK\›[BàöY[»]\ôHõ›[ô\Ÿ[ù[àH›\úô[ù]ôHõÿú»õ›[ô][€ã€»Bà[\[Y[ù][€àX]⁄YHö\›X[ﬁ\›[Hò]\à[àô\õŸX⁄[ô»[ò]òZ[XõBàöY[»]\ò[KÇãHù[ù[YHúõ›‹Ÿ\àô\öYöXÿ][€à\»›[ôYYYõ‹àö[ò[€€ôöY[òŸH€à[ÿö[Bà[ôXõ]õÿú»[ù\òX›[€úÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHHRK‹ô\Ÿ[ù][€à^Y\à[ôYõ›à[\àÿ⁄[XKî‹À\õZ\‹⁄[€úÀ]]‹àŸX›[€àà]Z[]XàôZ]ö[‹ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYôYõ‹ôH€€[Z]‹\⁄H\»õ€›À]\ô[XZ[ôY[ú⁄YBùHÿ⁄ŸYõ‹ùÿ]HRHô\Ÿ[ù][€àÿ€‹H[ôYõ›‹õ‹‹»òX⁄Ÿ[ô‹Çò\ò⁄]X›\ôK\Ÿ[ú⁄]]ôHõ›[ô\öY\ÀÇÇà»»[ùûHMàHõÿú»òZ[»XYH€€\⁄XõH[ô⁄[€‹õô\ú»⁄\ú[ôYÇääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHﬁ\›[HôYö[ô[Y[ùääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\]Y\›Y€ôH[‹ôHö\›X[ôYö[ô[Y[ù\‹»Yù\à[ùûHMNÇÇãHXZŸHHõÿú»⁄YH[ô[»€€\⁄XõHZŸHH›\YYôYô\ô[òŸH[XYŸBãH⁄\ú[àH€‹õô\àòY]\»X‹õ‹‹»H[ù\ôòXŸH€»H⁄[ôY[»[‹ôHZŸBàH[ÿ⁄›\[ô\‹»[\õ›[ôYÇï\»ô[XZ[ôYHô\Ÿ[ù][€ã[€õHõ€›À]\€à‹ŸàH\⁄YõÿúÀ][YBò[Y€õY[ù€€[Z]àõ»òX⁄Ÿ[ôÿ⁄[XK]]\õZ\‹⁄[€ã‹àù\⁄[ô\‹À\ù[H€‹ö¬ùÿ\»]]‹ö^ôYÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYY›\ù[ô»€€[Z]ÇàÃÕôååNMÃÕLåXMÕÕYçLéNŸXÕçÕŸXXYãH€€ôö\õYYHõÿú»][]HòZ[[ôõÿú»›]\»òZ[Ÿ\ôH›]XÀ]⁄Y[ô[¬à⁄]õ»\Ÿ\ãX€€ùõ€Y€€\ŸH›]KÇãH€€ôö\õYYH⁄[›[ô[YY€àòY]\»ò[Y\»]Ÿ\ôH€Ÿù\ã‹õ›[ô\Çà[àH›\YYôYô\ô[òŸK\‹X⁄X[H€àÿ\ôÀ€€ùõ€ÀòZ[À[ôõÿú¬à]Z[›\ôòXŸ\ÀÇÇà»»»⁄]ÿ\»€€\]YãHYY[ô\[ô[ù€€\ŸH›]Hõ‹àõ›õÿú»⁄YHòZ[ŒÇàHò\ã[Yù][]HòZ[àHõÿú»›]\ÀŸö[\àòZ[ãHYY\⁄›‹€€\ŸKŸ^[ô€€ùõ€»õ‹àXX⁄òZ[[ôôYXŸYH‹öYà⁄Y»⁄[àZ]\àòZ[\»€€\ŸYÇãHô\Ÿ\ùôY\ŸYù[€€\ŸYYôõ‹ô[òŸ\ŒÇàH][]HòZ[ŸY\»X€€ã[€õHX›[€ú¬àH›]\»òZ[ŸY\»€€\X›⁄‹ù[Xô[€\¬ãH⁄\ú[ôYH⁄\ôYö\›X[[ô›XYŸHûHôYX⁄[ô»òY]\»ò[Y\»X‹õ‹‹»Bà⁄[ÇàHÿ\ôòY]\¬àH€€ùõ€òY]\¬àHòZ[òY]\¬àHŸ[X›YZõÿàXY\àòY]\¬àH›\‹ù[ô»òX›Xÿ\ô»X€€ã\[ô[òY]\¬àHŸX\ò⁄Ÿö[\à[ú]òY]\¬àHù]€àòY]\¬ãHŸ\H^\›[ô»õÿú»‹ôX]K›öY]ÀŸY]ÿ\ò⁄]ôHõ›‹»[ò⁄[ôŸY⁄[Bà\Z[ô»Hô]»€€\ŸHôZ]ö[‹ãÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãHSë—ëãõYãH‹òÀ–\öúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿãH‹òÀ‹›[\À›⁄Ÿ[úÀò‹‹ÿÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ôY]åãåÃ[ôÿ\»õ›Y]YÇãHö[‹àSë—ëà⁄X⁄‹⁄[ùô[XZ[ôY[ùûHMN»\»[ùûH\[ô»[ùûHMÇà€õKÇÇà»»»⁄]€]YHôYY»»€õ›¬ãH\»\‹»€õHY»ô\Ÿ[ù][€ò[€€\ŸHôZ]ö[‹à[ôòY]\»ôYö[ô[Y[ùÇãHH€€\⁄XõHõÿú»òZ[»»õ›[ùõŸXŸH[ûHô]»õ›]K\õZ\‹⁄[€ã‹Çà]H‹ö]H]ÇãHHYù\òZ[‹ôX]HõÿòX›[€àúõ€H[ùûHMHô[XZ[ú»⁄\ôY»Bà^\›[ô»‹ôX]KZõÿàôZ]ö[‹ãÇÇà»»»ô\öYöXÿ][€ÇãH€Yÿ»úHù[àùZ[\‹ŸYÇãH€€ôö\õYY€õHRK[^Y\àö[\»⁄[ôŸYÇàH‹òÀ–\öúﬁàH‹òÀ‹›[\À€^[›]ò‹‹ÿàH‹òÀ‹›[\À›⁄Ÿ[úÀò‹‹ÿàHSë—ëãõYãH€€ôö\õYYõ»ZY‹ò][€úÀÿ⁄[XHö[\Àì»ö[\Àî»ö[\À]]ö[\À‹Çà\õZ\‹⁄[€àö[\»⁄[ôŸY[à\»\‹ÀÇãH€€ôö\õYYH€€\ŸHôZ]ö[‹à\»ÿÿ[RH›]H€õH[ôŸ\»õ›YôôX›à^\›[ô»õÿú»]HÿY[ô»‹à‹ö]HŸ[X[ùX‹ÀÇãHX[ùX[ŸŸŸYZ[àù[ù[YH\›[ô»ÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàúõ›‹Ÿ\àô\öYöXÿ][€àŸàH€€\ŸY\òZ[[ù\òX›[€ú»[ôò\úõ›À\ÿ‹ôY[ÇàôZ]ö[‹àô[XZ[ú»[ô[ôÀÇãHHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›Y]€õ›ÿXõH]H[€Y[ù\¬à[ùûHÿ\»‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHMà[ô\¬àô\‹ùY[àHŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàô]öY]»H⁄\ú\ã\òY]\»⁄[[ôH€€\⁄XõHõÿú»òZ[»ö\›X[KÇåãà[àHŸŸŸYZ[àúõ›‹Ÿ\àŸ\‹⁄[€ã\›ÇàH€€\ŸH[ô^[ô€àõ›õÿú»òZ[¬àHYù\òZ[‹ôX]HõÿòàH›]\À\òZ[ö[\ö[ô»Yù\à€€\ŸKŸ^[ôàHŸ[X›YZõÿà›⁄]⁄[ô»[ô]Z[]Xàò]öYÿ][€ÇåÀàYàH€‹õô\à[ô›XYŸHõ›»ôY[»öY⁄ÿ\úûHH⁄\ú\àòY]\»ﬁ\›[Bà[ù»]\à[Ÿ[H€€ùô\ú⁄[€ú»õ‹à€€ú⁄\›[òﬁKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHH€€\ŸHôZ]ö[‹à\»›\úô[ùHÿ€‹Y»Hõÿú»òZ[À⁄X⁄X]⁄\¬àH[‹›\ôX›[ù\úô]][€àŸàûX[â‹»ô\]Y\›[ôH›\YY[XYŸKÇãHù[ù[YHö\›X[€€ôö\õX][€à\»›[ôYYYõ‹àö[ò[€\⁄€àBà€€\ŸY\⁄›‹›]H[ôXõ]€[ÿö[H^[›]ôY[ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ù\ô[H⁄][àRHô\Ÿ[ù][€àÿ€‹H[ôYàõ›[\àÿ⁄[XKî‹À\õZ\‹⁄[€úÀ]]‹àŸX›[€àà]Z[]Xàù[\ÀÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYôYõ‹ôH€€[Z]‹\⁄H\»›^YY[ú⁄YHHÿ⁄ŸYRBúô\Ÿ[ù][€àÿ€‹H[ôYõ›‹õ‹‹»òX⁄Ÿ[ô‹à\ò⁄]X›\ôK\Ÿ[ú⁄]]ôBòõ›[ô\öY\ÀÇÇà»»[ùûHM»Hõÿú»‹ôX]H[ŸH‹]úõ€H[õÿú»úõ›‹ŸHöY]¬Çääë]NääàåçãLÀLMääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHﬁ\›[HôYö[ô[Y[ùääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\]Y\›Y€ôHôZ]ö[‹à€‹úôX›[€àYù\à[ùûHMéÇÇãH‹ôX]Hõÿò⁄›[‹\ò]H\»]»›€àYù\[ô[ù[ò›[€ÇãHò]öYÿ][ô»»[õÿúÿ⁄›[⁄›»€õHHõÿú»\›õ›H‹ôX]Hõ‹õBÇï\»ÿ\»HRHôZ]ö[‹àôYö[ô[Y[ù€õKàõ»òX⁄Ÿ[ô‹à\õZ\‹⁄[€à€‹ö»ÿ\¬ò]]‹ö^ôYÇÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYHõÿú»€‹ö‹‹XŸH›[ô[òX⁄»»H‹ôX]KZõÿàõ‹õH⁄[ô]ô\Çàõ»õÿàÿ\»Ÿ[X›YÇãH€€ôö\õYY]XYH[õÿúÿôZ]ôHZŸHHúõ›‹ŸK\\ÀYõ‹õH›]H[ú›XYàŸàH\ôH\ôX›‹ûHöY]ÀÇãH€€ôö\õYYH\⁄\ôYö^ÿ\»»Ÿ\\ò]Húõ›‹ŸH[ŸHúõ€H‹ôX]H[ŸHò]\Çà[à⁄[ô⁄[ô»H^\›[ô»ÿ]ôH[ô\à‹à[ùõŸX⁄[ô»Hô]»õ›]KÇÇà»»»⁄]ÿ\»€€\]YãHYY[à^X⁄]õÿú»€‹ö‹‹XŸH[ŸH‹]ÇàHúõ›‹ŸXàH‹ôX]XãH\]YHYù\òZ[‹ôX]HõÿòX›[€à»‹[àH‹ôX]H[ô[à[ù[ù[€ò[H[ú›XYŸàô[Z[ô»€àHõÀ\Ÿ[X›[€àò[òX⁄ÀÇãH\]Y[õÿúÿ»›]\»ò]öYÿ][€àŒÇàH€X\àHŸ[X›YõÿÇàH^]‹ôX]H[ŸBàHô]\õà»H\ôHõÿú»\ôX›‹ûHöY]¬ãH\]Yõÿàõ›»Ÿ[X›[€à»Y]õ›‹»»ô]\õàH€‹ö‹‹XŸH»õ‹õX[àúõ›‹ŸH[ŸHôYõ‹ôH⁄›⁄[ô»HŸ[X›YZõÿà]Z[›\ôòXŸKÇãH\]YH‹ôX]H[ô[»[ò€YHH\ôX›òX⁄»»[õÿúÿX›[€ãÇãHô[[›ôYH]]€X]X»ôZ]ö[‹à⁄\ôH[õÿúÿ[\X⁄]H\‹^YYBà‹ôX]Hõ‹õH⁄[àõ»õÿàÿ\»Ÿ[X›YÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãHSë—ëãõYãH‹òÀ–\öúﬁÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ôY]åãåÃ[ôÿ\»õ›Y]YÇãHö[‹àSë—ëà⁄X⁄‹⁄[ùô[XZ[ôY[ùûHMé»\»[ùûH\[ô»[ùûHM¬à€õKÇÇà»»»⁄]€]YHôYY»»€õ›¬ãH\»\»HôZ]ö[‹à€‹úôX›[€à[ú⁄YHHõÿú»ô\Ÿ[ù][€à^Y\ãõ›Hô]¬àôX]\ôHZ[\›€ôKÇãH‹ôX]Hõÿòõ›»ôZ]ô\»\»[à^X⁄][ŸK⁄[H[õÿúÿôZ]ô\»\»Bà\ôHúõ›‹ŸH›]KÇãHH^\›[ô»õÿàÿ]ôH][ô‹ö]HŸ[X[ùX‹»Ÿ\ôHô\Ÿ\ùôY^X›KÇÇà»»»ô\öYöXÿ][€ÇãH€Yÿ»úHù[àùZ[\‹ŸYÇãH€€ôö\õYY€õH‹òÀ–\öúﬁ\»\»Së—ëà[ùûH⁄[ôŸY[à\»\‹ÀÇãH€€ôö\õYYõ»ÿ⁄[XKZY‹ò][€ãîÀìÀ]]‹à\õZ\‹⁄[€àö[\»⁄[ôŸYÇãH€€ôö\õYYHô]»ôZ]ö[‹à\»ÿÿ[RH›]H€õH[ôŸ\»õ›[\à^\›[ô¬àõÿú»‹ôX]KŸY]]H‹ö]\ÀÇãHX[ùX[ŸŸŸYZ[àù[ù[YH\›[ô»ÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàúõ›‹Ÿ\àô\öYöXÿ][€àŸà‹ôX]Hõÿò[õÿúÿ[ô]Z[›⁄]⁄[ô¬àô[XZ[ú»[ô[ôÀÇãHHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›Y]€õ›ÿXõH]H[€Y[ù\¬à[ùûHÿ\»‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHM»[ô\¬àô\‹ùY[àHŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKà[àHŸŸŸYZ[àúõ›‹Ÿ\àŸ\‹⁄[€ã\›ÇàHYù\òZ[‹ôX]HõÿòàHòX⁄»»[õÿúÿàH[õÿúÿ›]\»Ÿ[X›[€ÇàHõÿàõ›»Ÿ[X›[€àYù\àô]\õö[ô»»úõ›‹ŸH[ŸBåãàYàHúõ›‹ŸKÿ‹ôX]HŸ\\ò][€àôY[»€‹úôX›ŸY\\»›]H[Ÿ[õ‹à[ûBàù]\ôHõÿú»€‹ö‹‹XŸHôYö[ô[Y[ùÀÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHõ€ôHõÿ⁄⁄[ôÀà\»\‹»ÿ\»H\ôŸ]Y›]K[[Ÿ[€‹úôX›[€à⁄]õ¬àòX⁄Ÿ[ô[\X›ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ù\ô[H⁄][àHõÿú»RH›]H^Y\ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYôYõ‹ôH€€[Z]‹\⁄H\»ô[XZ[ôY[ú⁄YHÿ⁄ŸYRBúô\Ÿ[ù][€àÿ€‹H[ôYõ›‹õ‹‹»òX⁄Ÿ[ô‹à\ò⁄]X›\ôK\Ÿ[ú⁄]]ôBòõ›[ô\öY\ÀÇÇà»»[ùûHMHùZ[ô[XZ[ö[ô»õ‹ùÿ]H[Ÿ[H^[›]¬Çääë]NääàåçãLÀLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHﬁ\›[H\ŸH¬ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\]Y\›YH\Xÿ][€ã]⁄YH^[›]õ›[ô][€à\‹»õ‹àHô[XZ[ö[ô¬ù‹[]ô[õ‹ùÿ]HH[Ÿ[\»⁄[Hô\Ÿ\ùö[ô»H^\›[ô»⁄[[ùô[ù‹ûKò[ôõÿú»ôZ]ö[‹éÇÇãH\⁄õÿ\ôãH\›[X]\¬ãH[\ﬁYY\¬ãHôZX€\¬ãH⁄[\¬ãH]ô[‹\ÇÇï\»ô[XZ[ôYHúõ€ùY[ôô\Ÿ[ù][€ã€^[›]\‹»€õKàõ»òX⁄Ÿ[ôÿ⁄[XKú\õZ\‹⁄[€ãîÀ]][ùXÿ][€ãYŸ\ã]Y]‹àù\⁄[ô\‹À\ù[H⁄[ôŸ\»Ÿ\ôBò]]‹ö^ôYÇÇà»»»›\ù[ô»⁄[ùãH›\ù[ô»€€[Z]àÃôXNNLççŒMNòçåLYåÿMÕåÿXåÕçòŒNãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃãHô]ö[›\»Së—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMÿãHŸX›[€àLô[XZ[ôYô\Ÿ[ù[ô]]‹ö]]]ôBãHŸX›[€àòô[XZ[ôYô\Ÿ[ù[ô]]‹ö]]]ôBãHXZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]»[ô⁄][KYôã[€õH‹öY⁄[àXZ[òàô\‹ùY[ôXYH\»]KòÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYH⁄\ôYõ‹ùÿ]H⁄[[ôXYH^\›Y[éÇàH‹òÀÿ€€\€ô[ùÀ€^[›]–\⁄[öúﬁàH‹òÀÿ€€\€ô[ùÀ€^[›]’‹ò]öYÿ][€ãöúﬁàH‹òÀÿ€€\€ô[ùÀ€^[›]‘ö[X\ûT⁄YXò\ãöúﬁàH‹òÀÿ€€\€ô[ùÀ€^[›]‘ŸX€€ô\ûT⁄YXò\ãöúﬁãH€€ôö\õYYõÿúÿ[ôXYHÿ\úöYYH^X⁄]úõ›‹ŸKÿ‹ôX]H‹]úõ€Bà[ùûHM»[ôô[XZ[ôYH€‹úôX››ùX›\ò[ôYô\ô[òŸHõ‹àôX€‹ô[‹öY[ùYà[Ÿ[\ÀÇãH€€ôö\õYY\⁄õÿ\ô\›[X]\ÿ[\ﬁYY\ÿ[ôôZX€\ÿ›[àô[ô\ôYXŸZ€\à€‹ö‹‹XŸHÿ\ôÀÇãH€€ôö\õYY⁄[\ÿ[ôXYHY€‹ö⁄[ô»⁄]ôZ]ö[‹àù]ôYYYH[‹ôBà€\⁄Y€‹ö‹‹XŸH‹ò\\à€õKÇãH€€ôö\õYY]ô[‹\ò[ôXYHY]ôH›]\À›][]H€€ù[ùù]ÿ\»õ›àY]ô\Ÿ[ùY\»H€X\ô\àõ‹ùÿ]H[Ÿ[H€‹ö‹‹XŸKÇãH€€ôö\õYYH^\›[ô»[ùô[ù‹ûHôXY[Ÿ[[ôXYH^‹ŸY]ôH\›[ò][€Çà\Ÿ\à[ô\›[ò][€àôZX€HôYô\ô[òŸ\»]€›[ÿYô[H›\‹ùàô\Ÿ[ù][€ã[€õH[\ﬁYY\»[ôôZX€\»\ôX›‹ûH⁄[ÀÇÇà»»»⁄]ÿ\»€€\]YãHùZ[Hõ€KX]ÿ\ôH\⁄õÿ\ô€‹ö‹‹XŸH⁄[⁄]ÇàH€‹ö‹‹XŸHXY\ÇàH€€\X›ôX[Y]H›[[X\ûHÿ\ô¬àH]ZX⁄»[ö‹»[ù»ôX[[Ÿ[\¬àHõ›XŸ\Àÿ][ù[€àôY⁄[€ÇàH€ô\›XŸZ€\ú»õ‹àX›]ö]K‹ÿ⁄Y[HôY⁄[€ú»]»õ›Y]]ôH[Çà\õ›ôY]ôH]H€›\òŸBãHùZ[[à\›[X]\»€‹ö‹‹XŸHõ›[ô][€à⁄]ÇàHö[X\ûHòZ[öY]‹¬àH^X⁄]úõ›‹ŸHú»‹ôX]H›]BàHŸ[X›Y\ôX€‹ô⁄[àH€ô\›õÀY]H»õ›^Y]Z[\[Y[ùY›]\¬àHõ»òXúöXÿ]Y\›[X]HôX€‹ô»‹àö[ò[ò⁄X[ò[Y\¬ãHùZ[[à[\ﬁYY\»€‹ö‹‹XŸHõ›[ô][€à⁄]ÇàH\ôX›‹ûK€\›⁄[àHŸ[X›Y[\ﬁYYH]Z[⁄[àH‹ö^õ€ù[]Z[Xú¬àH^H[ôõ‹õX][€òöY]¬àH]ôH\›[ò][€ã]\Ÿ\àôYô\ô[òŸHõ›‹»⁄\ôH]òZ[XõBàHõ»õ€K\õZ\‹⁄[€ã‹àXÿ€›[ù[X[òYŸ[Y[ùY][ô¬ãHùZ[HôZX€\»€‹ö‹‹XŸHõ›[ô][€à⁄]ÇàH\ôX›‹ûK€\›⁄[àHŸ[X›YôZX€H]Z[⁄[àH‹ö^õ€ù[]Z[Xú¬àH]ôH\›[ò][€ã]ôZX€HôYô\ô[òŸHõ›‹»⁄\ôH]òZ[XõBàHõ»òXúöXÿ]Y\‹⁄Y€õY[ùŸ\ùöXŸKZ[XYŸK‹àXZ[ù[ò[òŸHôX€‹ô¬ãH€\⁄YH⁄[\»€‹ö‹‹XŸHô\Ÿ[ù][€à\õ›[ôH^\›[ô»⁄]ôZ]ö[‹éÇàH⁄\ôY€‹ö‹‹XŸHXY\ÇàH⁄\ôY\ÿXõY\›]Hô\Ÿ[ù][€ÇàHô\Ÿ\ùôY^\›[ô»€€ùô\úÿ][€ã€Y\‹ÿYŸKÿ€€\‹Ÿ\àôZ]ö[‹ÇãHôYúò[YYH]ô[‹\à[Ÿ[H[ú⁄YHH€X\ô\à]ô[‹\à€‹ö‹‹XŸH⁄[à\õ›[ôH[ôXYH^\›[ô»XY€õ‹›X‹»[ô][]Y\ÀÇãHYYô]\ÿXõHô\Ÿ[ù][€àö[Z]]ô\»⁄\ôYX‹õ‹‹»Hô]»€‹ö‹‹XŸ\ŒÇàH‹òÀÿ€€\€ô[ùÀ›ZK‘›]T[ô[öúﬁàH‹òÀÿ€€\€ô[ùÀ›ZK‘ôX€‹ôXY\ãöúﬁàH‹òÀÿ€€\€ô[ùÀ›ZK’€‹ö‹‹XŸUXúÀöúﬁãH^[ôY⁄\ôY^[›]‘‘»õ‹éÇàH›]H[ô[¬àHŸ[X›Y\ôX€‹ôXY\ú¬àH‹ö^õ€ù[Xú¬àH€‹ö‹‹XŸH›[[X\ûH‹öY¬àH\ôX›‹ûKŸ]Z[[Ÿ[H[ô[¬àH]ZX⁄À[[ö»ÿ\ô¬àHô\‹€ú⁄]ôH[Ÿ[HôZ]ö[‹ÇÇà»»»õ›]\»»ÿÿ[RH›]HYôôX›YãHô\Ÿ\ùôY^\›[ô»‹[]ô[€‹ö‹‹XŸHõ›][ô»Ÿ[X[ùX‹»\⁄[ô»H^\›[ô¬à€‹ö‹‹XŸX]Y\ûK\›ö[ô»[Ÿ[ÇãHYYÿÿ[ô\Ÿ[ù][€à›]H€õHõ‹éÇàH\⁄õÿ\ô⁄YXò\àöY]»Ÿ[X›[€ÇàH\›[X]\»⁄YXò\àöY]»Ÿ[X›[€ÇàH\›[X]\»^X⁄]‹ôX]Kÿúõ›‹ŸH[ŸBàH[\ﬁYY\»⁄YXò\àöY]»Ÿ[X›[€ÇàH[\ﬁYY\»Ÿ[X›Y[\ﬁYYH[ôX›]ôH]Z[XÇàHôZX€\»⁄YXò\àöY]»Ÿ[X›[€ÇàHôZX€\»Ÿ[X›YôZX€H[ôX›]ôH]Z[XÇàH⁄\ôY⁄YXò\à[ÿö[K[‹[à»€€\ŸYô\Ÿ[ù][€à›]BãHYYõ»]Xò\ŸKXòX⁄ŸYRHôYô\ô[òŸH\ú⁄\›[òŸH[ôõ»ô]»õ›]\ÀÇÇà»»»ö[\»⁄[ôŸYãHSë—ëãõYãH‹òÀ–\öúﬁãH‹òÀÿ€€\€ô[ùÀ‘⁄[\‘[ô[ÀöúﬁãH‹òÀÿ€€\€ô[ùÀ›ZK‘ôX€‹ôXY\ãöúﬁãH‹òÀÿ€€\€ô[ùÀ›ZK‘›]T[ô[öúﬁãH‹òÀÿ€€\€ô[ùÀ›ZK’€‹ö‹‹XŸUXúÀöúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ôY]åãåÃ[ôÿ\»õ›Y]YÇãHö[‹àSë—ëà⁄X⁄‹⁄[ùô[XZ[ôY[ùûHMÿ»\»[ùûH\[ô¬à[ùûHM€õKÇÇà»»»ô\öYöXÿ][€ÇãH⁄]›]\ÿô]öY]ŸYôYõ‹ôH[ôYù\à[\[Y[ù][€ãÇãH⁄]YôàK\›][ô⁄]Yôòô]öY]ŸYÇãH€Yÿ»úHù[àùZ[\‹ŸYÇãHõ»ô\‹⁄]‹ûH\›€€[X[ô^\›Yô^[€ôùZ[»õ»Y][€ò[]]€X]Yà\››Z]Hÿ\»]òZ[XõH»ù[à[à\»ô\‹⁄]‹ûKÇãH€€ôö\õYY⁄[ôŸYö[\»›^YY[àHRK‹ô\Ÿ[ù][€à^Y\à\»\¬àSë—ëà\[ôÇãH€€ôö\õYYõ»ZY‹ò][€àö[\»Ÿ\ôHYYÇãH€€ôö\õYYõ»ÿ⁄[XKîÀìÀ]]\õZ\‹⁄[€ãYŸ\ã]Y]ö[ò[ò⁄X[à‹àù\⁄[ô\‹À\ù[Hö[\»Ÿ\ôHY]Y[à\»\‹ÀÇãH€€ôö\õYYõ»ô]»\ôX››\Xò\ŸH‹ö]\»Ÿ\ôH[ùõŸXŸYõ‹àHô]»^[›]àõ›[ô][€úŒ»ô]»⁄\ôY[Ÿ[H⁄[»Z]\àô]\ŸY^\›[ô»ôXY[[Ÿ[]Bà‹àô[ô\ôY€ô\›XŸZ€\úÀÇãH€€ôö\õYY[ùô[ù‹ûH[ôõÿú»Ÿ\ôHô\Ÿ\ùôY\»^\›[ô»[Ÿ[\»[ôŸ\ôHõ›à[ù[ù[€ò[Hô]€‹öŸY[à\»\‹ÀÇãH€€ôö\õYY‹ôX]Hõÿòô[XZ[ú»Ÿ\\ò]Húõ€H[õÿúÿúõ›‹ŸH[ŸKÇãHŸŸŸYZ[àúõ›‹Ÿ\àù[ù[YHô\öYöXÿ][€àÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàô\‹€ú⁄]ôH[ú‹X›[€à]MLçÕé[ôŒLô[XZ[ú¬à[ô[ô»[àHúõ›‹Ÿ\àŸ\‹⁄[€ãÇãHúõ›‹Ÿ\àö[ù\ô]öY]»ô\öYöXÿ][€àÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇà^\›[ô»ö[ùZY[ô»ù[\»Ÿ\ôHô\Ÿ\ùôY[ô^[ôY€õH]H⁄\ôYà⁄[€^[›]^Y\ãÇÇà»»»ô[XZ[ö[ô»Yô\úôYù[ò›[€ò[]BãH\⁄õÿ\ôôXŸ[ùX›]ö]Kÿ⁄Y[KŸXY[ôH›\ôòXŸ\À[ôöX⁄\àõ›XŸ\¬à›[ôYY\õ›ôY]ôH€›\òŸ\»ôYõ‹ôH^Hÿ[à[›ôHô^[€ôXŸZ€\úÀÇãH\›[X]\»›[ôYY»]»\õ›ôYôXY]‹ôX]Hõ›ÀŸ[X›Y\ôX€‹ôà]H€›\òŸK[ô[ûH\õZ\‹⁄[€ãYÿ]Yö[ò[ò⁄X[ô[ô\ö[ôÀÇãH[\ﬁYY\»›[ôYY»\õ›ôY[\ﬁYYH€›\òŸK[Ÿã]ù]]Z[›\ôòXŸ\»›X⁄à\»\‹⁄Y€õY[ùÀ‹ôY[ùX[Àÿ›[Y[ùÀ[ôX›]ö]KÇãHôZX€\»›[ôYY»\õ›ôY\‹⁄Y€õY[ùŸ\ùöXŸKÿ›[Y[ùÀ[ô\›‹ûBà€›\òŸ\ÀÇãH⁄[\»›[ôYY»ŸŸŸYZ[àù[ù[YHô\öYöXÿ][€àõ‹àò\úõ›À\ÿ‹ôY[à^[›]à€\⁄Yù\à\»ô\Ÿ[ù][€à\]KÇãH]ô[‹\à›[ôYY»úõ›‹Ÿ\ãX]][ùXÿ]Yö\›X[ô\öYöXÿ][€ãù]õ»ô]¬àòX⁄Ÿ[ô][]Y\»Ÿ\ôH[ùõŸXŸYÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHÿ⁄ŸYõ‹ùÿ]HRHô\Ÿ[ù][€Çàõ›[ô\öY\»[ôYõ›[\àõ›X›YòX⁄Ÿ[ôôZ]ö[‹ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYôYõ‹ôH€€[Z]‹\⁄H\»ô[XZ[ôY[ú⁄YHÿ⁄ŸYìõ‹ùÿ]HRHX⁄\⁄[€ú»
+Tê“UP’TëHåãåÃSë—ëà[ùûHMÿ
+H[ôYõ›ò‹õ‹‹»òX⁄Ÿ[ô‹à\ò⁄]X›\ôK\Ÿ[ú⁄]]ôHõ›[ô\öY\ÀÇÇà»»[ùûHMHHôYö[ôH\⁄õÿ\ô[ùô[ù‹ûH[ôõÿú»RBÇääë]NääàåçãLÀLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHﬁ\›[H\ŸH¬ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\]Y\›YHõÿ›\ŸYRHôYö[ô[Y[ù\‹»€à‹Ÿà[ùûHM»XZŸHBë\⁄õÿ\ôôZ]ôHZŸHH\ú€€ò[€‹ö»Ÿ[ù\ãô[[›ôH[ùô[ù‹ûKZX]ûH›[[X\ûBúô\Ÿ[ù][€àúõ€H\⁄õÿ\ô[ô[ùô[ù‹ûK[ôY⁄[àHõÿú»Ÿ[X›Y\ôX€‹ôùXàô\Ÿ[ù][€à⁄]›]⁄[ô⁄[ô»òX⁄Ÿ[ôôZ]ö[‹à‹à]]‹ö^ò][€àù[\ÀÇÇï\»ô[XZ[ôYHúõ€ùY[ôô\Ÿ[ù][€ã€^[›]\‹»€õKàõ»òX⁄Ÿ[ôÿ⁄[XKú\õZ\‹⁄[€ãîÀ]][ùXÿ][€ãYŸ\ã]Y]ö[ò[ò⁄X[[ùô[ù‹ûH‹ö]K‹Çòù\⁄[ô\‹À\ù[H⁄[ôŸ\»Ÿ\ôH]]‹ö^ôYÇÇà»»»›\ù[ô»⁄[ùãH›\ù[ô»€€[Z]ÇàÿŒYMXéLÕôMŸåçÕÕåLMÕMòLÿMòÕÿãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃãHô]ö[›\»Së—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMãHŸX›[€àLô[XZ[ôYô\Ÿ[ù[ô]]‹ö]]]ôBãHŸX›[€àòô[XZ[ôYô\Ÿ[ù[ô]]‹ö]]]ôBãHXZ[òX]⁄Y‹öY⁄[ã€XZ[òôYõ‹ôHY]»[ô⁄][KYôã[€õH‹öY⁄[àXZ[òàô\‹ùY[ôXYH\»]KòÇà»»»⁄]ÿ\»XY€õ‹ŸYãH€€ôö\õYYH[ùûHM\⁄õÿ\ô›[ôZ]ôYZŸHH[Ÿ[H›ô\ùöY]»⁄]à[ùô[ù‹ûK[‹öY[ùYY]öX‹»[ô]ZX⁄»[ö‹»[ú›XYŸàH\ú€€ò[€‹öÀXŸ[ù\Çà⁄[ÇãH€€ôö\õYYH[ùô[ù‹ûH€‹ö‹‹XŸH›[ô[ô\ôYH\ôŸH‹à[ùô[ù‹ûH€€[X[ôŸ[ù\ò›[[X\ûHôY⁄[€à\»HöY⁄\⁄YH€€ù^òZ[]àûX[à^X⁄]Hÿ[ùYô[[›ôYÇãH€€ôö\õYYH[ùô[ù‹ûHYù[Ÿ[K\ŸX›[€ú»òZ[ôYYYH›õ€ôŸ\à›X⁄ﬁH
+¬àÿ‹õ€€€ùZ[ô\àôX]Y[ù€»€ô»ŸX›[€à\›»€›[ô[XZ[à\ÿXõKÇãH€€ôö\õYYHõÿú»Ÿ[X›Y\ôX€‹ôXà›ö\ÿ\»›[€»€‹ŸH]€€[[€Çà\⁄›‹⁄Y»[ô€›[ÿ]\ŸHXú»»‹ò\‹àôY[‹õ›ŸYÇãH€€ôö\õYYHô\‹⁄]‹ûH^‹Ÿ\»\›[X]H\õZ\‹⁄[€ú»ù]Ÿ\»õ›^‹ŸH[Çà\õ›ôYõÿã]ÀQ\›[X]Hô[][€ú⁄\‹àHõŸX›[€à\›[X]HôXY][ÇàH›\úô[ùRH^Y\ãÇãH€€ôö\õYYH›\úô[ùõÿú»ôXY[Ÿ[Ÿ\»õ›^‹ŸH€‹öŸ\ãà›\\ö[ù[ô[ù‹àõ⁄ôX›[X[òYŸ\à\‹⁄Y€õY[ùöY[»]€›[ÿYô[H›Ÿ\ÇàH\ú€€ò[^ôY^H€‹öÿ\⁄õÿ\ôŸX›[€ãÇãH€€ôö\õYYH›\úô[ùôZX€HôYô\ô[òŸH€›\òŸHŸ\»õ›^‹ŸH\ôX›à\Ÿ\ãX\‹⁄Y€õY[ù‹àô\‹ù[ô»ô[][€ú⁄\»]€›[ÿYô[H›Ÿ\Çà\ú€€ò[^ôY^HôZX€\ÿöY]‹ÀÇãH€€ôö\õYYH›\úô[ù€€ÿ][Ÿ›YH^‹Ÿ\»€€\[ûH€€õ›‹»ù]Ÿ\»õ›àõ›öYH[à\õ›ôY\Ÿ\ã[[öŸY\ú€€ò[]€€»]H[Ÿ[õ‹à\⁄õÿ\ô\ŸKÇãH€€ôö\õYY[ö]ô\úÿ[õÿàö\⁄Xö[]H»]]‹ö^ò][€àù[\»Ÿ\ôHYù[ù›X⁄Yà[à\»\‹ÀÇÇà»»»⁄]ÿ\»€€\]YãHôXùZ[\⁄õÿ\ô\»H\ú€€ò[€‹öÀXŸ[ù\à^[›]⁄]HYùòZ[àŸX›[€úŒÇàH^H[ôõÿàH^H€‹öÿàH^HôZX€\ÿàH^H€€ÿàH^H\›[X]\ÿ€õH⁄[à\›[X]H\õZ\‹⁄[€ú»\BàH^HôYô\ô[òŸ\ÿãHô[[›ôY[ùô[ù‹ûK\‹X⁄YöX»€›[ùÀ€€[X[ôXŸ[ù\à›[[X\öY\À]ZX⁄À[[ö¬à][ò⁄ÿ\ôÀ[ôHöY⁄€€ù^òZ[úõ€H\⁄õÿ\ôÇãHõ›[ô^H[ôõÿ€õH»\õ›ôY›\úô[ù]\Ÿ\à»\õZ\‹⁄[€à€€ù^[ôXYBà]òZ[XõH[àH\Xÿ][€éÇàH]][ùXÿ]Yò[YBàH[XZ[àH€ôH⁄[àô\Ÿ[ùàHõ€BàH]ö\⁄[€ÇãHŸ\^H€‹öÿ^HôZX€\ÿ^H€€ÿ^H\›[X]\ÿ[ôà^HôYô\ô[òŸ\ÿ€ô\›ûHô[ô\ö[ô»^X⁄]Yô\úôY›]\»⁄\ôH\õ›ôYà]ôH€›\òŸ\»»õ›Y]^\›ÇãHYY\ôX›[Ÿ[H][ò⁄X›[€ú»úõ€HYô\úôY\⁄õÿ\ô›]\»€õH⁄\ôBàHù[[Ÿ[H[ôXYH^\›ŒÇàHõÿúÿàHôZX€\ÿàH€€ÿàH\›[X]\ÿãH⁄[\YöYY[ùô[ù‹ûHûHô[[›ö[ôŒÇàHH‹[ùô[ù‹ûH€€[X[ôŸ[ù\òXY\àõÿ⁄¬àH€€ò\àY]H⁄\¬àH€›[ù\›[[X\ûHÿ\ô¬àHHöY⁄[ùô[ù‹ûH€€ù^òZ[ãHŸ\H[ùô[ù‹ûH[Ÿ[H€€ù[ù^\›[ô»ò]öYÿ][€ãôXY[Ÿ[[ôà⁄[\»[ùûHôZ]ö[‹à[ùX›⁄[H[›ö[ô»HX›]ôHŸX›[€àXY\à[ù»BàXZ[à€‹ö‹‹XŸH›\ôòXŸKÇãHYYH\ôX›[ùô[ù‹ûHôYúô\⁄X›[€à]HX›]ôHŸX›[€àXY\ãÇãHY⁄[ôY⁄YXò\à^[›]‘‘»€»Hö[X\ûH[Ÿ[K\ŸX›[€ú»òZ[ô[XZ[ú¬à›X⁄ﬁH[ô[ô\[ô[ùHÿ‹õ€XõH€à\⁄›‹⁄[Hò[[ô»òX⁄»€X[õH€Çà[ÿö[KÇãH€€\X›YHõÿú»Ÿ[X›Y\ôX€‹ôXà›ö\€»[ZY⁄Xú»ö][‹ôBàô[XXõH]›[ô\ô\⁄›‹⁄YÀÇãHYY[à€ô\›\ÿXõYŸ[X›YZõÿà\›[X]HX›[€à€õHõ‹à\Ÿ\ú»⁄»ÿ[Çà\›[X]H‹à\õ›ôH\›[X]\À^X⁄]H[ôXÿ][ô»]õ»\õ›ôYàõÿã]ÀQ\›[X]Hô[][€ú⁄\^\›»Y]ÇÇà»»»õ›]\»»ÿÿ[RH›]HYôôX›YãHô\Ÿ\ùôYH^\›[ô»‹[]ô[€‹ö‹‹XŸX]Y\ûK\›ö[ô»õ›][ô»[Ÿ[ÇãHô\Ÿ\ùôY^\›[ô»õÿú»õ›][ô»»Ÿ[X›[€àôZ]ö[‹à[ôYõ›[\Çà]]‹ö^ò][€àÿ]\ÀÇãHôYXŸY\⁄õÿ\ô\[ô[òﬁH€àH⁄\ôY[ùô[ù‹ûHôXY[Ÿ[€»\⁄õÿ\ôàõ»€ôŸ\àÿY»[ùô[ù‹ûH›[[X\ûH]Hù\›»ô[ô\à›ô\ùöY]»ÿ\ôÀÇãHYYõ»ô]»\ú⁄\›YôYô\ô[òŸ\Àõ»ÿÿ[›‹òYŸHôYô\ô[òŸH‹ö]\À[ôõ¬àô]»õ›]\ÀÇÇà»»»ö[\»⁄[ôŸYãHSë—ëãõYãH‹òÀ–\öúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ãHõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ôY]åãåÃ[ôÿ\»õ›Y]YÇãHö[‹àSë—ëà⁄X⁄‹⁄[ùô[XZ[ôY[ùûHM»\»[ùûH\[ô¬à[ùûHMX€õKÇÇà»»»ô\öYöXÿ][€ÇãH⁄]ô]⁄‹öY⁄[ò[ô⁄][KYôã[€õH‹öY⁄[àXZ[ò€€\]YôYõ‹ôHBàôYö[ô[Y[ù\‹Œ»ÿÿ[XZ[òÿ\»[ôXYH›\úô[ù⁄]‹öY⁄[ã€XZ[òÇãH⁄]›]\ÿ⁄]YôàK\›][ô⁄]YôòŸ\ôHô]öY]ŸY\ö[ô»Bà\‹ÀÇãH€Yÿ»úHù[àùZ[\‹ŸYÇãHõ»ô\‹⁄]‹ûH\›€€[X[ô^\›Yô^[€ôùZ[»õ»Y][€ò[]]€X]Yà\››Z]Hÿ\»]òZ[XõH»ù[à[à\»ô\‹⁄]‹ûKÇãH€€ôö\õYY⁄[ôŸYö[\»›^YY[àHRK‹ô\Ÿ[ù][€à^Y\à\»\¬àSë—ëà\[ôÇãH€€ôö\õYYõ»ÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€ãYŸ\ã]Y]àö[ò[ò⁄X[‹àù\⁄[ô\‹À\ù[Hö[\»Ÿ\ôHY]Y[à\»\‹ÀÇãH€€ôö\õYYõ»[ùô[ù‹ûH‹ö]Hõ›Àÿ\ùôZ]ö[‹ã€›[ùôZ]ö[‹ã‹Çàò[úÿX›[€àôZ]ö[‹àÿ\»[ù[ù[€ò[H⁄[ôŸY[à\»\‹ÀÇãH€€ôö\õYYõÿàö\⁄Xö[]H]]‹ö^ò][€àù[\»Ÿ\ôH[Xô\ò][Hõ›⁄[ôŸYÇãH€€ôö\õYYHõÿà\›[X]HX›[€à\»ô\Ÿ[ù][€ò[€õH[ôŸ\»õ›[ùô[ùà[à\›[X]Hô[][€ú⁄\ôXY]‹à‹ö]Hõ›ÀÇãHŸŸŸYZ[àúõ›‹Ÿ\àù[ù[YHô\öYöXÿ][€àÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇãHô\‹€ú⁄]ôH[ú‹X›[€à]€€[[€à⁄Y»ô[XZ[ú»[ô[ô»[àHúõ›‹Ÿ\àŸ\‹⁄[€ãà[›Y⁄H\]Y⁄YXò\à[ôXã\›ö\‘‘»€€\[Y›XÿŸ\‹Ÿù[KÇãHHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›Y]€õ›ÿXõH]H[€Y[ù\¬à[ùûHÿ\»‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHMH[ô\¬àô\‹ùY[àHŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô[XZ[ö[ô»Yô\úôYù[ò›[€ò[]BãH^H€‹öÿ›[ôYY»[à\õ›ôY\‹⁄Y€õY[ù€›\òŸHõ‹à€‹öŸ\úÀà›\\ö[ù[ô[ùÀ[ôõ⁄ôX›X[òYŸ\ú»ôYõ‹ôH]ÿ[àô[ô\à\ú€€ò[^ôYõÿÇà\›ÀÇãH^HôZX€\ÿ›[ôYY»\õ›ôY\‹⁄Y€õY[ù[ôô\‹ù[ô»ô[][€ú⁄\¬àôYõ‹ôH]ÿ[àô[ô\à\ú€€ò[‹à\ôX›\ô\‹ùôZX€H\›ÀÇãH^H€€ÿ›[ôYY»[à\õ›ôY\ú€€ò[]€€»]H[Ÿ[ôYõ‹ôHBà\⁄õÿ\ôÿ[à\›[ô›Z\⁄\ú€€ò[€€»úõ€HHŸ[ô\ò[€€\[ûHÿ][Ÿ›YKÇãH^H\›[X]\ÿ›[ôYY»[à\õ›ôY\›[X]HôXY[Ÿ[\»[ûH\õ›ôYàõÿã]ÀQ\›[X]Hô[][€ú⁄\ôYõ‹ôH\⁄õÿ\ô‹àõÿãY]Z[\›[X]HöY]‹»ÿ[ÇàôX€€YH]ôKÇãH^HôYô\ô[òŸ\ÿ›[ôYY»[à\õ›ôY\ú⁄\›[òŸH›ò]YﬁHôYõ‹ôH]ÿ[Çà[›ôHô^[€ô^[›]ô\Ÿ\ùò][€à[ôYô\úôY›]\ÀÇãH]][ùXÿ]Yúõ›‹Ÿ\àô\öYöXÿ][€àô[XZ[ú»[ô[ô»õ‹àHôYö[ôY\⁄õÿ\ôà[ùô[ù‹ûK[ôõÿú»ô\Ÿ[ù][€à]\⁄›‹[ô[ÿö[HúôXZ‹⁄[ùÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHÿ⁄ŸYõ‹ùÿ]HRHô\Ÿ[ù][€Çàõ›[ô\öY\»[ôYõ›[\àõ›X›YòX⁄Ÿ[ôôZ]ö[‹ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYôYõ‹ôH€€[Z]‹\⁄õ‹à\»\‹»ôXÿ]\ŸH]ô[XZ[ôYö[ú⁄YHÿ⁄ŸYRHô\Ÿ[ù][€àÿ€‹Kà€]YHô]öY]»\»›[ô\]Z\ôYôYõ‹ôH[ûBôù]\ôH⁄[ôŸH»[ö]ô\úÿ[õÿàö\⁄Xö[]H‹à]]‹ö^ò][€àôZ]ö[‹ãÇÇà»»[ùûHMàHë—ÀTH[ùY‹ò][€éà\ò⁄]X›\ôHô]öY]»€€\]KX⁄\⁄[€ú»ÿ\\ôYÿ⁄»[ô[ô»‹õ‹‹ÀP€X\ò[òŸBÇääë]NääàåçãLLÇääï\]YûNääà€]YBääî\ŸNääà\ò⁄]X›\ôHô]öY]»
+ôK[ÿ⁄ BääîŸ\‹⁄[€à\NääàX⁄\⁄[€àÿ\\ôH»ô]öY]»0Ë∏†´8†'Hì»\ò⁄]X›\ôH⁄[ôŸHXYBÇà»»»€€ù^ÇîûX[à\ôX›YHô]öY]»Ÿà\⁄[ô»H›[ô[€ôHë—ÀTH\äìî€€][€úÀY[X›öXÿ[”ë—ÀTX\ﬁYY]òõú€€][€úÀY[X›öXÿ[ô⁄]Xãö[À”ë—ÀTKÿ
+H\»Hò\⁄\»õ‹àHŸ[X›YRõÿÇù€‹ö‹‹XŸH[ú⁄YHõ‹ùÿ]HKà€]YH[ú‹X›YHë—ÀTH€›\òŸH\ôX›Bä[ô^ö[LÀŒHû]\À⁄[ô€Hö[Kõ»^\õò[ÿ‹ö\ H[€ô‹⁄YHBôù[Tê“UP’TëHåãåÃ[ôSë—ëàõ›Y⁄[ùûHMKÇÇïH€€\]Hô]öY]»\»ÿ\\ôY[Çòë—ÀTW“[ùY‹ò][€ó–\ò⁄]X›\ôW‘ô]öY]ÀõY
+[]ô\ôY»ûX[à\»Ÿ\‹⁄[€äKÇÇääï\»[ùûHôX€‹ô»X⁄\⁄[€ú»€õKàõ»Tê“UP’TëKõY⁄[ôŸH\»ôY[àXYBò[ôõ€ôH\»]]‹ö^ôYY]ääà[ÿ⁄[XKXYôôX›[ô»X⁄\⁄[€ú»ô[›»\ôH[ô[ô¬îù[Hå‹õ‹‹ÀX€X\ò[òŸKÇÇà»»»ö[ô[ô‹»0Ë∏†´8†'Hõ›\à€€ôõX›»⁄]ÿ⁄ŸY\ò⁄]X›\ôBÇåKà
+äì][KY]ö\⁄[€àõ⁄ôX›»
+›ùX›\ò[
+Kääàë—ÀTHõ⁄ôX›»‹[à[X›öXÿ[à[ô€€ú›ùX›[€à⁄[][[ô[›\€H0Ë∏†´8†'HùYŸ][ô\Àÿ⁄Y[H\⁄‹À\õZ]Àà[ô⁄X⁄€\›»XX⁄ÿ\úûHZ\à›€à]ö\⁄[€à[ú⁄YH€ôHõ⁄ôX›àõ‹ùÿ]BàõÿúÀô]ö\⁄[€ò\»⁄[ô€K]ò[YYì’ïS[ô\»Hì»XÿŸ\‹»ÿ]Bà
+0‡∞©ÃŒåK0‡∞©ÃŒç
+KàH⁄[ô€Hë—ÀTHõ⁄ôX›ÿ[õõ›ôHô\ô\Ÿ[ùY\»€ôBàõ‹ùÿ]Hõÿà[ô\à›\úô[ù\ò⁄]X›\ôKÇåãà
+äêùYŸ]€€[[úÀääàë—ÀTH›‹ô\»X›X[»€€[Z]Y»õ‹ôXÿ\›à0‡∞©ÕåÇà^X⁄]H^€Y\»X›X[ÿ[[›[ù[ô€€[Z]Yÿ[[›[ù»0‡∞©ÕéHô\Ÿ\ùô\¬àX›X[[ô€€[Z]Y€‹›ÇåÀà
+äîÿ⁄Y[H\[ô[ò⁄Y\Àääàë—ÀTH\»ôYXŸ\‹€‹ãYÀ\ò][€ã€€\]Yà]\À[ôÿ[ùà0‡∞©ÕÀåÿ⁄‹»ÿ⁄Y[HåH\»ôõ]Z[\›€ôK›\⁄»\›à€õpË∏†´0©àŸ\»õ›[Ÿ[\[ô[ò⁄Y\»é»0‡∞©ÕÀçH^X⁄]Hô\Ÿ\ùô\»\[ô[ò⁄Y\ÀÇçà
+äìõ»›€ô\à^\› äàõ‹àH⁄X⁄€\›\õZ]À‹à[ú‹X›[€úÀÇÇà»»»YôX›»Y[ùYöYY[àë—ÀTH
+]\›õ›ôH‹ùY
+BÇãH
+äê⁄X⁄€\›€€\][€à\»‹⁄][€ò[HŸ^YY
+äà
+\ŸR[ô^›\⁄“[ô^àYÿZ[ú›H[\]H\ô€ŸY[à€›\òŸJKà[úŸ\ù[ô»€ôH][H⁄[[ùBàôK[X\»]ô\ûH›XúŸ\]Y[ù€€\][€à»H‹õ€ô»\⁄ÀÇãH
+äíî””à[\‹ù\»Hõ[ô⁄€K\›]H›ô\ù‹ö]Jäà0Ë∏†´8†'Hõ»ò[Y][€ãõ¬àô\ú⁄[€à⁄X⁄Àõ»Yôãõ»€€ôö\õX][€ãÇãH
+äê€Y[ù\⁄YHSàÿ]Jäà
+ô\]Y\›[ä
+X
+H›X\ô»Y][ŸKà[ò€€\]XõBà⁄]0‡∞©ÃM…‹»Ÿ\ùô\ãX]]‹ö]]]ôHù[N»]\›õ››\ùö]ôH[à[ûHõ‹õKÇãHÿ⁄Y[H\⁄»Q»\ôHŸ\]Y[ùX[[ùYŸ\ú»ôYô\ô[òŸY\»úôYH^ûBàôYXŸ\‹€‹ò»ZY‹ò][€à»URQô\]Z\ô\»H›XõH\‹^HŸ\]Y[òŸKÇÇà»»»ûX[â‹»X⁄\⁄[€ú»
+MàŸàMã[ÿ\\ôY
+BÇääê]]‹ö^ò][€à[Ÿ[ääÇåKà[ûH]][ùXÿ]Y\Ÿ\àX^H‹[à[ûHõÿà[ôŸYHò\⁄X»‹\ò][€ò[à[ôõ‹õX][€ãàö[ò[ò⁄X[ò[Y\»ô[XZ[àÿ]Yà
+ä\»€€\Ÿ\»Bà][KY]ö\⁄[€à€€ôõX›0Ë∏†´8†'HHõÿàXY\à›‹»ôZ[ô»H]ö\⁄[€àXÿŸ\‹¬àÿ]KäJÇåãà\õZ\‹⁄[€à⁄X⁄‹»\ôH⁄\ôY[àúõ€H^H€ôK⁄]õY‹»‹ò[ùYúõÿYHöXBà\Ÿ\ó‹\õZ\‹⁄[€ó€›ô\úöY\ÿ
+0‡∞©ÃMÿäH[ö]X[KàY⁄[ö[ô»]\à\»H]Bà⁄[ôŸKõ›H€ŸH⁄[ôŸKà
+äëYô\úö[ô»H⁄X⁄‹»[\Ÿ[ô\»ÿ\¬à^X⁄]HôZôX›YääÇåÀàö[ò[ò⁄X[]Y\öY\»\ôH]ö\⁄[€ã\ÿ€‹Y
+äò]H]Y\ûH^Y\ääàúõ€HBà›\ù0Ë∏†´8†'Hõ›ô]⁄YúõÿYH[ôö[\ôY€Y[ù\⁄YKÇÇääêùYŸ]
+€€ôõX›äNääÇçàYùYŸ]ÿ⁄[ôŸ\ÿX›X[ÿ[[›[ù€€[Z]Yÿ[[›[ùàõ‹ôXÿ\››◊ÿ€€\]X\»
+äõX[ùX[H[õö[ô»[ú] äã^X⁄]BàXô[Yõ€ãXXÿ€›[ù[ôÀà]]ÀY\ö]ò][€àúõ€HHYŸ\àÿ\»ôZôX›Y\¬àX]\öX[H[ò€€\]H
+X]\öX[€õH0Ë∏†´8†'Hõ»Xõ‹ãõ»›Xú KÇçKàùYŸ]ÿ]Y€‹ûHô[XZ[ú»ô\]Z\ôY
+0‡∞©Õå»“P“»€€ú›òZ[ù[ò⁄[ôŸY
+KÇçãà›[[X\ûHÿ\ô›[»⁄›»HöY]Ÿ\â‹»›€à]ö\⁄[€ãÇÇääîÿ⁄Y[H
+€€ôõX› NääÇçÀàY\ò][€òôYXŸ\‹€‹òYÿòYX\»€€\]Y]\»[ôàÿ[ùÇéàõ‹ùÿ]I‹»^\›[ô»›]\»õÿÿXù[\ûH\»ô]Z[ôYà
+[ô[ôÿÿ[ó‹õŸ‹ô\‹ÿÿ€€\]Xÿ[^YY
+N»ë—ÀTI‹»õ›\àX\€ù»]ÇÇääê⁄X⁄€\›
+€€ôõX›
+NääÇéKàX\›\à[\]HY][ô»\»]ô[‹\ã[€õKÇåLà\»X^HYõÿã\‹X⁄YöX»][\»€à‹ŸàH[\]KÇÇääî›ùX›\ôNääÇåLKà\õZ]»	à[ú‹X›[€ú»Ÿ]Z\à›€àXãÇåLãàõÿúÿÿZ[ú»W›\Ÿ\ó⁄Y›\\ö[ù[ô[ù›\Ÿ\ó⁄Yõ‹ô[X[ó›\Ÿ\ó⁄Yà
+€\ö»V\à0‡∞©ÃMÿàY[ù]H[Ÿ[
+H[ôÿ◊ÿ€€\[ûXÇåLÀà^‹ùàõÿà[ôõÀ€€ùX›À\õZ]À[ú‹X›[€úÀÿ⁄Y[K⁄X⁄€\›àÿ›[Y[ùY]Y]H
+ò[Y\»€õJKàùYŸ]€õH⁄]ÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿÇà
+äìõ»X]\öX[Àù^[›]‹àò[úÿX›[€à]Jäà0Ë∏†´8†'HYŸ\ãXYòXŸ[ù]H]\›àõ›ôH\Xÿ]Y[ù»H‹ùXõHö[KÇåMà
+äìõ»î””à[\‹ù[à\»[ùY‹ò][€ãääà^‹ù€õKÇåMKà€Ÿ^\ŸHH\»HôXY[€õHö\›X[‹ùÇåMãà^\›[ô»õÿú»€‹ö‹‹XŸHô]Z[ôYôZ[ôHôX]\ôHõY»[ù[\ö]H\¬à€€ôö\õYYÇÇääìò]öYÿ][€éääà‹[€àà^[ôY0Ë∏†´8†'Hõ‹ùÿ]I‹»ZY⁄ÿ⁄ŸYXú»ô[XZ[Çòÿ[õ€öXÿ[
+0‡∞©Õà[ò⁄[ôŸY
+K\»H⁄X⁄€\›[ô\õZ]»	à[ú‹X›[€úÀÇìë—ÀTI‹»õ›\ã]Xà›ùX›\ôH\»Xú€‹òôYõ›Y‹Y»\»]õ⁄Y»BêùYŸ]À—ö[ò[ò⁄X[»[ôÿ⁄Y[\À‘ÿ⁄Y[H\Xÿ][€ãÇÇà»»»[ùX⁄\]YTê“UP’TëH⁄[ôŸ\»
+ì’QUTQQ
+BÇî[ô[ô»‹õ‹‹ÀX€X\ò[òŸKHÿ⁄»\»^X›Y»ô\]Z\ôNÇÇãH0‡∞©ÃŒ[H0Ë∏†´8†'Hõÿà\‹⁄Y€õY[ù€€[[úÀÿ◊ÿ€€\[ûX[ôH⁄[ôŸYYX[ö[ô»ŸÇàõÿúÀô]ö\⁄[€ò
+Xô[ò]\à[àXÿŸ\‹»ÿ]JBãH0‡∞©Õ[H0Ë∏†´8†'HHõ›\àX[ùX[ùYŸ]€€[[ú¬ãH0‡∞©Õ»[H0Ë∏†´8†'HHõ›\àÿ⁄Y[H€€[[ú»
+»€€\]Y]\¬ãHô]»ŸX›[€ú»0Ë∏†´8†'HH⁄X⁄€\›
+[\]\»
+»[ú›[òŸ\ Kõÿà\õZ]»	Çà[ú‹X›[€úÀõÿà€€ùX›Àî””à^‹ùãH0‡∞©Õàõ›H0Ë∏†´8†'H€»YYXú¬ãH0‡∞©ÕLõ›H0Ë∏†´8†'HH€‹ö‹‹XŸHö\›X[[ùY‹ò][€ÇãHô]»Xõ\»0Ë∏†´8†'Hõÿóÿ€€ùX›ÿõÿó‹\õZ]ÿõÿó⁄[ú‹X›[€úÿà⁄X⁄€\››[\]\ÿ⁄X⁄€\››[\]W⁄][\ÿõÿóÿ⁄X⁄€\›⁄][\ÿãH
+äìõ»ô]»\õZ\‹⁄[€àõY‹Àääà]ô\û][ô»X\»»^\›[ô»ÿ[ó€X[òYŸW⁄õÿúÿàÿ[óÿ\õ›ôWÿùYŸ]ÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿÿ[ó›öY]◊ÿ[Ÿ]ö\⁄[€úÿÇÇà»»»⁄]€Ÿ^\»]]‹ö^ôY»»ì’¬Çääî\ŸHH€õH0Ë∏†´8†'HôXY[€õHö\›X[‹ùääà\»ô\]Z\ô\»õ»\ò⁄]X›\ôH⁄[ôŸBò[ôX^HõÿŸYY[à\ò[[⁄]‹õ‹‹ÀX€X\ò[òŸNÇÇãHùZ[ë—ÀTI‹»ÿ‹ôY[ú»\»ôXX›€€\€ô[ù»[ú⁄YHH^\›[ô»õ‹ùÿ]Bà⁄[ô\›[Y»õ‹ùÿ]HôY›⁄]KŸ‹ò^BãHö[ôôXY[€õH»]H][ôXYH^\›Œ»ô[ô\à[õÿ⁄ŸY€€[[ú»\¬àö\⁄XõH\ÿXõYXŸZ€\úÀô]ô\àòXúöXÿ]Yò[Y\¬ãHô]\ŸH^\›[ô»⁄[€€\€ô[ùŒ»õ»ŸX€€ô\⁄Y€àﬁ\›[BãHô\‹€ú⁄]ôHúõ€H\»\‹»
+€€ú›]][€ò[ù[HN
+BãHõ›]HôZ[ôHôX]\ôHõYÀ]ô[‹\ã[€õN»^\›[ô»õÿú»€‹ö‹‹XŸH›^\¬àYò][[ô[ù›X⁄YÇääê€Ÿ^]\›ì’[à\ŸHNääà‹ôX]H‹à[\à[ûHXõK€€[[ãZY‹ò][€ãîì»€XﬁK‹àîŒ»Y‹à[ŸYûH[ûH\õZ\‹⁄[€àõY»‹à⁄X⁄Œ»‹ö]H»[ûBùXõN»[ŸYûHH^\›[ô»õÿú»€‹ö‹‹XŸN»‹ùHSàÿ]Kÿÿ[›‹òYŸBú\ú⁄\›[òŸKS\ÿ]ôK\ö»[YK[ÿö[K\ô]öY]»ŸŸ€K‹àî””à[\‹ùÇÇà»»»ô^›\»
+[à‹ô\äBÇåKà⁄]‘ù[Hå‹õ‹‹ÀX€X\ò[òŸH€àH\ôX›[€àXõ›ôBåãà€]YH€‹úôX›»\àö[ô[ô‹¬åÀà€]YH‹ö]\»HTê“UP’TëHÿ⁄»
+^X›YåãåÃJH[ôHô^Së—ëÇà[ùûBçà€Ÿ^\ŸHH
+ôXY[€õHö\›X[‹ù
+H0Ë∏†´8†'HX^Hù[à[à\ò[[⁄]pË∏†´8†'¬çKà€Ÿ^\Ÿ\»ä»
+ÿ⁄[XH[\ H0Ë∏†´8†'Hõÿ⁄ŸY[ù[Hÿ⁄»^\›¬Çà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬Çê‹õ‹‹ÀX€X\ò[òŸH⁄›[‹X⁄YöXÿ[H^[Z[ôNà⁄]\àõÿúÀô]ö\⁄[€ò⁄[ô⁄[ô¬ôúõ€HXÿŸ\‹»ÿ]H»Xô[‹ôX]\»õÿõ[\»[à[ûHÿ⁄ŸYŸX›[€é»⁄]\Çù[ö]ô\úÿ[õÿàö\⁄Xö[]H€€ôõX›»⁄]0‡∞©ÃMÿI‹»]ö\⁄[€ã\ÿ€‹[ô»ö[ò⁄\H\¬ò\YY[Ÿ]⁄\ôN»⁄]\àX[ùX[ùYŸ]X›X[»‹ôX]HH€€\][ô»€›\òŸHŸÇùù]YÿZ[ú›0‡∞©ÃÕÀ‡∞©Õ»YŸ\àù[\Œ»⁄]\àHô]»Xõ\…»€ŸùX\ò⁄]ôHì¬úô\]Z\ô\»H[ùöY\»Lç0Ë∏†´8†'LçH€À\€XﬁH]\õé»[ô⁄]\à[ûHŸà\¬úô\]Z\ô\»H\õZ\‹⁄[€àõY»õ›[ôXYHÿ[õ€öXÿ[ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬Çìõ€ôHX›]ôKàõ»\ò⁄]X›\ôH⁄[ôŸHÿ\»XYH[à\»Ÿ\‹⁄[€ãÇÇãKKBÇà»»õ›][ô»ô\ôX›Çääê⁄]‘ù[Hå‹õ‹‹ÀX€X\ò[òŸHô\]Z\ôYôYõ‹ôH[ûHTê“UP’TëKõYY]ääÇëX⁄\⁄[€ú»\ôHÿ\\ôY[ô[ù\õò[H€€ú⁄\›[ùù]]ô\ûHÿ⁄[XKXYôôX›[ô¬ö][HXõ›ôH\»[ô[ô»ô]öY]ÀÇÇääëõ‹à€Ÿ^ääà\ŸHH
+ôXY[€õHö\›X[‹ù
+H\»]]‹ö^ôYõ›»[ôô\]Z\ô\¬õõ»ÿ⁄Àà[ÿ⁄[XH€‹ö»\»õÿ⁄ŸY[ù[HTê“UP’TëHÿ⁄»\»‹ö][à[ôò‹õ‹‹ÀX€X\ôYÇÇääëõ‹à€]YNääà‹ö]HHTê“UP’TëHÿ⁄»€õHYù\à‹õ‹‹ÀX€X\ò[òŸHö[ô[ô‹¬ò\ôHô]\õôY[ô€‹úôX›YÇÇà»»[ùûHM»HYôXY[€õHë—ÀTHõÿú»ô]öY]¬Çääë]NääàåçãLL¬ääï\]YûNääà€Ÿ^ääî\ŸNääàë—ÀTH[ùY‹ò][€à\ŸHBääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\]Y\›Y\ŸHHŸàHë—ÀTH[ùY‹ò][€à[ù»õ‹ùÿ]HHåà[ôúõ›öYYHZ\‹⁄[ô»[ùûHMàSë—ëà\ùYòX›àôYõ‹ôH[\[Y[ù][€ã€Ÿ^ò€€ôö\õYYH›€õÿYYSë—ëàX]⁄YHô\‹⁄]‹ûHõ›Y⁄[ùûHMH[ôò\[ôY[ùûHMà^X›H\»Hô\]Z\ôY]]‹ö^ò][€àò\Ÿ[[ôKà[ùûHMàÿ\¬ù[à€€[Z]Y[ô\⁄Y\»Hÿ›[Y[ù][€ã[€õH⁄X⁄‹⁄[ùôYõ‹ôH\Xÿ][€Çù€‹ö»ôYÿ[ãÇÇî›\ù[ô»€€[Z]õ‹àH[\[Y[ù][€à\‹ŒÇòåÿçåX
+ÿ›[Y[ùë—ÀTH[ùY‹ò][€à\ò⁄]X›\ôHô]öY]ÿ
+KÇÇîö[‹à\Xÿ][€ãX€ŸH⁄X⁄‹⁄[ùô[XZ[ôYÇòÕXÕL
+ôYö[ôH\⁄õÿ\ô[ùô[ù‹ûH[ôõÿú»RX
+KÇÇê\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇîö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMòÇë[ùûHMàÿ\»\⁄Xÿ[Hô\Ÿ[ù[àHô\‹⁄]‹ûHôYõ‹ôH[\[Y[ù][€à[ôô^X⁄]H]]‹ö^ôY\ŸHH€õNàHôXY[€õHö\›X[‹ù]ô[‹\ã[€õKôôX]\ôKYõYŸŸY⁄]õ»ÿ⁄[XK\ú⁄\›[òŸK\õZ\‹⁄[€ãìÀîÀòX⁄Ÿ[ô‹Çù‹ö]K\]⁄[ôŸ\ÀÇÇïH€€\]Hë—ÀTH€›\òŸH[ú‹X›Yõ‹à\»\‹»ÿ\»H›[ô[€ôBòìî€€][€úÀY[X›öXÿ[”ë—ÀTK⁄[ô^ö[›€õÿYYúõ€H⁄]Xàò]»€›\òŸKÇòë—ÀTW“[ùY‹ò][€ó–\ò⁄]X›\ôW‘ô]öY]ÀõYÿ\»ŸX\ò⁄Yõ‹à[àHô\‹⁄]‹ûBò[ôÿ\»XúŸ[ùÇÇà»»»⁄]ÿ\»€€\]YãHYY€›\òŸKX€€ùõ€YôX]\ôHõYŒÇàSêPìW”ë—◊‘W‘ëPQ””ìW‘ëUíQUÿÇãHYYH]ô[‹\ã[€õHŸ[X›YZõÿà][ò⁄X›[€éÇàH€‹ö‹‹XŸHô]öY]ÿÇãHŸ\H^\›[ô»Ÿ[X›YRõÿà€‹ö‹‹XŸH\»HYò][^\öY[òŸKÇãHYYHôXY[€õHK\ô]öY]ÿõÿú»€‹ö‹‹XŸH[ŸHŸ\\ò]Húõ€NÇàH[õÿú»úõ›‹ŸH[ŸBàH‹ôX]Hõÿà[ŸBàHH^\›[ô»Ÿ[X›YRõÿà]Z[Xú¬ãHYY€X\àòX⁄»]»úõ€HHô]öY]»ŒÇàH›\úô[ùõÿà€‹ö‹‹XŸBàH[õÿú¬ãHùZ[HHô]öY]»ŸX›[€úŒÇàH›ô\ùöY]¬àHùYŸ]¬àHÿ⁄Y[\¬àHH⁄X⁄€\›àH\õZ]»	à[ú‹X›[€ú¬ãHô]\ŸYH^\›[ô»õ‹ùÿ]H⁄[ôX€‹ôXY\ò›]T[ô[à›[[X\ûPÿ\ô[ô€‹ö‹‹XŸUXúÿÇãHŸ\Hõ‹ùÿ]HôY»⁄]H»‹ò^Hö\›X[Y[ù]H[ôYõ›‹ùBà›[ô[€ôHë—ÀTHõYK€ò]ûH[YKÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ìõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ–\öúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿãHSë—ëãõYÇà»»»ÿ⁄»ÿ›[Y[ù⁄[ôŸ\¬ìõ€ôKàÿ‹À–Tê“UP’TëKõYô[XZ[ú»åãåÃ[ôÿ\»õ›Y]YÇÇà»»»⁄]ÿ\»[\[Y[ùYãH›ô\ùöY]»ö[ô»€õH»^\›[ô»Ÿ[X›YõÿàöY[ŒÇàHõÿàù[Xô\ÇàHõÿàò[YBàHYô\‹¬àH›]\¬àH]ö\⁄[€ÇàH\ÿ‹ö\[€ÇàHõ›\¬ãHŸ[ô\ò[€€ùòX›‹à»€Y[ùõ⁄ôX›X[òYŸ\ã›\\ö[ù[ô[ù€€ùX›Àà\õZ]À[ô[ú‹X›[€ú»ô[ô\à\»€ô\›õ›^Y]X€€õôX›Y›]\ÀÇãHùYŸ]ô]öY]»\Ÿ\»^\›[ô»]]‹ö^ôYõÿóÿùYŸ]€[ô\ÿõ›‹»€õKÇãHùYŸ]€€[[ú»ô[ô\à[àHô\]Y\›Yë—ÀTH‹ô\éÇà]ö\⁄[€ã€‹›€ŸK\ÿ‹ö\[€ã‹öY⁄[ò[ùYŸ]⁄[ôŸ\Àô]ö\ŸYX›X[à€€[Z]Yõ‹ôXÿ\›»€€\]Kõ‹ôXÿ\›ö[ò[ô[XZ[ö[ôÀõ›\ÀÇãH^\›[ô»]òZ[XõHùYŸ]ò[Y\»ö[ôúõ€H›\úô[ùõ›‹ŒÇàH]ö\⁄[€ÇàH€‹›ÿ€ŸBàH\ÿ‹ö\[€ÇàHùYŸ]ÿ[[›[ù\»‹öY⁄[ò[àHõ›H\»õ›\¬ãH[ò]òZ[XõHùYŸ]öY[»ô[ô\à\»\ÿXõYXŸZ€\àŸ[Àõ›ô\õŒÇàHùYŸ]⁄[ôŸ\¬àHX›X[àH€€[Z]YàHõ‹ôXÿ\›»€€\]BãHùYŸ]ÿ[›[][€à][]Y\»\›[ô›Z\⁄[ò]òZ[XõHò[Y\»úõ€HôX[ô\õ»[ôà€õHÿ[›[]H\ö]ôYò[Y\»⁄[à]ô\ûHô\]Z\ôY[ú]\»]òZ[XõKÇãHÿ⁄Y[Hô]öY]»\Ÿ\»^\›[ô»õÿó‹ÿ⁄Y[W⁄][\ÿõ›‹»€õKÇãH^\›[ô»]òZ[XõHÿ⁄Y[Hò[Y\»ö[ôúõ€H›\úô[ùõ›‹ŒÇàH]K›\⁄¬àH]ö\⁄[€ÇàH›]\¬àH\ôŸ]Ÿ]H\»X[ùX[›\ùàH\ÿ‹ö\[€ã€õ›BãH[ò]òZ[XõHÿ⁄Y[HöY[»ô[ô\à\»\ÿXõYXŸZ€\àŸ[ŒÇàH\ò][€ÇàHôYXŸ\‹€‹ÇàHY¬àHòYBàH€€\]Yö[ö\⁄ãHÿ⁄Y[Hÿ[›[][€à][]Y\»›^H\ôH[ô»õ›òXúöXÿ]H\[ô[ò⁄Y\»‹Çà\ò][€àò\úÀÇãHÿ[ùô]öY]»ô[ô\ú»€õHôX[]Yÿ⁄Y[Hõ›‹»\»Z[\›€ôHX\öŸ\úÀÇà]Ÿ\»õ›òXúöXÿ]H\ò][€àò\úÀÇãHH⁄X⁄€\›ô[ô\ú»úõ€H[à\€€]Y[\‹ò\ûH€€ú›[ù€‹YY\»BàôXY[€õH\ŸHHô\Ÿ[ù][€à[\]KÇãHH⁄X⁄€\›€€ùõ€»\ôHôX[\ÿXõY⁄X⁄ÿõﬁ\Œ»õ»€€\][€à›]H\¬à›‹ôYÇãH\õZ]»[ô[ú‹X›[€ú»ô[ô\à[\HXõH›ùX›\ô\»⁄]€ô\›[\Bà›]\»[ôõ»Y‹ÿ]ôH€€ùõ€ÀÇãHYYô\‹€ú⁄]ôHÿYôY›X\ôŒÇàHZ[ã]⁄Yà‹öYŸõ^€€ùZ[õY[ùàH€€ùZ[ôYXõH›ô\ôõ›¬àH€€\X›ô]öY]»Xú¬àH[ÿö[Hÿ\ô€€ùô\ú⁄[€àõ‹àùYŸ][ôÿ⁄Y[BàH›X⁄ﬁHY[ùYûZ[ô»€€[[ú»⁄\ôHòX›Xÿ[àH€€ùZ[ôYÿ[ù‹ö^õ€ù[ÿ‹õ€ãHYYö[ùôZ]ö[‹à€»ô]öY]»€€ùõ€ÀòX⁄»€€ùõ€À⁄[ò]öYÿ][€ãà⁄YXò\úÀ[ô⁄[\»ùXòõH\ôHY[à[àö[ùàHX›]ôHô]öY]»ŸX›[€à\¬à⁄]ö[ùÀÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH\»\»H]ô[‹\ã[€õHô]öY]»ôZ[ôH€›\òŸKX€€ùõ€YôX]\ôHõYÀÇãH]Ÿ\»õ›ô\XŸHHõŸX›[€àŸ[X›YRõÿà€‹ö‹‹XŸKÇãH]Ÿ\»õ›YõŸX›[€àH⁄X⁄€\›‹à\õZ]»XúÀÇãH]Ÿ\»õ›⁄Y[àõÿàö\⁄Xö[]KÇãH]Ÿ\»õ›YHô]»\õZ\‹⁄[€àõYÀÇãH]Ÿ\»õ›[ŸYûH[ûH›\Xò\ŸHXõKZY‹ò][€ãîÀì»€XﬁK]]à]Y][ùô[ù‹ûKö[ò[ò⁄X[‹àù\⁄[ô\‹»ù[KÇãH]Ÿ\»õ›‹ö]H»›\Xò\ŸH[ôŸ\»õ›Yÿÿ[úõ›‹Ÿ\à\ú⁄\›[òŸKÇãHH^\›[ô»õÿú»€‹ö‹‹XŸHô[XZ[ú»Yò][[ô[ùX›ÇÇà»»»ô\öYöXÿ][€ÇãHô\]Z\ôYôYõY⁄\‹ŸYYù\à[ùûHMàÿ\»\[ôY€€[Z]Y[ô\⁄YÇàHúò[ò⁄XZ[òàHÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òàH€‹ö⁄[ô»ôYH€X[àôYõ‹ôH[\[Y[ù][€ÇàHÕXÕLô\Ÿ[ù[à[ôXYŸBàH[ùûHMàô\Ÿ[ù[àô\‹⁄]‹ûBàHTê“UP’TëHåãåÃô\Ÿ[ùãHúH⁄Xÿ\»ù[àôXÿ]\ŸHõŸW€[Ÿ[\ÿÿ\»Z\‹⁄[ô»€à\»XX⁄[ôKÇãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHô\‹⁄]‹ûH\»õ»^\›[ô»\›ÿ‹ö\ô^[€ôùZ[»õ»[ö]\›úò[Y]€‹ö¬à\»€€ôöY›\ôY€»õ»õÿ›\ŸY]]€X]Y][]H\›»Ÿ\ôHYY[à\»\‹ÀÇãHÿYô]Hÿÿ[ú»ŸàHYôàõ›[ôõ»ô]»›\Xò\ŸH‹ö]Hÿ[ŒÇàö[úŸ\ù
+ù\]Jô[]Jù\Ÿ\ù
+ÇãHÿYô]Hÿÿ[ú»õ›[ôõ»ô]»úõ›‹Ÿ\à\ú⁄\›[òŸNÇàÿÿ[›‹òYŸXŸ\‹⁄[€î›‹òYŸX[ô^YòÇãHÿYô]Hÿÿ[ú»õ›[ôõ»Sàÿ]Kî””à[\‹ùî””àô\›‹ôKSÿ]ôK\ö¬à[YHŸŸ€K[ÿö[K\ô]öY]»ŸŸ€KZY‹ò][€à⁄[ôŸKî»⁄[ôŸKì»⁄[ôŸKà\õZ\‹⁄[€à⁄[ôŸK‹à\ò⁄]X›\ôH⁄[ôŸH[ùõŸXŸYûH\»\‹ÀÇãH€õHRKÿ\Xÿ][€àö[\»\»\»Së—ëà\[ô⁄[ôŸYÇãH]][ùXÿ]Yúõ›‹Ÿ\àù[ù[YHô\öYöXÿ][€àÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàX[ùX[ô\öYöXÿ][€àô[XZ[ú»ô\]Z\ôYõ‹à]ô[‹\àú»õ‹õX[]\Ÿ\àö\⁄Xö[]Kà]ôHŸ[X›YZõÿà]Kô\‹€ú⁄]ôH⁄YÀ[ôö[ù›]]ÇãHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›€õ›ÿXõH]H[€Y[ù\»[ùûHÿ\¬à‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHM»[ô\»ô\‹ùY[àBàŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[à\ôõ‹õ\»ŸŸŸYZ[àù[ù[YHô\öYöXÿ][€à⁄]H]ô[‹\àXÿ€›[ùÇåãàô\öYûHHõ‹õX[\Ÿ\àŸ\»õ›ŸYHH€‹ö‹‹XŸHô]öY]ÿÇåÀàô\öYûHH›\úô[ùŸ[X›YRõÿà€‹ö‹‹XŸHô[XZ[ú»HYò][Ççàô\öYûHHô]öY]»]MLçÕé[ôŒLÇçKàô\öYûHúõ›‹Ÿ\àö[ù›]]õ‹àXX⁄Hô]öY]»ŸX›[€ãÇçãà€€ù[ùYHù[Hå‹õ‹‹ÀX€X\ò[òŸHõ‹àÿ⁄[XKXYôôX›[ô»\ŸHãÃ»X⁄\⁄[€úÀÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHù[ù[YHö\›X[PH\»›[[ô[ô»ôXÿ]\ŸH]][ùXÿ]Yúõ›‹Ÿ\à\›[ô»ÿ\¬àõ›]òZ[XõH[à\»[\[Y[ù][€àŸ\‹⁄[€ãÇãHë—ÀTW“[ùY‹ò][€ó–\ò⁄]X›\ôW‘ô]öY]ÀõYÿ\»ôYô\ô[òŸYûH[ùûHMàù]àÿ\»õ›ô\Ÿ[ù[àHô\‹⁄]‹ûKÇãHúH⁄Xô\‹ùY^\›[ô»\[ô[òﬁHÿ\õö[ô‹À[ò€Y[ô»Y⁄\Ÿ]ô\ö]H]Y]àö[ô[ô‹»[ô[à€\öÀÿ€\öÀ\ôXX›\ôXÿ][€àÿ\õö[ôÀà\ŸHŸ\ôHõ›à⁄[ôŸY[à\»\ŸHHRH\‹ÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãH\Ÿ\»à[ô»ô[XZ[àõÿ⁄ŸY[ù[H\ò⁄]X›\ôHÿ⁄»\»‹ö][à[ôà⁄]‘ù[Hå‹õ‹‹ÀX€X\ò[òŸH\»€€\]KÇãH»õ›[\[Y[ù[ö]ô\úÿ[õÿàö\⁄Xö[]Kÿ⁄[XH[\ÀH⁄X⁄€\›à\ú⁄\›[òŸK\õZ]»\ú⁄\›[òŸK[ú‹X›[€ú»\ú⁄\›[òŸKõÿà€€ùX›Ààî””à^‹ù⁄[\‹ù‹à[ûHH‹ö]H]úõ€H\»ô]öY]ÀÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYõ‹à\ŸHH[\[Y[ù][€à8†%^X⁄]H]]‹ö^ôY\»BúôXY[€õHö\›X[‹ùûHTê“UP’TëHåãåÃ»Së—ëà[ùûHMãà\Ÿ\»à[ô¬úô[XZ[àõÿ⁄ŸY[ô[ô»\ò⁄]X›\ôHÿ⁄»[ô⁄]‘ù[Hå‹õ‹‹ÀX€X\ò[òŸKÇÇà»»[ùûHMHö^õÿú»Xú»[ô[ùô[ù‹ûHò]öYÿ][€à^[›]Çääë]NääàåçãLL¬ääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HRHYôX›€‹úôX›[€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[à€€\]Y]òZ[XõHX[ùX[ô]öY]»Yù\àH\ŸHHë—ÀTHôXY[€õBúô]öY]»[ôô\‹ùY€»ô\Ÿ[ù][€àYôX›»€õNÇÇåKàõŸX›[€àŸ[X›YRõÿàXú»Ÿ\ôH›[›ô\ú⁄^ôY[ôõŸXŸY[Çà[õôXŸ\‹ÿ\ûH‹ö^õ€ù[ÿ‹õ€ò\à]\⁄›‹⁄YÇåãàH[ùô[ù‹ûH[Ÿ[HŸX›[€ú»òZ[Y›ô\õ\[ô»ò]öYÿ][€à^[ôà‹ò[\Y][H‹X⁄[ôÀÇÇï\»\‹»ÿ\»[Z]Y»‘‘À€^[›]€‹úôX›[€à€õKàõ»\Ÿ\àõ›ö\⁄[€ö[ôÀòòX⁄Ÿ[ôÿ⁄[XK\õZ\‹⁄[€ã]]ö[ò[ò⁄X[[ùô[ù‹ûH€‹öŸõ›Àõÿú»]KBúô]öY]»]K‹à\ò⁄]X›\ôH€‹ö»ÿ\»]]‹ö^ôYÇÇî›\ù[ô»€€[Z]àMòMçò
+YôXY[€õHë—ÀTHõÿú»ô]öY]ÿ
+KÇê\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇîö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMÿÇÇà»»»⁄]ÿ\»€€\]YãH€‹úôX›YHõŸX›[€àŸ[X›YRõÿàXà›ö\^[›]ÇãH€‹úôX›YH[ùô[ù‹ûH[Ÿ[HŸX›[€ú»òZ[][H^[›]ÇãHô\Ÿ\ùôYH^\›[ô»ZY⁄ÿ[õ€öXÿ[Ÿ[X›YRõÿàXúŒÇà›ô\ùöY]À]Z[ÀX]\öX[Àù^[›]ò[úÿX›[€úÀö[ò[ò⁄X[Àÿ›[Y[ùÀàÿ⁄Y[KÇãHô\Ÿ\ùôYHë—ÀTHô]öY]»\»Y]]ôK]ô[‹\ã[€õKôX]\ôKYõYŸŸYà[ôõ€ãYYò][ÇÇà»»»õ€›ÿ]\ŸBãHõÿú»XúŒàHõŸX›[€àXà›ö\[ÿ^\»[›ŸY‹ö^õ€ù[ÿ‹õ€[ô»[ôàYõ›^X⁄]H€€ú›òZ[àH\⁄›‹õ›»\»H€€\X›€€ù[ù\⁄^ôYàõ€ãY‹õ›⁄[ô»Xà\›ÇãH[ùô[ù‹ûHòZ[à⁄YXò\à][\»Y[ú›YôöX⁄Y[ù^X⁄][ôKZZY⁄à‹X[Y€õY[ùÿ‹õ€ò\à›]\ã[ô]]ÀZZY⁄‹X⁄[ô»õ‹àH]H\¬à\ÿ‹ö\[€à\»‹[€ò[òYŸKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ‹›[\À€^[›]ò‹‹ÿãHSë—ëãõYÇà»»»‘‘»€‹úôX›[€ú¬ãHõÿú»Xà›ö\õ›ŒÇàH\Ÿ\»€€\X›€€ù[ùXò\ŸYXà⁄Y¬àHŸY\»õ^à]]ÿàHô]ô[ù»\⁄›‹‹ö^õ€ù[ÿ‹õ€[ô¬àH]õ⁄Y»›ô\ú⁄^ôY\]X[]⁄YôZ]ö[‹ÇàHŸY\»Xô[»€à€ôH[ôBàHô\›‹ô\»€€ùZ[ôYÿ‹õ€[ô»€õH]ò\úõ›À€[ÿö[H⁄Y¬ãH[ùô[ù‹ûHòZ[][\»õ›ŒÇàH\ŸHHôYKX€€[[à‹öYàö^YX€€ãõ^XõH^ö^YòYŸBàH[Y€àX€€à[ôòYŸHôX\àH‹Ÿà‹ò\Y^àH\ŸHôXYXõH]H[ô\ÿ‹ö\[€à[ôHZY⁄¬àH]XX⁄õ›»⁄^ôHò]\ò[H⁄]HZ[ö[][HZY⁄\»Hõ€‹à€õBàHô\Ÿ\ùôHÿ‹õ€ò\à›]\à‹XŸH€»ÿ‹õ€ò\ú»»õ›€›ô\à^‹àòYŸ\¬àHŸY\€€\ŸHôZ]ö[‹à[ùX›Çà»»»ô\öYöXÿ][€ÇãHô\]Z\ôYôYõY⁄\‹ŸYÇàHúò[ò⁄XZ[òàH€‹ö⁄[ô»ôYH€X[àôYõ‹ôHY]¬àHÿÿ[XZ[òX]⁄Y‹öY⁄[ã€XZ[òàH›\úô[ù€€[Z]MòMçòàHTê“UP’TëHåãåÃô\Ÿ[ùàHSë—ëàÿ\\‹»õ›Y⁄[ùûHM¬ãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHYôàô]öY]ŸY»€õH‘‘»\»\»Së—ëà\[ô⁄[ôŸYÇãHõ»ö[H[ô\à›\Xò\ŸK€ZY‹ò][€úÿ⁄[ôŸYÇãHÿ‹À–Tê“UP’TëKõYÿ\»õ›Y]YÇãHõ»îÀìÀ\õZ\‹⁄[€ã]]ö[ò[ò⁄X[[ùô[ù‹ûH€‹öŸõ›Àõÿú»]Bàö[ô[ôÀHô]öY]»]Hö[ô[ôÀ‹àù\⁄[ô\‹À\ù[H⁄[ôŸHÿ\»[ùõŸXŸYÇãH]][ùXÿ]Yúõ›‹Ÿ\àù[ù[YHô\öYöXÿ][€àÿ\»õ›€€\]Y[à\»Ÿ\‹⁄[€ãÇàûX[à⁄›[ô\öYûHH€‹úôX›Yÿ‹ôY[ú»]MLçÕé[ôŒLÇãHö[ò[[\[Y[ù][€à€€[Z]\⁄ÿ\»õ›€õ›ÿXõH⁄[à\»[ùûHÿ\¬à‹ö][é»]\»H€€[Z]][ùõŸXŸ\»[ùûHM[ô\»ô\‹ùY[àBàŸ\‹⁄[€à›[[X\ûH»⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKàô\öYûHõŸX›[€àŸ[X›YRõÿàXú»]M⁄][ZY⁄Xú»ö\⁄XõBà[ôõ»\⁄›‹Xã\›ö\ÿ‹õ€ò\ãÇåãàô\öYûHŸ[X›YRõÿàXú»]LçÕé[ôŒL⁄]€€ùZ[ôYàÿ‹õ€[ô»€õH⁄\ôHŸ[ùZ[ô[HôYYYÇåÀàô\öYûHH[ùô[ù‹ûH[Ÿ[HŸX›[€ú»òZ[]M[ôLç⁄]õ¬à›ô\õ\[ô»Xô[ÀŸ\ÿ‹ö\[€ú»‹àòYŸH€€\⁄[€ãÇçàô\öYûH[ùô[ù‹ûHò]Ÿ\àôZ]ö[‹à]Õé[ôŒLÇçKà€€\]HHŸ\\ò]Hõ‹õX[õ€ãQ]ô[‹\àHô]öY]»ö\⁄Xö[]H\›⁄[ÇàH›Z]XõH\›Xÿ€›[ù\»]òZ[XõKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHŸŸŸYZ[àù[ù[YHö\›X[ô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹»úõ›‹Ÿ\ãÇãHõ‹õX[õ€ãQ]ô[‹\àô]öY]»ö\⁄Xö[]H›[ôYY»HŸ\\ò]H\›Xÿ€›[ùàÿ\úöYYõ‹ùÿ\ôúõ€H[ùûHMÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY›öX›H[ú⁄YHRK–‘‘»ô\Ÿ[ù][€àÿ€‹H[ôàYõ›[\àõ›X›Y\Xÿ][€àôZ]ö[‹ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYY8†%RHYôX›€‹úôX›[€ú»ô[XZ[ôY⁄][àTê“UP’TëBùåãåÃ»Së—ëà[ùûHMÇÇà»»[ùûHMHH€‹úôX›[úô\€€ôYõÿú»Xú»[ô[ùô[ù‹ûHò]öYÿ][€àYôX›¬Çà»»»ÿ€‹BãH€‹úôX›YH€»ô[XZ[ö[ô»RHYôX›»ô\‹ùYYù\à€€[Z]çôÃLÃÇãH›^YY›öX›H[ú⁄YHRK–‘‘»ô\Ÿ[ù][€àÿ€‹KÇãHYõ›Y]ô[‹\à[ù[[ö‹ÀÇãHYõ›[\àõÿú»]Hö[ô[ôÀ[ùô[ù‹ûH€‹öŸõ›‹Àë—ÀTHô]öY]»ôZ]ö[‹ãà\õZ\‹⁄[€úÀî‹ÀìÀ]]ö[ò[ò⁄X[ù[\À‹à]Xò\ŸHZY‹ò][€úÀÇÇà»»»ô\]Z\ôYôYõY⁄ãHô\‹⁄]‹ûHÿ\»[Yúõ€H‹öY⁄[ã€XZ[ò»ÿÿ[XZ[òÿ\»[ôXYH\»]KÇãH€‹ö⁄[ô»ôYHÿ\»€X[àôYõ‹ôHY]ÀÇãH›\úô[ùúò[ò⁄àXZ[òÇãH›\úô[ùPQôYõ‹ôHY]ŒàMòMçòÇãH‹öY⁄[ã€XZ[òôYõ‹ôHY]ŒàMòMçòÇãHTê“UP’TëHåãåÃ€€ôö\õYYô\Ÿ[ùÇãHSë—ëà€€ôö\õYYÿ\\‹»õ›Y⁄[ùûHMÇÇà»»»õ€›ÿ]\ŸBãHõÿú»Ÿ[X›Y\ôX€‹ôXúŒà‹òÀ‹›[\Àò‹‹ÿ›[€€ùZ[ôY€\à‹öY¬à\]X[]⁄YXàù[\À[ò€Y[ô»⁄YàL	X€àöõÿãY]Z[]XòàôXÿ]\ŸBà‹òÀ€XZ[ãöúﬁ[\‹ù»‹òÀ‹›[\À€^[›]ò‹‹ÿYù\à‹òÀ‹›[\Àò‹‹ÿBà€‹úôX›ö^ôYYY^X⁄]]\à›ô\úöY\»[à^[›]ò‹‹ÿõ‹à⁄Yàõ^Y‹õ››⁄ö[ö»ôZ]ö[‹ã[ô›ô\ôõ›ÀÇãH[ùô[ù‹ûH[Ÿ[HŸX›[€ú»ò]öYÿ][€éàHX›]ôHõŸX›[€à”H\Ÿ\¬àö[X\ûT⁄YXò\ò
+€‹ö‹‹XŸK\⁄YXò\ó◊€ò]ò[ô€‹ö‹‹XŸK\⁄YXò\ó◊⁄][X
+Kàõ›H€\à[Ÿ[K]Xúÿ]àHô]ö[›\»‹X⁄[ô»ö^Yõ›ù[Hÿ⁄¬àHX›]ôH⁄YXò\à][Hõ›‹»[ù»ò]\ò[ZZY⁄›X⁄ŸYõ›‹»⁄]^X⁄]àö\⁄XõH›ô\ôõ›»[ôŸ\\ò]Y^ÿòYŸH€€[[úÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ‹›[\À€^[›]ò‹‹ÿãHSë—ëãõYÇà»»»‘‘»€‹úôX›[€ú¬ãHõÿú»Ÿ[X›Y\ôX€‹ôXú»õ›ŒÇàH\ŸHHõ€ã]‹ò\[ô»õ^õ›¬àH\ŸH€€\X›€€ù[ùXò\ŸYXà⁄Y¬àH^X⁄]Hô\Ÿ]Xà⁄Y»]]ÿàH^X⁄]Hô]ô[ùõ^‹õ››[ô⁄ö[ö»€€\ô\‹⁄[€ÇàHŸY\Z[ã]⁄YàX^X€€ù[ù€»Xô[»»õ›€€\ŸBàHô]Z[à€€ùZ[ôY‹ö^õ€ù[ÿ‹õ€[ô»ò[òX⁄»[ú›XYŸàY[ô»›ô\ôõ›¬ãH[ùô[ù‹ûH[Ÿ[HŸX›[€ú»ò]àõ›ŒÇàH›X⁄‹»ò]à][\»ô\ùXÿ[H⁄]H€€\]YLúÿ\àHŸY\»XX⁄ò]à][HZY⁄à]]ÿ⁄]HZ[ö[][KZZY⁄õ€‹à€õBàH\Ÿ\»Hö^YX€€à»õ^XõH€‹H»ö^YòYŸH‹öYàHŸY\»]H[ô\ÿ‹ö\[€à[àHõ^€€[[ÇàH[›‹»ö\⁄XõH›ô\ôõ›»[ú⁄YHXX⁄][BàHô\Ÿ\ùô\»ò]ã[\›ÿ‹õ€[ô»Ÿ\\ò][Húõ€HHXY\ãŸõ€›\à⁄[Çà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸYôYõ‹ôH[ôYù\à\»Së—ëà\[ôÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYôYõ‹ôH\»Së—ëà\[ôÇãHXY\‹»⁄õ€YHö^\ôH\⁄[ô»HùZ[‘‘»ô\öYöYYHX›X[ÿ\ÿÿYH]ÇàHMàõÿú»Xú»€Y[ù⁄YMÃéÿ‹õ€⁄YMÃé€€\X›X^XÇà⁄YLÀéM‹»[ùô[ù‹ûHò]àõ^€€[[ãLú][Hÿ\ÇàHLçàõÿú»Xú»€Y[ù⁄YMÃéÿ‹õ€⁄YMÃé€€\X›X^XÇà⁄YLÀéM‹»[ùô[ù‹ûHò]àõ^€€[[ãLú][Hÿ\ÇàHÕéàõÿú»Xú»€Y[ù⁄YMÃéÿ‹õ€⁄YMÃé€€\X›X^XÇà⁄YLÀéM‹»[ùô[ù‹ûHò]àõ^€€[[ãLú][Hÿ\ÇàHŒLàõÿú»Xú»€Y[ù⁄YLÕMÿ‹õ€⁄YMåç€€ùZ[ôYà‹ö^õ€ù[ÿ‹õ€X›]ôN»[ùô[ù‹ûHò]àõ^€€[[ãLú][Hÿ\ÇãHö^\ôH€€ôö\õYYöõÿãY]Z[]Xúÿ€€\]\»»\‹^Nôõ^[ôà›ô\ôõ›À^ò]]ÿÇãHö^\ôH€€ôö\õYYXX⁄öõÿãY]Z[]Xò€€\]\»»õ^à]]ÿ[ôàZ[ã]⁄YàX^X€€ù[ùÇãHö^\ôH€€ôö\õYYù€‹ö‹‹XŸK\⁄YXò\ó◊€ò]ò€€\]\»»Hô\ùXÿ[õ^à€€[[à⁄]Lúÿ\ÀÇãHö^\ôH€€ôö\õYYù€‹ö‹‹XŸK\⁄YXò\ó◊⁄][X€€\]\»»‹öY^[›]⁄]àö\⁄XõH›ô\ôõ›»[ôò]\ò[õ›»ZY⁄»õ‹à‹ò\YXô[ÀŸ\ÿ‹ö\[€úÀÇãH]][ùXÿ]YõŸX›[€àúõ›‹Ÿ\àô\öYöXÿ][€àÿ\»õ›]òZ[XõH[à\¬àŸ\‹⁄[€ãàûX[à⁄›[\ôõ‹õHHö[ò[]ôHRHô\öYöXÿ][€àô[›ÀÇÇà»»»ô^›\»
+[à‹ô\äBåKà‹[àHõŸX›[€à\⁄]HŸŸŸYZ[àXÿ€›[ùÇåãàò]öYÿ]H»õÿú»[ô‹[à[ûHŸ[X›YõÿàôX€‹ôÇåÀà]Mô\öYûH[ZY⁄Ÿ[X›Y\ôX€‹ôXú»\ôHö\⁄XõH⁄]›][Çà[ù\ÿXõH€\Yõ›Œà›ô\ùöY]À]Z[ÀX]\öX[Àù^[›]ò[úÿX›[€úÀàö[ò[ò⁄X[Àÿ›[Y[ùÀÿ⁄Y[KÇçà]Lç[ôÕéô\öYûHHÿ[YHXàõ›»ô[XZ[ú»€€\X›[ôôXX⁄XõKÇçKà]ŒLô\öYûHHŸ[X›Y\ôX€‹ôXú»\ŸH€€ùZ[ôY‹ö^õ€ù[ÿ‹õ€[ô¬à[ô]]\àXú»\ôHôXX⁄XõKÇçãàò]öYÿ]H»[ùô[ù‹ûKÇçÀà]M[ôLçô\öYûH[Ÿ[HŸX›[€ú»][\»»õ››ô\õ\]\Àà\ÿ‹ö\[€úÀX€€úÀ‹àòYŸ\ÀÇéà]Õé[ôŒL‹[àH[ùô[ù‹ûHò]Ÿ\à[ôô\öYûH][\»›X⁄»⁄]à€X\àô\ùXÿ[Ÿ\\ò][€à[ôõ»^ÿòYŸH€€\⁄[€ãÇéKà€€\]HHŸ\\ò]Hõ‹õX[õ€ãQ]ô[‹\àHô]öY]»ö\⁄Xö[]H\›⁄[ÇàH›Z]XõH\›Xÿ€›[ù\»]òZ[XõKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHŸŸŸYZ[àù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹»úõ›‹Ÿ\ãÇãHõ‹õX[õ€ãQ]ô[‹\àô]öY]»ö\⁄Xö[]H›[ôYY»HŸ\\ò]H\›Xÿ€›[ùàÿ\úöYYõ‹ùÿ\ôúõ€H[ùûHMÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY⁄][àTê“UP’TëHåãåÃ[ô€‹úôX›Y€õBà[úô\€€ôYRHô\Ÿ[ù][€àYôX›ÀÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH€‹úôX›]ôHRH€‹ö»ô[XZ[ôY⁄][àTê“UP’TëHåãåÃã»Së—ëà[ùûHMKÇÇà»»[ùûHMLHY]ô[‹\à€€ú€€H[ù[[ö‹¬Çääë]NääàåçãLLääï\]YûNääà€Ÿ^ääî\ŸNääà]ô[‹\à€€ú€€H\ÿXö[]BääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àMÿÿååò
+€‹úôX›[úô\€€ôYõÿú»[ô[ùô[ù‹ûHò]öYÿ][€àYôX›ÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMXÇãHûX[àô\‹ùY]HX[ùX[Hõ‹òŸH\ﬁYYõŸX›[€àôYõ‹ôH\»Z[\›€ôBàôXÿ]\ŸHHö[‹à\ﬁ[Y[ù›]\»ÿ\»[òŸ\ùZ[ãàH\Ÿ\ã\ô\‹ùY⁄X⁄‹⁄[ùàÿ\»XZ[àMÿÿååòÇãH€Ÿ^[ô\[ô[ùH€€ôö\õYY]HXõX»õŸX›[€àù[ôH]àŒãÀ‹õú€€][€úÀõô]ÿ[XôYYùZ[X\öŸ\àMÿÿååò\ö[ô»ôYõY⁄ÇãHõ»Y][€ò[X[ùX[‹àõ‹òŸH\ﬁHÿ\»öYŸŸ\ôYûH\»Z[\›€ôKÇÇà»»»⁄]ÿ\»€€\]YãHYYH[ù[[ö‹ÿŸX›[€à»H^\›[ô»]ô[‹\à€‹ö‹‹XŸKÇãHô\Ÿ\ùôYH›\úô[ùŸ\ùô\ã\ô\€€ôYÿ[êXÿŸ\‹—]ô[‹\òÿ]N»HŸX›[€à\¬àô[ô\ôY€õH[ú⁄YHH[ôXYHõ›X›Y]ô[‹\à€‹ö‹‹XŸKÇãHYY€›\òŸKX€€ùõ€YYö[ö][€ú»õ‹àõ›\àYZ[ö\›ò]]ôH\›[ò][€úŒÇàH›\Xò\ŸHHõ‹ùÿ]HHåÇàH€\ö»H\Ÿ\àXÿ€›[ù¬àH⁄]XàHõ‹ùÿ]HHåÇàHô]YûHHõŸX›[€à\ﬁ[Y[ùãHYY€€ò⁄\ŸH\ú‹ŸK[ú›ùX›[€ã[ôÿ]][€à€€ù[ùõ‹àXX⁄Ÿ\ùöXŸKÇãHYYHõ€ãZ[ù\òX›]ôHù]\ôNà\Ÿ\àX[òYŸ[Y[ùÿ[›]Xô[Yà[õôYHõ›Y][\[Y[ùYÇÇà»»»[ö»[ôÿYô]HôZ]ö[‹ÇãH›\Xò\ŸH‹[ú»H›XõHõ⁄ôX›\⁄õÿ\ôTìùZ[úõ€HXõX»õ⁄ôX›àôYô\ô[òŸHŸ[Ÿﬁ\€õ›Zÿô[ôöŸöò€òÇãHH›\Xò\ŸHÿ\ô\‹^\»]ôYô\ô[òŸH[ôõ›öY\»H€‹Hù]€à⁄][ÇàXÿŸ\‹⁄XõH›XÿŸ\‹»‹àòZ[\ôH›]\»Y\‹ÿYŸKÇãH€\ö»‹[ú»HŸ[ô\ò[€\ö»\⁄õÿ\ôôXÿ]\ŸHõ»\Xÿ][€ã\‹X⁄YöX»€\ö¬à\⁄õÿ\ôTìÿ\»ô\Ÿ[ù[à€›\òŸKX€€ùõ€Y€€ôöY›\ò][€ãÇãH⁄]Xà‹[ú»ìî€€][€úÀY[X›öXÿ[”õ‹ùÿ]KRK]åãå\ôX›KÇãHô]YûH‹[ú»HŸ[ô\ò[ô]YûH\⁄õÿ\ôôXÿ]\ŸHHô\‹⁄]‹ûH€€ùZ[ú»BàúHù[àùZ[»\›€€ôöY›\ò][€àù]õ»€›\òŸKX€€ùõ€Y⁄]HQ‹Çà\⁄õÿ\ô€YÀÇãH]ô\ûH^\õò[\›[ò][€à\Ÿ\»HŸ[X[ùX»[ò⁄‹ã‹[ú»[àHô]»Xã\Ÿ\¬àô[Hõõ€‹[ô\àõ‹ôYô\úô\àò[ô\»[àXÿŸ\‹⁄XõHXô[›][ô»]ôZ]ö[‹ãÇãHõ»YZ[ö\›ò]]ôHTHÿ\»ÿ[Y[ôõ»‹ôY[ùX[»Ÿ\ôHXŸY[àHTìÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀÿ€€ôöYÀŸ]ô[‹\í[ù[[ö‹ÀöúÿãH‹òÀ–\öúﬁãH‹òÀ‹›[\À€^[›]ò‹‹ÿãHSë—ëãõYÇà»»»ŸX‹ô][ô\ò⁄]X›\ôHô]öY]¬ãH[ù[[ö‹»€€ùZ[ú»€õHXõX»\⁄õÿ\ôTìÀH⁄]Xàô\‹⁄]‹ûHò[YKà^[ò]‹ûH^[ôHõ€ã\ŸX‹ô]›\Xò\ŸHõ⁄ôX›ôYô\ô[òŸKÇãHõ»›\Xò\ŸHŸ\ùöXŸK\õ€HŸ^K€\ö»ŸX‹ô]Ÿ^K]Xò\ŸH\‹›€‹ôô]YûBàXÿŸ\‹»⁄Ÿ[ã⁄]XàUôX\ô\à⁄Ÿ[ãï’[ùö]][€à⁄Ÿ[ã‹àö]ò]Bà[ùö\õ€õY[ùò[YHÿ\»YYÇãHõ»ÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€ãòX⁄Ÿ[ô‹à]ô[‹\ãXXÿŸ\‹¬àô\€€][€à⁄[ôŸHÿÿ›\úôYÇãHÿ‹À–Tê“UP’TëKõYÿ\»õ›[ŸYöYYÇãH\Ÿ\àX[òYŸ[Y[ùô[XZ[ú»ù]\ôH€‹öŒ»õ»[ùö]][€ãõ€K]ö\⁄[€ã›]\Àà›ô\úöYK‹à]Y]òX⁄Ÿ[ôÿ\»YYÇÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHHô\‹⁄]‹ûH\»õ»\›ÿ‹ö\ô^[€ôùZ[€»õ»Y][€ò[]]€X]Yà\››Z]Hÿ\»]òZ[XõKÇãHHô[ô\ôYö^\ôH\⁄[ô»H€€\[Y\Xÿ][€à‘‘»ÿ\»⁄X⁄ŸY]MàLçÕé[ôŒLÇãH[õ›\àÿ\ô»ô[ô\ôY]]ô\ûH⁄X⁄ŸY⁄Y⁄]õ»ÿ\ô€\[ôÀõ»ÿ]][€Çà€\[ôÀ[ôõ»YŸK[]ô[‹ö^õ€ù[›ô\ôõ›ÀÇãHH‹öYô[ô\ôY[à€»€€[[ú»]M[ôLç[à€ôH€€[[à]Õéà[ôŒLà[ÿö[HX›[€ú»›X⁄ŸYô\ùXÿ[H]ŒLÇãH]][ùXÿ]Y]ô[‹\àù[ù[YHô\öYöXÿ][€àÿ\»õ›]òZ[XõH[à\»Ÿ\‹⁄[€ãÇàûX[à⁄›[ô\öYûH]ôH]ô[‹\à[ôõ‹õX[]\Ÿ\àö\⁄Xö[]HYù\à\ﬁ[Y[ùÇãHHö[ò[[\[Y[ù][€à€€[Z]ÿ\»õ›€õ›ÿXõH⁄[à\»[ùûHÿ\»‹ö][é¬à]\»H€€[Z]][ùõŸXŸ\»[ùûHML[ô\»ô\‹ùY[à⁄]\›‹ûKÇÇà»»»ô^›\»
+[à‹ô\äBåKà\ﬁHõ›Y⁄Hõ‹õX[⁄]X€€õôX›Yô]YûHõÿŸ\‹Œ»»õ›õ‹òŸH\ﬁBà[õ\‹»Hõ‹õX[\ﬁ[Y[ùòZ[ÀÇåãà⁄Y€à[à\»H]ô[‹\à[ô‹[à]ô[‹\ã[àô\öYûH[ù[[ö‹»\X\úÀÇåÀà€€ôö\õH[õ›\à^\õò[[ö‹»‹[àH[ù[ôY\›[ò][€ú»[àô]»XúÀÇçà€€ôö\õH€‹Hõ⁄ôX›ôYô\ô[òŸH€‹Y\»Ÿ[Ÿﬁ\€õ›Zÿô[ôöŸöò€ò[ô[õõ›[òŸ\¬à›XÿŸ\‹ÀÇçKàô\öYûHHŸX›[€à]MLçÕé[ôŒL[àH]][ùXÿ]Yà\Xÿ][€ãÇçãà⁄Y€à[à\»Hõ‹õX[õ€ãQ]ô[‹\à\Ÿ\à[ô€€ôö\õH]ô[‹\àò]öYÿ][€à[ôà[ù[[ö‹»ô[XZ[à[ò]òZ[XõKÇçÀà€€ôö\õHHõŸX›[€àùZ[X\öŸ\àX]⁄\»Hô]»[\[Y[ù][€à€€[Z]ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]Y]ôHRHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹»úõ›‹Ÿ\ãÇãHHô\‹⁄]‹ûHŸ\»õ›õ›öYHHô]YûH⁄]HQ‹à\⁄õÿ\ô€YÀ€»Bàô]YûHÿ\ô[ù[ù[€ò[H‹[ú»HŸ[ô\ò[\⁄õÿ\ôÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»Z[\›€ôH›^YY[ú⁄YH]ô[‹\ã[€õK€›\òŸKX€€ùõ€YRKà^\õò[ò]öYÿ][€ãÿ›[Y[ù][€ã[ôô\‹€ú⁄]ôHô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH]ô[‹\à[ù[[ö‹»ô[XZ[ôYH]ô[‹\ã[€õBú€›\òŸKX€€ùõ€YRHôX]\ôH⁄][àTê“UP’TëHåãåÃ»Së—ëà[ùûHMLÇÇà»»[ùûHMLHH‹ù]ô[‹\à€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»]ô[‹\à[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àçXLçôX
+[›»õ€›õŸX›[€àõ›]\à]
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMLÇãHõ‹ùÿ]HHåÀå\»]ôH€àH^\›[ô»⁄]Xà»ô]YûH»›\Xò\ŸBà[ôúò\›ùX›\ôK€»Hå»ôXùZ[€€ù[ùY\»[ú⁄YHHÿ[YHô\‹⁄]‹ûH[ôàõ⁄ôX›€€õôX›[€úÀÇãHRQ‘êUS”ó”PTõYY[ùYöY\»\⁄õÿ\ô\»Hö\ú›ZY‹ò]Y[Ÿ[H[ôà]ô[‹\à\»HŸX€€ô›Ÿ\›\ö\⁄»[Ÿ[Kà[ùô[ù‹ûHô[XZ[ú»[ù[ù[€ò[Bà]HôXÿ]\ŸHÿ\ù⁄X⁄€›]YŸ\ã€›[ù›ô\ôò]À[ô€€ò›\úô[òﬁHôZ]ö[‹Çàÿ\úûHHY⁄\›[ùò\öX[ùÿYÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»]ô[‹\ï€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\ÀŸ]ô[‹\ãÿÇãHôY⁄\›\ôYH]ô[‹\àÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYH]ô[‹\à[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[êXÿŸ\‹—]ô[‹\òõ›]K€ò]àÿ]KÇãHôZ[ùõŸXŸY€›\òŸKX€€ùõ€Y]ô[‹\à[ù[[ö‹»[àHå»[Ÿ[Bà›ùX›\ôH\⁄[ô»‹òÀÿ€€ôöYÀŸ]ô[‹\í[ù[[ö‹ÀöúÿÇãHYYôXY[€õHŸ\‹⁄[€àXY€õ‹›X‹»õ‹éÇàH⁄Y€ôYZ[à€\ö»[XZ[»\Ÿ\àYàHYôôX›]ôHŸ\ùô\àõ€H[ô]ö\⁄[€ÇàH\õZ\‹⁄[€à€›\òŸBàH›\úô[ùö]H[ŸBàHå»ùZ[Xô[ãHYYHôXY[€õHYôôX›]ôK\\õZ\‹⁄[€à€ò\⁄›XõH\⁄[ô»H^\›[ô¬àŸ\ùô\ãXòX⁄ŸY\ŸT\õZ\‹⁄[€úÿ€⁄ÀÇãHYYô\‹€ú⁄]ôH]ô[‹\àÿ\ô[ù[[[öÀÿ]][€ã[ôù]\ôK]\Ÿ\ãBàX[òYŸ[Y[ùô\Ÿ[ù][€à›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€àõYÀ⁄X⁄€›]à[ùô[ù‹ûHYŸ\ãõÿúÀö[ò[ò⁄X[À‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHõ»]ô[‹\à\õZ\‹⁄[€àY]‹ã‘S€€ú€€KŸ\ùöXŸK\õ€HXÿŸ\‹À\ôŸ]]\Ÿ\ÇàYôôX›]ôK\\õZ\‹⁄[€à€⁄›\[ùö]][€àõ›À‹àŸX‹ô]Ÿ[ùö\õ€õY[ùöY]Ÿ\àÿ\¬àYYÇãH[ù[[ö‹»€€ùZ[à€õHXõX»\⁄õÿ\ôTìÀH⁄]Xàô\‹⁄]‹ûHò[YKà^[ò]‹ûH^[ôHõ€ã\ŸX‹ô]›\Xò\ŸHõ⁄ôX›ôYô\ô[òŸBàŸ[Ÿﬁ\€õ›Zÿô[ôöŸöò€òÇãHö\⁄XõHXô[»õ›»ÿ^Hõ‹ùÿ]HXò]\à[àõ‹ùÿ]HHåò⁄\ôHBà[ô\õZ[ô»õ⁄ôX›ò[YH€›[›\ù⁄\ŸHXZŸHHå»ôXùZ[\X\à›[KàBà^X›⁄]Xà»ô]YûH»›\Xò\ŸH\›[ò][€ú»ô[XZ[à[ò⁄[ôŸYÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀÿ€€ôöYÀŸ]ô[‹\í[ù[[ö‹ÀöúÿãH‹òÀ€[Ÿ[\ÀŸ]ô[‹\ã—]ô[‹\ï€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH]ô[‹\àù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»]ô[‹\ã[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à\»H]ô[‹\à[ô‹[àH]ô[‹\à€‹ö‹‹XŸKÇçà€€ôö\õHH]ô[‹\à[Ÿ[Hõ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õH[ù[[ö‹»ô[ô\à[ô^\õò[[ö‹»‹[à[àô]»XúÀÇçãà€€ôö\õH€‹HôYô\ô[òŸH€‹Y\»Ÿ[Ÿﬁ\€õ›Zÿô[ôöŸöò€òÇçÀà€€ôö\õHõ‹õX[õ€ãQ]ô[‹\à\Ÿ\ú»›[ÿ[õõ›ŸYH‹àõ›]H[ù»]ô[‹\ãÇéà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€HRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHHå»]ô[‹\à€‹ö‹‹XŸH\»[ù[ù[€ò[H›]\À‹ôXY[€õH[à\»\‹Œ»Bàö[‹àåà⁄[\»⁄[\›⁄]⁄€€ùõ€ÿ\»õ›‹ùY\ôHY]ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YH]ô[‹\ã[€õK€›\òŸKX€€ùõ€YRKà^\õò[ò]öYÿ][€ãXY€õ‹›X‹À[ôô\‹€ú⁄]ôHô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH]ô[‹\àå»ZY‹ò][€àô[XZ[ôYH]ô[‹\ã[€õBú€›\òŸKX€€ùõ€YRHôX]\ôH⁄][àTê“UP’TëHåãåÃ»Së—ëà[ùûHMLKÇÇà»»[ùûHMLàH‹ùô\‹ù»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»ô\‹ù»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àçŒòXŒ
+‹ù]ô[‹\à€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMLXÇãHRQ‘êUS”ó”PTõYY[ùYöY\»ô\‹ù»\»H\ô›À\ö\⁄»[Ÿ[HôXÿ]\ŸH]à\»ôXY[€õHûHYö[ö][€ãÇãHHô\Ÿ\ùôYåà\öúﬁYõ›€€ùZ[àH›[ô[€ôHô\‹ù»€‹ö‹‹XŸH¬à‹ùà^\›[ô»ô\‹ù€€òŸ\»Ÿ\ôHÿÿ]\ôYX‹õ‹‹»ù]\ôK‹ô\Ÿ\ùôY[Ÿ[Bà›\ôòXŸ\À€»\»\‹»‹ôX]YH€›\òŸKZ€ô\›å»ô\‹ù»Ÿ[ù\àò]\à[Çà[ùô[ù[ô»‹\ò][€ò[ô\‹ùõ›‹ÀÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»ô\‹ù’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\À‹ô\‹ùÀÿÇãHôY⁄\›\ôYHô\‹ù»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYHô\‹ù»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[ïöY]‘ô\‹ùÿõ›]K€ò]àÿ]KÇãHYYHôXY[€õHô\‹ùXúò\ûH⁄›⁄[ôŒÇàHH]ôHYôôX›]ôHXÿŸ\‹»€ò\⁄›ô\‹ùàHô\Ÿ\ùôY[ùô[ù‹ûHX›]ö]Kõÿà€‹››[[X\ûK‹[àõÿúÀ[ôÿ›[Y[ù[ô^àô\‹ù›\ôòXŸ\¬ãHYYHôXY[€õHYôôX›]ôKXXÿŸ\‹»€ò\⁄›õ‹àô\‹ù\ô[]ò[ù\õZ\‹⁄[€ÇàõY‹»\⁄[ô»H^\›[ô»Ÿ\ùô\ãXòX⁄ŸY\ŸT\õZ\‹⁄[€úÿ€⁄ÀÇãHYY[à‹\ò][€ò[€›\òŸ\»ôXY[ô\‹»öY]»]ôX€‹ô»⁄H[ùô[ù‹ûKõÿúÀàö[ò[ò⁄X[À[ôÿ›[Y[ù»ô\‹ù»›^HYô\úôY[ù[Z\àå»€›\òŸH[Ÿ[\¬à[ô\õZ\‹⁄[€àö[\ú»\ôH^X⁄]ÇãHYYZ[ö[X[ô\‹€ú⁄]ôHô\‹ù»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸH]Y\ûKÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€àõYÀ^‹ùàòX⁄Ÿ[ô[ùô[ù‹ûK⁄X⁄€›]YŸ\ãõÿúÀÿ›[Y[ùÀ‹àö[ò[ò⁄X[»ôZ]ö[‹Çà⁄[ôŸYÇãHõ»õ›X›Y‹\ò][€ò[õ›‹»\ôHŸ[X›Y‹àô[ô\ôYûHHô\‹ù»[Ÿ[Bà[à\»\‹ÀÇãHö[ò[ò⁄X[ô\‹ùö\⁄Xö[]Hô[XZ[ú»YY»^\›[ô»ÿ[ïöY]—ö[ò[ò⁄X[ÿ¬àõ›X›YöY[»›^H€Z]Y⁄\ôH]õY»\»õ›‹ò[ùYÇãHô\Ÿ\ùôYô\‹ùõ›‹»\ôHõÿYX\€›»€õKà^H»õ›‹ò[ù]HXÿŸ\‹»‹Çà[\H]H[ô\õZ[ô»[Ÿ[HôXY]\»ôY[àZY‹ò]YÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À‹ô\‹ùÀ‘ô\‹ù’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôHô\‹ù»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»ô\‹ùÀ[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó›öY]◊‹ô\‹ùÿ[ô‹[àô\‹ùÀÇçà€€ôö\õHô\‹ù»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHHô\‹ùXúò\ûKXÿŸ\‹»€ò\⁄›[ô‹\ò][€ò[€›\òŸ\»ŸX›[€ú¬àô[ô\à⁄]›]›ô\ôõ›»]\⁄›‹[ô[ÿö[H⁄YÀÇçãà€€ôö\õHH\Ÿ\à⁄]›]ÿ[ó›öY]◊‹ô\‹ùÿÿ[õõ›ŸYH‹àõ›]H[ù»ô\‹ùÀÇçÀà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€HRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHHö\ú›‹\ò][€ò[]Hô\‹ù⁄›[ôHYY€õHYù\à]»€›\òŸH[Ÿ[Bà\»ôY[àZY‹ò]Y[ù»å»[ôHô\‹ù\‹X⁄YöX»\õZ\‹⁄[€ãŸö[\à€€ùòX›à\»^X⁄]ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHôXY[€õHô\‹ù»RK€›\òŸK\ôXY[ô\‹¬àô\Ÿ[ù][€ã\õZ\‹⁄[€ãX€€ù^\‹^K[ôô\‹€ú⁄]ôHô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYHô\‹ù»å»ZY‹ò][€àô[XZ[ôYôXY[€õHRH⁄][ÇêTê“UP’TëHåãåÃ»Së—ëà[ùûHMLãÇÇà»»[ùûHML»H‹ùÿ›[Y[ù»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»ÿ›[Y[ù»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àôXççX
+‹ùô\‹ù»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMLòÇãHRQ‘êUS”ó”PTõYY[ùYöY\»ÿ›[Y[ù»\»Hõ›\ù›À\ö\⁄»[Ÿ[K⁄]à›‹òYŸH]»[ôì»[ò⁄[ôŸYÇãHH^\›[ô»]ôHÿ›[Y[ù»[\[Y[ù][€à\»õÿàÿ›[Y[ù»åH[ú⁄YHBàõÿú»]Z[ÿ›[Y[ù»Xãàõÿú»\»õ›ôY[àZY‹ò]Y[ù»å»Y]€»\¬à\‹»Yõ›ô[ÿÿ]H\ÿYÿ\ò⁄]ôKŸ›€õÿYX›[€ú»[ù»H‹[]ô[[Ÿ[KÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»ÿ›[Y[ù’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\ÀŸÿ›[Y[ùÀÿÇãHôY⁄\›\ôYHÿ›[Y[ù»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYHÿ›[Y[ù»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôXÇãHYYH‹[]ô[ÿ›[Y[ù»Ÿ[ù\à⁄]ÇàH›ô\ùöY]¬àH›€ô\àÿ€‹\¬àH€€ùõ€¬ãHÿ›[Y[ùYH\õ›ôYŸ[ô\öX»›€ô\àõÿÿXù[\ûH[ô›‹òYŸH]€€ùô[ù[€Çàõ‹àõÿã\›[X]KôZX€K€€[\ﬁYYK⁄[ôŸK[‹ô\ãô\‹ù[ô€ò\⁄›à›€ô\à\\ÀÇãHX\öŸYõÿàÿ›[Y[ù»\»H€õHõÿã\ÿ€‹Y]ôH›€ô\à]Ÿ^KÇãHYYôXY[‹öY[ùY›[[X\öY\»õ‹à]ôK‹ô\Ÿ\ùôYÿ€‹\À^\›[ô¬àÿ[ó€X[òYŸW⁄õÿúÿ€€ù^[ôHÿ⁄ŸYõ‹ùÿ]KYö[\ÿ›‹òYŸHõ›[ô\ûKÇãHYYZ[ö[X[ô\‹€ú⁄]ôHÿ›[Y[ù»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸH]Y\ûKÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€àõYÀ›‹òYŸBà€XﬁK\ÿY\ò⁄]ôK›€õÿY⁄Y€ôYTìõÿúÀö[ò[ò⁄X[À^‹ù‹ÇàòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHõ»‹[]ô[ÿ›[Y[ù]]][€à]ÿ\»YYÇãHH^\›[ô»õÿàÿ›[Y[ù»åH›€ô\à€‹öŸõ›»ô[XZ[ú»H\õ›ôYXŸHõ‹Çàõÿàÿ›[Y[ù\ÿY€‹[ãŸ›€õÿYÿ\ò⁄]ôH[ù[õÿú»\»ZY‹ò]Y[ù»åÀÇãHõ€ãZõÿà›€ô\à\\»ô[XZ[àô\Ÿ\ùôY[ù[Z\à€›\òŸH[Ÿ[\»[ôìÀ‹ôXYàôZ]ö[‹à\ôH^X⁄]H[\[Y[ùYÇãH⁄[ôŸH‹ô\ú»ô[XZ[àö[ò[ò⁄X[ôX€‹ôÀõ›ÿ›[Y[ùÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀŸÿ›[Y[ùÀ—ÿ›[Y[ù’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôHÿ›[Y[ù»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»ÿ›[Y[ùÀ[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à[ô‹[àÿ›[Y[ùÀÇçà€€ôö\õHÿ›[Y[ù»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õH›ô\ùöY]À›€ô\àÿ€‹\À[ô€€ùõ€»ô[ô\à⁄]›]›ô\ôõ›»]à\⁄›‹[ô[ÿö[H⁄YÀÇçãà€€ôö\õHõ»‹[]ô[\ÿYÿ\ò⁄]ôKŸ›€õÿYX›[€ú»\ôH^‹ŸYÇçÀà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€HRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãH‹[]ô[ÿ›[Y[ùõ›»\›[ô»⁄›[ôHYY€õHYù\à›€ô\ã\‹X⁄YöX»ôXYàö[\ú»\ôH^X⁄]‹àYù\àõÿú»\»ZY‹ò]Y[ôõÿàÿ›[Y[ù€€ù^ÿ[ÇàôHô\Ÿ\ùôYÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHôXY[‹öY[ùYÿ›[Y[ù»RKà€›\òŸK\ôXY[ô\‹»ô\Ÿ[ù][€ã›€ô\ã\ÿ€‹HX\[ôÀ[ôô\‹€ú⁄]ôBàô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYHÿ›[Y[ù»å»ZY‹ò][€àô[XZ[ôYôXY[‹öY[ùYRBù⁄][àTê“UP’TëHåãåÃ»Së—ëà[ùûHMLÀÇÇà»»[ùûHMMH‹ùôZX€\»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»ôZX€\»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àÃçÿÕYX
+‹ùÿ›[Y[ù»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMLÿÇãHRQ‘êUS”ó”PTõYY[ùYöY\»ôZX€\»\»HöYù›À\ö\⁄»[Ÿ[HôXÿ]\ŸH]à\»Ÿ[ãX€€ùZ[ôYÇãHHô\Ÿ\ùôYåàôZX€\»€‹ö‹‹XŸH\ŸYH^\›[ô¬à[ùô[ù‹ûWŸ\›[ò][€ó›ôZX€\◊›öY]ÿôXY]à\»å»‹ùô]\Ÿ\»]à]][ùXÿ]YôXY][ôŸ\»õ›‹ôX]HHô]»ôZX€H]H€€ùòX›ÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»ôZX€\’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\À›ôZX€\ÀÿÇãHôY⁄\›\ôYHôZX€\»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYHôZX€\»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[ìX[òYŸUôZX€\ÿõ›]K€ò]àÿ]KÇãHYY[à]][ùXÿ]YôXY[€õHôZX€HôYô\ô[òŸH€⁄»\⁄[ô¬à[ùô[ù‹ûWŸ\›[ò][€ó›ôZX€\◊›öY]ÿÇãHYYôZX€H\ôX›‹ûHöY]‹ŒÇàH[ôZX€\¬àH›ÿ⁄»ôZX€\¬àHŸ[ô\ò[õY]ãHYYŸX\ò⁄X‹õ‹‹»ö\⁄XõHôZX€HôYô\ô[òŸHöY[ÀÇãHYYŸ[X›Y\ôX€‹ô]Z[⁄[⁄]Xú»õ‹éÇàH›ô\ùöY]¬àH\‹⁄Y€õY[ùàHŸ\ùöXŸBàH\›‹ûBãHŸ\\‹⁄Y€õY[ùŸ\ùöXŸK[ô\›‹ûH\»Yô\úôY€›\òŸKZ€ô\›[ô[ÀÇãHYY\ÿXõYYôZX€HYôõ‹ô[òŸH[ôõ›[ô\ûH[ô[»ÿ›[Y[ù[ô»]à‹ôX]KŸY]\‹⁄Y€õY[ù]]][€úÀŸ\ùöXŸH€‹öŸõ›À[ô\›‹ûHõ›‹»\ôHõ›à\ùŸà\»\‹ÀÇãHYYZ[ö[X[ô\‹€ú⁄]ôHôZX€\»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€àõYÀ›‹òYŸKàôZX€H\‹⁄Y€õY[ùÿ\ù[‹[à€ò\⁄›[ùô[ù‹ûK⁄X⁄€›]YŸ\ãŸ\ùöXŸKàXZ[ù[ò[òŸKÿ›[Y[ù\›‹ûK‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHH€õH›\Xò\ŸHXÿŸ\‹»YY\»H—SP’úõ€HH^\›[ô¬à[ùô[ù‹ûWŸ\›[ò][€ó›ôZX€\◊›öY]ÿ⁄]Hÿ[\â‹»€\öÀ‘›\Xò\ŸH⁄Ÿ[ãÇãHõ»ôZX€H‹ôX]KY]\ò⁄]ôK\‹⁄Y€õY[ùŸ\ùöXŸK‹à\›‹ûH]]][€à]àÿ\»YYÇãHH^\›[ô»ôZX€H\‹⁄Y€õY[ù[Ÿ[[ôÿ\ù[‹[àôZX€H€ò\⁄›ôZ]ö[‹Çàô[XZ[à[ò⁄[ôŸYÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À›ôZX€\À’ôZX€\’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôHôZX€\»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»ôZX€\À[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó€X[òYŸW›ôZX€\ÿ[ô‹[àôZX€\ÀÇçà€€ôö\õHôZX€\»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHö\⁄XõHôZX€Hõ›‹»ÿY⁄\ôHH^\›[ô»ôYô\ô[òŸHöY]»\õZ]¬à[KÇçãà€€ôö\õH[»›ÿ⁄»»Ÿ[ô\ò[õY]ö[\ú»[ôŸX\ò⁄€‹öÀÇçÀà€€ôö\õHYôZX€H\»\ÿXõY[ôõ»\‹⁄Y€õY[ù‹Ÿ\ùöXŸK⁄\›‹ûH]]][€ú¬à\ôH^‹ŸYÇéà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€HRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôHôZX€H‹ôX]KŸY][ô\‹⁄Y€õY[ùX[òYŸ[Y[ùôYY[à^X⁄]‹ö]Bà€€ùòX›ôYõ‹ôHôZ[ô»‹ùYÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHôXY[€õHôZX€\»RK^\›[ô¬àôZX€K\ôYô\ô[òŸHôXYÀŸ[X›Y\ôX€‹ôô\Ÿ[ù][€ã[ôô\‹€ú⁄]ôBàô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYHôZX€\»å»ZY‹ò][€àô]\ŸY^\›[ô»ôXY]»[ôúô[XZ[ôY⁄][àTê“UP’TëHåãåÃ»Së—ëà[ùûHMMÇÇà»»[ùûHMMHH‹ù€€»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»€€»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àÃÿçåX
+‹ùôZX€\»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMMÇãHRQ‘êUS”ó”PTõYY[ùYöY\»€€»\»H⁄^›À\ö\⁄»[Ÿ[KÇãHTê“UP’TëHŸX›[€àÕàÿ⁄‹»\»ôX]\ôH\»
+äï€€ÿ][Ÿ›YJäãõ›€€à[ùô[ù‹ûKà⁄X⁄€›]\‹⁄Y€õY[ù\›‹ûKTàXô[ÀôZX€Kÿö[à[öÿYŸKõÿÇà[öÿYŸKòX⁄⁄[ô»\›‹ûK]Y]XõK€€\‹X⁄YöX»\õZ\‹⁄[€àõY‹À[ôà\ò⁄\ŸHXÿ€›[ù[ô»ô[XZ[àô\Ÿ\ùôYÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»€€’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\À›€€ÀÿÇãHôY⁄\›\ôYH€€»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYH€€»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[ìX[òYŸU€€ÿõ›]K€ò]àÿ]KÇãHYY[à]][ùXÿ]YôXY[€õHÿ][Ÿ›YH€⁄»\⁄[ô»H^\›[ô¬àXõXÀù€€ÿXõKÇãHYY€€ÿ][Ÿ›YHöY]‹ŒÇàHX›]ôH€€¬àHZ\‹⁄[ô¬àH\ò⁄]ôYãHYYŸX\ò⁄X‹õ‹‹»ö\⁄XõH€€ÿ][Ÿ›YHöY[ÀÇãHYYŸ[X›Y\ôX€‹ô]Z[⁄[⁄]Xú»õ‹éÇàH›ô\ùöY]¬àHÿÿ][€ÇàH\‹⁄Y€õY[ùàH\›‹ûBãHŸ\ÿÿ][€ã\‹⁄Y€õY[ù[ô\›‹ûH€›\òŸKZ€ô\›ûH⁄›⁄[ô»›\úô[ùàÿ][Ÿ›YHXŸZ€\àöY[»[ôô\Ÿ\ùôY\›]H[ô[»ò]\à[à[ùô[ù[ô¬à›\›ŸK›‹òYŸKò[úŸô\ã‹à\›‹ûHôZ]ö[‹ãÇãHYY\ÿXõYY€€Yôõ‹ô[òŸH[ôõ›[ô\ûH[ô[»ÿ›[Y[ù[ô»]à‹ôX]KŸY]ÿ\ò⁄]ôK⁄X⁄€›]ÿ›\›ŸK[ôö[ò[ò⁄X[öY[»\ôHõ›\ùŸÇà\»\‹ÀÇãHYYZ[ö[X[ô\‹€ú⁄]ôH€€»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€àõYÀ›‹òYŸKà⁄X⁄€›]\‹⁄Y€õY[ùTãôZX€Kÿö[à[öÿYŸKòX⁄⁄[ô»\›‹ûK]Y]à\ò⁄\ŸHXÿ€›[ù[ôÀ‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHH€õH›\Xò\ŸHXÿŸ\‹»YY\»H—SP’úõ€H^\›[ô»XõXÀù€€ÿ⁄]àHÿ[\â‹»€\öÀ‘›\Xò\ŸH⁄Ÿ[ãÇãHõ»€€‹ôX]KY]\ò⁄]ôK⁄X⁄€›]\‹⁄Y€õY[ù‹à\›‹ûH]]][€à]àÿ\»YYÇãHHå»€‹H^X⁄]Hô\Ÿ\ùô\»ŸX›[€àÕâ‹»ÿ][Ÿ›YK[€õHõ›[ô\ûKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À›€€À’€€’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH›]X»ÿÿ[à€€ôö\õYYH€€»[Ÿ[H€õHÿ[»úõ€J	›€€… Xõ‹à—SP’à[ô€€ùZ[ú»õ»[úŸ\ù›\]KŸ[]K›\Ÿ\ù‹úÀ‹›‹òYŸK›\ÿYŸ›€õÿY⁄Y€ôYàTìÿ[ÀÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH€€»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»€€À[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó€X[òYŸW›€€ÿ[ô‹[à€€ÀÇçà€€ôö\õH€€»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHX›]ôK€Z\‹⁄[ôÀÿ\ò⁄]ôYöY]‹»[ôŸX\ò⁄ô[ô\à€‹úôX›KÇçãà€€ôö\õHY€€\»\ÿXõY[ôõ»⁄X⁄€›]ÿ\‹⁄Y€õY[ù⁄\›‹ûH]]][€ú»\ôBà^‹ŸYÇçÀà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€BàRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôH€€ÿ][Ÿ›YH‹ö]\»⁄›[ôH‹ùY€õHYù\àX⁄Y[ô»⁄]\àå¬à⁄›[ô\Ÿ\ùôHH^\›[ô»ÿ[ó€X[òYŸW⁄[ùô[ù‹ûXì»‹ö]Hÿ]H‹à[Y€àRBàõ›][ôÀÿ€‹H⁄]H]\à€€\‹X⁄YöX»\õZ\‹⁄[€à[Ÿ[ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHôXY[€õH€€ÿ][Ÿ›YHRK^\›[ô¬àXõXÀù€€ÿôXYÀŸ[X›Y\ôX€‹ôô\Ÿ[ù][€ã[ôô\‹€ú⁄]ôBàô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH€€»å»ZY‹ò][€àô]\ŸY^\›[ô»ôXY]»[ôúô[XZ[ôY⁄][àTê“UP’TëHåãåÃ»Së—ëà[ùûHMMKÇÇà»»[ùûHMMàH‹ù[\ﬁYY\»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[\ﬁYY\»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àŸNéYYò
+‹ù€€»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMMXÇãHRQ‘êUS”ó”PTõYY[ùYöY\»[\ﬁYY\»\»HŸ]ô[ù[Ÿ[H[ôõ›\»]àRHôYY»Hô\Ÿ[ù][€ãX€€ùòX›]Y]ÇãHHô\Ÿ\ùôYåà[\ﬁYY\»€‹ö‹‹XŸH\ŸYH^\›[ô¬à[ùô[ù‹ûWŸ\›[ò][€ó›\Ÿ\ú◊›öY]ÿôXY]à\»å»‹ùô]\Ÿ\»]à]][ùXÿ]YôYô\ô[òŸHöY]»[ôŸ\»õ›‹ôX]HHô]»à‹àY[ù]H]Bà€€ùòX›ÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»[\ﬁYY\’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\ÀŸ[\ﬁYY\ÀÿÇãHôY⁄\›\ôYH[\ﬁYY\»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYH[\ﬁYY\»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[ìX[òYŸQ[\ﬁYY\ÿõ›]K€ò]àÿ]KÇãHYY[à]][ùXÿ]YôXY[€õH\ôX›‹ûH€⁄»\⁄[ô¬à[ùô[ù‹ûWŸ\›[ò][€ó›\Ÿ\ú◊›öY]ÿÇãHYY[\ﬁYYH\ôX›‹ûH[ô^H[ôõ‹õX][€àöY]‹ÀÇãHYYŸX\ò⁄X‹õ‹‹»ö\⁄XõH\‹^Hò[YK[XZ[õ€K[ô]ö\⁄[€àöY[ÀÇãHYYŸ[X›Y\ôX€‹ô]Z[⁄[⁄]Xú»õ‹éÇàH›ô\ùöY]¬àH€€ùX›àH\‹⁄Y€õY[ù¬àHX›]ö]BãHŸ\€€ùX›\‹⁄Y€õY[ù[ôX›]ö]HôY⁄[€ú»€›\òŸKZ€ô\›ûH⁄›⁄[ô»€õBàöY[»^‹ŸYûHH^\›[ô»ôYô\ô[òŸHöY]»[ôô\Ÿ\ùö[ô»›\àŸX›[€úÀÇãHYY\ÿXõY‹ôX]H[\ﬁYYHYôõ‹ô[òŸH[ôõ›[ô\ûH[ô[»ÿ›[Y[ù[ô»]ààôX€‹ôÀXÿ€›[ù‹ôX][€ãõ€HY]À\õZ\‹⁄[€àY]À[ôY][€ò[RBàöY[»\ôHõ›\ùŸà\»\‹ÀÇãHYYZ[ö[X[ô\‹€ú⁄]ôH[\ﬁYY\»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]\õZ\‹⁄[€àõYÀ€\ö»Y[ù]Kàà€›\òŸHôX€‹ôõ€K\õZ\‹⁄[€à›ô\úöYKôZX€K›€€⁄õÿà\‹⁄Y€õY[ùàÿ›[Y[ùX›]ö]KZ\›‹ûK‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHH€õH›\Xò\ŸHXÿŸ\‹»YY\»H—SP’úõ€H^\›[ô¬à[ùô[ù‹ûWŸ\›[ò][€ó›\Ÿ\ú◊›öY]ÿ⁄]Hÿ[\â‹»€\öÀ‘›\Xò\ŸH⁄Ÿ[ãÇãHõ»[\ﬁYYH‹ôX]KY]\ò⁄]ôKõ€K\õZ\‹⁄[€ã€\öÀ[ùö]][€ã‹ÇàY[ù]H]]][€à]ÿ\»YYÇãH€õHHöY[»^‹ŸYûHH^\›[ô»ôYô\ô[òŸHöY]»\ôHô[ô\ôYÇà€\ö◊›\Ÿ\ó⁄Y\‹^W€ò[YX[XZ[õ€X[ô]ö\⁄[€òÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀŸ[\ﬁYY\À—[\ﬁYY\’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH›]X»ÿÿ[à€€ôö\õYYH[\ﬁYY\»[Ÿ[H€õHÿ[¬àúõ€J	⁄[ùô[ù‹ûWŸ\›[ò][€ó›\Ÿ\ú◊›öY]… Xõ‹à—SP’[ô€€ùZ[ú»õ¬à[úŸ\ù›\]KŸ[]K›\Ÿ\ù‹úÀ‹›‹òYŸK›\ÿYŸ›€õÿY⁄Y€ôYTìÿ[ÀÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH[\ﬁYY\»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[\ﬁYY\À[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó€X[òYŸWŸ[\ﬁYY\ÿ[ô‹[à[\ﬁYY\ÀÇçà€€ôö\õH[\ﬁYY\»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õH[\ﬁYYH\ôX›‹ûK^H[ôõ‹õX][€ã[ôŸX\ò⁄ô[ô\à€‹úôX›KÇçãà€€ôö\õH‹ôX]H[\ﬁYYH\»\ÿXõY[ôõ»õ€K‹\õZ\‹⁄[€ã–€\öÀ⁄Y[ù]Bà]]][€ú»\ôH^‹ŸYÇçÀà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€BàRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôH[\ﬁYYH‹ôX]KŸY][ôöX⁄\àRHöY[»ôYY[à^X⁄]€›\òŸH[ôàö\⁄Xö[]H€€ùòX›ôYõ‹ôHôZ[ô»‹ùYÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHôXY[€õH[\ﬁYY\»RK^\›[ô¬à\Ÿ\ã\ôYô\ô[òŸHôXYÀŸ[X›Y\ôX€‹ôô\Ÿ[ù][€ã[ôô\‹€ú⁄]ôBàô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[\ﬁYY\»å»ZY‹ò][€àô]\ŸY^\›[ô»ôXY]»[ôúô[XZ[ôY⁄][àTê“UP’TëHåãåÃ»Së—ëà[ùûHMMãÇÇà»»[ùûHMM»H‹ù⁄[\»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»⁄[\»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àçXNLŒ
+‹ù[\ﬁYY\»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMMòÇãHRQ‘êUS”ó”PTõYY[ùYöY\»⁄[\»\»HZY⁄[Ÿ[KÇãH^\›[ô»⁄[\»\ŸHKÃêHôZ]ö[‹à[ôXYH]ôY[à\ŸT⁄[\ÿà⁄[\‘[ô[ÿH⁄[\◊ ò›\Xò\ŸHXõ\À[ôàô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»⁄[\’€‹ö‹‹XŸX‹ò\\à[ô\à‹òÀ€[Ÿ[\À‹⁄[\ÀÿÇãHôY⁄\›\ôYH⁄[\»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYH⁄[\»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôXÇãHô]\ŸYH^\›[ô»\ŸT⁄[\ÿ€⁄»õ‹à]][ùXÿ]YŸ][ô‹Àà€€ùô\úÿ][€úÀY\‹ÿYŸ\À[ôÿ\K‹⁄[\ÀX⁄]ô\]Y\›ÀÇãHô]\ŸYH^\›[ô»⁄[\’€‹ö‹‹XŸT[ô[⁄]RHò]\à[à‹ôX][ô»Hô]¬à⁄][\[Y[ù][€ãÇãH€‹úôX›Y‹õX[ùô[]]ôH[\‹ù»[à⁄[\‘[ô[Àöúﬁ€»H^òX›Yà[ô[ô\€€ô\»H⁄\ôYRH€€\€ô[ù»[ô⁄[\»[\à€‹Húõ€H]»å¬à[Ÿ[Hÿÿ][€ãÇãHYYô\‹€ú⁄]ôH⁄[\»€‹ö‹‹XŸK€€ùô\úÿ][€à\›Y\‹ÿYŸH\›[ôà€€\‹Ÿ\à›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]›‹òYŸK\õZ\‹⁄[€àõYÀ‹Çàù\⁄[ô\‹ÀY]HXõHôZ]ö[‹à⁄[ôŸYÇãHõ»ô]YûHù[ò›[€àôZ]ö[‹à⁄[ôŸYÇãHõ»Ÿ\ùöXŸK\õ€H›\Xò\ŸH]ÿ\»YYÇãHõ»ù\⁄[ô\‹ÀY]H‹ö]Hÿ\Xö[]Hÿ\»YYÇãH⁄[\»›[\Ÿ\»Hÿ[\â‹»€\öÀ‘›\Xò\ŸH⁄Ÿ[àõ‹à€Y[ù\⁄YHXõBàôXYÀ›‹ö]\À[ôH^\›[ô»ô]YûHù[ò›[€à[ôõ‹òŸ\»Bà⁄[\◊‹Ÿ][ô‹Àú⁄[\◊Ÿ[òXõY⁄[›⁄]⁄ôYõ‹ôHH€]YHÿ[ÇãHHõÿ][ô»⁄[\»ùXòõHÿ\»õ›ôZ[ùõŸXŸY[à\»\‹Œ»€õHBàYXÿ]Y‹⁄[\ÿ€‹ö‹‹XŸHõ›]Hÿ\»XYH]ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À‹⁄[\À‘⁄[\’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹⁄[\À‘⁄[\‘[ô[ÀöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸHKX⁄X⁄»ô]YûKŸù[ò›[€úÀ‹⁄[\ÀX⁄]öúÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\Œ»õ€ôHYôôX›Yà\»^\›[ô»€Y[ù\⁄YH›\Xò\ŸH\ÿYŸKÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH⁄[\»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»⁄[\À[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à[ô‹[à⁄[\ÀÇçà€€ôö\õH⁄[\»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õH€€ùô\úÿ][€ú»ÿYHô]»Y\‹ÿYŸHÿ[àôH\Y[ôH€€\‹Ÿ\Çà[ô\»Hô\‹€úŸKŸ\úõ‹à›]H€X[õKÇçãà€€ù[ùYHHå»ôXùZ[⁄]Hô^›À\ö\⁄»[Ÿ[Húõ€BàRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôH⁄[\»€‹ö»⁄›[X⁄YHŸ\\ò][H⁄]\à»ôZ[ùõŸXŸHHõÿ][ô¬àùXòõH€ÿò[H[àåÀÇãH⁄[\»]ôK\ô\‹€úŸHôZ]ö[‹à\[ô»€àH›\úô[ùô]YûBà“ST◊–Sïì‘P◊–TW“—VX[ùö\õ€õY[ùò\öXXõKÇãHûX[à€€ôö\õYY⁄[\»\»€€Ÿ»€»[àõŸX›[€ãù]õ›YHõ€ãXõÿ⁄⁄[ô»RBàùY»õ‹à]\éà⁄[àHô]»⁄]\»Ÿ[ùHÿ‹ôY[àù[\»»H‹ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHH^\›[ô»⁄[\»€⁄À^\›[ô¬à›\Xò\ŸHXõ\À‘ìÀ^\›[ô»ô]YûHù[ò›[€àõ›]K[ôYXÿ]Y€‹ö‹‹XŸBàô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH⁄[\»å»ZY‹ò][€àô]\ŸYHÿ⁄ŸY^\›[ô¬î⁄[\»€Y[ùŸù[ò›[€à]»[ôô[XZ[ôY⁄][àTê“UP’TëHåãåÃ»Së—ëÇë[ùûHMMÀÇÇà»»[ùûHMNH‹ù\›[X]\»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»\›[X]\»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àçŒLòMÿ
+òX⁄»⁄[\»ÿ‹õ€õ€›À]\
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMMÿÇãHRQ‘êUS”ó”PTõYY[ùYöY\»\›[X]\»\»Hö[ù[Ÿ[H[ôÿ[»›]à€ò\⁄›[[]]Xö[]H\»HŸ^H[ùò\öX[ù»ô\Ÿ\ùôKÇãHö[‹à[ùöY\»M[ôMH€€ôö\õYYHô\‹⁄]‹ûH^‹Ÿ\»\›[X]Bà\õZ\‹⁄[€ú»ù]õ›[à\õ›ôYõŸX›[€à\›[X]HôXY[Ÿ[‹Çàõÿã]ÀQ\›[X]Hô[][€ú⁄\[à\»RH^Y\ãÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»\›[X]\’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\ÀŸ\›[X]\ÀÿÇãHôY⁄\›\ôYH\›[X]\»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYH\›[X]\»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[ë\›[X]X»ÿ[ê\õ›ôQ\›[X]\ÿõ›]K€ò]àÿ]KÇãHôXùZ[HXÿŸ\Y\›[X]\»õ›[ô][€à⁄\Húõ€HHô\Ÿ\ùôYåàRNÇàH\›[X]HöY]‹»òZ[àHúõ›‹ŸHú»^X⁄]‹ôX]H[ŸBàH\ôX›‹ûH›\ôòXŸBàHŸ[X›Y\ôX€‹ôXY\à[ô\ÿXõY]Z[Xú¬àH€ò\⁄›»›]\»»\õ›ò[õ›[ô\ûH[ô[¬àHÿ⁄ŸY\›[X]K\›]\»õÿÿXù[\ûBãHŸ\H[Ÿ[H€›\òŸKZ€ô\›ûH⁄›⁄[ô»H‹\ò][€ò[⁄[⁄]›]àòXúöXÿ][ô»\›[X]Hõ›‹ÀöX⁄[ô»ò[Y\À\õ›ò[À€ò\⁄›À‹à[öŸYàõÿúÀÇãHYYZ[ö[X[ô\‹€ú⁄]ôH\›[X]\»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]›‹òYŸK\õZ\‹⁄[€àõYÀà\›[X]HXõK€ò\⁄›XõKõÿàô[][€ú⁄\‹àòX⁄Ÿ[ôôZ]ö[‹Çà⁄[ôŸYÇãHõ»›\Xò\ŸH€Y[ùôXY]ÿ\»YYôXÿ]\ŸH\ôH\»õ›Y][à\õ›ôYàõŸX›[€à\›[X]HôXY[Ÿ[[à\»RH^Y\ãÇãHõ»\›[X]H‹ôX]KY]\õ›ò[\ò⁄]ôK[]KöX⁄[ôÀ€ò\⁄›õÿÇà\⁄ùYŸ]‹àÿ›[Y[ù‹ö]H]ÿ\»YYÇãH\›[X]W‹€ò\⁄›ÿ[[]]Xö[]Hô[XZ[ú»[ù›X⁄Y»\»\‹»Ÿ\»õ›Y]à€ò\⁄›öYŸŸ\úÀÿ⁄ŸYõ›‹À‹à[ûH€ò\⁄›]]][€àôZ]ö[‹ãÇãHõ›X›YöX⁄[ô»ô[XZ[ú»ô\Ÿ[ùY\»\õZ\‹⁄[€ãYÿ]Yù]\ôH›]H€õKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀŸ\›[X]\À—\›[X]\’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH›]X»ÿÿ[àŸà‹òÀ€[Ÿ[\ÀŸ\›[X]\À—\›[X]\’€‹ö‹‹XŸKöúﬁõ›[ôõ¬à›\Xò\ŸH€Y[ùôúõ€JããäX[úŸ\ù\]K[]K\Ÿ\ùîÀ›‹òYŸKà‹àô]⁄ÿ[ÀÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\Œ»õ€ôHYôôX›Yà\»ô\Ÿ[ù][€ã[€õH\›[X]\»‹ùÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH\›[X]\»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»\›[X]\À[[Ÿ[HZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[óŸ\›[X]X‹àÿ[óÿ\õ›ôWŸ\›[X]\ÿ[ôà‹[à\›[X]\ÀÇçà€€ôö\õH\›[X]\»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHúõ›‹ŸKÿ‹ôX]H[ŸKŸX\ò⁄[\H›]K\ÿXõY]Z[XúÀ[ôà€ò\⁄›‹›]\»õ›[ô\ûH[ô[»ô[ô\à€‹úôX›KÇçãà€€ù[ùYHHå»ôXùZ[⁄]Hô^[Ÿ[Húõ€HRQ‘êUS”ó”PTõYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôH]ôH\›[X]\»€‹ö»ôYY»[à\õ›ôY\›[X]HXõK‹ôXY[Ÿ[àõÿã]ÀQ\›[X]Hô[][€ú⁄\‹ôX]KŸY]€€ùòX›\õ›ò[õ›À[ôà€ò\⁄›‹ö]H€€ùòX›ôYõ‹ôHôX[ôX€‹ô»‹àX›[€ú»ÿ[àôHYYÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHô\Ÿ[ù][€ã[€õH\›[X]\»€‹ö‹‹XŸBàÿ€‹H[ô[Xô\ò][H]õ⁄YY\›[X]H]HôXYÀ›‹ö]\»[ô€ò\⁄›àôZ]ö[‹ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH\›[X]\»å»ZY‹ò][€àXYHH[ôXYHXÿŸ\Yôõ›[ô][€à⁄[]ôH[ôYõ›⁄[ôŸHÿ⁄[XKìÀôXY[Ÿ[À‹ö]H]Àò\õ›ò[ôZ]ö[‹ã‹à€ò\⁄›[[]]Xö[]H[ô\àTê“UP’TëHåãåÃ¬íSë—ëà[ùûHMNÇÇà»»[ùûHMNHH‹ùõÿú»€‹ö‹‹XŸHõ›[ô][€à[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»õÿú»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àŸLÃNò
+‹ù\›[X]\»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMNÇãHRQ‘êUS”ó”PTõYY[ùYöY\»õÿú»\»H[ù[Ÿ[H[ôH\ôŸ\›àZY‹ò][€à€XŸKÇãHTê“UP’TëHŸX›[€ú»ŒM»ÿ⁄»HúõÿYõÿú»›\ôòXŸKà\»\‹»[ù[ù[€ò[Bà‹ù»Hö\ú›ÿYôHå»€XŸH€õNàõÿú»õ›[ô][€àôXY‹ô\Ÿ[ù][€ãÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»õÿú’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\À⁄õÿúÀÿÇãHôY⁄\›\ôYHõÿú»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYHõÿú»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H[ôÿ]Y]][ùXÿ]Y]\Ÿ\àõ›]K€ò]à[Ÿ[õ›Y[àBàôY⁄\›ûKÇãHYY[à]][ùXÿ]YôXY[€õH\ôX›‹ûH€⁄»\⁄[ô»H^\›[ô¬àXõXÀöõÿúÿXõH[ôHÿ[\â‹»€\öÀ‘›\Xò\ŸH⁄Ÿ[ãÇãHYYõÿú»öY]‹ŒÇàHX›]ôHõÿú¬àH€à€àH€€\]YàHÿ[òŸ[YàH[ö\⁄XõBãHYYŸX\ò⁄X‹õ‹‹»ö\⁄XõHõÿú»õ›[ô][€àöY[ÀÇãHYYŸ[X›YZõÿà]Z[⁄[⁄]Hÿ⁄ŸYŸX›[€àà‹ö^õ€ù[XÇà⁄\NÇàH›ô\ùöY]¬àH]Z[¬àHX]\öX[¬àHù^[›]àHò[úÿX›[€ú¬àHö[ò[ò⁄X[À€õH⁄[àÿ[ïöY]—ö[ò[ò⁄X[ÿ\»ùYBàHÿ›[Y[ù¬àHÿ⁄Y[BãHXYH›ô\ùöY]»[ô]Z[»ô[ô\à^\›[ô»XõXÀöõÿúÿöY[ÀÇãHŸ\X]\öX[Àù^[›]ò[úÿX›[€úÀö[ò[ò⁄X[Àÿ›[Y[ùÀ[ôÿ⁄Y[Bà€›\òŸKZ€ô\›⁄]ô\Ÿ\ùôY\›]H[ô[»ò]\à[à‹ù[ô»Z\àôXY»‹Çà‹ö]\»[à\»ö\ú›õÿú»€XŸKÇãHYY^X⁄]‹ôX]Hõÿà[ŸH\»Hõ€ã]‹ö][ô»›]H]ÿ›[Y[ù»⁄]\ÇàHŸ\‹⁄[€à\»ÿ[ê‹ôX]RõÿúÿÇãHYYõ›[ô\ûH[ô[»ÿ›[Y[ù[ô»]\‹›YH»õÿãùYŸ]Ÿö[ò[ò⁄X[ò[Y\Ààÿ›[Y[ùÀ[ôÿ⁄Y[Hô[XZ[àYô\úôYÇãHYYZ[ö[X[ô\‹€ú⁄]ôHõÿú»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]›‹òYŸK\õZ\‹⁄[€àõYÀà[ùô[ù‹ûK⁄X⁄€›]ò[úÿX›[€ãùYŸ]ÿ›[Y[ùÿ⁄Y[KX]\öX[àù^[›]\›[X]K‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHH€õH›\Xò\ŸHXÿŸ\‹»YY\»H—SP’úõ€H^\›[ô»XõXÀöõÿúÿ⁄]àHÿ[\â‹»€\öÀ‘›\Xò\ŸH⁄Ÿ[ãÇãHõ»õÿà‹ôX]KY]\ò⁄]ôK[]KX]\öX[ù^[›]⁄X⁄€›][ôŸôãàò[úÿX›[€ãö[ò[ò⁄X[ÿ›[Y[ùÿ⁄Y[K‹à\›[X]K[[ö»‹ö]H]ÿ\¬àYYÇãHõ»õÿó€X]\öX[ÿõÿóÿù^[›]€[ô\ÿõÿóÿùYŸ]€[ô\ÿàõÿó›ò[úÿX›[€ó€Ÿÿÿ›[Y[ùÿõÿó‹ÿ⁄Y[W⁄][\ÿàò[úÿX›[€ó⁄][\ÿ[ùô[ù‹ûW›ò[úÿX›[€úÿ‹à[ùô[ù‹ûWÿò[[òŸ\ÿôXY¬àŸ\ôHYYÇãH\‹›YH»õÿòô[XZ[ú»[ö[\[Y[ùY[àåŒ»ÿ\ùÿ⁄X⁄€›]ôZ]ö[‹à[ôà[ùô[ù‹ûHò[[òŸH\ö]ò][€à\ôH[ù›X⁄YÇãHö[ò[ò⁄X[ò[Y\»ô[XZ[à€Z]Y[ù\ô[HôXÿ]\ŸH\»ö\ú›õÿú»€XŸHŸ\¬àõ›Ÿ[X›[ûHùYŸ]ÿX›X[ÿXÿ€›[ù[ô»XõKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH›]X»ÿÿ[à€€ôö\õYY‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁ€õHÿ[¬àúõ€J	⁄õÿú… Xõ‹à—SP’[ô€€ùZ[ú»õ»[úŸ\ù\]K[]K\Ÿ\ùàîÀ›‹òYŸKô]⁄[ùô[ù‹ûHò[[òŸKò[úÿX›[€ãX]\öX[ù^[›]àùYŸ]ÿ›[Y[ù‹àÿ⁄Y[H]HXÿŸ\‹ÀÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\Àù]\»\‹¬à€õHô]\Ÿ\»H^\›[ô»XõXÀöõÿúÿXõH[ôY»õ»ZY‹ò][€ãÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôHõÿú»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»õÿú»õ›[ô][€àZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à[ô‹[àõÿúÀÇçà€€ôö\õHõÿú»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHõÿàõ›‹»ÿYöY]»ö[\úÀ‹ŸX\ò⁄€‹öÀ[ôŸ[X›YZõÿÇà›ô\ùöY]À—]Z[»ô[ô\à€‹úôX›KÇçãà€€ôö\õH‹ôX]Hõÿà\»õ€ã]‹ö][ô»[ôX]öY\à›Xõ[Ÿ[HXú»⁄›»Yô\úôYà›]\»€õKÇçÀàX⁄YHHô^õÿú»€XŸHôYõ‹ôH‹ù[ô»‹ö]\»‹à›Xõ[Ÿ[HôXYÀÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôHõÿú»€‹ö»⁄›[ôH‹][Xô\ò][NÇàH€€ùõ€Y‹ôX]KŸY]ÿ\ò⁄]ôN¬àHõÿàX]\öX[\›¬àHù^[›]¬àHò[úÿX›[€ú»ôXY[€õHŸŒ¬àHö[ò[ò⁄X[À–ùYŸ]õ›[ô][€é¬àHÿ›[Y[ùŒ¬àHÿ⁄Y[N¬àH\‹›YH»õÿà[ôŸôà€õHYù\à]»ô\]Z\ôY]ôHôYõY⁄ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHH^\›[ô»õÿú»õ›[ô][€àXõHôXYà][ôŸ[X›Y\ôX€‹ôô\Ÿ[ù][€àÿ€‹KÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYHõÿú»å»ZY‹ò][€àXYH€õHHôXY[€õHõÿú¬ôõ›[ô][€à€XŸH]ôH[ôYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ‹ö]\Àö[ùô[ù‹ûH[›ô[Y[ù⁄X⁄€›]ôZ]ö[‹ãö[ò[ò⁄X[Àÿ›[Y[ùÀÿ⁄Y[K‹Çí\‹›YH»õÿà[ô\àTê“UP’TëHåãåÃ»Së—ëà[ùûHMNKÇÇà»»[ùûHMåH‹ù[ùô[ù‹ûHôXY€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûH[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àçLYò
+‹ùõÿú»õ›[ô][€à€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMNXÇãHRQ‘êUS”ó”PTõYY[ùYöY\»[ùô[ù‹ûH\»H[]ô[ù[Ÿ[H[ôÿ[»›]àÿ\ù⁄X⁄€›]YŸ\ã€›[ùÀ[ô›ô\ôò]»ÿ⁄‹»\»H[úŸ\›[ùò\öX[ùàÿY[àH\ÇãHHô\Ÿ\ùôYåàúõ€ù[ô[ôXYHô]Z[ôYH‹ö]Xÿ[[ùô[ù‹ûH€⁄‹ŒÇà\ŸR[ùô[ù‹ûTôXY[Ÿ[\ŸR[ùô[ù‹ûUò[úÿX›[€í\›‹ûXà\ŸR[ùô[ù‹ûPÿ\ù€›[ù€⁄‹À[ôö[ãZ][Hô]\ô[Y[ùÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»[ùô[ù‹ûU€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûKÿÇãHôY⁄\›\ôYH[ùô[ù‹ûHÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYH[ùô[ù‹ûH[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[í[ùô[ù‹ûUò[úÿX›[€úÿ»ÿ[ìX[òYŸR[ùô[ù‹ûXàõ›]K€ò]àÿ]KÇãHô]\ŸYHô]Z[ôY\ŸR[ùô[ù‹ûTôXY[Ÿ[€⁄»õ‹à]][ùXÿ]YôXY[[Ÿ[à]KÇãHô]\ŸYHô]Z[ôY\ŸR[ùô[ù‹ûUò[úÿX›[€í\›‹ûX€⁄»õ‹àHôXY[€õBàò[úÿX›[€à\›‹ûH›\ôòXŸKÇãHYY[ùô[ù‹ûHöY]‹ŒÇàHÿ][Ÿ›YBàH›‹òYŸBàH⁄X⁄€›]ÿ[ôY]\¬àH\›[ò][€ú¬àHò[úÿX›[€à\›‹ûBàHô\Ÿ\ùôY€€ùõ€¬ãHYY›[[X\ûHÿ\ô»õ‹àX›]ôH][\À›‹òYŸKÿö[à€›[ùÀö[ãZ][Kÿò[[òŸBà€›[ùÀ[ôÿ\ùXÿ[ôY]Hô]öY]»õ›‹ÀÇãHYYõ›[ôY€Y[ù\⁄YHö[\ö[ô»›ô\à›\úô[ùô]öY]»õ›‹ÀÇãHYYôXY[€õHXõ\»õ‹éÇàHX›]ôHÿ][Ÿ›YHô]öY]¬àH›‹òYŸH[ö]ô]öY]¬àHö[àô]öY]¬àH⁄X⁄€›]ÿ[ôY]\¬àH\Ÿ\à\›[ò][€àôYô\ô[òŸ\¬àHôZX€H\›[ò][€àôYô\ô[òŸ\¬àHò[úÿX›[€à\›‹ûHõ›Y⁄ôXY⁄[ùô[ù‹ûW›ò[úÿX›[€ó⁄\›‹ûXãHYY^X⁄]õ›[ô\ûH[ô[»õ‹àÿ\ùÿ⁄X⁄€›]€›[ù€‹úôX›[€ã[ôàò[úÿX›[€ãY\ö]ôYò[[òŸ\ÀÇãHYYZ[ö[X[ô\‹€ú⁄]ôH[ùô[ù‹ûH^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]›‹òYŸK\õZ\‹⁄[€àõYÀàÿ\ù⁄X⁄€›]€›[ùö[àô]\ô[Y[ù[ùô[ù‹ûHò[úÿX›[€ãò[[òŸKà\›[ò][€ãTãXÿ€›[ù[ôÀ‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHõ»\ŸR[ùô[ù‹ûPÿ\ù€›[ù€›[ùX€‹úôX›[€ã€›[ùZ[ùZŸK€›[ù\⁄Y]‹Çàö[ãZ][K\ô]\ô[Y[ù‹ö]H›\ôòXŸHÿ\»⁄\ôY[à\»\‹ÀÇãHõ»ÿ\ù‹[ãÿ\ùY‹ô[[›ôK⁄X⁄€›]ö[ò[^ôK€›[ù€‹úôX›[€ã€›[ùà[ùZŸKö[ãZ][Hô]\ô[Y[ù\ò⁄]ôKXô[Ÿ[ô\ò][€ãò[úŸô\ã‹àTàÿÿ[ÇàX›[€àÿ\»YYÇãHõ»\ôX›[ùô[ù‹ûWÿò[[òŸ\ÿ‹ö]H]ÿ\»YYàò[[òŸH]Hô[XZ[ú¬àò[úÿX›[€ãY\ö]ôY[ôŸ\ùô\ãX€€ùõ€YÇãHH€õHX›]ôH]H]»\ôHH^\›[ô»ô]Z[ôY[ùô[ù‹ûHôXY€⁄‹»[ôàH^\›[ô»ôXY⁄[ùô[ù‹ûW›ò[úÿX›[€ó⁄\›‹ûXîÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãH›]X»ÿÿ[àŸà‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁõ›[ôõ¬à[úŸ\ù\]K[]K\Ÿ\ùÿ\ùYö[ò[^ôK€‹[ãÿY‹ô[[›ôHîÀ\⁄Xÿ[à€›[ù‹ö]K€›[ùZ[ùZŸH‹ö]Kö[ã\ô]\ô[Y[ù‹ö]K‹Çà[ùô[ù‹ûWÿò[[òŸ\ÿ]]][€à]ÇãH›]X»ÿÿ[à€€ôö\õYY[ùô[ù‹ûH]HXÿŸ\‹»›^\»[àô]Z[ôY€⁄‹ŒÇà\ŸR[ùô[ù‹ûTôXY[Ÿ[[ô\ŸR[ùô[ù‹ûUò[úÿX›[€í\›‹ûXÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\Àù]\»\‹¬à€õHô]\Ÿ\»^\›[ô»[ùô[ù‹ûHXõ\À›öY]‹À‘î‹»[ôY»õ»ZY‹ò][€ãÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH[ùô[ù‹ûHù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[ùô[ù‹ûHôXY]€‹ö‹‹XŸHZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»[ùô[ù‹ûHXÿŸ\‹»[ô‹[à[ùô[ù‹ûKÇçà€€ôö\õH[ùô[ù‹ûHõ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHÿ][Ÿ›YK›‹òYŸK⁄X⁄€›]ÿ[ôY]\À\›[ò][€úÀò[úÿX›[€Çà\›‹ûK[ôô\Ÿ\ùôY€€ùõ€»ô[ô\à€‹úôX›KÇçãà€€ôö\õHÿ\ùÿ⁄X⁄€›]ÿ€›[ù‹ô]\ô[Y[ù€€ùõ€»\ôHõ›^‹ŸYY]ÇçÀàX⁄YH⁄]\à»‹ù[ùô[ù‹ûH‹ö]\»[à€X[\àõ€›À]\€XŸ\»‹à[›ôBà»Xÿ€›[ù[ô»ö\ú›ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôH[ùô[ù‹ûH‹ö]H€‹ö»⁄›[ôH‹][Xô\ò][NÇàHÿ\ù‹[ã‹ôXYÿY‹ô[[›ôN¬àH⁄X⁄€›]ö[ò[^ò][€é¬àH€›[ù⁄Y]¬àH€›[ù[ùZŸN¬àH\⁄Xÿ[€›[ù€‹úôX›[€é¬àHö[ãZ][Hô]\ô[Y[ù¬àHÿÿ[ã‘Tà[ùûH›\ôòXŸ\ÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHô]Z[ôY[ùô[ù‹ûHôXY€⁄‹»[ôàô\Ÿ\ùôY[ÿ\ù⁄X⁄€›]€›[ùô]\ô[Y[ù[ôò[[òŸH[ùò\öX[ùÀÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[ùô[ù‹ûHå»ZY‹ò][€àXYH€õHHôXYYö\ú›ù€‹ö‹‹XŸH]ôH[ôYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ‹ö]\Àÿ\ùò⁄X⁄€›]€›[ù€‹úôX›[€ã€›[ù[ùZŸKö[àô]\ô[Y[ùYŸ\à\ö]ò][€ã‹Çò[ùô[ù‹ûWÿò[[òŸ\ÿôZ]ö[‹à[ô\àTê“UP’TëHåãåÃ»Së—ëà[ùûHMåÇÇà»»[ùûHMåHH‹ùXÿ€›[ù[ô»ô]öY]»€‹ö‹‹XŸH[ù»õ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»Xÿ€›[ù[ô»[Ÿ[HZY‹ò][€ÇääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àMåM
+‹ù[ùô[ù‹ûHôXY€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMåÇãHRQ‘êUS”ó”PTõYY[ùYöY\»Xÿ€›[ù[ô»\»HŸ[ù[Ÿ[H[ôõ›\¬à]]\[ô»€àõÿú»[ô[ùô[ù‹ûHôZ[ô»ZY‹ò]Yö\ú›ÇãHTê“UP’TëHåãåçàŸX›[€àÿ⁄‹»Hõÿàö[ò[ò⁄X[»ùYŸ]õ›[ô][€à\¬àõÿóÿùYŸ]€[ô\ÿ€õN»X›X[€‹›€€[Z]Y€‹›\‹›YY[ùô[ù‹ûBàò[YK€€ùòX›ò[YKô]ô[ùYKõŸö]À[ùõ⁄XŸK⁄[ôŸH‹ô\ã[ôàXÿ€›[ù[ô»[ùY‹ò][€àô[XZ[àô\Ÿ\ùôYÇÇà»»»⁄]ÿ\»€€\]YãHYYHå»Xÿ€›[ù[ô’€‹ö‹‹XŸX[Ÿ[H[ô\à‹òÀ€[Ÿ[\ÀÿXÿ€›[ù[ôÀÿÇãHôY⁄\›\ôYHXÿ€›[ù[ô»ÿ‹ôY[à[à‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÇãH⁄[ôŸYHXÿ€›[ù[ô»[Ÿ[HôY⁄\›ûH›]\»úõ€H›Xò»]ôX⁄[Bàô\Ÿ\ùö[ô»H^\›[ô»ÿ[ïöY]—ö[ò[ò⁄X[ÿõ›]K€ò]àÿ]KÇãHYY[à]][ùXÿ]YôXY[€õHXÿ€›[ù[ô»ô]öY]»›\ôòXŸH›ô\àH^\›[ô¬àõÿóÿùYŸ]€[ô\ÿXõKÇãHYYXÿ€›[ù[ô»öY]‹ŒÇàHùYŸ]ô]öY]¬àHÿ]Y€‹ûH›[¬àH^‹ùôXY[ô\‹¬àHô\Ÿ\ùôY€€ùõ€¬ãHYY›[[X\ûHÿ\ô»õ‹àX›]ôH]]‹ö^ôYùYŸ][ô\À›[ùYŸ]àõ›[ô][€à[[›[ù\›[ò›õÿúÀ[ôö\⁄XõH]ö\⁄[€úÀÇãHYYõ›[ôY€Y[ù\⁄YHö[\ö[ô»›ô\à]]‹ö^ôYùYŸ]ô]öY]»õ›‹ÀÇãHYYÿ]Y€‹ûH›[»\ö]ôY€Y[ù\⁄YHúõ€H[ôXYKX]]‹ö^ôYùYŸ]àõ›‹ÀÇãHYY^X⁄]ô\Ÿ\ùôY\›]H[ô[»õ‹à^‹ùôZ]ö[‹ãöX⁄[ô»€€ùõ€ÀàX›X[À\ò⁄\ŸH‹ô\úÀ[ùõ⁄XŸ\À[ôXÿ€›[ù[ô»‹›[ôÀÇãHYYZ[ö[X[ô\‹€ú⁄]ôHXÿ€›[ù[ô»^[›]›[\»[à‹òÀ‹›[\Àÿò\ŸKò‹‹ÿÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãîÀìÀ]]›‹òYŸK\õZ\‹⁄[€àõYÀà^‹ù[ùõ⁄XŸK\ò⁄\ŸH‹ô\ãöX⁄[ôÀ[ùô[ù‹ûKõÿã\›[X]KùYŸ]à‹ö]K‹àòX⁄Ÿ[ôôZ]ö[‹à⁄[ôŸYÇãHõ»Xÿ€›[ù[ô»^‹ùö[H\»Ÿ[ô\ò]YÇãHõ»öX⁄[ôÀX€€ùõ€‹ö]H]ÿ\»YYÇãHõ»X›X[À€€[Z]Y€‹›\‹›YY[ùô[ù‹ûHò[YK€€ùòX›ò[YKô]ô[ùYKàõŸö]À[ùõ⁄XŸK⁄[ôŸH‹ô\ãôX€€ò⁄[X][€ã‹à^\õò[Xÿ€›[ù[ô¬à[ùY‹ò][€àÿ\»YYÇãHH€õHX›]ôH]H]\»Hÿ[\ã]⁄Ÿ[à—SP’úõ€H^\›[ô¬àõÿóÿùYŸ]€[ô\ÿö[\ôY»X›]ôHõ›‹»⁄]\ò⁄]ôYÿ]T»ïSÇãHHXÿ€›[ù[ô»õ›]Hô[XZ[ú»Y[à[õ\‹»ÿ[ïöY]—ö[ò[ò⁄X[ÿ\»ùYK[ôà›\Xò\ŸHì»ô[XZ[ú»]]‹ö]]]ôHõ‹à]ô\ûHô]\õôYùYŸ]õ›ÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀÿXÿ€›[ù[ôÀ–Xÿ€›[ù[ô’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH›]X»ÿÿ[àŸà‹òÀ€[Ÿ[\ÀÿXÿ€›[ù[ôÀ–Xÿ€›[ù[ô’€‹ö‹‹XŸKöúﬁ€€ôö\õYYBà€õH›\Xò\ŸH]Hÿ[\»úõ€J	⁄õÿóÿùYŸ]€[ô\… XÇãH›]X»ÿÿ[à€€ôö\õYYõ»[úŸ\ù\]K[]K\Ÿ\ùîÀ›‹òYŸKô]⁄à[ùõ⁄XŸK\ò⁄\ŸK[‹ô\ã^‹ùYŸ[ô\ò][€ã[ùô[ù‹ûKõÿã\›[X]K‹ÇàöX⁄[ôÀ]‹ö]H]ÿ\»YYÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\Àù]\»\‹¬à€õHô]\Ÿ\»H^\›[ô»XõXÀöõÿóÿùYŸ]€[ô\ÿXõH[ôY»õ¬àZY‹ò][€ãÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôHXÿ€›[ù[ô»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€BàûX[â‹»úõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»Xÿ€›[ù[ô»ô]öY]À]€‹ö‹‹XŸHZY‹ò][€ãÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿ[ô‹[àXÿ€›[ù[ôÀÇçà€€ôö\õHXÿ€›[ù[ô»õ»€ôŸ\à⁄›‹»Hå»XŸZ€\ãÇçKà€€ôö\õHùYŸ]ô]öY]Àÿ]Y€‹ûH›[À^‹ùôXY[ô\‹À[ôô\Ÿ\ùôYà€€ùõ€»ô[ô\à€‹úôX›KÇçãà€€ôö\õHõ»^‹ù[ùõ⁄XŸK\ò⁄\ŸH‹ô\ãöX⁄[ôÀ\õ›ò[‹àXÿ€›[ù[ô¬à‹›[ô»X›[€à\»^‹ŸYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHù]\ôHXÿ€›[ù[ô»€‹ö»⁄›[ôH‹][Xô\ò][NÇàH€€ùõ€Y^‹ùŒ¬àHõÿãX€‹›ÿXÿ€›[ù[ô»\õ›ò[YX⁄[ö\€N¬àH[ùõ⁄XŸHô]öY]Œ¬àH\ò⁄\ŸK[‹ô\à[ùY‹ò][€é¬àH^\õò[Xÿ€›[ù[ôÀ\ﬁ\›[H[ùY‹ò][€ãÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»›^YY[ú⁄YHH^\›[ô»ùYŸ]õ›[ô][€àôXY]à[ôYõ›YXÿ€›[ù[ô»Ÿ[X[ùX‹»ô^[€ôôXY[€õHô]öY]ÀÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYHXÿ€›[ù[ô»å»ZY‹ò][€àXYH€õHHôXY[€õHô]öY]¬ù€‹ö‹‹XŸH]ôH›ô\àH^\›[ô»ùYŸ]õ›[ô][€à[ôYõ›⁄[ôŸHÿ⁄[XKîìÀ\õZ\‹⁄[€úÀ‹ö]\À^‹ùÀ[ùõ⁄XŸ\À\ò⁄\ŸH‹ô\úÀöX⁄[ô»€€ùõ€ÀòX›X[À[ùô[ù‹ûKõÿúÀ\›[X]\À‹àXÿ€›[ù[ô»‹›[ô»[ô\àTê“UP’TëBùåãåÃ»Së—ëà[ùûHMåKÇÇà»»[ùûHMåàHõ‹ùÿ]HHå»‹[]ô[[Ÿ[HZY‹ò][€à€€\]BÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»‹[]ô[[Ÿ[HZY‹ò][€à⁄X⁄‹⁄[ùääîŸ\‹⁄[€à\Nääà€€‹ô[ò][€à⁄X⁄‹⁄[ùÇà»»»€€ù^ãH›\ù[ô»€€[Z]àôNôLX
+‹ùXÿ€›[ù[ô»ô]öY]»€‹ö‹‹XŸH»åÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMåXÇãHûX[àô\öYöYYXÿ€›[ù[ô»[àõŸX›[€à[ôô\YYô€€Ÿ»€ÀàõÿŸYYàÇãHXÿ€›[ù[ô»ÿ\»HŸ[ù[ôö[ò[[Ÿ[H\›Y[àRQ‘êUS”ó”PTõYÇÇà»»»⁄]ÿ\»€€ôö\õYYãH[Ÿ[ôH‹[]ô[å»[Ÿ[\»\›Y[àRQ‘êUS”ó”PTõY]ôHõ›»ôY[ÇàZY‹ò]Y›]ŸàHõ›^Y][ZY‹ò]YXŸZ€\àõ›]NÇàH\⁄õÿ\ôàH]ô[‹\ÇàHô\‹ù¬àHÿ›[Y[ù¬àHôZX€\¬àH€€¬àH[\ﬁYY\¬àH⁄[\¬àH\›[X]\¬àHõÿú¬àH[ùô[ù‹ûBàHXÿ€›[ù[ô¬ãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿõ›»X\ö‹»]ô\ûH‹[]ô[[Ÿ[H\»›]\ŒÇà	€]ôIÿÇãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿõ›»ôY⁄\›\ú»[Ÿ[ôH‹[]ô[[Ÿ[Hÿ‹ôY[úÀÇãH›]X»ŸX\ò⁄õ›[ôõ»X›]ôH›]\Œà	‹›Xâÿ[Ÿ[H[ùöY\ÀàH€õBàô[XZ[ö[ô»›]\Œà	‹›Xâÿ]\»HôY⁄\›ûH€€[Y[ù^Z[ö[ô»BàZY‹ò][€à]\õãÇãHûX[à\»úõ›‹Ÿ\ã]ô\öYöYYXX⁄ZY‹ò]Y[Ÿ[H[àõŸX›[€àõ›Y⁄BàXÿ€›[ù[ô»⁄X⁄‹⁄[ùÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãH\»⁄X⁄‹⁄[ùXYHõ»\X€ŸKÿ⁄[XKìÀ\õZ\‹⁄[€ã]]›‹òYŸKàîÀô]YûHù[ò›[€ã›\Xò\ŸK‹àù[ù[YHôZ]ö[‹à⁄[ôŸKÇãH^\›[ô»Yô\úôY‹ô\Ÿ\ùôYôX]\ôH[ô[»ô[XZ[à[ù[ù[€ò[HYô\úôYà\¬à⁄X⁄‹⁄[ù€õH€‹Ÿ\»H‹[]ô[XŸZ€\àZY‹ò][€ãÇãHH€õ›€àõ€ãXõÿ⁄⁄[ô»⁄[\»RHùY»ô[XZ[ú»ÿ\úöYYõ‹ùÿ\ôà⁄[àHô]»⁄]à\»Ÿ[ùHÿ‹ôY[àÿ[àù[\»H‹àûX[à^X⁄]H\⁄ŸY»òX⁄»\¬àõ‹à]\àò]\à[àö^]\ö[ô»H[Ÿ[HZY‹ò][€à\‹ÀÇÇà»»»ô\öYöXÿ][€ÇãH⁄]›]\»K\⁄‹ùÿ\»€X[àôYõ‹ôH\»⁄X⁄‹⁄[ù[ùûKÇãHRQ‘êUS”ó”PTõYÿ\»ô]öY]ŸY[ôXÿ€›[ù[ô»ÿ\»€€ôö\õYY\»Hö[ò[à[õôY‹[]ô[[Ÿ[KÇãH‹òÀ€[Ÿ[\À‹ôY⁄\›ûKöúÿÿ\»[ú‹X›Y[ô[[Ÿ[HôY⁄\›ûH[ùöY\»\ôBà]ôKÇãH‹òÀ€[Ÿ[\À‹ÿ‹ôY[úÀöúÿÿ\»[ú‹X›Y[ô[Ÿ[ôH[Ÿ[Hÿ‹ôY[ú»\ôBàôY⁄\›\ôYÇãH›]X»ŸX\ò⁄€€ôö\õYYõ»X›]ôH›]\Œà	‹›Xâÿ[Ÿ[H[ùöY\»ô[XZ[ãÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»€€\][€à⁄X⁄‹⁄[ùÇåãà›\ùHô^å»ôXùZ[\ŸHúõ€HHÿ\úöYYYõ‹ùÿ\ôù[ò›[€ò[€XŸ\Ààõ›úõ€HXŸZ€\àô[[›ò[ÇåÀàôX€€[Y[ôYô^€XŸNà[ùô[ù‹ûH‹ö]KYõ›»ô\›‹ò][€à[à€X[õ›[ôYà\‹Ÿ\ÀôY⁄[õö[ô»⁄]ÿ\ù‹[ã‹ôXYÿY‹ô[[›ôHôYõ‹ôH⁄X⁄€›]àö[ò[^ò][€ã€›[ù€‹öŸõ›‹À‹àö[ãZ][Hô]\ô[Y[ùÇçàŸ\\ò][Hÿ⁄Y[HH€õ›€à⁄[\»ÿ‹õ€Zù[\ùY»\»Hõÿ›\ŸYRHö^ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH‹[]ô[[Ÿ[HXŸZ€\ú»\ôH€€\]Kù]Ÿ]ô\ò[[ù[ù[€ò[BàYô\úôY›XãYôX]\ô\»ô[XZ[éÇàH[ùô[ù‹ûHÿ\ùÿ⁄X⁄€›]ÿ€›[ù‹ô]\ô[Y[ù‹ö]\Œ¬àHõÿú»X]\öX[Àù^[›]ò[úÿX›[€úÀö[ò[ò⁄X[Àÿ›[Y[ùÀ[ôÿ⁄Y[BàY\\à€XŸ\Œ¬àHXÿ€›[ù[ô»€€ùõ€Y^‹ùÀ\õ›ò[À[ùõ⁄XŸ\À‹À[ô^\õò[à[ùY‹ò][€é¬àH⁄[\»õÿ][ô»ùXòõHôZ[ùõŸX›[€à[ôÿ‹õ€€\⁄ÇãHXX⁄Yô\úôYôX]\ôH⁄›[›[Ÿ]]»›€à\ò⁄]X›\ôKÿõ›[ô\ûHôYõY⁄àôYõ‹ôH[\[Y[ù][€ãÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\»Hÿ›[Y[ù][€à⁄X⁄‹⁄[ù€õKÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH\»⁄X⁄‹⁄[ù€õHôX€‹ô»]H‹[]ô[å¬õ[Ÿ[HZY‹ò][€à\»€€\]H[ôŸ\»õ›[ŸYûH\Xÿ][€àôZ]ö[‹à[ô\ÇêTê“UP’TëHåãåÃ»Së—ëà[ùûHMåãÇÇà»»[ùûHMå»Hô\›‹ôH[ùô[ù‹ûHÿ\ù›Y⁄[ô»[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûHÿ\ù›Y⁄[ô¬ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àéNYéM
+ôX€‹ôå»[Ÿ[HZY‹ò][€à€€\][€ò
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMåòÇãHûX[à\õ›ôYõÿŸYY[ô»Yù\àH‹[]ô[[Ÿ[HZY‹ò][€àÿ\»€€\]YÇãH[ùûHMåàôX€€[Y[ôYHô^€XŸH\»[ùô[ù‹ûH‹ö]KYõ›»ô\›‹ò][€ãàôY⁄[õö[ô»⁄]ÿ\ù‹[ã‹ôXYÿY‹ô[[›ôHôYõ‹ôH⁄X⁄€›]ö[ò[^ò][€ã€›[ùà€‹öŸõ›‹À‹àö[ãZ][Hô]\ô[Y[ùÇãHHô\Ÿ\ùôY\ŸR[ùô[ù‹ûPÿ\ù€⁄»[ôXYH‹ò\»H\õ›ôYÿ\ùî‹ŒÇà‹[ó⁄[ùô[ù‹ûWÿÿ\ùôXY⁄[ùô[ù‹ûWÿÿ\ù⁄][\ÿàY⁄[ùô[ù‹ûWÿÿ\ù⁄][X[ôô[[›ôW⁄[ùô[ù‹ûWÿÿ\ù⁄][XÇÇà»»»⁄]ÿ\»€€\]YãH\]YHå»[ùô[ù‹ûH€‹ö‹‹XŸHÿ\ùöY]»úõ€HôXY[€õH⁄X⁄€›]àÿ[ôY]\»»Hö\ú›]ôHÿ\ù\›Y⁄[ô»›\ôòXŸKÇãHYY\ŸR[ùô[ù‹ûPÿ\ù»[ùô[ù‹ûU€‹ö‹‹XŸXÇãHô\XŸYH€⁄X⁄€›]ÿ[ôY]\ÿ⁄YXò\à][H⁄]ÿ\ùÇãHYY[à‹[àÿ\ùX›[€à]ÿ[»Hô\Ÿ\ùôY‹[ó⁄[ùô[ù‹ûWÿÿ\ùàî»õ›Y⁄\ŸR[ùô[ù‹ûPÿ\ùÇãHYYX›]ôHÿ\ùòX›»õ‹à›]\Àõ›»€›[ùÿ\ùQ[ô^\ò][€ãÇãHYYH›YŸYÿ\ù[[ô\»XõH€›\òŸYúõ€BàôXY⁄[ùô[ù‹ûWÿÿ\ù⁄][\ÿÇãHYYô[[›ôHù]€ú»õ‹à›YŸYÿ\ù[ô\»]ÿ[àô[[›ôW⁄[ùô[ù‹ûWÿÿ\ù⁄][Xõ›Y⁄\ŸR[ùô[ù‹ûPÿ\ùÇãHYY›ÿ⁄ŸYÿ[ôY]H]X[ù]H[ú]»[ôYù]€ú»]ÿ[àY⁄[ùô[ù‹ûWÿÿ\ù⁄][Xõ›Y⁄\ŸR[ùô[ù‹ûPÿ\ùÇãHYY\ãXÿ[ôY]H›XÿŸ\‹ÀŸ\úõ‹àY\‹ÿYŸ\»Yù\àY][\ÀÇãH\]Y[ùô[ù‹ûH€‹H[ô›[[X\ûHÿ\ô»»⁄›»ÿ\ù›Y⁄[ô»\»]ôH⁄[Bà⁄X⁄€›]ö[ò[^ò][€ã€›[ùÀ[ôô]\ô[Y[ùô[XZ[àYô\úôYÇãHYYõÿ›\ŸY‘‘»õ‹àÿ\ùòX›ÀX›[€àŸ[À[ôõ›»Y\‹ÿYŸ\ÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ô‹àî»Yö[ö][€à⁄[ôŸYÇãHõ»\ôX›[ùô[ù‹ûWÿÿ\ùÿ[ùô[ù‹ûWÿÿ\ù⁄][\ÿ[ùô[ù‹ûWÿò[[òŸ\ÿà[ùô[ù‹ûW›ò[úÿX›[€úÿ‹àò[úÿX›[€ó⁄][\ÿ€Y[ù]]][€àÿ\»YYÇãHÿ\ù‹[ãYô[[›ôK[ôôXY\ôH\ôõ‹õYY€õHõ›Y⁄Hô\Ÿ\ùôYàŸ\ùô\àî»‹ò\\ú»[à\ŸR[ùô[ù‹ûPÿ\ùÇãH⁄X⁄€›]Ÿö[ò[^ò][€àô[XZ[ú»Yô\úôYàHå»[ùô[ù‹ûH[Ÿ[HŸ\»õ›ÿ[à⁄X⁄€›]ÿ\ù‹à^‹ŸHö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ùÇãH›Y⁄[ô»ÿ\ù[ô\»Ÿ\»õ›⁄[ôŸH[ùô[ù‹ûHò[[òŸ\Ààò[[òŸ\»ô[XZ[Çàò[úÿX›[€ãY\ö]ôY[ô⁄[ôŸH€õHõ›Y⁄ù]\ôH⁄X⁄€›]ö[ò[^ò][€ãÇãH€›[ù[ùZŸK€›[ù€‹úôX›[€ãö[ãZ][Hô]\ô[Y[ùTàÿÿ[à\‹]⁄[ôà⁄X⁄€›]\›[ò][€à[ô[ô»ô[XZ[àŸ\\ò]Hù]\ôH€XŸ\ÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸH[\‹ù»[ô\Ÿ\¬à\ŸR[ùô[ù‹ûPÿ\ùÇãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸHÿ[»€õNÇàHÿ\ù›]Kõ‹[êÿ\ùàHÿ\ù›]KòY][XàHÿ\ù›]Kúô[[›ôR][XãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸHŸ\»õ›ÿ[àÿ\ù›]Kò⁄X⁄€›]ÿ\ù⁄X⁄€›]ÿ\ùö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ù‹àBà⁄X⁄€›][ô\ãÇãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸHŸ\»õ›€€ùZ[à\ôX›à[úŸ\ù\]K[]K‹à\Ÿ\ùÿ[ÀÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\ÀŸù[ò›[€úÀù]à\»\‹»Y»õ»ô]»XõKù[ò›[€ãZY‹ò][€ã‹à‹ò[ù[ôô]\Ÿ\¬à^\›[ô»ÿ\ùî‹ÀÇãH]][ùXÿ]Y]ôHÿ\ù\›Y⁄[ô»ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€BàûX[â‹»úõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[ùô[ù‹ûHÿ\ù\›Y⁄[ô»€XŸKÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó⁄[ùô[ù‹ûW›ò[úÿX›[€úÿÇçà‹[à[ùô[ù‹ûHàÿ\ùÇçKà€€ôö\õH‹[àÿ\ù€‹ö‹»[ô⁄›‹»[àX›]ôHÿ\ùÇçãàY€ôH›ÿ⁄ŸYÿ[ôY]Hõ›»⁄]H€X[]X[ù]H[ô€€ôö\õH]\X\ú¬à[àH›YŸYÿ\ùXõKÇçÀàô[[›ôH]›YŸYÿ\ù[ôH[ô€€ôö\õHHõ›»\ÿ\X\úÀÇéà€€ôö\õHõ»⁄X⁄€›]Ÿö[ò[^ôHX›[€à\»^‹ŸYY]ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHHô^[ùô[ù‹ûH€XŸH⁄›[ôHX⁄YYYù\àÿ\ù›Y⁄[ô»\»ô\öYöYYÇàZŸ[H⁄X⁄€›]\›[ò][€àRKŸö[ò[^ò][€ã[à€›[ù€‹öŸõ›‹À[Çàö[ãZ][Hô]\ô[Y[ùÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»ôZ[ùõŸXŸY€õHHô\Ÿ\ùôYÿ\ù\›Y⁄[ô»î¬à‹ò\\ú»[ôYõ›⁄[ôŸH⁄X⁄€›]YŸ\à\ö]ò][€ã€›[ù€‹úôX›[€ã‹Çàò[[òŸHôZ]ö[‹ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[ùô[ù‹ûHÿ\ù›Y⁄[ô»ô]\ŸY^\›[ô»\õ›ôYî‹¬ò[ôYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ⁄X⁄€›]ö[ò[^ò][€ã€›[ùù€‹öŸõ›‹Àö[àô]\ô[Y[ù\ôX›ò[[òŸH‹ö]\À‹àYŸ\à\ö]ò][€à[ô\ÇêTê“UP’TëHåãåÃ»Së—ëà[ùûHMåÀÇÇà»»[ùûHMçHô\›‹ôH[ùô[ù‹ûHõ‹õX[⁄X⁄€›]ö[ò[^ò][€à[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûHõ‹õX[⁄X⁄€›]ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àÿçLMŒ
+ô\›‹ôH[ùô[ù‹ûHÿ\ù›Y⁄[ô»[àåÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMåÿÇãHûX[àô\öYöYY[ùô[ù‹ûHÿ\ù›Y⁄[ô»[àõŸX›[€à[ôô\YYô€€Ÿ»€ÀÇàõÿŸYYàÇãHõ‹õX[⁄X⁄€›]Ÿö[ò[^ò][€à\»[ôXYHÿ⁄ŸY[àTê“UP’TëHŸX›[€àLBà[ôô\Ÿ\ùôY[à\ŸR[ùô[ù‹ûPÿ\ùò⁄X⁄€›]ÿ\ùÇãHH]ôHî»›\‹ù»\ã[[ôH\›[ò][€ú»õ›Y⁄àö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ù
+ããã€[ôWŸ\›[ò][€ú»ú€€òäXÇÇà»»»⁄]ÿ\»€€\]YãHYYõ‹õX[⁄X⁄€›]\›[ò][€à€€ùõ€»»Hå»[ùô[ù‹ûHÿ\ùöY]ÀÇãHYYHÿ⁄ŸY\›[ò][€à\\ŒÇàHõÿÇàHŸ\ùöXŸHÿ[àHôZX€H›ÿ⁄¬àH\Ÿ\à‹‹Ÿ\‹⁄[€ÇàHô[ô‹àô]\õÇàHÿ‹ò\àH[ö€õ›€à»Z\‹⁄[ô¬ãHYY\ã[[ôH\›[ò][€à\K\›[ò][€àQ[ôõ›H€€ùõ€»õ‹à›YŸYàÿ\ù[ô\ÀÇãHYY\H\›[ò][€à»[ô\»€€ùõ€»€»€ôH\›[ò][€àÿ[àôH\YYà»]ô\ûH›\úô[ùÿ\ù[ôHôYõ‹ôH⁄X⁄€›]ÇãHYYò[Y][€à]ô\]Z\ô\ŒÇàH\›[ò][€àQõ‹àõÿãŸ\ùöXŸHÿ[ôZX€K[ô\Ÿ\à\›[ò][€úŒ¬àHõ›Hõ‹à[ö€õ›€à\›[ò][€úÀÇãHYYH⁄X⁄€›]Ÿ[X›Y\›[ò][€úÿX›[€à]ÿ[»Hô\Ÿ\ùôYàÿ\ù›]Kò⁄X⁄€›]ÿ\ù‹ò\\à⁄]\ã[[ôH\›[ò][€à^[ÿYÀÇãHYYH⁄X⁄€›]€€\][€à[ô[⁄›⁄[ô»Hù[Xô\àŸàò[úÿX›[€à][\¬à‹ö][àûHHô\Ÿ\ùôY⁄X⁄€›]îÀÇãH\]Yÿ\ù[ô[ùô[ù‹ûH€‹H»⁄›»õ‹õX[⁄X⁄€›]\»]ôH⁄[H€›[ùà€‹úôX›[€à[ôô]\ô[Y[ùô[XZ[àYô\úôYÇãH⁄[ôŸYH›[H\ŸR[ùô[ù‹ûPÿ\ùò⁄X⁄€›]ÿ\ùYò][\›[ò][€àúõ€BàŸôöXŸX»[ö€õ›€òX]⁄[ô»HåãåLH\ò⁄]X›\ò[ô]\ô[Y[ùŸÇàŸôöXŸX\»HX]\öX[\›[ò][€ãÇãHYYõÿ›\ŸYô\‹€ú⁄]ôH‘‘»õ‹à⁄X⁄€›]€€ùõ€»[ô\›[ò][€àŸ[ÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ô‹àî»Yö[ö][€à⁄[ôŸYÇãH⁄X⁄€›]ö[ò[^ò][€à\»\ôõ‹õYY€õHõ›Y⁄Hô\Ÿ\ùôYàö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ùî»‹ò\\à[à\ŸR[ùô[ù‹ûPÿ\ùÇãHHå»RHŸ\»õ›‹ö]H[ùô[ù‹ûWÿò[[òŸ\ÿ\ôX›KÇãHõ»\ôX›[ùô[ù‹ûWÿÿ\ùÿ[ùô[ù‹ûWÿÿ\ù⁄][\ÿ[ùô[ù‹ûWÿò[[òŸ\ÿà[ùô[ù‹ûW›ò[úÿX›[€úÿ‹àò[úÿX›[€ó⁄][\ÿ€Y[ù]]][€àÿ\»YYÇãH^ô\‹»⁄X⁄€›]ô[XZ[ú»[ö[\[Y[ùYÇãH€›[ù[ùZŸK€›[ù€‹úôX›[€ãö[ãZ][Hô]\ô[Y[ùTàÿÿ[à\‹]⁄[ôàô]\õãYúõ€KZõÿàô[XZ[àŸ\\ò]Hù]\ôH€XŸ\ÀÇãHHRHŸ\»õ›Ÿôô\àŸôöXŸX\»H\›[ò][€à\KÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ⁄€⁄‹À›\ŸR[ùô[ù‹ûPÿ\ùöúÿãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸHÿ[¬àÿ\ù›]Kò⁄X⁄€›]ÿ\ù[ô^‹Ÿ\»⁄X⁄€›]Ÿ[X›Y\›[ò][€úÿÇãH›]X»ÿÿ[à€€ôö\õYY⁄X⁄€›]\»õ›]Yõ›Y⁄H^\›[ô¬àö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ùî»‹ò\\à⁄]€[ôWŸ\›[ò][€úÿÇãH›]X»ÿÿ[à€€ôö\õYYõ»ŸôöXŸX^ô\‹»⁄X⁄€›]€›[ù€‹úôX›[€ãàö[ãZ][Hô]\ô[Y[ù\ôX›[úŸ\ù\ôX›\]K\ôX›[]K‹à\ôX›à\Ÿ\ù]ÿ\»YY[àHå»[ùô[ù‹ûH€‹ö‹‹XŸH‹àÿ\ù€⁄ÀÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\ÀŸù[ò›[€úÀù]à\»\‹»Y»õ»ô]»XõKù[ò›[€ãZY‹ò][€ã‹à‹ò[ù[ôô]\Ÿ\»Bà^\›[ô»⁄X⁄€›]îÀÇãH]][ùXÿ]Y]ôH⁄X⁄€›]ù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[ùô[ù‹ûHõ‹õX[X⁄X⁄€›]€XŸKÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó⁄[ùô[ù‹ûW›ò[úÿX›[€úÿÇçà‹[à[ùô[ù‹ûHàÿ\ùÇçKà‹[àHÿ\ùY€ôH›ÿ⁄ŸYÿ[ôY]Hõ›À[ô⁄€‹ŸHHò[Y\›[ò][€ãÇçãà€X⁄»⁄X⁄€›]Ÿ[X›Y\›[ò][€úÿÇçÀà€€ôö\õHH⁄X⁄€›]€€\][€à[ô[\X\ú»⁄]ò[úÿX›[€à][H€›[ùÇéà€€ôö\õHõ»^ô\‹»⁄X⁄€›]€›[ù€‹úôX›[€ã‹àö[ãZ][Hô]\ô[Y[ùX›[€Çà\»^‹ŸY[à\»€XŸKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHHô^[ùô[ù‹ûH€XŸH⁄›[ZŸ[HôH€›[ù⁄Y]»€›[ù[ùZŸH‹Çà\⁄Xÿ[€›[ù€‹úôX›[€ãôYõ‹ôHö[ãZ][Hô]\ô[Y[ùÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»ôZ[ùõŸXŸY€õHHô\Ÿ\ùôYõ‹õX[⁄X⁄€›]î¬à‹ò\\à[ôYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ^ô\‹»⁄X⁄€›]€›[ùà€‹öŸõ›‹Àö[àô]\ô[Y[ù\ôX›ò[[òŸH‹ö]\À‹àYŸ\à\ö]ò][€ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[ùô[ù‹ûHõ‹õX[⁄X⁄€›]ô]\ŸYH^\›[ô¬ò\õ›ôYö[ò[^ôW⁄[ùô[ù‹ûWÿÿ\ùî»‹ò\\à[ôYõ›⁄[ôŸHÿ⁄[XKìÀú\õZ\‹⁄[€úÀ^ô\‹»⁄X⁄€›]€›[ù€‹úôX›[€ãö[àô]\ô[Y[ù\ôX›ò[[òŸBù‹ö]\À‹àYŸ\à\ö]ò][€à[ô\àTê“UP’TëHåãåÃ»Së—ëà[ùûHMçÇÇà»»[ùûHMçHHô\›‹ôH[ùô[ù‹ûH€›[ù€‹öŸõ›‹»[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûH€›[ù€‹öŸõ›‹¬ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àMôMN
+ô\›‹ôH[ùô[ù‹ûHõ‹õX[⁄X⁄€›][àåÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMçÇãHûX[àô\öYöYY[ùô[ù‹ûHõ‹õX[⁄X⁄€›][àõŸX›[€à[ôô\YYô€€Ÿ¬à€ÀàõÿŸYYàÇãH€›[ù[ùZŸH\»ÿ⁄ŸY\»H\õ›ôY\⁄Xÿ[]X[ù]H\›Xõ\⁄Y[ù]ÇãHHô\Ÿ\ùôY€⁄‹»[ôXYHÿ[Hÿ⁄ŸYî‹ŒÇàHŸ]⁄[ùô[ù‹ûWÿ€›[ù‹]X[ù]XàH[ùZŸW⁄[ùô[ù‹ûWÿ€›[ùÇà»»»⁄]ÿ\»€€\]YãHYY[à[ùô[ù‹ûH€›[ùöY]»»Hå»⁄YXò\ãÇãHô\›‹ôY€›[ù⁄Y]ÿY[ô»õ›Y⁄\ŸR[ùô[ù‹ûP€›[ù⁄Y]ÇãHYYŸX\ò⁄XõH€›[ùõ›‹»⁄]X]\öX[ÿÿ][€ãﬁ\›[H]X[ù]K[ö]à[ôZ[ö[][H]X[ù]KÇãHYY^\›[ôÀ\õ›»\⁄Xÿ[€›[ù€‹úôX›[€à€€ùõ€ŒÇàH€›[ùY]X[ù]H[ú]¬àHôX\€€àŸ[X›‹é¬àH›\›€HôX\€€àöY[¬àHŸ]€›[ùX›[€ãÇãH⁄\ôY^\›[ôÀ\õ›»€›[ù‹ö]\»õ›Y⁄Hô\Ÿ\ùôYà\ŸR[ùô[ù‹ûP€›[ù€‹úôX›[€ãúŸ]€›[ù]X[ù]X€⁄ÀÇãHYYô]»ö[ã€X]\öX[€›[ù[ùZŸH€€ùõ€ŒÇàHö[àŸ[X›‹é¬àHÿ][Ÿ»][HŸ[X›‹à^€Y[ô»][\»[ôXYHX›]ôH[àHŸ[X›Yö[é¬àH€›[ùY]X[ù]H[ú]¬àHôX\€€àŸ[X›‹é¬àH›\›€HôX\€€àöY[¬àHôX€‹ô€›[ù[ùZŸXX›[€ãÇãH⁄\ôYô]»ö[ã€X]\öX[€›[ù[ùZŸHõ›Y⁄Hô\Ÿ\ùôYà\ŸR[ùô[ù‹ûP€›[ù[ùZŸKúôX€‹ô€›[ù€⁄ÀÇãHô\Ÿ\ùôYô\õ»\»Hò[Y\⁄Xÿ[€›[ù]X[ù]KÇãHX]⁄YHRH‹ö]Hÿ]H»HŸ\ùô\àî»€€ùòX›à[ùô[ù‹ûHX[òYŸ[Y[ùàÿ[àôXYH€›[ù⁄Y]⁄[H€›[ù‹ö]\»ô\]Z\ôH]ô[‹\ã–YZ[àõ€KÇãH\]Y[ùô[ù‹ûHõ›[ô\ûH€‹H»⁄›»ÿ\ù⁄X⁄€›][ô€›[ù€‹öŸõ›‹¬à\ôH]ôH⁄[Hô]\ô[Y[ùô[XZ[ú»Yô\úôYÇãHYYõÿ›\ŸYô\‹€ú⁄]ôH‘‘»õ‹à€›[ùôX\€€ãÿX›[€àŸ[»[ôH[ùZŸBà€€ùõ€ÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ô‹àî»Yö[ö][€à⁄[ôŸYÇãH€›[ù‹ö]\»\ôH\ôõ‹õYY€õHõ›Y⁄Hô\Ÿ\ùôY€›[ùî»‹ò\\úÀÇãHHå»RHŸ\»õ›‹ö]H[ùô[ù‹ûWÿò[[òŸ\ÿ\ôX›KÇãHõ»\ôX›[ùô[ù‹ûWÿò[[òŸ\ÿ[ùô[ù‹ûW›ò[úÿX›[€úÿàò[úÿX›[€ó⁄][\ÿ‹àö[ó⁄][\ÿ€Y[ù]]][€àÿ\»YYÇãHö[ãZ][Hô]\ô[Y[ùô[XZ[ú»[ö[\[Y[ùY[àåÀÇãHTàÿÿ[à\‹]⁄ô[XZ[ú»[ö[\[Y[ùY[à\»å»€XŸKÇãH^ô\‹»⁄X⁄€›][ôô]\õãYúõ€KZõÿàô[XZ[àŸ\\ò]Hù]\ôH€XŸ\ÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸHŸ\»õ›\ôX›Hÿ[à[úŸ\ù\]X[]X\Ÿ\ùô]\ôWÿö[ó⁄][X‹Çà[ùô[ù‹ûWÿò[[òŸ\ÿÇãH›]X»ÿÿ[à€€ôö\õYY€›[ù‹ö]\»\X\à€õH[àHô\Ÿ\ùôY€⁄‹»öXNÇàHŸ]⁄[ùô[ù‹ûWÿ€›[ù‹]X[ù]XàH[ùZŸW⁄[ùô[ù‹ûWÿ€›[ùãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\ÀŸù[ò›[€úÀù]à\»\‹»Y»õ»ô]»XõKù[ò›[€ãZY‹ò][€ã‹à‹ò[ù[ôô]\Ÿ\¬à^\›[ô»€›[ùî‹»[ôXõ\ÀÇãH]][ùXÿ]Y]ôH€›[ùù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[ùô[ù‹ûH€›[ù]€‹öŸõ›‹»€XŸKÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó€X[òYŸW⁄[ùô[ù‹ûXÇçà‹[à[ùô[ù‹ûHà€›[ùÇçKà€€ôö\õH€›[ùõ›‹»ÿY[ôÿ[àôHŸX\ò⁄YÇçãà⁄]H]ô[‹\ã–YZ[à\Ÿ\ãŸ]€ôH^\›[ô»õ›»€›[ù»]»›\úô[ùàﬁ\›[H]X[ù]H[ô€€ôö\õHH›XÿŸ\‹»Y\‹ÿYŸH\X\úÀÇçÀà⁄]H]ô[‹\ã–YZ[à\Ÿ\ã‹[€ò[H\›Hô]»ö[ã€X]\öX[€›[ù[ùZŸBàõ‹àHÿ][Ÿ»][H]\»õ›[ôXYHX›]ôH[à]ö[ãÇéà€€ôö\õHõ»ö[ãZ][Hô]\ô[Y[ù‹à\ôX›\ò⁄]ôHX›[€à\»^‹ŸY[à\¬à€XŸKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHHô^[ùô[ù‹ûH€XŸH⁄›[ZŸ[HôHö[ãZ][Hô]\ô[Y[ùYù\àH€›[ùà€‹öŸõ›»\»ô\öYöYY[àTàÿÿ[à\‹]⁄‹àô]\õãYúõ€KZõÿà\[ô[ô»€Çà‹\ò][€ò[ö[‹ö]KÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»ôZ[ùõŸXŸY€õHHô\Ÿ\ùôY€›[ùî»‹ò\\ú»[ôàYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀô]\ô[Y[ù\ôX›ò[[òŸH‹ö]\À‹ÇàYŸ\à\ö]ò][€ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[ùô[ù‹ûH€›[ù€‹öŸõ›‹»ô]\ŸYH^\›[ô¬ò\õ›ôY€›[ùî»‹ò\\ú»[ôYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀúô]\ô[Y[ù\ôX›ò[[òŸH‹ö]\À‹àYŸ\à\ö]ò][€à[ô\àTê“UP’TëBùåãåÃ»Së—ëà[ùûHMçKÇÇà»»[ùûHMçàHô\›‹ôH[ùô[ù‹ûHö[ã€X]\öX[ô]\ô[Y[ù[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûHö[ã[X]\öX[ô]\ô[Y[ùääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àååNNX
+ô\›‹ôH[ùô[ù‹ûH€›[ù€‹öŸõ›‹»[àåÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMçXÇãHûX[àô\öYöYY[ùô[ù‹ûH€›[ù€‹öŸõ›‹»[àõŸX›[€à[ôô\YYô€€Ÿ¬à€ÀàõÿŸYYàÇãHö[ã€X]\öX[ô]\ô[Y[ù\»[ôXYHÿ⁄ŸY\»H€Ÿù\ô]\ô[Y[ù€‹öŸõ›»õ‹ÇàZ\›ZŸ[à›ùX›\ò[[ö‹ÀÇãHHô\Ÿ\ùôY€⁄»[ôXYHÿ[»Hÿ⁄ŸYô]\ôWÿö[ó⁄][XîÀÇÇà»»»⁄]ÿ\»€€\]YãHYY›X\ôYô]\ô[Y[ù€€ùõ€»»H[ùô[ù‹ûH€›[ùXõKÇãHYYô]\ôXX›[€à\à€›[ùõ›ÀÇãHYYô\õÀ\ﬁ\›[K\]X[ù]HRH[ôõ‹òŸ[Y[ùôYõ‹ôHô]\ô[Y[ùÿ[àôH›\ùYÇãHYY[õ[ôHôX\€€àÿ\\ôH[ô€€ôö\õKÿÿ[òŸ[€€ùõ€»õ‹àHŸ[X›Yàô]\ô[Y[ùõ›ÀÇãHX]⁄YHRH‹ö]Hÿ]H»HŸ\ùô\àî»€€ùòX›ÇàH]ô[‹\ã–YZ[àõ€N¬àHÿ[óÿ\ò⁄]ôW‹ôX€‹ôÿ¬àHô\õ»ò[[òŸN¬àHô\]Z\ôYôX\€€ãÇãH⁄\ôYô]\ô[Y[ùõ›Y⁄Hô\Ÿ\ùôYà\ŸPö[í][Tô]\ô[Y[ùúô]\ôPö[í][X€⁄ÀÇãHôYúô\⁄Y€›[ù⁄Y][ùô[ù‹ûHôXY[Ÿ[[ôò[úÿX›[€à\›‹ûHYù\àBà›XÿŸ\‹Ÿù[ô]\ô[Y[ùÇãH\]Y[ùô[ù‹ûHõ›[ô\ûH€‹H»⁄›»ô\õÀXò[[òŸHô]\ô[Y[ù\»]ôH⁄[Bàÿÿ[õô\à\‹]⁄ô[XZ[ú»Yô\úôYÇãHYYõÿ›\ŸY‘‘»õ‹àô]\ô[Y[ùŸ[»[ô€€ôö\õKÿÿ[òŸ[€€ùõ€ÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ô‹àî»Yö[ö][€à⁄[ôŸYÇãHô]\ô[Y[ù‹ö]\»\ôH\ôõ‹õYY€õHõ›Y⁄Hô\Ÿ\ùôYô]\ôWÿö[ó⁄][Xàî»‹ò\\ãÇãHHå»RHŸ\»õ›‹ö]H[ùô[ù‹ûWÿò[[òŸ\ÿ\ôX›KÇãHô]\ô[Y[ù\»\ÿXõY[õ\‹»Hõ›…‹»\‹^YYﬁ\›[H]X[ù]H\»ô\õŒ¬àHî»›[ôXÿ[›[]\»YŸ\ãY\ö]ôYò[[òŸH[ôô[XZ[ú»]]‹ö]]]ôKÇãHô]\ô[Y[ù\ò⁄]ô\»Hö[ã€X]\öX[[ö»€õH[ôŸ\»õ›‹ö]HHYŸ\Çà]X[ù]Hò[úÿX›[€ãÇãHTàÿÿ[à\‹]⁄ô[XZ[ú»[ö[\[Y[ùY[à\»å»€XŸKÇãH^ô\‹»⁄X⁄€›][ôô]\õãYúõ€KZõÿàô[XZ[àŸ\\ò]Hù]\ôH€XŸ\ÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH›]X»ÿÿ[à€€ôö\õYYô]\ô[Y[ù\»õ›]Y€õHõ›Y⁄Hô\Ÿ\ùôYà\ŸPö[í][Tô]\ô[Y[ù€⁄»[ôô]\ôWÿö[ó⁄][XîÀÇãH›]X»ÿÿ[à€€ôö\õYY€›[ù‹ö]\»ô[XZ[àõ›]Y€õHõ›Y⁄ÇàHŸ]⁄[ùô[ù‹ûWÿ€›[ù‹]X[ù]XàH[ùZŸW⁄[ùô[ù‹ûWÿ€›[ùàHô]\ôWÿö[ó⁄][XãH›]X»ÿÿ[à€€ôö\õYYHå»[ùô[ù‹ûH€‹ö‹‹XŸH[ô€›[ù€⁄‹»»õ›à\ôX›Hÿ[[úŸ\ù\]X[]X\Ÿ\ù‹Çà[ùô[ù‹ûWÿò[[òŸ\ÿÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\ÀŸù[ò›[€úÀù]à\»\‹»Y»õ»ô]»XõKù[ò›[€ãZY‹ò][€ã‹à‹ò[ù[ôô]\Ÿ\»Bà^\›[ô»ô]\ô[Y[ùîÀÇãH]][ùXÿ]Y]ôHô]\ô[Y[ùù[ù[YHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€BàûX[â‹»úõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[ùô[ù‹ûHô]\ô[Y[ù€XŸKÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H]ô[‹\ã–YZ[à\Ÿ\à][€»\»ÿ[óÿ\ò⁄]ôW‹ôX€‹ôÿÇçà‹[à[ùô[ù‹ûHà€›[ùÇçKà€€ôö\õHõ€ã^ô\õ»õ›‹»⁄›»ñô\õ»€›[ùô\]Z\ôYö\ú›à[ôÿ[õõ›ôBàô]\ôYÇçãà€€ôö\õHHô\õÀX€›[ùõ›»^‹Ÿ\»ô]\ôKôX\€€ã€€ôö\õK[ôÿ[òŸ[ÇçÀàô]\ôH€õHH€õ›€àZ\›ZŸ[àô\õÀXò[[òŸHö[ã€X]\öX[[öÀÇéà€€ôö\õHHô]\ôYõ›»X]ô\»X›]ôH€›[ùöY]‹»Yù\àôYúô\⁄ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHHô^[ùô[ù‹ûH€XŸH⁄›[ZŸ[HôHTàÿÿ[à\‹]⁄[ù»^\›[ô¬àÿ\ùÿ€›[ùõ›‹»‹àô]\õãYúõ€KZõÿà\[ô[ô»€à‹\ò][€ò[ö[‹ö]KÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»ôZ[ùõŸXŸY€õHHô\Ÿ\ùôYô]\ô[Y[ùî»‹ò\\Çà[ôYõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ\ôX›ò[[òŸH‹ö]\À‹àYŸ\Çà\ö]ò][€ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[ùô[ù‹ûHö[ã€X]\öX[ô]\ô[Y[ùô]\ŸYH^\›[ô¬ò\õ›ôYô]\ôWÿö[ó⁄][Xî»‹ò\\à[ôYõ›⁄[ôŸHÿ⁄[XKìÀú\õZ\‹⁄[€úÀ\ôX›ò[[òŸH‹ö]\À‹àYŸ\à\ö]ò][€à[ô\àTê“UP’TëBùåãåÃ»Së—ëà[ùûHMçãÇÇà»»[ùûHMç»Hô\›‹ôH[ùô[ù‹ûHÿÿ][€àTà\‹]⁄[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûHTà\‹]⁄ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àMXNLô
+ô\›‹ôH[ùô[ù‹ûHö[àX]\öX[ô]\ô[Y[ù[àåÿ
+KÇãH\ò⁄]X›\ôHô\ú⁄[€à€€ôö\õYYàåãåÃÇãHö[‹àSë—ëà⁄X⁄‹⁄[ù€€ôö\õYYà[ùûHMçòÇãHûX[àô\öYöYY[ùô[ù‹ûHö[ã€X]\öX[ô]\ô[Y[ù[àõŸX›[€à[ôô\YYàô€€Ÿ»€ÀàõÿŸYYàÇãHåàÿÿ][€àTàôZ]ö[‹àÿ\»õ›][ôÀÿ€€ù^€õNàÿÿ[õö[ô»ô\€€ô\»Bàÿÿ][€à[ô\‹]⁄\»[ù»^\›[ô»ÿ\ù‹à€›[ùõ›‹ÀÇãHHô\Ÿ\ùôYÿÿ][€à[\ú»[ôXYH\úŸH‹ÿÿ[ã€ÿÿ][€ãœ]ZYò^[ÿYÀÇÇà»»»⁄]ÿ\»€€\]YãHYY]][ùXÿ]Y‹ÿÿ[ã€ÿÿ][€ãŒõÿÿ][€íYõ›]H[ú⁄YHHå»⁄[ÇãHYY[à[ùô[ù‹ûHÿÿ[òöY]ÀÇãHYYX[ùX[ÿÿ[à^[ÿY[ùûH]XÿŸ\ŒÇàHù[õ‹ùÿ]HTàTìŒ¬àH‹ÿÿ[ã€ÿÿ][€ãœ]ZYò]Œ¬àHò]»ÿÿ][€àURQŒ¬àH^X›[ö]⁄[ãò^K‹àö[à€Ÿ\ÀÇãHYY€ŸH\ÿ[XöY›X][€à⁄[à[‹ôH[à€ôHÿÿ][€àX]⁄\»X[ùX[[ú]ÇãHYYôXY[€õHÿÿ[àô\›[ô\€€][€àõ›Y⁄\ŸR[ùô[ù‹ûP€›[ù⁄Y]ÇãHYYÿÿ[àô\›[›[[X\ûH⁄]ÿÿ][€à]ô[€ŸK‹]URQX]\öX[õ›¬à€›[ù[ô›[]X[ù]H[àÿ€‹KÇãHYY\‹]⁄úõ€Hÿÿ[õôYö[àŒÇàH[ùô[ù‹ûHÿ\ùö[\ôY»Hÿÿ[õôYö[é¬àH[ùô[ù‹ûH€›[ùö[\ôY»Hÿÿ[õôYö[ãÇãHYY[ö]‹⁄[ãÿò^Hÿÿ[à›\‹ùûH\›[ô»ö[ú»[àHÿÿ[õôYÿ€‹H[ôàô\]Z\ö[ô»H‹\ò]‹à»⁄€‹ŸHHö[àôYõ‹ôH‹[ö[ô»ÿ\ù‹à€›[ùÇãHYYÿÿ[õôYXö[à€€ù^[ô[»[àÿ\ù[ô€›[ùÇãHYò][Y€›[ù[ùZŸHö[àŸ[X›[€à»Hÿÿ[õôYö[à⁄[à€›[ù\»‹[ôYàúõ€HHÿÿ[àô\›[ÇãH\]Y[ùô[ù‹ûHõ›[ô\ûH€‹H»⁄›»Tà\‹]⁄\»]ôKÇãHYYõÿ›\ŸY‘‘»õ‹àÿÿ[à^[ÿYX]⁄[ôö[ãY\‹]⁄€€ùõ€ÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ô‹àî»Yö[ö][€à⁄[ôŸYÇãHTàÿÿ[õö[ô»Ÿ\»õ›‹ôX]K\]K\ò⁄]ôK⁄X⁄€›]€›[ù‹àô]\ôBà[ùô[ù‹ûHûH]Ÿ[ãÇãHÿÿ[àô\€€][€à\Ÿ\»H^\›[ô»[ùô[ù‹ûH€›[ù⁄Y]€ÿÿ][€àôXY]ÇãHÿ\ù€›[ù[ôô]\ô[Y[ùX›[€ú»ô[XZ[à[ú⁄YHZ\à^\›[ô»ô\›‹ôYà€‹öŸõ›‹»[ôî»‹ò\\úÀÇãHHå»RHŸ\»õ›‹ö]H[ùô[ù‹ûWÿò[[òŸ\ÿ\ôX›KÇãHÿ[Y\òHX€Ÿ[ô»ô[XZ[ú»Yô\úôY»\»€XŸHô\›‹ô\»õ›]K€X[ùX[TÇà\‹]⁄[ôö[ùY[[ö»ôZ]ö[‹ãÇãH^ô\‹»⁄X⁄€›][ôô]\õãYúõ€KZõÿàô[XZ[àŸ\\ò]Hù]\ôH€XŸ\ÀÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ–\öúﬁãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH›]X»ÿÿ[à€€ôö\õYYÿÿ[à\‹]⁄[ùõŸXŸYõ»\ôX›[úŸ\ù\]Xà[]X\Ÿ\ù‹à[ùô[ù‹ûWÿò[[òŸ\ÿ‹ö]H]ÇãH›]X»ÿÿ[à€€ôö\õYY[ùô[ù‹ûH‹ö]Hî»ò[Y\»ô[XZ[à[Z]YŒÇàHŸ]⁄[ùô[ù‹ûWÿ€›[ù‹]X[ù]XàH[ùZŸW⁄[ùô[ù‹ûWÿ€›[ùàHô]\ôWÿö[ó⁄][XãH›]X»ÿÿ[à€€ôö\õYY‹ÿÿ[ã€ÿÿ][€ãŒõÿÿ][€íYõ›]H[ôà\úŸSÿÿ][€îÿÿ[î^[ÿY\ôHô\Ÿ[ù[àHå»ù[ôH€›\òŸKÇãH›\Xò\ŸH⁄[ôŸ[Ÿ»ÿ\»⁄X⁄ŸYõ‹àô[]ò[ùúôXZ⁄[ô»⁄[ôŸ\ÀàH›\úô[ùà]HTH‹ò[ù⁄[ôŸHX]\ú»õ‹àô]€H‹ôX]YXõX»Xõ\ÀŸù[ò›[€úÀù]à\»\‹»Y»õ»ô]»XõKù[ò›[€ãZY‹ò][€ã‹à‹ò[ù[ôô]\Ÿ\¬à^\›[ô»ôXY]ÀÇãH]][ùXÿ]Y]ôHÿÿ[à\‹]⁄ô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇãHõ»Ÿ\\ò]H]]€X]Y\›ÿ‹ö\^\›»ô^[€ôúHù[àùZ[ÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€[Z][ô\⁄\»[ùô[ù‹ûHTà\‹]⁄€XŸKÇåãà]Hõ‹õX[⁄]X€€õôX›Yô]YûHõŸX›[€à\ﬁH€€\]KÇåÀà⁄Y€à[à⁄]H\Ÿ\à]\»ÿ[ó€X[òYŸW⁄[ùô[ù‹ûXÇçà‹[à[ùô[ù‹ûHàÿÿ[ãÇçKà\›HH€õ›€à‹ÿÿ[ã€ÿÿ][€ãœ]ZYò^[ÿY‹à^X›ö[à€ŸKÇçãà€€ôö\õHHÿÿ[àô\›[YŸHô\€€ô\»ôXY[€õKÇçÀà‹[àÿ\ùúõ€HHÿÿ[àô\›[[ô€€ôö\õHÿ[ôY]\»\ôHö[\ôY»Bàÿÿ[õôYö[ãÇéà‹[à€›[ùúõ€HHÿÿ[àô\›[[ô€€ôö\õHõ›‹À⁄[ùZŸH\ôHö[\ôY»Bàÿÿ[õôYö[ãÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]YõŸX›[€àô\öYöXÿ][€àô\]Z\ô\»ûX[â‹»úõ›‹Ÿ\àŸ\‹⁄[€ãÇãHÿ[Y\òHX€Ÿ[ô»ÿ[àôHô\›‹ôYôZ[ôHÿ[YHÿÿ[àöY]»]\àYàöY[\ŸBàô\]Z\ô\»[ãXúõ›‹Ÿ\àÿ[Y\òHÿÿ[õö[ôÀÇãHHô^[ùô[ù‹ûH€XŸH⁄›[ZŸ[HôHô]\õãYúõ€KZõÿà‹à[õ›\Çàô[XZ[ö[ô»X]\öX[[›ô[Y[ù€‹öŸõ›ÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôHX›]ôKà\»\‹»ôZ[ùõŸXŸY€õHÿÿ[àõ›]Kÿ€€ù^\‹]⁄[ôYàõ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ\ôX›ò[[òŸH‹ö]\À‹àYŸ\Çà\ö]ò][€ãÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH[ùô[ù‹ûHÿÿ][€àTà\‹]⁄\»ôXY[€õH€€ù^úõ›][ô»[ù»^\›[ô»\õ›ôY€‹öŸõ›‹»[ôYõ›⁄[ôŸHÿ⁄[XKìÀú\õZ\‹⁄[€úÀ\ôX›ò[[òŸH‹ö]\À‹àYŸ\à\ö]ò][€à[ô\àTê“UP’TëBùåãåÃ»Së—ëà[ùûHMçÀÇÇà»»[ùûHMéHö^[ùô[ù‹ûHTàÿÿ[à^[ÿYXÿŸ\[òŸH[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûHTà\‹]⁄›ö^ääîŸ\‹⁄[€à\NääàùY»ö^Çà»»»€€ù^ãH›\ù[ô»€€[Z]àŒÕXåLX
+ô\›‹ôH[ùô[ù‹ûHTà\‹]⁄[àåÿ
+KÇãHûX[àô\‹ùY[ùô[ù‹ûHàÿÿ[à€›[õ›XÿŸ\[ú][ôŸ\⁄›⁄[ô¬àì€õHõ‹ùÿ]HHÿÿ][€àTà^[ÿY»\ôH›\‹ùYàÇãHõŸX›[€àÿ[à[ò€›[ù\àTàTì»⁄]Z]\à‹ÿÿ[ã€ÿÿ][€ãœ]ZYò‹àBà\ﬁYY€õ‹ùÿ]K‹ÿÿ[ã€ÿÿ][€ãœ]ZYòò\Ÿ[ò[YKÇãHX[ùX[ÿÿ][€à€ŸH€⁄›\ÿ\»€»›öX›[ô›\ôòXŸYHTà\úŸ\à\úõ‹Çà]ô[à⁄[àH‹\ò]‹à[ù[ôYH€ŸH€⁄›\ÇÇà»»»⁄]ÿ\»€€\]YãH\]Y\úŸSÿÿ][€îÿÿ[î^[ÿY»XÿŸ\ò\Ÿ[ò[YK\ôYö^Yà€õ‹ùÿ]K‹ÿÿ[ã€ÿÿ][€ãœ]ZYò^[ÿY]»\»ò[Yõ‹ùÿ]Hÿÿ][€ÇàTà^[ÿYÀÇãHŸ\ò]»URQ[ôõ€›‹ÿÿ[ã€ÿÿ][€ãœ]ZYò^[ÿY›\‹ù[ùX›ÇãHYYúöY[ôY\àX[ùX[ÿÿ][€à€⁄›\õ‹õX[^ò][€éÇàHY€õ‹ô\»‹XŸ\À€\⁄\À[ò›X][€ã[ô\⁄\Œ¬àHX]⁄\»ÿÿ][€à€ŸKXô[]URQ[ô]ŸY€Y[ùÀÇãHYYÿY[ôÀŸ\úõ‹àY\‹ÿYŸ\»õ‹àX[ùX[€ŸH€⁄›\€»‹\ò]‹ú»Ÿ]àÿÿ][€ã\ôXYôYYòX⁄»[ú›XYŸàHTã[€õH\úŸ\à\úõ‹ãÇãH⁄[ôŸYõÀ[X]⁄€‹H»€\öYûH]õ›Tà^[ÿY»[ôÿÿ][€à€Ÿ\»\ôBàXÿŸ\YÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ô‹àî»Yö[ö][€à⁄[ôŸYÇãH\»\‹»⁄[ôŸY€õHÿÿ[à\ú⁄[ô»[ôX[ùX[€⁄›\ôZ]ö[‹ãÇãHTàÿÿ[õö[ô»ô[XZ[ú»ôXY[€õH€€ù^\‹]⁄[ô›[Ÿ\»õ›]]]Bà[ùô[ù‹ûKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€Xã€ÿÿ][€î\ãöúÿãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôH[ú]ô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹»úõ›‹Ÿ\ÇàYù\à\ﬁ[Y[ùÇÇà»»»ô^›\¬åKà€€[Z][ô\⁄\»Tà[ú]›ö^Çåãà\ﬁH»õŸX›[€ãÇåÀàôK]\›[ùô[ù‹ûHàÿÿ[à⁄]ÇàHH€õ‹ùÿ]K‹ÿÿ[ã€ÿÿ][€ãœ]ZYòTì¬àHH‹ÿÿ[ã€ÿÿ][€ãœ]ZYòTì¬àH[à^X›ÿÿ][€ãÿö[à€ŸKÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH\»\»HTà\úŸ\ã€X[ùX[€⁄›\›ö^€õH[ôôŸ\»õ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ‹ö]H]Àò[[òŸH‹ö]\À‹ÇõYŸ\à\ö]ò][€à[ô\àTê“UP’TëHåãåÃ»Së—ëà[ùûHMéÇÇà»»[ùûHMéHHö^ÿÿ[à\‹]⁄õ›]H›X\ôòXŸH[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ùô[ù‹ûHTà\‹]⁄›ö^ääîŸ\‹⁄[€à\NääàùY»ö^Çà»»»€€ù^ãH›\ù[ô»€€[Z]àLLŸYYò
+ö^[ùô[ù‹ûHTàÿÿ[à[ú]XÿŸ\[òŸX
+KÇãHûX[àô\‹ùY‹[ö[ô»ÿ\ùúõ€HHX]\öX[ÿÿ[à€€\€ô[ùôY\ôX›YòX⁄¬à»\⁄õÿ\ôÇãHHÿÿ[àô\›[\‹]⁄ò]öYÿ]\»»⁄[ùô[ù‹ûO›öY]œXÿ\ù	úÿÿ[êö[íYKããòÇãH[Ÿ[Tÿ‹ôY[òÿ\»ôKX⁄X⁄⁄[ô»\õZ\‹⁄[€ú»[[YYX][H[ôôY\ôX›[ô»YÇà[ùô[ù‹ûH\õZ\‹⁄[€àõY‹»Ÿ\ôH›[]Z\àYò][ÿY[ôÀŸ[ûH›]KÇÇà»»»⁄]ÿ\»€€\]YãH\]Y[Ÿ[Tÿ‹ôY[ò»ÿZ]⁄[H\ŸT\õZ\‹⁄[€ú 
+X\»ÿY[ô»ôYõ‹ôBà\Z[ô»H[Ÿ[H]]‹ö^ò][€àôY\ôX›ÇãHYYH€€\X›XÿŸ\‹ÀX⁄X⁄⁄[ô»›]H[ú›XYŸàôY\ôX›[ô»\ö[ô»Bà\õZ\‹⁄[€àôYúô\⁄⁄[ô›ÀÇãHYùHŸ\ùô\ãX]]‹ö]]]ôHõ›]H\õZ\‹⁄[€à⁄X⁄»[ùX›€òŸH\õZ\‹⁄[€ú¬àö[ö\⁄ÿY[ôÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ôî»Yö[ö][€ã‹à[ùô[ù‹ûH€‹öŸõ›»⁄[ôŸYÇãH\»ö^YôôX›»õ›]KY›X\ô[Z[ô»€õKÇãH[ò]]‹ö^ôY\Ÿ\ú»\ôH›[ôY\ôX›YYù\à\õZ\‹⁄[€ú»ÿYÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À”[Ÿ[Tÿ‹ôY[ãöúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH]][ùXÿ]Y]ôHÿÿ[ã]ÀXÿ\ùô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹¬àúõ›‹Ÿ\àYù\à\ﬁ[Y[ùÇÇà»»»ô^›\¬åKà€€[Z][ô\⁄\»õ›]KY›X\ô›ö^Çåãà\ﬁH»õŸX›[€ãÇåÀàôK]\›‹[ö[ô»ÿ\ù[ô€›[ùúõ€HHÿÿ[àô\›[ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH\»\»Hõ›]KY›X\ôÿY[ôÀ\›]Hö^€õH[ôôŸ\»õ›⁄[ôŸHÿ⁄[XKìÀ\õZ\‹⁄[€úÀ‹ö]H]Àò[[òŸH‹ö]\À‹ÇõYŸ\à\ö]ò][€à[ô\àTê“UP’TëHåãåÃ»Së—ëà[ùûHMéKÇÇà»»[ùûHMÃHô\›‹ôH[ò⁄[ôŸY[ùô[ù‹ûH][]H›\ôòXŸ\»[àõ‹ùÿ]HHå¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôXùZ[»[ò⁄[ôŸY[ùô[ù‹ûH][]H›ŸY\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ãH›\ù[ô»€€[Z]àôNMMòY
+ö^ÿÿ[à\‹]⁄õ›]H›X\ô
+KÇãHûX[àô\]Y\›Y\Z[ô»[[ò⁄[ôŸYù[ò›[€ò[YXŸ\»úõ€Håãå»åÀå\¬àYôöX⁄Y[ùH\»‹‹⁄XõK⁄]›]ÿ\›[ô»Yôõ‹ù€àYXŸ\»]\ôH⁄[ô⁄[ôÀÇãHH›Ÿ\›\ö\⁄»[ò⁄[ôŸYù[ò›[€ú»Yù[à[ùô[ù‹ûHŸ\ôHôXY[€õH][]Bà›\ôòXŸ\»›ô\à^\›[ô»€›[ù\⁄Y]€ÿÿ][€à[\úÀÇÇà»»»⁄]ÿ\»€€\]YãHYY[ùô[ù‹ûH›ô\ùöY]ÿöY]ÀÇãHYY‹ò[ôX\›\à[ùô[ù‹ûHôXY[€õHXõH\⁄[ô»H^\›[ô»€›[ù⁄Y]àôXY[Ÿ[ÇãHYYö\⁄XõK\õ›»›[[X\ûHÿ\ôŒÇàHõ›‹»[àöY]Œ¬àH]X[ù]H[àöY]Œ¬àH›À€Z[àõ›‹Œ¬àH[ùô[ù‹ûHò[YKÇãHYY[ùô[ù‹ûHXÿ€›[ù[ô»^‹ùöY]ÀÇãHYYôXY[€õHò[X][€à^‹ùô]öY]»\⁄[ô»^\›[ô»]X[ù]H[ôàÿ][Ÿ›YH[ö]X€‹›öY[ÀÇãHYY‘’à›€õÿYõ‹àö\⁄XõHõ€ã^ô\õ»^‹ùõ›‹ÀÇãHYY[ùô[ù‹ûHÿÿ][€ú»	àTòöY]ÀÇãHYYôXY[€õH[ö]‹⁄[ãÿò^Kÿö[àÿÿ][€àXõHúõ€H^\›[ô»ÿÿ][€ÇàôXY]ÀÇãHYYŸ[X›Yÿÿ][€àTàô]öY]ÀÇãHYYŸ[X›Yÿÿ][€àTà’ë»›€õÿYÇãHYYŸ[X›Yÿÿ][€à‹[àÿÿ[àô\›[X›[€ãÇãHô\›‹ôYÿ[Y\òHTàX€Ÿ[ô»[à[ùô[ù‹ûHÿÿ[òÇãHŸ\Tàÿ[Y\òHX€Ÿ[ô»^ûK[ÿYY⁄]HŸ\\ò]Hú‘Tò⁄[ö»€»HXZ[Çàù[ôHŸ\»õ›^H]€‹›[õ\‹»ÿ[Y\òHÿÿ[õö[ô»\»\ŸYÇãH\]Y[ùô[ù‹ûH€‹H»ôYõX›Hô\›‹ôY[ò⁄[ôŸY][]H›\ôòXŸ\ÀÇÇà»»»ÿYô]H[ôõ›[ô\ûHõ›\¬ãHõ»›\Xò\ŸHÿ⁄[XKZY‹ò][€ãìÀ\õZ\‹⁄[€àõYÀ›‹òYŸKô]YûBàù[ò›[€ãòX⁄Ÿ[ôî»Yö[ö][€ã‹àô]»XõHXÿŸ\‹»⁄[ôŸYÇãHô]»›ô\ùöY]ÀXÿ€›[ù[ô»^‹ù[ôÿÿ][€úÀ‘Tà›\ôòXŸ\»\ôHôXY[€õKÇãH‘’à[ôTà’ë»›€õÿY»\ôHúõ›‹Ÿ\ã[ÿÿ[^‹ù»úõ€H[ôXYK]ö\⁄XõH]KÇãHÿ[Y\òHÿÿ[õö[ô»ô\€€ô\»Tà€€ù^€õH[ôŸ\»õ›]]]H[ùô[ù‹ûKÇãHÿ\ù€›[ù[ôô]\ô[Y[ùX›[€ú»ô[XZ[à[ú⁄YHZ\à^\›[ô»ô\›‹ôYà€‹öŸõ›‹»[ôî»‹ò\\úÀÇãHHå»RHŸ\»õ›‹ö]H[ùô[ù‹ûWÿò[[òŸ\ÿ\ôX›KÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄[ùô[ù‹ûK“[ùô[ù‹ûU€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇãHúHù[àùZ[\‹ŸY⁄]ö]HåKåÇãHùZ[›]]‹]ú‘Tò[ù»H^ûH⁄[öŒÇàHú‘TãQÿQ\€åÀöúÿãHHùZ[õŸXŸYH^X›Yö]H⁄[öÀ\⁄^ôHÿ\õö[ô»€õKÇãH›]X»ÿÿ[à€€ôö\õYYH[ùô[ù‹ûH€‹ö‹‹XŸH[ùõŸXŸYõ»\ôX›[úŸ\ùà\]X[]X\Ÿ\ù‹à[ùô[ù‹ûWÿò[[òŸ\ÿ‹ö]H]ÇãH›]X»ÿÿ[à€€ôö\õYY[ùô[ù‹ûH‹ö]Hî»ò[Y\»ô[XZ[à[Z]YŒÇàHŸ]⁄[ùô[ù‹ûWÿ€›[ù‹]X[ù]XàH[ùZŸW⁄[ùô[ù‹ûWÿ€›[ùàHô]\ôWÿö[ó⁄][XãH]][ùXÿ]Y]ôHô\öYöXÿ][€àô[XZ[ú»[ô[ô»úõ€HûX[â‹»úõ›‹Ÿ\àYù\Çà\ﬁ[Y[ùÇÇà»»»ô^›\¬åKà€€[Z][ô\⁄\»[ò⁄[ôŸY[ùô[ù‹ûH][]H›ŸY\Çåãà\ﬁH»õŸX›[€ãÇåÀàô\öYûH[ùô[ù‹ûHà›ô\ùöY]»ÿY»õ›‹ÀÇçàô\öYûH[ùô[ù‹ûHàXÿ€›[ù[ô»^‹ù›€õÿY»‘’ãÇçKàô\öYûH[ùô[ù‹ûHàÿÿ][€ú»	àTàô]öY]‹ÀŸ›€õÿY»Tà’ë»[ô‹[ú»Bàÿÿ[àô\›[Ççãàô\öYûH[ùô[ù‹ûHàÿÿ[àÿ[Y\òHÿÿ[õô\à›\ù»€à»[ô‹[ú»H€õ›€àTÇà^[ÿYÇÇà»»»ô[XZ[ö[ô»\€‹ö»€ò\⁄›ãH[ùô[ù‹ûNàô[XZ[ö[ô»⁄[ôŸYŸYô\úôY€‹öŸõ›‹»[ò€YHô]\õãYúõ€KZõÿãà^ô\‹»⁄X⁄€›]€X[òYŸ\à›ô\úöYK[ô[ûHY][€ò[[›ô[Y[ùõ›‹»õ›Y]à[ù[ù[€ò[Hô\›‹ôYÇãH\›[X]\Œà›\úô[ùH⁄[Ÿõ›[ô][€à€õN»ôYY»\õ›ôY\›[X]HôXYà[Ÿ[‹ôX]KŸY]€‹öŸõ›ÀöX⁄[ôÀ\õ›ò[€ò\⁄›ÿ›[Y[ùÀ[ôà\›‹ûH⁄\ö[ôÀÇãHõÿúŒà]ôHôXY[€õHõ›[ô][€à^\›Œ»ô[XZ[ö[ô»õÿà]Z[›Xõ[Ÿ[\Àà‹ö]H€‹öŸõ›‹ÀX]\öX[Àÿù^[›]‹ÿ⁄Y[Kÿ€€\][€ã[ôÿ›[Y[ù»⁄\ö[ô¬à›[ôYYö[ö\⁄€‹öÀÇãHôZX€\Œà]ôH\ôX›‹ûHõ›[ô][€à^\›Œ»\‹⁄Y€õY[ùŸ\ùöXŸK\›‹ûKà[ú‹X›[€úÀZ[XYŸK[ôXZ[ù[ò[òŸH€‹öŸõ›‹»ô[XZ[ãÇãH[\ﬁYY\Œà]ôH\ôX›‹ûHõ›[ô][€à^\›Œ»\‹⁄Y€õY[ùÀ‹ôY[ùX[ÀÇàõŸö[H€›\òŸHöY[ÀX›]ö]K[ô€€ùõ€Y‹ôX]KŸY]ô[XZ[ãÇãH€€Œà]ôHÿ][Ÿ›YHõ›[ô][€à^\›Œ»›\›ŸK⁄X⁄€›]TàXô[Àà\‹⁄Y€õY[ù\›‹ûKò[úŸô\ã€ÿÿ][€à[öÿYŸK[ô€€ùõ€Y‹ôX]KŸY]àô[XZ[ãÇãHô\‹ùŒà⁄[‹ôXY[ô\‹»^\›Œ»‹\ò][€ò[ô\‹ù»ôYY€›\òŸH[Ÿ[\»[ôà\õ›ôYôXY[Ÿ[ÀÇãHXÿ€›[ù[ôŒàô]öY]ÀŸ^‹ùõ›[ô][€à^\›Œ»ö[ò[Xÿ€›[ù[ô»‹›»\[ô€Çà€€\]YõÿúÀ\›[X]\À[ô[ùô[ù‹ûH€‹öŸõ›‹ÀÇãHÿ›[Y[ùŒà€‹ö‹‹XŸH^\›Œ»›€ô\ã\‹X⁄YöX»ÿ›[Y[ù⁄\ö[ô»⁄›[ôHYY¬àXX⁄€›\òŸH[Ÿ[H\»‹ŸH[Ÿ[\»ö[ö\⁄ÇÇà»»»õ›][ô»ô\ôX›ìõ»€]YHô]öY]»ôYYYH\»\‹»ô\›‹ôYôXY[€õH[ùô[ù‹ûH][]Bú›\ôòXŸ\»[ôÿ[Y\òHTà€€ù^\‹]⁄\⁄[ô»^\›[ô»€⁄‹À⁄[\úÀ⁄]õ¬úÿ⁄[XKìÀ\õZ\‹⁄[€ã‹ö]K\]ò[[òŸK]‹ö]K‹àYŸ\ãY\ö]ò][€à⁄[ôŸBù[ô\àTê“UP’TëHåãåÃ»Së—ëà[ùûHMÃÇÇãKKBÇà»»[ùûHMÃH8†%õÿú»X]\öX[»Xàö\⁄Xö[]H€X[ù\Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[à€€ôö\õYYHõÿú»X]\öX[»Xà\»õ›ôYYY\»Hö\⁄XõHõÿú»]Z[ú›\ôòXŸHöY⁄õ›ÀàH€ŸH]⁄›[ô[XZ[à[àXŸH€»ù]\ôHX]\öX[¬ù€‹ö»\»õ›úõ⁄Ÿ[à‹àô[[›ôYô[X]\ô[KÇÇà»»»⁄]ÿ\»€€\]YãHYHX]\öX[ÿXàúõ€HHö\⁄XõHõÿú»]Z[ò]öYÿ][€ãÇãHô\Ÿ\ùôYH^\›[ô»ô\Ÿ\ùôYX]\öX[ÿXàYö[ö][€à[ôò[òX⁄¬àô\Ÿ\ùôY\[ô[ôZ]ö[‹ãÇãHYY[àX›]ôK]Xà›X\ô€»HY[à‹à›[HXàŸ[X›[€àô]\õú»¬à›ô\ùöY]ÿÇãHYùù^[›]ò[úÿX›[€úÀö[ò[ò⁄X[Àÿ›[Y[ùÀ[ôÿ⁄Y[H\»ö\⁄XõBàYô\úôYXú»õ‹àHô^õÿú»€X[ù\€XŸ\ÀÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHH^\›[ô»õÿóÿù^[›]€[ô\ÿõ›[ô][€àXõH[ôXYH^\›»ù]Ÿ\»õ›àY][ò€YHûX[â‹»ô\]Y\›Y›ùX›\ôYù^[›]⁄X⁄€\›öY[»õ‹àùYŸ]à[ö]X[ò[YKX›X[ò[YK[ö]X[XY[YK‹àX›X[XY[YKÇãHH^\›[ô»ÿ›[Y[ùÿõ›[ô][€à\Ÿ\»€ôHŸ[ô\öX»XõXÀôÿ›[Y[ùÿàXõH⁄]Hõ‹ùÿ]KYö[\ÿ›‹òYŸHùX⁄Ÿ]àõÿà\»›\úô[ùHH€õBà]ôH›€ô\à\H[àìÀÇÇà»»»ô^›\»
+[à‹ô\äBåKàYö[ôHHõÿú»ÿ›[Y[ù»å»›€ô\ã\ÿ€‹YV[ôô\]Z\ôYÿ›[Y[ùÿ]Y€‹öY\ÀÇåãàYHù^[›]⁄X⁄€\›ÿ⁄[XH^[ú⁄[€à‹àô\XŸ[Y[ùöY[»Yù\àBà\⁄\ôY][ù[€àù[\»\ôHÿ⁄ŸYÇåÀàôXùZ[ù^[›]\»H]ôH›\Xò\ŸKXòX⁄ŸYõÿú»XãÇçàôXùZ[ö[ò[ò⁄X[»[ôÿ⁄Y[Húõ€HZ\à›[ô[€ôHS\⁄Y€ú»\¬à›\Xò\ŸKXòX⁄ŸYõÿú»Xú»€òŸHûX[à]X⁄\»H€›\òŸKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHX⁄YH⁄]\àò[úÿX›[€úÿô[XZ[ú»Hö\⁄XõHõÿú»XãôX€€Y\»HôXY[€õBà[ùô[ù‹ûH\‹›YH\›‹ûH[ô[‹à\»õ€Y[ù»ö[ò[ò⁄X[À“[ùô[ù‹ûH\›‹ûKÇãHX⁄YH⁄]\àù^[›]][ù[€à⁄›[ôHò\ŸY€à›]\ÀZ\‹⁄[ô»X›X[àò[Y\À›ô\ôYHXY[Y\ÀùYŸ]ò\öX[òŸK‹à[à^X⁄]][ù[€àõYÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôKà\»ÿ\»RHö\⁄Xö[]H€õH[ôYõ›⁄[ôŸH]HXÿŸ\‹Àÿ⁄[XKàìÀ›‹òYŸKî‹À‹à‹ö]HôZ]ö[‹ãÇÇãKKBÇà»»[ùûHMÃà8†%õÿú»ÿ›[Y[ù»⁄X⁄€\›õ›[ô][€ÇÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[à]X⁄YŒó\Ÿ\ú◊‹õò€W€ôQö]ôW\⁄›‹[ô^ö[\»H›[ô[€ôBëö[ò[ò⁄X[À‘ÿ⁄Y[K‘HôYô\ô[òŸKàHS\»ôYô\ô[òŸHX]\öX[€õN»å»\ö[ú›ùX›[€ú»[ô]HôZ]ö[‹à€€YHúõ€HûX[â‹»⁄]X⁄\⁄[€ú»[ôHÿ⁄ŸYî›\Xò\ŸHõ›[ô][€úÀÇÇîûX[àÿ⁄ŸYHõÿú»ÿ›[Y[ù»\ôX›[€éÇãHô\]Z\ôYÿ]Y€‹öY\»\ôH€€ùòX›À[úÀ\õZ]À›‹À⁄[ôŸH‹ô\úÀà€‹Ÿ[›]ÿ‹À[ùõ⁄XŸ\ÀZ\ÿÀ[ô^H\ÀÇãHH⁄X⁄€\›\»ö\›X[€õH[ôŸ\»õ›õÿ⁄»€‹öŸõ›ÀÇãHÿ›[Y[ù»ô[€ô»»Hõÿãõ›H\ÿY[ô»\Ÿ\ãÇãHYàH\Ÿ\àÿ[àöY]»Hõÿã^Hÿ[àöY]»Hõÿàÿ›[Y[ùŒ»Y][ô»õ€›‹¬àHõÿã[X[òYŸ[Y[ùõ›[ô\ûKÇÇà»»»⁄]ÿ\»€€\]YãHYYH⁄\ôYì–ó—–’SQSï––UQ”‘íQTÿ€€ùòX›õ‹àõÿú»[ôÿ›[Y[ùÀÇãHYYHõÿà⁄X⁄€\›ŸX›[€à»H‹[]ô[ÿ›[Y[ù»€‹ö‹‹XŸKÇãH\]Yÿ›[Y[ù»€‹ö‹‹XŸH€‹H»ôYõX›õÿã[›€ôYÿ›[Y[ùXÿŸ\‹»[ôàY]õ›[ô\öY\ÀÇãHôXùZ[HŸ[X›Yõÿàÿ›[Y[ùÿXà\»H]ôHôXY[€õH›\Xò\ŸKXòX⁄ŸYà›\ôòXŸKÇãHHõÿú»ÿ›[Y[ùÿXàõ›»ôXY»^\›[ô»XõXÀôÿ›[Y[ùÿõ›‹»õ‹àBàŸ[X›Yõÿà[ô⁄›‹ŒÇàHö\›X[\ÿYY€Z\‹⁄[ô»ÿ]Y€‹ûH⁄X⁄€\›àH\ÿYYÿ›[Y[ù€›[ùàH›€ô\ãÿXÿŸ\‹ÀŸY]›[[X\öY\¬àH\ÿYYÿ›[Y[ù»XõBÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀŸÿ›[Y[ùÀŸÿ›[Y[ùÿ]Y€‹öY\ÀöúÿãH‹òÀ€[Ÿ[\ÀŸÿ›[Y[ùÀ—ÿ›[Y[ù’€‹ö‹‹XŸKöúﬁãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHH⁄X⁄€\››]\»\»\ö]ôYúõ€Hÿ›[Y[ùÀôÿ›[Y[ù›\XX]⁄[ô»Bà⁄\ôYÿ]Y€‹ûHŸ^\ÀÇãH\»\‹»[ù[ù[€ò[HŸ\»õ›Y\ÿY\ò⁄]ôK›€õÿY⁄Y€ôYTìà›\Xò\ŸH›‹òYŸKìÀ‹àZY‹ò][€à⁄[ôŸ\ÀÇãHH^\›[ô»ÿ›[Y[ùÿì»ùYŸö^[ôXYH›\‹ù»õÿã]ö\⁄XõHÿ›[Y[ùàôXY»ûH]ö\⁄[€à‹à[Y]ö\⁄[€àö\⁄Xö[]KÇÇà»»»ô^›\»
+[à‹ô\äBåKàYH\ÿYX›[€à[ú⁄YHHŸ[X›Yõÿàÿ›[Y[ù»XãÇåãà[ú›\ôH\ÿYYõ›‹»\ŸHH⁄\ôYÿ›[Y[ù›\Xÿ]Y€‹ûHŸ^\ÀÇåÀàY‹[ãŸ›€õÿY⁄Y€ôYTìôZ]ö[‹àúõ€HHŸ[X›Yõÿà€‹öŸõ›ÀÇçàY\ò⁄]ôHôZ]ö[‹à\»€Ÿù\ò⁄]ôH€õKÇçKàYù\àÿ›[Y[ù»\»ô\öYöYYõÿŸYY»ù^[›]ÿ⁄[XH^[ú⁄[€à[ô]ôBà⁄X⁄€\›RKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH€€ôö\õH⁄]\àY][ô»ÿ›[Y[ù»YX[ú»Y]Y]Kÿÿ]Y€‹ûKÿ\ò⁄]ôH€õK‹Çà[€»ô\X⁄[ô»H[ô\õZ[ô»ö[HÿöôX›ÇãH€€ôö\õH⁄]\à^H\»⁄›[]\à›\ôòXŸH[àö[ò[ò⁄X[»\»H[öŸYàö[[ô»\ùYòX›‹àô[XZ[à€õHHÿ›[Y[ùÿ]Y€‹ûKÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôKà\»\‹»ô]\ŸYH^\›[ô»õÿã[›€ôYXõXÀôÿ›[Y[ùÿõ›[ô][€Çà[ôYõ›‹ôX]HHô]»ÿ›[Y[ùXõH‹à\Ÿ\ã[›€ôYÿ›[Y[ù[Ÿ[ÇÇãKKBÇà»»[ùûHMÃ»8†%õÿú»ÿ›[Y[ù\ÿYõ›¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^êYù\àô\öYûZ[ô»Hö\›X[⁄X⁄€\›€⁄ŸY€€ŸûX[à\õ›ôYõÿŸYY[ô»⁄]ùHô^ÿ›[Y[ù»€XŸKàH\ôŸ]ÿ\»Ÿ[X›YZõÿàÿ›[Y[ù\ÿY\⁄[ô»Bú⁄\ôYÿ]Y€‹ûHŸ^\»úõ€H[ùûHMÃãÇÇà»»»⁄]ÿ\»€€\]YãHYY[à\ÿYõ‹õH»HŸ[X›Yõÿàÿ›[Y[ùÿXãÇãH\ÿY\»€õHö\⁄XõH⁄[àHöY]Ÿ\à\»ÿ[ìX[òYŸRõÿúÿÇãH\ÿY»ô\]Z\ôNÇàHŸ[X›Yÿ]Y€‹ûBàHŸ[X›Yö[BàHŸ[X›Yõÿà⁄]H]ö\⁄[€ÇãH[úŸ\ùYHXõXÀôÿ›[Y[ùÿõ›»ö\ú›⁄]Hö[ò[›‹òYŸH]ÇãH\ÿYYHö[H»H^\›[ô»ö]ò]Hõ‹ùÿ]KYö[\ÿùX⁄Ÿ]]Çàÿ›[Y[ùÀ⁄õÿãﬁ⁄õÿíYKﬁŸÿ›[Y[ùYKﬁ‹ÿ[ö]^ôYö[Sò[Y_XÇãH›‹ôYY]Y]H€àHÿ›[Y[ùõ›ŒÇàH›€ô\ó›\HH	⁄õÿâÿàH›€ô\ó⁄YHŸ[X›YõÿãöYàH]ö\⁄[€àHŸ[X›Yõÿãô]ö\⁄[€òàHÿ›[Y[ù›\HH⁄\ôYÿ]Y€‹ûHŸ^XàH‹öY⁄[ò[ö[Hò[YKö[H⁄^ôKRSQH\K‹[€ò[\ÿ‹ö\[€ã‹ôX]YûBãHYàÿöôX›\ÿYòZ[»Yù\àõ›»‹ôX][€ãHõ›»\»€ŸùX\ò⁄]ôY⁄][Çà\ÿYYòZ[Y\ò⁄]ôHôX\€€àôYõ‹ôH›\ôòX⁄[ô»H\úõ‹ãÇãH›XÿŸ\‹Ÿù[\ÿYô\Ÿ]»Hõ‹õK⁄›‹»€€ôö\õX][€ã[ôô[ÿY»HõÿÇàÿ›[Y[ù\›ÿ⁄X⁄€\›ÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH\ÿY\Ÿ\»H^\›[ô»›\Xò\ŸH›‹òYŸH€XﬁHúõ€HHõÿàÿ›[Y[ù¬àõ›[ô][€ãàõ»Ÿ\ùöXŸHõ€KòX⁄Ÿ[ôù[ò›[€ã‹àXõX»ùX⁄Ÿ]ôZ]ö[‹àÿ\¬à[ùõŸXŸYÇãH\»\‹»‹ôX]\»ÿ›[Y[ùõ›‹»ôYõ‹ôHÿöôX›\ÿY€»H›‹òYŸHôXYà€XﬁHÿ[à]\à]]‹ö^ôHÿöôX›ôXY»ûHX]⁄[ô»ÿ›[Y[ùÀú›‹òYŸW‹]ÇãHH\ÿY]\Ÿ\»ÿ[ö]^ôYö[Hò[Y\»ù]ô\Ÿ\ùô\»H‹öY⁄[ò[ö[Hò[YBà[àÿ›[Y[ùÀôö[W€ò[YXÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»\ÿYúõ€HHôX[Ÿ[X›Yõÿà[ô€€ôö\õ\»⁄X⁄€\››]\¬à\]\»ûHÿ]Y€‹ûKÇåãàY‹[ãŸ›€õÿY⁄Y€ôYTìôZ]ö[‹àúõ€HHŸ[X›Yõÿàÿ›[Y[ù»XãÇåÀàY€Ÿù\ò⁄]ôH€€ùõ€»õ‹à\ÿYYõÿàÿ›[Y[ùÀÇçàõÿŸYY»ù^[›]ÿ⁄[XH^[ú⁄[€à[ô]ôH⁄X⁄€\›RKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH]][ùXÿ]Yù[ù[YH\ÿY›[ôYY»ô\öYöXÿ][€àúõ€HûX[â‹»úõ›‹Ÿ\ãÇãHYà\ÿY›XÿŸYY»ù]H\‹Ÿ\»€€õôX›]ö]HôYõ‹ôHôYúô\⁄Hõ›»[ôàö[H⁄›[›[^\›»HX[ùX[ôYúô\⁄⁄›[⁄›»]ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôKà\»\‹»\ŸYH^\›[ô»õÿã[›€ôYÿ›[Y[ù[Ÿ[[ôö]ò]H›‹òYŸBàùX⁄Ÿ]⁄]›]⁄[ô⁄[ô»ìÀ›‹òYŸH€X⁄Y\Àÿ⁄[XK‹à\õZ\‹⁄[€àõY‹ÀÇÇãKKBÇà»»[ùûHMÕ8†%õÿú»ÿ›[Y[ù‹[à[ô›€õÿYÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHõÿàÿ›[Y[ù\ÿYõ›»€‹öŸY[ô\õ›ôYõÿŸYY[ô»⁄]ùHô^ÿ›[Y[ù»€XŸKÇÇà»»»⁄]ÿ\»€€\]YãHYY›‹òYŸW‹]»HŸ[X›Yõÿàÿ›[Y[ùôXY[Ÿ[ÇãHYY‹[ò[ô›€õÿYõ›»X›[€ú»»\ÿYYÿ›[Y[ù»[àHŸ[X›Yàõÿàÿ›[Y[ùÿXãÇãHXX⁄X›[€à‹ôX]\»H⁄‹ù[]ôY⁄Y€ôYTìúõ€HH^\›[ô»ö]ò]Bàõ‹ùÿ]KYö[\ÿùX⁄Ÿ]€õH⁄[à€X⁄ŸYÇãH‹[ò‹[ú»H⁄Y€ôYTì[àHô]»úõ›‹Ÿ\àXãÇãH›€õÿY‹ôX]\»H⁄Y€ôYTì⁄]›\Xò\ŸI‹»›€õÿY‹[€à\⁄[ô»Bà›‹ôY‹öY⁄[ò[ö[Hò[YKÇãHYY[õ[ôH\úõ‹à[ô[ô»õ‹àòZ[Y⁄Y€ôYTì‹ôX][€ãÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH⁄Y€ôYTì»^\ôHYù\àÃŸX€€ôÀÇãH\»\‹»Ÿ\»õ›XZŸHHùX⁄Ÿ]XõX»[ôŸ\»õ›Y[ûHŸ\ùöXŸHõ€H‹ÇàòX⁄Ÿ[ô⁄Y€ö[ô»ù[ò›[€ãÇãHXÿŸ\‹»ô[XZ[ú»€€ùõ€YûHH^\›[ô»ÿ›[Y[ùõ›»ö\⁄Xö[]H[ô›‹òYŸBàÿöôX›Ÿ[X›€XﬁKÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»‹[à[ô›€õÿY€àHôX[\ÿYYõÿàÿ›[Y[ùÇåãàY€Ÿù\ò⁄]ôH€€ùõ€»õ‹à\ÿYYõÿàÿ›[Y[ùÀÇåÀàõÿŸYY»ù^[›]ÿ⁄[XH^[ú⁄[€à[ô]ôH⁄X⁄€\›RKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHúõ›‹Ÿ\à‹\ôZ]ö[‹à⁄›[ôH⁄X⁄ŸYõ‹à‹[ãàH[\[Y[ù][€à‹[ú»Bàõ[ö»Xà[[YYX][H€à€X⁄»[ôôY\ôX›»]Yù\àH⁄Y€ôYTìô]\õú¬à»ôYXŸH‹\Xõÿ⁄Ÿ\àúöX›[€ãÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôKà\»\‹»\ŸY^\›[ô»›\Xò\ŸH›‹òYŸH⁄Y€ôYTì»[ôYõ›⁄[ôŸBàÿ⁄[XKìÀ›‹òYŸH€X⁄Y\À‹à\õZ\‹⁄[€àõY‹ÀÇÇãKKBÇà»»[ùûHMÕH8†%õÿú»ÿ›[Y[ù€Ÿù\ò⁄]ôBÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYõÿàÿ›[Y[ù‹[à[ô›€õÿY€‹öŸY[ô\õ›ôYõÿŸYY[ô¬ù⁄]Hô^ÿ›[Y[ù»€XŸKÇÇà»»»⁄]ÿ\»€€\]YãHYY[à\ò⁄]ôXõ›»X›[€àõ‹à\ÿYYÿ›[Y[ù»[àHŸ[X›YõÿÇàÿ›[Y[ùÿXãÇãH\ò⁄]ôHX›[€à\»ö\⁄XõH€õH⁄[àHöY]Ÿ\à\»ÿ[ìX[òYŸRõÿúÿÇãH\ò⁄]ôHõ€\»õ‹à€€ôö\õX][€àôYõ‹ôH\][ô»Hÿ›[Y[ùõ›ÀÇãH\ò⁄]ôH\]\»€õH^\›[ô»õ›»Y]Y]NÇàH\ò⁄]ôYÿ]àH\ò⁄]ôYÿûXàH\ò⁄]ôW‹ôX\€€òãH\ò⁄]ôHö[\ú»H\]HûNÇàHÿ›[Y[ùÀöYàH›€ô\ó›\HH	⁄õÿâÿàH›€ô\ó⁄YHŸ[X›YõÿãöYãH›XÿŸ\‹Ÿù[\ò⁄]ôHô[ÿY»Hõÿàÿ›[Y[ù\›ÿ⁄X⁄€\›ÿ]\⁄[ô»Bà\ò⁄]ôYõ›»»\ÿ\X\à[ô\à^\›[ô»ìÀ‹ôXYö[\úÀÇãHYYH€X[ôY[›][ôHŸX€€ô\ûHù]€àò\öX[ùõ‹àH\ò⁄]ôHX›[€ãÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH\»\»H€Ÿù\ò⁄]ôH€õKàH›\Xò\ŸH›‹òYŸHÿöôX›\»[ù[ù[€ò[Hõ›à[]YÇãHXÿŸ\‹»ô[XZ[ú»€€ùõ€YûH^\›[ô»õÿàÿ›[Y[ùì»[ôHõÿàX[òYŸ[Y[ùà\õZ\‹⁄[€àõ›[ô\ûKÇãHH[\[Y[ù][€à\Ÿ\»›\Xò\ŸHî»\ôŸ]Y\]Hö[\úÀX]⁄[ô»›\úô[ùà›\Xò\ŸH\]H›ZY[òŸKÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»\ò⁄]ôH€àHôX[\ÿYYõÿàÿ›[Y[ùÇåãàYà\ò⁄]ôH\»€€Ÿõÿú»ÿ›[Y[ù»\»\ÿY€‹[ãŸ›€õÿYÿ\ò⁄]ôH€›ô\ôYàõ‹àH›\úô[ùå»€XŸKÇåÀàõÿŸYY»ù^[›]ÿ⁄[XH^[ú⁄[€à[ô]ôH⁄X⁄€\›RKÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH\ôH\»õ»ô\›‹ôHRHY]à\ò⁄]ôYõ›‹»ô[XZ[àôX€›ô\òXõHúõ€HBà]Xò\ŸKù]õ›úõ€HHå»\ÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôKà\»\‹»⁄[ôŸYõ»ÿ⁄[XKìÀ›‹òYŸH€X⁄Y\À›‹òYŸHÿöôX›À‹Çà\õZ\‹⁄[€àõY‹ÀÇÇãKKBÇà»»[ùûHMÕà8†%õÿú»ù^[›]⁄X⁄€\›Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[à€€ôö\õYYHõÿàÿ›[Y[ù‹[ã—›€õÿYõ›»€‹öŸYà\ò⁄]ôHòZ[YYBù»]ôHÿ›[Y[ùÿì»ôZ]ö[‹ãàûX[à⁄‹ŸH»Yô\àì»[ŸYöXÿ][€ú»[ù[ùH[ô€»\ò⁄]ôHÿ\»⁄[ôŸY»H\ÿXõY[ô[ô»X›[€à[ô€‹ö»[›ôY¬ùHô^õÿú»€XŸNàù^[›]ÇÇà»»»⁄]ÿ\»€€\]YãHYô\úôYõÿàÿ›[Y[ù\ò⁄]ôH[àHRH⁄]›]\Z[ô»ì»⁄[ôŸ\ÀÇãHYY^X⁄]\ò⁄]ôYÿ]T»ïSö[\ö[ô»»õÿàÿ›[Y[ùôXYÀÇãH^[ôYXõXÀöõÿóÿù^[›]€[ô\ÿ⁄]›ùX›\ôY⁄X⁄€\›öY[ŒÇàHùYŸ]ÿ[[›[ùàH[ö]X[›ò[YXàHX›X[›ò[YXàH[ö]X[€XY›[YWŸ^\ÿàHX›X[€XY›[YWŸ^\ÿãHYYõ€õôYÿ]]ôH€€ú›òZ[ù»õ‹àHô]»ù[Y\öXÀ€XY][YHöY[ÀÇãHYYH\ùX[[ô^€àõÿóÿù^[›]€[ô\ õÿó⁄Y
+Xõ‹àX›]ôHõ›‹ÀÇãHôXùZ[HŸ[X›Yõÿàù^[›]Xà\»H]ôH›\Xò\ŸKXòX⁄ŸY›\ôòXŸKÇãHù^[›]Xàõ›»⁄›‹ŒÇàHôXŸZ]ôY⁄X⁄€\›€›[ùàHùYŸ]›[àH[ö]X[ò[YH›[àHX›X[ò[YH›[àH][ù[€à€›[ùõ‹à‹[ã€›ô\ãXùYŸ]€›ô\ã[XY][\¬àHù^[›]][HXõBàH›]\»⁄X⁄€\›ù]€ú¬àHY][Hõ‹õH⁄]ùYŸ]›ò[YK€XY][YHöY[¬ãH‹ö]H€€ùõ€»õ›»\ŸHŸ[X›YZõÿà]ö\⁄[€àX]⁄[ô»€»HRHô]\àX]⁄\¬à^\›[ô»ì»õ›[ô\öY\ÀÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåÕLåŸ^[ô⁄õÿóÿù^[›]ÿ⁄X⁄€\›ŸöY[Àú‹[ãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåŒåW⁄[ô^⁄õÿóÿù^[›]€[ô\◊⁄õÿó⁄Yú‹[Çà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãHõŸX›[€àÿ\»\YYõ›Y⁄H›\Xò\ŸH€€õôX›‹àõ‹àH€»ù^[›]àZY‹ò][€úÀÇãH›\Xò\ŸHYö\€‹ú»Ÿ\ôHù[ãà^Hô\‹ùYôKY^\›[ô»ŸX›\ö]K‹\ôõ‹õX[òŸBàö[ô[ô‹»X‹õ‹‹»€\àXõ\ÀŸù[ò›[€úÀ›öY]‹Œ»H\ôX›Hô[]ò[ùù^[›]àõÿó⁄Y[ô^ö[ô[ô»ÿ\»Yô\‹ŸY[à\»€XŸKÇãHõÿàÿ›[Y[ù\ò⁄]ôHô[XZ[ú»[ô[ô»õ‹àHö[ò[ì»\‹ÀÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»ù^[›]XàÿY»õ‹àHŸ[X›YõÿãÇåãàûX[àY»Hù^[›]][H[ôô\öYöY\»HXõKÿ⁄X⁄€\›\]\ÀÇåÀàûX[à⁄[ôŸ\»Hù^[›]›]\»»‹ô\ôY‹àôXŸZ]ôYÇçàYàù^[›]\»€€ŸõÿŸYY»Hô^õÿú»€XŸNàö[ò[ò⁄X[»‹àÿ⁄Y[Kà\⁄[ô»H›[ô[€ôHS\»ôYô\ô[òŸKÇçKàö[ò[ì»\‹»⁄›[[ò€YHõÿàÿ›[Y[ù\ò⁄]ôHôZ]ö[‹à[ô[ûH›\ÇàYô\úôY€XﬁH€X[ù\ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHù^[›]›\úô[ùH›\‹ù»Y[ô›]\»\]\ÀàY][ô»ùYŸ]›ò[YK€XYàöY[»Yù\à‹ôX][€àÿ[àôHYY\»Hõ€›À]\YàôYYYÇãH\⁄õÿ\ô][ù[€à⁄\ö[ô»\»õ›YYY]»HXàÿ[›[]\»][ù[€Çàÿÿ[Hõ‹àõ›ÀÇÇà»»»\ò⁄]X›\ôHöYùÿ\õö[ô‹¬ãHõ€ôKàù^[›]ô[XZ[ú»[õö[ôÀÿ⁄X⁄€\›€õH[ôŸ\»õ›‹ôX]H\ò⁄\ŸBà‹ô\úÀXÿ€›[ù[ô»‹›À‹à[ùô[ù‹ûH[›ô[Y[ùÀÇÇãKKBÇà»»[ùûHMÕ»8†%ù^[›]Y][ô]Y]õ€›ÀU\Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\NääàX⁄\⁄[€ÇÇà»»»€€ù^îûX[àô\öYöYYHõÿú»ù^[›]⁄X⁄€\›€XŸH€‹ö‹ÀÇÇà»»»X⁄\⁄[€ú»XYH\»Ÿ\‹⁄[€à
+ÿ⁄ŸY
+BãHù^[›]][\»⁄›[ôHY]XõHYù\à‹ôX][€ãÇãHY][ô»ù^[›]][\»\»õ›\ùŸàH›\úô[ù€XŸH[ô⁄›[ôHYYà]\ãÇãHù^[›]][HY]»]\›‹ö]H»H]Y]Ÿ»⁄[à[\[Y[ùYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHH›\úô[ùù^[›]Xà›\‹ù»Y[ô›]\»⁄[ôŸ\»€õKÇãHù]\ôHY]ôZ]ö[‹à⁄›[€›ô\àù^[›]][HöY[»›X⁄\»][Bà\ÿ‹ö\[€ãô[ô‹ã‹€›\òŸKùYŸ][ö]X[ò[YKX›X[ò[YK[ö]X[XYà[YKX›X[XY[YK]X[ù]K[ôõ›\ÀÇãHH]Y][Ÿ»ô\]Z\ô[Y[ù\Y\»»Y]Àõ›€õH›]\»⁄[ôŸ\ÀÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€ù[ùYH⁄]Hô^õÿú»€XŸKÇåãà\ö[ô»Hö[ò[õÿú»\ô[ö[ô»\‹ÀYù^[›]Y]€€ùõ€»[ô]Y][Ÿ¬à‹ö]\ÀÇåÀàô\öYûH]Y][ùöY\»[ò€YHôYõ‹ôKÿYù\àò[Y\ÀX›[ô»\Ÿ\ã[Y\›[\àõÿàY[ôù^[›][ôHYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH€€ôö\õH⁄X⁄XõKŸù[ò›[€à⁄›[Ÿ\ùôH\»Hÿ[õ€öXÿ[]Y]Ÿ»õ‹Çàù^[›]Y]»\ö[ô»Hö[ò[⁄\ö[ô»\‹ÀÇÇãKKBÇà»»[ùûHMŒ8†%õÿú»ö[ò[ò⁄X[»õ‹ôXÿ\›õ›[ô][€ÇÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHù^[›]€XŸH[ô\⁄ŸY»õÿŸYYàHô^õÿú»€X[ù\ú€XŸHÿ\»ö[ò[ò⁄X[ÀôXùZ[úõ€HH›[ô[€ôHSôYô\ô[òŸH⁄[HŸY\[ô¬ùH^\›[ô»›\Xò\ŸHõ⁄ôX›ô\À[ô\õZ\‹⁄[€àÿ]\ÀÇÇà»»»⁄]ÿ\»€€\]YãH^[ôYH^\›[ô»XõXÀöõÿóÿùYŸ]€[ô\ÿ[Ÿ[⁄]õ‹ôXÿ\›öY[ŒÇàHùYŸ]ÿ⁄[ôŸWÿ[[›[ùàHX›X[ÿ€‹›ÿ[[›[ùàH€€[Z]Yÿ€‹›ÿ[[›[ùàHõ‹ôXÿ\››◊ÿ€€\]Wÿ[[›[ùãHYYõ€õôYÿ]]ôH€€ú›òZ[ù»õ‹àHô]»ù[Y\öX»öY[ÀÇãHYYH\ùX[X›]ôK\õ›»[ô^€àõÿóÿùYŸ]€[ô\ õÿó⁄Y
+XÇãHôXùZ[HŸ[X›Yõÿàö[ò[ò⁄X[ÿXà\»H]ôH›\Xò\ŸKXòX⁄ŸY›\ôòXŸKÇãHö[ò[ò⁄X[»õ›»⁄›‹»›[[X\ûH›[»õ‹éÇàH‹öY⁄[ò[ùYŸ]àHô]ö\ŸYùYŸ]àHX›X[€‹›àH€€[Z]Y€‹›àHõ‹ôXÿ\›ö[ò[àHô[XZ[ö[ô»ùYŸ]ãHö[ò[ò⁄X[»XõHõ›»⁄›‹»ùYŸ]⁄[ôŸKô]ö\ŸYX›X[€€[Z]Yàõ‹ôXÿ\›]ÀX€€\]Kõ‹ôXÿ\›Yö[ò[ô[XZ[ö[ôÀÿ]Y€‹ûK€‹›€ŸK[ôàõ›\ÀÇãH]]‹ö^ôY\Ÿ\ú»⁄]Ÿ[X›YZõÿàùYŸ]\õ›ò[\õZ\‹⁄[€àÿ[àYàö[ò[ò⁄X[[ô\ÀÇãHöY]À[€õH\Ÿ\ú»⁄]ö[ò[ò⁄X[ö\⁄Xö[]Hÿ[àôXYö[ò[ò⁄X[»⁄]›]‹ö]Bà€€ùõ€ÀÇãHõÿú»⁄[€‹Hÿ\»\]Y€»ö[ò[ò⁄X[»õ»€ôŸ\àô\Ÿ[ù»\»HYô\úôYàXŸZ€\ãÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåLÕWŸ^[ô⁄õÿóÿùYŸ]Ÿõ‹ôXÿ\›ŸöY[Àú‹[Çà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸK\àûX[â‹»ôYô\ô[òŸH»Yô\Çàì»⁄[ôŸ\»[ù[H[ôÇãHõŸX›[€àÿ\»\YYõ›Y⁄H›\Xò\ŸH€€õôX›‹àôYõ‹ôH\»[ôŸôÇà[ùûHÿ\»‹ö][ãÇãHö[ò[ò⁄X[»ô[XZ[ú»[õö[ôÀŸõ‹ôXÿ\›[ô»€õKà]Ÿ\»õ›‹ôX]H\ò⁄\ŸBà‹ô\úÀ[ùõ⁄XŸ\ÀXÿ€›[ù[ô»^‹ùÀ‹àXÿ€›[ù[ô»ﬁ[òÀÇãHHõ‹õ][H‹ùYúõ€HHSôYô\ô[òŸH\ŒÇàHô]ö\ŸYùYŸ]H‹öY⁄[ò[ùYŸ]
+»⁄[ôŸ\¬àHõ‹ôXÿ\›ö[ò[HX›X[€‹›
+»€€[Z]Y€‹›
+»õ‹ôXÿ\›»€€\]BàHô[XZ[ö[ô»Hô]ö\ŸYùYŸ]Hõ‹ôXÿ\›ö[ò[ãH›\Xò\ŸHYö\€‹ú»Ÿ\ôHù[àYù\à»^H›\ôòXŸYúõÿYôKY^\›[ô¬àö[ô[ô‹»]⁄›[ôHô]ö\⁄]Y\ö[ô»Hö[ò[ŸX›\ö]K‘ì»\‹ÀÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»Hö[ò[ò⁄X[»Xà\X\ú»õ‹àH\Ÿ\à⁄]àÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿÇåãàûX[àY»Hö[ò[ò⁄X[»[ôH[ôô\öYöY\»HXõHôYúô\⁄\ÀÇåÀàûX[à€€ôö\õ\»›[»ÿ[›[]H€‹úôX›HYÿZ[ú›H›[ô[€ôHSàôYô\ô[òŸKÇçàõÿŸYY»Hô^õÿú»€XŸNàÿ⁄Y[KÇçKàö[ò[ìÀ‹ŸX›\ö]H\‹»⁄›[[ò€YHõÿàÿ›[Y[ù\ò⁄]ôKö[ò[ò⁄X[¬à‹ö]Hõ›[ô\öY\À[ô[ûHYö\€‹àö[ô[ô‹»]\ôH›[ô[]ò[ùÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHö[ò[ò⁄X[[ôHY][ôÀÿ\ò⁄]ôH€€ùõ€»\ôHõ›YYY]ÇãH\⁄õÿ\ô][ù[€à⁄\ö[ô»\»õ›YYY]ÇãH^\õò[Xÿ€›[ù[ôÀ^H\À[ùõ⁄XŸ\À[ô\ò⁄\ŸH‹ô\à€‹öŸõ›‹»ô[XZ[Çà›]Ÿàÿ€‹Hõ‹à\»€XŸKÇÇãKKBÇà»»[ùûHMŒH8†%ö[ò[ò⁄X[»Y]]Y][ô€‹›ô\‹ù[\‹ùô\]Z\ô[Y[ù¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\NääàX⁄\⁄[€ÇÇà»»»€€ù^îûX[àô\öYöYYHö[ò[ò⁄X[»[ôõ‹õX][€à\»]ôKàôYõ‹ôH[›ö[ô»»Hô^ú€XŸKûX[àYö[ôYHô\]Z\ô[Y[ù»õ‹àHù]\ôHö[ò[ò⁄X[»Y]ÿ\ò⁄]ôBò€€ùõ€À]Y]ôZ]ö[‹ã€‹›ô\‹ù[\‹ù[ô\õZ\‹⁄[€à[Ÿ[ÇÇà»»»X⁄\⁄[€ú»XYH\»Ÿ\‹⁄[€à
+ÿ⁄ŸY
+BãHö[ò[ò⁄X[[ôHY]€€ùõ€»]\›[›»[ö[ò[ò⁄X[»öY[»»ôHY]YÇãH[ö[ò[ò⁄X[»⁄[ôŸ\»]\›ôH\õZ\‹⁄[€àò\ŸYÇãH[ö[ò[ò⁄X[»Y]»[ô\ò⁄]ô\»]\›‹ö]H»H]Y]Ÿ»⁄[Çà[\[Y[ùYÇãHHö[ò[ò⁄X[»€€ôYY»[àö[\‹ù€‹›ô\‹ùàù[ò›[€à]à]]€X]Xÿ[H\]\»HX›X[€€[[ãÇãHõ‹ôXÿ\›[ôÀX›X[€‹›À[ô⁄[ôŸH‹ô\ú»\ôHõ‹õX[€‹öŸõ›»Y]»[ôà»õ›ôYYH›öX›\àù\›YöXÿ][€àõ›ÀÇãHY][ô»‹öY⁄[ò[ùYŸ]€‹›€ŸK\ÿ‹ö\[€ã‹àÿ]Y€‹ûH\»[‹ôBàŸ[ú⁄]]ôH[ô]\›ô\]Z\ôHH\ÿ‹ö\[€àŸà⁄HH⁄[ôŸHÿ\»XYKÇãH€õH]ô[‹\ú»[ô\Ÿ\ú»\‹⁄Y€ôY»Hõ⁄ôX›⁄›[ôHXõH»Y]àö[ò[ò⁄X[»ûHYò][ÇãH]ô[‹\ú»]\›ôHXõH»\‹⁄Y€àY][€ò[[ô]öYX[»õ›Y⁄Bà]ô[‹\à€€ú€€H⁄[àHõÿàôYY»^òHö[ò[ò⁄X[»\‹⁄\›[òŸKÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHH›\úô[ùö[ò[ò⁄X[»Xà›\‹ù»Y[ôôXY€õKàY]ÿ\ò⁄]ôK⁄[\‹ùà\ôHõ›[\[Y[ùYY]ÇãHH]Y]Ÿ»õ‹àö[ò[ò⁄X[»⁄[ôŸ\»⁄›[[ò€YHôYõ‹ôKÿYù\àò[Y\ÀàX›[ô»\Ÿ\ã[Y\›[\õÿàYùYŸ][ôHY⁄[ôŸYöY[À[ôBàô\]Z\ôYôX\€€à⁄[àŸ[ú⁄]]ôHöY[»⁄[ôŸKÇãH€‹›ô\‹ù[\‹ù⁄›[\]HX›X[ÿ€‹›ÿ[[›[ùò]\à[àô\X⁄[ô¬àõ‹ôXÿ\›€€[Z]Y⁄[ôŸK[‹ô\ã‹à‹öY⁄[ò[XùYŸ]ò[Y\ÀÇãH]ô[‹\ãY‹ò[ùY^òHö[ò[ò⁄X[»\‹⁄\›[òŸH⁄›[ôHY]]ôH[ôÿ€‹Yàõ›HúõÿY€ÿò[û\\‹ÀÇãHö[ò[[\[Y[ù][€à⁄›[€€ôö\õHHÿ[õ€öXÿ[õ⁄ôX›X\‹⁄Y€õY[ù€›\òŸBà[ôHÿ[õ€öXÿ[]Y][Ÿ»XõKŸù[ò›[€àôYõ‹ôH‹ö][ô»€X⁄Y\»‹àRKÇÇà»»»ô^›\»
+[à‹ô\äBåKà€€ù[ùYH»Hô^õÿú»€XŸH[õ\‹»ûX[à\⁄‹»»[\[Y[ùö[ò[ò⁄X[¬àY]ÿ\ò⁄]ôK⁄[\‹ù[[YYX][KÇåãà\ö[ô»Hö[ò[ò⁄X[»\ô[ö[ô»\‹À\⁄Y€àH\õZ\‹⁄[€à[Ÿ[õ‹éÇà]ô[‹\úÀõ⁄ôX›X\‹⁄Y€ôY\Ÿ\úÀ[ô]ô[‹\à€€ú€€H\‹⁄Y€ôY[\úÀÇåÀàYY]ÿ\ò⁄]ôH€€ùõ€»⁄]]Y][Ÿ»‹ö]\ÀÇçàYH€‹›ô\‹ù[\‹ù€‹öŸõ›»[ôX\[\‹ùY€‹›ò[Y\»[ù¬àX›X[ÿ€‹›ÿ[[›[ùÇçKàô\öYûHõ‹õX[€‹öŸõ›»Y]»»õ›ô\]Z\ôH^òHù\›YöXÿ][€ã⁄[BàŸ[ú⁄]]ôHöY[Y]»ÀÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH€€ôö\õHH€›\òŸH[ôö[H⁄\HŸàH€‹›ô\‹ùôYõ‹ôHùZ[[ô»Bà[\‹ù\ãÇãH€€ôö\õH⁄]\à]ô[‹\à€€ú€€H[\à\‹⁄Y€õY[ù⁄›[ôH\àõÿã\Çà]ö\⁄[€ã‹à[YK[[Z]YÇãH€€ôö\õH⁄X⁄]Y][Ÿ»XõKŸù[ò›[€à\»ÿ[õ€öXÿ[õ‹àö[ò[ò⁄X[»⁄[ôŸ\ÀÇÇãKKBÇà»»[ùûHN8†%õÿú»ÿ⁄Y[Hå»‹ùÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àÿZY»õÿŸYYYù\àö[ò[ò⁄X[»ÿ\»]ôH[ôHö[ò[ò⁄X[»Y]⁄[\‹ùúô\]Z\ô[Y[ù»Ÿ\ôHÿ\\ôYàHô^õÿú»€X[ù\€XŸHÿ\»ÿ⁄Y[KàHåÇúÿ⁄[XH[ô\ò⁄]X›\ôH[ôXYH€€ùZ[ôYHÿ⁄ŸYõÿó‹ÿ⁄Y[W⁄][\ÿôõ›[ô][€à[ô\ò⁄]ôHì»ö^\À€»\»å»\‹»ô]\ŸY]XõHò]\à[Çò‹ôX][ô»ô]»ÿ⁄[XKÇÇà»»»⁄]ÿ\»€€\]YãHX›]ò]YHŸ[X›Yõÿàÿ⁄Y[XXà[àåÀÇãHYY]ôH›\Xò\ŸHôXY»úõ€HXõXÀöõÿó‹ÿ⁄Y[W⁄][\ÿÇãHX›]ôHÿ⁄Y[HôXY»^X⁄]Hö[\à\ò⁄]ôYÿ]T»ïSÇãHYYÿ⁄Y[H›[[X\ûHÿ\ôŒÇàHX›]ôH][\¬àH€€\]H€›[ùàH[^YY€›[ùàH›ô\ôYH€›[ùàHô^]Y‹[à][BãHYYÿ⁄Y[HXõH€€[[ú»õ‹éÇàH€‹ù‹ô\ÇàHZ[\›€ôK›\⁄»]BàH›]\¬àH\ôŸ]]BàH[Z[ô¬àH\ÿ‹ö\[€ÇàHõ›\¬ãHYYÿ⁄Y[HYŸY]õ‹õHõ‹éÇàH]BàH\ÿ‹ö\[€ÇàH\ôŸ]]BàH›]\¬àH€‹ù‹ô\ÇàHõ›BãHYY€ŸùX\ò⁄]ôH€€ùõ€⁄]ô\]Z\ôY\ò⁄]ôHôX\€€àõ€\ÇãHYY\Ÿ›€à‹ô\ö[ô»€€ùõ€»]ô[ù[Xô\àö\⁄XõH][\»[àL\⁄[ùà[ò‹ô[Y[ù»Yù\àXX⁄[›ôKÇãH\]Yõÿú»›ô\ùöY]Àÿõ›[ô\ûH€‹H€»ÿ⁄Y[Hõ»€ôŸ\àô\Ÿ[ù»\¬àYô\úôYÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãHõ»õŸX›[€àÿ\»\YY[à\»€XŸKÇãHõŸX›[€àXõH[ú‹X›[€à€€ôö\õYYXõXÀöõÿó‹ÿ⁄Y[W⁄][\ÿ[ôXYBà^\›»⁄]ì»[òXõYÇãHÿ⁄Y[Hô[XZ[ú»Hÿ⁄ŸYõ]Z[\›€ôK›\⁄»\›€õKÇãH\»€XŸHŸ\»õ›Yÿ[[ô\àﬁ[òÀ\[ô[òﬁHX[òYŸ[Y[ù\‹⁄Y€õY[ùÀàô[Z[ô\úÀõ›YöXÿ][€úÀôX›\úö[ô»]ô[ùÀ‹à[ûHúõÿY\àÿ⁄Y[[ô»[ô⁄[ôKÇãH\ò⁄]ôH\Ÿ\»H^\›[ô»€ŸùX\ò⁄]ôH€€[[úŒÇà\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ô\ò⁄]ôW‹ôX\€€òÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»Hÿ⁄Y[HXàÿY»õ‹àHŸ[X›YõÿãÇåãàûX[àY»Hÿ⁄Y[H][H[ô€€ôö\õ\»]\X\ú»[àHXõKÇåÀàûX[àY]»Hÿ⁄Y[H][KÇçàûX[à\›»\Ÿ›€à‹ô\ö[ôÀÇçKàûX[à\ò⁄]ô\»H\›ÿ⁄Y[H][H⁄]HôX\€€ãÇçãàõÿŸYY»Hô^õÿú»€XŸHYù\àÿ⁄Y[H\»ô\öYöYYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH\ò⁄]ôH\»õ€\Y⁄]⁄[ô›Àúõ€\õ‹àõ›ÀàH€\⁄Y[Ÿ[ÿ[àô\XŸBà]\ö[ô»ö[ò[\ô[ö[ô»Yà\⁄\ôYÇãHÿ⁄Y[HY]ÿ\ò⁄]ôHX›[€ú»›\úô[ùHô[H€àH^\›[ô»XõH€X⁄Y\Œ¬àõ»ô]»]Y][Ÿ»ôZ]ö[‹àÿ\»[ùõŸXŸY[à\»€XŸKÇãHÿ[[ô\àﬁ[òÀ\[ô[òﬁHŸ⁄XÀ[ô\‹⁄Y€õY[ù»ô[XZ[àô\Ÿ\ùôYÇÇãKKBÇà»»[ùûHNH8†%õÿú»ÿ⁄Y[H]\»ÿ[ù[ôö[ùÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYÿ⁄Y[H[ú]€‹ö‹»õ‹\õH[ôô\]Y\›YY][€ò[ÿ⁄Y[BôöY[»\»Hÿ[ù‹ò\[ôö[ù‹[€ú»õ‹àH\›‹ò\‹àõ›ÇÇà»»»⁄]ÿ\»€€\]YãH^[ôYXõXÀöõÿó‹ÿ⁄Y[W⁄][\ÿ⁄]ÇàH[ö]X[‹›\ùŸ]XàHX›X[‹›\ùŸ]XàH[ö]X[ÿ€€\][€óŸ]XàHX›X[ÿ€€\][€óŸ]XàH\ò][€óŸ^\ÿàH\[ô[ò⁄Y\ÿãHYYõ€õôYÿ]]ôH\ò][€à€€ú›òZ[ùÇãHYY[ö]X[[ôX›X[]K[‹ô\à€€ú›òZ[ùÀÇãH\]YHÿ⁄Y[HXõH»⁄›»[ö]X[ÿX›X[›\ùÀ[ö]X[ÿX›X[à€€\][€úÀ\ò][€ã\[ô[ò⁄Y\À[Z[ôÀ\ÿ‹ö\[€ã[ôõ›\ÀÇãH\]YHÿ⁄Y[HYŸY]õ‹õH»€€X›Hô]»]K\ò][€ã[ôà\[ô[òﬁHöY[ÀÇãHYYHÿ⁄Y[Hÿ[ù‹ò\ÇàH[õôY⁄[ö]X[ò\ú»\ŸH[ö]X[]\¬àHX›X[ò\ú»\ŸHX›X[]\¬àH\ò][€à\»\ŸY»[ôô\à[à[ô]H⁄[à€õHH›\ù\»ô\Ÿ[ùãHYYö[ù€€ùõ€»õ‹éÇàH\›€õBàH‹ò\€õBàH\›[ô‹ò\ãH\]Yÿ⁄Y[H›[[X\ûH[Z[ô»»\ŸH€€\][€ã‹›\ùöY[»[ú›XYŸà€õBàHYÿXﬁH\ôŸ]Ÿ]XÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMåÃ◊Ÿ^[ô⁄õÿó‹ÿ⁄Y[WŸ]\Àú‹[Çà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMåÃ◊Ÿ^[ô⁄õÿó‹ÿ⁄Y[WŸ]\Àú‹[ãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõŸX›[€àÿ\»\YYõ›Y⁄H›\Xò\ŸH€€õôX›‹ãÇãHõŸX›[€àô\öYöXÿ][€à€€ôö\õYY[⁄^ô]»€€[[ú»^\›ÇãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãH\ôŸ]Ÿ]X\»Ÿ\õ‹àYÿXﬁH€€\]Xö[]H[ô\»‹[]Yúõ€H[ö]X[à€€\][€à⁄[àõ»^X⁄]\ôŸ]]H\»›\YYÇãH\[ô[ò⁄Y\ÿ\»›\úô[ùH›‹ôY\»úôYH^»ôYXŸ\‹€‹àõ›\Ààõ¬à]]€X]X»\[ô[òﬁH[ô⁄[ôKÿ[[ô\àﬁ[òÀ\‹⁄Y€õY[ùŸ⁄XÀ‹àô[Z[ô\Çàﬁ\›[Hÿ\»[ùõŸXŸYÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»ô]»ÿ⁄Y[HöY[»ÿ]ôH[ôô[ÿYÇåãàûX[àô\öYöY\»Hÿ[ù‹ò\\‹^\»[õôY[ôX›X[ò\úÀÇåÀàûX[àö[ù»\›€õK‹ò\€õK[ôõ›ÇçàX⁄YH]\à⁄]\à\[ô[ò⁄Y\»⁄›[ô[XZ[àúôYH^‹àôX€€YHBà›ùX›\ôYôYXŸ\‹€‹àô[][€ú⁄\ÇçKàôX€€ò⁄[HTê“UP’TëHŸX›[€à»⁄]\»\Ÿ\ãX\õ›ôYå»ÿ⁄Y[Bà^[ú⁄[€ãÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãH^\›[ô»Tê“UP’TëHŸX›[€à»\ÿ‹öXôYÿ⁄Y[HåH\»õ»\[ô[ò⁄Y\ÀÇà\»[ùûHôX€‹ô»ûX[â‹»å»^[ú⁄[€àô\]Y\›»H\ò⁄]X›\ôHÿ›[Y[ùà⁄›[ôH\]Y[àHõ€›À]\ÿ›[Y[ù][€à\‹ÀÇãHHÿ[ù‹ò\\»\‹^K‹ö[ù€õN»]Ÿ\»õ›ÿ[›[]H\[ô[òﬁKXò\ŸYà‹ö]Xÿ[]ÀÇÇãKKBÇà»»[ùûHNà8†%õÿú»ò[úÿX›[€ú»ôXYS€õHŸ¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^êYù\àHÿ⁄Y[H^[ú⁄[€àÿ\»\ﬁYYûX[àÿZY»õÿŸYY⁄]Hô^ú›\àHô[XZ[ö[ô»õÿú»XàôYY[ô»€X[ù\ÿ\»ò[úÿX›[€úÀàHåÇò\ò⁄]X›\ôH[ôXYHÿ⁄ŸYò[úÿX›[€ú»\»HôXY[€õHŸ»ŸàX]\öX[€ŸYù»Hõÿàõ›Y⁄[ùô[ù‹ûH⁄X⁄€›]€›\òŸYúõ€HXõXÀöõÿó›ò[úÿX›[€ó€ŸÿÇÇà»»»⁄]ÿ\»€€\]YãHX›]ò]YHŸ[X›Yõÿàò[úÿX›[€úÿXà[àåÀÇãHô]\ŸYH^\›[ô»XõXÀöõÿó›ò[úÿX›[€ó€ŸÿöY]ÀÇãHô\öYöYYõŸX›[€à€€[[ú»õ‹àXõXÀöõÿó›ò[úÿX›[€ó€ŸÿôYõ‹ôH⁄\ö[ô¬àHRKÇãHYY]ôH›\Xò\ŸHôXY»ö[\ôYûHŸ[X›Yõÿó⁄YÇãHYYôXY[€õHò[úÿX›[€à›[[X\ûHÿ\ôŒÇàHõ›»€›[ùàH›[[ôH]X[ù]BàH\›[ò›][H€›[ùàH]\›ò[úÿX›[€ÇãHYYò[úÿX›[€àXõH€€[[úŒÇàH]BàH][BàHX]\öX[€ŸBàH]X[ù]BàH€›\òŸHÿÿ][€ÇàHò[úÿX›[€à\BàH\ôõ‹õYYûBàHõ›\¬ãH\]Yõÿú»›ô\ùöY]Àÿõ›[ô\ûH€‹H€»€õHò[úÿX›[€àY]À‹ô]\õú»ô[XZ[ÇàYô\úôYõ›HôXY[€õHò[úÿX›[€ú»Xà]Ÿ[ãÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãHõ»õŸX›[€àÿ\»\YY[à\»€XŸKÇãHõ»ô]»îÀXõK\õZ\‹⁄[€àõYÀô]\õà€‹öŸõ›ÀY]€‹öŸõ›À^‹ùàXÿ€›[ù[ô»ôZ]ö[‹ã‹à€‹››ò[YH\‹^Hÿ\»YYÇãHò[úÿX›[€ú»ô[XZ[ú»ôXY[€õH[ô€›\òŸKZ€ô\›à[ùô[ù‹ûH⁄X⁄€›]ô[XZ[ú¬àH€›\òŸHŸàX]\öX[[›ô[Y[ùÇãH€‹››ò[YH\‹^Hô[XZ[ú»ô\Ÿ\ùôYõ‹àö[ò[ò⁄X[ÀÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»ò[úÿX›[€ú»ÿY»õ‹àHŸ[X›YõÿãÇåãàûX[àô\öYöY\»Hõÿà⁄]X]\öX[⁄X⁄ŸY›]»]⁄›‹»ò[úÿX›[€àõ›‹ÀÇåÀàûX[àô\öYöY\»õÿú»⁄]õ»⁄X⁄ŸY[›]X]\öX[⁄›»H[\HôXY[€õBà›]KÇçà€€ù[ùYHõÿú»€X[ù\»\ô[ö[ô»Yù\àò[úÿX›[€ú»\»ô\öYöYYÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHô]\õã]ÀR[ùô[ù‹ûHô[XZ[ú»ô\Ÿ\ùôY[ô\»õ›ô\ô\Ÿ[ùY\»[àX›[€à[Çà\»XãÇãHö[ò[ìÀ‹ŸX›\ö]H\‹»›[ôYY»»Yô\‹»€\àXõX»Xõ\À›öY]‹Àà[ò€Y[ô»H€õ›€àúõÿYìÀY\ÿXõYYö\€‹ûHö[ô[ô‹ÀÇÇãKKBÇà»»[ùûHN»8†%õÿú»‹ôX]Hõ‹õHX›]ò][€ÇÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^êYù\àûX[àô\öYöYYHò[úÿX›[€ú»XãHô^õÿú»€X[ù\⁄\ô[ö[ô»›\ùÿ\»»ô[[›ôHH\›ÿùö[›\»XŸZ€\à[àHõÿú»⁄[à‹ôX]HõÿòÇïH^\›[ô»XõXÀöõÿúÿXõH[ôì»€XﬁH[ôXYH›\‹ù[úŸ\ù»ÿ]YòûHÿ[óÿ‹ôX]W⁄õÿúÿ[ôH\Ÿ\â‹»›€à]ö\⁄[€ãÇÇà»»»⁄]ÿ\»€€\]YãHô\XŸYHYô\úôY‹ôX]HõÿàXŸZ€\à⁄]H]ôH€€ùõ€Yõ‹õKÇãHYYõ‹õHöY[»õ‹éÇàHõÿàò[YBàHõÿàù[Xô\ÇàHÿ⁄ŸY›\úô[ù]ö\⁄[€ÇàH›]\¬àHõÿà\BàHŸ\ùöXŸHÿ[ù[Xô\ÇàHYô\‹»[ô\¬àH⁄]K‹›]K‹‹›[€ŸBàH\ÿ‹ö\[€ÇàHõ›\¬ãH⁄\ôY‹ôX]H›XõZ]»»H^\›[ô»›\Xò\ŸHõÿúÿXõKÇãHŸ\]ö\⁄[€àÿ⁄ŸY»HŸ\ùô\à\õZ\‹⁄[€à]ö\⁄[€à€»[úŸ\ù»ÿ]\ŸûBàH^\›[ô»õÿú◊⁄[úŸ\ùì»€XﬁKÇãHYY‹ôX]H\úõ‹à[ô[ô»õ‹àZ\‹⁄[ô»õÿàò[YKZ\‹⁄[ô»]ö\⁄[€ã\Xÿ]Bà‹àôZôX›Y[úŸ\ùÀ[ô[ô^X›Y›\Xò\ŸHòZ[\ô\ÀÇãHYù\àH›XÿŸ\‹Ÿù[[úŸ\ùHõÿú»\ôX›‹ûHô[ÿYÀúõ›‹ŸH[ŸHô\›[Y\Àà[ôHô]»õÿà\»Ÿ[X›YÇãH\]Y›[Hõÿú»XàY]Y]H€»ù^[›][ôÿ›[Y[ù»⁄›»\»]ôKÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãHõ»õŸX›[€àÿ\»\YY[à\»€XŸKÇãHõ»ô]»\õZ\‹⁄[€àõYÀîÀ]Y]XõK‹àõÿàY]ÿ\ò⁄]ôH€‹öŸõ›»ÿ\¬àYYÇãH‹ôX]Hô[XZ[ú»ÿ]YûHH^\›[ô»ÿ[óÿ‹ôX]W⁄õÿúÿ\õZ\‹⁄[€à[ôàXõXÀöõÿúÿìÀÇãHõÿàY]ÿ\ò⁄]ôHô[XZ[ú»Hù]\ôHõÿú»\ô[ö[ô»›\ÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»H‹ôX]Hõÿàù]€à‹[ú»Hõ‹õKÇåãàûX[à‹ôX]\»H\›õÿà[àHúõ›‹Ÿ\ãÇåÀàûX[àô\öYöY\»Hô]»õÿà\X\ú»[àH\ôX›‹ûH[ô‹[ú»[àHŸ[X›Yàõÿà[ô[Ççà€€ù[ùYHõÿú»\ô[ö[ô»⁄]Y]ÿ\ò⁄]ôH€€ùõ€À]Y][Ÿ»€›ô\òYŸK[ôàHYô\úôYö[ò[ìÀ‹ŸX›\ö]H€X[ù\ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHYàH\Ÿ\àôYY»‹õ‹‹ÀY]ö\⁄[€àõÿà‹ôX][€à]\ã]⁄›[ôH\⁄Y€ôY\¬à[à^X⁄]]ô[‹\ãÿYZ[à€‹öŸõ›»[ú›XYŸàô[^[ô»H›\úô[ù[úŸ\ùà]ÇãHö[ò[ìÀ‹ŸX›\ö]H\‹»›[ôYY»»Yô\‹»€\àXõX»Xõ\À›öY]‹Àà[ò€Y[ô»H€õ›€àúõÿYìÀY\ÿXõYYö\€‹ûHö[ô[ô‹ÀÇÇãKKBÇà»»[ùûHN8†%õÿú»Y][ô\ò⁄]ôH€€ùõ€¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYY]Hõÿú»‹ôX]Hõ‹õH€‹öŸY[ô\⁄ŸY»õÿŸYYàHô^íõÿú»\ô[ö[ô»›\ÿ\»Ÿ[X›YZõÿàXZ[ù[ò[òŸNàY][ô»Hõ›[ô][€àõÿÇúôX€‹ô[ô\ò⁄]ö[ô»õÿú»⁄]›]^‹⁄[ô»Y[à‹ö]H]»»ôXY[€õBù\Ÿ\úÀÇÇà»»»⁄]ÿ\»€€\]YãHYYŸ[X›YZõÿàY][ô\ò⁄]ôXX›[€úÀÇãHX›[€ú»\ôHö\⁄XõH€õH⁄[àH›\úô[ù\Ÿ\à\»ÿ[ó€X[òYŸW⁄õÿúÿõ‹àBàŸ[X›Yõÿà]ö\⁄[€ãÇãHô]\ŸYH€€ùõ€Yõÿú»õ‹õHõ‹àY][ŸKÇãHõÿàY]»õ›»\]HH^\›[ô»XõXÀöõÿúÿõ›»öY[ŒÇàHõÿàù[Xô\ÇàHò[YBàH›]\¬àHõÿà\BàHŸ\ùöXŸHÿ[ù[Xô\ÇàHYô\‹»[ô\¬àH⁄]K‹›]K‹‹›[€ŸBàH\ÿ‹ö\[€ÇàHõ›\¬ãHõÿà\ò⁄]ôHõ›»ô\]Z\ô\»HôX\€€à[ô\]\ŒÇàH\ò⁄]ôYÿ]àH\ò⁄]ôYÿûXàH\ò⁄]ôW‹ôX\€€òãHõÿà‹ôX]KY][ô\ò⁄]ôHX›[€ú»õ›»‹ö]HXõXÀò⁄[ôŸW€Ÿ‹ÿ[ùöY\¬à\⁄[ô»H^\›[ô»ÿ[õ€öXÿ[]Y]€€[[úŒÇàH\Ÿ\ó⁄YàH\Ÿ\ó€ò[YXàHXõW€ò[YXàHôX€‹ô⁄YàHX›[€òàHôYõ‹ôWŸ]XàHYù\óŸ]XàHõ›XãH]Y]€ò\⁄›»[ò€YHôYõ‹ôKÿYù\àõ›[ô][€àõÿàöY[»[ô\ò⁄]ôBàY]Y]KÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãHõ»õŸX›[€àÿ\»\YY[à\»€XŸKÇãH]ôHXõXÀò⁄[ôŸW€Ÿ‹ÿÿ\»ô\öYöYY»[ò€YHH^X›Y€€[[ú»[ô¬àXÿŸ\‹ôX]X\]X[ô\ò⁄]ôXÇãHH]Y]‹ö]\»\ôH›\úô[ùH€Y[ù\⁄YH[úŸ\ù»[ù»H^\›[ô¬à⁄[ôŸW€Ÿ‹ÿXõKà\»X]⁄\»H›\úô[ù]òZ[XõH\]ù]\»õ›à]€ZX»⁄]Hõÿà\]Kÿ\ò⁄]ôH‹\ò][€ãÇãHö[ò[ìÀ‹ŸX›\ö]H\ô[ö[ô»⁄›[ô\XŸH‹àõ›X›\ŸH]Y]‹ö]\¬à⁄]HŸ\ùô\ã]ò[Y]Y]€ZX»]YàH\ô\]Z\ô\»›öX›]Y]›\]Bà[úŸ\\òXö[]KÇÇà»»»ô^›\»
+[à‹ô\äBåKàûX[àô\öYöY\»Y][ô»H\›õÿàÿ]ô\»[ôô[ÿYÀÇåãàûX[àô\öYöY\»\ò⁄]ö[ô»H\›õÿàô\]Z\ô\»HôX\€€à[ôô[[›ô\»]úõ€HBàö\⁄XõHõÿú»\ôX›‹ûKÇåÀà\ö[ô»Hö[ò[ŸX›\ö]H\‹ÀY⁄[à⁄[ôŸW€Ÿ‹ÿ^‹›\ôH[ô€€ôö\õBàH\⁄\ôY]€ZX»]Y]›ò]YﬁHõ‹àõÿúÀù^[›]ö[ò[ò⁄X[À[ô›\ÇàY]XõH[Ÿ[\ÀÇçà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»YŸK€[Ÿ[Hÿ\ÇÇà»»»‹[à]Y\›[€ú»»€€òŸ\õú¬ãHôXÿ]\ŸHö[ò[ì»€X[ù\\»[ù[ù[€ò[HYô\úôY⁄[ôŸW€Ÿ‹ÿô[XZ[ú¬àúõÿY\à[àHö[ò[\⁄\ôYŸX›\ö]H‹›\ôKÇãHY]ÿ\ò⁄]ôH€€ùõ€»\ôH]ôHõ‹àHõ›[ô][€àõÿúÿõ›»€õKàô[]Yà[Ÿ[Hõ›‹»›X⁄\»ù^[›]ö[ò[ò⁄X[Àÿ›[Y[ùÀ[ôÿ⁄Y[HŸY\Z\Çà›€àY]ÿ\ò⁄]ôH\ô[ö[ô»ô\]Z\ô[Y[ùÀÇÇãKKBÇà»»[ùûHNH8†%õÿú»\ò⁄]ôHì»ô]\õàö^Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\NääàùY»ö^Çà»»»€€ù^îûX[àô\‹ùY[àì»\‹›YH⁄[à\ò⁄]ö[ô»HõÿãàHÿ]\ŸHÿ\»H€Y[ùò\ò⁄]ôH[ô\à\][ô»\ò⁄]ôYÿ][ô[à[[YYX][Hô\]Y\›[ô»Bù\]Yõ›»⁄]úŸ[X›
+
+Kú⁄[ô€J
+XàH^\›[ô»õÿú◊‹ôXY€XﬁHY\¬ò\ò⁄]ôYõ›‹À€»H\]H]€›[ö\ìÀ‹ôXYôZ]ö[‹àYù\àHõ›¬ùÿ\»€‹úôX›H€ŸùX\ò⁄]ôYÇÇà»»»⁄]ÿ\»€€\]YãHô[[›ôYH‹›X\ò⁄]ôHŸ[X›Y\õ›»ô]\õàúõ€HHõÿú»\ò⁄]ôH[ô\ãÇãHH\ò⁄]ôH\]Hõ›»\ôõ‹õ\»H€Ÿù\ò⁄]ôH⁄]›]\⁄⁄[ô»›\Xò\ŸH¬àô]\õàH\ò⁄]ôYõ›ÀÇãHH]Y]Yù\óŸ]X€ò\⁄›\»ùZ[úõ€HHŸ[X›Yõÿà\»Bà\ò⁄]ôHY]Y]H]ÿ\»Ÿ[ù[àH\]KÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»ö^ÇãH\»ô\Ÿ\ùô\»H^\›[ô»ù[H]\ò⁄]ôYõÿú»\ôHY[àúõ€H‹ô[ò\ûBàõÿú»ôXYÀÇãHö[ò[ìÀ‹ŸX›\ö]H€X[ù\ô[XZ[ú»Yô\úôYÇÇà»»»ô^›\¬åKàûX[àô]öY\»\ò⁄]ö[ô»H\›õÿãÇåãàYà\ò⁄]ôH›XÿŸYYÀ€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNà8†%õÿú»\ò⁄]ôHî»\ô[ö[ô¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\NääàùY»ö^Çà»»»€€ù^îûX[àô\‹ùY]õÿà\ò⁄]ôHÿ\»›[õÿ⁄ŸYYù\àô[[›ö[ô»H€Y[ù\⁄YBú‹›X\ò⁄]ôHõ›»ô]\õãàHô[XZ[ö[ô»\‹›YHô\]Z\ôY[›ö[ô»\ò⁄]ôH[ù»BúŸ\ùô\ã\⁄YH]Xò\ŸHù[ò›[€à€»Hõÿà€Ÿù\ò⁄]ôH[ô]Y][ùûH\[ÇùŸŸ]\à[ô\àH]Xò\ŸI‹»\õZ\‹⁄[€à⁄X⁄ÀÇÇà»»»⁄]ÿ\»€€\]YãHYYXõXÀò\ò⁄]ôW⁄õÿä⁄õÿó⁄Y]ZY‹ôX\€€à^
+XÇãHHîŒÇàHô\]Z\ô\»[à]][ùXÿ]Y€\ö»›XöôX›àHô\]Z\ô\»Hõ€ãY[\H\ò⁄]ôHôX\€€ÇàHÿ⁄‹»HX›]ôHõÿàõ›¬àHò[Y]\»Hÿ[\à\»YôôX›]ôHÿ[ó€X[òYŸW⁄õÿúÿõ‹àHõÿà]ö\⁄[€ÇàHŸ]»\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ô\ò⁄]ôW‹ôX\€€òàH‹ö]\»H⁄[ôŸW€Ÿ‹ÿ\ò⁄]ôH[ùûH[àHÿ[YHò[úÿX›[€ÇãH\]YHõÿú»RH\ò⁄]ôHX›[€à»ÿ[\ò⁄]ôW⁄õÿò[ú›XYŸà\][ô¬àXõXÀöõÿúÿ\ôX›KÇãHY⁄[ôYù[ò›[€à‹ò[ù»€»€Y[ù^X›][€à\»[Z]Y»]][ùXÿ]Yà\»Ÿ\ùöXŸKÿYZ[àõ€\ÀÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHYYZY‹ò][€éÇàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåLçÕóÿ\ò⁄]ôW⁄õÿó‹úÀú‹[ãH\YYõŸX›[€àZY‹ò][€úŒÇàH\ò⁄]ôW⁄õÿó‹úÿàH\ò⁄]ôW⁄õÿó‹ú◊‹ô]õ⁄ŸWÿ[õ€òÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåLçÕóÿ\ò⁄]ôW⁄õÿó‹úÀú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àù[ò›[€à⁄Y€ò]\ôHô\öYöYYÇàH\ò⁄]ôW⁄õÿä⁄õÿó⁄Y]ZY‹ôX\€€à^
+Hô]\õú»õ⁄YàH—P’TíUHQíSëTàHùYXãHõŸX›[€àõ›][ôH‹ò[ù»ô\öYöYYÇàH]][ùXÿ]Y\»VP’UXàH[õ€òŸ\»õ›]ôHVP’UXãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãH\»\»H\ôŸ]Y\ò⁄]ôHö^õ›Hö[ò[ìÀ‹ŸX›\ö]H€X[ù\ÇãHHî»\Ÿ\»H^\›[ô»ÿ[õ€öXÿ[\Ÿ\ó‹\õZ\‹⁄[€úÿ[ôàYôôX›]ôW‹\õZ\‹⁄[€ú◊Ÿõ‹ó›\Ÿ\äããäX[Ÿ[ÇãHHî»ôX€‹ô»\ò⁄]ôYÿûX\»H]][ùXÿ]Y€\ö»›XöôX›õ›Bà\‹^Hò[YKÇãHö[ò[ì»€X[ù\⁄›[›[ô]öY]»úõÿYYÿXﬁH‹ò[ù»[ôHúõÿY\Çà⁄[ôŸW€Ÿ‹ÿ‹›\ôKÇÇà»»»ô^›\¬åKàûX[àô]öY\»\ò⁄]ö[ô»H\›õÿãÇåãàYà\ò⁄]ôH›XÿŸYYÀ€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHN»8†%õÿú»ù^[›]Y]\ò⁄]ôH]Y]Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHõÿú»\ò⁄]ôHî»ö^[ô\⁄ŸY»õÿŸYYàHô^\öŸYíõÿú»€X[ù\][Hÿ\»ù^[›]\ô[ö[ôŒà\Ÿ\ú»ôYYY»ôHXõH»Y]ù^[›]ö][\»]\ã[ôY]»ôYYY»[ô[àH]Y]ŸÀÇÇà»»»⁄]ÿ\»€€\]YãHYYY]XõHù^[›]õ›‹ÀÇãHô]\ŸYHù^[›]õ‹õHõ‹àY[ôY][ŸKÇãHYYÿ[òŸ[Y]ÇãHYYY]XõHöY[»õ‹éÇàH][H\ÿ‹ö\[€ÇàH]X[ù]HôYYYàH›]\¬àHô[ô‹ã‹€›\òŸHõ›BàHùYŸ]àH[ö]X[ò[YBàHX›X[ò[YBàH[ö]X[XY[YBàHX›X[XY[YBàHõ›\¬ãHYYõ›À[]ô[\ò⁄]ôHX›[€à⁄]ô\]Z\ôYôX\€€ãÇãHù^[›]ôXY»õ›»^X⁄]Hö[\à\ò⁄]ôYÿ]\»ù[ÇãHù^[›]‹ôX]KY]›]\»⁄[ôŸK[ô\ò⁄]ôHX›[€ú»õ›»‹ö]BàXõXÀò⁄[ôŸW€Ÿ‹ÿ[ùöY\»⁄]ôYõ‹ôKÿYù\à€ò\⁄›ÀÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHõ€ôKÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ì»€X⁄Y\»Ÿ\ôH⁄[ôŸY[à\»€XŸKÇãHõ»õŸX›[€àÿ\»\YY[à\»€XŸKÇãHù^[›]\ò⁄]ôH\Ÿ\»H^\›[ô»XõH\]H][ôŸ\»õ›ô\]Y\›Bà\ò⁄]ôYõ›»òX⁄»Yù\àŸ][ô»\ò⁄]ôYÿ]ÇãH]Y]‹ö]\»\ôH›[€Y[ù\⁄YH⁄[ôŸW€Ÿ‹ÿ[úŸ\ù»[ù[Hö[ò[àìÀ‹ŸX›\ö]H\‹»X⁄Y\»⁄X⁄Y][€ò[X›[€ú»ôYYîÀ[]ô[]€ZX⁄]KÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»Y][ô»Hù^[›]õ›»ÿ]ô\»[ôô[ÿYÀÇåãàûX[àô\öYöY\»›]\»ù]€ú»›[€‹öÀÇåÀàûX[àô\öYöY\»\ò⁄]ö[ô»Hù^[›]õ›»ô\]Z\ô\»HôX\€€à[ôô[[›ô\»]úõ€BàHö\⁄XõHù^[›]\›Ççà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHN8†%õÿú»ù^[›]\ò⁄]ôHî»ö^Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\NääàùY»ö^Çà»»»€€ù^îûX[àô\‹ùYHÿ[YHì»\ò⁄]ôH\‹›YH€àù^[›]õ›‹»]\X\ôY€àõÿúÀÇïH\ôX›€Y[ù\]H]ÿ\»ô\XŸY⁄]HŸ\ùô\ã\⁄YH\ò⁄]ôHîÀÇÇà»»»⁄]ÿ\»€€\]YãHYYXõXÀò\ò⁄]ôW⁄õÿóÿù^[›]€[ôJÿù^[›]€[ôW⁄Y]ZY‹ôX\€€à^
+XÇãHHîŒÇàHô\]Z\ô\»[à]][ùXÿ]Y€\ö»›XöôX›àHô\]Z\ô\»Hõ€ãY[\H\ò⁄]ôHôX\€€ÇàHÿ⁄‹»HX›]ôHù^[›][ôBàHò[Y]\»YôôX›]ôHÿ[ó€X[òYŸW⁄õÿúÿõ‹àH[ôH]ö\⁄[€ÇàHŸ]»\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ô\ò⁄]ôW‹ôX\€€òàH‹ö]\»H⁄[ôŸW€Ÿ‹ÿ\ò⁄]ôH[ùûH[àHÿ[YHò[úÿX›[€ÇãH\]YHù^[›]\ò⁄]ôHù]€à»ÿ[Hî»[ú›XYŸà\ôX›Bà\][ô»õÿóÿù^[›]€[ô\ÿÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHYYZY‹ò][€éÇàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåLÕLåÿ\ò⁄]ôW⁄õÿóÿù^[›]€[ôW‹úÀú‹[ãH\YYõŸX›[€àZY‹ò][€éÇàH\ò⁄]ôW⁄õÿóÿù^[›]€[ôW‹úÿÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåLÕLåÿ\ò⁄]ôW⁄õÿóÿù^[›]€[ôW‹úÀú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àù[ò›[€à⁄Y€ò]\ôHô\öYöYYÇàH\ò⁄]ôW⁄õÿóÿù^[›]€[ôJÿù^[›]€[ôW⁄Y]ZY‹ôX\€€à^
+Hô]\õú»õ⁄YàH—P’TíUHQíSëTàHùYXãHõŸX›[€àõ›][ôH‹ò[ù»ô\öYöYYÇàH]][ùXÿ]Y\»VP’UXàH[õ€òŸ\»õ›]ôHVP’UXãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»ô^›\¬åKàûX[àô]öY\»\ò⁄]ö[ô»Hù^[›]][KÇåãàYà\ò⁄]ôH›XÿŸYYÀ€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNH8†%õÿú»ö[ò[ò⁄X[»Y]\ò⁄]ôH]Y]Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHù^[›]\ò⁄]ôHî»ö^[ô\⁄ŸY»õÿŸYYàHô^õÿú¬ò€X[ù\ÿ\ÿ\»ö[ò[ò⁄X[»\ô[ö[ôŒàY]À\ò⁄]ô\À[ô]Y]€›ô\òYŸKÇîûX[àô]ö[›\€H‹X⁄YöYY]õ‹ôXÿ\›[ôÀX›X[€‹›À[ô⁄[ôŸH‹ô\ú»\ôBõõ‹õX[€‹öŸõ›À⁄[HY]»»‹öY⁄[ò[ùYŸ]€‹›€Ÿ\À\ÿ‹ö\[€úÀ[ôòÿ]Y€‹öY\»ô\]Z\ôHHôX\€€ãÇÇà»»»⁄]ÿ\»€€\]YãHYYY]XõHö[ò[ò⁄X[»õ›‹ÀÇãHô]\ŸYHö[ò[ò⁄X[»õ‹õHõ‹àY[ôY][ŸKÇãHYYÿ[òŸ[Y]ÇãHYYõ›À[]ô[Y][ô\ò⁄]ôHX›[€úÀÇãHö[ò[ò⁄X[»ôXY»õ›»^X⁄]Hö[\à\ò⁄]ôYÿ]\»ù[ÇãHö[ò[ò⁄X[‹ôX]KŸY]X›[€ú»‹ö]HXõXÀò⁄[ôŸW€Ÿ‹ÿ[ùöY\»⁄]àôYõ‹ôKÿYù\à€ò\⁄›ÀÇãHY]»»õ›X›YöY[»ô\]Z\ôH⁄[ôŸHôX\€€òôYõ‹ôHÿ]ôNÇàH‹öY⁄[ò[ùYŸ]àH€‹›€ŸBàH\ÿ‹ö\[€ÇàHÿ]Y€‹ûBãHõ‹õX[€‹öŸõ›»öY[»ÿ[àôH\]Y⁄]›]H‹X⁄X[ôX\€€éÇàHùYŸ]⁄[ôŸ\¬àHX›X[€‹›¬àH€€[Z]Y€‹›¬àHõ‹ôXÿ\›»€€\]BàHõ›\¬ãHYYXõXÀò\ò⁄]ôW⁄õÿóÿùYŸ]€[ôJÿùYŸ]€[ôW⁄Y]ZY‹ôX\€€à^
+XÇãHH\ò⁄]ôHî»ò[Y]\»YôôX›]ôHÿ[óÿ\õ›ôWÿùYŸ]€ŸùX\ò⁄]ô\»Bà[ôK[ô‹ö]\»H\ò⁄]ôH]Y][ùûH[àHÿ[YHò[úÿX›[€ãÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHYYZY‹ò][€éÇàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMMWÿ\ò⁄]ôW⁄õÿóÿùYŸ]€[ôW‹úÀú‹[ãH\YYõŸX›[€àZY‹ò][€éÇàH\ò⁄]ôW⁄õÿóÿùYŸ]€[ôW‹úÿÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMMWÿ\ò⁄]ôW⁄õÿóÿùYŸ]€[ôW‹úÀú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àù[ò›[€à⁄Y€ò]\ôHô\öYöYYÇàH\ò⁄]ôW⁄õÿóÿùYŸ]€[ôJÿùYŸ]€[ôW⁄Y]ZY‹ôX\€€à^
+Hô]\õú»õ⁄YàH—P’TíUHQíSëTàHùYXãHõŸX›[€àõ›][ôH‹ò[ù»ô\öYöYYÇàH]][ùXÿ]Y\»VP’UXàH[õ€òŸ\»õ›]ôHVP’UXãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»^\›[ô»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãH\ò⁄]ôH\»îÀXòX⁄ŸY»]õ⁄YHX›]ôK\õ›»ì»\ÿ\X\ò[òŸH\‹›YKÇãH‹ôX]KŸY]]Y]‹ö]\»ô[XZ[à€Y[ù\⁄YH⁄[ôŸW€Ÿ‹ÿ[úŸ\ù»[ù[Bàö[ò[ìÀ‹ŸX›\ö]H\‹»]\õZ[ô\»úõÿY\à]€ZX»]Y]ô\]Z\ô[Y[ùÀÇãHH€‹›ô\‹ù[\‹ùù[ò›[€à\»›[Yô\úôYÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»Y][ô»õ‹õX[€‹öŸõ›»öY[»ÿ]ô\ÀÇåãàûX[àô\öYöY\»õ›X›YöY[Y]»ô\]Z\ôHHôX\€€ãÇåÀàûX[àô\öYöY\»\ò⁄]ö[ô»Hö[ò[ò⁄X[»õ›»ô\]Z\ô\»HôX\€€à[ôô[[›ô\»]àúõ€HHö\⁄XõH\›Ççà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNL8†%õÿú»ÿ›[Y[ù»\ò⁄]ôHî¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYö[ò[ò⁄X[»\ô[ö[ô»[ô\⁄ŸY»õÿŸYYàHô^ö\⁄XõHõÿú¬ôÿ\ÿ\»ÿ›[Y[ù»\ò⁄]ôK⁄X⁄ÿ\»›[\ÿXõY\»\ò⁄]ôH[ô[ôÿÇÇà»»»⁄]ÿ\»€€\]YãHYYXõXÀò\ò⁄]ôW⁄õÿóŸÿ›[Y[ù
+Ÿÿ›[Y[ù⁄Y]ZY‹ôX\€€à^
+XÇãHHîŒÇàHô\]Z\ô\»[à]][ùXÿ]Y€\ö»›XöôX›àHô\]Z\ô\»Hõ€ãY[\H\ò⁄]ôHôX\€€ÇàHÿ⁄‹»[àX›]ôHõÿã[›€ôYÿ›[Y[ùõ›¬àHò[Y]\»YôôX›]ôHÿ[ó€X[òYŸW⁄õÿúÿõ‹àHÿ›[Y[ù]ö\⁄[€ÇàHŸ]»\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ô\ò⁄]ôW‹ôX\€€òàH‹ö]\»H⁄[ôŸW€Ÿ‹ÿ\ò⁄]ôH[ùûH[àHÿ[YHò[úÿX›[€ÇãH\]YHõÿú»ÿ›[Y[ù»XéÇàHô[[›ôYH\ÿXõY\ò⁄]ôH[ô[ôÿù]€ÇàHYY]ôH\ò⁄]ôHX›[€à⁄]Hô\]Z\ôYôX\€€àõ€\àHô[ÿY»Hÿ›[Y[ù\›Yù\à\ò⁄]ôBãH^[ôYHÿ›[Y[ùŸ[X›öY[»»[ò€YH]ö\⁄[€ãÿ\ò⁄]ôHY]Y]KÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHYYZY‹ò][€éÇàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMÕóÿ\ò⁄]ôW⁄õÿóŸÿ›[Y[ù‹úÀú‹[ãH\YYõŸX›[€àZY‹ò][€éÇàH\ò⁄]ôW⁄õÿóŸÿ›[Y[ù‹úÿÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMÕóÿ\ò⁄]ôW⁄õÿóŸÿ›[Y[ù‹úÀú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àù[ò›[€à⁄Y€ò]\ôHô\öYöYYÇàH\ò⁄]ôW⁄õÿóŸÿ›[Y[ù
+Ÿÿ›[Y[ù⁄Y]ZY‹ôX\€€à^
+Hô]\õú»õ⁄YàH—P’TíUHQíSëTàHùYXãHõŸX›[€àõ›][ôH‹ò[ù»ô\öYöYYÇàH]][ùXÿ]Y\»VP’UXàH[õ€òŸ\»õ›]ôHVP’UXãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»^\›[ô»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãH\ò⁄]ôH\»îÀXòX⁄ŸY»]õ⁄YX›]ôK\õ›»ì»\ÿ\X\ò[òŸH\‹›Y\ÀÇãHHö[H\»õ›[]Yúõ€H›\Xò\ŸH›‹òYŸN»\»\»Hÿ›[Y[ùõ›¬à€ŸùX\ò⁄]ôKÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»\ò⁄]ö[ô»Hõÿàÿ›[Y[ùô\]Z\ô\»HôX\€€à[ôô[[›ô\»]úõ€BàHö\⁄XõHÿ›[Y[ù\›ÿ⁄X⁄€\›Çåãà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNLH8†%õÿú»ÿ⁄Y[H]Y][ô\ò⁄]ôHî¬Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYÿ›[Y[ù»\ò⁄]ôH[ô\⁄ŸY»õÿŸYYàHô^õÿú»€X[ù\ÿ\ùÿ\»ÿ⁄Y[Nà‹ôX]KŸY]‹ô[‹ô\àX›[€ú»Ÿ\ôHõ›‹ö][ô»]Y][ùöY\À[ôò\ò⁄]ôH›[\ŸYH\ôX›XõH\]HYÿZ[ú›X›]ôK\õ›»ìÀÇÇà»»»⁄]ÿ\»€€\]YãHYYÿ⁄Y[H]Y]€ò\⁄›»õ‹àõÿó‹ÿ⁄Y[W⁄][\ÿÇãH\]Yÿ⁄Y[H‹ôX]KŸY]ŒÇàHô]\õàHÿ]ôYõ›¬àH‹ö]H⁄[ôŸW€Ÿ‹ÿ[ùöY\»õ‹à‹ôX]H[ô\]BàH[ò€YHÿ⁄Y[H]K\ò][€ã\[ô[òﬁK›]\À‹ô\ãõ›K[ôà\ò⁄]ôHY]Y]H[à]Y]€ò\⁄›¬ãH\]Yÿ⁄Y[Hô[‹ô\à»‹ö]HH⁄[ôŸW€Ÿ‹ÿ\]H[ùûHõ‹àH[›ôYàÿ⁄Y[H][KÇãHYYXõXÀò\ò⁄]ôW⁄õÿó‹ÿ⁄Y[W⁄][J‹ÿ⁄Y[W⁄][W⁄Y]ZY‹ôX\€€à^
+XÇãHHîŒÇàHô\]Z\ô\»[à]][ùXÿ]Y€\ö»›XöôX›àHô\]Z\ô\»Hõ€ãY[\H\ò⁄]ôHôX\€€ÇàHÿ⁄‹»[àX›]ôHÿ⁄Y[H][Hõ›¬àHò[Y]\»YôôX›]ôHÿ[ó€X[òYŸW⁄õÿúÿõ‹àHÿ⁄Y[H][H]ö\⁄[€ÇàHŸ]»\ò⁄]ôYÿ]\ò⁄]ôYÿûX[ô\ò⁄]ôW‹ôX\€€òàH‹ö]\»H⁄[ôŸW€Ÿ‹ÿ\ò⁄]ôH[ùûH[àHÿ[YHò[úÿX›[€ÇãH\]YHÿ⁄Y[H\ò⁄]ôHù]€à»ÿ[Hî»[ú›XYŸà\ôX›Bà\][ô»õÿó‹ÿ⁄Y[W⁄][\ÿÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHYYZY‹ò][€éÇàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMLÕWÿ\ò⁄]ôW⁄õÿó‹ÿ⁄Y[W⁄][W‹úÀú‹[ãH\YYõŸX›[€àZY‹ò][€éÇàH\ò⁄]ôW⁄õÿó‹ÿ⁄Y[W⁄][W‹úÿÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLåMLÕWÿ\ò⁄]ôW⁄õÿó‹ÿ⁄Y[W⁄][W‹úÀú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àù[ò›[€à⁄Y€ò]\ôHô\öYöYYÇàH\ò⁄]ôW⁄õÿó‹ÿ⁄Y[W⁄][J‹ÿ⁄Y[W⁄][W⁄Y]ZY‹ôX\€€à^
+Hô]\õú»õ⁄YàH—P’TíUHQíSëTàHùYXãHõŸX›[€àõ›][ôH‹ò[ù»ô\öYöYYÇàH]][ùXÿ]Y\»VP’UXàH[õ€òŸ\»õ›]ôHVP’UXãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»^\›[ô»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãHÿ⁄Y[H\ò⁄]ôH\»îÀXòX⁄ŸY»]õ⁄YX›]ôK\õ›»ì»\ÿ\X\ò[òŸH\‹›Y\ÀÇãHÿ⁄Y[H‹ôX]KŸY]‹ô[‹ô\à]Y]‹ö]\»ô[XZ[à€Y[ù\⁄YH⁄[ôŸW€Ÿ‹ÿà[úŸ\ù»[ù[Hö[ò[ìÀ‹ŸX›\ö]H\‹»]\õZ[ô\»úõÿY\à]€ZX»]Y]àô\]Z\ô[Y[ùÀÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»Y[ôÀY][ôÀ[›ö[ôÀ[ô\ò⁄]ö[ô»ÿ⁄Y[H][\ÀÇåãà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNLà8†%õÿú»ÿ⁄Y[H\‹^H‹ô\àö^Çääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYÿ⁄Y[HX›[€ú»€‹öŸYù][›ö[ô»Hõ›»ÿ]\ŸYö\⁄XõH‹ô\Çõù[Xô\ú»»⁄[ôŸHúõ€HKãÀX»ò]»›‹ôY€‹ùò[Y\»ZŸBòLåÃLÇÇà»»»⁄]ÿ\»€€\]YãHŸ\H]Xò\ŸH€‹ù€‹ô\òò[Y\»‹XŸY[ù\õò[Hõ‹à›XõBàô[‹ô\ö[ôÀÇãH⁄[ôŸYHÿ⁄Y[HXõHÿ€€[[à»\‹^Hõ›»‹⁄][€à\¬àKãÀããòÇãH⁄[ôŸYHÿ⁄Y[HY]õ‹õH»⁄›»H\‹^H‹ô\àò]\à[àò]¬à€‹ù€‹ô\òÇãH€€ùô\ùY\‹^H‹ô\àòX⁄»»‹XŸY[ù\õò[€‹ù€‹ô\òò[Y\»€õH⁄[Çàÿ]ö[ôÀÇãH\]YHYõ‹õHXŸZ€\à»⁄›»Hô^ö\⁄XõH‹ô\àù[Xô\ãÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»[›ö[ô»ÿ⁄Y[Hõ›‹»ŸY\»ö\⁄XõHù[Xô\ö[ô»\»KãÀããòÇåãà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNL»8†%õÿú»\›‹ûHXÇÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHÿ⁄Y[H\‹^K[‹ô\àö^[ô\⁄ŸY»õÿŸYYàHô^íõÿú»€X[ù\ÿ\ÿ\»ö\⁄Xö[]H[ù»H]Y]ôX€‹ô»[ôXYHôZ[ô»‹ö][àûBíõÿúÀù^[›]ö[ò[ò⁄X[Àÿ›[Y[ùÀ[ôÿ⁄Y[HX›[€úÀÇÇà»»»⁄]ÿ\»€€\]YãHYYXõXÀúôXY⁄õÿóÿ⁄[ôŸW⁄\›‹ûJ⁄õÿó⁄Y]ZY€[Z][ùYŸ\äXÇãHHîŒÇàHô\]Z\ô\»[à]][ùXÿ]Y€\ö»›XöôX›àHò[Y]\»H\ôŸ]õÿà^\›»[ô\»X›]ôBàH[›‹»ôXY»€õHõ‹à\Ÿ\ú»[àHõÿà]ö\⁄[€à‹à\Ÿ\ú»⁄]YôôX›]ôBàÿ[ó›öY]◊ÿ[Ÿ]ö\⁄[€úÿàHô]\õú»ôXŸ[ùô[]Y⁄[ôŸW€Ÿ‹ÿõ›‹»õ‹àHõÿàôX€‹ôõÿã[›€ôYàù^[›]ö[ò[ò⁄X[Àÿ⁄Y[K[ôÿ›[Y[ù»ôX€‹ô¬àH\ö]ô\»⁄[ôŸYŸöY[ÿúõ€HôYõ‹ôWŸ]X»Yù\óŸ]XãHYYH]ôHõÿú»\›‹ûXXãÇãHH\›‹ûHXéÇàHÿY»õ›Y⁄Hî»€õH⁄[àŸ[X›YàH⁄›‹»›[[X\ûH€›[ù\ú»õ‹à]ô[ùÀ\]\À\ò⁄]ô\À\ôX\À[ô]\›à]ô[ùàHô[ô\ú»HôXY[€õHXõH⁄][Y\›[\\ôXKX›[€ã\Ÿ\ã⁄[ôŸYàöY[À[ôõ›BàH[ò€Y\»HôYúô\⁄X›[€ÇÇà»»»ÿ⁄[XH⁄[ôŸ\¬ãHYYZY‹ò][€éÇàH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLååÕ‹ôXY⁄õÿóÿ⁄[ôŸW⁄\›‹ûW‹úÀú‹[ãH\YYõŸX›[€àZY‹ò][€éÇàHôXY⁄õÿóÿ⁄[ôŸW⁄\›‹ûW‹úÿÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMLååÕ‹ôXY⁄õÿóÿ⁄[ôŸW⁄\›‹ûW‹úÀú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àù[ò›[€à⁄Y€ò]\ôHô\öYöYYÇàHôXY⁄õÿóÿ⁄[ôŸW⁄\›‹ûJ⁄õÿó⁄Y]ZY€[Z][ùYŸ\äXàHô]\õú»H^X›Y\›‹ûHXõH⁄\BàH—P’TíUHQíSëTàHùYXãHõŸX›[€àõ›][ôH‹ò[ù»ô\öYöYYÇàH]][ùXÿ]Y\»VP’UXàH[õ€òŸ\»õ›]ôHVP’UXãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»^\›[ô»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãHHî»[ù[ù[€ò[H]õ⁄Y»^‹⁄[ô»⁄[ôŸW€Ÿ‹ÿ\ôX›HôXÿ]\ŸBà⁄[ôŸW€Ÿ‹ÿ\»[à€\àúõÿY]Y]XõH⁄]ì»\ÿXõYÇãH^\›[ô»€Y[ù\⁄YH]Y]‹ö]\»›[\ŸHXõW€ò[YHH	⁄õÿú…ÿõ‹à€€YBà⁄[\ŸX›[€àY]Œ»H\›‹ûHî»€€\[úÿ]\»ûH⁄X⁄⁄[ô»õÿàY[ùYöY\ú¬à[àî””à€ò\⁄›ÀÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»H\›‹ûHXàÿY»[ô⁄›‹»ôXŸ[ùõÿàX›]ö]KÇåãà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNM8†%õÿú»ö[ò[ò⁄X[»€‹›ô\‹ù[\‹ùÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHõÿú»\›‹ûHXà[ô\⁄ŸY»õÿŸYYàHô]ö[›\€Hô\]Y\›Yëö[ò[ò⁄X[»ÿ\ÿ\»[àí[\‹ù€‹›ô\‹ùàù[ò›[€à]\]\»HX›X[ò€€[[àúõ€H[àXÿ€›[ù[ôÀŸ^‹ùö[KÇÇà»»»⁄]ÿ\»€€\]YãHYY[à[\‹ù€‹›ô\‹ùõ‹õH»Hõÿú»ö[ò[ò⁄X[»XãÇãHH[\‹ù\éÇàHXÿŸ\»ò‹›òù›ò[ôùö[\¬àH]X›»€€[XKXãŸ[ZX€€€ã‹à\H[[Z]\ú¬àH\úŸ\»][›Y[[Z]Yõ›‹¬àHôX€Ÿ€ö^ô\»€€[[€à€‹›X€ŸH[ôX›X[X€‹›€€[[àXY\ú¬àHõ‹õX[^ô\»€‹›€Ÿ\»õ‹àX]⁄[ôÀ[ò€Y[ô»Xÿ€›[ù[ôÀ\›[Hù[Y\öX¬àò[Y\»›X⁄\»MãLåàHYŸ‹ôYÿ]\»ô\X]Y€‹›X€ŸHõ›‹»ôYõ‹ôH\][ô»ö[ò[ò⁄X[¬àH\]\»€õHX›X[ÿ€‹›ÿ[[›[ùàH⁄⁄\»X]⁄Yõ›‹»⁄\ôHHX›X[ò[YH\»[ôXYH›\úô[ùàH‹ö]\»H⁄[ôŸW€Ÿ‹ÿ]Y][ùûHõ‹à]ô\ûH\]Y[ôBãHH[\‹ù]\Ÿ\»H^\›[ô»ö[ò[ò⁄X[»Y]\õZ\‹⁄[€àÿ]Bà
+ÿ[ê\õ›ôTŸ[X›YùYŸ]
+H[ô^\›[ô»õÿóÿùYŸ]€[ô\ÿìÀ›\]H]ÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ÿ⁄[XH⁄[ôŸHÿ\»XYH[à\»€XŸKÇãHõ»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãH[\‹ù\»[ù[ù[€ò[H[Z]Y»HX›X[€€[[é»‹öY⁄[ò[ùYŸ]€‹›à€ŸK\ÿ‹ö\[€ãÿ]Y€‹ûK€€[Z]Yõ‹ôXÿ\›[ô⁄[ôŸH‹ô\ú»›[\ŸBàHX[ùX[Y]]ÇãH]Y][ùöY\»\ŸHHÿ[YH€Y[ù\⁄YH⁄[ôŸW€Ÿ‹ÿ[\à\»›\Çàö[ò[ò⁄X[»Y]ÀÇÇà»»»ô^›\¬åKàûX[à\›»[\‹ù[ô»H€‹›ô\‹ù⁄]X]⁄[ô»€‹›€Ÿ\ÀÇåãà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNMH8†%õÿú»ö[ò[ò⁄X[»à€‹›ô\‹ù[\‹ùÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àõ›öYYHÿ[\Hà€‹›ô\‹ùÇòô\‹ùŸúõ€W”õ‹ùÿ]W—‹õ›\–€€ú›ùX›[€ó–€€\[ûW”»
+‹õ KúòàBëö[ò[ò⁄X[»[\‹ù]ôYYY»ôXY\»àõ‹õX]õ›ù\›‘’ã’’à^ô^‹ùÀÇÇà»»»⁄]ÿ\»€€\]YãHYYöúÀY\›\»H[õôY€Y[ù\[ô[òﬁKÇãH\]YHö[ò[ò⁄X[»€‹›ô\‹ù[\‹ù\à»XÿŸ\àö[\ÀÇãHãöú»\»^ûK[ÿYY€õH⁄[àHà\»[\‹ùYÇãHYYà^^òX›[€à]‹õ›\»‹⁄][€ôY^][\»[ù»ôXYXõBà[ô\ÀÇãHYY›\‹ùõ‹àõ‹ùÿ]Híõÿà\›[X]\»úÀàX›X[»]Z[àõ›‹»⁄\YàZŸNÇàH€‹›€ŸBàH\ÿ‹ö\[€ÇàH\›[X]Y€‹›àHX›X[€‹›àHYôô\ô[òŸBàHX›X[ô]ô[ùYBãHH\úŸ\à\Ÿ\»HŸX€€ô[€ô^H€€[[à\»X›X[ÇãH›[õ›‹»[ôõ€ãX€‹›X€ŸHõ›‹»\ôHY€õ‹ôYÇãH^\›[ô»‘’ã’’ã’[\‹ù›\‹ùô[XZ[ú»[ùX›ÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãHX⁄ÿYŸKöú€€òãHX⁄ÿYŸK[ÿ⁄Àöú€€òãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãH^òX›YHõ›öYY‹õ»à⁄]ú[Xô\òÇãHÿ[ö]H⁄X⁄»õ›[ôà€‹›X€ŸHõ›‹À[ò€Y[ôŒÇàHMãåHOàÕÀåLòàHMãåLHOàçŒKçÿàHMãçOàÃçàHMãçàOàKçéãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ÿ⁄[XH⁄[ôŸHÿ\»XYH[à\»€XŸKÇãHõ»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãHúH]Y]K[€Z]Y]ò€›[õ›€€\]HôXÿ]\ŸHHôY⁄\›ûH]Y][ô⁄[ùàô]\õôY[à\úõ‹à[à\»[ùö\õ€õY[ùÇãHHùZ[õ›»[Z]»HŸ\\ò]Hãöú»⁄[öÀ›€‹öŸ\ãà\»\»^X›Y[ôŸY\¬àà\ú⁄[ô»›]ŸàHõ‹õX[\][ù[Hà[\‹ù\»\ŸYÇÇà»»»ô^›\¬åKàûX[à\›»[\‹ù[ô»H‹õ»à[ù»Hõÿà⁄]X]⁄[ô»ö[ò[ò⁄X[»€‹›à€Ÿ\ÀÇåãà€€ù[ùYHõÿú»€X[ù\⁄]Hô^ô[XZ[ö[ô»ÿ\ÇÇãKKBÇà»»[ùûHNMà8†%\⁄õÿ\ôù^[›]][ù[€ÇÇääë]NääàåçãLLMBääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^îûX[àô\öYöYYHà€‹›ô\‹ù[\‹ù€‹öŸY[ô\⁄ŸY»õÿŸYYà€ôBúô[XZ[ö[ô»õÿú»X⁄\⁄[€àÿ\»]ù^[›]][\»€õHôYY»[»»H\⁄õÿ\ôù⁄[à^HôYY][ù[€ãÇÇà»»»⁄]ÿ\»€€\]YãHYYHôXY[€õH\⁄õÿ\ô][ù[€àÿY\ãÇãHHÿY\à\Ÿ\»^\›[ô»›\Xò\ŸK‘ì»ôXY»õ‹éÇàHö\⁄XõHX›]ôHõÿúÿàHö\⁄XõHX›]ôHõÿóÿù^[›]€[ô\ÿãHYYù^[›]][ù[€àù[\ŒÇàH‹[à][Nà›]\»\»õ›ôXŸZ]ôY‹àÿ[òŸ[YàHX›X[ò[YH›ô\àùYŸ]àHX›X[XY[YH›ô\à[ö]X[XY[YBãH\]YH\⁄õÿ\ô\õ»ôYY»][ù[€ò[ô[»⁄›»H]ôH][ù[€Çà€›[ùÇãHYYHõÿà][ù[€ò›[[X\ûHÿ\ôÇãHYYH^H€‹öÿ\⁄õÿ\ôXõHõ‹àù^[›]][ù[€àõ›‹»⁄]ÇàHõÿàXô[àHù^[›]][BàH›]\¬àH][ù[€àôX\€€ÇàHôYúô\⁄X›[€ÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀŸ\⁄õÿ\ô—\⁄õÿ\ô€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ÿ⁄[XH⁄[ôŸHÿ\»XYH[à\»€XŸKÇãHõ»ì»€XﬁHÿ\»⁄[ôŸY[à\»€XŸKÇãH\»\»[ù[ù[€ò[HôXY[€õH[ô\Ÿ\»^\›[ô»XõH‹ò[ùÀ‘ìÀÇãH\ú€€ò[^ôY€‹öŸ\ã‹›\\ö[ù[ô[ù‹õ⁄ôX›[X[òYŸ\à\‹⁄Y€õY[ù»ô[XZ[ÇàYô\úôYôXÿ]\ŸHõ»\õ›ôY\‹⁄Y€õY[ù€›\òŸH^\›»Y]ÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»H\⁄õÿ\ô][ù[€à€›[ù[ô^H€‹ö»][ù[€àXõKÇåãà€€ù[ùYH⁄]Hô^[Ÿ[K‹YŸH€X[ù\][KÇÇãKKBÇà»»[ùûHNM»8†%\⁄õÿ\ô€€\[ûH€€ÿ][Ÿ›YBÇääë]NääàåçãLLMÇääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»\⁄õÿ\ô€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€ÇÇà»»»€€ù^ïH]\›€€\]Y\⁄õÿ\ô€XŸHYY\ôX›ôZX€H\‹⁄Y€õY[ùÀàHô^ë\⁄õÿ\ôŸX›[€àÿ\»^H€€Àù]Tê“UP’TëHåãåÃ^X⁄]Hô\Ÿ\ùô\¬ô[\ﬁYYK[[öŸY\‹⁄Y€õY[ù›\›ŸK⁄X⁄€›][ô\‹⁄Y€õY[ù\›‹ûKàHÿYôBòõ›[ôY€XŸHÿ\»\ôYõ‹ôHHôXY[€õHöY]»ŸàH^\›[ô»€€\[ûHÿ][Ÿ›YKÇÇà»»»⁄]ÿ\»€€\]YãHYYH\⁄õÿ\ô€€\[ûK]€€ÿY\à\⁄[ô»H^\›[ô»€€ÿXõKÇãHŸ\ôXY»[ú⁄YH^\›[ô»]ö\⁄[€ã\ÿ€‹Yì»[ô]][ùXÿ]Y€\ö»⁄Ÿ[Çà[ô[ôÀÇãHYYH€€\[ûH€€ÿ›[[X\ûHÿ\ô⁄›⁄[ô»ö\⁄XõHX›]ôHÿ][Ÿ›YHõ›‹ÀÇãHô\XŸYH€€\[ûK]€€XŸZ€\à⁄]H]ôHôXY[€õHXõH⁄›⁄[ôŒÇàH€€ù[Xô\à[ôò[YBàHÿ]Y€‹ûH[ôúò[ôàH€€ô][€ÇàH›\úô[ùÿ][Ÿ›YHÿÿ][€ÇãHYYôYúô\⁄[ô‹[à€€»[Ÿ[HX›[€úÀÇãHŸ\\ú€€ò[€€»^X⁄]HYô\úôYÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\ÀŸ\⁄õÿ\ô—\⁄õÿ\ô€‹ö‹‹XŸKöúﬁãHSë—ëãõYÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHõ»ÿ⁄[XKZY‹ò][€ãîÀìÀ‹ò[ù]]‹à\õZ\‹⁄[€à⁄[ôŸHÿ\»XYKÇãHH\⁄õÿ\ôŸ\»õ›\ŸH\‹⁄Y€ôY›ÿ»[ôô\à›\›ŸHôXÿ]\ŸH]öY[àô[XZ[ú»HZ[ã]^ÿ][Ÿ›YHXŸZ€\à[ô\àTê“UP’TëHåãåÃÇãHùYH[\ﬁYYK[[öŸY€€À\ú€€ò[€€À⁄X⁄€›][ô›\›ŸHô[XZ[Çà\ò⁄]X›\ôK\ô\Ÿ\ùôYÇÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»ô^›\¬åKàûX[àô\öYöY\»H€€\[ûH€€»›[[X\ûH[ô^H€€»ÿ][Ÿ›YHXõKÇåãàX⁄YHHô^\⁄õÿ\ô€X[ù\€XŸN»\ú€€ò[^ôY€€›\›ŸH[ôõÿÇà\‹⁄Y€õY[ù»›[ô\]Z\ôH[à\õ›ôYòX⁄Ÿ[ô€›\òŸKÇÇãKKBÇà»»[ùûHNN8†%ôZX€H\‹⁄Y€õY[ù‹ö]H€€ùõ€¬Çääë]NääàåçãLLMÇääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»ôZX€\»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€Çääîö\⁄»€\‹⁄YöXÿ][€éääàQ“8†%ëUíQU»ëTURTëQÇà»»»Y⁄Tö\⁄»ô]öY]»õY¬ï\»Z[\›€ôHY»]][ùXÿ]Y—P’TíUHQíSëTòõŸX›[€à‹ö]Hî‹»]õ]]]HôZX€KX\‹⁄Y€õY[ù\›‹ûKàX›]ôH\‹⁄Y€õY[ù»[€»YôôX›BúŸ\ùô\ãY\ö]ôYôZX€H€ò\⁄›\ŸY⁄[à‹[ö[ô»[à[ùô[ù‹ûHÿ\ùàô]öY]»\¬ú€XŸHYÿZ[àôYõ‹ôH⁄Y[ö[ô»ôZX€K[\ﬁYYK›\›ŸK‹à[ùô[ù‹ûH€‹öŸõ›‹ÀÇÇëù]\ôHô]öY]»⁄›[‹X⁄YöXÿ[H^[Z[ôNÇãHYôôX›]ôHÿ[ó€X[òYŸW›ôZX€\ÿ[ôõ‹òŸ[Y[ùãH[\ﬁYYH]ö\⁄[€ã‹ôXY\ÿ€‹H[ôõ‹òŸ[Y[ùãH€€ò›\úô[ù\‹⁄Y€õY[ù[ôò[úŸô\àôZ]ö[‹ÇãH€ôKXX›]ôK]ôZX€K\\ã]\Ÿ\à[ö\]Y[ô\‹»ôZ]ö[‹ÇãH⁄]\à][\HX›]ôH\Ÿ\ú»\àôZX€Hô[XZ[ú»H[ù[ôY[Ÿ[ãH\‹⁄Y€õY[ù‹ô[X\ŸH]Y]€€\][ô\‹¬ãHÿ\ù[‹[àôZX€H€ò\⁄›ôZ]ö[‹àYù\à\‹⁄Y€ãò[úŸô\ã[ôô[X\ŸBÇà»»»⁄]ÿ\»€€\]YãHYY\‹⁄Y€ó›ôZX€W›◊›\Ÿ\ä›ôZX€W⁄Y›\Ÿ\ó⁄Y‹ôX\€€äXÇãHYYô[X\ŸW›ôZX€Wÿ\‹⁄Y€õY[ù
+ÿ\‹⁄Y€õY[ù⁄Y‹ôX\€€äXÇãHõ›î‹ŒÇàHô\]Z\ôH[à]][ùXÿ]Y€\ö»›XöôX›àHô\]Z\ôH[àX›]ôH\õZ\‹⁄[€àõ›»[ôYôôX›]ôHÿ[ó€X[òYŸW›ôZX€\ÿàHô\]Z\ôHHõ€ãY[\H]Y]ôX\€€ÇàH\ŸH—P’TíUHQíSëTò⁄]ö^YŸX\ò⁄‹]HXõXÀ◊›[\àHô]õ⁄ŸHPìPÿ[ô[õ€ò^X›][€ÇàH‹ò[ù^X›][€à€õH»]][ùXÿ]YàH‹ö]H⁄[ôŸW€Ÿ‹ÿ]Y]ôX€‹ô»õ‹à]]][€ú¬ãH\‹⁄Y€õY[ùò[Y]\»[àX›]ôHôZX€H[ô[àX›]ôH[\ﬁYYH[ú⁄YHBàÿ[\â‹»\õ›ôY]ö\⁄[€ã‹ôXYÿ€‹KÇãH\‹⁄Y€ö[ô»H\Ÿ\à⁄»[ôXYH\»[àX›]ôHôZX€H€‹Ÿ\»Hö[‹àõ›»ôYõ‹ôBà[úŸ\ù[ô»Hô]»\‹⁄Y€õY[ùÇãHô[X\ŸH[ô»HŸ[X›YX›]ôH\‹⁄Y€õY[ù⁄]›][][ô»\›‹ûKÇãHYYôZX€H\‹⁄Y€õY[ù€€ùõ€»õ‹à[\ﬁYYHŸ[X›[€ã\‹⁄Y€ã›ò[úŸô\ãàô[X\ŸKô\]Z\ôYôX\€€úÀ›XÿŸ\‹»›]\À[ô\úõ‹à›]\ÀÇÇà»»»õŸX›[€àZY‹ò][€ÇãHÿÿ[ö[NÇà›\Xò\ŸK€ZY‹ò][€úÀÃåçåMÃÃLåW›ôZX€Wÿ\‹⁄Y€õY[ù›‹ö]\Àú‹[ãHõŸX›[€àZY‹ò][€éÇàåçåMÃÃLåL◊›ôZX€Wÿ\‹⁄Y€õY[ù›‹ö]\ÿãHõ⁄ôX›ÇàŸ[Ÿﬁ\€õ›Zÿô[ôöŸöò€òÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àZY‹ò][€à\Xÿ][€à›XÿŸYYYÇãHõŸX›[€àZY‹ò][€à\›‹ûH[ò€Y\»åçåMÃÃLåLÿÇãHô\öYöYYù[ò›[€à⁄Y€ò]\ô\ŒÇàH\‹⁄Y€ó›ôZX€W›◊›\Ÿ\ä]ZY^^
+XàHô[X\ŸW›ôZX€Wÿ\‹⁄Y€õY[ù
+öY⁄[ù^
+XãHô\öYöYYõ›ù[ò›[€ú»\ôH—P’TíUHQíSëTò⁄]ö^YŸX\ò⁄]ÀÇãHô\öYöYY[õ€àVP’UHHò[ŸX[ô]][ùXÿ]YVP’UHHùYXÇãHŸX›\ö]H[ô\ôõ‹õX[òŸHYö\€‹ú»Ÿ\ôHô\ù[ãÇãHõ»\›\‹⁄Y€õY[ù‹àô[X\ŸH]]][€àÿ\»^X›]Y[àõŸX›[€ãÇãHõŸX›[€àúõ€ùY[ôùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»Yö\€‹à€€ù^ïHõ⁄ôX›\»ôKY^\›[ô»ŸX›\ö]H[ô\ôõ‹õX[òŸHYö\€‹àö[ô[ô‹Àö[ò€Y[ô»^‹ŸY\ÿ⁄[XK‘ìÀŸX›\ö]KYYö[ô\ã]öY]À]]XõK\ŸX\ò⁄\][ôîì»\ôõ‹õX[òŸHö[ô[ô‹Àà^HŸ\ôHô\Ÿ[ùôYõ‹ôH\»ZY‹ò][€à[ôŸ\ôHõ›ô^[ôY‹àô[YYX]YûH\»€XŸKàHô]»]][ùXÿ]Y‹ö]Hî‹»\ôBö[ù[ù[€ò[ù]]\›ô[XZ[à€àHY⁄\ö\⁄»ô]öY]»\›ôXÿ]\ŸH]][ùXÿ]Yò—P’TíUHQíSëTòù[ò›[€ú»\ôH›\ôòXŸYûH›\Xò\ŸHYö\€‹ú»õ‹àX[ùX[ò\‹Ÿ\‹€Y[ùÇÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À›ôZX€\À’ôZX€\’€‹ö‹‹XŸKöúﬁãH›\Xò\ŸK€ZY‹ò][€úÀÃåçåMÃÃLåW›ôZX€Wÿ\‹⁄Y€õY[ù›‹ö]\Àú‹[ãHSë—ëãõYÇà»»»ô^›\¬åKàûX[à]ôK]\›»\‹⁄Y€ãò[úŸô\ã[ôô[X\ŸH\⁄[ô»€€ùõ€YôX€‹ôÀÇåãà€€ôö\õH\⁄õÿ\ô^HôZX€\»[ô[ùô[ù‹ûHÿ\ù[‹[àôYõX›H^X›YàX›]ôH\‹⁄Y€õY[ùYù\àXX⁄X›[€ãÇåÀàŸY\\»Z[\›€ôHõYŸŸYQ“íT“»[ù[]]ôHô]öY]»\»€€\]KÇÇãKKBÇà»»[ùûHNNHHõÿú»ö[ò[ò⁄X[»€‹›[ô”’àô]ô[ùYH‹]Çääë]NääàåçãLLå¬ääï\]YûNääà€Ÿ^ääî\ŸNääàõ‹ùÿ]HHå»õÿú»ö[ò[ò⁄X[»€X[ù\ääîŸ\‹⁄[€à\Nääà[\[Y[ù][€Çääîö\⁄»€\‹⁄YöXÿ][€éääàQQUSHHÿ⁄[XKXòX⁄ŸYö[ò[ò⁄X[RHôYö[ô[Y[ùÇà»»»€€ù^îûX[àô]öY]ŸYHõÿú»ö[ò[ò⁄X[»Xà[ô€\öYöYY]H€‹›XõH⁄›[ùòX⁄»KYòX⁄[ô»ùYŸ]ÿ€‹›õ‹ôXÿ\›À⁄[Hö[[ô»ô]ô[ùYH⁄›[õ€›»Bîÿ⁄Y[HŸàò[Y\»ò]\à[àô][ô[ô»ô]ö\ŸYùYŸ]\]X[»ö[XõBò€€ùòX›ò[YKÇÇà»»»⁄]ÿ\»€€\]YãHô[ò[YY€‹›X€€ùõ€Xô[»[àHö[ò[ò⁄X[»XéÇàH‹öY⁄[ò[\›[X]BàHX›X[€‹›¬àH€€[Z]Y€‹›¬àH[€ùHõ‹ôXÿ\›àHö[ò[õ‹ôXÿ\›ãHô\XŸYH€õ‹ôXÿ\›Y\ô[XZ[ô\àô\Ÿ[ù][€à⁄]ÇàHô[XZ[ö[ô»ùYŸ]Hô]ö\ŸYùYŸ]Z[ù\»X›X[€‹›¬àHõ‹ôXÿ\›Yô[XZ[ö[ô»ùYŸ]Hô]ö\ŸYùYŸ]Z[ù\»ö[ò[õ‹ôXÿ\›ãHYYHŸ\\ò]Hÿ⁄Y[HŸàò[Y\»ô]ô[ùYHŸX›[€à[ú⁄YHö[ò[ò⁄X[ÀÇãHYY”’àô]ô[ùYH[ôH›\‹ùõ‹éÇàH”’à[ôBàH\ÿ‹ö\[€ÇàHÿ⁄Y[Yò[YBàH\õ›ôY⁄[ôŸ\¬àHô]ö\ŸY€€ùòX›ò[YBàHö[Y»]BàHô[XZ[ö[ô»»ö[àH\òŸ[ùö[YãHYYõ⁄ôX›[]ô[›[[X\ûHÿ\ô»õ‹àô]ö\ŸY€€ùòX›ö[Y»]K[ôàõ⁄ôX›Y‹õ‹‹»õŸö]€X\ô⁄[ãÇãHYYõÿó‹ô]ô[ùYW€[ô\ÿ\»Hô]»\ú⁄\›Y”’ã‹ô]ô[ùYHXõKÇãHô]\ŸY^\›[ô»ö[ò[ò⁄X[ÿ]\ŒÇàHôXYàÿ[ó›öY]◊Ÿö[ò[ò⁄X[ÿàH‹ö]Nàÿ[óÿ\õ›ôWÿùYŸ]ãHŸ\ô]ô[ùYH[ô\»[õö[ôÀÿö[[ô»ö\⁄Xö[]H€õN»õ»[ùõ⁄XŸH‹ôX][€ãàXÿ€›[ù[ô»‹›^[Y[ù€€X›[€ãÀ‹à^\õò[Xÿ€›[ù[ô»ﬁ[òÀÇãHYYHö]Hÿÿ[\ô]öY]»ÿX⁄K⁄‹›€€ôöY›\ò][€à€»õ‹õﬁXòX⁄ŸYà€‹ö‹‹XŸ\»ÿ[à\ŸH[à^\õò[ÿX⁄H[ô⁄[àî»\»^X⁄]H€€ôöY›\ôYàHõŸX›[€à‹›ò[YHÿ[àôH\ŸYõ‹àÿÿ[€\öÀX€€\]XõHô]öY]ÀÇÇà»»»õŸX›[€àZY‹ò][€ÇãHÿÿ[ö[NÇà›\Xò\ŸK€ZY‹ò][€úÀÃåçååÃLML⁄õÿó‹ô]ô[ùYW€[ô\◊Ÿõ›[ô][€ãú‹[ãHõŸX›[€àZY‹ò][€éÇàåçååÃMåéM◊⁄õÿó‹ô]ô[ùYW€[ô\◊Ÿõ›[ô][€òãHõ⁄ôX›ÇàŸ[Ÿﬁ\€õ›Zÿô[ôöŸöò€òÇà»»»€ŸH»ö[H⁄[ôŸ\¬ãH‹òÀ€[Ÿ[\À⁄õÿúÀ“õÿú’€‹ö‹‹XŸKöúﬁãH‹òÀ‹›[\Àÿò\ŸKò‹‹ÿãHö]Kò€€ôöYÀöúÿãH›\Xò\ŸK€ZY‹ò][€úÀÃåçååÃLML⁄õÿó‹ô]ô[ùYW€[ô\◊Ÿõ›[ô][€ãú‹[ãHSë—ëãõYÇà»»»ô\öYöXÿ][€ÇãHõŸX›[€àZY‹ò][€à\Xÿ][€à›XÿŸYYYÇãHõŸX›[€àõÿó‹ô]ô[ùYW€[ô\ÿ€€[[ú»Ÿ\ôHô\öYöYYÇãHõŸX›[€àZY‹ò][€à\›‹ûH[ò€Y\»åçååÃMåéMÿÇãHúHù[àùZ[\‹ŸYÇãH⁄]YôàKX⁄X⁄ÿ\‹ŸYÇÇà»»»⁄]€Ÿ^ôYY»»€õ›¬ãHHô]»”’àŸX›[€à\»[Xô\ò][HŸ\\ò]Húõ€H€‹›X€ŸHùYŸ][ô\ÀÇãHö[Y»]X\»ô]ô[ùYHö[Yõ›ÿ\⁄€€X›YÇãHõ⁄ôX›Y‹õ‹‹»õŸö]\Ÿ\»ô]ö\ŸY€€ùòX›ò[YHZ[ù\»ö[ò[õ‹ôXÿ\›ÇãH\õ›ôY⁄[ôŸ\»€à”’à[ô\»\ôHX[ùX[H[ù\ôYõ‹àõ›Œ»]]€X]X¬àX\[ô»úõ€H⁄[ôŸH‹ô\ú»»”’à[ô\»ô[XZ[ú»Hù]\ôH\⁄Y€à›\ÇãHõŸX›[€à[ôXYHYÿ⁄Y[W€Ÿó›ò[Y\◊ÿ[[›[ù€àõÿóÿùYŸ]€[ô\ÿàúõ€HZY‹ò][€àåçååååMÕÿ»\»€XŸHX]ô\»]€€[[à[€ôH[ôàY»Ÿ\\ò]Hô]ô[ùYH[ô\»õ‹àö[[ô»õŸ‹ô\‹ÀÇÇà»»»ô^›\¬åKàûX[à\›»Y[ôÀŸY][ô»”’à[ô\»[ô€€ôö\õ\»Hô]ô[ùYH›[[X\ûHX]ÇåãàX⁄YH]\à⁄]\à⁄[ôŸH‹ô\ú»⁄›[X\\ôX›H»”’à[ô\ÀÇÇãKKBÇà»»[ùûHåH8†%⁄[ôŸH‹ô\à€‹öŸõ›»[ô[[]]XõHö[ò[ò⁄X[‹›[ô»YŸ\ÇÇî›]\ŒàQ“íT“»»ô]öY]»Yù\à\›[ôÀàôXò\ŸY€ù»›\úô[ùXZ[àôYõ‹ôHô[X\ŸKÇÇãHYYö]ôH[ô\[ô[ù⁄[ôŸH‹ô\à\õZ\‹⁄[€úÀ[ö]X[HZ\úõ‹ö[ô»YôôX›]ôHÿ[óÿ\õ›ôWÿùYŸ]XÿŸ\‹ÀÇãHYYòYù›XõZ]^‹ù⁄Y€ôYYÿ›[Y[ùô\öYöXÿ][€ã]€ZX»\õ›ò[‹‹›[ôÀ[ô€€ùõ€Yô]ö\⁄[€àî‹ÀÇãHYY[[]]XõHY[\›[ùö[ò[ò⁄X[‹›[ô»ôX€‹ôŒ»ö[ò[ò⁄X[»⁄[ôŸ\»õ›»\ö]ô\»úõ€HX[ùX[⁄[ôŸ\»\»\õ›ôY‹›[ô»[\ÀÇãHYYHYXÿ]Y⁄[ôŸH‹ô\à€‹ö‹‹XŸH[ôõÿã[›€ôY⁄Y€ôYYÿ›[Y[ù[öÿYŸKÇãH\õ›ôY⁄[ôŸH‹ô\ú»[ô⁄Y€ôYÿ›[Y[ù»\ôHÿ⁄ŸY»ô]ö\⁄[€ú»‹›€õHZ\à[KÇãH^\›[ô»X›]ôH⁄[ôŸH‹ô\ú»Ÿ\ôH^X⁄]H]]‹ö^ôY\»\›]H[ô\ôH€ŸùX\ò⁄]ôYûHHZY‹ò][€à⁄][à]Y]ôX\€€ãÇãHHZY‹ò][€àô\Ÿ\ùô\»›\úô[ù\›[X]H[ôYÿXﬁH⁄[ôŸH‹ô\àÿ›[Y[ù€XﬁHúò[ò⁄\»⁄[HY[ô»H⁄Y€ôYõÿãYÿ›[Y[ù]Ç

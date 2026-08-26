@@ -69,6 +69,7 @@ const PERMISSION_GROUPS = [
   ['Developer', ['canAccessDeveloper', 'canManageUsers', 'canViewReports']],
   ['Inventory', ['canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
   ['Jobs', ['canCreateJobs', 'canManageJobs', 'canApproveBudget', 'canManageChangeOrders']],
+  ['Change Orders', ['canCreateChangeOrders', 'canSubmitChangeOrders', 'canVerifyChangeOrders', 'canApproveChangeOrders', 'canReviseChangeOrders']],
   ['People and assets', ['canManageEmployees', 'canManageVehicles', 'canManageTools']],
   ['Financials and estimates', ['canEstimate', 'canApproveEstimates', 'canViewFinancials']],
   ['Workflow', ['canFieldAccess', 'canArchiveRecords', 'canExpressCheckout', 'canApproveExpressCheckout', 'canDeferCompletion']],
@@ -354,7 +355,16 @@ function useDeveloperPermissionConsole({ enabled }) {
     reload: () => setRefreshKey((current) => current + 1),
     async setOverride(form) {
       const client = await getClient();
-      return client.rpc('set_permission_override', {
+      const changeOrderFlags = new Set([
+        'can_create_change_orders',
+        'can_submit_change_orders',
+        'can_verify_change_orders',
+        'can_approve_change_orders',
+        'can_revise_change_orders',
+      ]);
+      return client.rpc(changeOrderFlags.has(form.permissionFlag)
+        ? 'set_change_order_permission_override'
+        : 'set_permission_override', {
         p_user_id: form.userId,
         p_permission_flag: form.permissionFlag,
         p_granted: form.granted,

@@ -1,5 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { Plus, ShieldCheck, UserRound, Users } from 'lucide-react';
+import { Archive, Pencil, Plus, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
@@ -15,7 +15,7 @@ const EMPTY_PEOPLE = Object.freeze([]);
 const EMPTY_ASSIGNMENTS = Object.freeze([]);
 const EMPTY_PENDING_PROFILES = Object.freeze([]);
 const DEFAULT_EMPLOYEE_FORM = Object.freeze({
-  displayName: '', email: '', role: 'User', division: '', jobTitle: '', phone: '', notes: '', reason: '', isSaving: false, error: null, success: '',
+  id: '', displayName: '', email: '', role: 'User', division: '', jobTitle: '', phone: '', notes: '', reason: '', isSaving: false, error: null, success: '',
 });
 
 const EMPLOYEE_TABS = [
@@ -41,7 +41,7 @@ const ASSIGNMENT_COLUMNS = [
   { key: 'note', header: 'Note', fallback: '-' },
 ];
 
-const PENDING_PROFILE_COLUMNS = [
+const PENDING_PROFILE_BASE_COLUMNS = [
   { key: 'display_name', header: 'Name', render: (row) => <strong>{row.display_name}</strong> },
   { key: 'email', header: 'Email' },
   { key: 'role', header: 'Planned Role', fallback: 'User' },
@@ -163,6 +163,7 @@ export function EmployeesWorkspace({ permissions }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [employeeForm, setEmployeeForm] = useState(DEFAULT_EMPLOYEE_FORM);
   const [employeeNotice, setEmployeeNotice] = useState('');
+  const [pendingProfileAction, setPendingProfileAction] = useState({ id: '', error: null });
 
   const assignments = directory.assignments;
   const pendingProfiles = directory.pendingProfiles;
@@ -231,26 +232,64 @@ export function EmployeesWorkspace({ permissions }) {
     setEmployeeForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
   }
 
-  async function createEmployee(event) {
+  function editPendingProfile(profile) {
+    setEmployeeNotice('');
+    setEmployeeForm({
+      ...DEFAULT_EMPLOYEE_FORM,
+      id: profile.id,
+      displayName: profile.display_name || '',
+      email: profile.email || '',
+      role: profile.role || 'User',
+      division: profile.division || '',
+      jobTitle: profile.job_title || '',
+      phone: profile.phone || '',
+      notes: profile.notes || '',
+    });
+    setIsCreateOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function archivePendingProfile(profile) {
+    if (!profile?.id || pendingProfileAction.id) return;
+    const reason = window.prompt(`Archive the pending profile for ${profile.display_name || profile.email}? Enter a reason.`);
+    if (!reason?.trim()) return;
+    setPendingProfileAction({ id: profile.id, error: null });
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('archive_pending_employee_profile', { p_profile_id: profile.id, p_reason: reason.trim() });
+      if (error) throw error;
+      if (employeeForm.id === profile.id) {
+        setEmployeeForm(DEFAULT_EMPLOYEE_FORM);
+        setIsCreateOpen(false);
+      }
+      setEmployeeNotice('Pending employee profile archived. The audit record was retained.');
+      directory.reload();
+      setPendingProfileAction({ id: '', error: null });
+    } catch (error) {
+      setPendingProfileAction({ id: '', error });
+    }
+  }
+
+  async function saveEmployee(event) {
     event.preventDefault();
     if (employeeForm.isSaving) return;
     setEmployeeForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client.rpc('save_employee_profile', {
-        p_email: employeeForm.email,
-        p_display_name: employeeForm.displayName,
-        p_role: employeeForm.role,
-        p_division: employeeForm.division,
-        p_job_title: employeeForm.jobTitle,
-        p_phone: employeeForm.phone,
-        p_notes: employeeForm.notes,
-        p_reason: employeeForm.reason,
-      });
+      const payload = {
+        p_email: employeeForm.email, p_display_name: employeeForm.displayName,
+        p_role: employeeForm.role, p_division: employeeForm.division,
+        p_job_title: employeeForm.jobTitle, p_phone: employeeForm.phone,
+        p_notes: employeeForm.notes, p_reason: employeeForm.reason,
+      };
+      const { error } = employeeForm.id
+        ? await client.rpc('update_pending_employee_profile', { p_profile_id: employeeForm.id, ...payload })
+        : await client.rpc('save_employee_profile', payload);
       if (error) throw error;
       setEmployeeForm(DEFAULT_EMPLOYEE_FORM);
-      setEmployeeNotice('Employee profile saved. It will connect automatically when this email first signs in through Clerk.');
+      setEmployeeNotice(employeeForm.id ? 'Pending employee profile updated.' : 'Employee profile saved. It will connect automatically when this email first signs in through Clerk.');
       setIsCreateOpen(false);
       directory.reload();
     } catch (error) {
@@ -258,6 +297,18 @@ export function EmployeesWorkspace({ permissions }) {
       setEmployeeForm((current) => ({ ...current, isSaving: false, error }));
     }
   }
+
+  const pendingProfileColumns = [
+    ...PENDING_PROFILE_BASE_COLUMNS,
+    {
+      key: 'actions', header: 'Actions', render: (row) => (
+        <div className="record-actions">
+          <button type="button" className="secondary-button" onClick={() => editPendingProfile(row)} disabled={Boolean(pendingProfileAction.id)}><Pencil aria-hidden="true" /> Edit</button>
+          <button type="button" className="secondary-button secondary-button--danger" onClick={() => archivePendingProfile(row)} disabled={Boolean(pendingProfileAction.id)}><Archive aria-hidden="true" /> {pendingProfileAction.id === row.id ? 'Archiving…' : 'Archive'}</button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -274,7 +325,7 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
+            <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
               <Plus aria-hidden="true" /> Create employee
             </button>
           </>
@@ -282,8 +333,8 @@ export function EmployeesWorkspace({ permissions }) {
       />
 
       {isCreateOpen ? (
-        <form className="card workspace-card employee-profile-form" onSubmit={createEmployee}>
-          <Toolbar eyebrow="Employee Setup" title="Create employee profile" description="Set up the internal profile first. It will connect to Clerk automatically when the employee signs in with this exact email address." />
+        <form className="card workspace-card employee-profile-form" onSubmit={saveEmployee}>
+          <Toolbar eyebrow="Employee Setup" title={employeeForm.id ? 'Edit pending employee profile' : 'Create employee profile'} description="Set up the internal profile first. It will connect to Clerk automatically when the employee signs in with this exact email address." />
           <p className="employee-profile-form__hint"><strong>Required fields</strong> are marked with an asterisk. The reason is saved to the audit log.</p>
           <div className="employee-profile-form__grid">
             <label><span>Full name <b aria-hidden="true">*</b></span><input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} autoComplete="name" required /></label>
@@ -292,11 +343,11 @@ export function EmployeesWorkspace({ permissions }) {
             <label><span>Primary division</span><select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
             <label><span>Job title</span><input value={employeeForm.jobTitle} onChange={(event) => setEmployeeField('jobTitle', event.target.value)} disabled={employeeForm.isSaving} /></label>
             <label><span>Phone</span><input type="tel" value={employeeForm.phone} onChange={(event) => setEmployeeField('phone', event.target.value)} disabled={employeeForm.isSaving} autoComplete="tel" /></label>
-            <label className="employee-profile-form__wide"><span>Reason for creating this profile <b aria-hidden="true">*</b></span><input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} placeholder="e.g., New electrical field employee" required /></label>
+            <label className="employee-profile-form__wide"><span>{employeeForm.id ? 'Reason for editing this profile' : 'Reason for creating this profile'} <b aria-hidden="true">*</b></span><input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} placeholder={employeeForm.id ? 'e.g., Corrected division assignment' : 'e.g., New electrical field employee'} required /></label>
             <label className="employee-profile-form__wide"><span>Notes</span><textarea value={employeeForm.notes} onChange={(event) => setEmployeeField('notes', event.target.value)} disabled={employeeForm.isSaving} rows="3" /></label>
           </div>
           <div className="record-actions"><button type="submit" className="primary-button" disabled={employeeForm.isSaving}>{employeeForm.isSaving ? 'Saving…' : 'Save employee profile'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); }} disabled={employeeForm.isSaving}>Cancel</button></div>
-          {employeeForm.error ? <StatePanel tone="danger" eyebrow="Create Failed" title="Employee profile was not saved" description={employeeForm.error.message || 'Unexpected employee profile error.'} compact /> : null}
+          {employeeForm.error ? <StatePanel tone="danger" eyebrow="Save Failed" title="Employee profile was not saved" description={employeeForm.error.message || 'Unexpected employee profile error.'} compact /> : null}
         </form>
       ) : null}
 
@@ -308,7 +359,7 @@ export function EmployeesWorkspace({ permissions }) {
         <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" />
         <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
         <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
-        <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create/edit remains deferred" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
+        <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create, edit, and archive pending profiles" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
         <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All divisions' : permissions.division || 'None'} detail="Server level/division rules" tone={canReadEmployees ? 'good' : 'warn'} />
       </div>
 
@@ -340,7 +391,7 @@ export function EmployeesWorkspace({ permissions }) {
               description="These employee profiles are ready. They will move into the active directory automatically when the matching email address first signs in through Clerk."
             />
             <DataTable
-              columns={PENDING_PROFILE_COLUMNS}
+              columns={pendingProfileColumns}
               rows={pendingProfiles}
               getRowKey={(row) => row.id}
               permissions={permissions}
@@ -351,6 +402,7 @@ export function EmployeesWorkspace({ permissions }) {
               emptyTitle="No employee profiles are awaiting sign-in"
               emptyDescription="Create a profile above when you need to prepare an employee before their Clerk account is active."
             />
+            {pendingProfileAction.error ? <StatePanel tone="danger" eyebrow="Archive Failed" title="Pending employee profile was not archived" description={pendingProfileAction.error.message || 'Unexpected archive error.'} compact /> : null}
           </article>
 
           <article className="card workspace-card">
