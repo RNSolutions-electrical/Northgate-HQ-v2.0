@@ -3525,12 +3525,14 @@ export function JobsWorkspace({ permissions }) {
       for (const allocation of changeOrderForm.allocations.filter((item) => item.budget_line_id && Number(item.amount || 0) > 0)) {
         let budgetLine = jobBudget.lines.find((line) => line.id === allocation.budget_line_id);
         if (allocation.budget_line_id.startsWith('co-division:')) {
-          const [, projectDivisionId, selectedCode] = allocation.budget_line_id.split(':');
-          const divisionLine = jobBudget.lines.find((line) => (line.project_division_id || line.project_division?.id) === projectDivisionId);
+          const divisionParts = allocation.budget_line_id.split(':');
+          const projectDivisionId = divisionParts[1] === 'project' ? divisionParts[2] : null;
+          const selectedCode = divisionParts[1] === 'project' ? divisionParts[3] : divisionParts[2];
+          const divisionLine = jobBudget.lines.find((line) => projectDivisionId ? (line.project_division_id || line.project_division?.id) === projectDivisionId : String(line.cost_code || '').startsWith(selectedCode));
           const code = selectedCode || divisionLine?.project_division?.code || String(divisionLine?.cost_code || '').match(/^\d{2}/)?.[0];
           const name = divisionLine?.project_division?.name || `Division ${code}`;
           if (!code) throw new Error('Choose a project division before adding its change-order line.');
-          budgetLine = jobBudget.lines.find((line) => line.project_division_id === projectDivisionId && line.cost_code === `${code}.CO`);
+          budgetLine = jobBudget.lines.find((line) => (projectDivisionId ? line.project_division_id === projectDivisionId : !line.project_division_id) && line.cost_code === `${code}.CO`);
           if (!budgetLine) {
             const { data, error } = await client.from('job_budget_lines').insert({ job_id: selectedJob.id, division: selectedJob.division, project_division_id: projectDivisionId, category: 'other', cost_code: `${code}.CO`, description: `${name} Change Orders`, budget_amount: 0, budget_change_amount: 0, actual_cost_amount: 0, committed_cost_amount: 0, forecast_to_complete_amount: 0, forecast_final_amount: 0, schedule_of_values_amount: 0, note: 'System-managed change-order allocation line.', created_by: createdBy }).select(JOB_BUDGET_SELECT_FIELDS).single();
             if (error) throw error;
