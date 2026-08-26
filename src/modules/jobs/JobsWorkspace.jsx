@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
@@ -2000,6 +2001,7 @@ export function JobsWorkspace({ permissions }) {
   const [jobAssignmentAction, setJobAssignmentAction] = useState({ userId: '', error: null });
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
+  const [jobConfirmation, setJobConfirmation] = useState(null);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const previousSelectedJobIdRef = useRef('');
@@ -2039,11 +2041,11 @@ export function JobsWorkspace({ permissions }) {
   const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
   const jobDocuments = useJobDocuments({
-    enabled: permissions.permissionSource === 'server' && ['documents', 'buyout'].includes(activeTab) && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['overview', 'documents', 'buyout'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobBuyout = useJobBuyoutLines({
-    enabled: permissions.permissionSource === 'server' && activeTab === 'buyout' && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['overview', 'buyout'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobBudget = useJobBudgetLines({
@@ -2055,11 +2057,11 @@ export function JobsWorkspace({ permissions }) {
     jobId: selectedJob?.id,
   });
   const jobChangeOrders = useJobChangeOrders({
-    enabled: permissions.permissionSource === 'server' && ['financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['overview', 'financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobSchedule = useJobScheduleItems({
-    enabled: permissions.permissionSource === 'server' && activeTab === 'schedule' && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['overview', 'schedule'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobTransactions = useJobTransactions({
@@ -2070,6 +2072,15 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && activeTab === 'history' && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const closeoutReadiness = useMemo(() => {
+    const openBuyouts = jobBuyout.lines.filter((line) => !['received', 'cancelled'].includes(line.status)).length;
+    const proposedChangeOrders = jobChangeOrders.rows.filter((row) => row.status === 'proposed').length;
+    const unfinishedScheduleItems = jobSchedule.items.filter((item) => item.status !== 'complete').length;
+    const hasDocuments = jobDocuments.documents.length > 0;
+    const isLoading = jobDocuments.isLoading || jobBuyout.isLoading || jobChangeOrders.isLoading || jobSchedule.isLoading;
+    const hasError = jobDocuments.error || jobBuyout.error || jobChangeOrders.error || jobSchedule.error;
+    return { openBuyouts, proposedChangeOrders, unfinishedScheduleItems, hasDocuments, isLoading, hasError };
+  }, [jobBuyout, jobChangeOrders, jobDocuments, jobSchedule]);
   const jobAssignments = useJobAssignmentDirectory({
     enabled: permissions.permissionSource === 'server' && activeTab === 'assignments' && Boolean(selectedJob?.id) && canManageSelectedJob,
     jobId: selectedJob?.id,
@@ -2352,11 +2363,12 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleJobArchive() {
+  async function handleJobArchive(reason) {
     if (!selectedJob || !canManageSelectedJob || jobAction.action) return;
-
-    const reason = window.prompt(`Archive "${jobLabel(selectedJob)}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'job-archive', label: jobLabel(selectedJob) });
+      return;
+    }
 
     setJobAction({ action: 'archive', error: null, success: '' });
 
@@ -2506,11 +2518,12 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleDocumentArchive(document) {
+  async function handleDocumentArchive(document, reason) {
     if (!document?.id || !selectedJob?.id || !canManageSelectedJob || documentAction.id) return;
-
-    const reason = window.prompt(`Archive "${document.file_name || 'this document'}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'document-archive', record: document, label: document.file_name || 'this document' });
+      return;
+    }
 
     setDocumentAction({ id: document.id, action: 'archive', error: null });
 
@@ -2730,11 +2743,12 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleBuyoutArchive(row) {
+  async function handleBuyoutArchive(row, reason) {
     if (!row?.id || !selectedJob?.id || !canManageSelectedJob || buyoutAction.id) return;
-
-    const reason = window.prompt(`Archive "${row.item_description || 'this buyout item'}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'buyout-archive', record: row, label: row.item_description || 'this buyout item' });
+      return;
+    }
 
     setBuyoutAction({ id: row.id, action: 'archive', error: null });
 
@@ -2881,11 +2895,12 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleBudgetArchive(row) {
+  async function handleBudgetArchive(row, reason) {
     if (!row?.id || !selectedJob?.id || !canApproveSelectedBudget) return;
-
-    const reason = window.prompt(`Archive "${row.description || 'this financial line'}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'budget-archive', record: row, label: row.description || 'this financial line' });
+      return;
+    }
 
     try {
       const token = await getToken({ template: 'supabase' });
@@ -3001,11 +3016,12 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleRevenueArchive(row) {
+  async function handleRevenueArchive(row, reason) {
     if (!row?.id || !selectedJob?.id || !canApproveSelectedBudget) return;
-
-    const reason = window.prompt(`Archive "${row.description || 'this revenue line'}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'revenue-archive', record: row, label: row.description || 'this revenue line' });
+      return;
+    }
 
     try {
       const token = await getToken({ template: 'supabase' });
@@ -3573,11 +3589,12 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleScheduleArchive(row) {
+  async function handleScheduleArchive(row, reason) {
     if (!row?.id || !selectedJob?.id || !canManageSelectedJob || scheduleAction.id) return;
-
-    const reason = window.prompt(`Archive "${row.title || 'this schedule item'}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'schedule-archive', record: row, label: row.title || 'this schedule item' });
+      return;
+    }
 
     setScheduleAction({ id: row.id, action: 'archive', error: null });
 
@@ -3644,11 +3661,13 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleJobAssignment(row) {
+  async function handleJobAssignment(row, reason) {
     if (!selectedJob || !row?.user_id || !canManageSelectedJob || jobAssignmentAction.userId) return;
     const isAssigned = Boolean(row.assignment_id);
-    const reason = window.prompt(`${isAssigned ? 'Remove' : 'Assign'} ${row.display_name || row.email || row.user_id} ${isAssigned ? 'from' : 'to'} this job. Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setJobConfirmation({ kind: 'assignment', record: row, label: row.display_name || row.email || row.user_id, isAssigned });
+      return;
+    }
     setJobAssignmentAction({ userId: row.user_id, error: null });
     try {
       const token = await getToken({ template: 'supabase' });
@@ -3665,6 +3684,61 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       setJobAssignmentAction({ userId: '', error });
     }
+  }
+
+  function cancelJobConfirmation() {
+    if (!jobConfirmation) return;
+    setJobConfirmation(null);
+  }
+
+  async function confirmJobConfirmation(reason) {
+    const confirmation = jobConfirmation;
+    if (!confirmation) return;
+    setJobConfirmation(null);
+
+    switch (confirmation.kind) {
+      case 'job-archive':
+        await handleJobArchive(reason);
+        break;
+      case 'document-archive':
+        await handleDocumentArchive(confirmation.record, reason);
+        break;
+      case 'buyout-archive':
+        await handleBuyoutArchive(confirmation.record, reason);
+        break;
+      case 'budget-archive':
+        await handleBudgetArchive(confirmation.record, reason);
+        break;
+      case 'revenue-archive':
+        await handleRevenueArchive(confirmation.record, reason);
+        break;
+      case 'schedule-archive':
+        await handleScheduleArchive(confirmation.record, reason);
+        break;
+      case 'assignment':
+        await handleJobAssignment(confirmation.record, reason);
+        break;
+      default:
+        break;
+    }
+  }
+
+  function confirmationCopy() {
+    if (!jobConfirmation) return null;
+    if (jobConfirmation.kind === 'assignment') {
+      return {
+        title: `${jobConfirmation.isAssigned ? 'Remove' : 'Assign'} job team member`,
+        description: `${jobConfirmation.isAssigned ? 'Remove' : 'Assign'} ${jobConfirmation.label} ${jobConfirmation.isAssigned ? 'from' : 'to'} ${jobLabel(selectedJob)}.`,
+        confirmLabel: jobConfirmation.isAssigned ? 'Remove from job' : 'Assign to job',
+        tone: jobConfirmation.isAssigned ? 'danger' : 'default',
+      };
+    }
+    return {
+      title: `Archive ${jobConfirmation.label}`,
+      description: `Archive ${jobConfirmation.label} from this job. Archived records stay in the audit history and can be reviewed later.`,
+      confirmLabel: 'Archive record',
+      tone: 'danger',
+    };
   }
 
   function renderActiveTab() {
@@ -5163,6 +5237,26 @@ export function JobsWorkspace({ permissions }) {
           tone="neutral"
           compact
         />
+        <StatePanel
+          eyebrow="Closeout Readiness"
+          title={closeoutReadiness.isLoading ? 'Reviewing job readiness…' : closeoutReadiness.hasError ? 'Some readiness checks could not be loaded' : 'Review before completing this job'}
+          description={closeoutReadiness.isLoading
+            ? 'Checking current job documents, buyout, change orders, and schedule items.'
+            : closeoutReadiness.hasError
+              ? 'Open the relevant job tabs to review any unavailable items. Completion remains available while closeout requirements are being defined.'
+              : 'This advisory panel does not block a status change. It highlights items worth resolving before job completion.'}
+          tone={closeoutReadiness.hasError ? 'warning' : closeoutReadiness.openBuyouts || closeoutReadiness.proposedChangeOrders || closeoutReadiness.unfinishedScheduleItems || !closeoutReadiness.hasDocuments ? 'warning' : 'success'}
+          compact
+        >
+          {!closeoutReadiness.isLoading && !closeoutReadiness.hasError ? (
+            <div className="module-fact-grid jobs-closeout-readiness">
+              <SummaryCard label="Documents" value={closeoutReadiness.hasDocuments ? 'Ready' : 'Review'} detail={closeoutReadiness.hasDocuments ? 'At least one job document is attached' : 'No active job documents found'} tone={closeoutReadiness.hasDocuments ? 'good' : 'warn'} />
+              <SummaryCard label="Open Buyout" value={closeoutReadiness.openBuyouts} detail="Not received or cancelled" tone={closeoutReadiness.openBuyouts ? 'warn' : 'good'} />
+              <SummaryCard label="Proposed COs" value={closeoutReadiness.proposedChangeOrders} detail="Awaiting a decision" tone={closeoutReadiness.proposedChangeOrders ? 'warn' : 'good'} />
+              <SummaryCard label="Schedule Items" value={closeoutReadiness.unfinishedScheduleItems} detail="Not marked complete" tone={closeoutReadiness.unfinishedScheduleItems ? 'warn' : 'good'} />
+            </div>
+          ) : null}
+        </StatePanel>
       </section>
     );
   }
@@ -5507,6 +5601,21 @@ export function JobsWorkspace({ permissions }) {
           </article> : null}
         </div>
       </div>
+      {jobConfirmation ? (
+        <ConfirmDialog
+          open
+          onCancel={cancelJobConfirmation}
+          onConfirm={confirmJobConfirmation}
+          title={confirmationCopy()?.title}
+          description={confirmationCopy()?.description}
+          confirmLabel={confirmationCopy()?.confirmLabel}
+          tone={confirmationCopy()?.tone}
+          requireReason
+          reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : 'Archive reason'}
+          reasonHint="This reason is recorded in the job audit history."
+          reasonPlaceholder={jobConfirmation.kind === 'assignment' ? 'Why should this person be assigned or removed?' : 'Why should this record be archived?'}
+        />
+      ) : null}
     </>
   );
 }
