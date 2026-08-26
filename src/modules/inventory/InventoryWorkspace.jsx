@@ -514,6 +514,8 @@ export function InventoryWorkspace({ permissions }) {
     INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : 'catalog',
   );
   const [search, setSearch] = useState('');
+  const [catalogCategory, setCatalogCategory] = useState('');
+  const [catalogSubcategory, setCatalogSubcategory] = useState('');
   const [historyType, setHistoryType] = useState('');
   const [historySearch, setHistorySearch] = useState('');
   const [candidateQuantities, setCandidateQuantities] = useState({});
@@ -570,10 +572,36 @@ export function InventoryWorkspace({ permissions }) {
     cartState.isCheckingOut ||
     cartState.isReadingItems;
 
-  const visibleCatalogue = useMemo(
-    () => filterRows(model.catalogPreview, search, ['material_code', 'name', 'broad_category', 'sub_category', 'division']),
-    [model.catalogPreview, search],
+  const catalogCategories = useMemo(
+    () => [...new Set(model.catalogPreview.map((row) => row.broad_category).filter(Boolean))].sort(),
+    [model.catalogPreview],
   );
+  const catalogSubcategories = useMemo(
+    () => [...new Set(model.catalogPreview
+      .filter((row) => !catalogCategory || row.broad_category === catalogCategory)
+      .map((row) => row.sub_category)
+      .filter(Boolean))].sort(),
+    [catalogCategory, model.catalogPreview],
+  );
+  const visibleCatalogue = useMemo(() => {
+    const scopedRows = model.catalogPreview.filter((row) => (
+      (!catalogCategory || row.broad_category === catalogCategory)
+      && (!catalogSubcategory || row.sub_category === catalogSubcategory)
+    ));
+    return filterRows(scopedRows, search, [
+      'material_code',
+      'name',
+      'description',
+      'broad_category',
+      'sub_category',
+      'sub_category_2',
+      'sub_category_3',
+      'size',
+      'length',
+      'manufacturer',
+      'division',
+    ]);
+  }, [catalogCategory, catalogSubcategory, model.catalogPreview, search]);
   const visibleStorageUnits = useMemo(
     () => filterRows(model.storageUnitsPreview, search, ['unit_code', 'name', 'division']),
     [model.storageUnitsPreview, search],
@@ -2257,7 +2285,7 @@ export function InventoryWorkspace({ permissions }) {
         <Toolbar
           eyebrow="Catalogue"
           title="Active Materials"
-          description="Preview rows from the retained `useInventoryReadModel` hook."
+          description={`${visibleCatalogue.length} of ${model.catalogPreview.length} active materials match the current filters.`}
           dense
         />
         <DataTable
@@ -2269,8 +2297,8 @@ export function InventoryWorkspace({ permissions }) {
           error={readModel.error}
           dense
           minWidth="860px"
-          emptyTitle="No catalogue rows in preview"
-          emptyDescription="The read model limits this first preview while preserving the existing inventory data path."
+          emptyTitle="No materials match these filters"
+          emptyDescription="Clear a category filter or try a broader search term."
         />
       </article>
     );
@@ -2328,7 +2356,7 @@ export function InventoryWorkspace({ permissions }) {
               <Toolbar
                 eyebrow="Filter"
                 title={views.find((view) => view.key === activeView)?.label ?? 'Inventory'}
-                description="Client-side filtering over the current bounded preview rows."
+                description={activeView === 'catalog' ? 'Search and narrow the complete active material catalogue.' : 'Client-side filtering over the current visible rows.'}
                 search={(
                   <label>
                     <span className="sr-only">Search inventory preview</span>
@@ -2340,8 +2368,40 @@ export function InventoryWorkspace({ permissions }) {
                     />
                   </label>
                 )}
+                filters={activeView === 'catalog' ? (
+                  <>
+                    <select
+                      aria-label="Filter catalogue by category"
+                      value={catalogCategory}
+                      onChange={(event) => {
+                        setCatalogCategory(event.target.value);
+                        setCatalogSubcategory('');
+                      }}
+                    >
+                      <option value="">All categories</option>
+                      {catalogCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                    </select>
+                    <select
+                      aria-label="Filter catalogue by subcategory"
+                      value={catalogSubcategory}
+                      onChange={(event) => setCatalogSubcategory(event.target.value)}
+                    >
+                      <option value="">All subcategories</option>
+                      {catalogSubcategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                    </select>
+                  </>
+                ) : null}
                 actions={(
-                  <button type="button" className="secondary-button" onClick={() => setSearch('')} disabled={!search}>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setSearch('');
+                      setCatalogCategory('');
+                      setCatalogSubcategory('');
+                    }}
+                    disabled={!search && !catalogCategory && !catalogSubcategory}
+                  >
                     Clear
                   </button>
                 )}

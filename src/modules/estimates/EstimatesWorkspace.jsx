@@ -404,6 +404,14 @@ const CATALOG_ITEM_SELECT_FIELDS = [
   'material_code',
   'description',
   'broad_category',
+  'sub_category',
+  'sub_category_2',
+  'sub_category_3',
+  'size',
+  'length',
+  'division',
+  'manufacturer',
+  'manufacturer_sub',
   'unit_of_measure',
   'price_per_unit',
   'labor_rate_hrs',
@@ -413,6 +421,16 @@ const CATALOG_ITEM_SELECT_FIELDS = [
   'is_active',
   'is_archived',
 ].join(', ');
+
+const DEFAULT_CATALOG_FILTERS = Object.freeze({
+  search: '',
+  broad_category: '',
+  sub_category: '',
+  sub_category_2: '',
+  sub_category_3: '',
+  size: '',
+  manufacturer: '',
+});
 
 const ESTIMATE_TAKEOFF_COLUMNS = [
   { key: 'name', header: 'Takeoff', render: (row) => <strong>{row.name}</strong> },
@@ -456,6 +474,9 @@ const CATALOG_ITEM_COLUMNS = [
   { key: 'name', header: 'Material', render: (row) => <strong>{row.name}</strong> },
   { key: 'material_code', header: 'Code', fallback: '-' },
   { key: 'broad_category', header: 'Category', fallback: '-' },
+  { key: 'sub_category', header: 'Subcategory', fallback: '-' },
+  { key: 'size', header: 'Size', fallback: '-' },
+  { key: 'manufacturer', header: 'Manufacturer', fallback: '-' },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
   { key: 'price_per_unit', header: 'Unit Cost', align: 'right', render: (row) => formatMoney(row.price_per_unit) },
   { key: 'labor_rate_hrs', header: 'NECA Hrs', align: 'right', render: (row) => formatNumber(row.labor_rate_hrs) },
@@ -496,6 +517,109 @@ function formatPricingCategory(value) {
 
 function formatLineType(value) {
   return (value || 'other').replaceAll('_', ' ');
+}
+
+function catalogFilterOptions(items, field, filters, precedingFields = []) {
+  const scopedItems = items.filter((item) => precedingFields.every((key) => !filters[key] || item[key] === filters[key]));
+  return [...new Set(scopedItems.map((item) => item[field]).filter(Boolean))]
+    .sort((left, right) => String(left).localeCompare(String(right), undefined, { numeric: true }));
+}
+
+function filterCatalogItems(items, filters) {
+  const normalizedSearch = filters.search.trim().toLowerCase();
+  const exactFields = ['broad_category', 'sub_category', 'sub_category_2', 'sub_category_3', 'size', 'manufacturer'];
+
+  return items.filter((item) => {
+    if (exactFields.some((field) => filters[field] && item[field] !== filters[field])) return false;
+    if (!normalizedSearch) return true;
+
+    return [
+      item.material_code,
+      item.name,
+      item.description,
+      item.broad_category,
+      item.sub_category,
+      item.sub_category_2,
+      item.sub_category_3,
+      item.size,
+      item.length,
+      item.manufacturer,
+      item.manufacturer_sub,
+      item.unit_of_measure,
+    ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
+  });
+}
+
+function CatalogFilterControls({ items, filters, onChange, idPrefix }) {
+  const hierarchy = ['broad_category', 'sub_category', 'sub_category_2', 'sub_category_3'];
+  const labels = {
+    broad_category: 'Category',
+    sub_category: 'Subcategory',
+    sub_category_2: 'Specific type',
+    sub_category_3: 'Detail',
+    size: 'Size',
+    manufacturer: 'Manufacturer',
+  };
+  const allLabels = {
+    broad_category: 'All categories',
+    sub_category: 'All subcategories',
+    sub_category_2: 'All specific types',
+    sub_category_3: 'All details',
+    size: 'All sizes',
+    manufacturer: 'All manufacturers',
+  };
+
+  function updateFilter(field, value) {
+    const next = { ...filters, [field]: value };
+    const hierarchyIndex = hierarchy.indexOf(field);
+    if (hierarchyIndex >= 0) {
+      hierarchy.slice(hierarchyIndex + 1).forEach((key) => {
+        next[key] = '';
+      });
+      next.size = '';
+      next.manufacturer = '';
+    }
+    onChange(next);
+  }
+
+  const fields = [
+    { key: 'broad_category', preceding: [] },
+    { key: 'sub_category', preceding: ['broad_category'] },
+    { key: 'sub_category_2', preceding: ['broad_category', 'sub_category'] },
+    { key: 'sub_category_3', preceding: ['broad_category', 'sub_category', 'sub_category_2'] },
+    { key: 'size', preceding: hierarchy },
+    { key: 'manufacturer', preceding: hierarchy },
+  ];
+
+  return (
+    <div className="material-catalog-filters" aria-label="Material catalogue filters">
+      <label className="material-catalog-filters__search" htmlFor={`${idPrefix}-search`}>
+        <span>Search</span>
+        <input
+          id={`${idPrefix}-search`}
+          type="search"
+          value={filters.search}
+          onChange={(event) => updateFilter('search', event.target.value)}
+          placeholder="Code, material, description..."
+        />
+      </label>
+      {fields.map(({ key, preceding }) => {
+        const options = catalogFilterOptions(items, key, filters, preceding);
+        return (
+          <label key={key} htmlFor={`${idPrefix}-${key}`}>
+            <span>{labels[key]}</span>
+            <select id={`${idPrefix}-${key}`} value={filters[key]} onChange={(event) => updateFilter(key, event.target.value)}>
+              <option value="">{allLabels[key]}</option>
+              {options.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+        );
+      })}
+      <button type="button" className="secondary-button material-catalog-filters__clear" onClick={() => onChange({ ...DEFAULT_CATALOG_FILTERS })}>
+        Clear Filters
+      </button>
+    </div>
+  );
 }
 
 function formatQuotePackageType(value) {
@@ -1434,22 +1558,31 @@ function useCatalogItems({ enabled }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const { data, error } = await client
-          .from('items')
-          .select(CATALOG_ITEM_SELECT_FIELDS)
-          .eq('estimating_enabled', true)
-          .eq('is_active', true)
-          .eq('is_archived', false)
-          .order('name', { ascending: true })
-          .limit(250);
+        const pageSize = 1000;
+        const loadedItems = [];
 
-        if (error) throw error;
+        for (let from = 0; ; from += pageSize) {
+          const { data, error } = await client
+            .from('items')
+            .select(CATALOG_ITEM_SELECT_FIELDS)
+            .eq('estimating_enabled', true)
+            .eq('is_active', true)
+            .eq('is_archived', false)
+            .order('name', { ascending: true })
+            .order('material_code', { ascending: true, nullsFirst: false })
+            .order('id', { ascending: true })
+            .range(from, from + pageSize - 1);
+
+          if (error) throw error;
+          loadedItems.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
 
         if (isMounted) {
           setState({
             isLoading: false,
             error: null,
-            items: data ?? EMPTY_CATALOG_ITEMS,
+            items: loadedItems,
           });
         }
       } catch (error) {
@@ -1495,6 +1628,8 @@ export function EstimatesWorkspace({ permissions }) {
   const [assemblyForm, setAssemblyForm] = useState(DEFAULT_ASSEMBLY_FORM);
   const [assemblyPricingForm, setAssemblyPricingForm] = useState(DEFAULT_ASSEMBLY_PRICING_FORM);
   const [assemblyItemForm, setAssemblyItemForm] = useState(DEFAULT_ASSEMBLY_ITEM_FORM);
+  const [catalogFilters, setCatalogFilters] = useState(DEFAULT_CATALOG_FILTERS);
+  const [assemblyCatalogFilters, setAssemblyCatalogFilters] = useState(DEFAULT_CATALOG_FILTERS);
   const [materialPriceUpdate, setMaterialPriceUpdate] = useState(DEFAULT_MATERIAL_PRICE_UPDATE);
   const [selectedAssemblyId, setSelectedAssemblyId] = useState('');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
@@ -1579,6 +1714,20 @@ export function EstimatesWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && (activeWorkspaceTab === 'price-list' || activeWorkspaceTab === 'assemblies' || activeTab === 'pricing'),
   });
   const selectedAssemblyCatalogItem = catalogItems.items.find((item) => item.id === assemblyItemForm.item_id) ?? null;
+  const visibleCatalogItems = useMemo(
+    () => filterCatalogItems(catalogItems.items, catalogFilters),
+    [catalogFilters, catalogItems.items],
+  );
+  const visibleAssemblyCatalogItems = useMemo(
+    () => filterCatalogItems(catalogItems.items, assemblyCatalogFilters),
+    [assemblyCatalogFilters, catalogItems.items],
+  );
+  const assemblyPickerItems = useMemo(() => {
+    if (!selectedAssemblyCatalogItem || visibleAssemblyCatalogItems.some((item) => item.id === selectedAssemblyCatalogItem.id)) {
+      return visibleAssemblyCatalogItems;
+    }
+    return [selectedAssemblyCatalogItem, ...visibleAssemblyCatalogItems];
+  }, [selectedAssemblyCatalogItem, visibleAssemblyCatalogItems]);
   const canEditSelectedEstimate = canEditEstimateDivision(permissions, selectedEstimate?.division);
   const canArchiveSelectedEstimate = canEditSelectedEstimate && permissions?.canArchiveRecords === true;
   const canApproveSelectedEstimate = canApproveEstimateDivision(permissions, selectedEstimate?.division)
@@ -2791,6 +2940,15 @@ export function EstimatesWorkspace({ permissions }) {
       </div>
       {selectedAssemblyForItems && canEstimate ? (
         <form className="job-financials-form" onSubmit={handleAssemblyItemSave}>
+          <CatalogFilterControls
+            items={catalogItems.items}
+            filters={assemblyCatalogFilters}
+            onChange={setAssemblyCatalogFilters}
+            idPrefix="assembly-material"
+          />
+          <p className="material-catalog-filters__result">
+            {visibleAssemblyCatalogItems.length} of {catalogItems.items.length} materials match these filters.
+          </p>
           <div className="job-financials-form__grid">
             <label className="job-financials-form__wide">
               <span>Catalog Item</span>
@@ -2803,9 +2961,10 @@ export function EstimatesWorkspace({ permissions }) {
                 disabled={assemblyItemForm.isSaving || catalogItems.isLoading}
               >
                 <option value="">Manual / not catalog-linked</option>
-                {catalogItems.items.map((item) => (
+                {assemblyPickerItems.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.material_code ? `${item.material_code} - ${item.name}` : item.name}
+                    {item.size ? ` · ${item.size}` : ''}
                   </option>
                 ))}
               </select>
@@ -3923,22 +4082,28 @@ export function EstimatesWorkspace({ permissions }) {
             )}
           />
           <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Catalog Items" value={catalogItems.items.length} detail="Estimating-enabled rows" />
+            <SummaryCard label="Visible Items" value={visibleCatalogItems.length} detail={`${catalogItems.items.length} estimating-enabled rows`} />
             <SummaryCard label="In Inventory" value={stockedCatalogCount} detail="Stocked material" tone={stockedCatalogCount ? 'good' : 'default'} />
             <SummaryCard label="Catalog Only" value={catalogOnlyCount} detail="Estimating/search only" />
             <SummaryCard label="NECA Rates" value={catalogItems.items.filter((item) => Number(item.labor_rate_hrs) > 0).length} detail="Rows with labor hours" tone="accent" />
           </div>
+          <CatalogFilterControls
+            items={catalogItems.items}
+            filters={catalogFilters}
+            onChange={setCatalogFilters}
+            idPrefix="price-list-material"
+          />
           <DataTable
             columns={CATALOG_ITEM_COLUMNS}
-            rows={catalogItems.items}
+            rows={visibleCatalogItems}
             getRowKey={(row) => row.id}
             permissions={permissions}
             isLoading={catalogItems.isLoading}
             error={catalogItems.error}
             dense
             minWidth="980px"
-            emptyTitle="No estimating catalog items are visible"
-            emptyDescription="Catalog rows need estimating enabled, active status, and estimate read permission."
+            emptyTitle="No materials match these filters"
+            emptyDescription="Clear one or more filters, or try a broader search term."
           />
         </article>
       ) : activeWorkspaceTab === 'proposals' ? (

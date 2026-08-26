@@ -39,6 +39,29 @@ async function getCount(client, table, queryBuilder) {
   return count ?? 0;
 }
 
+async function getActiveCatalog(client) {
+  const pageSize = 1000;
+  const rows = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await client
+      .from('items')
+      .select('id, material_code, name, broad_category, sub_category, sub_category_2, sub_category_3, size, length, manufacturer, unit_of_measure, division, price_per_unit')
+      .eq('is_active', true)
+      .eq('is_archived', false)
+      .order('name', { ascending: true })
+      .order('material_code', { ascending: true, nullsFirst: false })
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return { data: rows, error: null };
+}
+
 export function useInventoryReadModel({ enabled }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -93,15 +116,7 @@ export function useInventoryReadModel({ enabled }) {
           getCount(client, 'bin_items'),
           getCount(client, 'inventory_balances'),
           getCount(client, 'grand_master_inventory_view'),
-          client
-            .from('items')
-            .select(
-              'id, material_code, name, broad_category, sub_category, unit_of_measure, division, price_per_unit',
-            )
-            .eq('is_active', true)
-            .eq('is_archived', false)
-            .order('name', { ascending: true })
-            .limit(10),
+          getActiveCatalog(client),
           client
             .from('storage_units')
             .select('id, unit_code, name, division')
