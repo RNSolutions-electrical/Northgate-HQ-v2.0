@@ -2102,6 +2102,7 @@ export function JobsWorkspace({ permissions }) {
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [changeOrderForm, setChangeOrderForm] = useState(DEFAULT_CHANGE_ORDER_FORM);
+  const [sovAllocationForm, setSovAllocationForm] = useState({ changeOrder: null, allocations: [], reason: '', isSaving: false, error: null });
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
@@ -2167,7 +2168,7 @@ export function JobsWorkspace({ permissions }) {
     jobId: selectedJob?.id,
   });
   const jobRevenue = useJobRevenueLines({
-    enabled: permissions.permissionSource === 'server' && activeTab === 'financials' && Boolean(selectedJob?.id),
+    enabled: permissions.permissionSource === 'server' && ['financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
   const jobChangeOrders = useJobChangeOrders({
@@ -3612,6 +3613,33 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  function startSovAllocation(changeOrder) {
+    setSovAllocationForm({ changeOrder, allocations: [{ revenue_line_id: '', amount: String(changeOrder.price_amount || ''), new_description: '' }], reason: '', isSaving: false, error: null });
+  }
+
+  async function saveSovAllocation(event) {
+    event.preventDefault();
+    const { changeOrder, allocations, reason, isSaving } = sovAllocationForm;
+    if (!changeOrder?.id || isSaving) return;
+    const payload = allocations.filter((item) => Number(item.amount || 0) > 0).map((item) => ({ revenue_line_id: item.revenue_line_id || null, new_description: item.new_description || null, amount: Number(item.amount) }));
+    const total = payload.reduce((sum, item) => sum + item.amount, 0);
+    if (!reason.trim() || total !== Number(changeOrder.price_amount || 0)) {
+      setSovAllocationForm((current) => ({ ...current, error: new Error('Provide an audit reason and allocate exactly the approved price.') }));
+      return;
+    }
+    setSovAllocationForm((current) => ({ ...current, isSaving: true, error: null }));
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('save_change_order_sov_allocations', { p_change_order_id: changeOrder.id, p_allocations: payload, p_reason: reason.trim() });
+      if (error) throw error;
+      setSovAllocationForm({ changeOrder: null, allocations: [], reason: '', isSaving: false, error: null });
+      jobRevenue.reload();
+    } catch (error) {
+      setSovAllocationForm((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
   async function handleBudgetImport(event) {
     event.preventDefault();
 
@@ -4629,7 +4657,7 @@ export function JobsWorkspace({ permissions }) {
         { key: 'price_amount', header: 'Price', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.price_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, price_amount: e.target.value }))} /> : formatMoney(row.price_amount) },
         { key: 'cost_amount', header: 'Internal cost', align: 'right', render: (row) => changeOrderForm.id === row.id ? <input className="job-financials-table-input" type="number" value={changeOrderForm.cost_amount} onChange={(e) => setChangeOrderForm((c) => ({ ...c, cost_amount: e.target.value }))} /> : formatMoney(row.cost_amount) },
         { key: 'approved_at', header: 'Approved', render: (row) => row.approved_at ? formatDateTime(row.approved_at) : '-' },
-        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <div className="job-change-order-actions"><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><input className="job-financials-table-input" placeholder="Document note" value={changeOrderForm.document_description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_description: e.target.value }))} /><input className="job-financials-table-input" type="file" onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_file: e.target.files?.[0] || null }))} disabled={changeOrderForm.isSaving} /><button type="button" className="primary-button" onClick={saveChangeOrder} disabled={changeOrderForm.isSaving}>{changeOrderForm.isSaving ? 'Saving...' : 'Save'}</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)} disabled={changeOrderForm.isSaving}>Cancel</button></div> : permissions?.canManageChangeOrders ? <button type="button" className="secondary-button" onClick={() => { const legacyAllocation = row.change_order_allocations?.length ? row.change_order_allocations.map((allocation) => ({ ...allocation, amount: allocation.amount ?? '' })) : row.budget_line_id ? [{ budget_line_id: row.budget_line_id, amount: row.price_amount ?? '' }] : []; setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, ...row, price_amount: row.price_amount ?? '', cost_amount: row.cost_amount ?? '', allocations: legacyAllocation, reason: '', isSaving: false }); }}>Edit</button> : 'Read only' },
+        { key: 'actions', header: 'Actions', render: (row) => changeOrderForm.id === row.id ? <div className="job-change-order-actions"><input className="job-financials-table-input" placeholder="Audit reason" value={changeOrderForm.reason} onChange={(e) => setChangeOrderForm((c) => ({ ...c, reason: e.target.value }))} /><input className="job-financials-table-input" placeholder="Document note" value={changeOrderForm.document_description} onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_description: e.target.value }))} /><input className="job-financials-table-input" type="file" onChange={(e) => setChangeOrderForm((c) => ({ ...c, document_file: e.target.files?.[0] || null }))} disabled={changeOrderForm.isSaving} /><button type="button" className="primary-button" onClick={saveChangeOrder} disabled={changeOrderForm.isSaving}>{changeOrderForm.isSaving ? 'Saving...' : 'Save'}</button><button type="button" className="secondary-button" onClick={() => setChangeOrderForm(DEFAULT_CHANGE_ORDER_FORM)} disabled={changeOrderForm.isSaving}>Cancel</button></div> : permissions?.canManageChangeOrders ? <div className="job-buyout-actions"><button type="button" className="secondary-button" onClick={() => { const legacyAllocation = row.change_order_allocations?.length ? row.change_order_allocations.map((allocation) => ({ ...allocation, amount: allocation.amount ?? '' })) : row.budget_line_id ? [{ budget_line_id: row.budget_line_id, amount: row.price_amount ?? '' }] : []; setChangeOrderForm({ ...DEFAULT_CHANGE_ORDER_FORM, ...row, price_amount: row.price_amount ?? '', cost_amount: row.cost_amount ?? '', allocations: legacyAllocation, reason: '', isSaving: false }); }}>Edit</button>{row.status === 'approved' ? <button type="button" className="secondary-button" onClick={() => startSovAllocation(row)}>Update SOV</button> : null}</div> : 'Read only' },
       ];
       return (
         <>
@@ -4650,6 +4678,18 @@ export function JobsWorkspace({ permissions }) {
             emptyTitle="No change orders for this job"
             emptyDescription="Approved change orders will appear here before they are allocated to a budget division and cost code."
           />
+          {sovAllocationForm.changeOrder ? (
+            <form className="job-buyout-form" onSubmit={saveSovAllocation}>
+              <Toolbar eyebrow="Approved Change Order" title={`Update SOV — ${sovAllocationForm.changeOrder.co_number}`} description={`Allocate exactly ${formatMoney(sovAllocationForm.changeOrder.price_amount)} across existing lines or a new CO-specific line.`} actions={<button type="button" className="secondary-button" onClick={() => setSovAllocationForm({ changeOrder: null, allocations: [], reason: '', isSaving: false, error: null })}>Cancel</button>} />
+              <div className="job-buyout-form__grid">
+                {sovAllocationForm.allocations.map((allocation, index) => <div className="job-change-order-allocation__row" key={index}><select value={allocation.revenue_line_id} onChange={(e) => setSovAllocationForm((current) => ({ ...current, allocations: current.allocations.map((item, i) => i === index ? { ...item, revenue_line_id: e.target.value } : item) }))}><option value="">Create new SOV line</option>{jobRevenue.lines.map((line) => <option key={line.id} value={line.id}>{line.sov_line || 'SOV'} — {line.description}</option>)}</select>{!allocation.revenue_line_id ? <input placeholder="New SOV description" value={allocation.new_description} onChange={(e) => setSovAllocationForm((current) => ({ ...current, allocations: current.allocations.map((item, i) => i === index ? { ...item, new_description: e.target.value } : item) }))} /> : null}<input type="number" min="0" step="0.01" value={allocation.amount} onChange={(e) => setSovAllocationForm((current) => ({ ...current, allocations: current.allocations.map((item, i) => i === index ? { ...item, amount: e.target.value } : item) }))} /><button type="button" className="secondary-button" onClick={() => setSovAllocationForm((current) => ({ ...current, allocations: current.allocations.filter((_, i) => i !== index) }))}>Remove</button></div>)}
+                <button type="button" className="secondary-button" onClick={() => setSovAllocationForm((current) => ({ ...current, allocations: [...current.allocations, { revenue_line_id: '', amount: '', new_description: '' }] }))}>Add allocation</button>
+                <label className="job-buyout-form__wide"><span>Audit reason</span><input value={sovAllocationForm.reason} onChange={(e) => setSovAllocationForm((current) => ({ ...current, reason: e.target.value, error: null }))} placeholder="Why is this SOV allocation being applied?" /></label>
+              </div>
+              {sovAllocationForm.error ? <StatePanel tone="danger" eyebrow="SOV Update Failed" title="Allocation was not saved" description={sovAllocationForm.error.message} compact /> : null}
+              <div className="job-buyout-form__actions"><button type="submit" className="primary-button" disabled={sovAllocationForm.isSaving}>{sovAllocationForm.isSaving ? 'Saving...' : 'Apply SOV Allocation'}</button></div>
+            </form>
+          ) : null}
         </>
       );
     }
