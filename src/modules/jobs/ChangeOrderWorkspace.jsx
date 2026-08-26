@@ -360,14 +360,18 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     <section className="change-order-workspace">
       <div className="change-order-workspace__topbar">
         <button type="button" className="secondary-button" onClick={onClose} disabled={Boolean(action.name)}><ArrowLeft aria-hidden="true" /> Back to Change Orders</button>
-        <StatusBadge status={order?.status || 'draft'}>{workflow}</StatusBadge>
+        <div className="change-order-workspace__identity">
+          <span>Change Order</span>
+          <strong>{form.co_number ? `${form.co_number} — ${form.title || 'Untitled'}` : 'New Change Order'}</strong>
+          <small>{workflow}</small>
+        </div>
+        <StatusBadge status={order?.status || 'draft'}>{order?.status || 'draft'}</StatusBadge>
       </div>
       {order ? <div className="change-order-workspace__actions">
         {order.status === 'submitted' && !order.signed_document_id && canCreate && canSubmit ? <button type="button" className="secondary-button" onClick={editSubmittedOrder} disabled={Boolean(action.name)}><Save aria-hidden="true" /> {action.name === 'reopen' ? 'Returning to Draft...' : 'Edit Submitted Change Order'}</button> : null}
         {order.status === 'approved' && canRevise ? <button type="button" className="secondary-button" onClick={createRevision} disabled={Boolean(action.name)}><Copy aria-hidden="true" /> Create Editable Revision</button> : null}
         {order.status === 'approved' && canRevise ? <button type="button" className="secondary-button secondary-button--danger" onClick={voidApprovedOrder} disabled={Boolean(action.name)}><Ban aria-hidden="true" /> {action.name === 'void' ? 'Voiding & Reversing...' : 'Void Approved Change Order'}</button> : null}
       </div> : null}
-      <Toolbar eyebrow="Change Order Workspace" title={form.co_number ? `${form.co_number} — ${form.title || 'Untitled'}` : 'New Change Order'} description="Save Draft → Submit → Export PDF → Upload & Verify Signed CO → Approve and post automatically" />
       <div className="summary-grid summary-grid--compact">
         <SummaryCard label="Project" value={job.job_number || job.name} detail={job.name} />
         <SummaryCard label="Status" value={order?.status || 'draft'} detail={workflow} />
@@ -376,15 +380,22 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       </div>
 
       <div className="change-order-workspace__panel">
-        <div className="job-financials-form__grid">
+        <div className="change-order-form__heading">
+          <div>
+            <span>Change details</span>
+            <strong>Scope and project information</strong>
+          </div>
+          <small>Required audit reasons are retained with every workflow action.</small>
+        </div>
+        <div className="change-order-form__grid">
           <label><span>Project</span><input value={`${job.job_number || ''} ${job.name}`.trim()} disabled /></label>
           <label><span>Change Order number</span><input value={form.co_number} onChange={(e) => setField('co_number', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} placeholder="CO-001" /></label>
           <label><span>Date</span><input type="date" value={form.change_order_date} onChange={(e) => setField('change_order_date', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
           <label><span>Status</span><input value={order?.status || 'draft'} disabled /></label>
-          <label className="job-financials-form__wide"><span>Title</span><input value={form.title} onChange={(e) => setField('title', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-          <label className="job-financials-form__wide"><span>Description / scope</span><textarea rows={4} value={form.description} onChange={(e) => setField('description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-          <label className="job-financials-form__wide"><span>Internal notes (not included in client PDF)</span><textarea rows={3} value={form.internal_notes} onChange={(e) => setField('internal_notes', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-          <label className="job-financials-form__wide"><span>Audit reason</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required when saving; used for submission or approval when provided" /></label>
+          <label className="change-order-form__wide"><span>Title</span><input value={form.title} onChange={(e) => setField('title', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
+          <label className="change-order-form__scope"><span>Description / scope</span><textarea rows={5} value={form.description} onChange={(e) => setField('description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
+          <label className="change-order-form__notes"><span>Internal notes <small>Not included in client PDF</small></span><textarea rows={5} value={form.internal_notes} onChange={(e) => setField('internal_notes', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
+          <label className="change-order-form__wide"><span>Audit reason</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required when saving; used for submission or approval when provided" /></label>
         </div>
       </div>
 
