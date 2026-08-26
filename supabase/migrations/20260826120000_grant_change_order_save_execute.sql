@@ -1,0 +1,3 @@
+GRANT EXECUTE ON FUNCTION public.save_job_change_order(
+  UUID, UUID, TEXT, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID, UUID
+) TO authenticated;
