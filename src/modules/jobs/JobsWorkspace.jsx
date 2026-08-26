@@ -3520,16 +3520,25 @@ export function JobsWorkspace({ permissions }) {
       setChangeOrderForm((current) => ({ ...current, isSaving: true }));
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const allocations = changeOrderForm.allocations
-        .filter((allocation) => allocation.budget_line_id && Number(allocation.amount || 0) > 0)
-        .map((allocation) => {
-          const budgetLine = jobBudget.lines.find((line) => line.id === allocation.budget_line_id);
-          return {
-            budget_line_id: allocation.budget_line_id,
-            project_division_id: budgetLine?.project_division_id || null,
-            amount: Number(allocation.amount || 0),
-          };
-        });
+      const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+      const allocations = [];
+      for (const allocation of changeOrderForm.allocations.filter((item) => item.budget_line_id && Number(item.amount || 0) > 0)) {
+        let budgetLine = jobBudget.lines.find((line) => line.id === allocation.budget_line_id);
+        if (allocation.budget_line_id.startsWith('co-division:')) {
+          const projectDivisionId = allocation.budget_line_id.slice('co-division:'.length);
+          const divisionLine = jobBudget.lines.find((line) => (line.project_division_id || line.project_division?.id) === projectDivisionId);
+          const code = divisionLine?.project_division?.code || String(divisionLine?.cost_code || '').match(/^\d{2}/)?.[0];
+          const name = divisionLine?.project_division?.name || projectDivisionLabel(divisionLine);
+          if (!code) throw new Error('Choose a project division with an existing financial line before adding its change-order line.');
+          budgetLine = jobBudget.lines.find((line) => line.project_division_id === projectDivisionId && line.cost_code === `${code}.CO`);
+          if (!budgetLine) {
+            const { data, error } = await client.from('job_budget_lines').insert({ job_id: selectedJob.id, division: selectedJob.division, project_division_id: projectDivisionId, category: 'other', cost_code: `${code}.CO`, description: `${name} Change Orders`, budget_amount: 0, budget_change_amount: 0, actual_cost_amount: 0, committed_cost_amount: 0, forecast_to_complete_amount: 0, forecast_final_amount: 0, schedule_of_values_amount: 0, note: 'System-managed change-order allocation line.', created_by: createdBy }).select(JOB_BUDGET_SELECT_FIELDS).single();
+            if (error) throw error;
+            budgetLine = data;
+          }
+        }
+        allocations.push({ budget_line_id: budgetLine.id, project_division_id: budgetLine.project_division_id || null, amount: Number(allocation.amount || 0) });
+      }
       const allocationTotal = allocations.reduce((total, allocation) => total + allocation.amount, 0);
       const priceAmount = Number(changeOrderForm.price_amount || 0);
       if (changeOrderForm.status === 'approved' && allocationTotal !== priceAmount) {
@@ -3671,7 +3680,7 @@ export function JobsWorkspace({ permissions }) {
       actualsByCode.forEach((actualCostAmount, costCode) => {
         const divisionCode = String(costCode).match(/^\d{2}/)?.[0];
         if (budgetImport.mode === 'estimate' && budgetImport.includedDivisions.length && !budgetImport.includedDivisions.includes(divisionCode)) return;
-        const matchingLines = linesByCostCode.get(costCode) || [];
+        const matchingLines = (linesByCostCode.get(costCode) || []).filter((line) => !String(line.cost_code || '').endsWith('.CO'));
         if (!matchingLines.length) return;
         matchedCount += matchingLines.length;
         matchingLines.forEach((line) => {
@@ -4643,6 +4652,9 @@ export function JobsWorkspace({ permissions }) {
                 <div className="job-change-order-allocation__row" key={allocation.id || `${allocation.budget_line_id}-${index}`}>
                   <select className="job-financials-table-input" value={allocation.budget_line_id} onChange={(e) => setChangeOrderForm((current) => ({ ...current, allocations: current.allocations.map((item, itemIndex) => itemIndex === index ? { ...item, budget_line_id: e.target.value } : item) }))} disabled={changeOrderForm.isSaving || !jobBudget.lines.length}>
                     <option value="">Budget line</option>
+                    <optgroup label="Project division change-order lines">
+                      {projectDivisionOptions.map((division) => <option key={division.id} value={`co-division:${division.id}`}>{division.label} .CO — Change Orders</option>)}
+                    </optgroup>
                     {jobBudget.lines.map((line) => <option key={line.id} value={line.id}>{budgetLineLabel(line)}</option>)}
                   </select>
                   <input className="job-financials-table-input" aria-label="Allocated budget amount" type="number" min="0" step="0.01" value={allocation.amount} onChange={(e) => setChangeOrderForm((current) => ({ ...current, allocations: current.allocations.map((item, itemIndex) => itemIndex === index ? { ...item, amount: e.target.value } : item) }))} disabled={changeOrderForm.isSaving} />
