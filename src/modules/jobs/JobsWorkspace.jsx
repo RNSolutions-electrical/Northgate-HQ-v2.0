@@ -66,6 +66,8 @@ const DEFAULT_JOB_FORM = Object.freeze({
 });
 const EMPTY_BUYOUT_LINES = Object.freeze([]);
 const BUYOUT_STATUS_OPTIONS = ['pending', 'ordered', 'received', 'cancelled'];
+const VENDOR_QUOTE_STATUS_OPTIONS = ['draft', 'requested', 'quoted', 'declined'];
+const EMPTY_BUYOUT_VENDOR_QUOTES = Object.freeze([]);
 const DEFAULT_BUYOUT_FORM = Object.freeze({
   id: '',
   item_description: '',
@@ -77,6 +79,24 @@ const DEFAULT_BUYOUT_FORM = Object.freeze({
   actual_value: '',
   initial_lead_time_days: '',
   actual_lead_time_days: '',
+  note: '',
+  isSaving: false,
+  error: null,
+  success: '',
+});
+const DEFAULT_VENDOR_QUOTE_FORM = Object.freeze({
+  id: '',
+  buyout_line_id: '',
+  vendor_name: '',
+  contact_name: '',
+  contact_email: '',
+  request_status: 'draft',
+  quote_number: '',
+  quoted_amount: '',
+  original_lead_time_days: '',
+  current_lead_time_days: '',
+  valid_until: '',
+  document_id: '',
   note: '',
   isSaving: false,
   error: null,
@@ -1387,6 +1407,50 @@ function useJobBuyoutLines({ enabled, jobId }) {
   };
 }
 
+function useJobBuyoutVendorQuotes({ enabled, buyoutLineIds }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({
+    isLoading: false,
+    error: null,
+    rows: EMPTY_BUYOUT_VENDOR_QUOTES,
+  });
+  const buyoutLineKey = useMemo(() => (buyoutLineIds || []).filter(Boolean).sort().join(','), [buyoutLineIds]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      const ids = buyoutLineKey ? buyoutLineKey.split(',') : [];
+      if (!enabled || ids.length === 0) {
+        setState({ isLoading: false, error: null, rows: EMPTY_BUYOUT_VENDOR_QUOTES });
+        return;
+      }
+
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client
+          .from('job_buyout_vendor_quotes')
+          .select('*')
+          .in('buyout_line_id', ids)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_BUYOUT_VENDOR_QUOTES });
+      } catch (error) {
+        console.error('Buyout vendor quotes failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, rows: EMPTY_BUYOUT_VENDOR_QUOTES });
+      }
+    }
+
+    load();
+    return () => { isMounted = false; };
+  }, [buyoutLineKey, enabled, getToken, refreshKey]);
+
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 function useJobBudgetLines({ enabled, jobId }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -1844,6 +1908,48 @@ function buyoutAuditSnapshot(row) {
   };
 }
 
+function vendorQuoteToForm(row) {
+  if (!row) return DEFAULT_VENDOR_QUOTE_FORM;
+  return {
+    ...DEFAULT_VENDOR_QUOTE_FORM,
+    id: row.id || '',
+    buyout_line_id: row.buyout_line_id || '',
+    vendor_name: row.vendor_name || '',
+    contact_name: row.contact_name || '',
+    contact_email: row.contact_email || '',
+    request_status: VENDOR_QUOTE_STATUS_OPTIONS.includes(row.request_status) ? row.request_status : 'draft',
+    quote_number: row.quote_number || '',
+    quoted_amount: row.quoted_amount == null ? '' : String(row.quoted_amount),
+    original_lead_time_days: row.original_lead_time_days == null ? '' : String(row.original_lead_time_days),
+    current_lead_time_days: row.current_lead_time_days == null ? '' : String(row.current_lead_time_days),
+    valid_until: row.valid_until || '',
+    document_id: row.document_id || '',
+    note: row.note || '',
+  };
+}
+
+function vendorQuoteAuditSnapshot(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    buyout_line_id: row.buyout_line_id,
+    vendor_name: row.vendor_name,
+    contact_name: row.contact_name,
+    contact_email: row.contact_email,
+    request_status: row.request_status,
+    requested_at: row.requested_at,
+    quote_number: row.quote_number,
+    quoted_amount: row.quoted_amount,
+    original_lead_time_days: row.original_lead_time_days,
+    current_lead_time_days: row.current_lead_time_days,
+    valid_until: row.valid_until,
+    document_id: row.document_id,
+    note: row.note,
+    awarded_at: row.awarded_at,
+    awarded_by: row.awarded_by,
+  };
+}
+
 function budgetToForm(row) {
   if (!row) return DEFAULT_BUDGET_FORM;
 
@@ -1983,6 +2089,7 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [buyoutQuoteUpload, setBuyoutQuoteUpload] = useState(DEFAULT_BUYOUT_QUOTE_UPLOAD);
+  const [vendorQuoteForm, setVendorQuoteForm] = useState(DEFAULT_VENDOR_QUOTE_FORM);
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
   const [budgetEditFocusField, setBudgetEditFocusField] = useState('');
@@ -2047,6 +2154,11 @@ export function JobsWorkspace({ permissions }) {
   const jobBuyout = useJobBuyoutLines({
     enabled: permissions.permissionSource === 'server' && ['overview', 'buyout'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
+  });
+  const buyoutLineIds = useMemo(() => jobBuyout.lines.map((line) => line.id), [jobBuyout.lines]);
+  const jobBuyoutVendorQuotes = useJobBuyoutVendorQuotes({
+    enabled: permissions.permissionSource === 'server' && activeTab === 'buyout' && Boolean(selectedJob?.id),
+    buyoutLineIds,
   });
   const jobBudget = useJobBudgetLines({
     enabled: permissions.permissionSource === 'server' && ['financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
@@ -2151,6 +2263,7 @@ export function JobsWorkspace({ permissions }) {
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBuyoutQuoteUpload(DEFAULT_BUYOUT_QUOTE_UPLOAD);
+    setVendorQuoteForm(DEFAULT_VENDOR_QUOTE_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
     setIsAddingBudgetLine(false);
     setIsBudgetImportOpen(false);
@@ -2199,7 +2312,7 @@ export function JobsWorkspace({ permissions }) {
     setJobAction({ action: '', error: null, success: '' });
   }
 
-  async function writeJobChangeLog(client, { action, recordId, beforeData, afterData, note }) {
+  async function writeJobChangeLog(client, { action, recordId, beforeData, afterData, note, tableName = 'jobs' }) {
     const userId = user?.id || null;
     const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
     const { error } = await client
@@ -2207,7 +2320,7 @@ export function JobsWorkspace({ permissions }) {
       .insert({
         user_id: userId,
         user_name: userName,
-        table_name: 'jobs',
+        table_name: tableName,
         record_id: recordId,
         action,
         before_data: beforeData,
@@ -2768,6 +2881,114 @@ export function JobsWorkspace({ permissions }) {
     } catch (error) {
       console.error('Job buyout archive failed', error);
       setBuyoutAction({ id: '', action: '', error });
+    }
+  }
+
+  function startVendorQuoteAdd(line) {
+    if (!line?.id || !canManageSelectedJob) return;
+    setVendorQuoteForm({ ...DEFAULT_VENDOR_QUOTE_FORM, buyout_line_id: line.id });
+  }
+
+  function startVendorQuoteEdit(row) {
+    if (!row?.id || !canManageSelectedJob) return;
+    setVendorQuoteForm(vendorQuoteToForm(row));
+  }
+
+  function resetVendorQuoteForm() {
+    setVendorQuoteForm(DEFAULT_VENDOR_QUOTE_FORM);
+  }
+
+  function buildVendorQuotePayload(existingRow = null) {
+    const requestStatus = VENDOR_QUOTE_STATUS_OPTIONS.includes(vendorQuoteForm.request_status)
+      ? vendorQuoteForm.request_status
+      : 'draft';
+    return {
+      vendor_name: vendorQuoteForm.vendor_name.trim(),
+      contact_name: vendorQuoteForm.contact_name.trim() || null,
+      contact_email: vendorQuoteForm.contact_email.trim().toLowerCase() || null,
+      request_status: requestStatus,
+      requested_at: requestStatus === 'requested'
+        ? (existingRow?.requested_at || new Date().toISOString())
+        : (existingRow?.requested_at || null),
+      quote_number: vendorQuoteForm.quote_number.trim() || null,
+      quoted_amount: parseOptionalNumber(vendorQuoteForm.quoted_amount) || 0,
+      original_lead_time_days: parseOptionalNumber(vendorQuoteForm.original_lead_time_days),
+      current_lead_time_days: parseOptionalNumber(vendorQuoteForm.current_lead_time_days),
+      valid_until: vendorQuoteForm.valid_until || null,
+      document_id: vendorQuoteForm.document_id || null,
+      note: vendorQuoteForm.note.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  async function handleVendorQuoteSave(event) {
+    event.preventDefault();
+    if (!vendorQuoteForm.buyout_line_id || !canManageSelectedJob || vendorQuoteForm.isSaving) return;
+    if (!vendorQuoteForm.vendor_name.trim()) {
+      setVendorQuoteForm((current) => ({ ...current, error: new Error('Enter the vendor name before saving.') }));
+      return;
+    }
+
+    const existingRow = vendorQuoteForm.id
+      ? jobBuyoutVendorQuotes.rows.find((row) => row.id === vendorQuoteForm.id)
+      : null;
+    const payload = buildVendorQuotePayload(existingRow);
+    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+    setVendorQuoteForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const query = vendorQuoteForm.id
+        ? client.from('job_buyout_vendor_quotes').update(payload).eq('id', vendorQuoteForm.id).select('*').single()
+        : client.from('job_buyout_vendor_quotes').insert({
+          ...payload,
+          buyout_line_id: vendorQuoteForm.buyout_line_id,
+          created_by: createdBy,
+        }).select('*').single();
+      const { data, error } = await query;
+      if (error) throw error;
+
+      await writeJobChangeLog(client, {
+        action: vendorQuoteForm.id ? 'update' : 'create',
+        recordId: data.id,
+        beforeData: vendorQuoteAuditSnapshot(existingRow),
+        afterData: vendorQuoteAuditSnapshot(data),
+        note: `Vendor quote for ${data.vendor_name} ${vendorQuoteForm.id ? 'updated' : 'created'}.`,
+        tableName: 'job_buyout_vendor_quotes',
+      });
+      setVendorQuoteForm({
+        ...DEFAULT_VENDOR_QUOTE_FORM,
+        buyout_line_id: data.buyout_line_id,
+        success: `${data.vendor_name} quote saved.`,
+      });
+      jobBuyoutVendorQuotes.reload();
+    } catch (error) {
+      console.error('Buyout vendor quote save failed', error);
+      setVendorQuoteForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleVendorQuoteAward(row, reason) {
+    if (!row?.id || !canManageSelectedJob || !reason?.trim()) {
+      if (row?.id) setJobConfirmation({ kind: 'buyout-award', record: row, label: row.vendor_name || 'this vendor quote' });
+      return;
+    }
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('award_job_buyout_quote', {
+        p_quote_id: row.id,
+        p_reason: reason.trim(),
+      });
+      if (error) throw error;
+      setVendorQuoteForm((current) => current.buyout_line_id === row.buyout_line_id
+        ? { ...current, success: `${row.vendor_name} was awarded. The buyout item is now Ordered.` }
+        : current);
+      jobBuyoutVendorQuotes.reload();
+      jobBuyout.reload();
+    } catch (error) {
+      console.error('Buyout award failed', error);
+      setVendorQuoteForm((current) => ({ ...current, error }));
     }
   }
 
@@ -3706,6 +3927,9 @@ export function JobsWorkspace({ permissions }) {
       case 'buyout-archive':
         await handleBuyoutArchive(confirmation.record, reason);
         break;
+      case 'buyout-award':
+        await handleVendorQuoteAward(confirmation.record, reason);
+        break;
       case 'budget-archive':
         await handleBudgetArchive(confirmation.record, reason);
         break;
@@ -3731,6 +3955,14 @@ export function JobsWorkspace({ permissions }) {
         description: `${jobConfirmation.isAssigned ? 'Remove' : 'Assign'} ${jobConfirmation.label} ${jobConfirmation.isAssigned ? 'from' : 'to'} ${jobLabel(selectedJob)}.`,
         confirmLabel: jobConfirmation.isAssigned ? 'Remove from job' : 'Assign to job',
         tone: jobConfirmation.isAssigned ? 'danger' : 'default',
+      };
+    }
+    if (jobConfirmation.kind === 'buyout-award') {
+      return {
+        title: `Award ${jobConfirmation.label}`,
+        description: `Award this vendor quote and set its buyout item to Ordered. The vendor amount and lead times will become the item's awarded values.`,
+        confirmLabel: 'Award quote',
+        tone: 'default',
       };
     }
     return {
@@ -3925,6 +4157,9 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'buyout') {
+      const selectedBuyoutLine = jobBuyout.lines.find((line) => line.id === vendorQuoteForm.buyout_line_id) || null;
+      const vendorQuotesForSelectedLine = jobBuyoutVendorQuotes.rows.filter((row) => row.buyout_line_id === vendorQuoteForm.buyout_line_id);
+      const quoteDocuments = jobDocuments.documents.filter((document) => document.document_type === 'quotes' && !document.archived_at);
       const buyoutColumns = [
         ...JOB_BUYOUT_COLUMNS,
         {
@@ -3940,6 +4175,9 @@ export function JobsWorkspace({ permissions }) {
                 </button>
                 <button type="button" className="secondary-button" onClick={() => startBuyoutQuoteUpload(row)} disabled={isBusy || buyoutQuoteUpload.isUploading}>
                   Attach Quote
+                </button>
+                <button type="button" className="secondary-button" onClick={() => startVendorQuoteAdd(row)} disabled={isBusy || vendorQuoteForm.isSaving}>
+                  Vendors ({jobBuyoutVendorQuotes.rows.filter((quote) => quote.buyout_line_id === row.id).length})
                 </button>
                 {BUYOUT_STATUS_OPTIONS.map((status) => (
                   <button
@@ -4029,6 +4267,104 @@ export function JobsWorkspace({ permissions }) {
           ) : null}
           {buyoutQuoteUpload.success ? (
             <StatePanel tone="success" eyebrow="Quote Added" title="Quote saved to Documents" description={buyoutQuoteUpload.success} compact />
+          ) : null}
+
+          {vendorQuoteForm.buyout_line_id ? (
+            <form className="job-buyout-form" onSubmit={handleVendorQuoteSave}>
+              <Toolbar
+                eyebrow={vendorQuoteForm.id ? 'Edit Vendor Quote' : 'Vendor Quote'}
+                title={`${vendorQuoteForm.id ? 'Edit quote' : 'Add vendor quote'} — ${selectedBuyoutLine?.item_description || 'Buyout item'}`}
+                description="Record each vendor response, quote amount, and lead time. Use the attached quote file from Documents when available."
+                actions={(
+                  <button type="button" className="secondary-button" onClick={resetVendorQuoteForm} disabled={vendorQuoteForm.isSaving}>
+                    Close
+                  </button>
+                )}
+              />
+              <div className="job-buyout-form__grid">
+                <label>
+                  <span>Vendor</span>
+                  <input type="text" value={vendorQuoteForm.vendor_name} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, vendor_name: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Contact</span>
+                  <input type="text" value={vendorQuoteForm.contact_name} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, contact_name: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Contact email</span>
+                  <input type="email" value={vendorQuoteForm.contact_email} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, contact_email: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Request status</span>
+                  <select value={vendorQuoteForm.request_status} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, request_status: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving}>
+                    {VENDOR_QUOTE_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatBuyoutStatus(status)}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>Quote number</span>
+                  <input type="text" value={vendorQuoteForm.quote_number} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, quote_number: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Quoted amount</span>
+                  <input type="number" min="0" step="0.01" value={vendorQuoteForm.quoted_amount} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, quoted_amount: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Initial lead (days)</span>
+                  <input type="number" min="0" step="1" value={vendorQuoteForm.original_lead_time_days} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, original_lead_time_days: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Current lead (days)</span>
+                  <input type="number" min="0" step="1" value={vendorQuoteForm.current_lead_time_days} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, current_lead_time_days: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Quote valid through</span>
+                  <input type="date" value={vendorQuoteForm.valid_until} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, valid_until: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving} />
+                </label>
+                <label>
+                  <span>Attached quote</span>
+                  <select value={vendorQuoteForm.document_id} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, document_id: event.target.value, error: null, success: '' }))} disabled={vendorQuoteForm.isSaving}>
+                    <option value="">No file linked</option>
+                    {quoteDocuments.map((document) => <option key={document.id} value={document.id}>{document.file_name}</option>)}
+                  </select>
+                </label>
+                <label className="job-buyout-form__wide">
+                  <span>Notes</span>
+                  <input type="text" value={vendorQuoteForm.note} onChange={(event) => setVendorQuoteForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} placeholder="Clarifications, exclusions, or follow-up notes" disabled={vendorQuoteForm.isSaving} />
+                </label>
+              </div>
+              {vendorQuoteForm.error ? <StatePanel tone="danger" eyebrow="Vendor Quote Failed" title="Quote was not saved" description={vendorQuoteForm.error.message || 'Unexpected vendor quote error.'} compact /> : null}
+              {vendorQuoteForm.success ? <StatePanel tone="success" eyebrow="Saved" title="Vendor quote updated" description={vendorQuoteForm.success} compact /> : null}
+              <div className="job-buyout-form__actions">
+                {vendorQuoteForm.contact_email ? <a className="secondary-button" href={`mailto:${vendorQuoteForm.contact_email}?subject=${encodeURIComponent(`Quote request — ${selectedBuyoutLine?.item_description || 'Buyout item'}`)}`}>Open Email</a> : null}
+                <button type="submit" className="primary-button" disabled={vendorQuoteForm.isSaving || !vendorQuoteForm.vendor_name.trim()}>
+                  <Plus aria-hidden="true" /> {vendorQuoteForm.isSaving ? 'Saving...' : vendorQuoteForm.id ? 'Save Vendor Quote' : 'Add Vendor Quote'}
+                </button>
+              </div>
+              {vendorQuotesForSelectedLine.length ? (
+                <DataTable
+                  columns={[
+                    { key: 'vendor_name', header: 'Vendor' },
+                    { key: 'request_status', header: 'Status', render: (row) => <StatusBadge status={row.request_status}>{formatBuyoutStatus(row.request_status)}</StatusBadge> },
+                    { key: 'quoted_amount', header: 'Quote', render: (row) => formatMoney(row.quoted_amount) },
+                    { key: 'original_lead_time_days', header: 'Initial Lead', render: (row) => row.original_lead_time_days == null ? '—' : `${row.original_lead_time_days} days` },
+                    { key: 'current_lead_time_days', header: 'Current Lead', render: (row) => row.current_lead_time_days == null ? '—' : `${row.current_lead_time_days} days` },
+                    { key: 'actions', header: 'Actions', render: (row) => (
+                      <div className="job-buyout-actions">
+                        <button type="button" className="secondary-button" onClick={() => startVendorQuoteEdit(row)} disabled={vendorQuoteForm.isSaving}>Edit</button>
+                        {row.awarded_at ? <StatusBadge status="ordered">Awarded</StatusBadge> : <button type="button" className="primary-button" onClick={() => handleVendorQuoteAward(row)} disabled={vendorQuoteForm.isSaving || row.request_status !== 'quoted'}>Award</button>}
+                      </div>
+                    ) },
+                  ]}
+                  rows={vendorQuotesForSelectedLine}
+                  getRowKey={(row) => row.id}
+                  permissions={permissions}
+                  isLoading={jobBuyoutVendorQuotes.isLoading}
+                  error={jobBuyoutVendorQuotes.error}
+                  dense
+                  minWidth="920px"
+                />
+              ) : null}
+            </form>
           ) : null}
 
           {canManageSelectedJob ? (
@@ -5611,9 +5947,9 @@ export function JobsWorkspace({ permissions }) {
           confirmLabel={confirmationCopy()?.confirmLabel}
           tone={confirmationCopy()?.tone}
           requireReason
-          reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : 'Archive reason'}
+          reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : jobConfirmation.kind === 'buyout-award' ? 'Award reason' : 'Archive reason'}
           reasonHint="This reason is recorded in the job audit history."
-          reasonPlaceholder={jobConfirmation.kind === 'assignment' ? 'Why should this person be assigned or removed?' : 'Why should this record be archived?'}
+          reasonPlaceholder={jobConfirmation.kind === 'assignment' ? 'Why should this person be assigned or removed?' : jobConfirmation.kind === 'buyout-award' ? 'Why is this vendor being awarded?' : 'Why should this record be archived?'}
         />
       ) : null}
     </>
