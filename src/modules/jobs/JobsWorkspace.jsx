@@ -2087,6 +2087,7 @@ export function JobsWorkspace({ permissions }) {
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
+  const [buyoutWorkspaceMode, setBuyoutWorkspaceMode] = useState('');
   const [buyoutAction, setBuyoutAction] = useState({ id: '', action: '', error: null });
   const [buyoutQuoteUpload, setBuyoutQuoteUpload] = useState(DEFAULT_BUYOUT_QUOTE_UPLOAD);
   const [vendorQuoteForm, setVendorQuoteForm] = useState(DEFAULT_VENDOR_QUOTE_FORM);
@@ -2142,7 +2143,7 @@ export function JobsWorkspace({ permissions }) {
     ?? jobs.find((job) => job.id === selectedJobId)
     ?? null;
   const isDirectoryMode = !selectedJob && mode === 'browse';
-  const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit';
+  const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit' || Boolean(buyoutWorkspaceMode);
   const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => !template.division || template.division === selectedJob?.division);
   const canManageSelectedJob = canEditJobWithPermission(permissions, selectedJob, 'canManageJobs');
   const canReassignJobDivision = permissions?.role === 'Developer';
@@ -2262,6 +2263,7 @@ export function JobsWorkspace({ permissions }) {
     setJobAction({ action: '', error: null, success: '' });
     setUploadState(DEFAULT_UPLOAD_STATE);
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
+    setBuyoutWorkspaceMode('');
     setBuyoutQuoteUpload(DEFAULT_BUYOUT_QUOTE_UPLOAD);
     setVendorQuoteForm(DEFAULT_VENDOR_QUOTE_FORM);
     setBudgetForm(DEFAULT_BUDGET_FORM);
@@ -2287,6 +2289,14 @@ export function JobsWorkspace({ permissions }) {
     setBudgetBulkInput(DEFAULT_BUDGET_BULK_INPUT);
     setScheduleForm(DEFAULT_SCHEDULE_FORM);
     setIsAddingScheduleItem(false);
+    setBuyoutWorkspaceMode('');
+  }
+
+  function returnToBuyoutList() {
+    if (buyoutForm.isSaving) return;
+    setBuyoutWorkspaceMode('');
+    setBuyoutForm(DEFAULT_BUYOUT_FORM);
+    setActiveTab('buyout');
   }
 
   useEffect(() => {
@@ -2679,6 +2689,14 @@ export function JobsWorkspace({ permissions }) {
   function startBuyoutEdit(row) {
     if (!row?.id || !canManageSelectedJob) return;
     setBuyoutForm(buyoutToForm(row));
+    setBuyoutWorkspaceMode('edit');
+    setBuyoutAction({ id: '', action: '', error: null });
+  }
+
+  function startBuyoutCreate() {
+    if (!canManageSelectedJob) return;
+    setBuyoutForm(DEFAULT_BUYOUT_FORM);
+    setBuyoutWorkspaceMode('create');
     setBuyoutAction({ id: '', action: '', error: null });
   }
 
@@ -2817,6 +2835,7 @@ export function JobsWorkspace({ permissions }) {
         ...DEFAULT_BUYOUT_FORM,
         success: `${payload.item_description} ${buyoutForm.id ? 'updated' : 'added'} in Buyout.`,
       });
+      setBuyoutWorkspaceMode('');
       jobBuyout.reload();
     } catch (error) {
       console.error('Job buyout save failed', error);
@@ -4160,6 +4179,32 @@ export function JobsWorkspace({ permissions }) {
       const selectedBuyoutLine = jobBuyout.lines.find((line) => line.id === vendorQuoteForm.buyout_line_id) || null;
       const vendorQuotesForSelectedLine = jobBuyoutVendorQuotes.rows.filter((row) => row.buyout_line_id === vendorQuoteForm.buyout_line_id);
       const quoteDocuments = jobDocuments.documents.filter((document) => document.document_type === 'quotes' && !document.archived_at);
+      if (buyoutWorkspaceMode) {
+        return canManageSelectedJob ? (
+          <form className="job-buyout-form" onSubmit={handleBuyoutSave}>
+            <Toolbar
+              eyebrow={buyoutWorkspaceMode === 'edit' ? 'Edit Buyout' : 'New Buyout'}
+              title={buyoutWorkspaceMode === 'edit' ? 'Edit buyout item' : 'Add buyout item'}
+              description="Enter the purchase item, budget, values, lead time, and notes. Vendor quotes can be added after the item is saved."
+              actions={<button type="button" className="secondary-button" onClick={returnToBuyoutList} disabled={buyoutForm.isSaving}>Back to Buyout</button>}
+            />
+            <div className="job-buyout-form__grid">
+              <label className="job-buyout-form__wide"><span>Item</span><input type="text" value={buyoutForm.item_description} onChange={(event) => setBuyoutForm((current) => ({ ...current, item_description: event.target.value, error: null, success: '' }))} placeholder="Switchgear, lighting package, specialty gear..." disabled={buyoutForm.isSaving} /></label>
+              <label><span>Quantity</span><input type="number" min="0.01" step="0.01" value={buyoutForm.quantity_needed} onChange={(event) => setBuyoutForm((current) => ({ ...current, quantity_needed: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label><span>Status</span><select value={buyoutForm.status} onChange={(event) => setBuyoutForm((current) => ({ ...current, status: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving}>{BUYOUT_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{formatBuyoutStatus(status)}</option>)}</select></label>
+              <label><span>Vendor / source</span><input type="text" value={buyoutForm.vendor_note} onChange={(event) => setBuyoutForm((current) => ({ ...current, vendor_note: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label><span>Budget</span><input type="number" min="0" step="0.01" value={buyoutForm.budget_amount} onChange={(event) => setBuyoutForm((current) => ({ ...current, budget_amount: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label><span>Initial value</span><input type="number" min="0" step="0.01" value={buyoutForm.initial_value} onChange={(event) => setBuyoutForm((current) => ({ ...current, initial_value: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label><span>Actual value</span><input type="number" min="0" step="0.01" value={buyoutForm.actual_value} onChange={(event) => setBuyoutForm((current) => ({ ...current, actual_value: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label><span>Initial lead</span><input type="number" min="0" step="1" value={buyoutForm.initial_lead_time_days} onChange={(event) => setBuyoutForm((current) => ({ ...current, initial_lead_time_days: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label><span>Actual lead</span><input type="number" min="0" step="1" value={buyoutForm.actual_lead_time_days} onChange={(event) => setBuyoutForm((current) => ({ ...current, actual_lead_time_days: event.target.value, error: null, success: '' }))} disabled={buyoutForm.isSaving} /></label>
+              <label className="job-buyout-form__wide"><span>Notes</span><input type="text" value={buyoutForm.note} onChange={(event) => setBuyoutForm((current) => ({ ...current, note: event.target.value, error: null, success: '' }))} placeholder="Optional checklist note" disabled={buyoutForm.isSaving} /></label>
+            </div>
+            {buyoutForm.error ? <StatePanel tone="danger" eyebrow="Buyout Save Failed" title="Item was not saved" description={buyoutForm.error.message || 'Unexpected buyout error.'} compact /> : null}
+            <div className="job-buyout-form__actions"><button type="submit" className="primary-button" disabled={buyoutForm.isSaving || !buyoutForm.item_description.trim()}><Plus aria-hidden="true" /> {buyoutForm.isSaving ? 'Saving...' : buyoutWorkspaceMode === 'edit' ? 'Save Buyout Item' : 'Add Buyout Item'}</button></div>
+          </form>
+        ) : <StatePanel tone="warning" eyebrow="Read Only" title="Buyout writes require selected-job management permission" description="You can view buyout items for this job, but cannot change them." compact />;
+      }
       const buyoutColumns = [
         ...JOB_BUYOUT_COLUMNS,
         {
@@ -4381,7 +4426,7 @@ export function JobsWorkspace({ permissions }) {
             </form>
           ) : null}
 
-          {canManageSelectedJob ? (
+          {canManageSelectedJob && buyoutWorkspaceMode ? (
             <form className="job-buyout-form" onSubmit={handleBuyoutSave}>
               <Toolbar
                 eyebrow={buyoutForm.id ? 'Edit' : 'Add'}
@@ -5615,16 +5660,20 @@ export function JobsWorkspace({ permissions }) {
     <>
       <WorkspaceHeader
         eyebrow="Workspace"
-        title={mode === 'create' ? 'Create Job' : selectedJob ? jobLabel(selectedJob) : 'Jobs'}
-        description={mode === 'create'
+        title={buyoutWorkspaceMode ? (buyoutWorkspaceMode === 'edit' ? 'Edit Buyout' : 'Add Buyout') : mode === 'create' ? 'Create Job' : selectedJob ? jobLabel(selectedJob) : 'Jobs'}
+        description={buyoutWorkspaceMode
+          ? 'Complete the buyout item in a focused workspace, then return to the buyout list.'
+          : mode === 'create'
           ? 'Create a new job in a focused workspace, then return to the Jobs directory when finished.'
           : selectedJob
           ? 'Use the tabs below to manage this job.'
           : 'Browse and select a job to open its dedicated workspace.'}
-        status={<span className="status-pill">{mode === 'create' ? 'Create Job' : selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
+        status={<span className="status-pill">{buyoutWorkspaceMode ? 'Buyout' : mode === 'create' ? 'Create Job' : selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
-            {mode === 'create' || mode === 'edit' ? (
+            {buyoutWorkspaceMode ? (
+              <button type="button" className="secondary-button" onClick={returnToBuyoutList} disabled={buyoutForm.isSaving}>Back to Buyout</button>
+            ) : mode === 'create' || mode === 'edit' ? (
               <button type="button" className="secondary-button" onClick={returnToJobList} disabled={jobForm.isSaving}>Back to Jobs</button>
             ) : selectedJob ? (
               <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
@@ -5699,7 +5748,7 @@ export function JobsWorkspace({ permissions }) {
           </article> : null}
 
           {isFocusedWorkspace ? <article className="card workspace-card">
-            {mode === 'create' || mode === 'edit' ? (
+            {buyoutWorkspaceMode ? renderActiveTab() : mode === 'create' || mode === 'edit' ? (
               (mode === 'create' ? canCreateJobs : canManageSelectedJob) ? (
                 <form className="job-create-form" onSubmit={mode === 'create' ? handleJobCreate : handleJobUpdate}>
                   <Toolbar
@@ -5924,6 +5973,7 @@ export function JobsWorkspace({ permissions }) {
                   actions={selectedJob && canManageSelectedJob ? (
                     <>
                       <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
+                      {activeTab === 'buyout' ? <button type="button" className="primary-button" onClick={startBuyoutCreate}><Plus aria-hidden="true" /> Add Buyout</button> : null}
                       <button type="button" className="secondary-button" onClick={startJobEdit} disabled={Boolean(jobAction.action)}>
                         Edit
                       </button>
