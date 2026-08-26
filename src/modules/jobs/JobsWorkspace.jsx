@@ -3525,11 +3525,11 @@ export function JobsWorkspace({ permissions }) {
       for (const allocation of changeOrderForm.allocations.filter((item) => item.budget_line_id && Number(item.amount || 0) > 0)) {
         let budgetLine = jobBudget.lines.find((line) => line.id === allocation.budget_line_id);
         if (allocation.budget_line_id.startsWith('co-division:')) {
-          const projectDivisionId = allocation.budget_line_id.slice('co-division:'.length);
+          const [, projectDivisionId, selectedCode] = allocation.budget_line_id.split(':');
           const divisionLine = jobBudget.lines.find((line) => (line.project_division_id || line.project_division?.id) === projectDivisionId);
-          const code = divisionLine?.project_division?.code || String(divisionLine?.cost_code || '').match(/^\d{2}/)?.[0];
-          const name = divisionLine?.project_division?.name || projectDivisionLabel(divisionLine);
-          if (!code) throw new Error('Choose a project division with an existing financial line before adding its change-order line.');
+          const code = selectedCode || divisionLine?.project_division?.code || String(divisionLine?.cost_code || '').match(/^\d{2}/)?.[0];
+          const name = divisionLine?.project_division?.name || `Division ${code}`;
+          if (!code) throw new Error('Choose a project division before adding its change-order line.');
           budgetLine = jobBudget.lines.find((line) => line.project_division_id === projectDivisionId && line.cost_code === `${code}.CO`);
           if (!budgetLine) {
             const { data, error } = await client.from('job_budget_lines').insert({ job_id: selectedJob.id, division: selectedJob.division, project_division_id: projectDivisionId, category: 'other', cost_code: `${code}.CO`, description: `${name} Change Orders`, budget_amount: 0, budget_change_amount: 0, actual_cost_amount: 0, committed_cost_amount: 0, forecast_to_complete_amount: 0, forecast_final_amount: 0, schedule_of_values_amount: 0, note: 'System-managed change-order allocation line.', created_by: createdBy }).select(JOB_BUDGET_SELECT_FIELDS).single();
@@ -4653,7 +4653,7 @@ export function JobsWorkspace({ permissions }) {
                   <select className="job-financials-table-input" value={allocation.budget_line_id} onChange={(e) => setChangeOrderForm((current) => ({ ...current, allocations: current.allocations.map((item, itemIndex) => itemIndex === index ? { ...item, budget_line_id: e.target.value } : item) }))} disabled={changeOrderForm.isSaving || !jobBudget.lines.length}>
                     <option value="">Budget line</option>
                     <optgroup label="Project division change-order lines">
-                      {projectDivisionOptions.map((division) => <option key={division.id} value={`co-division:${division.id}`}>{division.label} .CO — Change Orders</option>)}
+                      {projectDivisionOptions.map((division) => <option key={division.id} value={`co-division:${division.id}:${String(division.label).match(/^\d{2}/)?.[0] || ''}`}>{division.label} .CO — Change Orders</option>)}
                     </optgroup>
                     {jobBudget.lines.map((line) => <option key={line.id} value={line.id}>{budgetLineLabel(line)}</option>)}
                   </select>
