@@ -2144,6 +2144,7 @@ export function JobsWorkspace({ permissions }) {
   const location = useLocation();
   const directory = useJobsDirectory({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('active');
+  const [directoryType, setDirectoryType] = useState('jobs');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedJobId, setSelectedJobId] = useState('');
   const [search, setSearch] = useState('');
@@ -2187,25 +2188,32 @@ export function JobsWorkspace({ permissions }) {
   const canManageJobs = permissions?.canManageJobs === true;
   const canViewFinancials = permissions?.canViewFinancials === true;
 
+  const directoryJobs = useMemo(
+    () => jobs.filter((job) => directoryType === 'service_calls'
+      ? job.job_type === 'service_call'
+      : job.job_type !== 'service_call'),
+    [directoryType, jobs],
+  );
+
   const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
-    accumulator[status] = jobs.filter((job) => job.status === status).length;
+    accumulator[status] = directoryJobs.filter((job) => job.status === status).length;
     return accumulator;
   }, {});
 
   const views = JOB_VIEWS.map((view) => ({
     ...view,
-    badge: view.key === 'all' ? jobs.length : countsByStatus[view.key] ?? 0,
+    badge: view.key === 'all' ? directoryJobs.length : countsByStatus[view.key] ?? 0,
   }));
 
   const filteredJobs = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return jobs.filter((job) => {
+    return directoryJobs.filter((job) => {
       if (activeView !== 'all' && job.status !== activeView) return false;
       if (!normalizedSearch) return true;
       return jobSearchText(job).includes(normalizedSearch);
     });
-  }, [activeView, jobs, search]);
+  }, [activeView, directoryJobs, search]);
 
   const selectedJob = filteredJobs.find((job) => job.id === selectedJobId)
     ?? jobs.find((job) => job.id === selectedJobId)
@@ -5815,8 +5823,10 @@ export function JobsWorkspace({ permissions }) {
           ? 'Create a new job in a focused workspace, then return to the Jobs directory when finished.'
           : selectedJob
           ? 'Use the tabs below to manage this job.'
+          : directoryType === 'service_calls'
+          ? 'Browse service calls separately from the primary Jobs directory.'
           : 'Browse and select a job to open its dedicated workspace.'}
-        status={<span className="status-pill">{buyoutWorkspaceMode ? 'Buyout' : mode === 'create' ? 'Create Job' : selectedJob ? formatStatus(selectedJob.status) : `${jobs.length} visible job${jobs.length === 1 ? '' : 's'}`}</span>}
+        status={<span className="status-pill">{buyoutWorkspaceMode ? 'Buyout' : mode === 'create' ? 'Create Job' : selectedJob ? formatStatus(selectedJob.status) : `${directoryJobs.length} visible ${directoryType === 'service_calls' ? 'service call' : 'job'}${directoryJobs.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
             {buyoutWorkspaceMode ? (
@@ -5839,8 +5849,8 @@ export function JobsWorkspace({ permissions }) {
       <div className={`workspace-split jobs-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}${isFocusedWorkspace ? ' jobs-workspace--record' : ''}`}>
         {isDirectoryMode ? <PrimarySidebar
           eyebrow="Job Views"
-          title="Jobs"
-          description="Choose a view to find a job."
+          title={directoryType === 'service_calls' ? 'Service Calls' : 'Jobs'}
+          description={`Choose a view to find ${directoryType === 'service_calls' ? 'a service call' : 'a job'}.`}
           items={views}
           activeKey={activeView}
           onSelect={(key) => {
@@ -5854,11 +5864,15 @@ export function JobsWorkspace({ permissions }) {
         /> : null}
 
         <div className="workspace-surface">
+          {isDirectoryMode ? <nav className="jobs-directory-tabs" aria-label="Job directory type" role="tablist">
+            <button type="button" role="tab" aria-selected={directoryType === 'jobs'} className={directoryType === 'jobs' ? 'is-active' : ''} onClick={() => setDirectoryType('jobs')}>Jobs</button>
+            <button type="button" role="tab" aria-selected={directoryType === 'service_calls'} className={directoryType === 'service_calls' ? 'is-active' : ''} onClick={() => setDirectoryType('service_calls')}>Service Calls</button>
+          </nav> : null}
           {isDirectoryMode ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
-              title={views.find((item) => item.key === activeView)?.label ?? 'Jobs'}
-              description="Select a job to open its workspace."
+              title={`${views.find((item) => item.key === activeView)?.label ?? 'Active'} ${directoryType === 'service_calls' ? 'Service Calls' : 'Jobs'}`}
+              description={`Select ${directoryType === 'service_calls' ? 'a service call' : 'a job'} to open its workspace.`}
               search={(
                 <label>
                   <span className="sr-only">Search jobs</span>
@@ -5866,7 +5880,7 @@ export function JobsWorkspace({ permissions }) {
                     type="search"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search jobs..."
+                    placeholder={directoryType === 'service_calls' ? 'Search service calls...' : 'Search jobs...'}
                   />
                 </label>
               )}
@@ -5888,7 +5902,7 @@ export function JobsWorkspace({ permissions }) {
               selectedRowKey={selectedJob?.id ?? null}
               dense
               minWidth="840px"
-              emptyTitle={search ? 'No jobs matched this search' : 'No jobs are visible'}
+              emptyTitle={search ? `No ${directoryType === 'service_calls' ? 'service calls' : 'jobs'} matched this search` : `No ${directoryType === 'service_calls' ? 'service calls' : 'jobs'} are visible`}
               emptyDescription={search
                 ? 'Try searching by job number, name, address, status, division, or service call number.'
                 : 'No jobs are available in this view.'}

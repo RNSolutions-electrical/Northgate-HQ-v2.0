@@ -22,15 +22,48 @@ export function createSupabaseClient(accessToken) {
 
   cachedAccessToken = accessToken;
   cachedClient = createClient(supabaseUrl, supabaseAnonKey, {
+    accessToken: async () => accessToken,
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
-    global: {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    },
   });
 
   return cachedClient;
+}
+
+export function isJwtNotYetValidError(error) {
+  return /jwt not yet valid/i.test(String(error?.message || error || ''));
+}
+
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+/**
+ * Clerk and Supabase can disagree by a fraction of a second at token issuance.
+ * Retry only that explicit validity race with a freshly issued token; all other
+ * authentication and authorization failures pass through unchanged.
+ */
+export async function withSupabaseTokenRetry(getToken, operation) {
+  const delays = [0, 1200, 2400];
+  let lastError;
+
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt]) await pause(delays[attempt]);
+
+    try {
+      const token = await getToken({
+        template: 'supabase',
+        ...(attempt > 0 ? { skipCache: true } : {}),
+      });
+      return await operation(createSupabaseClient(token));
+    } catch (error) {
+      lastError = error;
+      if (!isJwtNotYetValidError(error) || attempt === delays.length - 1) throw error;
+    }
+  }
+
+  throw lastError;
 }

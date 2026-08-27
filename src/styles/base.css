@@ -2057,6 +2057,30 @@ textarea {
   border-bottom: 1px solid var(--ng-divider);
 }
 
+.jobs-directory-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 0.75rem;
+  border-bottom: 1px solid var(--ng-divider);
+}
+
+.jobs-directory-tabs button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--ng-muted);
+  padding: 0.75rem 1.1rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.jobs-directory-tabs button:hover,
+.jobs-directory-tabs button.is-active {
+  color: var(--ng-text);
+  border-bottom-color: var(--ng-brand-red);
+}
+
 .service-performance__nav button {
   display: inline-flex;
   align-items: center;

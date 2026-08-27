@@ -7,7 +7,7 @@ import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
-import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
 import { servicePerformanceTotals, weightedGrossMargin } from './servicePerformanceMath.js';
 
 const MONEY = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -74,16 +74,17 @@ export function ServicePerformanceWorkspace({ permissions }) {
     async function load() {
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
-        const client = createSupabaseClient(token);
-        const [calls, costs, months] = await Promise.all([
-          client.from('svc_call_financials').select('*').order('created_at', { ascending: false }),
-          client.from('svc_cost_snapshots').select('*').order('created_at', { ascending: false }),
-          client.from('svc_monthly_performance').select('*').order('performance_month', { ascending: false }),
-        ]);
-        if (calls.error) throw calls.error;
-        if (costs.error) throw costs.error;
-        if (months.error) throw months.error;
+        const { calls, costs, months } = await withSupabaseTokenRetry(getToken, async (client) => {
+          const [callsResult, costsResult, monthsResult] = await Promise.all([
+            client.from('svc_call_financials').select('*').order('created_at', { ascending: false }),
+            client.from('svc_cost_snapshots').select('*').order('created_at', { ascending: false }),
+            client.from('svc_monthly_performance').select('*').order('performance_month', { ascending: false }),
+          ]);
+          if (callsResult.error) throw callsResult.error;
+          if (costsResult.error) throw costsResult.error;
+          if (monthsResult.error) throw monthsResult.error;
+          return { calls: callsResult, costs: costsResult, months: monthsResult };
+        });
         if (mounted) setState({ isLoading: false, error: null, calls: calls.data ?? [], costs: costs.data ?? [], months: months.data ?? [] });
       } catch (error) {
         console.error('Service Performance failed to load', error);
@@ -111,10 +112,10 @@ export function ServicePerformanceWorkspace({ permissions }) {
     if (costForm.isSaving || !costForm.job_id || costForm.source_note.trim().length < 3) return;
     setCostForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
-      const token = await getToken({ template: 'supabase' });
-      const client = createSupabaseClient(token);
-      const { error } = await client.rpc('svc_create_manual_cost_snapshot', { p_job_id: costForm.job_id, p_labor_hard_cost: Number(costForm.labor_hard_cost || 0), p_material_hard_cost: Number(costForm.material_hard_cost || 0), p_other_hard_cost: Number(costForm.other_hard_cost || 0), p_cost_through: costForm.cost_through, p_reconciliation_status: costForm.reconciliation_status, p_source_note: costForm.source_note.trim() });
-      if (error) throw error;
+      await withSupabaseTokenRetry(getToken, async (client) => {
+        const { error } = await client.rpc('svc_create_manual_cost_snapshot', { p_job_id: costForm.job_id, p_labor_hard_cost: Number(costForm.labor_hard_cost || 0), p_material_hard_cost: Number(costForm.material_hard_cost || 0), p_other_hard_cost: Number(costForm.other_hard_cost || 0), p_cost_through: costForm.cost_through, p_reconciliation_status: costForm.reconciliation_status, p_source_note: costForm.source_note.trim() });
+        if (error) throw error;
+      });
       setCostForm({ ...EMPTY_COST_FORM, success: 'The cumulative cost snapshot is now authoritative.' });
       setRefreshKey((current) => current + 1);
     } catch (error) {
