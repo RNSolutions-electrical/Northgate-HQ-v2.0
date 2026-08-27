@@ -2445,20 +2445,14 @@ export function JobsWorkspace({ permissions }) {
   }
 
   async function writeJobChangeLog(client, { action, recordId, beforeData, afterData, note, tableName = 'jobs' }) {
-    const userId = user?.id || null;
-    const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
-    const { error } = await client
-      .from('change_logs')
-      .insert({
-        user_id: userId,
-        user_name: userName,
-        table_name: tableName,
-        record_id: recordId,
-        action,
-        before_data: beforeData,
-        after_data: afterData,
-        note,
-      });
+    const { error } = await client.rpc('record_client_audit_event', {
+      p_table_name: tableName,
+      p_record_id: recordId,
+      p_action: action,
+      p_before_data: beforeData,
+      p_after_data: afterData,
+      p_note: note,
+    });
 
     if (error) throw error;
   }

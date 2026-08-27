@@ -4,10 +4,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `ROSEWOOD-TASKS-20260827-001`
-- Feature commit: `9eca69a`
+- Marker: `SILVER-LOCK-20260827-001`
+- Feature commit: pending commit
 - GitHub branch: `main`
-- Production deploy: `6a905f9777c73c8c1182dc09`
+- Production deploy: pending deployment
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
@@ -42,6 +42,13 @@ direct client access; authenticated users receive only their own records through
 server-authorized RPCs. Private note or to-do content is intentionally excluded
 from the shared legacy audit table.
 
+The current marker closes the seven legacy public-table RLS findings. Change
+logs, vehicles, inventory transaction ledgers, vehicle-bin tables, and
+notifications now have RLS enabled, no authenticated direct table privileges,
+and explicit deny-direct-client policies. Existing scoped views and
+permission-checked RPCs remain the approved read/write boundary; legacy browser
+audit inserts now derive actor identity inside an authenticated RPC.
+
 ## Superseded task-only marker
 
 `TEAL-MERIDIAN-20260826` was reported in a Codex task but was not committed to the repository. It is retained here so machines searching for that marker can resolve it to the feature commit above.
@@ -59,6 +66,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `ROSEWOOD-TASKS-20260827-001` — employee-owned private notes, to-do items, and Dashboard reminders, commits `9eca69a` and `aa3535f`.
 - `IVORY-EMPLOYEE-20260827-001` — secure employee self-service profile edit and vehicle-assignment history, commits `32f29e2` and `a8959f0`.
 - `COBALT-PROFILE-20260827-001` — secure self-profile read path, commits `d4f774c` and `b762939`.
 - `VERDANT-NAV-20260827-001` — grouped department-aware navigation, commits `4860d50` and `1120edb`.
