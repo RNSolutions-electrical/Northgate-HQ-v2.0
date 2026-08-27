@@ -4,10 +4,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `TOPAZ-HARBOR-20260827-001`
+- Marker: `OPAL-GATEWAY-20260827-001`
 - Feature commit: `2268e16d7c9c917e624aa49d1bdc207366fced33`
 - GitHub branch: `main`
-- Production deploy: `6a90389e1e2aa9b83e060283`
+- Production deploy: `6a9039005ac75e2ab70cc103`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
@@ -33,6 +33,8 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `AMBER-ANCHOR-20260827-001` — activates undefined UI review markers, commit `4ef95ae`.
+- `TOPAZ-HARBOR-20260827-001` — production record for the hierarchy cleanup deployment.
 - `MOONSTONE-RELAY-20260827-001` — repository sync record for feature commit `2268e16`.
 - `SABLE-COMPASS-20260827` — feature implementation commit `2268e16`.
 - `ONYX-BEACON-20260827-001` — feature commit `9ec9e78`; durable repository status established.
