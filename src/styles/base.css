@@ -410,7 +410,17 @@ svg { stroke-width: 1.8; }
 
 /* ------------------------------------------------------------ top nav */
 
-.top-nav { display: flex; align-items: stretch; gap: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; height: var(--app-header-height); }
+.top-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  /* Desktop menus are positioned below this bar. An overflow container clips
+     those menus, making grouped navigation look clickable but unusable. */
+  overflow: visible;
+  scrollbar-width: none;
+  height: var(--app-header-height);
+}
 .top-nav::-webkit-scrollbar { display: none; }
 
 .top-nav__item {

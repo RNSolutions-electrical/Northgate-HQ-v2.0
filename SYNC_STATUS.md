@@ -4,17 +4,21 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `OPAL-GATEWAY-20260827-001`
-- Feature commit: `2268e16d7c9c917e624aa49d1bdc207366fced33`
+- Marker: `CITRINE-MENU-20260827-001`
+- Feature commit: pending commit for the grouped-navigation menu visibility fix
 - GitHub branch: `main`
-- Production deploy: `6a9039005ac75e2ab70cc103`
+- Production deploy: pending
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
-The feature commit establishes the official Page/Card/Module/Function vocabulary,
+The hierarchy feature commit establishes the official Page/Card/Module/Function vocabulary,
 Department terminology for Northgate organizational scope, Inventory and Add-On
 Tools navigation groups, Developer Display Controls, canonical roles through
 Director, and server-enforced Protected Project Financials.
+
+The current marker additionally records the desktop grouped-navigation fix: the
+Inventory and Add-On Tools menus must remain visible and selectable below the
+header rather than being clipped by the navigation container.
 
 ## Superseded task-only marker
 
@@ -33,6 +37,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `OPAL-GATEWAY-20260827-001` — production record for the final terminology-overlay deployment, commit `273226d`.
 - `AMBER-ANCHOR-20260827-001` — activates undefined UI review markers, commit `4ef95ae`.
 - `TOPAZ-HARBOR-20260827-001` — production record for the hierarchy cleanup deployment.
 - `MOONSTONE-RELAY-20260827-001` — repository sync record for feature commit `2268e16`.
