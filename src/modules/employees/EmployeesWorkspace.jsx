@@ -178,6 +178,30 @@ function useCurrentEmployeeProfile({ enabled }) {
   return { ...state, reload: () => setRefreshKey((current) => current + 1) };
 }
 
+function useCurrentEmployeeAssignments({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, rows: EMPTY_ASSIGNMENTS });
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled) return;
+      setState({ isLoading: true, error: null, rows: EMPTY_ASSIGNMENTS });
+      try {
+        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const { data, error } = await client.rpc('read_current_employee_vehicle_assignments', { p_limit: 100 });
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_ASSIGNMENTS });
+      } catch (error) {
+        if (isMounted) setState({ isLoading: false, error, rows: EMPTY_ASSIGNMENTS });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, refreshKey]);
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -185,6 +209,7 @@ export function EmployeesWorkspace({ permissions }) {
   const canReadEmployees = permissions.permissionSource === 'server' && permissions.canManageEmployees === true;
   const directory = useEmployeeReferences({ enabled: canReadEmployees });
   const myProfile = useCurrentEmployeeProfile({ enabled: permissions.permissionSource === 'server' });
+  const myAssignments = useCurrentEmployeeAssignments({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('directory');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -195,6 +220,7 @@ export function EmployeesWorkspace({ permissions }) {
   const [employeeForm, setEmployeeForm] = useState(DEFAULT_EMPLOYEE_FORM);
   const [employeeNotice, setEmployeeNotice] = useState('');
   const [pendingProfileAction, setPendingProfileAction] = useState({ id: '', error: null });
+  const [profileEdit, setProfileEdit] = useState({ open: false, displayName: '', phone: '', reason: '', isSaving: false, error: null, success: '' });
 
   const assignments = directory.assignments;
   const pendingProfiles = directory.pendingProfiles;
@@ -282,6 +308,25 @@ export function EmployeesWorkspace({ permissions }) {
 
   function setEmployeeField(field, value) {
     setEmployeeForm((current) => ({ ...current, [field]: value, error: null, success: '' }));
+  }
+
+  function startMyProfileEdit() {
+    setProfileEdit({ open: true, displayName: myProfile.profile?.display_name || '', phone: myProfile.profile?.phone || '', reason: '', isSaving: false, error: null, success: '' });
+  }
+
+  async function saveMyProfile(event) {
+    event.preventDefault();
+    if (profileEdit.isSaving) return;
+    setProfileEdit((current) => ({ ...current, isSaving: true, error: null, success: '' }));
+    try {
+      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const { error } = await client.rpc('update_current_employee_profile', { p_display_name: profileEdit.displayName, p_phone: profileEdit.phone || null, p_reason: profileEdit.reason });
+      if (error) throw error;
+      setProfileEdit((current) => ({ ...current, open: false, isSaving: false, error: null, success: 'Your profile was updated and recorded in the audit log.' }));
+      myProfile.reload();
+    } catch (error) {
+      setProfileEdit((current) => ({ ...current, isSaving: false, error }));
+    }
   }
 
   function editPendingProfile(profile) {
@@ -374,7 +419,7 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Views
             </button>
-            <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); }} disabled={directory.isLoading || myProfile.isLoading}>
+            <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); myAssignments.reload(); }} disabled={directory.isLoading || myProfile.isLoading || myAssignments.isLoading}>
               Refresh
             </button>
             <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
@@ -516,12 +561,17 @@ export function EmployeesWorkspace({ permissions }) {
                 />
 
                 {activeTab === 'overview' ? (
-                  <div className="module-fact-grid employees-fact-grid">
-                    <SummaryCard label="Email" value={selectedEmployee.email || '-'} detail="Reference field" />
-                    <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle || 'Unassigned'} detail="Active vehicle assignment" tone={selectedEmployee.current_vehicle ? 'good' : 'default'} />
-                    <SummaryCard label="Profile source" value={activeView === 'mine' ? (selectedEmployee.has_linked_employee_profile ? 'Employee profile' : 'Account permissions') : 'Reference view'} detail="No source mutation" />
-                    <SummaryCard label="Role source" value="Permissions row" detail="Display only" />
-                  </div>
+                  <>
+                    {activeView === 'mine' ? <div className="record-actions"><button type="button" className="secondary-button" onClick={startMyProfileEdit}><Pencil aria-hidden="true" /> Edit my profile</button></div> : null}
+                    {profileEdit.open ? <form className="employee-profile-form" onSubmit={saveMyProfile}><div className="employee-profile-form__grid"><label><span>Display name</span><input value={profileEdit.displayName} onChange={(event) => setProfileEdit((current) => ({ ...current, displayName: event.target.value, error: null }))} required disabled={profileEdit.isSaving} /></label><label><span>Phone</span><input type="tel" value={profileEdit.phone} onChange={(event) => setProfileEdit((current) => ({ ...current, phone: event.target.value, error: null }))} disabled={profileEdit.isSaving} /></label><label className="employee-profile-form__wide"><span>Reason for change</span><input value={profileEdit.reason} onChange={(event) => setProfileEdit((current) => ({ ...current, reason: event.target.value, error: null }))} placeholder="Required for the audit log" required disabled={profileEdit.isSaving} /></label></div><div className="record-actions"><button type="submit" className="primary-button" disabled={profileEdit.isSaving || profileEdit.reason.trim().length < 3}>{profileEdit.isSaving ? 'Saving…' : 'Save profile'}</button><button type="button" className="secondary-button" onClick={() => setProfileEdit((current) => ({ ...current, open: false, error: null }))} disabled={profileEdit.isSaving}>Cancel</button></div>{profileEdit.error ? <StatePanel tone="danger" title="Profile was not updated" description={profileEdit.error.message} compact /> : null}</form> : null}
+                    {profileEdit.success ? <StatePanel tone="success" title="Profile updated" description={profileEdit.success} compact /> : null}
+                    <div className="module-fact-grid employees-fact-grid">
+                      <SummaryCard label="Email" value={selectedEmployee.email || '-'} detail="Managed through Clerk" />
+                      <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle || 'Unassigned'} detail="Active vehicle assignment" tone={selectedEmployee.current_vehicle ? 'good' : 'default'} />
+                      <SummaryCard label="Profile source" value={activeView === 'mine' ? (selectedEmployee.has_linked_employee_profile ? 'Employee profile' : 'Account permissions') : 'Reference view'} detail="No source mutation" />
+                      <SummaryCard label="Role source" value="Permissions row" detail="Display only" />
+                    </div>
+                  </>
                 ) : null}
 
                 {activeTab === 'contact' ? (
@@ -553,9 +603,11 @@ export function EmployeesWorkspace({ permissions }) {
                     )}
                     <DataTable
                       columns={ASSIGNMENT_COLUMNS}
-                      rows={selectedEmployeeAssignments}
+                      rows={activeView === 'mine' ? myAssignments.rows : selectedEmployeeAssignments}
                       getRowKey={(row) => row.assignment_id}
                       permissions={permissions}
+                      isLoading={activeView === 'mine' ? myAssignments.isLoading : false}
+                      error={activeView === 'mine' ? myAssignments.error : null}
                       dense
                       minWidth="820px"
                       emptyTitle="No vehicle assignment history"

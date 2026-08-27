@@ -4,10 +4,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `COBALT-PROFILE-20260827-001`
-- Feature commit: `d4f774c`
+- Marker: `IVORY-EMPLOYEE-20260827-001`
+- Feature commit: pending commit for audited employee self-service editing
 - GitHub branch: `main`
-- Production deploy: `6a905521b66a635c04e478dc`
+- Production deploy: pending
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
@@ -30,6 +30,11 @@ employee can read only their own safe profile fields and current vehicle label;
 department directories and pending employee profile management remain gated by
 the existing employee-management permission.
 
+It also prepares the Employee Page for release: users may edit only their own
+display name and phone with an audit reason, and may read only their own vehicle
+assignment history. Email and management-controlled employment fields remain
+protected.
+
 ## Superseded task-only marker
 
 `TEAL-MERIDIAN-20260826` was reported in a Codex task but was not committed to the repository. It is retained here so machines searching for that marker can resolve it to the feature commit above.
@@ -47,6 +52,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `COBALT-PROFILE-20260827-001` — secure self-profile read path, commits `d4f774c` and `b762939`.
 - `VERDANT-NAV-20260827-001` — grouped department-aware navigation, commits `4860d50` and `1120edb`.
 - `CITRINE-MENU-20260827-001` — fixes clipped Inventory and Add-On Tools dropdown menus, commits `d235a3a` and `dfec32e`.
 - `OPAL-GATEWAY-20260827-001` — production record for the final terminology-overlay deployment, commit `273226d`.
