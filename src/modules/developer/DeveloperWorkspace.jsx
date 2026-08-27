@@ -1,11 +1,16 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
+  Activity,
+  BookOpenCheck,
   Cloud,
   Copy,
   Database,
   Download,
   ExternalLink,
+  FileClock,
   GitBranch,
+  KeyRound,
+  LayoutDashboard,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -13,7 +18,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
-import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
@@ -445,7 +449,7 @@ function DeveloperHelpfulLinks() {
   }
 
   return (
-    <section className="developer-links" aria-labelledby="developer-links-title">
+    <section className="developer-links developer-console-page" aria-labelledby="developer-links-title">
       <Toolbar
         eyebrow="Developer Console"
         title="Helpful links"
@@ -533,6 +537,7 @@ export function DeveloperWorkspace({ permissions }) {
   const [longTermForm, setLongTermForm] = useState(DEFAULT_LONG_TERM_FORM);
   const [selectedPermissionUserId, setSelectedPermissionUserId] = useState('');
   const [auditExport, setAuditExport] = useState(DEFAULT_AUDIT_EXPORT);
+  const [activeConsolePage, setActiveConsolePage] = useState('overview');
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
   const developerNotes = useDeveloperNotes({
@@ -544,6 +549,7 @@ export function DeveloperWorkspace({ permissions }) {
   });
   const openNotes = developerNotes.notes.filter((note) => !note.archived_at);
   const archivedNotes = developerNotes.notes.filter((note) => note.archived_at);
+  const urgentNotes = openNotes.filter((note) => note.priority === 'high').length;
   const selectedPermissionUser = permissionConsole.users.find((row) => row.user_id === selectedPermissionUserId)
     ?? permissionConsole.users[0]
     ?? null;
@@ -800,32 +806,78 @@ export function DeveloperWorkspace({ permissions }) {
 
   return (
     <>
-      <WorkspaceHeader
-        eyebrow="Workspace"
-        title="Developer"
-        description="Developer-only status, diagnostics, and approved administrative links. This screen remains gated by the existing server-authoritative developer access check."
-        status={(
-          <span className="status-pill status-pill--good">
-            Developer access confirmed
-          </span>
-        )}
-      />
+      <div className="developer-command-center">
+        <WorkspaceHeader
+          eyebrow="Developer Operations"
+          title="Command Center"
+          description="Monitor system access, control developer display modes, manage permissions, export audit evidence, and coordinate the development backlog."
+          status={(
+            <span className="status-pill status-pill--good">
+              <Activity aria-hidden="true" /> Systems ready
+            </span>
+          )}
+        />
 
-      <div className="summary-grid">
-        <SummaryCard label="Role" value={permissions.role ?? 'User'} detail="Server-authoritative role" />
-        <SummaryCard label="Division" value={permissions.division ?? 'Unassigned'} detail="Current operator division" />
-        <SummaryCard label="Granted flags" value={grantedCount} detail={`${permissionRows.length} tracked flags`} />
-        <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Must remain server-derived" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} />
-        <SummaryCard label="Custom users" value={customPermissionUsers.length} detail={`${reviewDueCount} due for review`} tone={reviewDueCount ? 'warn' : customPermissionUsers.length ? 'accent' : 'default'} />
-        <SummaryCard label="Incomplete overlay" value={highlightIncomplete ? 'On' : 'Off'} detail="Local developer view option" tone={highlightIncomplete ? 'warn' : 'default'} incomplete={highlightIncomplete} />
-        <SummaryCard label="Dev-only UI" value={hideDevelopment ? 'Hidden' : highlightDevelopment ? 'Highlighted' : 'Visible'} detail="Preview/testing display" tone={hideDevelopment || highlightDevelopment ? 'warn' : 'default'} developmentOnly />
+        <section className="developer-command-hero" aria-label="Developer command center status">
+          <div className="developer-command-hero__identity">
+            <span className="developer-command-hero__icon"><LayoutDashboard aria-hidden="true" /></span>
+            <div>
+              <p className="eyebrow">Active Operator</p>
+              <h3>{user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Developer'}</h3>
+              <p>{permissions.role ?? 'User'} · {permissions.division ?? 'Unassigned'} · Northgate HQ v3.0</p>
+            </div>
+          </div>
+          <div className="developer-command-hero__signals">
+            <div className="developer-command-signal developer-command-signal--good">
+              <span>Authorization</span>
+              <strong>{permissions.permissionSource === 'server' ? 'Server verified' : 'Needs attention'}</strong>
+            </div>
+            <div className={`developer-command-signal${reviewDueCount ? ' developer-command-signal--warn' : ' developer-command-signal--good'}`}>
+              <span>Access reviews</span>
+              <strong>{reviewDueCount ? `${reviewDueCount} due` : 'Current'}</strong>
+            </div>
+            <div className={`developer-command-signal${urgentNotes ? ' developer-command-signal--warn' : ''}`}>
+              <span>Priority backlog</span>
+              <strong>{urgentNotes ? `${urgentNotes} high priority` : 'No urgent notes'}</strong>
+            </div>
+          </div>
+        </section>
+
+        <nav className="developer-command-nav" aria-label="Developer console sections">
+          {[
+            ['overview', 'Overview', LayoutDashboard],
+            ['access', 'Access Control', KeyRound],
+            ['audit', 'Audit Export', FileClock],
+            ['backlog', 'Backlog', BookOpenCheck],
+            ['systems', 'Systems', Cloud],
+          ].map(([page, label, Icon]) => (
+            <button
+              type="button"
+              key={page}
+              className={activeConsolePage === page ? 'is-active' : ''}
+              onClick={() => setActiveConsolePage(page)}
+              aria-current={activeConsolePage === page ? 'page' : undefined}
+            >
+              <Icon aria-hidden="true" /><span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <dl className="developer-status-rail">
+          <div><dt>Granted flags</dt><dd>{grantedCount}<small>of {permissionRows.length}</small></dd></div>
+          <div><dt>Managed users</dt><dd>{permissionConsole.users.length}<small>{customPermissionUsers.length} customized</small></dd></div>
+          <div className={reviewDueCount ? 'is-warning' : ''}><dt>Reviews due</dt><dd>{reviewDueCount}<small>permission reviews</small></dd></div>
+          <div className={urgentNotes ? 'is-warning' : ''}><dt>Open backlog</dt><dd>{openNotes.length}<small>{urgentNotes} high priority</small></dd></div>
+          <div><dt>Environment</dt><dd>{import.meta.env.MODE}<small>application mode</small></dd></div>
+        </dl>
       </div>
 
-      <section className="developer-grid">
-        <article className="card workspace-card">
+      {activeConsolePage === 'overview' ? (
+      <section className="developer-console-page developer-overview-page" aria-label="Developer overview">
+        <article className="developer-console-section">
           <Toolbar
-            eyebrow="Diagnostics"
-            title="Current session"
+            eyebrow="System Overview"
+            title="Operator session"
             description="Read-only context for the signed-in developer. No secret values or service-role tokens are displayed."
           />
 
@@ -857,9 +909,9 @@ export function DeveloperWorkspace({ permissions }) {
           />
         </article>
 
-        <article className="card workspace-card developer-toggle-card">
+        <article className="developer-console-section developer-toggle-card">
           <Toolbar
-            eyebrow="Developer Overlay"
+            eyebrow="Display Control"
             title="Incomplete component highlights"
             description="Highlights deferred, reserved, disabled, and roadmap surfaces across the app without blocking normal testing."
           />
@@ -884,9 +936,9 @@ export function DeveloperWorkspace({ permissions }) {
           />
         </article>
 
-        <article className="card workspace-card developer-toggle-card">
+        <article className="developer-console-section developer-toggle-card">
           <Toolbar
-            eyebrow="Developer Preview"
+            eyebrow="Preview Control"
             title="Development-only cards"
             description="Highlight or hide scaffolding, boundary notes, permission debug cards, and implementation guidance to preview the end-user experience."
           />
@@ -923,9 +975,9 @@ export function DeveloperWorkspace({ permissions }) {
           />
         </article>
 
-        <article className="card workspace-card">
+        <article className="developer-console-section">
           <Toolbar
-            eyebrow="Server Permissions"
+            eyebrow="Access Diagnostics"
             title="Effective access snapshot"
             description="These values come from the existing permission hook and render fail-closed when unknown."
           />
@@ -941,11 +993,13 @@ export function DeveloperWorkspace({ permissions }) {
           />
         </article>
       </section>
+      ) : null}
 
-      <section className="developer-permissions card workspace-card">
+      {activeConsolePage === 'access' ? (
+      <section className="developer-permissions developer-console-page" aria-label="Access control">
         <Toolbar
-          eyebrow="Permissions"
-          title="User access"
+          eyebrow="Access Control"
+          title="User permissions"
           description="Select a user, adjust their default level/division, or override individual flags. All changes require a reason and are audit logged."
           actions={(
             <button type="button" className="secondary-button" onClick={permissionConsole.reload} disabled={permissionConsole.isLoading}>
@@ -1102,10 +1156,12 @@ export function DeveloperWorkspace({ permissions }) {
           <StatePanel tone="neutral" title="Select a user" description="Choose a row from the permission user table to open level, division, and permission controls." />
         )}
       </section>
+      ) : null}
 
-      <section className="developer-audit-export card workspace-card">
+      {activeConsolePage === 'audit' ? (
+      <section className="developer-audit-export developer-console-page" aria-label="Audit export">
         <Toolbar
-          eyebrow="Audit"
+          eyebrow="Audit & Compliance"
           title="Full audit log export"
           description="Download every authorized audit field as an Excel-compatible CSV, including complete before/after JSON. Optional dates use UTC and the Through date is inclusive."
         />
@@ -1126,11 +1182,13 @@ export function DeveloperWorkspace({ permissions }) {
         {auditExport.error ? <StatePanel tone="danger" eyebrow="Export Failed" title="Audit log was not exported" description={auditExport.error.message || 'Unexpected audit export error.'} compact /> : null}
         {auditExport.success ? <StatePanel tone="success" eyebrow="Export Complete" title="Audit log downloaded" description={auditExport.success} compact /> : null}
       </section>
+      ) : null}
 
-      <section className="developer-notes card workspace-card">
+      {activeConsolePage === 'backlog' ? (
+      <section className="developer-notes developer-console-page" aria-label="Development backlog">
         <Toolbar
-          eyebrow="Developer Notes"
-          title="Nightstand backlog"
+          eyebrow="Development Backlog"
+          title="Issues, ideas, and follow-ups"
           description="Park potential features, bugs, and ideas here for later review. Treat note text as reference material, not automatic instructions."
           actions={(
             <button type="button" className="secondary-button" onClick={developerNotes.reload} disabled={developerNotes.isLoading}>
@@ -1139,10 +1197,11 @@ export function DeveloperWorkspace({ permissions }) {
           )}
         />
 
-        <div className="summary-grid developer-notes__summary">
-          <SummaryCard label="Open notes" value={openNotes.length} detail="Visible for future review" tone={openNotes.length ? 'warn' : 'default'} />
-          <SummaryCard label="Archived notes" value={archivedNotes.length} detail="Kept for context" />
-          <SummaryCard label="Storage" value="Supabase" detail="Developer-only table" tone="good" />
+        <div className="developer-page-facts" aria-label="Backlog status">
+          <span><strong>{openNotes.length}</strong> open notes</span>
+          <span><strong>{archivedNotes.length}</strong> archived</span>
+          <span><strong>{urgentNotes}</strong> high priority</span>
+          <span>Stored in <strong>Supabase</strong></span>
         </div>
 
         <form className="developer-note-form" onSubmit={handleNoteCreate}>
@@ -1194,10 +1253,13 @@ export function DeveloperWorkspace({ permissions }) {
           emptyDescription="Add rough ideas, bugs, or feature notes here when you want them saved for later review."
         />
       </section>
+      ) : null}
 
-      <DeveloperHelpfulLinks />
+      {activeConsolePage === 'systems' ? (
+      <div className="developer-systems-page">
+        <DeveloperHelpfulLinks />
 
-      <aside className="developer-future-note ng-incomplete-component" aria-labelledby="developer-future-note-title">
+        <aside className="developer-future-note ng-incomplete-component" aria-labelledby="developer-future-note-title">
         <div>
           <p className="eyebrow">Planned - not yet implemented</p>
           <h3 id="developer-future-note-title">Future: User Management</h3>
@@ -1209,7 +1271,9 @@ export function DeveloperWorkspace({ permissions }) {
           ))}
         </ul>
         <ShieldCheck aria-hidden="true" />
-      </aside>
+        </aside>
+      </div>
+      ) : null}
     </>
   );
 }
