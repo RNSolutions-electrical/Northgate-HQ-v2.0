@@ -4,14 +4,17 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `ONYX-BEACON-20260827-001`
-- Feature commit: `9ec9e782c893bfad7c70224454b5d0bfb26e8fff`
+- Marker: `MOONSTONE-RELAY-20260827-001`
+- Feature commit: `2268e16d7c9c917e624aa49d1bdc207366fced33`
 - GitHub branch: `main`
-- Production deploy: `6a8fa3a848fd9a783e22dbb4`
+- Production deploy: pending
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
-The feature commit includes the Service Performance JWT timing fix and the Jobs/Service Calls directory separation. Regular Jobs are the default Jobs-page view; Service Calls require selecting their tab.
+The feature commit establishes the official Page/Card/Module/Function vocabulary,
+Department terminology for Northgate organizational scope, Inventory and Add-On
+Tools navigation groups, Developer Display Controls, canonical roles through
+Director, and server-enforced Protected Project Financials.
 
 ## Superseded task-only marker
 
@@ -30,4 +33,6 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `SABLE-COMPASS-20260827` — feature implementation commit `2268e16`.
+- `ONYX-BEACON-20260827-001` — feature commit `9ec9e78`; durable repository status established.
 - `TEAL-MERIDIAN-20260826` — feature commit `9ec9e78`; originally task-only, made discoverable by `ONYX-BEACON-20260827-001`.
