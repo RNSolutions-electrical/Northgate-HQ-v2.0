@@ -5,9 +5,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 ## Current durable sync marker
 
 - Marker: `SILVER-LOCK-20260827-001`
-- Feature commit: pending commit
+- Feature commit: `041ddd1`
 - GitHub branch: `main`
-- Production deploy: pending deployment
+- Production deploy: `6a908ea4d1f585585730863b`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
