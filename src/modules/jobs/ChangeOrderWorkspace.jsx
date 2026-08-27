@@ -108,6 +108,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     reason: '',
   });
   const [verification, setVerification] = useState({ file: null, name: '', certified: false });
+  const [decision, setDecision] = useState({ name: '', certified: false });
   const [action, setAction] = useState({ name: '', error: null, success: '' });
 
   const isDraft = !order || order.status === 'draft';
@@ -296,10 +297,39 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     setAction({ name: 'approve', error: null, success: '' });
     try {
       const db = await client();
-      const { data, error } = await db.rpc('approve_job_change_order', { p_change_order_id: order.id, p_reason: form.reason.trim() || 'Signed Change Order approved.' });
+      const { data, error } = await db.rpc('approve_job_change_order', {
+        p_change_order_id: order.id,
+        p_reason: form.reason.trim() || 'Signed Change Order approved.',
+        p_decision_name: decision.name.trim(),
+        p_certified: decision.certified,
+      });
       if (error) throw error;
       setOrder(data);
+      setDecision({ name: '', certified: false });
       setAction({ name: '', error: null, success: 'Approved. Immutable financial postings were created in the same transaction.' });
+      onChanged?.();
+    } catch (error) { setAction({ name: '', error, success: '' }); }
+  }
+
+  async function denyOrder() {
+    if (!order?.id || order.status !== 'submitted' || !canApprove || action.name) return;
+    if (!form.reason.trim() || !decision.name.trim() || !decision.certified) {
+      setAction({ name: '', error: new Error('A denial reason, decision name/initials, and certification checkbox are required.'), success: '' });
+      return;
+    }
+    setAction({ name: 'deny', error: null, success: '' });
+    try {
+      const db = await client();
+      const { data, error } = await db.rpc('deny_job_change_order', {
+        p_change_order_id: order.id,
+        p_reason: form.reason.trim(),
+        p_decision_name: decision.name.trim(),
+        p_certified: decision.certified,
+      });
+      if (error) throw error;
+      setOrder(data);
+      setDecision({ name: '', certified: false });
+      setAction({ name: '', error: null, success: 'Change Order explicitly denied. The decision was audited and no financial posting was created.' });
       onChanged?.();
     } catch (error) { setAction({ name: '', error, success: '' }); }
   }
@@ -374,7 +404,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     } catch (error) { setAction({ name: '', error, success: '' }); }
   }
 
-  const workflow = order?.status === 'voided' ? 'Voided — financial impact reversed' : order?.status === 'approved' ? 'Approved' : order?.verified_at ? 'Verified — ready to approve' : order?.signed_document_id ? 'Signed document attached' : order?.exported_at ? 'PDF exported — awaiting signed copy' : order?.status === 'submitted' ? 'Submitted — export client PDF' : 'Draft — complete and submit';
+  const workflow = order?.status === 'voided' ? 'Voided — financial impact reversed' : order?.status === 'denied' ? 'Denied — no financial impact' : order?.status === 'approved' ? 'Approved' : order?.verified_at ? 'Verified — ready to approve or deny' : order?.signed_document_id ? 'Signed document attached' : order?.exported_at ? 'PDF exported — awaiting client decision' : order?.status === 'submitted' ? 'Submitted — awaiting client decision' : 'Draft — complete and submit';
 
   return (
     <section className="change-order-workspace">
@@ -415,7 +445,6 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
           <label className="change-order-form__wide"><span>Title</span><input value={form.title} onChange={(e) => setField('title', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
           <label className="change-order-form__scope"><span>Description / scope</span><textarea rows={5} value={form.description} onChange={(e) => setField('description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
           <label className="change-order-form__notes"><span>Internal notes <small>Not included in client PDF</small></span><textarea rows={5} value={form.internal_notes} onChange={(e) => setField('internal_notes', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-          <label className="change-order-form__wide"><span>Audit reason</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required when saving; used for submission or approval when provided" /></label>
         </div>
       </div>
 
@@ -447,6 +476,25 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         </div>
       </div> : null}
 
+      {order?.status === 'submitted' && canApprove ? <div className="change-order-workspace__panel">
+        <Toolbar eyebrow="Client Decision" title="Approve or deny Change Order" description="Both outcomes require approval authority and an explicit employee certification. Approval posts to Financials; denial does not." />
+        <div className="change-order-verification">
+          <label><span>Decision name / initials</span><input value={decision.name} onChange={(e) => setDecision((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
+          <label className="change-order-verification__certify"><input type="checkbox" checked={decision.certified} onChange={(e) => setDecision((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed this Change Order and am recording the client’s explicit decision.</span></label>
+        </div>
+      </div> : null}
+
+      {(isDraft || order?.status === 'submitted') ? <div className="change-order-action-reason" role="note" aria-label="Required audit reason">
+        <div className="change-order-action-reason__notice">
+          <strong>Audit reason required</strong>
+          <span>{order?.status === 'submitted' ? 'Enter the reason for the next action. A denial requires this note; approval uses it when provided.' : 'Enter why this Change Order is being created or edited before saving or submitting. The note is retained in project history.'}</span>
+        </div>
+        <label>
+          <span>Audit reason</span>
+          <input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder={order?.status === 'submitted' ? 'Required for denial; recorded with the next workflow action' : 'Required before Save Draft or Submit Change Order'} />
+        </label>
+      </div> : null}
+
       {action.error ? <StatePanel tone="danger" eyebrow="Action Failed" title="Change Order was not advanced" description={action.error.message || 'Unexpected Change Order error.'} compact /> : null}
       {action.success ? <StatePanel tone="success" eyebrow="Complete" title="Workflow updated" description={action.success} compact /> : null}
       <div className="change-order-workspace__actions">
@@ -454,7 +502,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         {order && ['draft', 'submitted'].includes(order.status) && !order.signed_document_id && canCreate && (order.status === 'draft' || canSubmit) ? <button type="button" className="secondary-button secondary-button--danger" onClick={archiveEditableOrder} disabled={Boolean(action.name)}><Archive aria-hidden="true" /> {action.name === 'archive' ? 'Archiving...' : `Archive ${order.status === 'draft' ? 'Draft' : 'Submitted Change Order'}`}</button> : null}
         {isDraft && canSubmit ? <button type="button" className="primary-button" onClick={submitOrder} disabled={Boolean(action.name) || total <= 0}><Send aria-hidden="true" /> {action.name === 'submit' ? 'Submitting...' : 'Submit Change Order'}</button> : null}
         {order && ['submitted', 'approved'].includes(order.status) && canSubmit ? <button type="button" className="secondary-button" onClick={exportPdf} disabled={Boolean(action.name)}><Download aria-hidden="true" /> Export Change Order PDF</button> : null}
-        {order?.status === 'submitted' && order.verified_at && canApprove ? <button type="button" className="primary-button" onClick={approveOrder} disabled={Boolean(action.name)}><ShieldCheck aria-hidden="true" /> {action.name === 'approve' ? 'Approving & Posting...' : 'Approve Change Order'}</button> : null}
+        {order?.status === 'submitted' && canApprove ? <button type="button" className="secondary-button secondary-button--danger" onClick={denyOrder} disabled={Boolean(action.name) || !form.reason.trim() || !decision.name.trim() || !decision.certified}><Ban aria-hidden="true" /> {action.name === 'deny' ? 'Recording Denial...' : 'Deny Change Order'}</button> : null}
+        {order?.status === 'submitted' && order.verified_at && canApprove ? <button type="button" className="primary-button" onClick={approveOrder} disabled={Boolean(action.name) || !decision.name.trim() || !decision.certified}><ShieldCheck aria-hidden="true" /> {action.name === 'approve' ? 'Approving & Posting...' : 'Approve Change Order'}</button> : null}
       </div>
     </section>
   );

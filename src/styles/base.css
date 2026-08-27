@@ -632,6 +632,13 @@ textarea {
 .change-order-verification { align-items: end; }
 .change-order-verification__certify { grid-template-columns: auto 1fr !important; align-items: start; padding: 12px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); background: var(--ng-panel-bg-alt); }
 .change-order-verification__certify input { margin-top: 0.15rem; }
+.change-order-action-reason { display: grid; grid-template-columns: minmax(240px, 0.75fr) minmax(320px, 1.25fr); align-items: center; gap: 18px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--ng-warn) 30%, var(--ng-divider)); border-left: 4px solid var(--ng-warn); border-radius: var(--ng-radius-card); background: color-mix(in srgb, var(--ng-warn-bg) 55%, var(--ng-card-bg)); box-shadow: var(--ng-shadow-soft); }
+.change-order-action-reason__notice { display: grid; gap: 3px; }
+.change-order-action-reason__notice strong { color: var(--ng-text); font-family: var(--ng-font-display); font-size: 0.95rem; }
+.change-order-action-reason__notice span { color: var(--ng-muted); font-size: 0.78rem; line-height: 1.45; }
+.change-order-action-reason label { display: grid; min-width: 0; gap: 6px; }
+.change-order-action-reason label > span { color: var(--ng-faint); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.change-order-action-reason input { box-shadow: inset 0 1px 1px rgba(20, 32, 44, 0.025); }
 @media (max-width: 900px) {
   .change-order-workspace__topbar { grid-template-columns: 1fr auto; }
   .change-order-workspace__topbar > .secondary-button { grid-column: 1 / -1; justify-self: start; }
@@ -640,6 +647,7 @@ textarea {
   .change-order-verification { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .change-order-form__scope,
   .change-order-form__notes { grid-column: 1 / -1; }
+  .change-order-action-reason { grid-template-columns: 1fr; align-items: start; }
 }
 @media (max-width: 620px) {
   .change-order-workspace__topbar { grid-template-columns: 1fr; }

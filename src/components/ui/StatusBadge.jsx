@@ -46,6 +46,7 @@ export function toneForStatus(status) {
       return 'warn';
 
     case 'rejected':
+    case 'denied':
     case 'delayed':
     case 'cancelled':
     case 'expired':

@@ -342,6 +342,11 @@ const JOB_CHANGE_ORDER_SELECT_FIELDS = [
   'revision_number',
   'approved_by',
   'approved_at',
+  'decision_name',
+  'decision_certification_state',
+  'denied_by',
+  'denied_at',
+  'denial_reason',
   'voided_by',
   'voided_at',
   'void_reason',
@@ -2163,6 +2168,7 @@ export function JobsWorkspace({ permissions }) {
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [changeOrderWorkspaceOrder, setChangeOrderWorkspaceOrder] = useState(undefined);
+  const [changeOrderSort, setChangeOrderSort] = useState({ key: '', direction: 'asc' });
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
@@ -2235,6 +2241,29 @@ export function JobsWorkspace({ permissions }) {
     enabled: permissions.permissionSource === 'server' && ['overview', 'financials', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
   });
+  const sortedChangeOrders = useMemo(() => {
+    if (!changeOrderSort.key) return jobChangeOrders.rows;
+    const direction = changeOrderSort.direction === 'desc' ? -1 : 1;
+    const valueFor = (row) => {
+      if (changeOrderSort.key === 'decision_at') return row.approved_at || row.denied_at || '';
+      return row[changeOrderSort.key];
+    };
+    return [...jobChangeOrders.rows].sort((left, right) => {
+      const leftValue = valueFor(left);
+      const rightValue = valueFor(right);
+      if (leftValue === rightValue) return 0;
+      if (leftValue === null || leftValue === undefined || leftValue === '') return 1;
+      if (rightValue === null || rightValue === undefined || rightValue === '') return -1;
+      if (changeOrderSort.key === 'price_amount') return (Number(leftValue) - Number(rightValue)) * direction;
+      return String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' }) * direction;
+    });
+  }, [changeOrderSort, jobChangeOrders.rows]);
+  const sortChangeOrders = (key) => {
+    setChangeOrderSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
   const jobChangeOrderPostings = useJobChangeOrderPostings({
     enabled: permissions.permissionSource === 'server' && ['financials', 'billing', 'change_orders'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
@@ -4693,12 +4722,12 @@ export function JobsWorkspace({ permissions }) {
 
     if (activeTab === 'change_orders') {
       const changeOrderColumns = [
-        { key: 'co_number', header: 'CO #', render: (row) => <strong>{row.co_number}</strong> },
-        { key: 'title', header: 'Title', render: (row) => row.title },
-        { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status} /> },
-        { key: 'price_amount', header: 'Total', align: 'right', render: (row) => formatMoney(row.price_amount) },
-        { key: 'approved_at', header: 'Approved', render: (row) => row.approved_at ? formatDateTime(row.approved_at) : '-' },
-        { key: 'actions', header: 'Actions', render: (row) => <button type="button" className="secondary-button" onClick={() => setChangeOrderWorkspaceOrder(row)}>{row.status === 'draft' && permissions?.canCreateChangeOrders ? 'Edit Draft' : row.status === 'submitted' && permissions?.canSubmitChangeOrders ? 'Review / Edit' : row.status === 'approved' && permissions?.canReviseChangeOrders ? 'Review / Revise / Void' : row.status === 'voided' ? 'View Voided' : 'View'}</button> },
+        { key: 'co_number', header: 'CO #', sortable: true, render: (row) => <strong>{row.co_number}</strong> },
+        { key: 'title', header: 'Title', sortable: true, render: (row) => row.title },
+        { key: 'status', header: 'Status', sortable: true, render: (row) => <StatusBadge status={row.status} /> },
+        { key: 'price_amount', header: 'Total', sortable: true, align: 'right', render: (row) => formatMoney(row.price_amount) },
+        { key: 'decision_at', header: 'Decision', sortable: true, render: (row) => row.approved_at ? `Approved ${formatDateTime(row.approved_at)}` : row.denied_at ? `Denied ${formatDateTime(row.denied_at)}` : '-' },
+        { key: 'actions', header: 'Actions', render: (row) => <button type="button" className="secondary-button" onClick={() => setChangeOrderWorkspaceOrder(row)}>{row.status === 'draft' && permissions?.canCreateChangeOrders ? 'Edit Draft' : row.status === 'submitted' && permissions?.canSubmitChangeOrders ? 'Review / Edit' : row.status === 'approved' && permissions?.canReviseChangeOrders ? 'Review / Revise / Void' : row.status === 'voided' ? 'View Voided' : row.status === 'denied' ? 'View Denied' : 'View'}</button> },
       ];
       return (
         <>
@@ -4709,11 +4738,14 @@ export function JobsWorkspace({ permissions }) {
           ) : null}
           <DataTable
             columns={changeOrderColumns}
-            rows={jobChangeOrders.rows}
+            rows={sortedChangeOrders}
             getRowKey={(row) => row.id}
             permissions={permissions}
             isLoading={jobChangeOrders.isLoading}
             error={jobChangeOrders.error}
+            sortKey={changeOrderSort.key}
+            sortDirection={changeOrderSort.direction}
+            onSort={sortChangeOrders}
             dense
             minWidth="900px"
             emptyTitle="No change orders for this job"
