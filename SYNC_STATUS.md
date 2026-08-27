@@ -5,9 +5,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 ## Current durable sync marker
 
 - Marker: `CITRINE-MENU-20260827-001`
-- Feature commit: pending commit for the grouped-navigation menu visibility fix
+- Feature commit: `d235a3a`
 - GitHub branch: `main`
-- Production deploy: pending
+- Production deploy: `6a904f04012805ac0160bf30`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
