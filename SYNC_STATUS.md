@@ -5,9 +5,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 ## Current durable sync marker
 
 - Marker: `COBALT-PROFILE-20260827-001`
-- Feature commit: pending commit for secure self-service employee profiles
+- Feature commit: `d4f774c`
 - GitHub branch: `main`
-- Production deploy: pending
+- Production deploy: `6a905521b66a635c04e478dc`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
