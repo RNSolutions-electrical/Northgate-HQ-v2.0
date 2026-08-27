@@ -35,3 +35,16 @@ separate Billing restoration is verified in production.
 Before changing Jobs on any machine: pull `main`, read this file, confirm the current
 commit, and preserve uncommitted work with a named branch/commit before switching machines.
 Do not use a force push or reset to reconcile work from another machine.
+
+## Required sync marker
+
+Every completed cross-machine synchronization must end with a dedicated commit whose
+subject is `Sync marker: <UNIQUE-TOKEN>`. The token must be unique and must never be
+reused for another synchronization. Before work resumes on a machine, fetch `main` and
+verify both the exact sync-marker subject and its commit SHA against the source machine's
+reported values. If either value differs, stop and reconcile before making changes.
+
+Verified baseline for this handoff:
+
+- Marker: `CYPRESS-ORBIT`
+- Commit: `99bc73f6d18fdae6c7f56ccce05f8233ec37e90a`

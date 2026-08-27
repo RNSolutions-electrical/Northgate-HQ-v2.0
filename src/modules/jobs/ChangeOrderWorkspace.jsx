@@ -39,6 +39,17 @@ function money(value) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
 }
 
+function isChangeOrderBudgetLine(line) {
+  return /\.CO$/i.test(String(line?.cost_code || '').trim());
+}
+
+function compareBudgetLines(left, right) {
+  const leftDivisionOrder = left?.project_division?.sort_order ?? Number(String(left?.cost_code || '').match(/^\d+/)?.[0] || 999);
+  const rightDivisionOrder = right?.project_division?.sort_order ?? Number(String(right?.cost_code || '').match(/^\d+/)?.[0] || 999);
+  if (leftDivisionOrder !== rightDivisionOrder) return leftDivisionOrder - rightDivisionOrder;
+  return String(left?.cost_code || '').localeCompare(String(right?.cost_code || ''), undefined, { numeric: true, sensitivity: 'base' });
+}
+
 function formatDate(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString();
@@ -77,8 +88,17 @@ function clientChangeOrderHtml({ order, job, form, lines, total, logoUrl }) {
 export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissions, onClose, onChanged }) {
   const { getToken } = useAuth();
   const { user } = useUser();
+  const changeOrderBudgetLines = useMemo(
+    () => budgetLines.filter(isChangeOrderBudgetLine).sort(compareBudgetLines),
+    [budgetLines],
+  );
+  const remainingBudgetLines = useMemo(
+    () => budgetLines.filter((line) => !isChangeOrderBudgetLine(line)).sort(compareBudgetLines),
+    [budgetLines],
+  );
+  const defaultBudgetLine = changeOrderBudgetLines[0] || remainingBudgetLines[0] || null;
   const [order, setOrder] = useState(initialOrder || null);
-  const [lines, setLines] = useState([blankLine(budgetLines[0])]);
+  const [lines, setLines] = useState([blankLine(defaultBudgetLine)]);
   const [form, setForm] = useState({
     co_number: initialOrder?.co_number || '',
     title: initialOrder?.title || '',
@@ -400,13 +420,13 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       </div>
 
       <div className="change-order-workspace__panel">
-        <Toolbar eyebrow="Pricing" title="Division / cost breakdown" description="Each line maps to an existing project financial line. Client PDF shows only its description and total; internal component costs remain private." actions={isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => setLines((current) => [...current, blankLine(budgetLines[0], current.length)])}><Plus aria-hidden="true" /> Add Line</button> : null} />
+        <Toolbar eyebrow="Pricing" title="Division / cost breakdown" description="Each line maps to an existing project financial line. Client PDF shows only its description and total; internal component costs remain private." actions={isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => setLines((current) => [...current, blankLine(defaultBudgetLine, current.length)])}><Plus aria-hidden="true" /> Add Line</button> : null} />
         <div className="change-order-lines">
           {lines.map((line, index) => (
             <article className="change-order-line" key={line.key}>
               <div className="change-order-line__heading"><strong>Line {index + 1}</strong><span>{money(lineTotal(line))}</span></div>
               <div className="change-order-line__grid">
-                <label><span>Financial line / cost code</span><select value={line.job_budget_line_id} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{budgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
+                <label><span>Financial line / cost code</span><select value={line.job_budget_line_id} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
                 <label><span>Vendor / subcontractor</span><input value={line.vendor_name || ''} onChange={(e) => updateLine(line.key, 'vendor_name', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 <label className="change-order-line__wide"><span>Description / scope</span><input value={line.description || ''} onChange={(e) => updateLine(line.key, 'description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 {MONEY_FIELDS.map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" min="0" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
