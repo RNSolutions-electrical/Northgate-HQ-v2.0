@@ -4,10 +4,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `IVORY-EMPLOYEE-20260827-001`
-- Feature commit: `32f29e2`
+- Marker: `ROSEWOOD-TASKS-20260827-001`
+- Feature commit: pending commit
 - GitHub branch: `main`
-- Production deploy: `6a905d3b1882f92b4235bf81`
+- Production deploy: pending deployment
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
@@ -35,6 +35,13 @@ display name and phone with an audit reason, and may read only their own vehicle
 assignment history. Email and management-controlled employment fields remain
 protected.
 
+The current marker adds employee-owned private Notes and My To-Do profile tabs.
+To-do items with a due date surface only to their owner on Dashboard when they
+are overdue, due today, or due within seven days. The new tables use RLS with no
+direct client access; authenticated users receive only their own records through
+server-authorized RPCs. Private note or to-do content is intentionally excluded
+from the shared legacy audit table.
+
 ## Superseded task-only marker
 
 `TEAL-MERIDIAN-20260826` was reported in a Codex task but was not committed to the repository. It is retained here so machines searching for that marker can resolve it to the feature commit above.
@@ -52,6 +59,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `IVORY-EMPLOYEE-20260827-001` — secure employee self-service profile edit and vehicle-assignment history, commits `32f29e2` and `a8959f0`.
 - `COBALT-PROFILE-20260827-001` — secure self-profile read path, commits `d4f774c` and `b762939`.
 - `VERDANT-NAV-20260827-001` — grouped department-aware navigation, commits `4860d50` and `1120edb`.
 - `CITRINE-MENU-20260827-001` — fixes clipped Inventory and Add-On Tools dropdown menus, commits `d235a3a` and `dfec32e`.

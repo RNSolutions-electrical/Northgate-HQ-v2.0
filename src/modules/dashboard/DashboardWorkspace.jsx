@@ -24,6 +24,7 @@ const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
 const EMPTY_DASHBOARD_VEHICLES = Object.freeze([]);
 const EMPTY_DASHBOARD_JOBS = Object.freeze([]);
 const EMPTY_DASHBOARD_TOOLS = Object.freeze([]);
+const EMPTY_DASHBOARD_TODO_REMINDERS = Object.freeze([]);
 
 const DASHBOARD_ESTIMATE_SELECT_FIELDS = [
   'id',
@@ -489,6 +490,34 @@ function useDashboardTools({ enabled }) {
   };
 }
 
+function useDashboardTodoReminders({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, items: EMPTY_DASHBOARD_TODO_REMINDERS });
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled) {
+        setState({ isLoading: false, error: null, items: EMPTY_DASHBOARD_TODO_REMINDERS });
+        return;
+      }
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+      try {
+        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const { data, error } = await client.rpc('read_current_employee_dashboard_todo_reminders');
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, items: data ?? EMPTY_DASHBOARD_TODO_REMINDERS });
+      } catch (error) {
+        console.error('Dashboard to-do reminders failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, items: EMPTY_DASHBOARD_TODO_REMINDERS });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, refreshKey]);
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 export function DashboardWorkspace({ permissions }) {
   const { user } = useUser();
   const navigate = useNavigate();
@@ -514,6 +543,8 @@ export function DashboardWorkspace({ permissions }) {
   const canSeeTools = permissions.permissionSource === 'server';
   const dashboardTools = useDashboardTools({ enabled: canSeeTools });
   const activeDashboardTools = dashboardTools.tools.filter((tool) => tool.status === 'active');
+  const dashboardTodoReminders = useDashboardTodoReminders({ enabled: permissions.permissionSource === 'server' });
+  const overdueTodoCount = dashboardTodoReminders.items.filter((item) => item.reminder_status === 'overdue').length;
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
@@ -596,7 +627,27 @@ export function DashboardWorkspace({ permissions }) {
         {canSeeEstimates ? (
           <SummaryCard label="My Estimates" value={dashboardEstimates.isLoading ? 'Loading' : dashboardEstimates.assigned.length} detail="Assigned estimate rows" tone={dashboardEstimates.assigned.length ? 'accent' : 'default'} />
         ) : null}
+        <SummaryCard label="My To-Do" value={dashboardTodoReminders.isLoading ? 'Loading' : dashboardTodoReminders.items.length} detail={overdueTodoCount ? `${overdueTodoCount} overdue` : 'Due soon or today'} tone={overdueTodoCount ? 'warn' : dashboardTodoReminders.items.length ? 'accent' : 'default'} />
       </div>
+
+      {dashboardTodoReminders.error ? <StatePanel eyebrow="My To-Do" title="To-do reminders could not be loaded" description={dashboardTodoReminders.error.message} tone="danger" /> : null}
+      {!dashboardTodoReminders.isLoading && dashboardTodoReminders.items.length ? (
+        <article className="card workspace-card module-directory-panel">
+          <Toolbar eyebrow="My To-Do" title={overdueTodoCount ? 'Open items need attention' : 'Upcoming to-do items'} description="Personal items with due dates appear here when overdue, due today, or due within seven days." actions={<><button type="button" className="secondary-button" onClick={dashboardTodoReminders.reload}>Refresh</button><button type="button" className="secondary-button" onClick={() => navigate('/employees', { state: { employeeView: 'mine', employeeTab: 'todos' } })}>Open my to-do list</button></>} />
+          <DataTable
+            columns={[
+              { key: 'title', header: 'To-do item', render: (row) => <strong>{row.title}</strong> },
+              { key: 'due_date', header: 'Due', render: (row) => formatDate(row.due_date) },
+              { key: 'reminder_status', header: 'Status', render: (row) => <StatusBadge status={row.reminder_status}>{formatLabel(row.reminder_status)}</StatusBadge> },
+            ]}
+            rows={dashboardTodoReminders.items}
+            getRowKey={(row) => row.id}
+            permissions={permissions}
+            dense
+            minWidth="520px"
+          />
+        </article>
+      ) : null}
 
       <div className={`workspace-split dashboard-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar

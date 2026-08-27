@@ -15,6 +15,8 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 const EMPTY_PEOPLE = Object.freeze([]);
 const EMPTY_ASSIGNMENTS = Object.freeze([]);
 const EMPTY_PENDING_PROFILES = Object.freeze([]);
+const EMPTY_PERSONAL_NOTES = Object.freeze([]);
+const EMPTY_PERSONAL_TODOS = Object.freeze([]);
 const DEFAULT_EMPLOYEE_FORM = Object.freeze({
   id: '', displayName: '', email: '', role: 'User', division: '', jobTitle: '', phone: '', notes: '', reason: '', isSaving: false, error: null, success: '',
 });
@@ -23,6 +25,8 @@ const EMPLOYEE_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'contact', label: 'Contact' },
   { key: 'assignments', label: 'Assignments' },
+  { key: 'notes', label: 'My Notes' },
+  { key: 'todos', label: 'My To-Do' },
   { key: 'activity', label: 'Activity' },
 ];
 
@@ -202,6 +206,56 @@ function useCurrentEmployeeAssignments({ enabled }) {
   return { ...state, reload: () => setRefreshKey((current) => current + 1) };
 }
 
+function useCurrentEmployeeProfileNotes({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, rows: EMPTY_PERSONAL_NOTES });
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled) return;
+      setState({ isLoading: true, error: null, rows: EMPTY_PERSONAL_NOTES });
+      try {
+        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const { data, error } = await client.rpc('read_current_employee_profile_notes', { p_limit: 200 });
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_PERSONAL_NOTES });
+      } catch (error) {
+        console.error('Current employee notes failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, rows: EMPTY_PERSONAL_NOTES });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, refreshKey]);
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
+function useCurrentEmployeeProfileTodos({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, rows: EMPTY_PERSONAL_TODOS });
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled) return;
+      setState({ isLoading: true, error: null, rows: EMPTY_PERSONAL_TODOS });
+      try {
+        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const { data, error } = await client.rpc('read_current_employee_profile_todos', { p_include_completed: true, p_limit: 200 });
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_PERSONAL_TODOS });
+      } catch (error) {
+        console.error('Current employee to-dos failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, rows: EMPTY_PERSONAL_TODOS });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, refreshKey]);
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -210,6 +264,8 @@ export function EmployeesWorkspace({ permissions }) {
   const directory = useEmployeeReferences({ enabled: canReadEmployees });
   const myProfile = useCurrentEmployeeProfile({ enabled: permissions.permissionSource === 'server' });
   const myAssignments = useCurrentEmployeeAssignments({ enabled: permissions.permissionSource === 'server' });
+  const myNotes = useCurrentEmployeeProfileNotes({ enabled: permissions.permissionSource === 'server' });
+  const myTodos = useCurrentEmployeeProfileTodos({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('directory');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -221,6 +277,9 @@ export function EmployeesWorkspace({ permissions }) {
   const [employeeNotice, setEmployeeNotice] = useState('');
   const [pendingProfileAction, setPendingProfileAction] = useState({ id: '', error: null });
   const [profileEdit, setProfileEdit] = useState({ open: false, displayName: '', phone: '', reason: '', isSaving: false, error: null, success: '' });
+  const [noteDraft, setNoteDraft] = useState({ id: '', body: '', isSaving: false, error: null });
+  const [todoDraft, setTodoDraft] = useState({ id: '', title: '', details: '', dueDate: '', isSaving: false, error: null });
+  const [todoAction, setTodoAction] = useState({ id: '', error: null });
 
   const assignments = directory.assignments;
   const pendingProfiles = directory.pendingProfiles;
@@ -268,6 +327,9 @@ export function EmployeesWorkspace({ permissions }) {
   useEffect(() => {
     if (location.state?.employeeView === 'mine') {
       setActiveView('mine');
+      if (['overview', 'contact', 'assignments', 'notes', 'todos', 'activity'].includes(location.state?.employeeTab)) {
+        setActiveTab(location.state.employeeTab);
+      }
       return;
     }
     if (directoryDepartment) {
@@ -326,6 +388,93 @@ export function EmployeesWorkspace({ permissions }) {
       myProfile.reload();
     } catch (error) {
       setProfileEdit((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
+  function editPersonalNote(note) {
+    setNoteDraft({ id: note.id, body: note.body, isSaving: false, error: null });
+  }
+
+  async function savePersonalNote(event) {
+    event.preventDefault();
+    if (noteDraft.isSaving || !noteDraft.body.trim()) return;
+    setNoteDraft((current) => ({ ...current, isSaving: true, error: null }));
+    try {
+      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const { error } = await client.rpc('save_current_employee_profile_note', {
+        p_note_id: noteDraft.id || null,
+        p_body: noteDraft.body,
+      });
+      if (error) throw error;
+      setNoteDraft({ id: '', body: '', isSaving: false, error: null });
+      myNotes.reload();
+    } catch (error) {
+      setNoteDraft((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
+  async function archivePersonalNote(noteId) {
+    if (!noteId || noteDraft.isSaving) return;
+    setNoteDraft((current) => ({ ...current, isSaving: true, error: null }));
+    try {
+      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const { error } = await client.rpc('archive_current_employee_profile_note', { p_note_id: noteId });
+      if (error) throw error;
+      setNoteDraft((current) => current.id === noteId ? { id: '', body: '', isSaving: false, error: null } : { ...current, isSaving: false });
+      myNotes.reload();
+    } catch (error) {
+      setNoteDraft((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
+  function editPersonalTodo(todo) {
+    setTodoDraft({ id: todo.id, title: todo.title, details: todo.details || '', dueDate: todo.due_date || '', isSaving: false, error: null });
+  }
+
+  async function savePersonalTodo(event) {
+    event.preventDefault();
+    if (todoDraft.isSaving || !todoDraft.title.trim()) return;
+    setTodoDraft((current) => ({ ...current, isSaving: true, error: null }));
+    try {
+      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const { error } = await client.rpc('save_current_employee_profile_todo', {
+        p_todo_id: todoDraft.id || null,
+        p_title: todoDraft.title,
+        p_details: todoDraft.details || null,
+        p_due_date: todoDraft.dueDate || null,
+      });
+      if (error) throw error;
+      setTodoDraft({ id: '', title: '', details: '', dueDate: '', isSaving: false, error: null });
+      myTodos.reload();
+    } catch (error) {
+      setTodoDraft((current) => ({ ...current, isSaving: false, error }));
+    }
+  }
+
+  async function setPersonalTodoCompleted(todo, completed) {
+    setTodoAction({ id: todo.id, error: null });
+    try {
+      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const { error } = await client.rpc('set_current_employee_profile_todo_complete', { p_todo_id: todo.id, p_completed: completed });
+      if (error) throw error;
+      myTodos.reload();
+      setTodoAction({ id: '', error: null });
+    } catch (error) {
+      setTodoAction({ id: todo.id, error });
+    }
+  }
+
+  async function archivePersonalTodo(todoId) {
+    setTodoAction({ id: todoId, error: null });
+    try {
+      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const { error } = await client.rpc('archive_current_employee_profile_todo', { p_todo_id: todoId });
+      if (error) throw error;
+      if (todoDraft.id === todoId) setTodoDraft({ id: '', title: '', details: '', dueDate: '', isSaving: false, error: null });
+      myTodos.reload();
+      setTodoAction({ id: '', error: null });
+    } catch (error) {
+      setTodoAction({ id: todoId, error });
     }
   }
 
@@ -419,7 +568,7 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Views
             </button>
-            <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); myAssignments.reload(); }} disabled={directory.isLoading || myProfile.isLoading || myAssignments.isLoading}>
+            <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); myAssignments.reload(); myNotes.reload(); myTodos.reload(); }} disabled={directory.isLoading || myProfile.isLoading || myAssignments.isLoading || myNotes.isLoading || myTodos.isLoading}>
               Refresh
             </button>
             <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
@@ -614,6 +763,49 @@ export function EmployeesWorkspace({ permissions }) {
                       emptyDescription="Vehicle assignment rows will appear here once this employee is assigned or released."
                     />
                   </>
+                ) : null}
+
+                {activeTab === 'notes' ? (
+                  activeView === 'mine' ? (
+                    <div className="state-panel-stack">
+                      <article className="card workspace-card">
+                        <Toolbar eyebrow="Personal Notes" title={noteDraft.id ? 'Edit note' : 'Add a note'} description="Private notes are visible only to you. Note content is not copied into the shared audit log." />
+                        <form className="employee-profile-form" onSubmit={savePersonalNote}>
+                          <label className="employee-profile-form__wide"><span>Note</span><textarea value={noteDraft.body} onChange={(event) => setNoteDraft((current) => ({ ...current, body: event.target.value, error: null }))} rows="5" maxLength="5000" required disabled={noteDraft.isSaving} placeholder="Keep a private work note…" /></label>
+                          <div className="record-actions"><button type="submit" className="primary-button" disabled={noteDraft.isSaving || !noteDraft.body.trim()}>{noteDraft.isSaving ? 'Saving…' : noteDraft.id ? 'Save note' : 'Add note'}</button>{noteDraft.id ? <button type="button" className="secondary-button" onClick={() => setNoteDraft({ id: '', body: '', isSaving: false, error: null })} disabled={noteDraft.isSaving}>Cancel</button> : null}</div>
+                          {noteDraft.error ? <StatePanel tone="danger" title="Note was not saved" description={noteDraft.error.message} compact /> : null}
+                        </form>
+                      </article>
+                      <article className="card workspace-card">
+                        <Toolbar eyebrow="Personal Notes" title="Saved notes" description="Newest updates appear first." actions={<button type="button" className="secondary-button" onClick={myNotes.reload} disabled={myNotes.isLoading}>Refresh</button>} />
+                        {myNotes.error ? <StatePanel tone="danger" title="Notes could not be loaded" description={myNotes.error.message} compact /> : null}
+                        {!myNotes.isLoading && !myNotes.error && myNotes.rows.length === 0 ? <StatePanel eyebrow="Personal Notes" title="No saved notes" description="Add a note above to keep private work reminders and reference details." compact /> : null}
+                        <div className="state-panel-stack">{myNotes.rows.map((note) => <article className="state-panel" key={note.id}><div><strong>{formatDateTime(note.updated_at)}</strong><p>{note.body}</p></div><div className="record-actions"><button type="button" className="secondary-button" onClick={() => editPersonalNote(note)}>Edit</button><button type="button" className="secondary-button secondary-button--danger" onClick={() => archivePersonalNote(note.id)} disabled={noteDraft.isSaving}>Archive</button></div></article>)}</div>
+                      </article>
+                    </div>
+                  ) : <StatePanel eyebrow="Privacy" title="Personal notes are private" description="Only the signed-in employee can view or edit their personal notes." tone="neutral" />
+                ) : null}
+
+                {activeTab === 'todos' ? (
+                  activeView === 'mine' ? (
+                    <div className="state-panel-stack">
+                      <article className="card workspace-card">
+                        <Toolbar eyebrow="Personal To-Do" title={todoDraft.id ? 'Edit to-do item' : 'Add a to-do item'} description="A due date adds a personal Dashboard reminder when the item is overdue, due today, or due within seven days." />
+                        <form className="employee-profile-form" onSubmit={savePersonalTodo}>
+                          <div className="employee-profile-form__grid"><label><span>To-do item</span><input value={todoDraft.title} onChange={(event) => setTodoDraft((current) => ({ ...current, title: event.target.value, error: null }))} maxLength="250" required disabled={todoDraft.isSaving} placeholder="What needs attention?" /></label><label><span>Due date <small>(optional)</small></span><input type="date" value={todoDraft.dueDate} onChange={(event) => setTodoDraft((current) => ({ ...current, dueDate: event.target.value, error: null }))} disabled={todoDraft.isSaving} /></label><label className="employee-profile-form__wide"><span>Details <small>(optional)</small></span><textarea value={todoDraft.details} onChange={(event) => setTodoDraft((current) => ({ ...current, details: event.target.value, error: null }))} rows="3" maxLength="5000" disabled={todoDraft.isSaving} /></label></div>
+                          <div className="record-actions"><button type="submit" className="primary-button" disabled={todoDraft.isSaving || !todoDraft.title.trim()}>{todoDraft.isSaving ? 'Saving…' : todoDraft.id ? 'Save to-do' : 'Add to-do'}</button>{todoDraft.id ? <button type="button" className="secondary-button" onClick={() => setTodoDraft({ id: '', title: '', details: '', dueDate: '', isSaving: false, error: null })} disabled={todoDraft.isSaving}>Cancel</button> : null}</div>
+                          {todoDraft.error ? <StatePanel tone="danger" title="To-do was not saved" description={todoDraft.error.message} compact /> : null}
+                        </form>
+                      </article>
+                      <article className="card workspace-card">
+                        <Toolbar eyebrow="Personal To-Do" title="Open and completed items" description="Complete items remain here for reference until you archive them." actions={<button type="button" className="secondary-button" onClick={myTodos.reload} disabled={myTodos.isLoading}>Refresh</button>} />
+                        {myTodos.error ? <StatePanel tone="danger" title="To-do items could not be loaded" description={myTodos.error.message} compact /> : null}
+                        {!myTodos.isLoading && !myTodos.error && myTodos.rows.length === 0 ? <StatePanel eyebrow="Personal To-Do" title="No to-do items" description="Add a personal task above. Add a due date when you want a Dashboard reminder." compact /> : null}
+                        <div className="state-panel-stack">{myTodos.rows.map((todo) => <article className="state-panel" key={todo.id}><div><strong>{todo.title}</strong><p>{todo.details || 'No additional details.'}</p><p><strong>Due:</strong> {todo.due_date ? formatDateTime(`${todo.due_date}T00:00:00`) : 'No due date'} · {todo.completed_at ? `Completed ${formatDateTime(todo.completed_at)}` : 'Open'}</p></div><div className="record-actions"><button type="button" className="secondary-button" onClick={() => setPersonalTodoCompleted(todo, !todo.completed_at)} disabled={todoAction.id === todo.id}>{todoAction.id === todo.id ? 'Saving…' : todo.completed_at ? 'Reopen' : 'Complete'}</button><button type="button" className="secondary-button" onClick={() => editPersonalTodo(todo)} disabled={todoAction.id === todo.id}>Edit</button><button type="button" className="secondary-button secondary-button--danger" onClick={() => archivePersonalTodo(todo.id)} disabled={todoAction.id === todo.id}>Archive</button></div></article>)}</div>
+                        {todoAction.error ? <StatePanel tone="danger" title="To-do action failed" description={todoAction.error.message} compact /> : null}
+                      </article>
+                    </div>
+                  ) : <StatePanel eyebrow="Privacy" title="Personal to-do items are private" description="Only the signed-in employee can view or edit their personal to-do items." tone="neutral" />
                 ) : null}
 
                 {activeTab === 'activity' ? (
