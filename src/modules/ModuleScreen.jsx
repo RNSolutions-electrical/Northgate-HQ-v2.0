@@ -4,6 +4,7 @@ import { findModule, isModulePermitted } from './registry.js';
 import { WorkspaceHeader } from '../components/ui/WorkspaceHeader.jsx';
 import { StatePanel } from '../components/ui/StatePanel.jsx';
 import { MODULE_SCREENS } from './screens.js';
+import { UiElement } from '../components/ui/UiElement.jsx';
 
 /**
  * Renders a module.
@@ -42,7 +43,13 @@ export function ModuleScreen({ moduleKey }) {
 
   const Screen = MODULE_SCREENS[moduleKey];
 
-  if (Screen) return <Screen permissions={permissions} module={module} />;
+  if (Screen) {
+    return (
+      <UiElement as="section" className="ng-page-scope" type="PAGE" name={module.label}>
+        <Screen permissions={permissions} module={module} />
+      </UiElement>
+    );
+  }
 
   return (
     <>

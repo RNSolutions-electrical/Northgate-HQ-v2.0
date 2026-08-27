@@ -258,7 +258,7 @@ const ESTIMATE_COLUMNS = [
   { key: 'estimate_number', header: 'Estimate #', render: (row) => <strong>{estimateLabel(row)}</strong> },
   { key: 'title', header: 'Title' },
   { key: 'customer_name', header: 'Customer', fallback: '-' },
-  { key: 'division', header: 'Division' },
+  { key: 'division', header: 'Department' },
   {
     key: 'status',
     header: 'Status',
@@ -455,7 +455,7 @@ const ASSEMBLY_COLUMNS = [
   { key: 'name', header: 'Assembly', render: (row) => <strong>{row.name}</strong> },
   { key: 'category', header: 'Category', fallback: '-' },
   { key: 'unit', header: 'Unit', fallback: '-' },
-  { key: 'division', header: 'Division' },
+  { key: 'division', header: 'Department' },
   { key: 'is_library_item', header: 'Library', render: (row) => (row.is_library_item ? 'Yes' : 'One-time') },
 ];
 
@@ -935,13 +935,13 @@ function assemblyItemToForm(row) {
 
 function canEditEstimateDivision(permissions, rowDivision) {
   if (permissions?.permissionSource !== 'server' || permissions?.canEstimate !== true || !rowDivision) return false;
-  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  if (['Developer', 'Director', 'Manager'].includes(permissions?.role)) return true;
   return permissions?.division === rowDivision;
 }
 
 function canApproveEstimateDivision(permissions, rowDivision) {
   if (permissions?.permissionSource !== 'server' || permissions?.canApproveEstimates !== true || !rowDivision) return false;
-  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  if (['Developer', 'Director', 'Manager'].includes(permissions?.role)) return true;
   return permissions?.division === rowDivision;
 }
 
@@ -3291,7 +3291,7 @@ export function EstimatesWorkspace({ permissions }) {
                   description={selectedEstimate.scope_summary || 'Estimate detail foundation. Pricing, documents, approval snapshots, archive, and history are live.'}
                   meta={[
                     { label: 'Customer', value: selectedEstimate.customer_name || '-' },
-                    { label: 'Division', value: selectedEstimate.division },
+                    { label: 'Department', value: selectedEstimate.division },
                     { label: 'Status', value: formatEstimateStatus(selectedEstimate.status) },
                   ]}
                 />

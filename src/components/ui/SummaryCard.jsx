@@ -1,3 +1,5 @@
+import { uiElementAttributes } from '../../config/uiTerminology.js';
+
 export function SummaryCard({
   label,
   value,
@@ -9,7 +11,7 @@ export function SummaryCard({
   const isIncomplete = incomplete ?? hasIncompleteSignal([label, value, detail]);
 
   return (
-    <article className={`summary-card summary-card--${tone}${isIncomplete ? ' ng-incomplete-component' : ''}${developmentOnly ? ' ng-development-component' : ''}`}>
+    <article className={`summary-card summary-card--${tone}${isIncomplete ? ' ng-incomplete-component' : ''}${developmentOnly ? ' ng-development-component' : ''}`} {...uiElementAttributes('CARD', label || 'Summary')}>
       <span className="summary-card__label">{label}</span>
       <strong className="summary-card__value">{value}</strong>
       {detail ? <span className="summary-card__detail">{detail}</span> : null}

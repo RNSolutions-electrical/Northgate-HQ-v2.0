@@ -41,7 +41,7 @@ const VEHICLE_COLUMNS = [
   { key: 'current_operator', header: 'Current Operator', fallback: 'Unassigned' },
   { key: 'make', header: 'Make', fallback: '-' },
   { key: 'model', header: 'Model', fallback: '-' },
-  { key: 'division', header: 'Division Source', fallback: 'Source pending' },
+  { key: 'division', header: 'Department Source', fallback: 'Source pending' },
   {
     key: 'holds_stock',
     header: 'Stock',
@@ -365,11 +365,11 @@ export function VehiclesWorkspace({ permissions }) {
         <SummaryCard label="Active assignments" value={activeAssignmentCount} detail="Current operator rows" />
         <SummaryCard label="Stock vehicles" value={stockCount} detail="Vehicles marked inventory-capable" />
         <SummaryCard label="General fleet" value={fleetCount} detail="Not marked as stock-holding" />
-        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All divisions' : 'Limited'} detail="Vehicle division source pending" tone={canReadVehicles ? 'good' : 'warn'} incomplete={!vehiclesWithDivision} />
+        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : 'Limited'} detail="Vehicle department source pending" tone={canReadVehicles ? 'good' : 'warn'} incomplete={!vehiclesWithDivision} />
         <SummaryCard
-          label="Division source"
+          label="Department source"
           value={vehiclesWithDivision ? 'Available' : 'Pending'}
-          detail={vehiclesWithDivision ? `${vehiclesWithDivision} scoped row${vehiclesWithDivision === 1 ? '' : 's'}` : 'Vehicles do not expose division yet'}
+          detail={vehiclesWithDivision ? `${vehiclesWithDivision} scoped row${vehiclesWithDivision === 1 ? '' : 's'}` : 'Vehicles do not expose department yet'}
           tone={vehiclesWithDivision ? 'good' : 'warn'}
         />
       </div>
@@ -441,7 +441,7 @@ export function VehiclesWorkspace({ permissions }) {
                   meta={[
                     { label: 'Classification', value: selectedVehicle.classification || 'Vehicle' },
                     { label: 'Current Operator', value: selectedVehicle.current_operator || 'Unassigned' },
-                    { label: 'Division', value: selectedVehicle.division || 'Source pending' },
+                    { label: 'Department', value: selectedVehicle.division || 'Source pending' },
                   ]}
                 />
                 <WorkspaceTabs
@@ -583,8 +583,8 @@ export function VehiclesWorkspace({ permissions }) {
             />
             <StatePanel
               eyebrow="Boundary"
-              title="Division source is pending"
-              description="Vehicle records do not currently expose a division field, so this directory cannot enforce per-division vehicle visibility until that source exists."
+              title="Department source is pending"
+              description="Vehicle records do not currently expose a department field, so this directory cannot enforce per-department vehicle visibility until that source exists."
               compact
             />
             <StatePanel

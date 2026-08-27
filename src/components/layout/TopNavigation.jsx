@@ -1,3 +1,6 @@
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+
 export function TopNavigation({
   items,
   activeKey,
@@ -6,6 +9,8 @@ export function TopNavigation({
   mobileOpen = false,
   onCloseMobile,
 }) {
+  const [openGroup, setOpenGroup] = useState(null);
+
   return (
     <>
       <button
@@ -22,22 +27,50 @@ export function TopNavigation({
       >
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = activeKey === item.key;
+          const isGroup = Array.isArray(item.items);
+          const isActive = activeKey === item.key || item.items?.some((child) => child.key === activeKey);
 
           return (
-            <button
-              key={item.key}
-              type="button"
-              className="top-nav__item"
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() => {
-                onSelect(item.key);
-                onCloseMobile?.();
-              }}
-            >
-              {Icon ? <Icon aria-hidden="true" className="top-nav__icon" /> : null}
-              <span>{item.label}</span>
-            </button>
+            <div key={item.key} className={`top-nav__group${isGroup ? ' top-nav__group--menu' : ''}`}>
+              <button
+                type="button"
+                className="top-nav__item"
+                aria-current={isActive ? 'page' : undefined}
+                aria-expanded={isGroup ? openGroup === item.key : undefined}
+                aria-haspopup={isGroup ? 'menu' : undefined}
+                onClick={() => {
+                  if (isGroup) {
+                    setOpenGroup((current) => current === item.key ? null : item.key);
+                    return;
+                  }
+                  onSelect(item.key);
+                  onCloseMobile?.();
+                }}
+              >
+                {Icon ? <Icon aria-hidden="true" className="top-nav__icon" /> : null}
+                <span>{item.label}</span>
+                {isGroup ? <ChevronDown aria-hidden="true" className="top-nav__chevron" /> : null}
+              </button>
+              {isGroup && openGroup === item.key ? (
+                <div className="top-nav__menu" role="menu" aria-label={`${item.label} navigation`}>
+                  {item.items.map((child) => (
+                    <button
+                      key={child.key}
+                      type="button"
+                      role="menuitem"
+                      className="top-nav__menu-item"
+                      onClick={() => {
+                        onSelect(child.key);
+                        setOpenGroup(null);
+                        onCloseMobile?.();
+                      }}
+                    >
+                      {child.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </nav>

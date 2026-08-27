@@ -132,12 +132,12 @@ export function ServicePerformanceWorkspace({ permissions }) {
   }
 
   return <>
-    <WorkspaceHeader eyebrow="Electrical Add-On" title="Service Performance" description="Service-call hard costs, revenue, margin, billing, and collections—using cumulative snapshots and revenue excluding sales tax." status={<span className="status-pill status-pill--good">Add-on enabled</span>} />
-    <nav className="service-performance__nav" aria-label="Service Performance sections">
+    <WorkspaceHeader eyebrow="Add-On Tools" title="Service Scorecard" description="Service-call hard costs, revenue, margin, billing, and collections—using cumulative snapshots and revenue excluding sales tax." status={<span className="status-pill status-pill--good">Add-on enabled</span>} />
+    <nav className="service-performance__nav" aria-label="Service Scorecard sections">
       {[["overview","Overview",Gauge],["calls","Service Calls",BriefcaseBusiness],["costs","Cost Snapshots",Upload],["reports","Reports",BarChart3]].map(([key,label,Icon]) => <button type="button" key={key} className={page===key?'is-active':''} onClick={() => setPage(key)} aria-current={page===key?'page':undefined}><Icon aria-hidden="true" />{label}</button>)}
       <button type="button" className="service-performance__refresh" onClick={() => setRefreshKey((current) => current + 1)} disabled={state.isLoading}><RefreshCw aria-hidden="true" /> Refresh</button>
     </nav>
-    {state.error ? <div className="service-performance__page"><StatePanel tone="danger" title="Service Performance could not be loaded" description={state.error.message} /></div> : null}
+    {state.error ? <div className="service-performance__page"><StatePanel tone="danger" title="Service Scorecard could not be loaded" description={state.error.message} /></div> : null}
     {!state.error && page==='overview' ? <main className="service-performance__page">
       <div className="service-performance__status"><div><span>Service Calls</span><strong>{state.calls.length}</strong></div><div><span>Revenue</span><strong>{money(totals.revenue)}</strong></div><div><span>Hard Cost</span><strong>{money(totals.cost)}</strong></div><div><span>Gross Profit</span><strong className={totals.profit<0?'service-performance__negative':''}>{money(totals.profit)}</strong></div><div><span>Weighted Margin</span><strong className={weightedMargin<0?'service-performance__negative':''}>{margin(weightedMargin)}</strong></div><div><span>Outstanding</span><strong>{money(totals.outstanding)}</strong></div></div>
       <Toolbar eyebrow="Attention" title="Operational exceptions" description="Direct links to service calls requiring billing, reconciliation, or collection follow-up." />

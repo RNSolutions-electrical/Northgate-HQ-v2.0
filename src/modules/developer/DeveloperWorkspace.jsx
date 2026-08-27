@@ -80,7 +80,7 @@ const PERMISSION_GROUPS = [
   ['Jobs', ['canCreateJobs', 'canManageJobs', 'canApproveBudget', 'canManageChangeOrders']],
   ['Change Orders', ['canCreateChangeOrders', 'canSubmitChangeOrders', 'canVerifyChangeOrders', 'canApproveChangeOrders', 'canReviseChangeOrders']],
   ['People and assets', ['canManageEmployees', 'canManageVehicles', 'canManageTools']],
-  ['Financials and estimates', ['canEstimate', 'canApproveEstimates', 'canViewFinancials']],
+  ['Financials and estimates', ['canEstimate', 'canApproveEstimates', 'canViewAssetFinancials', 'canViewProjectFinancials', 'canViewProtectedProjectFinancials', 'canViewFinancials']],
   ['Workflow', ['canFieldAccess', 'canArchiveRecords', 'canExpressCheckout', 'canApproveExpressCheckout', 'canDeferCompletion']],
 ];
 
@@ -99,8 +99,8 @@ const PERMISSION_FLAG_OPTIONS = PERMISSION_GROUPS.flatMap(([group, keys]) => key
   })))
   .filter((option) => option.flag !== 'can_access_developer');
 
-const PERMISSION_LEVEL_OPTIONS = ['User', 'Supervisor', 'Manager', 'Developer'];
-const DIVISION_OPTIONS = ['Electrical', 'Construction', 'Admin'];
+const PERMISSION_LEVEL_OPTIONS = ['User', 'Supervisor', 'Manager', 'Director', 'Developer'];
+const DEPARTMENT_OPTIONS = ['Electrical', 'Construction', 'Admin'];
 
 const PERMISSION_CONSOLE_COLUMNS = [
   {
@@ -114,7 +114,7 @@ const PERMISSION_CONSOLE_COLUMNS = [
     ),
   },
   { key: 'role', header: 'Level' },
-  { key: 'division', header: 'Division', fallback: 'Unassigned' },
+  { key: 'division', header: 'Department', fallback: 'Unassigned' },
   {
     key: 'custom_permission_count',
     header: 'Custom',
@@ -532,8 +532,12 @@ export function DeveloperWorkspace({ permissions }) {
   const {
     highlightDevelopment,
     hideDevelopment,
+    showUiTerminology,
+    highlightUndefinedUi,
     setHighlightDevelopment,
     setHideDevelopment,
+    setShowUiTerminology,
+    setHighlightUndefinedUi,
   } = useDevelopmentDisplayPreferences();
   const [noteForm, setNoteForm] = useState(DEFAULT_NOTE_FORM);
   const [permissionForm, setPermissionForm] = useState(DEFAULT_PERMISSION_FORM);
@@ -600,7 +604,7 @@ export function DeveloperWorkspace({ permissions }) {
       ...current,
       userId: selectedPermissionUser.user_id,
       role: PERMISSION_LEVEL_OPTIONS.includes(selectedPermissionUser.role) ? selectedPermissionUser.role : 'User',
-      division: DIVISION_OPTIONS.includes(selectedPermissionUser.division) ? selectedPermissionUser.division : 'Electrical',
+      division: DEPARTMENT_OPTIONS.includes(selectedPermissionUser.division) ? selectedPermissionUser.division : 'Electrical',
       error: null,
       success: '',
     }));
@@ -703,7 +707,7 @@ export function DeveloperWorkspace({ permissions }) {
     if (profileForm.isSaving) return;
 
     if (!profileForm.userId || !profileForm.role || !profileForm.division || !profileForm.reason.trim()) {
-      setProfileForm((current) => ({ ...current, error: new Error('Choose level, division, and enter a change reason.') }));
+      setProfileForm((current) => ({ ...current, error: new Error('Choose role, department, and enter a change reason.') }));
       return;
     }
 
@@ -714,7 +718,7 @@ export function DeveloperWorkspace({ permissions }) {
       if (error) throw error;
       permissionConsole.reload();
       setSelectedPermissionUserId(profileForm.userId);
-      setProfileForm((current) => ({ ...current, isSaving: false, error: null, success: 'User level/division saved and audit logged.', reason: '' }));
+      setProfileForm((current) => ({ ...current, isSaving: false, error: null, success: 'User role/department saved and audit logged.', reason: '' }));
     } catch (error) {
       console.error('Permission profile update failed', error);
       setProfileForm((current) => ({ ...current, isSaving: false, error, success: '' }));
@@ -848,7 +852,7 @@ export function DeveloperWorkspace({ permissions }) {
             <div>
               <p className="eyebrow">Active Operator</p>
               <h3>{user?.fullName || user?.primaryEmailAddress?.emailAddress || 'Developer'}</h3>
-              <p>{permissions.role ?? 'User'} · {permissions.division ?? 'Unassigned'} · Northgate HQ v3.0</p>
+              <p>{permissions.role ?? 'User'} · {permissions.department ?? 'Unassigned'} · Northgate HQ v3.0</p>
             </div>
           </div>
           <div className="developer-command-hero__signals">
@@ -938,9 +942,9 @@ export function DeveloperWorkspace({ permissions }) {
 
         <article className="developer-console-section developer-toggle-card">
           <Toolbar
-            eyebrow="Display Control"
-            title="Incomplete component highlights"
-            description="Highlights deferred, reserved, disabled, and roadmap surfaces across the app without blocking normal testing."
+            eyebrow="Module · Developer"
+            title="Developer Display Controls"
+            description="Browser-local controls for development visibility, architecture labels, and UI cleanup review. They never affect normal users."
           />
           <label className="developer-highlight-toggle">
             <input
@@ -949,7 +953,7 @@ export function DeveloperWorkspace({ permissions }) {
               onChange={(event) => setHighlightIncomplete(event.target.checked)}
             />
             <span>
-              <strong>{highlightIncomplete ? 'Highlighting incomplete components' : 'Highlight incomplete components'}</strong>
+              <strong>{highlightIncomplete ? 'Highlighting incomplete UI' : 'Highlight incomplete UI'}</strong>
               <small>Transparent yellow overlay. This setting is stored in this browser only.</small>
             </span>
           </label>
@@ -965,9 +969,9 @@ export function DeveloperWorkspace({ permissions }) {
 
         <article className="developer-console-section developer-toggle-card">
           <Toolbar
-            eyebrow="Preview Control"
-            title="Development-only cards"
-            description="Highlight or hide scaffolding, boundary notes, permission debug cards, and implementation guidance to preview the end-user experience."
+            eyebrow="Developer Display Controls"
+            title="Developer UI visibility"
+            description="Related local display settings for development-only surfaces and terminology labels."
           />
           <label className="developer-highlight-toggle">
             <input
@@ -991,11 +995,25 @@ export function DeveloperWorkspace({ permissions }) {
               <small>Removes marked scaffolding/status cards for cleaner end-user preview testing.</small>
             </span>
           </label>
+          <label className="developer-highlight-toggle">
+            <input type="checkbox" checked={showUiTerminology} onChange={(event) => setShowUiTerminology(event.target.checked)} />
+            <span>
+              <strong>{showUiTerminology ? 'Showing UI terminology labels' : 'Show UI terminology labels'}</strong>
+              <small>Displays PAGE, CARD, MODULE, and FUNCTION labels on defined significant UI elements.</small>
+            </span>
+          </label>
+          <label className="developer-highlight-toggle">
+            <input type="checkbox" checked={highlightUndefinedUi} onChange={(event) => setHighlightUndefinedUi(event.target.checked)} />
+            <span>
+              <strong>{highlightUndefinedUi ? 'Highlighting undefined UI elements' : 'Highlight undefined UI elements'}</strong>
+              <small>Flags intentionally marked meaningful surfaces that still need a canonical type and name.</small>
+            </span>
+          </label>
           <StatePanel
             tone="neutral"
-            eyebrow="Preview Rule"
-            title="Operational data stays visible"
-            description="Live tables, forms, actions, and production summary cards should stay visible. Only explicit development scaffolding is marked for this display mode."
+            eyebrow="Scope"
+            title="Display settings are local and Developer-only"
+            description="Operational data remains visible. These controls only change browser display; permissions and data access remain server-enforced."
             compact
             developmentOnly={false}
             incomplete={false}
@@ -1027,7 +1045,7 @@ export function DeveloperWorkspace({ permissions }) {
         <Toolbar
           eyebrow="Access Control"
           title="User permissions"
-          description="Select a user, adjust their default level/division, or override individual flags. All changes require a reason and are audit logged."
+          description="Select a user, adjust their default role/department, or override individual permissions. All changes require a reason and are audit logged."
           actions={(
             <button type="button" className="secondary-button" onClick={permissionConsole.reload} disabled={permissionConsole.isLoading}>
               Refresh Permissions
@@ -1071,21 +1089,21 @@ export function DeveloperWorkspace({ permissions }) {
                 </select>
               </label>
               <label>
-                <span>Division</span>
+                <span>Department</span>
                 <select value={profileForm.division} onChange={(event) => setProfileFormValue('division', event.target.value)} disabled={profileForm.isSaving}>
-                  {DIVISION_OPTIONS.map((division) => <option key={division} value={division}>{division}</option>)}
+                  {DEPARTMENT_OPTIONS.map((department) => <option key={department} value={department}>{department}</option>)}
                 </select>
               </label>
               <label className="developer-permission-profile__reason">
                 <span>Profile change reason</span>
-                <input type="text" maxLength={500} value={profileForm.reason} onChange={(event) => setProfileFormValue('reason', event.target.value)} disabled={profileForm.isSaving} placeholder="Required to save level/division" />
+                <input type="text" maxLength={500} value={profileForm.reason} onChange={(event) => setProfileFormValue('reason', event.target.value)} disabled={profileForm.isSaving} placeholder="Required to save role/department" />
               </label>
               <button type="submit" className="primary-button" disabled={profileForm.isSaving || !profileForm.reason.trim()}>
                 Save Profile
               </button>
             </form>
             {profileForm.error ? (
-              <StatePanel tone="danger" eyebrow="Profile Save Failed" title="Level or division was not saved" description={profileForm.error.message || 'Unexpected profile update error.'} compact />
+              <StatePanel tone="danger" eyebrow="Profile Save Failed" title="Role or department was not saved" description={profileForm.error.message || 'Unexpected profile update error.'} compact />
             ) : null}
             {profileForm.success ? (
               <StatePanel tone="success" eyebrow="Saved" title="Permission profile updated" description={profileForm.success} compact />
@@ -1180,7 +1198,7 @@ export function DeveloperWorkspace({ permissions }) {
             ) : null}
           </div>
         ) : (
-          <StatePanel tone="neutral" title="Select a user" description="Choose a row from the permission user table to open level, division, and permission controls." />
+          <StatePanel tone="neutral" title="Select a user" description="Choose a row from the permission user table to open role, department, and permission controls." />
         )}
       </section>
       ) : null}

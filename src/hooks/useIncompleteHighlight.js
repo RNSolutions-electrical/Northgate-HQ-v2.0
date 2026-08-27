@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 export const INCOMPLETE_HIGHLIGHT_STORAGE_KEY = 'northgate:developer:highlight-incomplete';
 export const DEVELOPMENT_HIGHLIGHT_STORAGE_KEY = 'northgate:developer:highlight-development';
 export const DEVELOPMENT_HIDE_STORAGE_KEY = 'northgate:developer:hide-development';
+export const UI_TERMINOLOGY_STORAGE_KEY = 'northgate:developer:show-ui-terminology';
+export const UNDEFINED_UI_STORAGE_KEY = 'northgate:developer:highlight-undefined-ui';
 const INCOMPLETE_HIGHLIGHT_EVENT = 'northgate:highlight-incomplete-change';
 const DEVELOPMENT_DISPLAY_EVENT = 'northgate:development-display-change';
 
@@ -49,6 +51,8 @@ function readDevelopmentPreferences() {
   return {
     highlightDevelopment: readBooleanPreference(DEVELOPMENT_HIGHLIGHT_STORAGE_KEY),
     hideDevelopment: readBooleanPreference(DEVELOPMENT_HIDE_STORAGE_KEY),
+    showUiTerminology: readBooleanPreference(UI_TERMINOLOGY_STORAGE_KEY),
+    highlightUndefinedUi: readBooleanPreference(UNDEFINED_UI_STORAGE_KEY),
   };
 }
 
@@ -67,6 +71,8 @@ export function useDevelopmentDisplayPreferences() {
         setPreferences({
           highlightDevelopment: Boolean(event.detail.highlightDevelopment),
           hideDevelopment: Boolean(event.detail.hideDevelopment),
+          showUiTerminology: Boolean(event.detail.showUiTerminology),
+          highlightUndefinedUi: Boolean(event.detail.highlightUndefinedUi),
         });
       } else {
         setPreferences(readDevelopmentPreferences());
@@ -91,9 +97,21 @@ export function useDevelopmentDisplayPreferences() {
     setPreferences(readDevelopmentPreferences());
   }, []);
 
+  const setShowUiTerminology = useCallback((enabled) => {
+    setDevelopmentDisplayPreference(UI_TERMINOLOGY_STORAGE_KEY, enabled);
+    setPreferences(readDevelopmentPreferences());
+  }, []);
+
+  const setHighlightUndefinedUi = useCallback((enabled) => {
+    setDevelopmentDisplayPreference(UNDEFINED_UI_STORAGE_KEY, enabled);
+    setPreferences(readDevelopmentPreferences());
+  }, []);
+
   return {
     ...preferences,
     setHighlightDevelopment,
     setHideDevelopment,
+    setShowUiTerminology,
+    setHighlightUndefinedUi,
   };
 }

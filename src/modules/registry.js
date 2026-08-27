@@ -12,6 +12,7 @@ import {
   Truck,
   Users,
   Wrench,
+  Puzzle,
 } from 'lucide-react';
 
 /**
@@ -138,11 +139,11 @@ export const MODULES = [
   {
     key: 'service-performance',
     path: '/service-performance',
-    label: 'Service Performance',
+    label: 'Service Scorecard',
     icon: Activity,
     requiresAddon: 'service_performance',
     status: 'live',
-    description: 'Electrical service-call cost, margin, billing, and collection performance.',
+    description: 'Electrical service-call cost, margin, billing, and collection scorecard.',
   },
   {
     key: 'developer',
@@ -169,6 +170,42 @@ export function isModulePermitted(module, permissions) {
 
 export function permittedModules(permissions) {
   return MODULES.filter((module) => isModulePermitted(module, permissions));
+}
+
+/** Presentation groups only: routes and permission gates remain on MODULES. */
+export const NAVIGATION_GROUPS = [
+  { key: 'dashboard', moduleKey: 'dashboard' },
+  { key: 'inventory', label: 'Inventory', icon: Boxes, moduleKeys: ['inventory', 'tools'] },
+  { key: 'jobs', moduleKey: 'jobs' },
+  { key: 'estimates', moduleKey: 'estimates' },
+  { key: 'employees', moduleKey: 'employees' },
+  { key: 'vehicles', moduleKey: 'vehicles' },
+  { key: 'documents', moduleKey: 'documents' },
+  { key: 'reports', moduleKey: 'reports' },
+  { key: 'accounting', moduleKey: 'accounting' },
+  { key: 'silas', moduleKey: 'silas' },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['service-performance'] },
+  { key: 'developer', moduleKey: 'developer' },
+];
+
+export function permittedNavigationGroups(permissions) {
+  const byKey = new Map(permittedModules(permissions).map((module) => [module.key, module]));
+  const displayLabels = {
+    inventory: 'Material Inventory',
+    tools: 'Tool Inventory',
+    'service-performance': 'Service Scorecard',
+  };
+
+  return NAVIGATION_GROUPS.flatMap((group) => {
+    if (group.moduleKey) {
+      const module = byKey.get(group.moduleKey);
+      return module ? [{ ...module }] : [];
+    }
+
+    const items = (group.moduleKeys || []).map((key) => byKey.get(key)).filter(Boolean)
+      .map((module) => ({ ...module, label: displayLabels[module.key] || module.label }));
+    return items.length ? [{ key: group.key, label: group.label, icon: group.icon, items }] : [];
+  });
 }
 
 export function findModule(key) {

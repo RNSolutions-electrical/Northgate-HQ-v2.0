@@ -64,7 +64,7 @@ const ACCOUNTING_VIEWS = [
 
 const BUDGET_COLUMNS = [
   { key: 'job_id', header: 'Job', render: (row) => <strong>{shortId(row.job_id)}</strong> },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
   {
     key: 'category',
     header: 'Category',
@@ -377,7 +377,7 @@ export function AccountingWorkspace({ permissions }) {
         <SummaryCard label="Budget Lines" value={visibleRows.length} detail="Active authorized rows" />
         <SummaryCard label="Budget Total" value={formatMoney(summary.totalBudget)} detail="Budget foundation only" tone="good" />
         <SummaryCard label="Jobs" value={summary.jobs} detail="Distinct job IDs in scope" />
-        <SummaryCard label="Divisions" value={summary.divisions} detail="Visible divisions in scope" />
+        <SummaryCard label="Departments" value={summary.divisions} detail="Visible departments in scope" />
       </div>
 
       <div className={`workspace-split accounting-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>

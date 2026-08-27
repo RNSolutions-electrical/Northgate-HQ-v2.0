@@ -117,6 +117,54 @@ svg { stroke-width: 1.8; }
   display: none !important;
 }
 
+/* Developer-only architecture overlay. It uses data attributes, so labels do
+   not participate in normal document flow or affect ordinary users. */
+.ng-show-ui-terminology [data-ng-ui-type] { position: relative; }
+.ng-show-ui-terminology [data-ng-ui-type]::after {
+  content: attr(data-ng-ui-type) " · " attr(data-ng-ui-name);
+  position: absolute;
+  z-index: 35;
+  top: 4px;
+  right: 4px;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid rgba(126, 34, 206, 0.35);
+  border-radius: 4px;
+  background: rgba(250, 245, 255, 0.94);
+  color: #6b21a8;
+  padding: 1px 5px;
+  font-family: var(--base-font-family, system-ui, sans-serif);
+  font-size: 0.56rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+.ng-highlight-undefined-ui [data-ng-ui-undefined='true'] {
+  position: relative;
+  outline: 2px dashed rgba(190, 24, 93, 0.75);
+  outline-offset: 2px;
+}
+.ng-highlight-undefined-ui [data-ng-ui-undefined='true']::before {
+  content: "Undefined UI element";
+  position: absolute;
+  z-index: 36;
+  top: 4px;
+  left: 4px;
+  pointer-events: none;
+  border-radius: 4px;
+  background: rgba(253, 232, 241, 0.96);
+  color: #9d174d;
+  padding: 1px 5px;
+  font-size: 0.56rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 /* ------------------------------------------------------------------ boot */
 
 .ng-boot { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
@@ -192,6 +240,36 @@ svg { stroke-width: 1.8; }
 }
 
 .ng-shell__actions { display: flex; align-items: center; gap: 10px; margin-left: auto; flex: 0 0 auto; }
+
+.top-nav__group { position: relative; }
+.top-nav__chevron { width: 12px; height: 12px; margin-left: -2px; }
+.top-nav__menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  padding: 5px;
+  border: 1px solid var(--ng-border);
+  border-radius: var(--ng-radius-control);
+  background: var(--ng-card-bg);
+  box-shadow: var(--ng-shadow-raised);
+}
+.top-nav__menu-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--ng-text);
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.top-nav__menu-item:hover, .top-nav__menu-item:focus-visible { background: var(--ng-panel-bg-alt); }
+
+.job-financials-protected-toggle { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; font-size: 0.74rem; font-weight: 700; }
 
 .ng-shell__identity { display: none; flex-direction: column; text-align: right; line-height: 1.25; }
 .ng-shell__identity strong { font-size: 0.78rem; }

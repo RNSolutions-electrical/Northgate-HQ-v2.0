@@ -76,7 +76,7 @@ const DASHBOARD_VEHICLE_COLUMNS = [
 const DASHBOARD_JOB_COLUMNS = [
   { key: 'job_number', header: 'Job', render: (row) => <strong>{row.job_number ? `${row.job_number} - ${row.name}` : row.name}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatLabel(row.status)}</StatusBadge> },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
   { key: 'assigned_at', header: 'Assigned', render: (row) => formatDateTime(row.assigned_at) },
 ];
 
@@ -536,7 +536,7 @@ export function DashboardWorkspace({ permissions }) {
     { label: 'Phone number', value: missing(phoneNumber) },
     { label: 'Job title', value: 'Not provided' },
     { label: 'Role', value: missing(permissions.role) },
-    { label: 'Department / division', value: missing(permissions.division) },
+    { label: 'Department', value: missing(permissions.department) },
     { label: 'Notes', value: 'Not provided' },
   ];
 
@@ -583,7 +583,7 @@ export function DashboardWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} developmentOnly />
-        <SummaryCard label="Role" value={permissions.role ?? 'User'} detail={permissions.division ?? 'No division'} developmentOnly />
+        <SummaryCard label="Role" value={permissions.role ?? 'User'} detail={permissions.department ?? 'No department'} developmentOnly />
         <SummaryCard label="Inventory" value={permissionLabel(permissions.canManageInventory || permissions.canInventoryTransactions)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Jobs" value={permissionLabel(permissions.canCreateJobs || permissions.canManageJobs)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Job Attention" value={jobAttention.isLoading ? 'Loading' : jobAttention.items.length} detail="Buyout exceptions" tone={jobAttention.items.length ? 'warn' : 'good'} />

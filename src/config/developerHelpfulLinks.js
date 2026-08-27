@@ -28,7 +28,7 @@ export const DEVELOPER_HELPFUL_LINKS = [
       'Use Users to review existing authenticated accounts.',
       "Use Clerk's supported invitation or user-creation workflow when adding a beta tester.",
       'After the user signs in, verify the corresponding record in Supabase public.user_permissions.',
-      'Confirm role, division, active status, and approved permission overrides before granting additional application access.',
+      'Confirm role, department, active status, and approved permission overrides before granting additional application access.',
     ],
     caution: 'Never place a Clerk Secret Key in frontend code, source-controlled browser configuration, localStorage, or this Helpful Links section.',
   },
@@ -66,7 +66,7 @@ export const DEVELOPER_HELPFUL_LINKS = [
 export const FUTURE_USER_MANAGEMENT_CAPABILITIES = [
   'Invite beta tester',
   'Assign initial role',
-  'Assign division',
+  'Assign department',
   'Inspect active or inactive status',
   'Apply controlled permission overrides',
   'Resend or revoke invitations',

@@ -28,7 +28,7 @@ const EMPLOYEE_TABS = [
 const EMPLOYEE_COLUMNS = [
   { key: 'display_name', header: 'Name', render: (row) => <strong>{employeeLabel(row)}</strong> },
   { key: 'role', header: 'Role', fallback: 'User' },
-  { key: 'division', header: 'Division', fallback: 'Unassigned' },
+  { key: 'division', header: 'Department', fallback: 'Unassigned' },
   { key: 'current_vehicle', header: 'Current Vehicle', fallback: 'Unassigned' },
   { key: 'email', header: 'Email', fallback: '-' },
 ];
@@ -45,7 +45,7 @@ const PENDING_PROFILE_BASE_COLUMNS = [
   { key: 'display_name', header: 'Name', render: (row) => <strong>{row.display_name}</strong> },
   { key: 'email', header: 'Email' },
   { key: 'role', header: 'Planned Role', fallback: 'User' },
-  { key: 'division', header: 'Primary Division', fallback: 'Unassigned' },
+  { key: 'division', header: 'Primary Department', fallback: 'Unassigned' },
   { key: 'job_title', header: 'Job Title', fallback: '-' },
   { key: 'created_at', header: 'Created', render: (row) => formatDateTime(row.created_at) },
 ];
@@ -339,8 +339,8 @@ export function EmployeesWorkspace({ permissions }) {
           <div className="employee-profile-form__grid">
             <label><span>Full name <b aria-hidden="true">*</b></span><input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} autoComplete="name" required /></label>
             <label><span>Work email <b aria-hidden="true">*</b></span><input type="email" value={employeeForm.email} onChange={(event) => setEmployeeField('email', event.target.value)} disabled={employeeForm.isSaving} autoComplete="email" required /></label>
-            <label><span>Role</span><select value={employeeForm.role} onChange={(event) => setEmployeeField('role', event.target.value)} disabled={employeeForm.isSaving}><option>User</option><option>Supervisor</option><option>Manager</option><option>Developer</option></select></label>
-            <label><span>Primary division</span><select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
+            <label><span>Role</span><select value={employeeForm.role} onChange={(event) => setEmployeeField('role', event.target.value)} disabled={employeeForm.isSaving}><option>User</option><option>Supervisor</option><option>Manager</option><option>Director</option><option>Developer</option></select></label>
+            <label><span>Primary department</span><select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
             <label><span>Job title</span><input value={employeeForm.jobTitle} onChange={(event) => setEmployeeField('jobTitle', event.target.value)} disabled={employeeForm.isSaving} /></label>
             <label><span>Phone</span><input type="tel" value={employeeForm.phone} onChange={(event) => setEmployeeField('phone', event.target.value)} disabled={employeeForm.isSaving} autoComplete="tel" /></label>
             <label className="employee-profile-form__wide"><span>{employeeForm.id ? 'Reason for editing this profile' : 'Reason for creating this profile'} <b aria-hidden="true">*</b></span><input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} placeholder={employeeForm.id ? 'e.g., Corrected division assignment' : 'e.g., New electrical field employee'} required /></label>
@@ -357,10 +357,10 @@ export function EmployeesWorkspace({ permissions }) {
         <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />
         <SummaryCard label="Awaiting sign-in" value={pendingProfiles.length} detail="Profiles not yet linked to Clerk" tone={pendingProfiles.length ? 'warn' : 'good'} />
         <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" />
-        <SummaryCard label="Divisions" value={divisions.length} detail="Distinct visible divisions" />
+        <SummaryCard label="Departments" value={divisions.length} detail="Distinct visible departments" />
         <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
         <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create, edit, and archive pending profiles" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
-        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All divisions' : permissions.division || 'None'} detail="Server level/division rules" tone={canReadEmployees ? 'good' : 'warn'} />
+        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : permissions.department || 'None'} detail="Server role/department rules" tone={canReadEmployees ? 'good' : 'warn'} />
       </div>
 
       <div className={`workspace-split employees-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -452,7 +452,7 @@ export function EmployeesWorkspace({ permissions }) {
                   description="Employee detail remains read-oriented in this phase. The shell is ready for richer sections later without implying account or permission editing."
                   meta={[
                     { label: 'Role', value: selectedEmployee.role || 'User' },
-                    { label: 'Division', value: selectedEmployee.division || 'Unassigned' },
+                    { label: 'Department', value: selectedEmployee.division || 'Unassigned' },
                     { label: 'Current Vehicle', value: selectedEmployee.current_vehicle || 'Unassigned' },
                   ]}
                 />

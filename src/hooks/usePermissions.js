@@ -19,6 +19,9 @@ const DENY_ALL = Object.freeze({
   can_manage_jobs: false,
   can_approve_budget: false,
   can_view_financials: false,
+  can_view_asset_financials: false,
+  can_view_project_financials: false,
+  can_view_protected_project_financials: false,
   can_field_access: false,
   can_archive_records: false,
   can_manage_change_orders: false,
@@ -50,6 +53,9 @@ function camel(flags) {
     canManageJobs: flags.can_manage_jobs,
     canApproveBudget: flags.can_approve_budget,
     canViewFinancials: flags.can_view_financials,
+    canViewAssetFinancials: flags.can_view_asset_financials,
+    canViewProjectFinancials: flags.can_view_project_financials,
+    canViewProtectedProjectFinancials: flags.can_view_protected_project_financials,
     canFieldAccess: flags.can_field_access,
     canArchiveRecords: flags.can_archive_records,
     canManageChangeOrders: flags.can_manage_change_orders,
@@ -66,11 +72,14 @@ function camel(flags) {
 
 function normalize(row) {
   if (!row) {
-    return { role: 'User', division: null, permissions: DENY_ALL, addons: [], source: 'default-deny' };
+    return { role: 'User', department: null, division: null, permissions: DENY_ALL, addons: [], source: 'default-deny' };
   }
 
   return {
     role: row.role ?? 'User',
+    // `division` remains the legacy storage/RLS field. The application-facing
+    // name is Department; project cost-code divisions are separate records.
+    department: row.department ?? row.division ?? null,
     division: row.division ?? null,
     permissions: { ...DENY_ALL, ...(row.effective_permissions ?? {}) },
     addons: [],
@@ -85,6 +94,7 @@ export function usePermissions() {
     isLoading: true,
     error: null,
     role: 'User',
+    department: null,
     division: null,
     permissions: DENY_ALL,
     addons: [],
@@ -103,6 +113,7 @@ export function usePermissions() {
             isLoading: false,
             error: null,
             role: 'User',
+            department: null,
             division: null,
             permissions: DENY_ALL,
             addons: [],
@@ -137,6 +148,7 @@ export function usePermissions() {
             isLoading: false,
             error,
             role: 'User',
+            department: null,
             division: null,
             permissions: DENY_ALL,
             addons: [],
@@ -162,6 +174,7 @@ export function usePermissions() {
     isSignedIn,
     userId: user?.id ?? null,
     role: state.role,
+    department: state.department,
     division: state.division,
     permissions: state.permissions,
     permissionSource: state.source,

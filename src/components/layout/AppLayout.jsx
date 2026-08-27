@@ -5,7 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FeedbackDrawer } from '../feedback/FeedbackDrawer.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { permittedModules } from '../../modules/registry.js';
+import { permittedModules, permittedNavigationGroups } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
 import { StatePanel } from '../ui/StatePanel.jsx';
 
@@ -19,7 +19,7 @@ export function AppLayout() {
   const { signOut } = useClerk();
   const permissions = usePermissions();
   const [highlightIncomplete] = useIncompleteHighlightPreference();
-  const { highlightDevelopment, hideDevelopment } = useDevelopmentDisplayPreferences();
+  const { highlightDevelopment, hideDevelopment, showUiTerminology, highlightUndefinedUi } = useDevelopmentDisplayPreferences();
   const navigate = useNavigate();
   const location = useLocation();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -28,12 +28,16 @@ export function AppLayout() {
     document.documentElement.classList.toggle('ng-highlight-incomplete', highlightIncomplete);
     document.documentElement.classList.toggle('ng-highlight-development', highlightDevelopment);
     document.documentElement.classList.toggle('ng-hide-development', hideDevelopment);
+    document.documentElement.classList.toggle('ng-show-ui-terminology', permissions.canAccessDeveloper && showUiTerminology);
+    document.documentElement.classList.toggle('ng-highlight-undefined-ui', permissions.canAccessDeveloper && highlightUndefinedUi);
     return () => {
       document.documentElement.classList.remove('ng-highlight-incomplete');
       document.documentElement.classList.remove('ng-highlight-development');
       document.documentElement.classList.remove('ng-hide-development');
+      document.documentElement.classList.remove('ng-show-ui-terminology');
+      document.documentElement.classList.remove('ng-highlight-undefined-ui');
     };
-  }, [highlightIncomplete, highlightDevelopment, hideDevelopment]);
+  }, [highlightIncomplete, highlightDevelopment, hideDevelopment, permissions.canAccessDeveloper, showUiTerminology, highlightUndefinedUi]);
 
   if (permissions.isLoading) {
     return (
@@ -61,11 +65,7 @@ export function AppLayout() {
     location.pathname.startsWith(module.path),
   )?.key;
 
-  const navItems = modules.map((module) => ({
-    key: module.key,
-    label: module.label,
-    icon: module.icon,
-  }));
+  const navItems = permittedNavigationGroups(permissions);
 
   return (
     <>
@@ -82,7 +82,7 @@ export function AppLayout() {
       }}
       identitySummary={{
         role: permissions.role,
-        division: permissions.division ?? 'No division',
+        division: permissions.department ?? 'No department',
       }}
       feedbackControl={(
         <button type="button" className="ng-shell__feedback-button" onClick={() => setFeedbackOpen(true)}>

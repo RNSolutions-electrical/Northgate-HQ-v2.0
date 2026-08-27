@@ -155,7 +155,7 @@ const DOCUMENT_COLUMNS = [
   { key: 'file_name', header: 'File', render: (row) => <strong>{row.file_name}</strong> },
   { key: 'job_label', header: 'Job', fallback: '-' },
   { key: 'document_type', header: 'Type', render: (row) => documentCategoryLabel(row.document_type) },
-  { key: 'division', header: 'Division' },
+  { key: 'division', header: 'Department' },
   { key: 'file_size_bytes', header: 'Size', align: 'right', render: (row) => formatBytes(row.file_size_bytes) },
   { key: 'updated_at', header: 'Updated', render: (row) => formatDate(row.updated_at || row.created_at) },
 ];
@@ -460,7 +460,7 @@ export function DocumentsWorkspace({ permissions }) {
                       meta={[
                         { label: 'Job', value: selectedDocument.job_label },
                         { label: 'Category', value: documentCategoryLabel(selectedDocument.document_type) },
-                        { label: 'Division', value: selectedDocument.division },
+                        { label: 'Department', value: selectedDocument.division },
                       ]}
                     />
                     <div className="module-fact-grid documents-fact-grid">

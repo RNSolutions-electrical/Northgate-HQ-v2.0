@@ -86,14 +86,14 @@ const CATALOG_COLUMNS = [
   { key: 'broad_category', header: 'Category', fallback: '-' },
   { key: 'sub_category', header: 'Subcategory', fallback: '-' },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
   { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
 ];
 
 const STORAGE_COLUMNS = [
   { key: 'unit_code', header: 'Unit', render: (row) => <strong>{row.unit_code || '-'}</strong> },
   { key: 'name', header: 'Name', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
 ];
 
 const BIN_COLUMNS = [
@@ -108,7 +108,7 @@ const CANDIDATE_COLUMNS = [
   { key: 'bin_code', header: 'Bin' },
   { key: 'quantity_on_hand', header: 'On Hand', numeric: true },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
   { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
 ];
 
@@ -125,7 +125,7 @@ const USER_COLUMNS = [
   { key: 'display_name', header: 'Name', render: (row) => <strong>{row.display_name || row.email || row.clerk_user_id}</strong> },
   { key: 'email', header: 'Email', fallback: '-' },
   { key: 'role', header: 'Role', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
 ];
 
 const VEHICLE_COLUMNS = [
@@ -133,7 +133,7 @@ const VEHICLE_COLUMNS = [
   { key: 'classification', header: 'Classification', fallback: '-' },
   { key: 'make', header: 'Make', fallback: '-' },
   { key: 'model', header: 'Model', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
   {
     key: 'holds_stock',
     header: 'Stock',
@@ -176,13 +176,13 @@ const OVERVIEW_COLUMNS = [
   { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
   { key: 'min_quantity', header: 'Min', numeric: true, render: (row) => formatQuantity(row.min_quantity) },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
 ];
 
 const ACCOUNTING_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
   { key: 'item_name', header: 'Item' },
-  { key: 'division', header: 'Division', fallback: '-' },
+  { key: 'division', header: 'Department', fallback: '-' },
   { key: 'quantity_on_hand', header: 'Qty', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
   { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
   { key: 'extended_value', header: 'Extended', numeric: true, render: (row) => formatMoney(getExtendedValue(row)) },

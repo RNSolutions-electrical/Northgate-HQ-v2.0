@@ -174,7 +174,7 @@ function formatChangedFields(fields) {
 
 function canManageToolDivision(permissions, rowDivision) {
   if (permissions?.permissionSource !== 'server' || permissions?.canManageInventory !== true || !rowDivision) return false;
-  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  if (['Developer', 'Director', 'Manager'].includes(permissions?.role)) return true;
   return permissions?.division === rowDivision;
 }
 

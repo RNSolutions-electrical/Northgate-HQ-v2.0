@@ -26,6 +26,7 @@ import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/doc
 import { BUDGET_TEMPLATES } from './gablesServiceTemplate.js';
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { uiElementAttributes } from '../../config/uiTerminology.js';
 
 const EMPTY_JOBS = Object.freeze([]);
 const DOCUMENT_BUCKET = 'northgate-files';
@@ -134,6 +135,7 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   project_division_id: '',
   project_division: null,
   category: 'material',
+  is_protected_financial: false,
   cost_code: '',
   description: '',
   budget_amount: '',
@@ -168,6 +170,7 @@ const DEFAULT_BUDGET_BULK_INPUT = Object.freeze({
 const DEFAULT_REVENUE_FORM = Object.freeze({
   id: '',
   sov_line: '',
+  is_protected_financial: false,
   description: '',
   scheduled_value_amount: '',
   approved_change_amount: '',
@@ -280,6 +283,7 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'archived_by',
   'archive_reason',
   'category',
+  'is_protected_financial',
   'cost_code',
   'description',
   'budget_amount',
@@ -304,6 +308,7 @@ const JOB_REVENUE_SELECT_FIELDS = [
   'archived_at',
   'archived_by',
   'archive_reason',
+  'is_protected_financial',
   'sov_line',
   'description',
   'scheduled_value_amount',
@@ -442,7 +447,7 @@ const RESERVED_TABS = Object.freeze({
   financials: {
     eyebrow: 'Financials',
     title: 'Financials are available when permitted',
-    description: 'The live Financials tab reads job_budget_lines and stays gated by can_view_financials. Accounting exports, invoices, purchase orders, and external accounting sync remain separate.',
+    description: 'The live Financials tab reads server-filtered project financials. Accounting exports, invoices, purchase orders, and external accounting sync remain separate.',
   },
   documents: {
     eyebrow: 'Documents',
@@ -711,13 +716,13 @@ function jobSearchText(job) {
 
 function canEditDivisionWithPermission(permissions, rowDivision, permissionKey) {
   if (permissions?.[permissionKey] !== true || !rowDivision) return false;
-  if (['Developer', 'Manager'].includes(permissions?.role)) return true;
+  if (['Developer', 'Director', 'Manager'].includes(permissions?.role)) return true;
   return permissions?.division === rowDivision;
 }
 
 function canEditJobWithPermission(permissions, job, permissionKey) {
   if (!permissions?.[permissionKey] || !job) return false;
-  if (['Developer', 'Manager'].includes(permissions.role)) return true;
+  if (['Developer', 'Director', 'Manager'].includes(permissions.role)) return true;
   return [job.division, ...(job.sub_divisions || []).map((item) => item.division)]
     .filter(Boolean)
     .includes(permissions.division);
@@ -1058,12 +1063,12 @@ function projectDivisionLabel(row) {
   const projectDivision = row?.project_division;
   if (projectDivision?.id) {
     return projectDivision.code
-      ? `${projectDivision.code} - ${projectDivision.name || 'Project division'}`
-      : projectDivision.name || 'Project division';
+      ? `Division ${projectDivision.code} — ${projectDivision.name || 'Unnamed'}`
+      : projectDivision.name || 'Unnamed project division';
   }
   const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
   return costCodeDivision
-    ? `${costCodeDivision} - ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Project division'}`
+    ? `Division ${costCodeDivision} — ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Unnamed'}`
     : 'Unassigned project division';
 }
 
@@ -1138,7 +1143,7 @@ const JOB_COLUMNS = [
   { key: 'name', header: 'Job', render: (row) => <strong>{jobLabel(row)}</strong> },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatStatus(row.status)}</StatusBadge> },
   { key: 'job_type', header: 'Type', render: (row) => formatJobType(row.job_type) },
-  { key: 'division', header: 'Division', fallback: 'Unassigned' },
+  { key: 'division', header: 'Department', fallback: 'Unassigned' },
   { key: 'updated_at', header: 'Updated', render: (row) => formatDateTime(row.updated_at) },
 ];
 
@@ -1935,6 +1940,7 @@ function buyoutToForm(row) {
   return {
     ...DEFAULT_BUYOUT_FORM,
     id: row.id || '',
+    is_protected_financial: row.is_protected_financial === true,
     item_description: row.item_description || '',
     quantity_needed: String(row.quantity_needed ?? '1'),
     status: BUYOUT_STATUS_OPTIONS.includes(row.status) ? row.status : 'pending',
@@ -1955,6 +1961,7 @@ function buyoutAuditSnapshot(row) {
     id: row.id,
     job_id: row.job_id,
     division: row.division,
+    is_protected_financial: row.is_protected_financial === true,
     item_description: row.item_description,
     quantity_needed: row.quantity_needed,
     quantity_ordered: row.quantity_ordered,
@@ -2024,6 +2031,7 @@ function budgetToForm(row) {
     project_division_id: row.project_division_id || row.project_division?.id || '',
     project_division: row.project_division || null,
     category: BUDGET_CATEGORY_OPTIONS.includes(row.category) ? row.category : 'other',
+    is_protected_financial: row.is_protected_financial === true,
     cost_code: row.cost_code || '',
     description: row.description || '',
     budget_amount: row.budget_amount == null ? '' : String(row.budget_amount),
@@ -2046,6 +2054,7 @@ function budgetAuditSnapshot(row) {
     job_id: row.job_id,
     division: row.division,
     category: row.category,
+    is_protected_financial: row.is_protected_financial === true,
     cost_code: row.cost_code,
     description: row.description,
     budget_amount: row.budget_amount,
@@ -2129,6 +2138,7 @@ function budgetProtectedFieldsChanged(beforeRow, payload) {
   if (!beforeRow) return false;
 
   return normalizeBudgetProtectedValue(beforeRow.category) !== normalizeBudgetProtectedValue(payload.category)
+    || Boolean(beforeRow.is_protected_financial) !== Boolean(payload.is_protected_financial)
     || normalizeBudgetProtectedValue(beforeRow.cost_code) !== normalizeBudgetProtectedValue(payload.cost_code)
     || normalizeBudgetProtectedValue(beforeRow.description) !== normalizeBudgetProtectedValue(payload.description)
     || Number(beforeRow.budget_amount || 0) !== Number(payload.budget_amount || 0);
@@ -2186,7 +2196,8 @@ export function JobsWorkspace({ permissions }) {
   const jobs = directory.jobs;
   const canCreateJobs = permissions?.canCreateJobs === true;
   const canManageJobs = permissions?.canManageJobs === true;
-  const canViewFinancials = permissions?.canViewFinancials === true;
+  const canViewFinancials = permissions?.canViewProjectFinancials === true;
+  const canViewProtectedProjectFinancials = permissions?.canViewProtectedProjectFinancials === true;
 
   const directoryJobs = useMemo(
     () => jobs.filter((job) => directoryType === 'service_calls'
@@ -3123,6 +3134,7 @@ export function JobsWorkspace({ permissions }) {
 
     return {
       category: BUDGET_CATEGORY_OPTIONS.includes(budgetForm.category) ? budgetForm.category : 'other',
+      is_protected_financial: budgetForm.is_protected_financial === true,
       cost_code: budgetForm.cost_code.trim() || null,
       description: budgetForm.description.trim(),
       budget_amount: budgetAmount,
@@ -3269,6 +3281,7 @@ export function JobsWorkspace({ permissions }) {
   function buildRevenuePayload() {
     return {
       sov_line: revenueForm.sov_line.trim() || null,
+      is_protected_financial: revenueForm.is_protected_financial === true,
       description: revenueForm.description.trim(),
       scheduled_value_amount: parseOptionalNumber(revenueForm.scheduled_value_amount) || 0,
       approved_change_amount: parseOptionalNumber(revenueForm.approved_change_amount) || 0,
@@ -4741,7 +4754,7 @@ export function JobsWorkspace({ permissions }) {
         <>
           {permissions?.canCreateChangeOrders ? (
             <div className="job-financials-quick-actions">
-              <button type="button" className="primary-button" onClick={() => setChangeOrderWorkspaceOrder(null)}><Plus aria-hidden="true" /> New Change Order</button>
+            <button type="button" className="primary-button" onClick={() => setChangeOrderWorkspaceOrder(null)} {...uiElementAttributes('FUNCTION', 'Add Change Order')}><Plus aria-hidden="true" /> Add Change Order</button>
             </div>
           ) : null}
           <DataTable
@@ -4882,6 +4895,21 @@ export function JobsWorkspace({ permissions }) {
           ) : editableBudgetValue(row, 'category', formatBudgetCategory(row.category), 'category'),
         },
         {
+          key: 'is_protected_financial',
+          header: 'Access',
+          render: (row) => isEditingBudgetRow(row) ? (
+            <label className="job-financials-protected-toggle">
+              <input
+                type="checkbox"
+                checked={budgetForm.is_protected_financial === true}
+                onChange={(event) => updateInlineBudgetField('is_protected_financial', event.target.checked)}
+                disabled={budgetForm.isSaving || permissions?.canViewProtectedProjectFinancials !== true}
+              />
+              <span>Protected</span>
+            </label>
+          ) : editableBudgetValue(row, 'is_protected_financial', row.is_protected_financial ? 'Protected' : 'Standard', 'financial access'),
+        },
+        {
           key: 'cost_code',
           header: 'Cost code',
           render: (row) => isEditingBudgetRow(row) ? <input aria-label={`Cost code for ${row.description || 'financial line'}`} className="job-financials-table-input" type="text" value={budgetForm.cost_code} onChange={(event) => updateInlineBudgetField('cost_code', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'cost_code'} /> : editableBudgetValue(row, 'cost_code', row.cost_code || '-', 'cost code'),
@@ -4890,6 +4918,16 @@ export function JobsWorkspace({ permissions }) {
           key: 'description',
           header: 'Description',
           render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'description'} /> : editableBudgetValue(row, 'description', <strong>{row.description || 'Untitled budget line'}</strong>, 'description'),
+        },
+        {
+          key: 'is_protected_financial',
+          header: 'Access',
+          render: (row) => isEditingRevenueRow(row) ? (
+            <label className="job-financials-protected-toggle">
+              <input type="checkbox" checked={revenueForm.is_protected_financial === true} onChange={(event) => updateInlineRevenueField('is_protected_financial', event.target.checked)} disabled={revenueForm.isSaving || permissions?.canViewProtectedProjectFinancials !== true} />
+              <span>Protected</span>
+            </label>
+          ) : editableRevenueValue(row, 'is_protected_financial', row.is_protected_financial ? 'Protected' : 'Standard', 'financial access'),
         },
         { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || editableBudgetValue(row, 'budget_amount', financialValue(row.budget_amount), 'original estimate'), align: 'right' },
         { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || editableBudgetValue(row, 'budget_change_amount', financialValue((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), 'budget changes'), align: 'right' },
@@ -4999,7 +5037,7 @@ export function JobsWorkspace({ permissions }) {
               <SummaryCard label="Revised Contract" value={formatMoney(revisedRevenueTotal)} detail="Scheduled value plus approved changes" />
               <SummaryCard label="Billed to Date" value={formatMoney(billedRevenueTotal)} detail="Revenue billed through current applications" />
               <SummaryCard label="Remaining to Bill" value={formatMoney(remainingBillingTotal)} detail="Revised contract less billed revenue" tone={remainingBillingTotal < 0 ? 'warn' : 'good'} />
-              <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="Financial lines categorized as OH&P / Fee" tone={estimatedProfit > 0 ? 'good' : 'default'} />
+              {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
             </div>
             <section className="job-financials-section" aria-label="Schedule of values revenue">
               <Toolbar
@@ -5043,8 +5081,8 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Committed Costs" value={formatMoney(committedTotal)} detail="Buyout or committed exposure" />
             <SummaryCard label="Completion Forecast" value={formatMoney(forecastFinalTotal)} detail="Expected total cost at completion" />
             <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Revised budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : 'good'} />
-            <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} />
-            <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} />
+            {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
+            {canViewProtectedProjectFinancials ? <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} /> : null}
           </div>
 
           <Toolbar
@@ -5057,7 +5095,7 @@ export function JobsWorkspace({ permissions }) {
               <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
                 {isBudgetBulkInputOpen ? 'Close Bulk Input' : 'Bulk Input'}
               </button>
-              <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen((current) => !current)}>
+              <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen((current) => !current)} {...uiElementAttributes('FUNCTION', 'Import Cost Report')}>
                 {isBudgetImportOpen ? 'Close Import' : 'Import'}
               </button>
             </div>

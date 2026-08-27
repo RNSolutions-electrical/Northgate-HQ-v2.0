@@ -1,3 +1,5 @@
+import { uiElementAttributes } from '../../config/uiTerminology.js';
+
 export function WorkspaceHeader({
   eyebrow,
   title,
@@ -6,7 +8,7 @@ export function WorkspaceHeader({
   actions,
 }) {
   return (
-    <div className="workspace-header">
+    <div className="workspace-header" {...uiElementAttributes('MODULE', title || 'Workspace Header')}>
       <div className="workspace-header__copy">
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h2>{title}</h2>
