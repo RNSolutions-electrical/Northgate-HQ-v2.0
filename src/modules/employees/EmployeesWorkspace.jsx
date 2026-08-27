@@ -150,12 +150,41 @@ function useEmployeeReferences({ enabled }) {
   };
 }
 
+function useCurrentEmployeeProfile({ enabled }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [state, setState] = useState({ isLoading: false, error: null, profile: null });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      if (!enabled) return;
+      setState({ isLoading: true, error: null, profile: null });
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.rpc('read_current_employee_profile');
+        if (error) throw error;
+        if (isMounted) setState({ isLoading: false, error: null, profile: Array.isArray(data) ? data[0] ?? null : data ?? null });
+      } catch (error) {
+        console.error('Current employee profile failed to load', error);
+        if (isMounted) setState({ isLoading: false, error, profile: null });
+      }
+    }
+    load();
+    return () => { isMounted = false; };
+  }, [enabled, getToken, refreshKey]);
+
+  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
   const { getToken } = useAuth();
   const location = useLocation();
   const canReadEmployees = permissions.permissionSource === 'server' && permissions.canManageEmployees === true;
   const directory = useEmployeeReferences({ enabled: canReadEmployees });
+  const myProfile = useCurrentEmployeeProfile({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('directory');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -191,12 +220,12 @@ export function EmployeesWorkspace({ permissions }) {
     ? location.state.employeeDepartment
     : null;
   const divisions = [...new Set(people.map((person) => person.division).filter(Boolean))];
-  const currentUserInDirectory = people.some((person) => person.clerk_user_id === permissions.userId);
+  const currentUserInDirectory = Boolean(myProfile.profile) || people.some((person) => person.clerk_user_id === permissions.userId);
   const activeAssignmentCount = assignments.filter((assignment) => assignment.is_active).length;
 
   const employeeViews = [
-    { key: 'directory', label: 'Employee Directory', icon: Users, description: 'Visible contact reference rows.', badge: people.length },
-    { key: 'mine', label: 'My Information', icon: ShieldCheck, description: 'Current user row when visible.', badge: currentUserInDirectory ? 1 : 0 },
+    ...(canReadEmployees ? [{ key: 'directory', label: 'Employee Directory', icon: Users, description: 'Visible contact reference rows.', badge: people.length }] : []),
+    { key: 'mine', label: 'My Information', icon: ShieldCheck, description: 'Your safe employee profile and current vehicle.', badge: currentUserInDirectory ? 1 : 0 },
   ];
 
   const filteredPeople = useMemo(() => {
@@ -221,7 +250,13 @@ export function EmployeesWorkspace({ permissions }) {
     }
   }, [directoryDepartment, location.key, location.state?.employeeView]);
 
-  const selectedEmployee = filteredPeople.find((person) => person.clerk_user_id === selectedEmployeeId)
+  useEffect(() => {
+    if (!canReadEmployees && activeView !== 'mine') setActiveView('mine');
+  }, [activeView, canReadEmployees]);
+
+  const selectedEmployee = activeView === 'mine' && myProfile.profile
+    ? myProfile.profile
+    : filteredPeople.find((person) => person.clerk_user_id === selectedEmployeeId)
     ?? people.find((person) => person.clerk_user_id === selectedEmployeeId)
     ?? null;
   const selectedEmployeeAssignments = selectedEmployee
@@ -339,7 +374,7 @@ export function EmployeesWorkspace({ permissions }) {
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Views
             </button>
-            <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
+            <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); }} disabled={directory.isLoading || myProfile.isLoading}>
               Refresh
             </button>
             <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
@@ -371,11 +406,11 @@ export function EmployeesWorkspace({ permissions }) {
       {employeeNotice ? <StatePanel tone="success" eyebrow="Profile Saved" title="Ready for Clerk sign-in" description={employeeNotice} compact /> : null}
 
       <div className="summary-grid">
-        <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} />
-        <SummaryCard label="Awaiting sign-in" value={pendingProfiles.length} detail="Profiles not yet linked to Clerk" tone={pendingProfiles.length ? 'warn' : 'good'} />
-        <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" />
-        <SummaryCard label="Departments" value={divisions.length} detail="Distinct visible departments" />
-        <SummaryCard label="Current user" value={currentUserInDirectory ? 'Visible' : 'Not visible'} detail="In reference view" tone={currentUserInDirectory ? 'good' : 'warn'} />
+        {canReadEmployees ? <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} /> : null}
+        {canReadEmployees ? <SummaryCard label="Awaiting sign-in" value={pendingProfiles.length} detail="Profiles not yet linked to Clerk" tone={pendingProfiles.length ? 'warn' : 'good'} /> : null}
+        {canReadEmployees ? <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" /> : null}
+        {canReadEmployees ? <SummaryCard label="Departments" value={divisions.length} detail="Distinct visible departments" /> : null}
+        <SummaryCard label="My profile" value={currentUserInDirectory ? 'Available' : 'Pending'} detail={myProfile.profile?.has_linked_employee_profile ? 'Linked employee profile' : 'Account permission profile'} tone={currentUserInDirectory ? 'good' : 'warn'} />
         <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create, edit, and archive pending profiles" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
         <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : permissions.department || 'None'} detail="Server role/department rules" tone={canReadEmployees ? 'good' : 'warn'} />
       </div>
@@ -401,7 +436,7 @@ export function EmployeesWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
-          <article className="card workspace-card">
+          {canReadEmployees ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Account Setup"
               title="Awaiting Clerk sign-in"
@@ -420,9 +455,9 @@ export function EmployeesWorkspace({ permissions }) {
               emptyDescription="Create a profile above when you need to prepare an employee before their Clerk account is active."
             />
             {pendingProfileAction.error ? <StatePanel tone="danger" eyebrow="Archive Failed" title="Pending employee profile was not archived" description={pendingProfileAction.error.message || 'Unexpected archive error.'} compact /> : null}
-          </article>
+          </article> : null}
 
-          <article className="card workspace-card">
+          {canReadEmployees ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
               title={employeeViews.find((item) => item.key === activeView)?.label ?? 'Employees'}
@@ -458,7 +493,7 @@ export function EmployeesWorkspace({ permissions }) {
                   ? 'The current user is not present in the existing reference view yet, so this module shows the layout foundation without inventing profile data.'
                   : 'This workspace renders real employee directory rows when the existing read path has visible data.'}
             />
-          </article>
+          </article> : null}
 
           <article className="card workspace-card">
             {selectedEmployee ? (
@@ -466,7 +501,7 @@ export function EmployeesWorkspace({ permissions }) {
                 <RecordHeader
                   eyebrow="Selected Employee"
                   title={employeeLabel(selectedEmployee)}
-                  description="Employee detail remains read-oriented in this phase. The shell is ready for richer sections later without implying account or permission editing."
+                  description={activeView === 'mine' ? 'Your employee profile is a secure read-only view. Contact, role, and assignment changes remain controlled workflows.' : 'Employee detail remains read-oriented in this phase. The shell is ready for richer sections later without implying account or permission editing.'}
                   meta={[
                     { label: 'Role', value: selectedEmployee.role || 'User' },
                     { label: 'Department', value: selectedEmployee.division || 'Unassigned' },
@@ -484,7 +519,7 @@ export function EmployeesWorkspace({ permissions }) {
                   <div className="module-fact-grid employees-fact-grid">
                     <SummaryCard label="Email" value={selectedEmployee.email || '-'} detail="Reference field" />
                     <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle || 'Unassigned'} detail="Active vehicle assignment" tone={selectedEmployee.current_vehicle ? 'good' : 'default'} />
-                    <SummaryCard label="Profile source" value="Reference view" detail="No source mutation" />
+                    <SummaryCard label="Profile source" value={activeView === 'mine' ? (selectedEmployee.has_linked_employee_profile ? 'Employee profile' : 'Account permissions') : 'Reference view'} detail="No source mutation" />
                     <SummaryCard label="Role source" value="Permissions row" detail="Display only" />
                   </div>
                 ) : null}
@@ -493,7 +528,9 @@ export function EmployeesWorkspace({ permissions }) {
                   <StatePanel
                     eyebrow="Contact"
                     title="Contact details"
-                    description={`Email: ${selectedEmployee.email || 'Unavailable'}. Phone, supervisor, emergency contact, and credential fields remain hidden until an approved live source exists.`}
+                    description={activeView === 'mine'
+                      ? `Email: ${selectedEmployee.email || 'Unavailable'}. Phone: ${selectedEmployee.phone || 'Not recorded'}.`
+                      : `Email: ${selectedEmployee.email || 'Unavailable'}. Phone, supervisor, emergency contact, and credential fields remain hidden until an approved live source exists.`}
                     tone="info"
                   />
                 ) : null}
@@ -539,9 +576,9 @@ export function EmployeesWorkspace({ permissions }) {
             ) : (
               <StatePanel
                 eyebrow="No Selection"
-                title="Select an employee to open the detail workspace"
+                title={activeView === 'mine' ? 'Your employee profile is not available yet' : 'Select an employee to open the detail workspace'}
                 description={activeView === 'mine'
-                  ? `Use the current-user row once it is available in the live reference view. Signed in as ${user?.primaryEmailAddress?.emailAddress ?? user?.id ?? 'current user'}.`
+                  ? (myProfile.error ? 'Your profile could not be loaded. Refresh, or contact a Developer if this continues.' : `No linked employee profile has been found yet. Signed in as ${user?.primaryEmailAddress?.emailAddress ?? user?.id ?? 'current user'}.`)
                   : 'The selected-employee header and tabs appear here when you choose a row from the directory.'}
                 tone="neutral"
               />

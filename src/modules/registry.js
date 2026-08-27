@@ -80,9 +80,8 @@ export const MODULES = [
     path: '/employees',
     label: 'Employees',
     icon: Users,
-    requires: ['canManageEmployees'],
     status: 'live',
-    description: 'Directory, credentials, and assignments.',
+    description: 'Your profile, directory, credentials, and assignments.',
   },
   {
     key: 'vehicles',
@@ -205,10 +204,12 @@ export function permittedNavigationGroups(permissions) {
         .map((department) => ({ ...module, key: `estimates-${department.toLowerCase()}`, label: `${department} Estimates`, navigationState: { department } }));
     }
     if (group.key === 'employees') {
+      const myProfile = { ...module, key: 'employees-my-profile', label: 'My Profile', navigationState: { employeeView: 'mine' } };
+      if (permissions?.canManageEmployees !== true) return [myProfile];
       const departmentItems = ['Electrical', 'Construction', 'Admin']
         .filter(canUseDepartment)
         .map((department) => ({ ...module, key: `employees-${department.toLowerCase()}`, label: `${department} Employees`, navigationState: { employeeDepartment: department } }));
-      return [{ ...module, key: 'employees-my-profile', label: 'My Profile', navigationState: { employeeView: 'mine' } }, ...departmentItems];
+      return [myProfile, ...departmentItems];
     }
     if (group.key === 'vehicles') {
       return ['Electrical', 'Construction', 'Admin']

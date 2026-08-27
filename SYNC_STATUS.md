@@ -4,10 +4,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `VERDANT-NAV-20260827-001`
-- Feature commit: `4860d50`
+- Marker: `COBALT-PROFILE-20260827-001`
+- Feature commit: pending commit for secure self-service employee profiles
 - GitHub branch: `main`
-- Production deploy: `6a9053b5ff0f78c00e053285`
+- Production deploy: pending
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
@@ -24,6 +24,11 @@ It also records grouped main-navigation entries for Jobs, Estimates, Employees,
 and Vehicles. These reuse existing workspace routes and filter states rather
 than duplicating routes, while only offering departments within the user's
 existing department/all-department access scope.
+
+The current marker adds the server-authorized My Profile path. Every signed-in
+employee can read only their own safe profile fields and current vehicle label;
+department directories and pending employee profile management remain gated by
+the existing employee-management permission.
 
 ## Superseded task-only marker
 
@@ -42,6 +47,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `VERDANT-NAV-20260827-001` — grouped department-aware navigation, commits `4860d50` and `1120edb`.
 - `CITRINE-MENU-20260827-001` — fixes clipped Inventory and Add-On Tools dropdown menus, commits `d235a3a` and `dfec32e`.
 - `OPAL-GATEWAY-20260827-001` — production record for the final terminology-overlay deployment, commit `273226d`.
 - `AMBER-ANCHOR-20260827-001` — activates undefined UI review markers, commit `4ef95ae`.
