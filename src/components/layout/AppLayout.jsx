@@ -1,6 +1,8 @@
 import { UserButton, useClerk } from '@clerk/clerk-react';
-import { useEffect } from 'react';
+import { MessageSquarePlus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { FeedbackDrawer } from '../feedback/FeedbackDrawer.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { permittedModules } from '../../modules/registry.js';
@@ -20,6 +22,7 @@ export function AppLayout() {
   const { highlightDevelopment, hideDevelopment } = useDevelopmentDisplayPreferences();
   const navigate = useNavigate();
   const location = useLocation();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('ng-highlight-incomplete', highlightIncomplete);
@@ -65,7 +68,8 @@ export function AppLayout() {
   }));
 
   return (
-    <AppShell
+    <>
+      <AppShell
       eyebrow="HEADQUARTERS"
       title="Northgate"
       buildLabel="v3.0"
@@ -80,6 +84,12 @@ export function AppLayout() {
         role: permissions.role,
         division: permissions.division ?? 'No division',
       }}
+      feedbackControl={(
+        <button type="button" className="ng-shell__feedback-button" onClick={() => setFeedbackOpen(true)}>
+          <MessageSquarePlus aria-hidden="true" />
+          <span>Provide Feedback</span>
+        </button>
+      )}
       profileControl={(
         <>
           <button type="button" className="secondary-button" onClick={() => signOut({ redirectUrl: '/' })}>
@@ -88,8 +98,10 @@ export function AppLayout() {
           <UserButton afterSignOutUrl="/" />
         </>
       )}
-    >
-      <Outlet />
-    </AppShell>
+      >
+        <Outlet />
+      </AppShell>
+      <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
+    </>
   );
 }

@@ -10,6 +10,7 @@ export function AppShell({
   activeWorkspace,
   onOpenWorkspace,
   identitySummary,
+  feedbackControl,
   developerToggle,
   profileControl,
   children,
@@ -54,6 +55,7 @@ export function AppShell({
           />
 
           <div className="ng-shell__actions">
+            {feedbackControl}
             <button type="button" className="ng-shell__notice-button" aria-label="Search">
               <Search aria-hidden="true" />
             </button>

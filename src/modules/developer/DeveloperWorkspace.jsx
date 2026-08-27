@@ -11,6 +11,7 @@ import {
   GitBranch,
   KeyRound,
   LayoutDashboard,
+  MessageSquareText,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import {
   DEVELOPER_HELPFUL_LINKS,
   FUTURE_USER_MANAGEMENT_CAPABILITIES,
@@ -538,6 +540,7 @@ export function DeveloperWorkspace({ permissions }) {
   const [selectedPermissionUserId, setSelectedPermissionUserId] = useState('');
   const [auditExport, setAuditExport] = useState(DEFAULT_AUDIT_EXPORT);
   const [activeConsolePage, setActiveConsolePage] = useState('overview');
+  const [openFeedbackCount, setOpenFeedbackCount] = useState(0);
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
   const developerNotes = useDeveloperNotes({
@@ -547,6 +550,25 @@ export function DeveloperWorkspace({ permissions }) {
   const permissionConsole = useDeveloperPermissionConsole({
     enabled: permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true,
   });
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadFeedbackCount() {
+      if (permissions.permissionSource !== 'server' || permissions.canAccessDeveloper !== true) return;
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.from('app_feedback').select('status');
+        if (error) throw error;
+        if (mounted) setOpenFeedbackCount((data ?? []).filter((row) => !['resolved', 'closed'].includes(row.status)).length);
+      } catch (error) {
+        console.error('Developer feedback count failed to load', error);
+      }
+    }
+    loadFeedbackCount();
+    return () => { mounted = false; };
+  }, [getToken, permissions.canAccessDeveloper, permissions.permissionSource]);
+
   const openNotes = developerNotes.notes.filter((note) => !note.archived_at);
   const archivedNotes = developerNotes.notes.filter((note) => note.archived_at);
   const urgentNotes = openNotes.filter((note) => note.priority === 'high').length;
@@ -847,6 +869,7 @@ export function DeveloperWorkspace({ permissions }) {
           {[
             ['overview', 'Overview', LayoutDashboard],
             ['access', 'Access Control', KeyRound],
+            ['feedback', 'User Feedback', MessageSquareText],
             ['audit', 'Audit Export', FileClock],
             ['backlog', 'Backlog', BookOpenCheck],
             ['systems', 'Systems', Cloud],
@@ -866,6 +889,7 @@ export function DeveloperWorkspace({ permissions }) {
         <dl className="developer-status-rail">
           <div><dt>Granted flags</dt><dd>{grantedCount}<small>of {permissionRows.length}</small></dd></div>
           <div><dt>Managed users</dt><dd>{permissionConsole.users.length}<small>{customPermissionUsers.length} customized</small></dd></div>
+          <div className={openFeedbackCount ? 'is-warning' : ''}><dt>User feedback</dt><dd>{openFeedbackCount}<small>active reports</small></dd></div>
           <div className={reviewDueCount ? 'is-warning' : ''}><dt>Reviews due</dt><dd>{reviewDueCount}<small>permission reviews</small></dd></div>
           <div className={urgentNotes ? 'is-warning' : ''}><dt>Open backlog</dt><dd>{openNotes.length}<small>{urgentNotes} high priority</small></dd></div>
           <div><dt>Environment</dt><dd>{import.meta.env.MODE}<small>application mode</small></dd></div>
@@ -1156,6 +1180,10 @@ export function DeveloperWorkspace({ permissions }) {
           <StatePanel tone="neutral" title="Select a user" description="Choose a row from the permission user table to open level, division, and permission controls." />
         )}
       </section>
+      ) : null}
+
+      {activeConsolePage === 'feedback' ? (
+        <DeveloperFeedbackQueue permissions={permissions} onCountChange={setOpenFeedbackCount} />
       ) : null}
 
       {activeConsolePage === 'audit' ? (
