@@ -5,9 +5,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 ## Current durable sync marker
 
 - Marker: `IVORY-EMPLOYEE-20260827-001`
-- Feature commit: pending commit for audited employee self-service editing
+- Feature commit: `32f29e2`
 - GitHub branch: `main`
-- Production deploy: pending
+- Production deploy: `6a905d3b1882f92b4235bf81`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
