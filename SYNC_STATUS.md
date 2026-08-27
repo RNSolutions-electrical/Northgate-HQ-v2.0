@@ -5,9 +5,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 ## Current durable sync marker
 
 - Marker: `VERDANT-NAV-20260827-001`
-- Feature commit: pending commit for department-aware workspace navigation
+- Feature commit: `4860d50`
 - GitHub branch: `main`
-- Production deploy: pending
+- Production deploy: `6a9053b5ff0f78c00e053285`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
