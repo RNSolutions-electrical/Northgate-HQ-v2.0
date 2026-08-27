@@ -176,10 +176,10 @@ export function permittedModules(permissions) {
 export const NAVIGATION_GROUPS = [
   { key: 'dashboard', moduleKey: 'dashboard' },
   { key: 'inventory', label: 'Inventory', icon: Boxes, moduleKeys: ['inventory', 'tools'] },
-  { key: 'jobs', moduleKey: 'jobs' },
-  { key: 'estimates', moduleKey: 'estimates' },
-  { key: 'employees', moduleKey: 'employees' },
-  { key: 'vehicles', moduleKey: 'vehicles' },
+  { key: 'jobs', label: 'Jobs', icon: BriefcaseBusiness, moduleKeys: ['jobs'] },
+  { key: 'estimates', label: 'Estimates', icon: Calculator, moduleKeys: ['estimates'] },
+  { key: 'employees', label: 'Employees', icon: Users, moduleKeys: ['employees'] },
+  { key: 'vehicles', label: 'Vehicles', icon: Truck, moduleKeys: ['vehicles'] },
   { key: 'documents', moduleKey: 'documents' },
   { key: 'reports', moduleKey: 'reports' },
   { key: 'accounting', moduleKey: 'accounting' },
@@ -190,10 +190,33 @@ export const NAVIGATION_GROUPS = [
 
 export function permittedNavigationGroups(permissions) {
   const byKey = new Map(permittedModules(permissions).map((module) => [module.key, module]));
-  const displayLabels = {
-    inventory: 'Material Inventory',
-    tools: 'Tool Inventory',
-    'service-performance': 'Service Scorecard',
+  const canUseDepartment = (department) => permissions?.canViewAllDivisions === true
+    || permissions?.department === department;
+  const groupItems = (group, module) => {
+    if (group.key === 'jobs') {
+      return [
+        { ...module, label: 'Jobs', navigationState: { directoryType: 'jobs' } },
+        { ...module, key: 'jobs-service-calls', label: 'Service Calls', navigationState: { directoryType: 'service_calls' } },
+      ];
+    }
+    if (group.key === 'estimates') {
+      return ['Electrical', 'Construction']
+        .filter(canUseDepartment)
+        .map((department) => ({ ...module, key: `estimates-${department.toLowerCase()}`, label: `${department} Estimates`, navigationState: { department } }));
+    }
+    if (group.key === 'employees') {
+      const departmentItems = ['Electrical', 'Construction', 'Admin']
+        .filter(canUseDepartment)
+        .map((department) => ({ ...module, key: `employees-${department.toLowerCase()}`, label: `${department} Employees`, navigationState: { employeeDepartment: department } }));
+      return [{ ...module, key: 'employees-my-profile', label: 'My Profile', navigationState: { employeeView: 'mine' } }, ...departmentItems];
+    }
+    if (group.key === 'vehicles') {
+      return ['Electrical', 'Construction', 'Admin']
+        .filter(canUseDepartment)
+        .map((department) => ({ ...module, key: `vehicles-${department.toLowerCase()}`, label: `${department} Vehicles`, navigationState: { vehicleDepartment: department } }));
+    }
+    const displayLabels = { inventory: 'Material Inventory', tools: 'Tool Inventory', 'service-performance': 'Service Scorecard' };
+    return [{ ...module, label: displayLabels[module.key] || module.label }];
   };
 
   return NAVIGATION_GROUPS.flatMap((group) => {
@@ -203,7 +226,7 @@ export function permittedNavigationGroups(permissions) {
     }
 
     const items = (group.moduleKeys || []).map((key) => byKey.get(key)).filter(Boolean)
-      .map((module) => ({ ...module, label: displayLabels[module.key] || module.label }));
+      .flatMap((module) => groupItems(group, module));
     return items.length ? [{ key: group.key, label: group.label, icon: group.icon, items }] : [];
   });
 }

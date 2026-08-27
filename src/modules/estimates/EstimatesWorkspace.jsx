@@ -16,6 +16,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -1613,6 +1614,7 @@ function useCatalogItems({ enabled }) {
 export function EstimatesWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
+  const location = useLocation();
   const canReadEstimates = permissions?.permissionSource === 'server'
     && (permissions?.canEstimate === true || permissions?.canApproveEstimates === true);
   const directory = useEstimateDirectory({ enabled: canReadEstimates });
@@ -1640,6 +1642,9 @@ export function EstimatesWorkspace({ permissions }) {
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
   const estimates = directory.estimates;
+  const directoryDepartment = ['Electrical', 'Construction'].includes(location.state?.department)
+    ? location.state.department
+    : null;
   const selectedView = ESTIMATE_VIEWS.find((item) => item.key === activeView) ?? ESTIMATE_VIEWS[0];
   const canEstimate = permissions?.canEstimate === true;
   const canCreateEstimate = canEstimate && Boolean(permissions?.division);
@@ -1663,6 +1668,7 @@ export function EstimatesWorkspace({ permissions }) {
     const normalizedSearch = search.trim().toLowerCase();
 
     return estimates.filter((estimate) => {
+      if (directoryDepartment && estimate.division !== directoryDepartment) return false;
       if (activeView === 'mine' && estimate.estimator_id !== permissions.userId) return false;
       if (activeView === 'drafts' && !['draft', 'pursuit'].includes(estimate.status)) return false;
       if (activeView === 'submitted' && estimate.status !== 'submitted') return false;
@@ -1670,7 +1676,7 @@ export function EstimatesWorkspace({ permissions }) {
       if (!normalizedSearch) return true;
       return estimateSearchText(estimate).includes(normalizedSearch);
     });
-  }, [activeView, estimates, permissions.userId, search]);
+  }, [activeView, directoryDepartment, estimates, permissions.userId, search]);
 
   const selectedEstimate = filteredEstimates.find((estimate) => estimate.id === selectedEstimateId)
     ?? estimates.find((estimate) => estimate.id === selectedEstimateId)

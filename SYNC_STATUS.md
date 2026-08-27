@@ -4,10 +4,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `CITRINE-MENU-20260827-001`
-- Feature commit: `d235a3a`
+- Marker: `VERDANT-NAV-20260827-001`
+- Feature commit: pending commit for department-aware workspace navigation
 - GitHub branch: `main`
-- Production deploy: `6a904f04012805ac0160bf30`
+- Production deploy: pending
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
@@ -19,6 +19,11 @@ Director, and server-enforced Protected Project Financials.
 The current marker additionally records the desktop grouped-navigation fix: the
 Inventory and Add-On Tools menus must remain visible and selectable below the
 header rather than being clipped by the navigation container.
+
+It also records grouped main-navigation entries for Jobs, Estimates, Employees,
+and Vehicles. These reuse existing workspace routes and filter states rather
+than duplicating routes, while only offering departments within the user's
+existing department/all-department access scope.
 
 ## Superseded task-only marker
 
@@ -37,6 +42,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `CITRINE-MENU-20260827-001` — fixes clipped Inventory and Add-On Tools dropdown menus, commits `d235a3a` and `dfec32e`.
 - `OPAL-GATEWAY-20260827-001` — production record for the final terminology-overlay deployment, commit `273226d`.
 - `AMBER-ANCHOR-20260827-001` — activates undefined UI review markers, commit `4ef95ae`.
 - `TOPAZ-HARBOR-20260827-001` — production record for the hierarchy cleanup deployment.

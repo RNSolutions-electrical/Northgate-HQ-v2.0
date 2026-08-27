@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/clerk-react';
 import { Briefcase, MapPin, Plus, Truck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -166,6 +167,7 @@ function useVehicleReferences({ enabled }) {
 
 export function VehiclesWorkspace({ permissions }) {
   const { getToken } = useAuth();
+  const location = useLocation();
   const canReadVehicles = permissions.permissionSource === 'server' && permissions.canManageVehicles === true;
   const vehicleState = useVehicleReferences({ enabled: canReadVehicles });
   const [activeView, setActiveView] = useState('all');
@@ -198,6 +200,9 @@ export function VehiclesWorkspace({ permissions }) {
       current_assignment: activeAssignment ?? null,
     };
   }), [currentAssignmentMap, vehicleState.vehicles]);
+  const directoryDepartment = ['Electrical', 'Construction', 'Admin'].includes(location.state?.vehicleDepartment)
+    ? location.state.vehicleDepartment
+    : null;
   const stockCount = vehicles.filter((vehicle) => vehicle.holds_stock).length;
   const fleetCount = vehicles.length - stockCount;
   const vehiclesWithDivision = vehicles.filter((vehicle) => vehicle.division).length;
@@ -213,12 +218,13 @@ export function VehiclesWorkspace({ permissions }) {
     const normalizedSearch = search.trim().toLowerCase();
 
     return vehicles.filter((vehicle) => {
+      if (directoryDepartment && vehicle.division !== directoryDepartment) return false;
       if (activeView === 'stock' && !vehicle.holds_stock) return false;
       if (activeView === 'fleet' && vehicle.holds_stock) return false;
       if (!normalizedSearch) return true;
       return vehicleSearchText(vehicle).includes(normalizedSearch);
     });
-  }, [activeView, search, vehicles]);
+  }, [activeView, directoryDepartment, search, vehicles]);
 
   const selectedVehicle = filteredVehicles.find((vehicle) => vehicle.id === selectedVehicleId)
     ?? vehicles.find((vehicle) => vehicle.id === selectedVehicleId)

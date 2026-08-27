@@ -43,7 +43,7 @@ export function TopNavigation({
                     setOpenGroup((current) => current === item.key ? null : item.key);
                     return;
                   }
-                  onSelect(item.key);
+                  onSelect(item);
                   onCloseMobile?.();
                 }}
               >
@@ -60,7 +60,7 @@ export function TopNavigation({
                       role="menuitem"
                       className="top-nav__menu-item"
                       onClick={() => {
-                        onSelect(child.key);
+                        onSelect(child);
                         setOpenGroup(null);
                         onCloseMobile?.();
                       }}

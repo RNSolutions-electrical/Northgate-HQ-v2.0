@@ -1,6 +1,7 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Archive, Pencil, Plus, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -152,6 +153,7 @@ function useEmployeeReferences({ enabled }) {
 export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
   const { getToken } = useAuth();
+  const location = useLocation();
   const canReadEmployees = permissions.permissionSource === 'server' && permissions.canManageEmployees === true;
   const directory = useEmployeeReferences({ enabled: canReadEmployees });
   const [activeView, setActiveView] = useState('directory');
@@ -185,6 +187,9 @@ export function EmployeesWorkspace({ permissions }) {
       current_vehicle_assignment: activeAssignment ?? null,
     };
   }), [currentAssignmentMap, directory.people]);
+  const directoryDepartment = ['Electrical', 'Construction', 'Admin'].includes(location.state?.employeeDepartment)
+    ? location.state.employeeDepartment
+    : null;
   const divisions = [...new Set(people.map((person) => person.division).filter(Boolean))];
   const currentUserInDirectory = people.some((person) => person.clerk_user_id === permissions.userId);
   const activeAssignmentCount = assignments.filter((assignment) => assignment.is_active).length;
@@ -198,11 +203,23 @@ export function EmployeesWorkspace({ permissions }) {
     const normalizedSearch = search.trim().toLowerCase();
 
     return people.filter((person) => {
+      if (directoryDepartment && person.division !== directoryDepartment) return false;
       if (activeView === 'mine' && person.clerk_user_id !== permissions.userId) return false;
       if (!normalizedSearch) return true;
       return employeeSearchText(person).includes(normalizedSearch);
     });
-  }, [activeView, people, permissions.userId, search]);
+  }, [activeView, directoryDepartment, people, permissions.userId, search]);
+
+  useEffect(() => {
+    if (location.state?.employeeView === 'mine') {
+      setActiveView('mine');
+      return;
+    }
+    if (directoryDepartment) {
+      setActiveView('directory');
+      setSelectedEmployeeId('');
+    }
+  }, [directoryDepartment, location.key, location.state?.employeeView]);
 
   const selectedEmployee = filteredPeople.find((person) => person.clerk_user_id === selectedEmployeeId)
     ?? people.find((person) => person.clerk_user_id === selectedEmployeeId)

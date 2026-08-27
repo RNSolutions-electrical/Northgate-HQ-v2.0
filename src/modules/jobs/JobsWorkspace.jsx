@@ -2423,6 +2423,11 @@ export function JobsWorkspace({ permissions }) {
       setMode('browse');
       return;
     }
+    if (location.state?.directoryType) {
+      setDirectoryType(location.state.directoryType === 'service_calls' ? 'service_calls' : 'jobs');
+      returnToJobList();
+      return;
+    }
     if (location.state?.openJobsDirectory) returnToJobList();
   }, [location.key]);
 

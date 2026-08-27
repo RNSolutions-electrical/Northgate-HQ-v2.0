@@ -75,10 +75,16 @@ export function AppLayout() {
       buildLabel="v3.0"
       navItems={navItems}
       activeWorkspace={activeKey}
-      onOpenWorkspace={(key) => {
-        const target = modules.find((module) => module.key === key);
+      onOpenWorkspace={(selection) => {
+        const key = typeof selection === 'string' ? selection : selection?.key;
+        const targetKey = selection?.path ? selection.key.replace(/-(service-calls|electrical|construction|admin|my-profile)$/, '') : key;
+        const target = modules.find((module) => module.key === targetKey)
+          ?? modules.find((module) => module.key === key)
+          ?? navItems.find((item) => item.key === key)?.items?.[0];
         if (!target) return;
-        navigate(target.path, key === 'jobs' ? { state: { openJobsDirectory: Date.now() } } : undefined);
+        const navigationState = selection?.navigationState
+          ?? (target.key === 'jobs' ? { directoryType: 'jobs', openJobsDirectory: Date.now() } : undefined);
+        navigate(target.path, navigationState ? { state: navigationState } : undefined);
       }}
       identitySummary={{
         role: permissions.role,
