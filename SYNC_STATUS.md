@@ -5,9 +5,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 ## Current durable sync marker
 
 - Marker: `ROSEWOOD-TASKS-20260827-001`
-- Feature commit: pending commit
+- Feature commit: `9eca69a`
 - GitHub branch: `main`
-- Production deploy: pending deployment
+- Production deploy: `6a905f9777c73c8c1182dc09`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: August 27, 2026 (America/New_York)
 
