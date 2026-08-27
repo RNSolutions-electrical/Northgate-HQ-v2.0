@@ -12,6 +12,7 @@ import {
   KeyRound,
   LayoutDashboard,
   MessageSquareText,
+  Puzzle,
   ShieldCheck,
   Users,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
+import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
 import {
   DEVELOPER_HELPFUL_LINKS,
   FUTURE_USER_MANAGEMENT_CAPABILITIES,
@@ -869,6 +871,7 @@ export function DeveloperWorkspace({ permissions }) {
           {[
             ['overview', 'Overview', LayoutDashboard],
             ['access', 'Access Control', KeyRound],
+            ['addons', 'Tool Add-Ons', Puzzle],
             ['feedback', 'User Feedback', MessageSquareText],
             ['audit', 'Audit Export', FileClock],
             ['backlog', 'Backlog', BookOpenCheck],
@@ -1181,6 +1184,8 @@ export function DeveloperWorkspace({ permissions }) {
         )}
       </section>
       ) : null}
+
+      {activeConsolePage === 'addons' ? <DeveloperAddonsConsole /> : null}
 
       {activeConsolePage === 'feedback' ? (
         <DeveloperFeedbackQueue permissions={permissions} onCountChange={setOpenFeedbackCount} />

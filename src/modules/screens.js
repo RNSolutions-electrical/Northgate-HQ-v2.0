@@ -33,6 +33,7 @@ import { EstimatesWorkspace } from './estimates/EstimatesWorkspace.jsx';
 import { InventoryWorkspace } from './inventory/InventoryWorkspace.jsx';
 import { JobsWorkspace } from './jobs/JobsWorkspace.jsx';
 import { ReportsWorkspace } from './reports/ReportsWorkspace.jsx';
+import { ServicePerformanceWorkspace } from './service-performance/ServicePerformanceWorkspace.jsx';
 import { SilasWorkspace } from './silas/SilasWorkspace.jsx';
 import { ToolsWorkspace } from './tools/ToolsWorkspace.jsx';
 import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
@@ -47,6 +48,7 @@ export const MODULE_SCREENS = {
   inventory: InventoryWorkspace,
   jobs: JobsWorkspace,
   reports: ReportsWorkspace,
+  'service-performance': ServicePerformanceWorkspace,
   silas: SilasWorkspace,
   tools: ToolsWorkspace,
   vehicles: VehiclesWorkspace,

@@ -66,13 +66,14 @@ function camel(flags) {
 
 function normalize(row) {
   if (!row) {
-    return { role: 'User', division: null, permissions: DENY_ALL, source: 'default-deny' };
+    return { role: 'User', division: null, permissions: DENY_ALL, addons: [], source: 'default-deny' };
   }
 
   return {
     role: row.role ?? 'User',
     division: row.division ?? null,
     permissions: { ...DENY_ALL, ...(row.effective_permissions ?? {}) },
+    addons: [],
     source: 'server',
   };
 }
@@ -86,6 +87,7 @@ export function usePermissions() {
     role: 'User',
     division: null,
     permissions: DENY_ALL,
+    addons: [],
     source: 'loading',
   });
 
@@ -103,6 +105,7 @@ export function usePermissions() {
             role: 'User',
             division: null,
             permissions: DENY_ALL,
+            addons: [],
             source: 'signed-out',
           });
         }
@@ -123,6 +126,9 @@ export function usePermissions() {
         if (error) throw error;
 
         const next = normalize(Array.isArray(data) ? data[0] : data);
+        const { data: addonRows, error: addonError } = await client.rpc('get_current_user_addons');
+        if (addonError) throw addonError;
+        next.addons = (addonRows ?? []).map((row) => row.addon_key);
         if (isMounted) setState({ isLoading: false, error: null, ...next });
       } catch (error) {
         console.error('Permission lookup failed', error);
@@ -133,6 +139,7 @@ export function usePermissions() {
             role: 'User',
             division: null,
             permissions: DENY_ALL,
+            addons: [],
             source: 'error-default-deny',
           });
         }
@@ -147,6 +154,7 @@ export function usePermissions() {
   }, [getToken, isSignedIn, isUserLoaded, user]);
 
   const flags = useMemo(() => camel(state.permissions), [state.permissions]);
+  const addonSet = useMemo(() => new Set(state.addons), [state.addons]);
 
   return {
     isLoaded: isUserLoaded && !state.isLoading,
@@ -158,6 +166,8 @@ export function usePermissions() {
     permissions: state.permissions,
     permissionSource: state.source,
     error: state.error,
+    addons: state.addons,
+    canAccessAddon: (addonKey) => addonSet.has(addonKey),
     ...flags,
   };
 }

@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Activity,
   Boxes,
   BriefcaseBusiness,
   Calculator,
@@ -135,6 +136,15 @@ export const MODULES = [
     description: 'Permission-aware assistant.',
   },
   {
+    key: 'service-performance',
+    path: '/service-performance',
+    label: 'Service Performance',
+    icon: Activity,
+    requiresAddon: 'service_performance',
+    status: 'live',
+    description: 'Electrical service-call cost, margin, billing, and collection performance.',
+  },
+  {
     key: 'developer',
     path: '/developer',
     label: 'Developer',
@@ -147,6 +157,7 @@ export const MODULES = [
 
 /** Same fail-closed predicate the DataTable uses: `=== true` only. */
 export function isModulePermitted(module, permissions) {
+  if (module.requiresAddon && permissions?.canAccessAddon?.(module.requiresAddon) !== true) return false;
   if (module.requires?.length) {
     if (!module.requires.every((flag) => permissions?.[flag] === true)) return false;
   }
