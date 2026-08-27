@@ -3,6 +3,7 @@ import {
   Cloud,
   Copy,
   Database,
+  Download,
   ExternalLink,
   GitBranch,
   ShieldCheck,
@@ -148,6 +149,19 @@ const DEFAULT_LONG_TERM_FORM = Object.freeze({
   success: '',
 });
 
+const DEFAULT_AUDIT_EXPORT = Object.freeze({
+  from: '',
+  to: '',
+  isExporting: false,
+  error: null,
+  success: '',
+});
+
+const AUDIT_EXPORT_COLUMNS = [
+  'id', 'created_at', 'user_id', 'user_name', 'table_name', 'record_id',
+  'action', 'note', 'before_data', 'after_data',
+];
+
 const DEVELOPER_NOTE_COLUMNS = [
   {
     key: 'title',
@@ -199,6 +213,22 @@ function formatDeveloperNoteDate(value) {
   } catch {
     return '-';
   }
+}
+
+function csvCell(value) {
+  let normalized = value === null || value === undefined
+    ? ''
+    : typeof value === 'object'
+      ? JSON.stringify(value)
+      : String(value);
+  if (/^[=+\-@\t\r]/.test(normalized)) normalized = `'${normalized}`;
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+function buildAuditCsv(rows) {
+  const header = AUDIT_EXPORT_COLUMNS.map(csvCell).join(',');
+  const body = rows.map((row) => AUDIT_EXPORT_COLUMNS.map((column) => csvCell(row[column])).join(','));
+  return `\uFEFF${[header, ...body].join('\r\n')}`;
 }
 
 function useDeveloperNotes({ enabled, permissions }) {
@@ -488,6 +518,7 @@ function DeveloperHelpfulLinks() {
 }
 
 export function DeveloperWorkspace({ permissions }) {
+  const { getToken } = useAuth();
   const { user } = useUser();
   const [highlightIncomplete, setHighlightIncomplete] = useIncompleteHighlightPreference();
   const {
@@ -501,6 +532,7 @@ export function DeveloperWorkspace({ permissions }) {
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE_FORM);
   const [longTermForm, setLongTermForm] = useState(DEFAULT_LONG_TERM_FORM);
   const [selectedPermissionUserId, setSelectedPermissionUserId] = useState('');
+  const [auditExport, setAuditExport] = useState(DEFAULT_AUDIT_EXPORT);
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
   const developerNotes = useDeveloperNotes({
@@ -678,6 +710,64 @@ export function DeveloperWorkspace({ permissions }) {
     } catch (error) {
       console.error('Long-term permission acknowledgement failed', error);
       setLongTermForm((current) => ({ ...current, isSaving: false, error, success: '' }));
+    }
+  }
+
+  async function handleAuditExport(event) {
+    event.preventDefault();
+    if (auditExport.isExporting) return;
+
+    const from = auditExport.from ? new Date(`${auditExport.from}T00:00:00.000Z`) : null;
+    const to = auditExport.to ? new Date(`${auditExport.to}T00:00:00.000Z`) : new Date();
+    if (auditExport.to) to.setUTCDate(to.getUTCDate() + 1);
+    if ((from && Number.isNaN(from.getTime())) || Number.isNaN(to.getTime()) || (from && from >= to)) {
+      setAuditExport((current) => ({ ...current, error: new Error('Choose a valid range. The From date must be before or equal to the Through date.'), success: '' }));
+      return;
+    }
+
+    setAuditExport((current) => ({ ...current, isExporting: true, error: null, success: '' }));
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const rows = [];
+      const pageSize = 1000;
+      let offset = 0;
+
+      while (true) {
+        const { data, error } = await client.rpc('read_developer_audit_log_export', {
+          p_from: from?.toISOString() || null,
+          p_to: to.toISOString(),
+          p_limit: pageSize,
+          p_offset: offset,
+        });
+        if (error) throw error;
+        const page = data ?? [];
+        rows.push(...page);
+        if (page.length < pageSize) break;
+        offset += page.length;
+      }
+
+      const csv = buildAuditCsv(rows);
+      const { error: recordError } = await client.rpc('record_developer_audit_log_export', {
+        p_from: from?.toISOString() || null,
+        p_to: to.toISOString(),
+        p_row_count: rows.length,
+        p_format: 'csv',
+      });
+      if (recordError) throw recordError;
+
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `northgate-full-audit-log-${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setAuditExport((current) => ({ ...current, isExporting: false, error: null, success: `${rows.length.toLocaleString()} audit records exported. The export event was also added to the audit log.` }));
+    } catch (error) {
+      console.error('Developer audit export failed', error);
+      setAuditExport((current) => ({ ...current, isExporting: false, error, success: '' }));
     }
   }
 
@@ -1011,6 +1101,30 @@ export function DeveloperWorkspace({ permissions }) {
         ) : (
           <StatePanel tone="neutral" title="Select a user" description="Choose a row from the permission user table to open level, division, and permission controls." />
         )}
+      </section>
+
+      <section className="developer-audit-export card workspace-card">
+        <Toolbar
+          eyebrow="Audit"
+          title="Full audit log export"
+          description="Download every authorized audit field as an Excel-compatible CSV, including complete before/after JSON. Optional dates use UTC and the Through date is inclusive."
+        />
+        <form className="developer-audit-export__form" onSubmit={handleAuditExport}>
+          <label>
+            <span>From date <small>Optional</small></span>
+            <input type="date" value={auditExport.from} onChange={(event) => setAuditExport((current) => ({ ...current, from: event.target.value, error: null, success: '' }))} disabled={auditExport.isExporting} />
+          </label>
+          <label>
+            <span>Through date <small>Optional</small></span>
+            <input type="date" value={auditExport.to} onChange={(event) => setAuditExport((current) => ({ ...current, to: event.target.value, error: null, success: '' }))} disabled={auditExport.isExporting} />
+          </label>
+          <button type="submit" className="primary-button" disabled={auditExport.isExporting}>
+            <Download aria-hidden="true" /> {auditExport.isExporting ? 'Preparing Full Export...' : 'Export Full Audit Log CSV'}
+          </button>
+        </form>
+        <p className="developer-audit-export__note">Leave both dates blank to export all audit history through the moment the export begins. Cells are protected against spreadsheet formula execution.</p>
+        {auditExport.error ? <StatePanel tone="danger" eyebrow="Export Failed" title="Audit log was not exported" description={auditExport.error.message || 'Unexpected audit export error.'} compact /> : null}
+        {auditExport.success ? <StatePanel tone="success" eyebrow="Export Complete" title="Audit log downloaded" description={auditExport.success} compact /> : null}
       </section>
 
       <section className="developer-notes card workspace-card">
