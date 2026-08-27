@@ -13,7 +13,10 @@ export function StatePanel({
   const isDevelopmentOnly = developmentOnly ?? hasDevelopmentSignal([eyebrow, title, description]);
 
   return (
-    <section className={`state-panel state-panel--${tone}${compact ? ' state-panel--compact' : ''}${isIncomplete ? ' ng-incomplete-component' : ''}${isDevelopmentOnly ? ' ng-development-component' : ''}`}>
+    <section
+      className={`state-panel state-panel--${tone}${compact ? ' state-panel--compact' : ''}${isIncomplete ? ' ng-incomplete-component' : ''}${isDevelopmentOnly ? ' ng-development-component' : ''}`}
+      {...(isIncomplete ? { 'data-ng-ui-undefined': 'true' } : {})}
+    >
       <div className="state-panel__copy">
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h3>{title}</h3>
