@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { useState } from 'react';
 
 export function TopNavigation({
@@ -25,6 +25,10 @@ export function TopNavigation({
         className={`top-nav${mobileOpen ? ' is-open' : ''}`}
         aria-label="Primary workspace navigation"
       >
+        <div className="top-nav__mobile-heading">
+          <div><span className="eyebrow">Navigate</span><strong>Main menu</strong></div>
+          <button type="button" onClick={onCloseMobile} aria-label="Close main menu"><X aria-hidden="true" /></button>
+        </div>
         {items.map((item) => {
           const Icon = item.icon;
           const isGroup = Array.isArray(item.items);

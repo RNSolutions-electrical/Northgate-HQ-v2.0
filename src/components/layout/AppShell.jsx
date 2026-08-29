@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, Sparkles } from 'lucide-react';
+import { ArrowLeft, Bell, House, LayoutDashboard, Menu, Search, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TopNavigation } from './TopNavigation.jsx';
 
@@ -8,7 +8,12 @@ export function AppShell({
   buildLabel,
   navItems,
   activeWorkspace,
+  activeWorkspaceLabel,
+  workspaceResetKey,
   onOpenWorkspace,
+  onBack,
+  onDashboard,
+  onWorkspaceHome,
   identitySummary,
   feedbackControl,
   developerToggle,
@@ -110,8 +115,15 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="ng-shell__content">{children}</div>
+        <div className="ng-shell__content" key={workspaceResetKey}>{children}</div>
       </div>
+
+      <nav className="mobile-page-navigation" aria-label="Mobile page navigation">
+        <button type="button" onClick={onBack}><ArrowLeft aria-hidden="true" /><span>Back</span></button>
+        <button type="button" onClick={onWorkspaceHome}><House aria-hidden="true" /><span>{activeWorkspaceLabel} Home</span></button>
+        <button type="button" onClick={onDashboard}><LayoutDashboard aria-hidden="true" /><span>Dashboard</span></button>
+        <button type="button" className={mobileNavOpen ? 'is-active' : ''} onClick={() => setMobileNavOpen((current) => !current)} aria-expanded={mobileNavOpen} aria-controls="northgate-top-nav"><Menu aria-hidden="true" /><span>App Menu</span></button>
+      </nav>
     </main>
   );
 }

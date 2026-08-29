@@ -566,7 +566,7 @@ export function EmployeesWorkspace({ permissions }) {
         actions={(
           <>
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-              Views
+              Page Menu
             </button>
             <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); myAssignments.reload(); myNotes.reload(); myTodos.reload(); }} disabled={directory.isLoading || myProfile.isLoading || myAssignments.isLoading || myNotes.isLoading || myTodos.isLoading}>
               Refresh

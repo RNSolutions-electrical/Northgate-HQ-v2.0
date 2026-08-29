@@ -5872,7 +5872,7 @@ export function JobsWorkspace({ permissions }) {
               <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
             ) : (
               <>
-                <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>Views</button>
+                <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>Page Menu</button>
                 <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>Refresh</button>
                 <button type="button" className="primary-button" onClick={startJobCreate} disabled={!canCreateJobs}><Plus aria-hidden="true" /> Create Job</button>
               </>

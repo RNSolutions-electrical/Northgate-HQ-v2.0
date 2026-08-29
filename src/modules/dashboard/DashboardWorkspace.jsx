@@ -588,7 +588,7 @@ export function DashboardWorkspace({ permissions }) {
         )}
         actions={(
           <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-            Sections
+            Page Menu
           </button>
         )}
       />

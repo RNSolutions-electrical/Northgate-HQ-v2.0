@@ -586,7 +586,7 @@ export function ReportsWorkspace({ permissions }) {
         actions={(
           <>
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-              Sections
+              Page Menu
             </button>
             <button type="button" className="secondary-button" onClick={reports.reload} disabled={reports.isLoading}>
               <RefreshCw aria-hidden="true" /> Refresh

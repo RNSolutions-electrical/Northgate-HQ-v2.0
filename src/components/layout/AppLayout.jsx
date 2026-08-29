@@ -66,6 +66,7 @@ export function AppLayout() {
   )?.key;
 
   const navItems = permittedNavigationGroups(permissions);
+  const activeModule = modules.find((module) => module.key === activeKey);
 
   return (
     <>
@@ -75,6 +76,21 @@ export function AppLayout() {
       buildLabel="v3.0"
       navItems={navItems}
       activeWorkspace={activeKey}
+      activeWorkspaceLabel={activeModule?.label ?? 'Workspace'}
+      workspaceResetKey={location.state?.workspaceHomeKey ?? location.pathname}
+      onBack={() => navigate(-1)}
+      onDashboard={() => navigate('/dashboard')}
+      onWorkspaceHome={() => {
+        if (!activeModule) {
+          navigate('/dashboard');
+          return;
+        }
+        const workspaceHomeKey = Date.now();
+        const navigationState = activeModule.key === 'jobs'
+          ? { directoryType: 'jobs', openJobsDirectory: workspaceHomeKey, workspaceHomeKey }
+          : { workspaceHomeKey };
+        navigate(activeModule.path, { state: navigationState });
+      }}
       onOpenWorkspace={(selection) => {
         const key = typeof selection === 'string' ? selection : selection?.key;
         const targetKey = selection?.path ? selection.key.replace(/-(service-calls|electrical|construction|admin|my-profile)$/, '') : key;

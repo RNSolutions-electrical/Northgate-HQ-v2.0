@@ -584,7 +584,7 @@ export function ToolsWorkspace({ permissions }) {
         actions={(
           <>
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-              Views
+              Page Menu
             </button>
             <button type="button" className="secondary-button" onClick={catalogue.reload} disabled={catalogue.isLoading}>
               Refresh

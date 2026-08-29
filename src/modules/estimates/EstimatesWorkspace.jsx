@@ -3110,7 +3110,7 @@ export function EstimatesWorkspace({ permissions }) {
             ) : (
               <>
                 <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-                  Views
+                  Page Menu
                 </button>
                 <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
                   Refresh
