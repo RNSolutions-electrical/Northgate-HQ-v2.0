@@ -4,12 +4,12 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `SILVER-LOCK-20260827-001`
-- Feature commit: `041ddd1`
+- Marker: `BRONZE-PAYAPP-20260829-001`
+- Feature commit: `cd4507b`
 - GitHub branch: `main`
-- Production deploy: `6a908ea4d1f585585730863b`
+- Production deploy: `6a927754f57b8f8c64ddcd25`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: August 27, 2026 (America/New_York)
+- Verified: August 29, 2026 (America/New_York)
 
 The hierarchy feature commit establishes the official Page/Card/Module/Function vocabulary,
 Department terminology for Northgate organizational scope, Inventory and Add-On
@@ -49,6 +49,13 @@ and explicit deny-direct-client policies. Existing scoped views and
 permission-checked RPCs remain the approved read/write boundary; legacy browser
 audit inserts now derive actor identity inside an authenticated RPC.
 
+The current marker completes the Job Billing Pay Application interface and its
+RPC-only production boundary. Billing now includes immutable application
+history, Draft line and header editing, approved Change Order synchronization,
+retainage and form selection, approval, idempotent Billed finalization, voiding,
+and controlled correction/reversal Pay Apps. Billed source applications remain
+locked, and production preserves the existing Draft Pay App.
+
 ## Superseded task-only marker
 
 `TEAL-MERIDIAN-20260826` was reported in a Codex task but was not committed to the repository. It is retained here so machines searching for that marker can resolve it to the feature commit above.
@@ -66,6 +73,7 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `SILVER-LOCK-20260827-001` — production RLS hardening, commits `041ddd1` and `e78f255`.
 - `ROSEWOOD-TASKS-20260827-001` — employee-owned private notes, to-do items, and Dashboard reminders, commits `9eca69a` and `aa3535f`.
 - `IVORY-EMPLOYEE-20260827-001` — secure employee self-service profile edit and vehicle-assignment history, commits `32f29e2` and `a8959f0`.
 - `COBALT-PROFILE-20260827-001` — secure self-profile read path, commits `d4f774c` and `b762939`.
