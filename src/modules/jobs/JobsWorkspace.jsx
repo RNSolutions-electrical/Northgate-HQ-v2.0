@@ -25,6 +25,7 @@ import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
 import { BUDGET_TEMPLATES } from './gablesServiceTemplate.js';
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
+import { BillingActions } from './BillingActions.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
 
@@ -5043,12 +5044,9 @@ export function JobsWorkspace({ permissions }) {
                 eyebrow="Billing"
                 title="Schedule of values"
                 description={`${formatMoney(scheduledRevenueTotal)} scheduled value across ${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}.`}
-                actions={canApproveSelectedBudget ? (
-                  <button type="button" className="primary-button" onClick={startRevenueAdd} disabled={isAddingRevenueLine || revenueForm.isSaving}>
-                    <Plus aria-hidden="true" /> Add SOV Line
-                  </button>
-                ) : null}
+                actions={null}
               />
+              <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} onComplete={jobRevenue.reload} />
               <DataTable
                 columns={revenueColumns}
                 rows={revenueRows}
