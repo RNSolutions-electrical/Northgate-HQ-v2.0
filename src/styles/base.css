@@ -2145,6 +2145,89 @@ textarea {
   border-bottom: 1px solid var(--ng-divider);
 }
 
+.pay-app-workspace {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--ng-divider);
+  padding-top: 1rem;
+}
+
+.pay-app-command-bar,
+.pay-app-section-heading,
+.pay-app-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pay-app-command-bar p,
+.pay-app-section-heading p,
+.pay-app-detail-header p { color: var(--ng-muted); }
+
+.pay-app-create-row,
+.pay-app-settings {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) auto minmax(145px, 1fr) minmax(190px, 1fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+  background: var(--ng-panel-bg-alt);
+  border: 1px solid var(--ng-divider);
+  padding: 0.85rem;
+}
+
+.pay-app-create-row label,
+.pay-app-settings label { display: grid; gap: 0.3rem; }
+.pay-app-create-row label > span,
+.pay-app-settings label > span { color: var(--ng-muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.pay-app-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 1rem; align-items: start; }
+.pay-app-history { display: grid; gap: 0.35rem; position: sticky; top: calc(var(--app-header-height) + 1rem); }
+.pay-app-history h4 { margin-bottom: 0.35rem; }
+.pay-app-history > button { display: grid; gap: 0.25rem; width: 100%; border: 1px solid var(--ng-divider); background: var(--ng-card-bg); padding: 0.7rem; text-align: left; }
+.pay-app-history > button:hover,
+.pay-app-history > button.is-active { border-color: var(--ng-brand-red); background: var(--ng-brand-red-soft); }
+.pay-app-history > button > span { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
+.pay-app-history small { color: var(--ng-muted); }
+.pay-app-history b { font-size: 0.78rem; }
+
+.pay-app-detail { min-width: 0; display: grid; gap: 1rem; }
+.pay-app-totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--ng-divider); }
+.pay-app-totals > div { display: grid; gap: 0.25rem; padding: 0.75rem; border-right: 1px solid var(--ng-divider); }
+.pay-app-totals > div:last-child { border-right: 0; }
+.pay-app-totals span { color: var(--ng-muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
+.pay-app-totals strong { font-size: 0.95rem; }
+.pay-app-settings { grid-template-columns: repeat(4, minmax(130px, 1fr)) auto; }
+
+.pay-app-table-wrap { overflow-x: auto; border: 1px solid var(--ng-divider); }
+.pay-app-table { width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 0.75rem; }
+.pay-app-table th { background: var(--ng-panel-bg-alt); color: var(--ng-muted); text-align: left; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.05em; }
+.pay-app-table th,
+.pay-app-table td { padding: 0.55rem; border-bottom: 1px solid var(--ng-divider); vertical-align: middle; }
+.pay-app-table tr:last-child td { border-bottom: 0; }
+.pay-app-table input { width: 100%; min-width: 105px; }
+.pay-app-line-description { display: block; margin-top: 0.2rem; color: var(--ng-muted); max-width: 260px; }
+.pay-app-line-error { color: var(--ng-err); }
+.pay-app-workflow-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; border-top: 1px solid var(--ng-divider); padding-top: 1rem; }
+.pay-app-audit { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border: 1px solid var(--ng-divider); }
+.pay-app-audit > div { padding: 0.75rem; border-right: 1px solid var(--ng-divider); }
+.pay-app-audit > div:last-child { border-right: 0; }
+.pay-app-audit dt { color: var(--ng-muted); font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
+.pay-app-audit dd { margin: 0.3rem 0 0; font-size: 0.74rem; }
+
+@media (max-width: 900px) {
+  .pay-app-create-row,
+  .pay-app-settings { grid-template-columns: 1fr 1fr; }
+  .pay-app-layout { grid-template-columns: 1fr; }
+  .pay-app-history { position: static; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .pay-app-history h4 { grid-column: 1 / -1; }
+  .pay-app-totals { grid-template-columns: 1fr 1fr; }
+  .pay-app-totals > div { border-bottom: 1px solid var(--ng-divider); }
+  .pay-app-audit { grid-template-columns: 1fr; }
+  .pay-app-audit > div { border-right: 0; border-bottom: 1px solid var(--ng-divider); }
+}
+
 .jobs-directory-tabs {
   display: flex;
   gap: 0;

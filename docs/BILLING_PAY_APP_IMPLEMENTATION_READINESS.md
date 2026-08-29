@@ -26,12 +26,21 @@
 - **Legacy SOV:** the existing manually entered SOV record is preserved. It requires an explicit, audited controlled reallocation before the first Pay App; it will not be silently rewritten.
 - **Form choices:** Billing supports a selected AIA, GMP, Residential, Commercial, or Custom Uploaded form framework. Actual owned/licensed form files remain external job documents until supplied.
 
-## Local work completed
+## Interface work completed — 2026-08-29
 
 - Added fixed-cent allocation and incremental-pay-app calculation helpers in `src/modules/jobs/billingMath.js`.
 - Added unit coverage for cent-level OH&P reconciliation, SOV reconciliation, and overbilling prevention.
 - Added a single template-choice registry in `src/modules/jobs/billingPayAppTemplates.js`; it does not embed or redistribute third-party forms.
+- Added an RPC-scoped application history with immutable SOV and Change Order snapshots.
+- Added Draft header editing for billing periods, retainage, and form framework.
+- Added line-level percentage billing, explicit amount overrides with required reasons, and approved Change Order synchronization.
+- Added approval, return-to-Draft, idempotent Billed finalization, and Draft/Approved void workflows.
+- Added controlled correction and exact reversal Pay Apps; billed source applications remain locked.
+- Added actor, timestamp, approval, billing, void, override, and correction-reason presentation in the Billing interface.
+- Added responsive Pay App navigation and detail layouts without introducing a second Billing route.
 
 ## Draft migration safeguard
 
-`supabase/migrations/20260828040208_redefine_job_billing_pay_apps.sql` is now applied to production. It extends the existing SOV table and adds the Pay App headers, snapshots, server-side operations, and RPC-only RLS boundary. The initial UI exposes SOV initialization and Draft Pay App creation; detailed draft editing, approval, billing, and history presentation are the next interface pass.
+`supabase/migrations/20260828040208_redefine_job_billing_pay_apps.sql` is applied to production. It extends the existing SOV table and adds the Pay App headers, snapshots, server-side operations, and RPC-only RLS boundary.
+
+`supabase/migrations/20260829052058_complete_job_pay_app_interface.sql` completes the read and workflow RPC boundary required by the interface above. It passed a transactional validation against the production schema, but production application requires explicit approval because it creates and replaces security-definer financial workflow functions and updates their execution grants.
