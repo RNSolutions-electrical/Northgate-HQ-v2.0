@@ -4,12 +4,13 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `BRONZE-PAYAPP-20260829-001`
-- Feature commit: `cd4507b`
+- Marker: `SAPPHIRE-UNISON-20260901-001`
+- Baseline commit: `39cf0c1`
+- Mobile feature commit: `947b9b5`
 - GitHub branch: `main`
-- Production deploy: `6a927754f57b8f8c64ddcd25`
+- Production deploy: `6a92e0733797340009f6ddf6`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: August 29, 2026 (America/New_York)
+- Verified: September 1, 2026 (America/New_York)
 
 The hierarchy feature commit establishes the official Page/Card/Module/Function vocabulary,
 Department terminology for Northgate organizational scope, Inventory and Add-On
@@ -56,6 +57,15 @@ retainage and form selection, approval, idempotent Billed finalization, voiding,
 and controlled correction/reversal Pay Apps. Billed source applications remain
 locked, and production preserves the existing Draft Pay App.
 
+The current marker also records the production mobile-navigation release. Phone
+and tablet layouts now provide persistent Back, Workspace Home, Dashboard, and
+App Menu controls; shared workspace tabs collapse into a focused section menu;
+and existing workspace navigation controls use the consistent Page Menu label.
+
+The baseline includes the shared Production Mode / Exploration Mode discipline
+protocol in `AGENTS.md` and `docs/CODEX_DISCIPLINE_PROTOCOL.md`. The protocol is
+documentation-only and does not require a separate production deployment.
+
 ## Superseded task-only marker
 
 `TEAL-MERIDIAN-20260826` was reported in a Codex task but was not committed to the repository. It is retained here so machines searching for that marker can resolve it to the feature commit above.
@@ -73,6 +83,9 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `COBALT-FOCUS-20260901-001` — shared production/exploration discipline protocol, commit `39cf0c1`.
+- `MOBILE-NAV-20260829-947B9B5` — mobile navigation production release, commit `947b9b5`, deploy `6a92e0733797340009f6ddf6`; originally reported in task chat and made repository-visible by `SAPPHIRE-UNISON-20260901-001`.
+- `BRONZE-PAYAPP-20260829-001` — Billing Pay App workflow and production record, commits `cd4507b` and `78a83e5`, deploy `6a927754f57b8f8c64ddcd25`.
 - `SILVER-LOCK-20260827-001` — production RLS hardening, commits `041ddd1` and `e78f255`.
 - `ROSEWOOD-TASKS-20260827-001` — employee-owned private notes, to-do items, and Dashboard reminders, commits `9eca69a` and `aa3535f`.
 - `IVORY-EMPLOYEE-20260827-001` — secure employee self-service profile edit and vehicle-assignment history, commits `32f29e2` and `a8959f0`.
