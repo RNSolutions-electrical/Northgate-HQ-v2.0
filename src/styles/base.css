@@ -2346,6 +2346,8 @@ textarea {
 .pay-app-line-description { display: block; margin-top: 0.2rem; color: var(--ng-muted); max-width: 260px; }
 .pay-app-line-error { color: var(--ng-err); }
 .pay-app-workflow-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; border-top: 1px solid var(--ng-divider); padding-top: 1rem; }
+.pay-app-workflow-actions--prominent { align-items: center; border: 1px solid var(--ng-brand-red); background: var(--ng-brand-red-soft); padding: 0.75rem; }
+.pay-app-next-step { flex: 1 1 240px; font-size: 0.78rem; font-weight: 700; }
 .pay-app-audit { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border: 1px solid var(--ng-divider); }
 .pay-app-audit > div { padding: 0.75rem; border-right: 1px solid var(--ng-divider); }
 .pay-app-audit > div:last-child { border-right: 0; }
