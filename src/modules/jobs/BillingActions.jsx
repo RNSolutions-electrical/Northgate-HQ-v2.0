@@ -18,13 +18,20 @@ const hasPayValue = (row, kind) => Number(kind === 'co' ? row.approved_value : r
 
 function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttempt }) {
   const { getToken } = useAuth();
-  const [percent, setPercent] = useState(String(row.additional_percent ?? 0));
+  const scheduled = Number(kind === 'co' ? row.approved_value : row.scheduled_value_amount) || 0;
+  const previousBilled = Number(row.previous_billed_amount || 0);
+  const previousPercent = scheduled === 0 ? 0 : previousBilled * 100 / scheduled;
+  const savedPercent = Number(row.additional_percent || 0);
+  const initialPercent = savedPercent === 0 && Math.abs(previousBilled) > 0.005 && Math.abs(Number(row.final_current_amount || 0)) < 0.005
+    ? previousPercent
+    : savedPercent;
+  const [percent, setPercent] = useState(String(initialPercent));
   const [override, setOverride] = useState(row.override_reason ? String(row.final_current_amount ?? '') : '');
   const [reason, setReason] = useState(row.override_reason || '');
   const [state, setState] = useState({ working: false, error: '' });
-  const scheduled = Number(kind === 'co' ? row.approved_value : row.scheduled_value_amount) || 0;
-  const preview = override === '' ? scheduled * (Number(percent) || 0) / 100 : Number(override || 0);
-  const remainingPreview = scheduled - Number(row.previous_billed_amount || 0) - preview;
+  const targetBilled = scheduled * (Number(percent) || 0) / 100;
+  const preview = override === '' ? targetBilled - previousBilled : Number(override || 0);
+  const remainingPreview = scheduled - previousBilled - preview;
   const fullyBilled = Math.abs(Number(row.previous_billed_amount || row.billed_to_date_amount || 0)) >= Math.abs(scheduled) && Math.abs(scheduled) > 0;
   const rowState = fullyBilled ? 'is-complete' : Math.abs(preview) > 0.005 ? 'is-in-progress' : hasPayValue(row, kind) ? 'is-unbilled' : 'is-empty';
 
@@ -43,8 +50,8 @@ function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttemp
   return <tr data-pay-app-row={row.id} data-pay-app-kind={kind} className={`pay-app-table__row--${rowState}`}>
     <td><strong>{kind === 'co' ? row.co_number : row.cost_code || '—'}</strong><span className="pay-app-line-description">{row.description}</span></td>
     <td className="numeric-cell">{money(scheduled)}</td><td className="numeric-cell">{money(row.previous_billed_amount)}</td>
-    <td className="pay-app-table__compact">{editable ? <input data-pay-field="percent" aria-label={`Additional percent for ${row.description}`} type="number" step="0.01" value={percent} onClick={() => fullyBilled && onFullyBilledAttempt?.(row)} onChange={(event) => { if (!fullyBilled) setPercent(event.target.value); }} readOnly={fullyBilled} aria-disabled={fullyBilled} /> : `${Number(row.additional_percent || 0).toFixed(2)}%`}</td>
-    <td className="pay-app-table__compact">{editable ? <input data-pay-field="override" aria-label={`Override amount for ${row.description}`} type="number" step="0.01" value={override} onClick={() => fullyBilled && onFullyBilledAttempt?.(row)} onChange={(event) => { if (!fullyBilled) setOverride(event.target.value); }} readOnly={fullyBilled} aria-disabled={fullyBilled} placeholder={money(scheduled * (Number(percent) || 0) / 100)} /> : money(row.final_current_amount)}</td>
+    <td className="pay-app-table__compact">{editable ? <input data-pay-field="percent" aria-label={`Percentage complete for ${row.description}`} type="number" min="0" max="100" step="0.01" value={percent} onClick={() => fullyBilled && onFullyBilledAttempt?.(row)} onChange={(event) => { if (!fullyBilled) setPercent(event.target.value); }} readOnly={fullyBilled} aria-disabled={fullyBilled} /> : `${Number((row.resulting_percent ?? row.additional_percent) || 0).toFixed(2)}%`}</td>
+    <td className="pay-app-table__compact">{editable ? <input data-pay-field="override" aria-label={`Override amount for ${row.description}`} type="number" step="0.01" value={override} onClick={() => fullyBilled && onFullyBilledAttempt?.(row)} onChange={(event) => { if (!fullyBilled) setOverride(event.target.value); }} readOnly={fullyBilled} aria-disabled={fullyBilled} placeholder={money(targetBilled - previousBilled)} /> : money(row.final_current_amount)}</td>
     <td className="numeric-cell">{money(editable ? preview : row.final_current_amount)}</td>
     <td className="numeric-cell">{money(editable ? remainingPreview : row.remaining_amount)}</td>
     <td>{editable ? <input data-pay-field="reason" aria-label={`Reason for ${row.description}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder={correction || override !== '' ? 'Required reason' : 'Only for overrides'} /> : row.override_reason || '—'}</td>
@@ -167,5 +174,5 @@ export function BillingActions({ jobId, canManage, onComplete }) {
 function PayTable({ titleText, note, rows, kind, editable, correction, load, action, showEmptyLines, onFullyBilledAttempt }) {
   const visibleRows = showEmptyLines ? rows : rows.filter((row) => hasPayValue(row, kind));
   const hiddenCount = rows.length - visibleRows.length;
-  return <><div className="pay-app-section-heading"><div><h4>{titleText}</h4><p>{note}{hiddenCount ? ` · ${hiddenCount} zero-value line${hiddenCount === 1 ? '' : 's'} collapsed.` : ''}</p></div>{action}</div><div className="pay-app-table-wrap"><table className="pay-app-table"><thead><tr><th>Line / Description</th><th>{kind === 'co' ? 'Approved' : 'Scheduled'}</th><th>Previous</th><th className="pay-app-table__compact">Additional %</th><th className="pay-app-table__compact">Override</th><th>Current</th><th>Remaining to Bill</th><th>Reason</th><th>{editable ? 'Action' : 'Billed to date'}</th></tr></thead><tbody>{visibleRows.map((row) => <PayLine key={`${row.id}-${row.updated_at}`} row={row} kind={kind} editable={editable} correction={correction} onSaved={load} onFullyBilledAttempt={onFullyBilledAttempt} />)}{!visibleRows.length ? <tr><td colSpan="9">No billable values are visible. Select “Show zero-value lines” to review them.</td></tr> : null}</tbody></table></div></>;
+  return <><div className="pay-app-section-heading"><div><h4>{titleText}</h4><p>{note}{hiddenCount ? ` · ${hiddenCount} zero-value line${hiddenCount === 1 ? '' : 's'} collapsed.` : ''}</p></div>{action}</div><div className="pay-app-table-wrap"><table className="pay-app-table"><thead><tr><th>Line / Description</th><th>{kind === 'co' ? 'Approved' : 'Scheduled'}</th><th>Previous</th><th className="pay-app-table__compact">Percentage Complete</th><th className="pay-app-table__compact">Override</th><th>Current</th><th>Remaining to Bill</th><th>Reason</th><th>{editable ? 'Action' : 'Billed to date'}</th></tr></thead><tbody>{visibleRows.map((row) => <PayLine key={`${row.id}-${row.updated_at}`} row={row} kind={kind} editable={editable} correction={correction} onSaved={load} onFullyBilledAttempt={onFullyBilledAttempt} />)}{!visibleRows.length ? <tr><td colSpan="9">No billable values are visible. Select “Show zero-value lines” to review them.</td></tr> : null}</tbody></table></div></>;
 }

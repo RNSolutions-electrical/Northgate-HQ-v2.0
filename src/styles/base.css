@@ -2342,13 +2342,13 @@ textarea {
 .pay-app-table th,
 .pay-app-table td { padding: 0.55rem; border-bottom: 1px solid var(--ng-divider); vertical-align: middle; }
 .pay-app-table tr:last-child td { border-bottom: 0; }
-.pay-app-table__row--unbilled { background: color-mix(in srgb, var(--ng-brand-red-soft) 72%, var(--ng-card-bg)); }
-.pay-app-table__row--in-progress { background: #fff6cf; }
-.pay-app-table__row--complete { background: #e7f5ec; }
-.pay-app-table__row--unbilled:hover { background: var(--ng-brand-red-soft); }
-.pay-app-table__row--in-progress:hover { background: #ffefaa; }
-.pay-app-table__row--complete:hover { background: #d8f0e1; }
-.pay-app-table__compact { width: 110px; min-width: 110px; }
+.pay-app-table__row--unbilled > td { background: color-mix(in srgb, var(--ng-brand-red-soft) 72%, var(--ng-card-bg)); }
+.pay-app-table__row--in-progress > td { background: #fff6cf; }
+.pay-app-table__row--complete > td { background: #e7f5ec; }
+.pay-app-table__row--unbilled:hover > td { background: var(--ng-brand-red-soft); }
+.pay-app-table__row--in-progress:hover > td { background: #ffefaa; }
+.pay-app-table__row--complete:hover > td { background: #d8f0e1; }
+.pay-app-table__compact { width: 92px; min-width: 92px; }
 .pay-app-edit-controls { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; }
 .pay-app-edit-controls label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--ng-muted); }
 .pay-app-audit summary { cursor: pointer; padding: 0.75rem; font-weight: 800; }
