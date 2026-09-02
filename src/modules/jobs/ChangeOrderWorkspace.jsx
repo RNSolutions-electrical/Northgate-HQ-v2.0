@@ -162,7 +162,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       setAction({ name: '', error: new Error('Change Order number, title, and audit reason are required.'), success: '' });
       return null;
     }
-    if (lines.some((line) => !line.job_budget_line_id || !line.description.trim())) {
+    const meaningfulLines = lines.filter((line) => line.job_budget_line_id || line.description.trim() || lineTotal(line) > 0);
+    if (meaningfulLines.some((line) => !line.job_budget_line_id || !line.description.trim())) {
       setAction({ name: '', error: new Error('Every breakdown line needs a financial line and description.'), success: '' });
       return null;
     }
@@ -178,7 +179,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         p_description: form.description.trim() || null,
         p_change_order_date: form.change_order_date,
         p_internal_notes: form.internal_notes.trim() || null,
-        p_lines: lines.map((line, index) => ({ ...line, sort_order: index, key: undefined, id: undefined })),
+        p_lines: meaningfulLines.map((line, index) => ({ ...line, sort_order: index, key: undefined, id: undefined })),
         p_reason: form.reason.trim(),
       });
       if (error) throw error;

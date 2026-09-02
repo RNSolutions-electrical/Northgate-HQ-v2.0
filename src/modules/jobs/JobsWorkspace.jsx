@@ -23,7 +23,6 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
-import { BUDGET_TEMPLATES } from './gablesServiceTemplate.js';
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
@@ -2184,6 +2183,9 @@ export function JobsWorkspace({ permissions }) {
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
+  const [financialCatalogue, setFinancialCatalogue] = useState([]);
+  const [catalogueSearch, setCatalogueSearch] = useState('');
+  const [catalogueSelectedIds, setCatalogueSelectedIds] = useState([]);
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
   const [isAddingScheduleItem, setIsAddingScheduleItem] = useState(false);
   const [jobAssignmentAction, setJobAssignmentAction] = useState({ userId: '', error: null });
@@ -2232,10 +2234,30 @@ export function JobsWorkspace({ permissions }) {
     ?? null;
   const isDirectoryMode = !selectedJob && mode === 'browse';
   const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit' || Boolean(buyoutWorkspaceMode);
-  const availableBudgetTemplates = BUDGET_TEMPLATES.filter((template) => !template.division || template.division === selectedJob?.division);
+  const visibleCatalogueLines = useMemo(() => {
+    const needle = catalogueSearch.trim().toLowerCase();
+    return financialCatalogue.filter((line) => !needle || [line.division_code, line.division_name, line.subdivision_name, line.cost_code, line.description].join(' ').toLowerCase().includes(needle));
+  }, [catalogueSearch, financialCatalogue]);
   const canManageSelectedJob = canEditJobWithPermission(permissions, selectedJob, 'canManageJobs');
   const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
+  useEffect(() => {
+    let active = true;
+    async function loadFinancialCatalogue() {
+      if (!selectedJob?.id || !canApproveSelectedBudget || permissions.permissionSource !== 'server') return;
+      try {
+        const token = await getToken({ template: 'supabase' });
+        const client = createSupabaseClient(token);
+        const { data, error } = await client.from('financial_line_catalogue').select('id,division_code,division_name,subdivision_name,cost_code,description,category,is_protected_financial,sort_order').eq('is_active', true).order('sort_order');
+        if (error) throw error;
+        if (active) setFinancialCatalogue(data || []);
+      } catch (error) {
+        if (active) setBudgetTemplateAction((current) => ({ ...current, error }));
+      }
+    }
+    loadFinancialCatalogue();
+    return () => { active = false; };
+  }, [canApproveSelectedBudget, getToken, permissions.permissionSource, selectedJob?.id]);
   const jobDocuments = useJobDocuments({
     enabled: permissions.permissionSource === 'server' && ['overview', 'documents', 'buyout'].includes(activeTab) && Boolean(selectedJob?.id),
     jobId: selectedJob?.id,
@@ -3185,16 +3207,14 @@ export function JobsWorkspace({ permissions }) {
       return;
     }
 
-    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
     const basePayload = buildBudgetPayload();
     const existingRow = budgetForm.id
       ? jobBudget.lines.find((line) => line.id === budgetForm.id)
       : null;
-    const needsReason = budgetProtectedFieldsChanged(existingRow, basePayload);
-    if (needsReason && !budgetForm.change_reason.trim()) {
+    if (!budgetForm.change_reason.trim()) {
       setBudgetForm((current) => ({
         ...current,
-        error: new Error('Enter a reason when changing original budget, cost code, description, or category.'),
+        error: new Error('Enter an audit reason before saving this financial line.'),
       }));
       return;
     }
@@ -3209,36 +3229,26 @@ export function JobsWorkspace({ permissions }) {
         throw new Error('Choose a project division by using its Add line button.');
       }
       const payload = { ...basePayload, project_division_id: projectDivisionId };
-      const query = budgetForm.id
-        ? client
-          .from('job_budget_lines')
-          .update(payload)
-          .eq('id', budgetForm.id)
-          .eq('job_id', selectedJob.id)
-          .select(JOB_BUDGET_SELECT_FIELDS)
-          .single()
-        : client
-          .from('job_budget_lines')
-          .insert({
-            ...payload,
-            job_id: selectedJob.id,
-            division: selectedJob.division,
-            created_by: createdBy,
-          })
-          .select(JOB_BUDGET_SELECT_FIELDS)
-          .single();
-      const { data, error } = await query;
+      const { data, error } = await client.rpc('save_job_financial_line', {
+        p_job_id: selectedJob.id,
+        p_line_id: budgetForm.id || null,
+        p_project_division_id: projectDivisionId,
+        p_category: payload.category,
+        p_is_protected_financial: payload.is_protected_financial,
+        p_cost_code: payload.cost_code,
+        p_description: payload.description,
+        p_budget_amount: payload.budget_amount,
+        p_budget_change_amount: payload.budget_change_amount,
+        p_actual_cost_amount: payload.actual_cost_amount,
+        p_committed_cost_amount: payload.committed_cost_amount,
+        p_forecast_to_complete_amount: payload.forecast_to_complete_amount,
+        p_forecast_final_amount: payload.forecast_final_amount,
+        p_schedule_of_values_amount: payload.schedule_of_values_amount,
+        p_note: payload.note,
+        p_reason: budgetForm.change_reason.trim(),
+      });
 
       if (error) throw error;
-
-      await writeJobChangeLog(client, {
-        action: budgetForm.id ? 'update' : 'create',
-        recordId: data?.id || budgetForm.id,
-        beforeData: budgetAuditSnapshot(existingRow),
-        afterData: budgetAuditSnapshot(data),
-        note: budgetForm.change_reason.trim()
-          || `Financial line ${data?.description || payload.description} ${budgetForm.id ? 'updated' : 'created'}.`,
-      });
 
       setBudgetForm({
         ...DEFAULT_BUDGET_FORM,
@@ -3532,6 +3542,31 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function applySelectedCatalogueLines() {
+    if (!selectedJob || !canApproveSelectedBudget || budgetTemplateAction.key) return;
+    if (!catalogueSelectedIds.length) {
+      setBudgetTemplateAction({ key: '', error: new Error('Select at least one financial line from the catalogue.'), success: '' });
+      return;
+    }
+    if (!window.confirm(`Add or align ${catalogueSelectedIds.length} selected catalogue line${catalogueSelectedIds.length === 1 ? '' : 's'}? Existing financial amounts will not be changed.`)) return;
+    setBudgetTemplateAction({ key: 'catalogue', error: null, success: '' });
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { data, error } = await client.rpc('apply_financial_catalogue_to_job', {
+        p_job_id: selectedJob.id,
+        p_catalogue_ids: catalogueSelectedIds,
+        p_reason: 'Applied selected financial-line catalogue entries to this job.',
+      });
+      if (error) throw error;
+      setBudgetTemplateAction({ key: '', error: null, success: `${data?.divisions_added || 0} project division(s) added, ${data?.lines_added || 0} financial line(s) added, and ${data?.lines_aligned || 0} existing line(s) aligned. Financial values were preserved.` });
+      setCatalogueSelectedIds([]);
+      jobBudget.reload();
+    } catch (error) {
+      setBudgetTemplateAction({ key: '', error, success: '' });
+    }
+  }
+
   async function handleBudgetBulkInput(event) {
     event.preventDefault();
 
@@ -3809,7 +3844,15 @@ export function JobsWorkspace({ permissions }) {
       });
 
       if (!matchedCount) {
-        throw new Error('No cost codes in the report matched this job financials table.');
+        const reportCodes = new Set([...actualsByCode.keys()].map(normalizeCostCode));
+        const suggestedCatalogueIds = financialCatalogue
+          .filter((line) => reportCodes.has(normalizeCostCode(line.cost_code)))
+          .map((line) => line.id);
+        if (suggestedCatalogueIds.length) {
+          setCatalogueSelectedIds(suggestedCatalogueIds);
+          throw new Error(`${suggestedCatalogueIds.length} exact cost-code match${suggestedCatalogueIds.length === 1 ? '' : 'es'} were selected in Add financial lines. Add them first, then import this report again; no financial amount has been changed.`);
+        }
+        throw new Error('No report cost codes matched this job or the shared financial-line catalogue. Add a manual line or update the catalogue before importing.');
       }
 
       if (!updates.length) {
@@ -5210,21 +5253,17 @@ export function JobsWorkspace({ permissions }) {
 
           {canApproveSelectedBudget ? (
             <>
-              {availableBudgetTemplates.length ? (
-                <section className="job-financials-form" aria-label="Financial templates">
-                  <Toolbar
-                    eyebrow="Templates"
-                    title="Use a financial template"
-                    description="Templates create project-division headings and financial lines by cost code. Existing matching lines are aligned to the template without changing financial amounts."
-                  />
-                  {availableBudgetTemplates.map((template) => (
-                    <div className="job-financials-form__actions" key={template.key}>
-                      <span>{template.name} - {template.divisions?.length || 0} project divisions, {template.lines.length} financial lines</span>
-                      <button type="button" className="secondary-button" onClick={() => handleBudgetTemplateUse(template)} disabled={Boolean(budgetTemplateAction.key) || jobBudget.isLoading}>
-                        {budgetTemplateAction.key === template.key ? 'Applying...' : 'Use Template'}
-                      </button>
-                    </div>
-                  ))}
+              {financialCatalogue.length ? (
+                <section className="job-financials-form" aria-label="Financial line catalogue">
+                  <Toolbar eyebrow="Templates" title="Add financial lines" description="Search the shared catalogue, select one line or an entire project Division, then add them without changing existing financial amounts." />
+                  <div className="job-financials-form__grid">
+                    <label className="job-financials-form__wide"><span>Search cost codes or descriptions</span><input value={catalogueSearch} onChange={(event) => setCatalogueSearch(event.target.value)} placeholder="e.g. 16, electrical labor, fixtures" /></label>
+                    <label className="job-financials-form__full"><span>Financial-line catalogue</span><select multiple size="10" value={catalogueSelectedIds} onChange={(event) => setCatalogueSelectedIds(Array.from(event.target.selectedOptions, (option) => option.value))}>{visibleCatalogueLines.map((line) => <option key={line.id} value={line.id}>{line.cost_code} — {line.division_name} — {line.description}</option>)}</select></label>
+                  </div>
+                  <div className="job-financials-form__actions">
+                    <button type="button" className="secondary-button" onClick={() => setCatalogueSelectedIds(visibleCatalogueLines.map((line) => line.id))}>Select visible</button>
+                    <button type="button" className="primary-button" onClick={applySelectedCatalogueLines} disabled={Boolean(budgetTemplateAction.key) || !catalogueSelectedIds.length || jobBudget.isLoading}>{budgetTemplateAction.key === 'catalogue' ? 'Adding...' : `Add ${catalogueSelectedIds.length || ''} selected line${catalogueSelectedIds.length === 1 ? '' : 's'}`}</button>
+                  </div>
                   {budgetTemplateAction.error ? (
                     <StatePanel tone="danger" eyebrow="Template Failed" title="Financial template was not applied" description={budgetTemplateAction.error.message || 'Unexpected template error.'} compact />
                   ) : null}

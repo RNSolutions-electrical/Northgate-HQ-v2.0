@@ -26,6 +26,7 @@ import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } fr
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
+import { FinancialLineCatalogueConsole } from './FinancialLineCatalogueConsole.jsx';
 import {
   DEVELOPER_HELPFUL_LINKS,
   FUTURE_USER_MANAGEMENT_CAPABILITIES,
@@ -1308,6 +1309,7 @@ export function DeveloperWorkspace({ permissions }) {
 
       {activeConsolePage === 'systems' ? (
       <div className="developer-systems-page">
+        <FinancialLineCatalogueConsole />
         <DeveloperHelpfulLinks />
 
         <aside className="developer-future-note ng-incomplete-component" aria-labelledby="developer-future-note-title">
