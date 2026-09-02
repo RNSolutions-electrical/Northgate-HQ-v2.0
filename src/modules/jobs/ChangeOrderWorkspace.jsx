@@ -184,7 +184,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       });
       if (error) throw error;
       setOrder(data);
-      setForm((current) => ({ ...current, reason: '' }));
+      // Keep the reopening reason through the next draft save so users do not
+      // have to type the same explanation twice for one controlled edit.
       setAction({ name: '', error: null, success: 'Draft saved.' });
       onChanged?.();
       return data;
@@ -354,14 +355,17 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
 
   async function editSubmittedOrder() {
     if (!order?.id || order.status !== 'submitted' || order.signed_document_id || !canCreate || !canSubmit || action.name) return;
-    const reason = window.prompt(`Return ${order.co_number} to draft for editing? Enter the required audit reason.`);
-    if (!reason?.trim()) return;
+    if (!form.reason.trim()) {
+      setAction({ name: '', error: new Error('Enter the reason for returning this submitted Change Order to draft.'), success: '' });
+      return;
+    }
     setAction({ name: 'reopen', error: null, success: '' });
     try {
       const db = await client();
-      const { data, error } = await db.rpc('reopen_submitted_job_change_order', { p_change_order_id: order.id, p_reason: reason.trim() });
+      const { data, error } = await db.rpc('reopen_submitted_job_change_order', { p_change_order_id: order.id, p_reason: form.reason.trim() });
       if (error) throw error;
       setOrder(data);
+      setForm((current) => ({ ...current, reason: '' }));
       setAction({ name: '', error: null, success: 'Change Order returned to draft. You can now edit and resubmit it; the transition was added to the audit trail.' });
       onChanged?.();
     } catch (error) { setAction({ name: '', error, success: '' }); }
@@ -419,7 +423,6 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         <StatusBadge status={order?.status || 'draft'}>{order?.status || 'draft'}</StatusBadge>
       </div>
       {order ? <div className="change-order-workspace__actions">
-        {order.status === 'submitted' && !order.signed_document_id && canCreate && canSubmit ? <button type="button" className="secondary-button" onClick={editSubmittedOrder} disabled={Boolean(action.name)}><Save aria-hidden="true" /> {action.name === 'reopen' ? 'Returning to Draft...' : 'Edit Submitted Change Order'}</button> : null}
         {order.status === 'approved' && canRevise ? <button type="button" className="secondary-button" onClick={createRevision} disabled={Boolean(action.name)}><Copy aria-hidden="true" /> Create Editable Revision</button> : null}
         {order.status === 'approved' && canRevise ? <button type="button" className="secondary-button secondary-button--danger" onClick={voidApprovedOrder} disabled={Boolean(action.name)}><Ban aria-hidden="true" /> {action.name === 'void' ? 'Voiding & Reversing...' : 'Void Approved Change Order'}</button> : null}
       </div> : null}
@@ -467,32 +470,34 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         </div>
       </div>
 
-      {order?.status === 'submitted' && canVerify ? <div className="change-order-workspace__panel">
-        <Toolbar eyebrow="Signed Authorization" title="Upload and verify signed Change Order" description="The file is stored once and also appears in the project Documents tab. No OCR or automated signature detection is performed." />
-        <div className="change-order-verification">
+      {order?.status === 'submitted' ? <div className="change-order-workspace__panel">
+        <Toolbar eyebrow="Next step" title="Client authorization and decision" description="1. Export the client PDF. 2. Upload and verify the signed authorization. 3. Record the client’s approved or denied decision." />
+        <div className="change-order-workspace__actions">
+          {canSubmit ? <button type="button" className="secondary-button" onClick={exportPdf} disabled={Boolean(action.name)}><Download aria-hidden="true" /> Export PDF for signature</button> : null}
+          {canCreate && canSubmit && !order.signed_document_id ? <label className="change-order-action-reason"><span>Return to draft reason</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required only to reopen for edits" /><button type="button" className="secondary-button" onClick={editSubmittedOrder} disabled={Boolean(action.name) || !form.reason.trim()}><Save aria-hidden="true" /> Edit submitted Change Order</button></label> : null}
+        </div>
+        {canVerify ? <div className="change-order-verification">
           <label><span>Signed document (PDF preferred)</span><input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(e) => setVerification((current) => ({ ...current, file: e.target.files?.[0] || null }))} disabled={action.name} /></label>
           <label><span>Verification name / initials</span><input value={verification.name} onChange={(e) => setVerification((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
-          <label className="change-order-verification__certify"><input type="checkbox" checked={verification.certified} onChange={(e) => setVerification((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I have reviewed the attached document and verified that it is the signed/authorized approval for this Change Order.</span></label>
-          <button type="button" className="primary-button" onClick={uploadAndVerify} disabled={Boolean(action.name) || !verification.file || !verification.name.trim() || !verification.certified}><FileCheck2 aria-hidden="true" /> {action.name === 'verify' ? 'Uploading...' : 'Upload & Verify'}</button>
-        </div>
-      </div> : null}
-
-      {order?.status === 'submitted' && canApprove ? <div className="change-order-workspace__panel">
-        <Toolbar eyebrow="Client Decision" title="Approve or deny Change Order" description="Both outcomes require approval authority and an explicit employee certification. Approval posts to Financials; denial does not." />
-        <div className="change-order-verification">
+          <label className="change-order-verification__certify"><input type="checkbox" checked={verification.certified} onChange={(e) => setVerification((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed the attached document and verified it is the signed client authorization.</span></label>
+          <button type="button" className="primary-button" onClick={uploadAndVerify} disabled={Boolean(action.name) || !verification.file || !verification.name.trim() || !verification.certified}><FileCheck2 aria-hidden="true" /> {action.name === 'verify' ? 'Uploading...' : 'Upload signed authorization'}</button>
+        </div> : null}
+        {canApprove ? <div className="change-order-verification">
           <label><span>Decision name / initials</span><input value={decision.name} onChange={(e) => setDecision((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
-          <label className="change-order-verification__certify"><input type="checkbox" checked={decision.certified} onChange={(e) => setDecision((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed this Change Order and am recording the client’s explicit decision.</span></label>
-        </div>
+          <label className="change-order-verification__certify"><input type="checkbox" checked={decision.certified} onChange={(e) => setDecision((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed the signed authorization and am recording the client’s decision.</span></label>
+          <label><span>Reason if denying</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required only for denial" /></label>
+          <div className="change-order-workspace__actions"><button type="button" className="secondary-button secondary-button--danger" onClick={denyOrder} disabled={Boolean(action.name) || !form.reason.trim() || !decision.name.trim() || !decision.certified}><Ban aria-hidden="true" /> {action.name === 'deny' ? 'Recording denial...' : 'Deny Change Order'}</button><button type="button" className="primary-button" onClick={approveOrder} disabled={Boolean(action.name) || !order.verified_at || !decision.name.trim() || !decision.certified}><ShieldCheck aria-hidden="true" /> {action.name === 'approve' ? 'Approving & posting...' : 'Approve & post to Financials'}</button></div>
+        </div> : null}
       </div> : null}
 
-      {(isDraft || order?.status === 'submitted') ? <div className="change-order-action-reason" role="note" aria-label="Required audit reason">
+      {isDraft ? <div className="change-order-action-reason" role="note" aria-label="Required audit reason">
         <div className="change-order-action-reason__notice">
           <strong>Audit reason required</strong>
-          <span>{order?.status === 'submitted' ? 'Enter the reason for the next action. A denial requires this note; approval uses it when provided.' : 'Enter why this Change Order is being created or edited before saving or submitting. The note is retained in project history.'}</span>
+          <span>Enter why this Change Order is being created or edited before saving or submitting. The note is retained in project history.</span>
         </div>
         <label>
           <span>Audit reason</span>
-          <input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder={order?.status === 'submitted' ? 'Required for denial; recorded with the next workflow action' : 'Required before Save Draft or Submit Change Order'} />
+          <input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required before Save Draft or Submit Change Order" />
         </label>
       </div> : null}
 
@@ -502,9 +507,6 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         {isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={saveDraft} disabled={Boolean(action.name)}><Save aria-hidden="true" /> {action.name === 'save' ? 'Saving...' : 'Save Draft'}</button> : null}
         {order && ['draft', 'submitted'].includes(order.status) && !order.signed_document_id && canCreate && (order.status === 'draft' || canSubmit) ? <button type="button" className="secondary-button secondary-button--danger" onClick={archiveEditableOrder} disabled={Boolean(action.name)}><Archive aria-hidden="true" /> {action.name === 'archive' ? 'Archiving...' : `Archive ${order.status === 'draft' ? 'Draft' : 'Submitted Change Order'}`}</button> : null}
         {isDraft && canSubmit ? <button type="button" className="primary-button" onClick={submitOrder} disabled={Boolean(action.name) || total <= 0}><Send aria-hidden="true" /> {action.name === 'submit' ? 'Submitting...' : 'Submit Change Order'}</button> : null}
-        {order && ['submitted', 'approved'].includes(order.status) && canSubmit ? <button type="button" className="secondary-button" onClick={exportPdf} disabled={Boolean(action.name)}><Download aria-hidden="true" /> Export Change Order PDF</button> : null}
-        {order?.status === 'submitted' && canApprove ? <button type="button" className="secondary-button secondary-button--danger" onClick={denyOrder} disabled={Boolean(action.name) || !form.reason.trim() || !decision.name.trim() || !decision.certified}><Ban aria-hidden="true" /> {action.name === 'deny' ? 'Recording Denial...' : 'Deny Change Order'}</button> : null}
-        {order?.status === 'submitted' && order.verified_at && canApprove ? <button type="button" className="primary-button" onClick={approveOrder} disabled={Boolean(action.name) || !decision.name.trim() || !decision.certified}><ShieldCheck aria-hidden="true" /> {action.name === 'approve' ? 'Approving & Posting...' : 'Approve Change Order'}</button> : null}
       </div>
     </section>
   );
