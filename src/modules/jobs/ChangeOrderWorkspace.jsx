@@ -470,24 +470,41 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         </div>
       </div>
 
-      {order?.status === 'submitted' ? <div className="change-order-workspace__panel">
-        <Toolbar eyebrow="Next step" title="Client authorization and decision" description="1. Export the client PDF. 2. Upload and verify the signed authorization. 3. Record the client’s approved or denied decision." />
-        <div className="change-order-workspace__actions">
-          {canSubmit ? <button type="button" className="secondary-button" onClick={exportPdf} disabled={Boolean(action.name)}><Download aria-hidden="true" /> Export PDF for signature</button> : null}
-          {canCreate && canSubmit && !order.signed_document_id ? <label className="change-order-action-reason"><span>Return to draft reason</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required only to reopen for edits" /><button type="button" className="secondary-button" onClick={editSubmittedOrder} disabled={Boolean(action.name) || !form.reason.trim()}><Save aria-hidden="true" /> Edit submitted Change Order</button></label> : null}
-        </div>
-        {canVerify ? <div className="change-order-verification">
-          <label><span>Signed document (PDF preferred)</span><input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(e) => setVerification((current) => ({ ...current, file: e.target.files?.[0] || null }))} disabled={action.name} /></label>
-          <label><span>Verification name / initials</span><input value={verification.name} onChange={(e) => setVerification((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
-          <label className="change-order-verification__certify"><input type="checkbox" checked={verification.certified} onChange={(e) => setVerification((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed the attached document and verified it is the signed client authorization.</span></label>
-          <button type="button" className="primary-button" onClick={uploadAndVerify} disabled={Boolean(action.name) || !verification.file || !verification.name.trim() || !verification.certified}><FileCheck2 aria-hidden="true" /> {action.name === 'verify' ? 'Uploading...' : 'Upload signed authorization'}</button>
-        </div> : null}
-        {canApprove ? <div className="change-order-verification">
-          <label><span>Decision name / initials</span><input value={decision.name} onChange={(e) => setDecision((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
-          <label className="change-order-verification__certify"><input type="checkbox" checked={decision.certified} onChange={(e) => setDecision((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed the signed authorization and am recording the client’s decision.</span></label>
-          <label><span>Reason if denying</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required only for denial" /></label>
-          <div className="change-order-workspace__actions"><button type="button" className="secondary-button secondary-button--danger" onClick={denyOrder} disabled={Boolean(action.name) || !form.reason.trim() || !decision.name.trim() || !decision.certified}><Ban aria-hidden="true" /> {action.name === 'deny' ? 'Recording denial...' : 'Deny Change Order'}</button><button type="button" className="primary-button" onClick={approveOrder} disabled={Boolean(action.name) || !order.verified_at || !decision.name.trim() || !decision.certified}><ShieldCheck aria-hidden="true" /> {action.name === 'approve' ? 'Approving & posting...' : 'Approve & post to Financials'}</button></div>
-        </div> : null}
+      {order?.status === 'submitted' ? <div className="change-order-workspace__panel change-order-client-workflow">
+        <Toolbar eyebrow="Next step" title="Client authorization and decision" description="Complete each step in order to record the signed client authorization and decision." />
+        <section className="change-order-client-workflow__step" aria-labelledby="co-signature-export">
+          <div className="change-order-client-workflow__heading"><span>Step 1</span><strong id="co-signature-export">Export for client signature</strong><p>Download the completed Change Order PDF to send to the client.</p></div>
+          {canSubmit ? <div className="change-order-client-workflow__action"><button type="button" className="primary-button" onClick={exportPdf} disabled={Boolean(action.name)}><Download aria-hidden="true" /> Export PDF for signature</button></div> : null}
+        </section>
+        {canVerify ? <section className="change-order-client-workflow__step" aria-labelledby="co-signed-authorization">
+          <div className="change-order-client-workflow__heading"><span>Step 2</span><strong id="co-signed-authorization">Upload and verify signed authorization</strong><p>Upload the signed client document, identify the verifier, and certify the review.</p></div>
+          <div className="change-order-verification">
+            <label><span>Signed document (PDF preferred)</span><input type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" onChange={(e) => setVerification((current) => ({ ...current, file: e.target.files?.[0] || null }))} disabled={action.name} /></label>
+            <label><span>Verification name / initials</span><input value={verification.name} onChange={(e) => setVerification((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
+            <label className="change-order-verification__certify"><input type="checkbox" checked={verification.certified} onChange={(e) => setVerification((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed the attached document and verified it is the signed client authorization.</span></label>
+            <div className="change-order-client-workflow__action"><button type="button" className="primary-button" onClick={uploadAndVerify} disabled={Boolean(action.name) || !verification.file || !verification.name.trim() || !verification.certified}><FileCheck2 aria-hidden="true" /> {action.name === 'verify' ? 'Uploading...' : 'Upload signed authorization'}</button></div>
+          </div>
+        </section> : null}
+        {canApprove ? <section className="change-order-client-workflow__step" aria-labelledby="co-client-decision">
+          <div className="change-order-client-workflow__heading"><span>Step 3</span><strong id="co-client-decision">Record the client’s decision</strong><p>Confirm the signer’s decision, then approve or deny the Change Order.</p></div>
+          <div className="change-order-verification">
+            <label><span>Decision name / initials</span><input value={decision.name} onChange={(e) => setDecision((current) => ({ ...current, name: e.target.value }))} disabled={action.name} /></label>
+            <label className="change-order-verification__certify"><input type="checkbox" checked={decision.certified} onChange={(e) => setDecision((current) => ({ ...current, certified: e.target.checked }))} disabled={action.name} /><span>I certify that I reviewed the signed authorization and am recording the client’s decision.</span></label>
+            <div className="change-order-client-workflow__decision-actions">
+              <label className="change-order-client-workflow__deny-reason"><span>Reason if denying</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required only for denial" /></label>
+              <button type="button" className="secondary-button secondary-button--danger" onClick={denyOrder} disabled={Boolean(action.name) || !form.reason.trim() || !decision.name.trim() || !decision.certified}><Ban aria-hidden="true" /> {action.name === 'deny' ? 'Recording denial...' : 'Deny Change Order'}</button>
+              <button type="button" className="primary-button" onClick={approveOrder} disabled={Boolean(action.name) || !order.verified_at || !decision.name.trim() || !decision.certified}><ShieldCheck aria-hidden="true" /> {action.name === 'approve' ? 'Approving & posting...' : 'Approve & post to Financials'}</button>
+            </div>
+          </div>
+        </section> : null}
+        {canCreate && canSubmit && !order.signed_document_id ? <section className="change-order-client-workflow__step change-order-client-workflow__administrative" aria-labelledby="co-administrative-actions">
+          <div className="change-order-client-workflow__heading"><span>Administrative actions</span><strong id="co-administrative-actions">Return to draft or archive</strong><p>Use these only when the submitted record needs to be reopened or removed from active work.</p></div>
+          <div className="change-order-client-workflow__administrative-actions">
+            <label><span>Reason for returning to draft</span><input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required to reopen for edits" /></label>
+            <button type="button" className="secondary-button" onClick={editSubmittedOrder} disabled={Boolean(action.name) || !form.reason.trim()}><Save aria-hidden="true" /> Return to draft</button>
+            <button type="button" className="secondary-button secondary-button--danger" onClick={archiveEditableOrder} disabled={Boolean(action.name)}><Archive aria-hidden="true" /> {action.name === 'archive' ? 'Archiving...' : 'Archive Submitted Change Order'}</button>
+          </div>
+        </section> : null}
       </div> : null}
 
       {isDraft ? <div className="change-order-action-reason" role="note" aria-label="Required audit reason">
@@ -505,7 +522,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       {action.success ? <StatePanel tone="success" eyebrow="Complete" title="Workflow updated" description={action.success} compact /> : null}
       <div className="change-order-workspace__actions">
         {isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={saveDraft} disabled={Boolean(action.name)}><Save aria-hidden="true" /> {action.name === 'save' ? 'Saving...' : 'Save Draft'}</button> : null}
-        {order && ['draft', 'submitted'].includes(order.status) && !order.signed_document_id && canCreate && (order.status === 'draft' || canSubmit) ? <button type="button" className="secondary-button secondary-button--danger" onClick={archiveEditableOrder} disabled={Boolean(action.name)}><Archive aria-hidden="true" /> {action.name === 'archive' ? 'Archiving...' : `Archive ${order.status === 'draft' ? 'Draft' : 'Submitted Change Order'}`}</button> : null}
+        {order?.status === 'draft' && !order.signed_document_id && canCreate ? <button type="button" className="secondary-button secondary-button--danger" onClick={archiveEditableOrder} disabled={Boolean(action.name)}><Archive aria-hidden="true" /> {action.name === 'archive' ? 'Archiving...' : 'Archive Draft'}</button> : null}
         {isDraft && canSubmit ? <button type="button" className="primary-button" onClick={submitOrder} disabled={Boolean(action.name) || total <= 0}><Send aria-hidden="true" /> {action.name === 'submit' ? 'Submitting...' : 'Submit Change Order'}</button> : null}
       </div>
     </section>

@@ -753,6 +753,21 @@ textarea {
 .change-order-verification { align-items: end; }
 .change-order-verification__certify { grid-template-columns: auto 1fr !important; align-items: start; padding: 12px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); background: var(--ng-panel-bg-alt); }
 .change-order-verification__certify input { margin-top: 0.15rem; }
+.change-order-client-workflow { display: grid; gap: 0; }
+.change-order-client-workflow > .toolbar { padding-bottom: 16px; }
+.change-order-client-workflow__step { display: grid; gap: 14px; padding: 18px 0; border-top: 1px solid var(--ng-divider); }
+.change-order-client-workflow__heading { display: grid; gap: 3px; }
+.change-order-client-workflow__heading > span,
+.change-order-client-workflow__administrative-actions label > span,
+.change-order-client-workflow__deny-reason > span { color: var(--ng-faint); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.change-order-client-workflow__heading strong { color: var(--ng-text); font-family: var(--ng-font-display); font-size: 1rem; }
+.change-order-client-workflow__heading p { margin: 0; color: var(--ng-muted); font-size: 0.8rem; line-height: 1.45; }
+.change-order-client-workflow__action { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+.change-order-client-workflow__decision-actions { grid-column: 1 / -1; display: flex; align-items: end; justify-content: flex-start; gap: 10px; flex-wrap: wrap; padding-top: 2px; }
+.change-order-client-workflow__deny-reason { display: grid; min-width: min(100%, 310px); flex: 1 1 310px; gap: 6px; }
+.change-order-client-workflow__administrative { background: var(--ng-panel-bg-alt); margin: 0 -2px -2px; padding: 18px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); }
+.change-order-client-workflow__administrative-actions { display: flex; align-items: end; justify-content: flex-start; gap: 10px; flex-wrap: wrap; }
+.change-order-client-workflow__administrative-actions label { display: grid; min-width: min(100%, 310px); flex: 1 1 310px; gap: 6px; }
 .change-order-action-reason { display: grid; grid-template-columns: minmax(240px, 0.75fr) minmax(320px, 1.25fr); align-items: center; gap: 18px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--ng-warn) 30%, var(--ng-divider)); border-left: 4px solid var(--ng-warn); border-radius: var(--ng-radius-card); background: color-mix(in srgb, var(--ng-warn-bg) 55%, var(--ng-card-bg)); box-shadow: var(--ng-shadow-soft); }
 .change-order-action-reason__notice { display: grid; gap: 3px; }
 .change-order-action-reason__notice strong { color: var(--ng-text); font-family: var(--ng-font-display); font-size: 0.95rem; }
@@ -788,6 +803,16 @@ textarea {
   .change-order-workspace__actions { justify-content: stretch; }
   .change-order-workspace__actions .primary-button,
   .change-order-workspace__actions .secondary-button { flex: 1 1 180px; }
+  .change-order-client-workflow__action,
+  .change-order-client-workflow__decision-actions,
+  .change-order-client-workflow__administrative-actions { align-items: stretch; }
+  .change-order-client-workflow__action .primary-button,
+  .change-order-client-workflow__decision-actions .primary-button,
+  .change-order-client-workflow__decision-actions .secondary-button,
+  .change-order-client-workflow__administrative-actions .primary-button,
+  .change-order-client-workflow__administrative-actions .secondary-button { flex: 1 1 100%; }
+  .change-order-client-workflow__deny-reason,
+  .change-order-client-workflow__administrative-actions label { flex-basis: 100%; }
 }
 
 /* ------------------------------------------------------------ responsive */
