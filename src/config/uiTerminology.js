@@ -21,10 +21,13 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'MODULE', name: 'Developer Display Controls', location: 'Developer Page', status: 'live' },
   { type: 'MODULE', name: 'Permission Console', location: 'Developer Page', status: 'live' },
   { type: 'MODULE', name: 'Service Scorecard', location: 'Add-On Tools', status: 'live' },
+  { type: 'MODULE', name: 'Panel Directory', location: 'Add-On Tools', status: 'live' },
   { type: 'MODULE', name: 'Project Financials', location: 'Jobs Page', status: 'live' },
   { type: 'CARD', name: 'Project Financial Summary', location: 'Jobs › Financials', status: 'live' },
   { type: 'FUNCTION', name: 'Import Cost Report', location: 'Jobs › Financials', status: 'live' },
   { type: 'FUNCTION', name: 'Add Change Order', location: 'Jobs › Change Orders', status: 'live' },
+  { type: 'FUNCTION', name: 'Save Panel Directory', location: 'Panel Directory', status: 'live' },
+  { type: 'FUNCTION', name: 'Print Panel Directory', location: 'Panel Directory', status: 'live' },
 ]);
 
 export function uiElementAttributes(type, name, { undefinedElement = false } = {}) {

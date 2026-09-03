@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Activity,
+  PanelTop,
   Boxes,
   BriefcaseBusiness,
   Calculator,
@@ -145,6 +146,15 @@ export const MODULES = [
     description: 'Electrical service-call cost, margin, billing, and collection scorecard.',
   },
   {
+    key: 'panel-directory',
+    path: '/panel-directory',
+    label: 'Panel Directory',
+    icon: PanelTop,
+    requiresAddon: 'panel_directory',
+    status: 'live',
+    description: 'Electrical panel schedules, directory printing, and audit history.',
+  },
+  {
     key: 'developer',
     path: '/developer',
     label: 'Developer',
@@ -183,7 +193,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'reports', moduleKey: 'reports' },
   { key: 'accounting', moduleKey: 'accounting' },
   { key: 'silas', moduleKey: 'silas' },
-  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['service-performance'] },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['service-performance', 'panel-directory'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
@@ -216,7 +226,7 @@ export function permittedNavigationGroups(permissions) {
         .filter(canUseDepartment)
         .map((department) => ({ ...module, key: `vehicles-${department.toLowerCase()}`, label: `${department} Vehicles`, navigationState: { vehicleDepartment: department } }));
     }
-    const displayLabels = { inventory: 'Material Inventory', tools: 'Tool Inventory', 'service-performance': 'Service Scorecard' };
+    const displayLabels = { inventory: 'Material Inventory', tools: 'Tool Inventory', 'service-performance': 'Service Scorecard', 'panel-directory': 'Panel Directory' };
     return [{ ...module, label: displayLabels[module.key] || module.label }];
   };
 
