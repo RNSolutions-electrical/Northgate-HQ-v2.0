@@ -10,19 +10,40 @@ import { CIRCUIT_COUNTS, circuitLayout, cleanCircuits, emptyPanel, normalizePane
 
 function labelPhase(value) { return value === 'single_phase' ? 'Single Phase' : 'Three Phase'; }
 function labelVoltage(value) { return value === '120208' ? '120/208V' : value === '277480' ? '277/480V' : 'Other'; }
-function PanelSchedule({ panel, printable = false }) {
-  const { starts, claims, invalid } = circuitLayout(panel); const rows = [];
-  for (let odd = 1; odd <= panel.circuit_count; odd += 2) rows.push([odd, odd + 1]);
-  const side = (number) => {
-    const start = claims.get(number); if (start !== number) return null;
-    const item = starts.get(number) || { description: '', poles: 1, emergency: false };
-    return <><td className={`panel-directory__number ${phaseTone(panel, number)}`}>{number}</td><td rowSpan={item.poles} className={`panel-directory__description${item.emergency ? ' is-emergency' : ''}`}>{item.description || '—'}</td></>;
-  };
-  return <table className={`panel-directory__schedule${printable ? ' is-printable' : ''}`}><thead><tr><th colSpan="2">Odd circuits</th><th colSpan="2">Even circuits</th></tr></thead><tbody>{rows.map(([odd, even]) => <tr key={odd}>{side(odd)}{side(even)}</tr>)}</tbody>{invalid.size ? <caption>Resolve conflicting circuit assignments before saving or printing.</caption> : null}</table>;
+/** Approved v7 renderer, adapted only from database names to the v7 data shape. */
+function PanelDirectoryRender({ panel }) {
+  const { starts, claims, invalid } = circuitLayout(panel);
+  const rows = [];
+  for (let odd = 1; odd <= panel.circuit_count; odd += 2) {
+    const even = odd + 1;
+    const itemAtStart = (number) => starts.get(number) || { description: '', poles: 1, emergency: false };
+    const renderDescription = (number, position) => {
+      const start = claims.get(number) ?? number;
+      if (start !== number) return null;
+      const item = itemAtStart(number);
+      return <td rowSpan={item.poles} className={`${position}${item.emergency ? ' emergency' : ''}`}>{item.description}</td>;
+    };
+    rows.push(<tr key={odd}>
+      {renderDescription(odd, 'desc-left')}
+      <td className={`ckt ${phaseTone(panel, odd)}`}>{odd}</td><td className="midline" /><td className={`ckt ${phaseTone(panel, even)}`}>{even}</td>
+      {renderDescription(even, 'desc-right')}
+    </tr>);
+  }
+  const phase = panel.phase_type === 'single_phase' ? 'SINGLE PHASE' : 'THREE PHASE';
+  const letters = panel.phase_type === 'single_phase' ? 'AB' : 'ABC';
+  return <div className="panel-directory">
+    <div className="directory-header">
+      <div className="directory-logo"><img src="/northgate-electrical-logo-v7.png" alt="Northgate Electrical" /></div>
+      <div className="directory-designation"><div className="directory-designation-label">Designation</div><div className="directory-designation-value">{panel.designation || 'Panel'}</div></div>
+    </div>
+    <div className="panelboard-row">PANELBOARD</div>
+    <table className="schedule-grid"><colgroup><col className="desc-col" /><col className="num-col" /><col className="divider-col" /><col className="num-col" /><col className="desc-col" /></colgroup><thead><tr><th>CIRCUIT</th><th colSpan="3" className="phase-head">{phase}<br />PH&nbsp;&nbsp;{letters}&nbsp;&nbsp;PH</th><th>CIRCUIT</th></tr></thead><tbody>{rows}</tbody></table>
+    <div className="directory-footer">Provided Courtesy of The Northgate Group, LLC</div>
+    {invalid.size ? <p className="panel-directory__render-error">Resolve conflicting circuit assignments before saving or printing.</p> : null}
+  </div>;
 }
 
-function PanelPrint({ panels }) { return <div className={`panel-directory-print-stage ${panels.length === 2 ? 'is-pair' : ''}`}>{panels.map((panel) => <section className="panel-directory-sheet" key={panel.id || panel.designation}><header><img src="/northgate-group-logo.jpg" alt="The Northgate Group" /><div><strong>{panel.designation}</strong><span>{labelPhase(panel.phase_type)} · {labelVoltage(panel.system_voltage)}</span>{panel.panel_location ? <span>{panel.panel_location}</span> : null}</div></header><h1>PANELBOARD</h1><PanelSchedule panel={panel} printable /><footer>Provided Courtesy of The Northgate Group, LLC</footer></section>)}</div>;
-}
+function PanelPrint({ panels }) { return <div className={`panel-directory-print-stage ${panels.length === 2 ? 'is-pair' : ''}`}>{panels.map((panel) => <section className="panel-directory-sheet" key={panel.id || panel.designation}><PanelDirectoryRender panel={panel} /></section>)}</div>; }
 
 export function PanelDirectoryWorkspace() {
   const { getToken } = useAuth(); const [rows, setRows] = useState([]); const [panel, setPanel] = useState(emptyPanel); const [search, setSearch] = useState('');
@@ -53,7 +74,7 @@ export function PanelDirectoryWorkspace() {
         <details className="panel-directory__job-info"><summary>Optional job information</summary><div className="panel-directory__form-grid"><label><span>Job number</span><input value={panel.job_number} onChange={(e) => update('job_number', e.target.value)} /></label><label><span>Project name</span><input value={panel.project_name} onChange={(e) => update('project_name', e.target.value)} /></label><label><span>Client / GC</span><input value={panel.client_name} onChange={(e) => update('client_name', e.target.value)} /></label><label><span>Panel location</span><input value={panel.panel_location} onChange={(e) => update('panel_location', e.target.value)} /></label><label className="panel-directory__wide"><span>Address</span><input value={panel.project_address} onChange={(e) => update('project_address', e.target.value)} /></label><label className="panel-directory__wide"><span>Notes</span><textarea rows="2" value={panel.notes} onChange={(e) => update('notes', e.target.value)} /></label></div></details>
         <div className="panel-directory__circuit-editor"><table><thead><tr><th colSpan="4">Odd circuits</th><th colSpan="4">Even circuits</th></tr><tr><th>Cir.</th><th>Description</th><th>Poles</th><th>Emergency</th><th>Cir.</th><th>Description</th><th>Poles</th><th>Emergency</th></tr></thead><tbody>{numbers.filter((number) => number % 2).map((odd) => <tr key={odd}>{[odd, odd + 1].map((number) => { const claimedBy = layout.claims.get(number); const hidden = claimedBy && claimedBy !== number; const item = panel.circuits.items[number] || { description: '', poles: 1, emergency: false }; return hidden ? <><td className="panel-directory__circuit-number">{number}</td><td colSpan="3" className="panel-directory__reserved">Reserved by circuit {claimedBy}</td></> : <><td className={`panel-directory__circuit-number ${phaseTone(panel, number)}`}>{number}</td><td><input value={item.description} onChange={(e) => updateCircuit(number, 'description', e.target.value)} placeholder="Description" /></td><td><select value={item.poles} onChange={(e) => updateCircuit(number, 'poles', Number(e.target.value))}><option value="1">1</option><option value="2">2</option>{panel.phase_type === 'three_phase' ? <option value="3">3</option> : null}</select></td><td><input aria-label={`Emergency circuit ${number}`} type="checkbox" checked={Boolean(item.emergency)} onChange={(e) => updateCircuit(number, 'emergency', e.target.checked)} /></td></>; })}</tr>)}</tbody></table><p>Enter a multi-pole load on its first circuit. Following positions on the same side are reserved automatically. Emergency loads print with a yellow description cell and red text.</p>{layout.invalid.size ? <StatePanel compact tone="danger" title="Circuit assignments need attention" description="Multi-pole assignments overlap or extend beyond this panel. Correct them before saving or printing." /> : null}</div>
       </section>
-      <section className="panel-directory__preview"><Toolbar eyebrow="Preview" title="Current panel directory" description="The print layout follows the live values above, including unsaved edits." actions={<button type="button" className="secondary-button" onClick={() => print([panel])} disabled={layout.invalid.size}><Printer /> Print current</button>} /><PanelSchedule panel={panel} /></section>
+      <section className="panel-directory__preview"><Toolbar eyebrow="Preview" title="Current panel directory" description="The approved print layout follows the live values above, including unsaved edits." actions={<button type="button" className="secondary-button" onClick={() => print([panel])} disabled={layout.invalid.size}><Printer /> Print current</button>} /><PanelDirectoryRender panel={panel} /></section>
       <section className="panel-directory__composer"><Toolbar eyebrow="Print composer" title="Print one or two saved panels" description="Select up to two saved panels for a compact side-by-side letter print." /><div><select value={printIds[0] || ''} onChange={(e) => setPrintIds([e.target.value, printIds[1]].filter(Boolean))}><option value="">First saved panel</option>{rows.map((row) => <option key={row.id} value={row.id}>{row.designation}</option>)}</select><select value={printIds[1] || ''} onChange={(e) => setPrintIds([printIds[0], e.target.value].filter(Boolean))}><option value="">Second panel (optional)</option>{rows.filter((row) => row.id !== printIds[0]).map((row) => <option key={row.id} value={row.id}>{row.designation}</option>)}</select><button type="button" className="primary-button" disabled={!printIds.length} onClick={() => print(printPanels)}><Printer /> Print selection</button></div></section>
     </main><PanelPrint panels={printPanels} />
     <ConfirmDialog open={Boolean(pending)} onCancel={() => setPending(null)} onConfirm={() => pending?.go()} title={pending?.title || ''} description={pending?.description || ''} confirmLabel="Discard changes" tone="danger" />

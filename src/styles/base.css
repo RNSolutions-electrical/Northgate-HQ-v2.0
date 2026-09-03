@@ -4827,6 +4827,22 @@ textarea {
 .panel-directory__composer > div { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }.panel-directory__composer select { min-width: 15rem; flex: 1 1 15rem; }
 .panel-directory-print-stage { display: none; }
 
+/* Approved v7 Panel Directory renderer. Preview and print intentionally share this exact geometry. */
+.panel-directory { width: 100%; color: #111; font-family: Arial, Helvetica, sans-serif; border: 0; }
+.directory-header { display: grid; grid-template-columns: minmax(0, 1fr) .34in .075in .34in minmax(0, 1fr); height: 68px; border: 1.5px solid #111; border-bottom-width: 1px; }
+.directory-logo { grid-column: 1 / 2; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 4px 8px; overflow: hidden; background: #fff; }
+.directory-logo img { display: block; width: auto; height: auto; max-width: 90%; max-height: 54px; object-fit: contain; object-position: center; }
+.directory-designation { grid-column: 2 / 6; min-width: 0; border-left: 1px solid #111; display: flex; flex-direction: column; }
+.directory-designation-label { flex: 0 0 auto; font-size: 9px; line-height: 1; text-align: left; padding: 2px 3px 3px; border-bottom: 1px solid #111; }
+.directory-designation-value { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 22px; line-height: 1.05; padding: 2px 5px 4px; }
+.panelboard-row { border-left: 1.5px solid #111; border-right: 1.5px solid #111; border-bottom: 1px solid #111; text-align: center; font-size: 11px; line-height: 1; padding: 1px 2px 2px; }
+.schedule-grid { width: 100%; border-collapse: collapse; table-layout: fixed; border-left: 1.5px solid #111; border-right: 1.5px solid #111; }
+.schedule-grid col.num-col { width: .34in; }.schedule-grid col.divider-col { width: .075in; }
+.schedule-grid th { font-size: 11px; padding: 4px 2px; border: 1px solid #111; font-weight: 400; color: #111; background: #fff; }.schedule-grid th:first-child { border-left: 0; }.schedule-grid th:last-child { border-right: 0; }.schedule-grid .phase-head { font-size: 10px; line-height: 1.05; font-weight: 400; }
+.schedule-grid tbody tr { height: 25px; }.schedule-grid .desc-left, .schedule-grid .desc-right { width: auto; font-size: 10px; text-align: center; padding: 3px 5px; border: 1px solid #111; overflow-wrap: anywhere; vertical-align: middle; }.schedule-grid .desc-left { border-left: 0; }.schedule-grid .desc-right { border-right: 0; }
+.schedule-grid .ckt { width: auto; font-size: 10px; line-height: 1; text-align: center; font-weight: 400; border: 1px solid #111; padding: 3px 2px; white-space: nowrap; }.schedule-grid .midline { width: auto; padding: 0; border: 1px solid #111; }
+.panel-directory .emergency { background: #fff200 !important; color: #d00000 !important; font-weight: 700; }.directory-footer { border: 1.5px solid #111; border-top: 0; text-align: center; font-size: 8.5px; padding: 6px 2px 5px; text-decoration: underline; }.panel-directory__render-error { margin: .4rem 0 0; color: var(--ng-danger); font-size: .78rem; }
+
 @media (max-width: 860px) {
   .panel-directory__body { padding: .7rem; }
   .panel-directory__library article, .panel-directory__editor-header { align-items: stretch; flex-direction: column; }
@@ -4841,13 +4857,10 @@ textarea {
   body.panel-directory-is-printing .ng-shell__topbar, body.panel-directory-is-printing .ng-shell__sidebar, body.panel-directory-is-printing .workspace-header, body.panel-directory-is-printing .panel-directory__body { display: none !important; }
   body.panel-directory-is-printing .panel-directory-print-stage { display: grid !important; gap: .14in; justify-content: center; }
   body.panel-directory-is-printing .panel-directory-print-stage.is-pair { grid-template-columns: repeat(2, 3.75in); }
-  body.panel-directory-is-printing .panel-directory-sheet { width: 5.15in; color: #000; font-family: Arial, sans-serif; break-inside: avoid; }
-  body.panel-directory-is-printing .panel-directory-print-stage.is-pair .panel-directory-sheet { width: 3.75in; font-size: 8px; }
-  .panel-directory-sheet header { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: .15in; border-bottom: 2px solid #111; padding-bottom: .06in; }
-  .panel-directory-sheet header img { width: 1.32in; height: .46in; object-fit: contain; object-position: left top; }.panel-directory-sheet header div { display: grid; text-align: right; gap: .02in; }.panel-directory-sheet header strong { font-size: 13px; }.panel-directory-sheet header span { font-size: 8px; }
-  .panel-directory-sheet h1 { margin: .08in 0 .06in; text-align: center; font-family: Georgia, serif; font-size: 13px; letter-spacing: .08em; }
-  .panel-directory-sheet .panel-directory__schedule { min-width: 0; font-size: 8px; border-color: #555; }.panel-directory-sheet .panel-directory__schedule th { background: #eee; color: #111; font-size: 7px; padding: .035in; }.panel-directory-sheet .panel-directory__schedule td { height: .13in; padding: .025in .04in; border-color: #999; }.panel-directory-sheet .panel-directory__schedule .panel-directory__number { width: .26in; }.panel-directory-sheet .panel-directory__schedule .panel-directory__description { width: 43%; }
-  .panel-directory-sheet footer { border-top: 1px solid #555; margin-top: .08in; padding-top: .04in; text-align: center; font-size: 7px; }
+  body.panel-directory-is-printing .panel-directory-sheet { width: 5.15in; color: #000; break-inside: avoid; }
+  body.panel-directory-is-printing .panel-directory-print-stage.is-pair .panel-directory-sheet { width: 3.75in; }
+  .print-panel .schedule-grid tbody tr, .panel-directory-sheet .schedule-grid tbody tr { height: 22px; }
+  .panel-directory-print-stage.is-pair .directory-designation-value { font-size: 16px; }.panel-directory-print-stage.is-pair .panelboard-row { font-size: 9px; }.panel-directory-print-stage.is-pair .schedule-grid th { font-size: 9px; }.panel-directory-print-stage.is-pair .schedule-grid .desc-left, .panel-directory-print-stage.is-pair .schedule-grid .desc-right, .panel-directory-print-stage.is-pair .schedule-grid .ckt { font-size: 8px; }.panel-directory-print-stage.is-pair .directory-footer { font-size: 7px; }.panel-directory-print-stage.is-pair .schedule-grid col.num-col { width: .29in; }.panel-directory-print-stage.is-pair .schedule-grid col.divider-col { width: .06in; }
 }
 @media (max-width: 1024px) and (min-width: 900px) {
   .workspace-split { grid-template-columns: minmax(0, 1fr); }
