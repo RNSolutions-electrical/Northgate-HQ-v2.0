@@ -4847,17 +4847,94 @@ textarea {
   .panel-directory__body { padding: .7rem; }
   .panel-directory__library article, .panel-directory__editor-header { align-items: stretch; flex-direction: column; }
   .panel-directory__library-actions { justify-content: flex-start; }
+  .panel-directory__library-actions button { flex: 1 1 calc(50% - .35rem); justify-content: center; min-height: 44px; }
+  .panel-directory__editor-header > div:last-child { width: 100%; }
+  .panel-directory__editor-header button { flex: 1 1 10rem; justify-content: center; min-height: 44px; }
   .panel-directory__form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel-directory__form-grid .panel-directory__wide { grid-column: 1 / -1; }
 }
-@media (max-width: 520px) { .panel-directory__form-grid { grid-template-columns: minmax(0, 1fr); }.panel-directory__form-grid .panel-directory__wide { grid-column: auto; }.panel-directory__composer select { min-width: 100%; } }
+@media (max-width: 720px) {
+  .panel-directory__editor,
+  .panel-directory__preview,
+  .panel-directory__composer { padding: .7rem; }
+  .panel-directory__circuit-editor { overflow: visible; }
+  .panel-directory__circuit-editor table { display: block; min-width: 0; }
+  .panel-directory__circuit-editor thead { display: none; }
+  .panel-directory__circuit-editor tbody { display: grid; }
+  .panel-directory__circuit-editor tr {
+    display: grid;
+    grid-template-columns: 2.35rem minmax(0, 1fr) 4.25rem 4rem;
+    border-bottom: 1px solid var(--ng-divider);
+  }
+  .panel-directory__circuit-editor tr:last-child { border-bottom: 0; }
+  .panel-directory__circuit-editor td {
+    display: flex;
+    min-width: 0;
+    min-height: 48px;
+    align-items: center;
+    padding: .35rem;
+    border-top: 0;
+    border-bottom: 1px solid var(--ng-divider);
+  }
+  .panel-directory__circuit-editor td:nth-child(2),
+  .panel-directory__circuit-editor td:nth-child(6) { min-width: 0; }
+  .panel-directory__circuit-editor td:nth-last-child(-n + 4) { border-bottom: 0; }
+  .panel-directory__circuit-editor .panel-directory__reserved { grid-column: span 3; }
+  .panel-directory__circuit-editor input,
+  .panel-directory__circuit-editor select { min-width: 0; }
+  .panel-directory__circuit-editor input[type='checkbox'] { width: 20px; height: 20px; margin: auto; }
+  .panel-directory__circuit-editor > p { line-height: 1.4; }
+  .panel-directory__preview { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .panel-directory__preview .panel-directory { min-width: 20rem; }
+}
+@media (max-width: 520px) {
+  .panel-directory__form-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel-directory__form-grid .panel-directory__wide { grid-column: auto; }
+  .panel-directory__composer select { min-width: 100%; }
+  .panel-directory__composer button { width: 100%; justify-content: center; }
+  .panel-directory__circuit-editor tr { grid-template-columns: 2.1rem minmax(0, 1fr) 3.75rem 3.4rem; }
+  .panel-directory__circuit-editor select { padding-inline: .25rem; }
+  .directory-header { height: 58px; }
+  .directory-logo { padding: 3px 5px; }
+  .directory-logo img { max-height: 46px; }
+  .directory-designation-value { font-size: 18px; }
+  .schedule-grid th { font-size: 9px; }
+  .schedule-grid .phase-head,
+  .schedule-grid .desc-left,
+  .schedule-grid .desc-right,
+  .schedule-grid .ckt { font-size: 8px; }
+}
 
 @media print {
   @page { size: letter portrait; margin: .35in; }
-  body.panel-directory-is-printing .ng-shell__topbar, body.panel-directory-is-printing .ng-shell__sidebar, body.panel-directory-is-printing .workspace-header, body.panel-directory-is-printing .panel-directory__body { display: none !important; }
-  body.panel-directory-is-printing .panel-directory-print-stage { display: grid !important; gap: .14in; justify-content: center; }
+  body.panel-directory-is-printing { margin: 0 !important; background: #fff !important; }
+  body.panel-directory-is-printing .ng-shell__header,
+  body.panel-directory-is-printing .ng-shell__rail,
+  body.panel-directory-is-printing .mobile-page-navigation,
+  body.panel-directory-is-printing .top-nav-scrim,
+  body.panel-directory-is-printing .workspace-header,
+  body.panel-directory-is-printing .panel-directory__body { display: none !important; }
+  body.panel-directory-is-printing .ng-shell,
+  body.panel-directory-is-printing .ng-shell__body,
+  body.panel-directory-is-printing .ng-shell__content,
+  body.panel-directory-is-printing .panel-directory-workspace {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  body.panel-directory-is-printing .panel-directory-print-stage {
+    display: grid !important;
+    width: 100% !important;
+    gap: .14in;
+    justify-content: center;
+    align-items: start;
+  }
   body.panel-directory-is-printing .panel-directory-print-stage.is-pair { grid-template-columns: repeat(2, 3.75in); }
-  body.panel-directory-is-printing .panel-directory-sheet { width: 5.15in; color: #000; break-inside: avoid; }
+  body.panel-directory-is-printing .panel-directory-sheet { width: 5.15in; max-width: 100%; margin: 0 auto; color: #000; break-inside: avoid; page-break-inside: avoid; }
   body.panel-directory-is-printing .panel-directory-print-stage.is-pair .panel-directory-sheet { width: 3.75in; }
   .print-panel .schedule-grid tbody tr, .panel-directory-sheet .schedule-grid tbody tr { height: 22px; }
   .panel-directory-print-stage.is-pair .directory-designation-value { font-size: 16px; }.panel-directory-print-stage.is-pair .panelboard-row { font-size: 9px; }.panel-directory-print-stage.is-pair .schedule-grid th { font-size: 9px; }.panel-directory-print-stage.is-pair .schedule-grid .desc-left, .panel-directory-print-stage.is-pair .schedule-grid .desc-right, .panel-directory-print-stage.is-pair .schedule-grid .ckt { font-size: 8px; }.panel-directory-print-stage.is-pair .directory-footer { font-size: 7px; }.panel-directory-print-stage.is-pair .schedule-grid col.num-col { width: .29in; }.panel-directory-print-stage.is-pair .schedule-grid col.divider-col { width: .06in; }
