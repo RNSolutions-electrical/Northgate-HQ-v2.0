@@ -4,13 +4,13 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `SAPPHIRE-UNISON-20260901-001`
-- Baseline commit: `39cf0c1`
-- Mobile feature commit: `947b9b5`
+- Marker: `JADE-PANEL-MOBILE-20260904-001`
+- Baseline commit: `b4cfbc3`
+- Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a92e0733797340009f6ddf6`
+- Production deploy: `6a9b5f5cee81555663a9640a`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: September 1, 2026 (America/New_York)
+- Verified: September 4, 2026 (America/New_York)
 
 The hierarchy feature commit establishes the official Page/Card/Module/Function vocabulary,
 Department terminology for Northgate organizational scope, Inventory and Add-On
@@ -66,6 +66,12 @@ The baseline includes the shared Production Mode / Exploration Mode discipline
 protocol in `AGENTS.md` and `docs/CODEX_DISCIPLINE_PROTOCOL.md`. The protocol is
 documentation-only and does not require a separate production deployment.
 
+The current marker includes the secured Panel Directory add-on and approved v7
+renderer, followed by the mobile correction that converts the fixed-width
+circuit editor into touch-sized responsive rows. Its print stylesheet now
+isolates the panel sheet from the current application header, rail, menus, and
+mobile controls so phone-initiated printing uses the intended page geometry.
+
 ## Superseded task-only marker
 
 `TEAL-MERIDIAN-20260826` was reported in a Codex task but was not committed to the repository. It is retained here so machines searching for that marker can resolve it to the feature commit above.
@@ -83,6 +89,10 @@ Every future completed cross-machine synchronization must replace the current ma
 
 ## Marker history
 
+- `CORAL-PANEL-MOBILE-20260904-001` — mobile Panel Directory editor and print isolation fix, commit `b4cfbc3`, deploy `6a9b5f5cee81555663a9640a`; made the durable cross-machine baseline by `JADE-PANEL-MOBILE-20260904-001`.
+- `SAPPHIRE-PANEL-20260903-001` — approved v7 Panel Directory renderer, commit `4e7c3a2`.
+- `TOPAZ-PANEL-20260903-001` — secured Panel Directory foundation, commit `987cae4`.
+- `SAPPHIRE-UNISON-20260901-001` — unified mobile-navigation and production-discipline baseline, commit `e9f8450`.
 - `COBALT-FOCUS-20260901-001` — shared production/exploration discipline protocol, commit `39cf0c1`.
 - `MOBILE-NAV-20260829-947B9B5` — mobile navigation production release, commit `947b9b5`, deploy `6a92e0733797340009f6ddf6`; originally reported in task chat and made repository-visible by `SAPPHIRE-UNISON-20260901-001`.
 - `BRONZE-PAYAPP-20260829-001` — Billing Pay App workflow and production record, commits `cd4507b` and `78a83e5`, deploy `6a927754f57b8f8c64ddcd25`.
