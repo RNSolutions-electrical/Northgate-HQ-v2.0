@@ -1,5 +1,8 @@
 # Inventory Search and Cart: First Pass
 
+Follow-up: `INVENTORY_CHECKOUT_NOTES.md` supersedes this pass's note requirements:
+all destinations accept a cart note, a note on every line, or both, preserved separately.
+
 Production scope approved September 6, 2026: simplify the main Inventory search
 screen, cart workflow, mobile presentation, and diagnostic clutter. No schema,
 RLS, ledger calculation, financial posting, or tool-custody changes.

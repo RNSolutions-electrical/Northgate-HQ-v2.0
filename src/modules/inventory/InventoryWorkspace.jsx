@@ -28,6 +28,7 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx';
 import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
+import { hasCheckoutNoteCoverage } from './checkoutNotes.js';
 import { useBinItemRetirement } from '../../hooks/useBinItemRetirement.js';
 import { useInventoryCart } from '../../hooks/useInventoryCart.js';
 import { useInventoryCountCorrection } from '../../hooks/useInventoryCountCorrection.js';
@@ -69,7 +70,7 @@ const DESTINATION_OPTIONS = [
   { value: 'vehicle', label: 'Vehicle Stock' },
   { value: 'vendor_return', label: 'Vendor Return' },
   { value: 'scrap', label: 'Scrap' },
-  { value: 'unknown', label: 'Other / Uncoded (note required)' },
+  { value: 'unknown', label: 'Other / Uncoded' },
 ];
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
@@ -149,6 +150,7 @@ const HISTORY_COLUMNS = [
   { key: 'quantity', header: 'Qty', numeric: true },
   { key: 'destination_label', header: 'Destination', fallback: '-' },
   { key: 'actor_name', header: 'Actor', fallback: '-' },
+  { key: 'note', header: 'Notes', render: row => <span style={{ whiteSpace: 'pre-line' }}>{row.note || '-'}</span> },
 ];
 
 const COUNT_COLUMNS = [
@@ -480,9 +482,6 @@ function isDestinationValid(destination) {
   if (DESTINATIONS_REQUIRING_ID.has(destinationType) && !destination?.destination_id?.trim()) {
     return false;
   }
-  if (destinationType === 'unknown' && !destination?.note?.trim()) {
-    return false;
-  }
   return true;
 }
 
@@ -532,10 +531,10 @@ export function InventoryWorkspace({ permissions }) {
   const [candidateQuantities, setCandidateQuantities] = useState({});
   const [candidateMessages, setCandidateMessages] = useState({});
   const [lineDestinations, setLineDestinations] = useState({});
+  const [cartNote, setCartNote] = useState('');
   const [applyAllDestination, setApplyAllDestination] = useState({
     destination_type: 'unknown',
     destination_id: '',
-    note: '',
   });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
@@ -708,6 +707,7 @@ export function InventoryWorkspace({ permissions }) {
     return Number(row.quantity_on_hand ?? row.system_quantity ?? 0) <= minQuantity;
   });
   const hasInvalidLineDestinations = cartState.cartItems.some((item) => !isDestinationValid(getLineDestination(item)));
+  const hasMissingCheckoutNotes = !hasCheckoutNoteCoverage(cartState.cartItems.map(getLineDestination), cartNote);
   const applyAllDestinationIsValid = isDestinationValid(applyAllDestination);
 
   useEffect(() => {
@@ -816,7 +816,6 @@ export function InventoryWorkspace({ permissions }) {
               onChange={(event) => updateLineDestination(row.cart_item_id, {
                 destination_type: event.target.value,
                 destination_id: '',
-                note: '',
               })}
             >
               <option value="" disabled>Choose destination</option>
@@ -830,7 +829,7 @@ export function InventoryWorkspace({ permissions }) {
               type="text"
               value={line.note}
               disabled={!canTransact || !cartIsActive || cartActionInProgress}
-              placeholder={line.destination_type === 'unknown' ? 'Required note' : 'Optional note'}
+              placeholder="Line note"
               onChange={(event) => updateLineDestination(row.cart_item_id, { note: event.target.value })}
             />
             {!isDestinationValid(line) ? <span className="inventory-cart-row-message inventory-cart-row-message--error">Destination required</span> : null}
@@ -1035,7 +1034,7 @@ export function InventoryWorkspace({ permissions }) {
         next[item.cart_item_id] = {
           destination_type: applyAllDestination.destination_type,
           destination_id: applyAllDestination.destination_id,
-          note: applyAllDestination.note,
+          note: getLineDestination(item).note,
         };
       });
       return next;
@@ -1365,7 +1364,7 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   async function handleCheckout() {
-    if (!canTransact || cartActionInProgress || !cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations) return;
+    if (!canTransact || cartActionInProgress || !cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations || hasMissingCheckoutNotes) return;
 
     const lineDestinations = cartState.cartItems.map((item) => {
       const line = getLineDestination(item);
@@ -1381,12 +1380,13 @@ export function InventoryWorkspace({ permissions }) {
       cartId: cart.cart_id,
       destinationType: applyAllDestination.destination_type,
       destinationId: null,
-      note: 'Normal cart checkout from v3 per-line destination UI',
+      note: cartNote.trim() || null,
       lineDestinations,
     });
 
     if (result) {
       setConfirmCheckout(false);
+      setCartNote('');
       setLineDestinations({});
       setCandidateMessages({});
       readModel.reload();
@@ -1923,7 +1923,6 @@ export function InventoryWorkspace({ permissions }) {
                   onChange={(event) => updateApplyAllDestination({
                     destination_type: event.target.value,
                     destination_id: '',
-                    note: '',
                   })}
                 >
                   {DESTINATION_OPTIONS.map((option) => (
@@ -1931,20 +1930,16 @@ export function InventoryWorkspace({ permissions }) {
                   ))}
                 </select>
                 {renderDestinationIdControl('__all__', applyAllDestination)}
-                <input
-                  aria-label="Cart destination note"
-                  type="text"
-                  value={applyAllDestination.note}
-                  disabled={!cartIsActive || cartActionInProgress}
-                  placeholder={applyAllDestination.destination_type === 'unknown' ? 'Required note' : 'Optional note'}
-                  onChange={(event) => updateApplyAllDestination({ note: event.target.value })}
-                />
                 <button type="button" className="secondary-button" disabled={!cartIsActive || cartActionInProgress || !cartState.cartItems.length || !applyAllDestinationIsValid} onClick={applyDestinationToAll}>
                   Apply To All
                 </button>
               </div>
             </div>
 
+            <label className="inventory-cart-note"><span>Cart note</span>
+              <textarea aria-label="Cart note" value={cartNote} rows={2} disabled={!canTransact || !cartIsActive || cartActionInProgress}
+                placeholder="Required unless every line has a note" onChange={event => setCartNote(event.target.value)} />
+            </label>
             <DataTable
               columns={cartColumns}
               rows={cartState.cartItems}
@@ -1961,21 +1956,23 @@ export function InventoryWorkspace({ permissions }) {
               <button hidden={!canTransact}
                 type="button"
                 className="primary-button"
-                disabled={!canTransact || !cartIsActive || cartActionInProgress || !cartState.cartItems.length || hasInvalidLineDestinations}
+                disabled={!canTransact || !cartIsActive || cartActionInProgress || !cartState.cartItems.length || hasInvalidLineDestinations || hasMissingCheckoutNotes}
                 onClick={() => setConfirmCheckout(true)}
               >
                 <ShoppingCart aria-hidden="true" /> Review Checkout
               </button>
               {hasInvalidLineDestinations ? <span className="inventory-cart-row-message inventory-cart-row-message--error">Every line needs a valid destination before checkout.</span> : null}
+              {hasMissingCheckoutNotes ? <span role="status" className="inventory-cart-row-message inventory-cart-row-message--error">Add a cart note or a note on every line.</span> : null}
             </div>
             {confirmCheckout ? <section className="inventory-checkout-review" aria-label="Checkout review">
               <h3>Confirm checkout</h3>
+              {cartNote.trim() ? <p style={{ whiteSpace: 'pre-line' }}><strong>Cart note: </strong>{cartNote.trim()}</p> : null}
               <p>{cartState.cartItems.length} material line{cartState.cartItems.length === 1 ? '' : 's'}. Quantities will leave their source locations. Job costs will not be posted.</p>
               <ul>{cartState.cartItems.map(item => {
                 const line = getLineDestination(item);
                 return <li key={item.cart_item_id}>{formatQuantity(item.quantity)} {item.unit_of_measure} {item.item_name} from {item.bin_code}: {DESTINATION_OPTIONS.find(option => option.value === line.destination_type)?.label} {line.destination_id} {line.note}</li>;
               })}</ul>
-              <button className="primary-button" disabled={!canTransact || cartActionInProgress || hasInvalidLineDestinations || !cartIsActive} onClick={handleCheckout}>{cartState.isCheckingOut ? 'Checking out...' : 'Confirm Checkout'}</button>
+              <button className="primary-button" disabled={!canTransact || cartActionInProgress || hasInvalidLineDestinations || hasMissingCheckoutNotes || !cartIsActive} onClick={handleCheckout}>{cartState.isCheckingOut ? 'Checking out...' : 'Confirm Checkout'}</button>
               <button className="secondary-button" disabled={cartActionInProgress} onClick={() => setConfirmCheckout(false)}>Cancel</button>
             </section> : null}
             {cartState.checkoutResult ? (

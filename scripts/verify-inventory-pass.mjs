@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { createServer } from 'vite';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const mocks = path.resolve('tests/fixtures/inventory-pass-mocks.js');
-const server = await createServer({ cacheDir: `.temp/inventory-pass/vite-${process.pid}`, plugins: [{ name: 'isolated-inventory-fixture', enforce: 'pre', resolveId(id) {
+const server = await createServer({ cacheDir: path.join(tmpdir(), `northgate-inventory-vite-${process.pid}`), plugins: [{ name: 'isolated-inventory-fixture', enforce: 'pre', resolveId(id) {
   if (id === '@clerk/clerk-react' || id.endsWith('/services/supabaseClient.js') || id.endsWith('/hooks/usePermissions.js')) return mocks;
 } }], server: { host: '127.0.0.1', port: 5188, strictPort: true } });
 await server.listen();
@@ -42,8 +43,11 @@ try {
     await page.getByRole('heading',{name:'My Cart',exact:true}).waitFor();
     assert.equal(await page.getByRole('option',{name:'User Possession'}).count(),0);
     assert.equal(await page.getByRole('button',{name:'Review Checkout'}).isDisabled(),true);
-    await page.getByLabel('Cart destination note').fill('General shop supplies, no job coding');
+    await page.getByLabel('Destination note for EMT connector').fill('Specific line note');
+    assert.equal(await page.getByRole('button',{name:'Review Checkout'}).isEnabled(),true);
+    await page.getByLabel('Cart note').fill('General shop supplies, no job coding');
     await page.getByRole('button',{name:'Apply To All',exact:true}).click();
+    assert.equal(await page.getByLabel('Destination note for EMT connector').inputValue(),'Specific line note');
     await page.getByRole('button',{name:'Review Checkout'}).click();
     await page.getByRole('button',{name:'Cancel',exact:true}).click();
     assert.equal(await page.evaluate(()=>window.inventoryFixture.calls.filter(c=>c.name==='finalize_inventory_cart').length),0);
@@ -55,7 +59,8 @@ try {
     const call = await page.evaluate(()=>window.inventoryFixture.calls.find(c=>c.name==='finalize_inventory_cart'));
     assert.equal(call.args.p_line_destinations[0].destination_type,'unknown');
     assert.equal(call.args.p_line_destinations[0].destination_id,null);
-    assert.equal(call.args.p_line_destinations[0].note,'General shop supplies, no job coding');
+    assert.equal(call.args.p_line_destinations[0].note,'Specific line note');
+    assert.equal(call.args.p_note,'General shop supplies, no job coding');
   }
   await page.goto(`${url}?readonly`);
   await page.getByText('2 materials',{exact:true}).waitFor();

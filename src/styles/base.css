@@ -4347,6 +4347,8 @@ textarea {
 .inventory-category-filters summary { cursor: pointer; }
 .inventory-category-filters select { max-width: 100%; margin: 8px 8px 0 0; }
 .inventory-cart-code { display: block; color: #5a626b; font-size: 12px; margin-top: 4px; }
+.inventory-cart-note { display: grid; gap: 8px; margin: 12px 0 20px; }
+.inventory-cart-note textarea { width: 100%; min-width: 0; resize: vertical; }
 .inventory-workspace .icon-button, .inventory-stock-browser .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 8px; border: 1px solid #d8dde2; border-radius: 4px; background: #fff; color: inherit; cursor: pointer; }
 .inventory-workspace .icon-button svg, .inventory-stock-browser .icon-button svg { width: 20px; height: 20px; }
 .inventory-workspace .icon-button:disabled { opacity: .45; cursor: default; }
