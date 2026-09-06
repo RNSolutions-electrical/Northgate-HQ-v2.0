@@ -19630,3 +19630,38 @@ contract value.
 - See `docs/DEDUCTIVE_CHANGE_ORDERS.md` for acceptance and the existing billing
   revision-supersession limitation. Sitewide audit backlog remains separate.
 - New marker: `DEDUCTIVE-CO-20260906-001`.
+
+## Entry 203 - Tools Catalogue Atomic Audit Workflow
+
+### Scope
+- September 6, 2026, Production Mode. Ryan confirmed deductive CO acceptance and
+  asked to proceed. Continued the approved sitewide audit backlog, Tools only.
+- Preserved compact rows and dedicated add/edit module. Normal creation needs no
+  reason; catalogue edits, archive and restore prompt for one reason on action.
+- Operational Notes remain separate. Cancellation/failure retain drafts/reasons.
+
+### Implementation
+- Applied `20260906204812_tool_catalogue_audit_workflow`. SECURITY INVOKER RPC
+  respects existing Tools RLS, field allowlist, row locks and expected timestamps.
+- Restricted audit trigger enforces reasons and writes actor/time/before/after
+  atomically. Forced audit failures roll back tool writes. No audit privilege
+  expansion, RLS changes or production tool data rewrites.
+- Old direct-write clients must refresh. Restore archived tools before editing.
+- Retiring a new record also requires a reason. Future custody workflows remain
+  separate from manual catalogue location/assignment changes.
+
+### Verification
+- 19 Node tests, production build and diff check pass.
+- Desktop/tablet/phone real-component mocked-transport tests pass, including
+  cancellation, failed-save retention, save/archive/restore reasons and readonly.
+- Authenticated rollback tests passed before/after migration, including stale,
+  direct/denied writes, one reason across fields, operational notes and exact audit.
+- No retained test tools/users. Security advisors unchanged: 143, none new.
+- Anonymous RPC execution denied; authenticated direct audit-trigger execution
+  denied. RPC is invoker, not a new privileged client endpoint.
+- Frontend publication pending; production migration is applied.
+
+### Next Action
+- Publish/verify frontend, then Ryan checks create/edit/archive/restore/history.
+- Continue remaining module audit conversions after this Tools acceptance.
+- See `docs/TOOLS_AUDIT_WORKFLOW.md`; marker after publish: `TOOLS-AUDIT-20260906-001`.

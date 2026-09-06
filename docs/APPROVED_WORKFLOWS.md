@@ -113,6 +113,13 @@ they are not silently reinterpreted as Current Budget reports.
 
 ## Remaining Sitewide Work
 
+Tools catalogue follow-up is implemented in migration
+`20260906204812_tool_catalogue_audit_workflow`: invoker RPC plus protected atomic
+audit trigger, reason-free normal creation, one save-time reason for catalogue
+edits/archive/restore, optimistic concurrency, and direct-write guards. See
+`docs/TOOLS_AUDIT_WORKFLOW.md`. Automated server and browser checks pass; Ryan's
+authenticated acceptance remains pending. Other modules below remain outstanding.
+
 This is the first implemented rollout, not a claim that every legacy mutation
 has been converted or exhaustively verified.
 

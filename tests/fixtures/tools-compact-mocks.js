@@ -6,6 +6,7 @@ let rows = [
   { id:'t1',tool_number:'T-001', name:'Hammer drill', category:'Drills', model:'DCD999', brand:'DeWalt', serial_number:'SERIAL1', division:'Electrical', status:'active', condition:'good' },
   { id:'t2',tool_number:'T-002', name:'Long model tool', category:'Testing equipment', model:'VeryLongModelIdentifier12345678901234567890',division:'Electrical',status:'missing',condition:'fair' },
 ];
+rows = rows.map(row => ({...row,updated_at:'2026-09-06T00:00:00Z'}));
 window.toolsFixture = { failNext: false, calls: [] };
 export function createSupabaseClient() { return {
   from(table) {
@@ -23,5 +24,15 @@ export function createSupabaseClient() { return {
       },
     }; return q;
   },
-  async rpc(name,args){ window.toolsFixture.calls.push({name,args}); return {data:[]}; },
+  async rpc(name,args){
+    window.toolsFixture.calls.push({name,args});
+    if(name!=='save_tool_catalogue') return {data:[]};
+    if(window.toolsFixture.failNext){window.toolsFixture.failNext=false;return {error:{message:'Fixture save rejected'}};}
+    const old=rows.find(row=>row.id===args.p_tool_id);
+    const row={...(old||{id:`t${rows.length+1}`,division:args.p_division}),...args.p_changes,updated_at:new Date().toISOString()};
+    if(args.p_action==='archive') row.archived_at=new Date().toISOString();
+    if(args.p_action==='restore') row.archived_at=null;
+    rows=old?rows.map(item=>item.id===row.id?row:item):[...rows,row];
+    return {data:row};
+  },
 }; }

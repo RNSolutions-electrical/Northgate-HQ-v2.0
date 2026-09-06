@@ -3,6 +3,7 @@ import { ChevronDown, Archive, ClipboardList, History, MapPin, Plus, Wrench } fr
 import { useEffect, useMemo, useState } from 'react';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
@@ -34,7 +35,7 @@ const DEFAULT_TOOL_FORM = Object.freeze({
   assigned_to: '',
   purchase_date: '',
   notes: '',
-  archive_reason: '',
+  expected_updated_at: null,
   isSaving: false,
   error: null,
   success: '',
@@ -182,6 +183,7 @@ function toolToForm(tool) {
   return {
     ...DEFAULT_TOOL_FORM,
     id: tool.id,
+    expected_updated_at: tool.updated_at,
     tool_number: tool.tool_number ?? '',
     name: tool.name ?? '',
     category: tool.category ?? '',
@@ -352,6 +354,7 @@ export function ToolsWorkspace({ permissions }) {
   const [selectedToolId, setSelectedToolId] = useState('');
   const [search, setSearch] = useState('');
   const [toolForm, setToolForm] = useState(DEFAULT_TOOL_FORM);
+  const [toolConfirmation, setToolConfirmation] = useState(null);
   const [isToolFormOpen, setIsToolFormOpen] = useState(false);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
@@ -431,21 +434,8 @@ export function ToolsWorkspace({ permissions }) {
     return createSupabaseClient(token);
   }
 
-  async function writeToolChangeLog(client, { action, recordId, beforeData, afterData, note }) {
-    const { error } = await client.rpc('record_client_audit_event', {
-      p_table_name: 'tools',
-      p_record_id: recordId,
-      p_action: action,
-      p_before_data: beforeData,
-      p_after_data: afterData,
-      p_note: note,
-    });
-
-    if (error) throw error;
-  }
-
-  async function handleToolSave(event) {
-    event.preventDefault();
+  async function handleToolSave(event, reason = '') {
+    event?.preventDefault();
     if (!canManageToolCatalogue || toolForm.isSaving) return;
 
     if (!toolForm.name.trim()) {
@@ -464,34 +454,25 @@ export function ToolsWorkspace({ permissions }) {
       return;
     }
 
+    if ((toolForm.id || toolForm.status === 'retired') && !reason.trim()) {
+      setToolConfirmation({ action: 'save' });
+      return;
+    }
     setToolForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
       const client = await getToolClient();
       const payload = toolPayloadFromForm(toolForm);
-      const query = toolForm.id
-        ? client
-          .from('tools')
-          .update(payload)
-          .eq('id', toolForm.id)
-          .select(TOOL_SELECT_FIELDS)
-          .single()
-        : client
-          .from('tools')
-          .insert({ ...payload, division: permissions.division })
-          .select(TOOL_SELECT_FIELDS)
-          .single();
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      await writeToolChangeLog(client, {
-        action: toolForm.id ? 'update' : 'create',
-        recordId: data.id,
-        beforeData: existingTool,
-        afterData: data,
-        note: toolForm.id ? 'Tool catalogue update' : 'Tool catalogue create',
+      const { error } = await client.rpc('save_tool_catalogue', {
+        p_tool_id: toolForm.id || null,
+        p_division: existingTool?.division || permissions.division,
+        p_changes: payload,
+        p_action: 'save',
+        p_reason: reason.trim() || null,
+        p_expected_updated_at: toolForm.expected_updated_at,
       });
+      if (error) throw error;
+      setToolConfirmation(null);
 
       catalogue.reload();
       toolHistory.reload();
@@ -508,7 +489,7 @@ export function ToolsWorkspace({ permissions }) {
     }
   }
 
-  async function handleToolArchive(tool) {
+  async function handleToolArchive(tool, reason = '') {
     if (!canManageToolCatalogue || toolForm.isSaving) return;
 
     if (!canManageToolDivision(permissions, tool.division)) {
@@ -517,14 +498,9 @@ export function ToolsWorkspace({ permissions }) {
     }
 
     const isArchived = Boolean(tool.archived_at);
-    const archiveReason = toolForm.id === tool.id ? toolForm.archive_reason.trim() : '';
-    if (!isArchived && !archiveReason) {
-      setIsToolFormOpen(true);
-      setSelectedToolId(tool.id);
-      setToolForm({
-        ...toolToForm(tool),
-        error: new Error('Enter an archive reason in the form before archiving this tool.'),
-      });
+    if (!reason.trim()) {
+      setToolForm((current) => ({ ...current, error: null }));
+      setToolConfirmation({ action: isArchived ? 'restore' : 'archive', tool });
       return;
     }
 
@@ -532,28 +508,18 @@ export function ToolsWorkspace({ permissions }) {
 
     try {
       const client = await getToolClient();
-      const { data, error } = await client
-        .from('tools')
-        .update(isArchived
-          ? { archived_at: null, archived_by: null, archive_reason: null }
-          : {
-            archived_at: new Date().toISOString(),
-            archived_by: permissions.userId,
-            archive_reason: archiveReason,
-          })
-        .eq('id', tool.id)
-        .select(TOOL_SELECT_FIELDS)
-        .single();
+      const { error } = await client.rpc('save_tool_catalogue', {
+        p_tool_id: tool.id,
+        p_division: tool.division,
+        p_changes: {},
+        p_action: isArchived ? 'restore' : 'archive',
+        p_reason: reason.trim(),
+        p_expected_updated_at: toolForm.id === tool.id ? toolForm.expected_updated_at : tool.updated_at,
+      });
 
       if (error) throw error;
 
-      await writeToolChangeLog(client, {
-        action: isArchived ? 'restore' : 'archive',
-        recordId: tool.id,
-        beforeData: tool,
-        afterData: data,
-        note: isArchived ? 'Tool catalogue restore' : archiveReason,
-      });
+      setToolConfirmation(null);
 
       catalogue.reload();
       toolHistory.reload();
@@ -766,10 +732,6 @@ export function ToolsWorkspace({ permissions }) {
                 <span>Notes</span>
                 <textarea rows={3} value={toolForm.notes} onChange={(event) => setToolFormValue('notes', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
               </label>
-              {toolForm.id ? <label className="tool-catalogue-form__wide">
-                <span>Archive Reason</span>
-                <textarea rows={2} value={toolForm.archive_reason} onChange={(event) => setToolFormValue('archive_reason', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} placeholder="Required before archiving a tool." />
-              </label> : null}
             </div>
             {toolForm.error ? (
               <StatePanel tone="danger" eyebrow="Tool Save Failed" title="Tool action did not complete" description={toolForm.error.message || 'Unexpected tool catalogue error.'} compact />
@@ -785,15 +747,28 @@ export function ToolsWorkspace({ permissions }) {
             </div>
           </form>); }
 
+  const confirmation = <ConfirmDialog
+    open={Boolean(toolConfirmation)}
+    title={toolConfirmation?.action === 'save' ? 'Save catalogue changes' : toolConfirmation?.action === 'archive' ? 'Archive tool' : 'Restore tool'}
+    confirmLabel={toolConfirmation?.action === 'save' ? 'Save changes' : toolConfirmation?.action === 'archive' ? 'Archive tool' : 'Restore tool'}
+    requireReason
+    isSubmitting={toolForm.isSaving}
+    onCancel={() => setToolConfirmation(null)}
+    onConfirm={(reason) => toolConfirmation?.action === 'save'
+      ? handleToolSave(null, reason) : handleToolArchive(toolConfirmation.tool, reason)}
+  >{toolForm.error ? <p role="alert">{toolForm.error.message}</p> : null}</ConfirmDialog>;
+
   if (isToolFormOpen && canManageToolCatalogue) {
     return <section className="tools-editor" aria-label={toolForm.id ? 'Edit tool module' : 'Add tool module'}>
       <WorkspaceHeader eyebrow="Tools" title={toolForm.id ? 'Edit Tool' : 'Add a Tool'} />
       {renderToolForm()}
+      {confirmation}
     </section>;
   }
 
   return (
     <>
+      {confirmation}
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Tool Catalogue"
