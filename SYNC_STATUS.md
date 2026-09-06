@@ -4,17 +4,35 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `CLEARVIEW-UI-20260906-001`
-- Baseline commit: `38170a8`
+- Marker: `INVENTORY-SEARCH-20260906-001`
+- Baseline / Inventory feature commit: `5305e73`
 - Shared UI cleanup commit: `f5f78ac`
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9d811fdabac50008492dae`
+- Production deploy: `6a9da715ae07620008f843e2`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker adds clean operational views for everyone, with technical
+The current marker records the first Inventory search/cart cleanup pass. Inventory
+defaults to tracked bin stock, groups materials by their locations, supports
+multi-term search and category filters, and separates the full catalogue. Stock
+reads now paginate beyond 1,000 rows. Add-to-cart opens/reuses the existing cart;
+the compact responsive cart supports per-line destinations and review/confirmation.
+Scan is mobile/narrow/coarse-pointer only, and bin scan results open stock search.
+Diagnostic summary/footer cards are hidden behind the existing developer toggle.
+No RLS, schema, ledger writes, tool custody, or financial posting rules changed.
+Other / Uncoded maps to the existing `unknown` destination with a required note.
+
+Nine Node tests, real-component mocked-transport browser checks at desktop/tablet/
+phone sizes, and the production build passed. Live page and JavaScript returned
+200 with the expected code and JavaScript MIME type; Netlify secret scan was clean.
+No real inventory was modified in validation. Physical camera and authenticated
+checkout acceptance remain Ryan's checks. Named job/service-call selectors,
+dedicated van stock, unified tool discovery, and locations/counts cleanup remain
+follow-ups. See `docs/INVENTORY_SEARCH_CART_PASS.md` for boundaries and checklist.
+
+The previous pass added clean operational views for everyone, with technical
 descriptions, source labels, and boundary panels available only through the
 developer-only Show developer diagnostics toggle. Shared headers and sidebars,
 Employees, Vehicles, Tools, Jobs, Estimates, Inventory, Documents, Accounting,

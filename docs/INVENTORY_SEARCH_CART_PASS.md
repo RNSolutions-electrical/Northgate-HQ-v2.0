@@ -56,6 +56,9 @@ No personal addresses or material-storage locations are added.
   checkout permission checks, and management-only location hierarchy RLS.
 - Physical camera capture and authenticated production checkout still require
   Ryan's device/account acceptance test.
+- Feature commit `5305e73` deployed as `6a9da715ae07620008f843e2`.
+  Production Inventory and its JavaScript returned 200, with the correct MIME
+  type and search/checkout code present. Netlify secret scan found no matches.
 
 Dropbox held locks on the existing build/cache directories. Validation used fresh
 ignored `.temp` build output and per-process fixture caches, leaving those files alone.
