@@ -132,7 +132,7 @@ export function ServicePerformanceWorkspace({ permissions }) {
   }
 
   return <>
-    <WorkspaceHeader eyebrow="Add-On Tools" title="Service Scorecard" description="Service-call hard costs, revenue, margin, billing, and collections—using cumulative snapshots and revenue excluding sales tax." status={<span className="status-pill status-pill--good">Add-on enabled</span>} />
+    <WorkspaceHeader descriptionIsDiagnostic={false} eyebrow="Add-On Tools" title="Service Scorecard" description="Service-call hard costs, revenue, margin, billing, and collections—using cumulative snapshots and revenue excluding sales tax." status={<span className="status-pill status-pill--good">Add-on enabled</span>} />
     <nav className="service-performance__nav" aria-label="Service Scorecard sections">
       {[["overview","Overview",Gauge],["calls","Service Calls",BriefcaseBusiness],["costs","Cost Snapshots",Upload],["reports","Reports",BarChart3]].map(([key,label,Icon]) => <button type="button" key={key} className={page===key?'is-active':''} onClick={() => setPage(key)} aria-current={page===key?'page':undefined}><Icon aria-hidden="true" />{label}</button>)}
       <button type="button" className="service-performance__refresh" onClick={() => setRefreshKey((current) => current + 1)} disabled={state.isLoading}><RefreshCw aria-hidden="true" /> Refresh</button>

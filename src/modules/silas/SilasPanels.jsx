@@ -207,6 +207,7 @@ export function SilasWorkspacePanel({
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Silas"
+        descriptionIsDiagnostic={enabled}
         description={enabled ? SILAS_EMPTY_HELPER_COPY : SILAS_DISABLED_HELPER_COPY}
         status={<Sparkles className="card__icon" aria-hidden="true" />}
       />
