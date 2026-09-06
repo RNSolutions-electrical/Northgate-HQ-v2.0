@@ -7,6 +7,15 @@ SELECT set_config('request.jwt.claims','{"sub":"__financial_workflow_test","role
 INSERT INTO public.jobs(name,division,status) VALUES ('__workflow_rollback_test','Admin','active');
 INSERT INTO public.job_budget_divisions(job_id,code,name)
 SELECT id,'99','Test division' FROM public.jobs WHERE name='__workflow_rollback_test';
+UPDATE public.job_budget_divisions SET name='Renamed test division'
+WHERE job_id IN (SELECT id FROM public.jobs WHERE name='__workflow_rollback_test');
+DO $context_test$
+BEGIN
+  IF COALESCE(current_setting('northgate.financial_reason',true),'') <> '' THEN
+    RAISE EXCEPTION 'System division-label reason leaked outside its workflow';
+  END IF;
+END;
+$context_test$;
 SET LOCAL ROLE authenticated;
 DO $test$
 DECLARE

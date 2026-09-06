@@ -1,18 +1,22 @@
 # Audit Reasons and Approved Workflows
 
-**Release status: local implementation only, September 6, 2026.** The production
-apply of `20260906185501_approved_financial_workflows.sql` was rejected by
-automated safety review because the combined schema/trigger/privileged-RPC
-changes span several modules. No migration or frontend deployment occurred.
-Do not push this frontend to the production branch before the database release
-is approved and applied. The current shared sync marker remains
-`TOOLS-COMPACT-20260906-001`.
+**Release status: database applied, September 6, 2026.** Ryan explicitly approved
+the multi-module production migration after the initial safety-review rejection.
+`20260906191944_approved_financial_workflows.sql` is applied. The local filename
+matches Supabase's recorded version. Frontend publication is in progress.
 
-All 19 Node tests, the build, integrated desktop/tablet/phone checks, and
-rollback-only authenticated database tests passed. Production verification
-confirmed zero new override columns/migrations and zero retained fixture
-users/jobs/vehicles. Post-migration security advisors and authenticated live
-acceptance remain pending because no production migration was applied.
+The pre-release checks and post-migration rollback-only authenticated database
+tests passed. A division-label synchronization fix restores its internal reason
+before returning; its regression test passed. No test fixtures are retained.
+Authenticated production UI acceptance remains Ryan's check.
+
+Security advisors: 142 existing findings, plus one expected warning for the new
+authenticated SECURITY DEFINER financial batch RPC. This is intentional: the RPC
+writes the protected audit table atomically. Its fixed search path, field allowlist,
+job/financial authorization, protected-line read gate and anon/PUBLIC execution
+revocation were reviewed; absent/insufficient authority tests passed.
+See [Supabase's function-execution advisory](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+This does not claim the existing advisory backlog is resolved.
 
 Ryan approved this policy on September 6, 2026. It supersedes blanket
 reason-on-every-save wording in older Financials documentation. Permission

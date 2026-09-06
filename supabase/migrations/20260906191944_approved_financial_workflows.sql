@@ -361,6 +361,7 @@ BEGIN
         updated_at = NOW()
     WHERE id = existing_line.id
     RETURNING * INTO saved_line;
+    PERFORM set_config('northgate.financial_reason', COALESCE(previous_reason,''), true);
 
     INSERT INTO public.change_logs (
       user_id, user_name, table_name, record_id, action, before_data, after_data, note

@@ -2,14 +2,13 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Local Unpublished Checkpoint - September 6, 2026
+## Release In Progress - September 6, 2026
 
-The audit-policy/Current Budget first rollout is implemented and locally tested,
-but its production migration was blocked by automated safety review for its
-multi-module schema/trigger/privileged-RPC blast radius. Nothing was deployed.
-Do not push the pending frontend to main before database approval/application.
-See `docs/APPROVED_WORKFLOWS.md` for exact scope, tests, and remaining sitewide work.
-The durable shared marker below is unchanged.
+Ryan explicitly approved the multi-module production migration.
+`20260906191944_approved_financial_workflows` is applied and post-migration
+authenticated rollback tests passed. Frontend publication and a new shared marker
+are in progress. See `docs/APPROVED_WORKFLOWS.md` for scope, tests, the intentional
+authenticated RPC security advisory, and remaining sitewide work.
 
 ## Current durable sync marker
 
