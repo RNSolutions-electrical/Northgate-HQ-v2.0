@@ -1,5 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { Archive, ClipboardList, History, MapPin, Plus, Wrench } from 'lucide-react';
+import { ChevronDown, Archive, ClipboardList, History, MapPin, Plus, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
@@ -352,6 +352,7 @@ export function ToolsWorkspace({ permissions }) {
   const [selectedToolId, setSelectedToolId] = useState('');
   const [search, setSearch] = useState('');
   const [toolForm, setToolForm] = useState(DEFAULT_TOOL_FORM);
+  const [isToolFormOpen, setIsToolFormOpen] = useState(false);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -396,12 +397,22 @@ export function ToolsWorkspace({ permissions }) {
   }, [selectedToolId, tools]);
 
   function selectTool(tool) {
-    setSelectedToolId(tool.id);
+    setSelectedToolId(current => current === tool.id ? '' : tool.id);
     setActiveTab('overview');
   }
 
   function resetToolForm() {
+    if (toolForm.isSaving) return;
     setToolForm(DEFAULT_TOOL_FORM);
+    setIsToolFormOpen(false);
+    setSelectedToolId('');
+  }
+
+  function startToolCreate() {
+    setToolForm(DEFAULT_TOOL_FORM);
+    setSelectedToolId('');
+    setIsPrimaryOpen(false);
+    setIsToolFormOpen(true);
   }
 
   function setToolFormValue(key, value) {
@@ -409,6 +420,7 @@ export function ToolsWorkspace({ permissions }) {
   }
 
   function startToolEdit(tool) {
+    setIsToolFormOpen(true);
     setSelectedToolId(tool.id);
     setActiveTab('overview');
     setToolForm(toolToForm(tool));
@@ -483,7 +495,9 @@ export function ToolsWorkspace({ permissions }) {
 
       catalogue.reload();
       toolHistory.reload();
-      setSelectedToolId(data?.id ?? toolForm.id);
+      setIsToolFormOpen(false);
+      setSelectedToolId('');
+      if (!toolForm.id) { setActiveView('active'); setSearch(''); }
       setToolForm({
         ...DEFAULT_TOOL_FORM,
         success: `${payload.name} ${toolForm.id ? 'updated' : 'added'} in Tool Catalogue.`,
@@ -505,6 +519,7 @@ export function ToolsWorkspace({ permissions }) {
     const isArchived = Boolean(tool.archived_at);
     const archiveReason = toolForm.id === tool.id ? toolForm.archive_reason.trim() : '';
     if (!isArchived && !archiveReason) {
+      setIsToolFormOpen(true);
       setSelectedToolId(tool.id);
       setToolForm({
         ...toolToForm(tool),
@@ -546,6 +561,8 @@ export function ToolsWorkspace({ permissions }) {
         ...DEFAULT_TOOL_FORM,
         success: `${toolLabel(tool)} ${isArchived ? 'restored' : 'archived'} in Tool Catalogue.`,
       });
+      setIsToolFormOpen(false);
+      setSelectedToolId('');
     } catch (error) {
       console.error('Tool archive failed', error);
       setToolForm((current) => ({ ...current, isSaving: false, error, success: '' }));
@@ -574,93 +591,7 @@ export function ToolsWorkspace({ permissions }) {
     },
   ];
 
-  return (
-    <>
-      <WorkspaceHeader
-        eyebrow="Workspace"
-        title="Tool Catalogue"
-        description="Catalogue-only foundation for company tools. Checkout, assignments, QR labels, vehicle storage, and tracking history remain reserved."
-        status={<span className="status-pill">{activeTools.length} active tool{activeTools.length === 1 ? '' : 's'}</span>}
-        actions={(
-          <>
-            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-              Page Menu
-            </button>
-            <button type="button" className="secondary-button" onClick={catalogue.reload} disabled={catalogue.isLoading}>
-              Refresh
-            </button>
-            <button hidden={!canManageToolCatalogue} type="button" className="primary-button" onClick={resetToolForm} disabled={!canManageToolCatalogue || toolForm.isSaving}>
-              <Plus aria-hidden="true" /> Add tool
-            </button>
-          </>
-        )}
-      />
-
-      <div className="summary-grid">
-        <SummaryCard detailIsDiagnostic label="Active tools" value={activeTools.length} detail="Visible catalogue rows" />
-        <SummaryCard label="Missing" value={missingTools.length} detail="Status marked missing" tone={missingTools.length ? 'warn' : 'default'} />
-        <SummaryCard detailIsDiagnostic label="Archived" value={archivedTools.length} detail="Soft-archived rows" />
-        <SummaryCard detailIsDiagnostic developmentOnly label="Write access" value={permissions.canManageInventory ? 'Possible' : 'Read only'} detail="Existing RLS uses inventory management" tone={permissions.canManageInventory ? 'good' : 'warn'} />
-      </div>
-
-      <div className={`workspace-split tools-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
-        <PrimarySidebar
-          eyebrow="Tool Views"
-          title="Catalogue"
-          description="Browse company tools without custody workflows."
-          items={toolViews}
-          activeKey={activeView}
-          onSelect={setActiveView}
-          collapsed={isPrimaryCollapsed}
-          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
-          mobileOpen={isPrimaryOpen}
-          onCloseMobile={() => setIsPrimaryOpen(false)}
-          footer={(
-            <div className="module-sidebar-note">
-              <strong>Catalogue only</strong>
-              <p>Checkout, assignments, QR labels, vehicle storage, and tracking history stay reserved.</p>
-            </div>
-          )}
-        />
-
-        <div className="workspace-surface">
-          <article className="card workspace-card">
-            <Toolbar
-              eyebrow="Directory"
-              title={toolViews.find((item) => item.key === activeView)?.label ?? 'Tool Catalogue'}
-              description="Rows come from the existing public.tools catalogue and follow level/division scope."
-              search={(
-                <label>
-                  <span className="sr-only">Search tools</span>
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search tools..."
-                  />
-                </label>
-              )}
-            />
-
-            <DataTable
-              columns={toolColumns}
-              rows={filteredTools}
-              getRowKey={(row) => row.id}
-              permissions={permissions}
-              isLoading={catalogue.isLoading}
-              error={catalogue.error}
-              onRowClick={selectTool}
-              selectedRowKey={selectedTool?.id ?? null}
-              dense
-              minWidth="860px"
-              emptyTitle={search ? 'No tools matched this search' : 'No tools to show'}
-              emptyDescription={search
-                ? 'Try searching by tool number, name, category, brand, model, serial number, status, or location.'
-                : 'The catalogue stays honest when the existing read path has no visible tool rows.'}
-            />
-          </article>
-
-          <article className="card workspace-card">
+  function renderToolDetails() { return (<div className="tools-expanded-detail">
             {selectedTool ? (
               <>
                 <RecordHeader descriptionIsDiagnostic
@@ -668,6 +599,7 @@ export function ToolsWorkspace({ permissions }) {
                   title={toolLabel(selectedTool)}
                   description="This selected-record shell shows catalogue fields only; custody and checkout behavior are not active in this pass."
                   meta={[
+                    { label: 'Name', value: selectedTool.name || '-' },
                     { label: 'Status', value: selectedTool.archived_at ? 'Archived' : selectedTool.status || 'active' },
                     { label: 'Division', value: selectedTool.division || 'Unassigned' },
                   ]}
@@ -685,6 +617,7 @@ export function ToolsWorkspace({ permissions }) {
                     <SummaryCard detailIsDiagnostic label="Brand" value={selectedTool.brand || '-'} detail="Catalogue field" />
                     <SummaryCard detailIsDiagnostic label="Model" value={selectedTool.model || '-'} detail="Catalogue field" />
                     <SummaryCard detailIsDiagnostic label="Condition" value={selectedTool.condition || 'Unknown'} detail="Catalogue field" />
+                    <SummaryCard label="Serial #" value={selectedTool.serial_number || '-'} />
                   </div>
                 ) : null}
 
@@ -756,20 +689,20 @@ export function ToolsWorkspace({ permissions }) {
                 tone="neutral"
               />
             )}
-          </article>
+          </div>); }
 
-          <form className="tool-catalogue-form" onSubmit={handleToolSave}>
-            <Toolbar
+  function renderToolForm() { return (<form className="tool-catalogue-form" onSubmit={handleToolSave}>
+            <Toolbar descriptionIsDiagnostic
               eyebrow={toolForm.id ? 'Edit' : 'Add'}
-              title={toolForm.id ? 'Edit catalogue tool' : 'Add catalogue tool'}
+              title={toolForm.id ? 'Edit Tool' : 'New Tool'}
               description={canManageToolCatalogue
                 ? 'Tool writes follow level/division scope. Checkout and custody workflows remain deferred.'
                 : 'Tool catalogue writes require inventory management permission and a current division.'}
-              actions={toolForm.id ? (
+              actions={(
                 <button type="button" className="secondary-button" onClick={resetToolForm} disabled={toolForm.isSaving}>
-                  Cancel Edit
+                  Cancel
                 </button>
-              ) : null}
+              )}
               dense
             />
             <div className="tool-catalogue-form__grid">
@@ -833,10 +766,10 @@ export function ToolsWorkspace({ permissions }) {
                 <span>Notes</span>
                 <textarea rows={3} value={toolForm.notes} onChange={(event) => setToolFormValue('notes', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} />
               </label>
-              <label className="tool-catalogue-form__wide">
+              {toolForm.id ? <label className="tool-catalogue-form__wide">
                 <span>Archive Reason</span>
                 <textarea rows={2} value={toolForm.archive_reason} onChange={(event) => setToolFormValue('archive_reason', event.target.value)} disabled={!canManageToolCatalogue || toolForm.isSaving} placeholder="Required before archiving a tool." />
-              </label>
+              </label> : null}
             </div>
             {toolForm.error ? (
               <StatePanel tone="danger" eyebrow="Tool Save Failed" title="Tool action did not complete" description={toolForm.error.message || 'Unexpected tool catalogue error.'} compact />
@@ -845,11 +778,110 @@ export function ToolsWorkspace({ permissions }) {
               <StatePanel tone="success" eyebrow="Saved" title="Tool catalogue updated" description={toolForm.success} compact />
             ) : null}
             <div className="tool-catalogue-form__actions">
+              {toolForm.id && selectedTool ? <button type="button" className="secondary-button" disabled={toolForm.isSaving} onClick={() => handleToolArchive(selectedTool)}>{selectedTool.archived_at ? 'Restore Tool' : 'Archive Tool'}</button> : null}
               <button hidden={!canManageToolCatalogue} type="submit" className="primary-button" disabled={!canManageToolCatalogue || toolForm.isSaving || !toolForm.name.trim()}>
                 <Plus aria-hidden="true" /> {toolForm.isSaving ? 'Saving...' : toolForm.id ? 'Save Tool' : 'Add Tool'}
               </button>
             </div>
-          </form>
+          </form>); }
+
+  if (isToolFormOpen && canManageToolCatalogue) {
+    return <section className="tools-editor" aria-label={toolForm.id ? 'Edit tool module' : 'Add tool module'}>
+      <WorkspaceHeader eyebrow="Tools" title={toolForm.id ? 'Edit Tool' : 'Add a Tool'} />
+      {renderToolForm()}
+    </section>;
+  }
+
+  return (
+    <>
+      <WorkspaceHeader
+        eyebrow="Workspace"
+        title="Tool Catalogue"
+        description="Catalogue-only foundation for company tools. Checkout, assignments, QR labels, vehicle storage, and tracking history remain reserved."
+        status={<span className="status-pill">{activeTools.length} active tool{activeTools.length === 1 ? '' : 's'}</span>}
+        actions={(
+          <>
+            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+              Page Menu
+            </button>
+            <button type="button" className="secondary-button" onClick={catalogue.reload} disabled={catalogue.isLoading}>
+              Refresh
+            </button>
+            <button hidden={!canManageToolCatalogue} type="button" className="primary-button" onClick={startToolCreate} disabled={!canManageToolCatalogue || toolForm.isSaving}>
+              <Plus aria-hidden="true" /> Add a tool
+            </button>
+          </>
+        )}
+      />
+
+      {toolForm.success ? <StatePanel title="Tool catalogue updated" description={toolForm.success} tone="good" compact /> : null}
+      {toolForm.error ? <StatePanel title="Tool action did not complete" description={toolForm.error.message} tone="danger" compact /> : null}
+      <div className="summary-grid">
+        <SummaryCard detailIsDiagnostic label="Active tools" value={activeTools.length} detail="Visible catalogue rows" />
+        <SummaryCard label="Missing" value={missingTools.length} detail="Status marked missing" tone={missingTools.length ? 'warn' : 'default'} />
+        <SummaryCard detailIsDiagnostic label="Archived" value={archivedTools.length} detail="Soft-archived rows" />
+        <SummaryCard detailIsDiagnostic developmentOnly label="Write access" value={permissions.canManageInventory ? 'Possible' : 'Read only'} detail="Existing RLS uses inventory management" tone={permissions.canManageInventory ? 'good' : 'warn'} />
+      </div>
+
+      <div className={`workspace-split tools-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
+        <PrimarySidebar
+          eyebrow="Tool Views"
+          title="Catalogue"
+          description="Browse company tools without custody workflows."
+          items={toolViews}
+          activeKey={activeView}
+          onSelect={view => { setActiveView(view); setSelectedToolId(''); setIsPrimaryOpen(false); }}
+          collapsed={isPrimaryCollapsed}
+          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
+          mobileOpen={isPrimaryOpen}
+          onCloseMobile={() => setIsPrimaryOpen(false)}
+          footer={(
+            <div className="module-sidebar-note">
+              <strong>Catalogue only</strong>
+              <p>Checkout, assignments, QR labels, vehicle storage, and tracking history stay reserved.</p>
+            </div>
+          )}
+        />
+
+        <div className="workspace-surface">
+          <article className="card workspace-card">
+            <Toolbar descriptionIsDiagnostic
+              eyebrow="Directory"
+              title={toolViews.find((item) => item.key === activeView)?.label ?? 'Tool Catalogue'}
+              description="Rows come from the existing public.tools catalogue and follow level/division scope."
+              search={(
+                <label>
+                  <span className="sr-only">Search tools</span>
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => { setSearch(event.target.value); setSelectedToolId(''); }}
+                    placeholder="Search tools..."
+                  />
+                </label>
+              )}
+            />
+
+            {catalogue.isLoading ? <StatePanel title="Loading tools..." compact /> : catalogue.error
+              ? <StatePanel title="Tools could not be loaded" description={catalogue.error.message} tone="danger" />
+              : filteredTools.length === 0 ? <StatePanel title={search ? 'No tools matched this search' : 'No tools to show'} />
+              : <div className="tools-compact-list">
+                <div className="tools-compact-labels" aria-hidden="true"><span>Tool #</span><span>Category</span><span>Model</span><span /></div>
+                {filteredTools.map(tool => <div className="tools-compact-item" key={tool.id}>
+                  <button type="button" className="tools-compact-row" aria-expanded={selectedToolId === tool.id}
+                    aria-controls={`tool-detail-${tool.id}`} onClick={() => selectTool(tool)}>
+                    <strong>{tool.tool_number || '-'}</strong><span>{tool.category || '-'}</span><span>{tool.model || '-'}</span>
+                    <ChevronDown aria-hidden="true" />
+                  </button>
+                  {selectedToolId === tool.id ? <section id={`tool-detail-${tool.id}`} aria-label={`Details for ${toolLabel(tool)}`}>
+                    {toolColumns.find(column => column.key === 'actions').render(tool)}
+                    {renderToolDetails()}
+                  </section> : null}
+                </div>)}
+              </div>}
+          </article>
+
+
 
           <section className="tools-boundary-grid">
             <StatePanel

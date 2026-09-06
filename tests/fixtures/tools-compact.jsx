@@ -1,0 +1,10 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { ToolsWorkspace } from '../../src/modules/tools/ToolsWorkspace.jsx';
+import { DiagnosticsProvider } from '../../src/components/ui/Diagnostics.jsx';
+import '../../src/styles/tokens.css';
+import '../../src/styles/base.css';
+import '../../src/styles/primitives.css';
+const permissions = { permissionSource: 'server', canManageInventory: !new URLSearchParams(location.search).has('readonly'), division: 'Electrical', role: 'Manager', userId: 'fixture' };
+document.documentElement.classList.add('ng-hide-development');
+createRoot(document.getElementById('root')).render(<DiagnosticsProvider permissions={permissions} enabled={false}><main style={{ padding: 16, maxWidth: 1400, margin: 'auto' }}><ToolsWorkspace permissions={permissions} /></main></DiagnosticsProvider>);
