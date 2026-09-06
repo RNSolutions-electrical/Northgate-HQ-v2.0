@@ -4,18 +4,27 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `INVENTORY-NOTES-20260906-001`
-- Baseline / Checkout notes commit: `7e09d29`
+- Marker: `TOOLS-COMPACT-20260906-001`
+- Baseline / Tools compact UI commit: `8be1c04`
+- Checkout notes commit: `7e09d29`
 - Inventory search feature commit: `5305e73`
 - Shared UI cleanup commit: `f5f78ac`
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9dac043776b5000734992b`
+- Production deploy: `6a9db2ead5c02b00087bd982`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker adds uniform checkout note coverage across all destinations:
+The current marker adds collapsed Tools catalogue rows showing Tool #, category,
+and model, with inline expansion. Add a tool opens a dedicated module; successful
+creation or cancellation returns to the catalogue. Edit/archive/history and their
+existing permissions/audit paths are preserved. Fifteen Node tests, desktop/tablet/
+phone browser checks, the build, and live page/JavaScript checks passed. No production
+tools were created by tests. See `docs/TOOLS_COMPACT_CATALOGUE.md`.
+Ryan's authenticated Tools acceptance and Inventory desktop/tablet check remain pending.
+
+The previous marker adds uniform checkout note coverage across all destinations:
 a cart note OR a note on every line, with both accepted and preserved separately.
 Apply To All and destination changes no longer erase line notes. Transaction
 history displays both notes. Migration `20260906180642_inventory_checkout_note_coverage`

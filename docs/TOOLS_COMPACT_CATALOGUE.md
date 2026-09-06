@@ -2,6 +2,9 @@
 
 September 6, 2026 UI pass. No schema, permission, custody, or audit write changes.
 
+Feature `8be1c04` deployed as `6a9db2ead5c02b00087bd982`. Live Tools HTML and
+JavaScript returned 200 with the new UI present and correct JavaScript MIME type.
+
 - Catalogue rows start collapsed and show only Tool #, category, and model.
   One row expands at a time; clicking it again collapses it. Search/filter changes
   clear the expansion. Existing detail tabs, history, and authorized actions remain.
