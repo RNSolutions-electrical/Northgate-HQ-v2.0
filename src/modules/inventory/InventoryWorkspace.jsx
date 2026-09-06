@@ -26,6 +26,8 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx';
+import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
 import { useBinItemRetirement } from '../../hooks/useBinItemRetirement.js';
 import { useInventoryCart } from '../../hooks/useInventoryCart.js';
 import { useInventoryCountCorrection } from '../../hooks/useInventoryCountCorrection.js';
@@ -37,6 +39,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { buildLocationQrSvg, buildLocationQrUrl, buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
 const INVENTORY_VIEWS = [
+  { key: 'stock', label: 'Inventory', icon: PackageSearch },
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Live stock summary and valuation export preview.' },
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
   { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units and bin previews.' },
@@ -61,13 +64,12 @@ const HISTORY_TYPES = [
 ];
 
 const DESTINATION_OPTIONS = [
-  { value: 'job', label: 'Job' },
-  { value: 'service_call', label: 'Service Call' },
+  { value: 'job', label: 'Issue to Job' },
+  { value: 'service_call', label: 'Issue to Service Call' },
   { value: 'vehicle', label: 'Vehicle Stock' },
-  { value: 'user', label: 'User Possession' },
   { value: 'vendor_return', label: 'Vendor Return' },
   { value: 'scrap', label: 'Scrap' },
-  { value: 'unknown', label: 'Unknown / Missing' },
+  { value: 'unknown', label: 'Other / Uncoded (note required)' },
 ];
 
 const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'user']);
@@ -113,12 +115,9 @@ const CANDIDATE_COLUMNS = [
 ];
 
 const CART_COLUMNS = [
-  { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
-  { key: 'item_name', header: 'Item' },
-  { key: 'bin_code', header: 'Bin' },
-  { key: 'quantity', header: 'Qty', numeric: true, render: (row) => formatQuantity(row.quantity) },
-  { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
-  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand) },
+  { key: 'item_name', header: 'Material', render: row => <span><strong>{row.item_name}</strong><small className="inventory-cart-code">{row.material_code}</small></span> },
+  { key: 'bin_code', header: 'From' },
+  { key: 'quantity', header: 'Quantity', numeric: true, render: row => `${formatQuantity(row.quantity)} ${row.unit_of_measure || ''}` },
 ];
 
 const USER_COLUMNS = [
@@ -472,11 +471,12 @@ function filterRows(rows, search, fields) {
 }
 
 function normalizeDestinationType(value) {
-  return VALID_DESTINATION_TYPES.has(value) ? value : 'unknown';
+  return VALID_DESTINATION_TYPES.has(value) ? value : '';
 }
 
 function isDestinationValid(destination) {
   const destinationType = normalizeDestinationType(destination?.destination_type);
+  if (!VALID_DESTINATION_TYPES.has(destinationType)) return false;
   if (DESTINATIONS_REQUIRING_ID.has(destinationType) && !destination?.destination_id?.trim()) {
     return false;
   }
@@ -491,6 +491,16 @@ function isDeveloperOrAdminRole(role) {
 }
 
 export function InventoryWorkspace({ permissions }) {
+  const diagnostics = useDiagnostics();
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 899px), (pointer: coarse)').matches);
+  const [confirmCheckout, setConfirmCheckout] = useState(false);
+  const addLock = useRef(false);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 899px), (pointer: coarse)');
+    const update = () => setIsMobile(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -503,15 +513,16 @@ export function InventoryWorkspace({ permissions }) {
   const scanBinCode = searchParams.get('scanBinCode') ?? '';
   const scanContext = scanBinId ? { binId: scanBinId, binCode: scanBinCode } : null;
   const canLoadInventory = permissions.permissionSource === 'server';
-  const canTransact = permissions?.canInventoryTransactions === true;
+  const canTransact = canLoadInventory && permissions?.canInventoryTransactions === true;
   const canManageInventory = permissions?.canManageInventory === true;
   const canReadCounts = canLoadInventory && canManageInventory;
+  const canScan = canLoadInventory && (canManageInventory || canTransact);
   const canWriteCounts = canReadCounts && isDeveloperOrAdminRole(permissions?.role);
   const canRetireBinItems = canWriteCounts && permissions?.canArchiveRecords === true;
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState(
-    INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : 'catalog',
+    INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : 'stock',
   );
   const [search, setSearch] = useState('');
   const [catalogCategory, setCatalogCategory] = useState('');
@@ -723,8 +734,17 @@ export function InventoryWorkspace({ permissions }) {
   useEffect(() => () => {
     stopCameraScanner();
   }, []);
+  useEffect(() => {
+    if (!isMobile) stopCameraScanner();
+  }, [isMobile]);
 
-  const views = INVENTORY_VIEWS.map((view) => {
+  const views = INVENTORY_VIEWS.filter(view => {
+    if (view.key === 'scan') return isMobile && canScan;
+    if (['controls', 'destinations'].includes(view.key)) return diagnostics;
+    if (view.key === 'catalog' || view.key === 'cart') return false;
+    if (['overview', 'accounting', 'locations', 'count'].includes(view.key)) return canManageInventory;
+    return true;
+  }).map((view) => {
     const badge = {
       catalog: counts.activeItems,
       overview: countSheet.rows.length || counts.binItems,
@@ -738,7 +758,7 @@ export function InventoryWorkspace({ permissions }) {
       history: history.rows.length,
       controls: null,
     }[view.key];
-    return { ...view, badge };
+    return { ...view, badge: diagnostics ? badge : null };
   });
 
   const candidateColumns = useMemo(() => [
@@ -790,23 +810,26 @@ export function InventoryWorkspace({ permissions }) {
         return (
           <div className="inventory-cart-destination-cell">
             <select
+              aria-label={`Destination for ${row.item_name}`}
               value={line.destination_type}
-              disabled={!cartIsActive || cartActionInProgress}
+              disabled={!canTransact || !cartIsActive || cartActionInProgress}
               onChange={(event) => updateLineDestination(row.cart_item_id, {
                 destination_type: event.target.value,
                 destination_id: '',
                 note: '',
               })}
             >
+              <option value="" disabled>Choose destination</option>
               {DESTINATION_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
             {renderDestinationIdControl(row.cart_item_id, line)}
             <input
+              aria-label={`Destination note for ${row.item_name}`}
               type="text"
               value={line.note}
-              disabled={!cartIsActive || cartActionInProgress}
+              disabled={!canTransact || !cartIsActive || cartActionInProgress}
               placeholder={line.destination_type === 'unknown' ? 'Required note' : 'Optional note'}
               onChange={(event) => updateLineDestination(row.cart_item_id, { note: event.target.value })}
             />
@@ -821,15 +844,18 @@ export function InventoryWorkspace({ permissions }) {
       render: (row) => (
         <button
           type="button"
-          className="secondary-button"
-          disabled={!cartIsActive || cartActionInProgress}
+          className="icon-button"
+          title={`Remove ${row.item_name}`}
+          aria-label={`Remove ${row.item_name}`}
+          hidden={!canTransact}
+          disabled={!canTransact || !cartIsActive || cartActionInProgress}
           onClick={() => handleRemoveCartItem(row.cart_item_id)}
         >
-          <Trash2 aria-hidden="true" /> Remove
+          <Trash2 aria-hidden="true" />
         </button>
       ),
     },
-  ], [cartActionInProgress, cartIsActive, lineDestinations, model.destinationReferences]);
+  ], [canTransact, cartActionInProgress, cartIsActive, lineDestinations, applyAllDestination, model.destinationReferences]);
 
   const countColumns = useMemo(() => [
     ...COUNT_COLUMNS,
@@ -983,12 +1009,12 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function updateLineDestination(cartItemId, updates) {
+    const item = cartState.cartItems.find(row => row.cart_item_id === cartItemId);
+    const existing = item ? getLineDestination(item) : applyAllDestination;
     setLineDestinations((current) => ({
       ...current,
       [cartItemId]: {
-        destination_type: applyAllDestination.destination_type,
-        destination_id: '',
-        note: '',
+        ...existing,
         ...(current[cartItemId] ?? {}),
         ...updates,
       },
@@ -1018,6 +1044,10 @@ export function InventoryWorkspace({ permissions }) {
 
   function renderDestinationIdControl(cartItemId, line) {
     const destinationType = normalizeDestinationType(line.destination_type);
+    const updateReference = value => cartItemId === '__all__'
+      ? updateApplyAllDestination({ destination_id: value })
+      : updateLineDestination(cartItemId, { destination_id: value });
+    if (!DESTINATIONS_REQUIRING_ID.has(destinationType)) return null;
 
     if (destinationType === 'user' && model.destinationReferences.users.length) {
       return (
@@ -1039,12 +1069,13 @@ export function InventoryWorkspace({ permissions }) {
     if (destinationType === 'vehicle' && model.destinationReferences.vehicles.length) {
       return (
         <select
+          aria-label={cartItemId === '__all__' ? 'Cart destination reference' : 'Vehicle destination'}
           value={line.destination_id}
           disabled={!cartIsActive || cartActionInProgress}
-          onChange={(event) => updateLineDestination(cartItemId, { destination_id: event.target.value })}
+          onChange={(event) => updateReference(event.target.value)}
         >
           <option value="">Select vehicle</option>
-          {model.destinationReferences.vehicles.map((vehicle) => (
+          {model.destinationReferences.vehicles.filter(vehicle => vehicle.holds_stock).map((vehicle) => (
             <option key={vehicle.id} value={vehicle.id}>
               {vehicle.vehicle_number || vehicle.id}
             </option>
@@ -1056,11 +1087,12 @@ export function InventoryWorkspace({ permissions }) {
     const requiresId = DESTINATIONS_REQUIRING_ID.has(destinationType);
     return (
       <input
+        aria-label={cartItemId === '__all__' ? 'Cart destination reference' : 'Destination reference'}
         type="text"
         value={line.destination_id}
         disabled={!cartIsActive || cartActionInProgress || !requiresId}
         placeholder={requiresId ? 'Required ID' : 'No ID required'}
-        onChange={(event) => updateLineDestination(cartItemId, { destination_id: event.target.value })}
+        onChange={(event) => updateReference(event.target.value)}
       />
     );
   }
@@ -1136,11 +1168,14 @@ export function InventoryWorkspace({ permissions }) {
 
     const params = new URLSearchParams(location.search);
     params.set('view', nextView);
-    if (!['cart', 'count'].includes(nextView)) {
+    if (!['cart', 'count', 'stock', 'catalog'].includes(nextView)) {
       params.delete('scanBinId');
       params.delete('scanBinCode');
     }
     navigate(`/inventory?${params.toString()}`, { replace: true });
+    setIsPrimaryOpen(false);
+    setConfirmCheckout(false);
+    stopCameraScanner();
   }
 
   function openLocationScan(locationId) {
@@ -1162,6 +1197,13 @@ export function InventoryWorkspace({ permissions }) {
       return;
     }
 
+    const stockBins = [...new Map((model.stockRows ?? model.cartCandidates).map(row => [row.bin_id, {
+      id: row.bin_id, type: 'bin', typeLabel: 'Bin', code: row.bin_code, label: row.bin_label, path: row.bin_code,
+    }])).values()];
+    const stockMatches = stockBins.filter(record => locationRecordMatchesInput(record, payload));
+    if (stockMatches.length === 1) { openLocationScan(stockMatches[0].id); return; }
+    if (stockMatches.length > 1) { setScanMatches(stockMatches); return; }
+    if (!canManageInventory) { setScanMessage('No matching accessible stock bin found.'); return; }
     if (countSheet.isLoading || !countSheet.lastLoadedAt) {
       setScanMessage('Location hierarchy is still loading. Try again in a moment.');
       return;
@@ -1209,7 +1251,7 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   async function startCameraScanner() {
-    if (!canReadCounts) {
+    if (!canScan || !isMobile) {
       setScanMessage('Server inventory read access is required before scanning.');
       return;
     }
@@ -1281,35 +1323,40 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   async function handleOpenCart() {
+    if (!canTransact || cartActionInProgress) return;
     await cartState.openCart();
   }
 
   async function handleAddCandidate(candidate) {
-    if (!cart?.cart_id || !cartIsActive) return;
+    if (!canTransact || cartActionInProgress || addLock.current) return;
 
     const quantity = getCandidateQuantity(candidate);
-    if (quantity <= 0) {
-      setCandidateMessage(candidate.bin_item_id, 'error', 'Enter a quantity greater than 0.');
+    if (quantity <= 0 || quantity > Number(candidate.quantity_on_hand)) {
+      setCandidateMessage(candidate.bin_item_id, 'error', 'Enter a quantity greater than zero and no more than the available stock.');
       return;
     }
-
-    const result = await cartState.addItem({
-      cartId: cart.cart_id,
-      binItemId: candidate.bin_item_id,
-      quantity,
-    });
-
-    if (result) {
-      updateCandidateQuantity(candidate.bin_item_id, '1');
-      setCandidateMessage(candidate.bin_item_id, 'success', `Added ${formatQuantity(quantity)}.`);
-    } else {
-      setCandidateMessage(candidate.bin_item_id, 'error', 'Add failed. Check balance or permissions.');
-    }
+    addLock.current = true;
+    try {
+      const activeCart = cartIsActive ? cart : await cartState.openCart();
+      if (!activeCart?.cart_id || activeCart.status !== 'active') return;
+      const result = await cartState.addItem({
+        cartId: activeCart.cart_id,
+        binItemId: candidate.bin_item_id,
+        quantity,
+      });
+      if (result) {
+        updateCandidateQuantity(candidate.bin_item_id, '1');
+        setCandidateMessage(candidate.bin_item_id, 'success', `Added ${formatQuantity(quantity)}.`);
+      } else {
+        setCandidateMessage(candidate.bin_item_id, 'error', 'Add failed. Check balance or permissions.');
+      }
+    } finally { addLock.current = false; }
   }
 
   async function handleRemoveCartItem(cartItemId) {
-    if (!cart?.cart_id || !cartIsActive) return;
-    await cartState.removeItem({ cartId: cart.cart_id, cartItemId });
+    if (!canTransact || cartActionInProgress || !cart?.cart_id || !cartIsActive) return;
+    const result = await cartState.removeItem({ cartId: cart.cart_id, cartItemId });
+    if (!result) return;
     setLineDestinations((current) => {
       const next = { ...current };
       delete next[cartItemId];
@@ -1318,7 +1365,7 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   async function handleCheckout() {
-    if (!cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations) return;
+    if (!canTransact || cartActionInProgress || !cart?.cart_id || !cartIsActive || !cartState.cartItems.length || hasInvalidLineDestinations) return;
 
     const lineDestinations = cartState.cartItems.map((item) => {
       const line = getLineDestination(item);
@@ -1339,6 +1386,7 @@ export function InventoryWorkspace({ permissions }) {
     });
 
     if (result) {
+      setConfirmCheckout(false);
       setLineDestinations({});
       setCandidateMessages({});
       readModel.reload();
@@ -1484,6 +1532,19 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function renderActiveView() {
+    if (activeView === 'stock' || activeView === 'catalog') {
+      return <>
+        {cartState.error ? <StatePanel title="Cart action failed" description={cartState.error.message} tone="danger" /> : null}
+        <InventoryStockBrowser model={model} loading={readModel.isLoading} error={readModel.error}
+          fullCatalogue={activeView === 'catalog'} onScopeChange={full => updateInventoryView(full ? 'catalog' : 'stock')}
+          canTransact={canTransact} busy={cartActionInProgress} quantities={candidateQuantities} messages={candidateMessages}
+          onQuantityChange={updateCandidateQuantity} onAdd={handleAddCandidate} scanBinId={scanBinId}
+          onClearScan={() => navigate(`/inventory?view=${activeView}`)} />
+      </>;
+    }
+    if (activeView === 'scan' && !isMobile) {
+      return <StatePanel title="Find material" actions={<button className="primary-button" onClick={() => updateInventoryView('stock')}>Search Inventory</button>} />;
+    }
     if (activeView === 'overview') {
       return (
         <div className="inventory-section-stack">
@@ -1641,17 +1702,17 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Scan"
-              title="Location QR Dispatch"
+              title="Scan Location"
               description="Open Northgate location QR routes, or enter a location code. Scanning resolves context only; cart, count, and retirement actions remain separate."
               dense
             />
 
-            {!canReadCounts ? (
+            {!canScan ? (
               <StatePanel
                 eyebrow="Scan Access"
-                title="Inventory management permission required"
+                title="Inventory access required"
                 description="QR scan resolution uses the existing inventory location read path and does not bypass server permissions."
                 tone="warning"
                 compact
@@ -1668,14 +1729,14 @@ export function InventoryWorkspace({ permissions }) {
             ) : null}
 
             <div className="inventory-scan-panel">
-              <div className="inventory-scan-reader">
+              <Diagnostics><div className="inventory-scan-reader">
                 <QrCode aria-hidden="true" />
                 <div>
                   <p className="eyebrow">Accepted payloads</p>
                   <h3>Location QR only</h3>
                   <p>Paste a full QR URL, a `/scan/location/...` path, a raw UUID, or an exact location code such as a unit, shelf, bay, or bin code.</p>
                 </div>
-              </div>
+              </div></Diagnostics>
 
               <section className="inventory-scan-camera">
                 <div className="inventory-scan-video-frame">
@@ -1688,11 +1749,11 @@ export function InventoryWorkspace({ permissions }) {
                   ) : null}
                 </div>
                 <div className="inventory-scan-camera-actions">
-                  <button hidden={!canReadCounts}
+                  <button hidden={!canScan}
                     type="button"
                     className="secondary-button"
                     onClick={startCameraScanner}
-                    disabled={!canReadCounts || cameraStatus === 'starting' || cameraStatus === 'scanning'}
+                    disabled={!canScan || cameraStatus === 'starting' || cameraStatus === 'scanning'}
                   >
                     <Camera aria-hidden="true" /> {cameraStatus === 'starting' ? 'Starting...' : 'Start Camera'}
                   </button>
@@ -1709,19 +1770,19 @@ export function InventoryWorkspace({ permissions }) {
 
               <form className="inventory-scan-form" onSubmit={handleManualScan}>
                 <label>
-                  <span>Manual Scan Payload</span>
+                  <span>Location code or QR</span>
                   <textarea
                     value={manualScanPayload}
-                    disabled={!canReadCounts || countSheet.isLoading}
+                    disabled={!canScan || countSheet.isLoading}
                     onChange={(event) => {
                       setManualScanPayload(event.target.value);
                       setScanMatches([]);
                     }}
-                    placeholder="Paste /scan/location/<uuid>, a full QR URL, a UUID, or enter a location code"
+                    placeholder="Enter location code or paste QR link"
                     rows={4}
                   />
                 </label>
-                <button hidden={!canReadCounts} type="submit" className="primary-button" disabled={!canReadCounts || countSheet.isLoading || !manualScanPayload.trim()}>
+                <button hidden={!canScan} type="submit" className="primary-button" disabled={!canScan || countSheet.isLoading || !manualScanPayload.trim()}>
                   <QrCode aria-hidden="true" /> Open Scan Result
                 </button>
               </form>
@@ -1811,11 +1872,11 @@ export function InventoryWorkspace({ permissions }) {
           <article className="card workspace-card">
             <Toolbar descriptionIsDiagnostic
               eyebrow="Cart"
-              title="Active Inventory Cart"
+              title="My Cart"
               description="Open or reuse your active server cart. Stage material, set approved destinations, then finalize through the preserved checkout RPC."
               actions={(
-                <button hidden={!canTransact} type="button" className="primary-button" onClick={handleOpenCart} disabled={!canTransact || cartActionInProgress || cartIsActive}>
-                  <ShoppingCart aria-hidden="true" /> {cartState.isOpening ? 'Opening...' : cartIsActive ? 'Cart Open' : 'Open Cart'}
+                <button type="button" className="secondary-button" onClick={() => updateInventoryView('stock')}>
+                  <Plus aria-hidden="true" /> Add Materials
                 </button>
               )}
               dense
@@ -1841,22 +1902,22 @@ export function InventoryWorkspace({ permissions }) {
               />
             ) : null}
 
-            <div className="inventory-cart-facts">
+            <Diagnostics><div className="inventory-cart-facts">
               <span>Status: <strong>{cart?.status ?? 'Not opened'}</strong></span>
               <span>Rows: <strong>{cartState.cartItems.length}</strong></span>
               <span>Cart ID: <strong>{cart?.cart_id ? `${cart.cart_id.slice(0, 8)}...` : 'None'}</strong></span>
               <span>Expires: <strong>{cart?.expires_at ? formatDateTime(cart.expires_at) : '-'}</strong></span>
               <span>Checkout: <strong>{cartState.checkoutResult?.status ?? 'Not finalized'}</strong></span>
-            </div>
+            </div></Diagnostics>
 
             <div className="inventory-cart-checkout-panel">
               <div>
                 <p className="eyebrow">Checkout</p>
-                <h3>Apply Destination To Lines</h3>
-                <p>Choose one destination for every current cart line, then adjust individual lines if needed before checkout.</p>
+                <h3>Destination</h3>
               </div>
               <div className="inventory-cart-checkout-controls">
                 <select
+                  aria-label="Cart destination type"
                   value={applyAllDestination.destination_type}
                   disabled={!cartIsActive || cartActionInProgress}
                   onChange={(event) => updateApplyAllDestination({
@@ -1869,14 +1930,9 @@ export function InventoryWorkspace({ permissions }) {
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
+                {renderDestinationIdControl('__all__', applyAllDestination)}
                 <input
-                  type="text"
-                  value={applyAllDestination.destination_id}
-                  disabled={!cartIsActive || cartActionInProgress || !DESTINATIONS_REQUIRING_ID.has(applyAllDestination.destination_type)}
-                  placeholder={DESTINATIONS_REQUIRING_ID.has(applyAllDestination.destination_type) ? 'Destination ID required' : 'No ID required'}
-                  onChange={(event) => updateApplyAllDestination({ destination_id: event.target.value })}
-                />
-                <input
+                  aria-label="Cart destination note"
                   type="text"
                   value={applyAllDestination.note}
                   disabled={!cartIsActive || cartActionInProgress}
@@ -1896,9 +1952,9 @@ export function InventoryWorkspace({ permissions }) {
               permissions={permissions}
               isLoading={cartState.isReadingItems}
               dense
-              minWidth="900px"
-              emptyTitle="No staged cart lines"
-              emptyDescription="Open a cart, then add stocked candidate rows below. Checkout is enabled once staged lines have valid destinations."
+              minWidth="680px"
+              emptyTitle="Your cart is empty"
+              emptyDescription=""
             />
 
             <div className="inventory-cart-finalize-row">
@@ -1906,24 +1962,34 @@ export function InventoryWorkspace({ permissions }) {
                 type="button"
                 className="primary-button"
                 disabled={!canTransact || !cartIsActive || cartActionInProgress || !cartState.cartItems.length || hasInvalidLineDestinations}
-                onClick={handleCheckout}
+                onClick={() => setConfirmCheckout(true)}
               >
-                <ShoppingCart aria-hidden="true" /> {cartState.isCheckingOut ? 'Checking Out...' : 'Checkout Selected Destinations'}
+                <ShoppingCart aria-hidden="true" /> Review Checkout
               </button>
               {hasInvalidLineDestinations ? <span className="inventory-cart-row-message inventory-cart-row-message--error">Every line needs a valid destination before checkout.</span> : null}
             </div>
+            {confirmCheckout ? <section className="inventory-checkout-review" aria-label="Checkout review">
+              <h3>Confirm checkout</h3>
+              <p>{cartState.cartItems.length} material line{cartState.cartItems.length === 1 ? '' : 's'}. Quantities will leave their source locations. Job costs will not be posted.</p>
+              <ul>{cartState.cartItems.map(item => {
+                const line = getLineDestination(item);
+                return <li key={item.cart_item_id}>{formatQuantity(item.quantity)} {item.unit_of_measure} {item.item_name} from {item.bin_code}: {DESTINATION_OPTIONS.find(option => option.value === line.destination_type)?.label} {line.destination_id} {line.note}</li>;
+              })}</ul>
+              <button className="primary-button" disabled={!canTransact || cartActionInProgress || hasInvalidLineDestinations || !cartIsActive} onClick={handleCheckout}>{cartState.isCheckingOut ? 'Checking out...' : 'Confirm Checkout'}</button>
+              <button className="secondary-button" disabled={cartActionInProgress} onClick={() => setConfirmCheckout(false)}>Cancel</button>
+            </section> : null}
             {cartState.checkoutResult ? (
               <StatePanel
                 eyebrow="Checkout Complete"
                 title="Cart finalized"
-                description={`${cartState.checkoutResult.transaction_item_count ?? 0} transaction item${cartState.checkoutResult.transaction_item_count === 1 ? '' : 's'} written through the preserved checkout RPC.`}
+                description={`${cartState.checkoutResult.transaction_item_count ?? 0} material movement${cartState.checkoutResult.transaction_item_count === 1 ? '' : 's'} recorded.`}
                 tone="good"
                 compact
               />
             ) : null}
           </article>
 
-          <article className="card workspace-card">
+          <Diagnostics><article className="card workspace-card">
             <Toolbar descriptionIsDiagnostic
               eyebrow="Candidates"
               title="Add Stocked Rows"
@@ -1942,7 +2008,7 @@ export function InventoryWorkspace({ permissions }) {
               emptyTitle="No checkout candidates in preview"
               emptyDescription="Only positive on-hand rows from the preserved read model appear here."
             />
-          </article>
+          </article></Diagnostics>
         </div>
       );
     }
@@ -2250,6 +2316,7 @@ export function InventoryWorkspace({ permissions }) {
     }
 
     if (activeView === 'controls') {
+      if (!diagnostics) return null;
       return (
         <section className="inventory-boundary-grid">
           <StatePanel
@@ -2307,6 +2374,7 @@ export function InventoryWorkspace({ permissions }) {
   return (
     <>
       <WorkspaceHeader
+        statusIsDiagnostic
         eyebrow="Workspace"
         title="Inventory"
         description="Inventory surface using preserved hooks plus restored overview, accounting export, locations/QR, cart, checkout, count, retirement, and scan dispatch workflows."
@@ -2316,6 +2384,11 @@ export function InventoryWorkspace({ permissions }) {
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Page Menu
             </button>
+            {isMobile && canScan ? <button type="button" className="secondary-button" onClick={() => updateInventoryView('scan')}><QrCode aria-hidden="true" /> Scan</button> : null}
+            {canTransact ? <button type="button" className="primary-button" disabled={cartActionInProgress} onClick={() => {
+              updateInventoryView('cart');
+              if (!cartIsActive) handleOpenCart();
+            }}><ShoppingCart aria-hidden="true" /> My Cart{cartIsActive ? ` (${cartState.cartItems.length})` : ''}</button> : null}
             <button type="button" className="secondary-button" onClick={readModel.reload} disabled={readModel.isLoading}>
               <RefreshCw aria-hidden="true" /> Refresh
             </button>
@@ -2323,12 +2396,12 @@ export function InventoryWorkspace({ permissions }) {
         )}
       />
 
-      <div className="summary-grid">
+      <Diagnostics><div className="summary-grid">
         <SummaryCard label="Active items" value={counts.activeItems} detail="Current catalogue count" />
         <SummaryCard label="Bins" value={counts.bins} detail={`${counts.storageUnits} units / ${counts.shelves} shelves / ${counts.bays} bays`} />
         <SummaryCard label="Bin items" value={counts.binItems} detail={`${counts.inventoryBalances} balance rows`} />
         <SummaryCard label="Cart / Count" value={cartState.cartItems.length} detail={`${model.cartCandidates.length} stocked candidates / ${countSheet.rows.length || counts.binItems} count rows`} />
-      </div>
+      </div></Diagnostics>
 
       <div className={`workspace-split inventory-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
@@ -2336,7 +2409,7 @@ export function InventoryWorkspace({ permissions }) {
           title="Inventory"
           description="Read models first; write controls stay intentionally bounded."
           items={views}
-          activeKey={activeView}
+          activeKey={activeView === 'catalog' ? 'stock' : activeView}
           onSelect={updateInventoryView}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
@@ -2351,9 +2424,9 @@ export function InventoryWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
-          {activeView !== 'history' && activeView !== 'controls' && activeView !== 'scan' ? (
+          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart'].includes(activeView) ? (
             <article className="card workspace-card">
-              <Toolbar
+              <Toolbar descriptionIsDiagnostic
                 eyebrow="Filter"
                 title={views.find((view) => view.key === activeView)?.label ?? 'Inventory'}
                 description={activeView === 'catalog' ? 'Search and narrow the complete active material catalogue.' : 'Client-side filtering over the current visible rows.'}
@@ -2412,7 +2485,7 @@ export function InventoryWorkspace({ permissions }) {
 
           {renderActiveView()}
 
-          <section className="inventory-boundary-grid">
+          <Diagnostics><section className="inventory-boundary-grid">
             <StatePanel
               eyebrow="Permission Scope"
               title={canManageInventory || canTransact ? 'Inventory access granted' : 'Inventory access limited'}
@@ -2429,7 +2502,7 @@ export function InventoryWorkspace({ permissions }) {
               compact
               actions={<Boxes aria-hidden="true" />}
             />
-          </section>
+          </section></Diagnostics>
         </div>
       </div>
     </>
@@ -2440,8 +2513,16 @@ export function InventoryScanRoute() {
   const permissions = usePermissions();
   const navigate = useNavigate();
   const { locationId = '' } = useParams();
-  const canReadLocations = permissions.permissionSource === 'server' && permissions.canManageInventory;
-  const locationSheet = useInventoryCountSheet({ enabled: canReadLocations });
+  const canReadLocations = permissions.permissionSource === 'server' && (permissions.canManageInventory || permissions.canInventoryTransactions);
+  const hierarchy = useInventoryCountSheet({ enabled: canReadLocations && permissions.canManageInventory });
+  const stock = useInventoryReadModel({ enabled: canReadLocations && !permissions.canManageInventory });
+  // Transaction-only users can resolve bin labels already authorized by the stock view.
+  // Unit/shelf/bay hierarchy access still requires the existing management permission.
+  const locationSheet = useMemo(() => permissions.canManageInventory ? hierarchy : {
+    ...hierarchy, isLoading: stock.isLoading, error: stock.error,
+    rows: stock.model.stockRows ?? [],
+    bins: [...new Map((stock.model.stockRows ?? []).map(row => [row.bin_id, { id: row.bin_id, bin_code: row.bin_code, label: row.bin_label }])).values()],
+  }, [permissions.canManageInventory, hierarchy, stock.model, stock.isLoading, stock.error]);
   const scanModel = useMemo(
     () => buildScanDestinationModel(locationId.toLowerCase(), locationSheet),
     [locationId, locationSheet.storageUnits, locationSheet.shelves, locationSheet.bays, locationSheet.bins],
@@ -2454,7 +2535,7 @@ export function InventoryScanRoute() {
 
   function dispatchTo(view, bin) {
     const params = getScanQuery(bin);
-    params.set('view', view);
+    params.set('view', view === 'cart' ? 'stock' : view);
     navigate(`/inventory?${params.toString()}`);
   }
 
@@ -2542,9 +2623,9 @@ export function InventoryScanRoute() {
                 actions={(
                   <>
                     <button type="button" className="primary-button" onClick={() => dispatchTo('cart', scanModel.bin)}>
-                      <ShoppingCart aria-hidden="true" /> Open Cart
+                      <ShoppingCart aria-hidden="true" /> Select Materials
                     </button>
-                    <button type="button" className="secondary-button" onClick={() => dispatchTo('count', scanModel.bin)}>
+                    <button hidden={!permissions.canManageInventory} type="button" className="secondary-button" onClick={() => dispatchTo('count', scanModel.bin)}>
                       <Scale aria-hidden="true" /> Open Count
                     </button>
                   </>
@@ -2567,9 +2648,9 @@ export function InventoryScanRoute() {
                     <span>{bin.label || 'Bin in scanned scope'}</span>
                     <div className="inventory-scan-bin-actions">
                       <button type="button" className="secondary-button" onClick={() => dispatchTo('cart', bin)}>
-                        <ShoppingCart aria-hidden="true" /> Cart
+                        <ShoppingCart aria-hidden="true" /> Select Materials
                       </button>
-                      <button type="button" className="secondary-button" onClick={() => dispatchTo('count', bin)}>
+                      <button hidden={!permissions.canManageInventory} type="button" className="secondary-button" onClick={() => dispatchTo('count', bin)}>
                         <Scale aria-hidden="true" /> Count
                       </button>
                     </div>

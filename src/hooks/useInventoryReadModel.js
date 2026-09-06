@@ -17,6 +17,7 @@ const EMPTY_MODEL = Object.freeze({
   storageUnitsPreview: [],
   binsPreview: [],
   cartCandidates: [],
+  stockRows: [],
   destinationReferences: {
     users: [],
     vehicles: [],
@@ -60,6 +61,20 @@ async function getActiveCatalog(client) {
   }
 
   return { data: rows, error: null };
+}
+
+async function getTrackedStock(client) {
+  const rows = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await client.from('inventory_cart_candidates_view')
+      .select('bin_item_id, item_id, bin_id, bin_code, bin_label, material_code, item_name, unit_of_measure, division, price_per_unit, quantity_on_hand, min_quantity')
+      .order('bin_code', { ascending: true }).order('bin_item_id', { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) return { data: rows, error: null };
+  }
 }
 
 export function useInventoryReadModel({ enabled }) {
@@ -127,14 +142,7 @@ export function useInventoryReadModel({ enabled }) {
             .select('id, bin_code, label, qr_code')
             .order('bin_code', { ascending: true })
             .limit(10),
-          client
-            .from('inventory_cart_candidates_view')
-            .select(
-              'bin_item_id, item_id, bin_id, bin_code, bin_label, material_code, item_name, unit_of_measure, division, price_per_unit, quantity_on_hand, min_quantity',
-            )
-            .gt('quantity_on_hand', 0)
-            .order('bin_code', { ascending: true })
-            .limit(1000),
+          getTrackedStock(client),
           client
             .from('inventory_destination_users_view')
             .select('clerk_user_id, display_name, email, role, division')
@@ -183,7 +191,8 @@ export function useInventoryReadModel({ enabled }) {
               catalogPreview: catalogPreviewResult.data ?? [],
               storageUnitsPreview: storageUnitsPreviewResult.data ?? [],
               binsPreview: binsPreviewResult.data ?? [],
-              cartCandidates: cartCandidatesResult.data ?? [],
+              stockRows: cartCandidatesResult.data ?? [],
+              cartCandidates: (cartCandidatesResult.data ?? []).filter(row => Number(row.quantity_on_hand) > 0),
               destinationReferences: {
                 users: usersResult.error ? [] : usersResult.data ?? [],
                 vehicles: vehiclesResult.error ? [] : vehiclesResult.data ?? [],

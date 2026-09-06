@@ -4336,6 +4336,57 @@ textarea {
   gap: var(--card-gap);
 }
 
+.inventory-workspace .workspace-surface > .workspace-card,
+.inventory-workspace .inventory-section-stack > .workspace-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.inventory-stock-browser { min-width: 0; }
+.inventory-category-filters { padding: 8px 0; font-size: 13px; }
+.inventory-category-filters summary { cursor: pointer; }
+.inventory-category-filters select { max-width: 100%; margin: 8px 8px 0 0; }
+.inventory-cart-code { display: block; color: #5a626b; font-size: 12px; margin-top: 4px; }
+.inventory-workspace .icon-button, .inventory-stock-browser .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 8px; border: 1px solid #d8dde2; border-radius: 4px; background: #fff; color: inherit; cursor: pointer; }
+.inventory-workspace .icon-button svg, .inventory-stock-browser .icon-button svg { width: 20px; height: 20px; }
+.inventory-workspace .icon-button:disabled { opacity: .45; cursor: default; }
+.inventory-search-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 0; }
+.inventory-search-scope { display: flex; border-bottom: 1px solid var(--ng-border); }
+.inventory-search-scope button { background: transparent; border: 0; border-bottom: 3px solid transparent; padding: 12px; color: inherit; cursor: pointer; }
+.inventory-search-scope button[aria-pressed="true"] { border-bottom-color: #c62828; font-weight: 700; }
+.inventory-search-input { display: flex; align-items: center; gap: 8px; flex: 1 1 280px; min-width: 0; }
+.inventory-search-input svg { width: 20px; flex-shrink: 0; }
+.inventory-search-input input { width: 100%; min-width: 0; }
+.inventory-search-tools select { max-width: 100%; }
+.inventory-search-count { padding: 8px 0; color: #5a626b; font-size: 13px; }
+.inventory-material { border-bottom: 1px solid #d8dde2; }
+.inventory-material summary { display: flex; gap: 16px; align-items: center; padding: 16px 8px; cursor: pointer; }
+.inventory-material summary::before { content: '+'; width: 16px; flex-shrink: 0; font-size: 20px; }
+.inventory-material[open] summary::before { content: '-'; }
+.inventory-material summary:hover { background: #f4f6f7; }
+.inventory-material-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.inventory-material small, .inventory-stock-location small { display: block; margin-top: 4px; color: #5a626b; font-size: 12px; }
+.inventory-material-quantity { flex: 0 0 145px; text-align: right; overflow-wrap: anywhere; }
+.inventory-material-detail { padding: 0 16px 16px 40px; }
+.inventory-material-detail p { margin: 0 0 12px; font-size: 13px; }
+.inventory-stock-location { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(100px, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid #e5e8eb; }
+.inventory-stock-location .inventory-cart-row-message { grid-column: 1 / -1; }
+.inventory-search-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 16px; }
+.inventory-checkout-review { border-top: 2px solid #c62828; padding: 16px 0; overflow-wrap: anywhere; }
+.inventory-checkout-review button { margin: 8px 8px 0 0; }
+.inventory-workspace .inventory-cart-checkout-panel { background: transparent; border: 0; border-bottom: 1px solid #d8dde2; border-radius: 0; }
+@media (max-width: 899px) {
+  .inventory-search-tools > label { width: 100%; }
+  .inventory-search-tools select { width: 100%; }
+  .inventory-material-quantity { flex-basis: 105px; }
+  .inventory-material-detail { padding-left: 12px; padding-right: 12px; }
+  .inventory-stock-location { grid-template-columns: minmax(0, 1fr) auto; }
+  .inventory-stock-location .inventory-cart-action-cell { grid-column: 1 / -1; }
+  .inventory-workspace .inventory-cart-destination-cell { min-width: 0; }
+  .inventory-workspace .inventory-cart-checkout-controls { grid-template-columns: minmax(0, 1fr); }
+  .inventory-workspace .inventory-cart-checkout-controls > * { width: 100%; min-width: 0; }
+}
+
 .inventory-cart-facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
