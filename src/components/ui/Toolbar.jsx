@@ -10,6 +10,8 @@
  * filter semantics are module-specific and division scope must be applied in
  * the query, never in a client-side filter (Section 17a).
  */
+import { useDiagnostics } from './Diagnostics.jsx';
+
 export function Toolbar({
   eyebrow,
   title,
@@ -19,7 +21,10 @@ export function Toolbar({
   meta = [],
   actions = null,
   dense = false,
+  descriptionIsDiagnostic = false,
 }) {
+  const diagnostics = useDiagnostics();
+  if (descriptionIsDiagnostic && !diagnostics) description = null;
   const hasCopy = Boolean(eyebrow || title || description);
   const hasControls = Boolean(search || filters || meta.length);
 

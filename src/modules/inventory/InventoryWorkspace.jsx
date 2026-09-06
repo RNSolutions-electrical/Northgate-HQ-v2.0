@@ -758,7 +758,7 @@ export function InventoryWorkspace({ permissions }) {
               onChange={(event) => updateCandidateQuantity(row.bin_item_id, event.target.value)}
             />
           </label>
-          <button
+          <button hidden={!canTransact}
             type="button"
             className="secondary-button"
             disabled={!canTransact || !cartIsActive || cartActionInProgress}
@@ -887,7 +887,7 @@ export function InventoryWorkspace({ permissions }) {
         const message = countMessages[row.bin_item_id];
         return (
           <div className="inventory-count-action-cell">
-            <button
+            <button hidden={!canWriteCounts}
               type="button"
               className="secondary-button"
               disabled={!canWriteCounts || countCorrection.isSettingQuantity || !isCountDraftReady(getCountDraft(row))}
@@ -915,7 +915,7 @@ export function InventoryWorkspace({ permissions }) {
         if (!isRetiringThisRow) {
           return (
             <div className="inventory-count-retire-cell">
-              <button
+              <button hidden={!canRetireBinItems}
                 type="button"
                 className="secondary-button"
                 disabled={!canRetireBinItems || retirement.isRetiring || systemQuantity !== 0}
@@ -1494,7 +1494,7 @@ export function InventoryWorkspace({ permissions }) {
             <SummaryCard label="Inventory value" value={formatMoney(overviewValue)} detail="Visible non-zero rows at catalogue cost" />
           </section>
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Overview"
               title="Grand Master Inventory"
               description="Read-only count-sheet overview using the existing location, catalogue, and balance-derived quantity paths."
@@ -1526,13 +1526,13 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <section className="summary-grid">
-            <SummaryCard label="Export rows" value={visibleAccountingRows.length} detail="Visible non-zero quantity rows" />
+            <SummaryCard detailIsDiagnostic label="Export rows" value={visibleAccountingRows.length} detail="Visible non-zero quantity rows" />
             <SummaryCard label="Export value" value={formatMoney(overviewValue)} detail="Quantity times catalogue unit cost" />
-            <SummaryCard label="Filtered rows" value={visibleOverviewRows.length} detail="Rows matching current filter" />
-            <SummaryCard label="Boundary" value="Read only" detail="No accounting post is created" tone="good" />
+            <SummaryCard detailIsDiagnostic label="Filtered rows" value={visibleOverviewRows.length} detail="Rows matching current filter" />
+            <SummaryCard developmentOnly label="Boundary" value="Read only" detail="No accounting post is created" tone="good" />
           </section>
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Accounting"
               title="Inventory Valuation Export"
               description="Read-only CSV preview from the existing count-sheet read model. Exporting downloads visible rows only and does not post to accounting."
@@ -1564,7 +1564,7 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Locations"
               title="Location Records"
               description="Read-only storage hierarchy records from the existing count-sheet location read model."
@@ -1688,7 +1688,7 @@ export function InventoryWorkspace({ permissions }) {
                   ) : null}
                 </div>
                 <div className="inventory-scan-camera-actions">
-                  <button
+                  <button hidden={!canReadCounts}
                     type="button"
                     className="secondary-button"
                     onClick={startCameraScanner}
@@ -1721,7 +1721,7 @@ export function InventoryWorkspace({ permissions }) {
                     rows={4}
                   />
                 </label>
-                <button type="submit" className="primary-button" disabled={!canReadCounts || countSheet.isLoading || !manualScanPayload.trim()}>
+                <button hidden={!canReadCounts} type="submit" className="primary-button" disabled={!canReadCounts || countSheet.isLoading || !manualScanPayload.trim()}>
                   <QrCode aria-hidden="true" /> Open Scan Result
                 </button>
               </form>
@@ -1762,7 +1762,7 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Storage"
               title="Storage Units"
               description="Preview rows from the existing storage_units read path."
@@ -1782,7 +1782,7 @@ export function InventoryWorkspace({ permissions }) {
             />
           </article>
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Storage"
               title="Bins"
               description="Preview rows from the existing bins read path."
@@ -1809,12 +1809,12 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Cart"
               title="Active Inventory Cart"
               description="Open or reuse your active server cart. Stage material, set approved destinations, then finalize through the preserved checkout RPC."
               actions={(
-                <button type="button" className="primary-button" onClick={handleOpenCart} disabled={!canTransact || cartActionInProgress || cartIsActive}>
+                <button hidden={!canTransact} type="button" className="primary-button" onClick={handleOpenCart} disabled={!canTransact || cartActionInProgress || cartIsActive}>
                   <ShoppingCart aria-hidden="true" /> {cartState.isOpening ? 'Opening...' : cartIsActive ? 'Cart Open' : 'Open Cart'}
                 </button>
               )}
@@ -1902,7 +1902,7 @@ export function InventoryWorkspace({ permissions }) {
             />
 
             <div className="inventory-cart-finalize-row">
-              <button
+              <button hidden={!canTransact}
                 type="button"
                 className="primary-button"
                 disabled={!canTransact || !cartIsActive || cartActionInProgress || !cartState.cartItems.length || hasInvalidLineDestinations}
@@ -1924,7 +1924,7 @@ export function InventoryWorkspace({ permissions }) {
           </article>
 
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Candidates"
               title="Add Stocked Rows"
               description="Rows come from the existing cart-candidates read model. Add-to-cart uses the preserved server RPC and respects current available balance."
@@ -1951,7 +1951,7 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Destinations"
               title="Users"
               description="Approved user destination references from the retained read path."
@@ -1971,7 +1971,7 @@ export function InventoryWorkspace({ permissions }) {
             />
           </article>
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Destinations"
               title="Vehicles"
               description="Approved vehicle destination references from the retained read path."
@@ -1999,7 +1999,7 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Count"
               title="Inventory Count"
               description="Set physical quantities through the preserved count correction RPC. Zero is valid; balance writes remain server-controlled."
@@ -2182,7 +2182,7 @@ export function InventoryWorkspace({ permissions }) {
                 </label>
               ) : null}
               <div className="inventory-count-intake-actions">
-                <button
+                <button hidden={!canWriteCounts}
                   type="button"
                   className="primary-button"
                   disabled={!canWriteCounts || countIntake.isRecording || !countIntakeDraft.bin_id || !countIntakeDraft.item_id || !isCountDraftReady(countIntakeDraft)}
@@ -2205,7 +2205,7 @@ export function InventoryWorkspace({ permissions }) {
     if (activeView === 'history') {
       return (
         <article className="card workspace-card">
-          <Toolbar
+          <Toolbar descriptionIsDiagnostic
             eyebrow="Ledger"
             title="Transaction History"
             description="Read-only transaction history through the preserved `read_inventory_transaction_history` RPC."
@@ -2580,7 +2580,7 @@ export function InventoryScanRoute() {
           )}
 
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Contents"
               title="Current Rows In Scope"
               description="Read-only count sheet rows under the scanned location."

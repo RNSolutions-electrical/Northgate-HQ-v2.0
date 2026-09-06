@@ -499,11 +499,11 @@ export function DeveloperWorkspace({ permissions }) {
   const [highlightIncomplete, setHighlightIncomplete] = useIncompleteHighlightPreference();
   const {
     highlightDevelopment,
-    hideDevelopment,
     showUiTerminology,
+    showDiagnostics,
+    setShowDiagnostics,
     highlightUndefinedUi,
     setHighlightDevelopment,
-    setHideDevelopment,
     setShowUiTerminology,
     setHighlightUndefinedUi,
   } = useDevelopmentDisplayPreferences();
@@ -826,7 +826,7 @@ export function DeveloperWorkspace({ permissions }) {
       {activeConsolePage === 'overview' ? (
       <section className="developer-console-page developer-overview-page" aria-label="Developer overview">
         <article className="developer-console-section">
-          <Toolbar
+          <Toolbar descriptionIsDiagnostic
             eyebrow="System Overview"
             title="Operator session"
             description="Read-only context for the signed-in developer. No secret values or service-role tokens are displayed."
@@ -894,6 +894,10 @@ export function DeveloperWorkspace({ permissions }) {
             description="Related local display settings for development-only surfaces and terminology labels."
           />
           <label className="developer-highlight-toggle">
+            <input type="checkbox" checked={showDiagnostics} onChange={(event) => setShowDiagnostics(event.target.checked)} />
+            <span><strong>Show developer diagnostics</strong><small>Technical descriptions, source labels, and implementation boundaries.</small></span>
+          </label>
+          <label className="developer-highlight-toggle">
             <input
               type="checkbox"
               checked={highlightDevelopment}
@@ -902,17 +906,6 @@ export function DeveloperWorkspace({ permissions }) {
             <span>
               <strong>{highlightDevelopment ? 'Highlighting development-only UI' : 'Highlight development-only UI'}</strong>
               <small>Shows scaffolding/status cards with a blue overlay while keeping them visible.</small>
-            </span>
-          </label>
-          <label className="developer-highlight-toggle">
-            <input
-              type="checkbox"
-              checked={hideDevelopment}
-              onChange={(event) => setHideDevelopment(event.target.checked)}
-            />
-            <span>
-              <strong>{hideDevelopment ? 'Hiding development-only UI' : 'Hide development-only UI'}</strong>
-              <small>Removes marked scaffolding/status cards for cleaner end-user preview testing.</small>
             </span>
           </label>
           <label className="developer-highlight-toggle">

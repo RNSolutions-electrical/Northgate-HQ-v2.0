@@ -5,6 +5,7 @@ export const DEVELOPMENT_HIGHLIGHT_STORAGE_KEY = 'northgate:developer:highlight-
 export const DEVELOPMENT_HIDE_STORAGE_KEY = 'northgate:developer:hide-development';
 export const UI_TERMINOLOGY_STORAGE_KEY = 'northgate:developer:show-ui-terminology';
 export const UNDEFINED_UI_STORAGE_KEY = 'northgate:developer:highlight-undefined-ui';
+export const DIAGNOSTICS_STORAGE_KEY = 'northgate:developer:show-diagnostics';
 const INCOMPLETE_HIGHLIGHT_EVENT = 'northgate:highlight-incomplete-change';
 const DEVELOPMENT_DISPLAY_EVENT = 'northgate:development-display-change';
 
@@ -52,6 +53,7 @@ function readDevelopmentPreferences() {
     highlightDevelopment: readBooleanPreference(DEVELOPMENT_HIGHLIGHT_STORAGE_KEY),
     hideDevelopment: readBooleanPreference(DEVELOPMENT_HIDE_STORAGE_KEY),
     showUiTerminology: readBooleanPreference(UI_TERMINOLOGY_STORAGE_KEY),
+    showDiagnostics: readBooleanPreference(DIAGNOSTICS_STORAGE_KEY),
     highlightUndefinedUi: readBooleanPreference(UNDEFINED_UI_STORAGE_KEY),
   };
 }
@@ -72,6 +74,7 @@ export function useDevelopmentDisplayPreferences() {
           highlightDevelopment: Boolean(event.detail.highlightDevelopment),
           hideDevelopment: Boolean(event.detail.hideDevelopment),
           showUiTerminology: Boolean(event.detail.showUiTerminology),
+          showDiagnostics: Boolean(event.detail.showDiagnostics),
           highlightUndefinedUi: Boolean(event.detail.highlightUndefinedUi),
         });
       } else {
@@ -107,8 +110,14 @@ export function useDevelopmentDisplayPreferences() {
     setPreferences(readDevelopmentPreferences());
   }, []);
 
+  const setShowDiagnostics = useCallback((enabled) => {
+    setDevelopmentDisplayPreference(DIAGNOSTICS_STORAGE_KEY, enabled);
+    setPreferences(readDevelopmentPreferences());
+  }, []);
+
   return {
     ...preferences,
+    setShowDiagnostics,
     setHighlightDevelopment,
     setHideDevelopment,
     setShowUiTerminology,

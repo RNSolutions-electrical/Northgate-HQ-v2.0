@@ -1,4 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { useDiagnostics } from '../ui/Diagnostics.jsx';
 
 export function PrimarySidebar({
   eyebrow,
@@ -12,7 +13,10 @@ export function PrimarySidebar({
   mobileOpen = false,
   onCloseMobile,
   footer,
+  hideWhenSingle = false,
 }) {
+  const diagnostics = useDiagnostics();
+  if (hideWhenSingle && items.length < 2) return null;
   return (
     <>
       <button
@@ -35,7 +39,7 @@ export function PrimarySidebar({
           <div className="workspace-sidebar__heading">
             <p className="eyebrow">{eyebrow}</p>
             <h2>{title}</h2>
-            {description ? <p>{description}</p> : null}
+            {description && diagnostics ? <p>{description}</p> : null}
           </div>
           <div className="workspace-sidebar__header-actions">
             {onToggleCollapse ? (
@@ -81,7 +85,7 @@ export function PrimarySidebar({
                 </span>
                 <span className="workspace-sidebar__item-copy">
                   <strong>{item.label}</strong>
-                  {item.description ? <small>{item.description}</small> : null}
+                  {item.description && diagnostics ? <small>{item.description}</small> : null}
                 </span>
                 {item.badge != null ? (
                   <span className="workspace-sidebar__item-badge">{item.badge}</span>
@@ -91,7 +95,7 @@ export function PrimarySidebar({
           })}
         </div>
 
-        {footer ? <div className="workspace-sidebar__footer">{footer}</div> : null}
+        {footer && diagnostics ? <div className="workspace-sidebar__footer">{footer}</div> : null}
       </aside>
     </>
   );

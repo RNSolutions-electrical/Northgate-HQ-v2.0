@@ -561,26 +561,27 @@ export function EmployeesWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Employees"
+        statusIsDiagnostic
         description="Directory, pre-hire employee setup, and live vehicle assignment reads. A profile entered by email links automatically on the employee's first Clerk sign-in."
         status={<span className="status-pill">{people.length} visible contact{people.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
-            <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
+            {employeeViews.length > 1 ? <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Page Menu
-            </button>
+            </button> : null}
             <button type="button" className="secondary-button" onClick={() => { directory.reload(); myProfile.reload(); myAssignments.reload(); myNotes.reload(); myTodos.reload(); }} disabled={directory.isLoading || myProfile.isLoading || myAssignments.isLoading || myNotes.isLoading || myTodos.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
+            <button hidden={!canReadEmployees} type="button" className="primary-button" onClick={() => { setEmployeeNotice(''); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); setIsCreateOpen(true); }} disabled={!canReadEmployees}>
               <Plus aria-hidden="true" /> Create employee
             </button>
           </>
         )}
       />
 
-      {isCreateOpen ? (
+      {isCreateOpen && canReadEmployees ? (
         <form className="card workspace-card employee-profile-form" onSubmit={saveEmployee}>
-          <Toolbar eyebrow="Employee Setup" title={employeeForm.id ? 'Edit pending employee profile' : 'Create employee profile'} description="Set up the internal profile first. It will connect to Clerk automatically when the employee signs in with this exact email address." />
+          <Toolbar descriptionIsDiagnostic eyebrow="Employee Setup" title={employeeForm.id ? 'Edit pending employee profile' : 'Create employee profile'} description="Set up the internal profile first. It will connect to Clerk automatically when the employee signs in with this exact email address." />
           <p className="employee-profile-form__hint"><strong>Required fields</strong> are marked with an asterisk. The reason is saved to the audit log.</p>
           <div className="employee-profile-form__grid">
             <label><span>Full name <b aria-hidden="true">*</b></span><input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} autoComplete="name" required /></label>
@@ -597,20 +598,21 @@ export function EmployeesWorkspace({ permissions }) {
         </form>
       ) : null}
 
-      {employeeNotice ? <StatePanel tone="success" eyebrow="Profile Saved" title="Ready for Clerk sign-in" description={employeeNotice} compact /> : null}
+      {employeeNotice ? <StatePanel tone="success" eyebrow="Profile Saved" title="Employee profile saved" compact /> : null}
 
       <div className="summary-grid">
         {canReadEmployees ? <SummaryCard label="Visible contacts" value={people.length} detail={directory.isLoading ? 'Loading directory' : 'Reference rows'} /> : null}
-        {canReadEmployees ? <SummaryCard label="Awaiting sign-in" value={pendingProfiles.length} detail="Profiles not yet linked to Clerk" tone={pendingProfiles.length ? 'warn' : 'good'} /> : null}
-        {canReadEmployees ? <SummaryCard label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" /> : null}
+        {canReadEmployees ? <SummaryCard detailIsDiagnostic label="Awaiting sign-in" value={pendingProfiles.length} detail="Profiles not yet linked to Clerk" tone={pendingProfiles.length ? 'warn' : 'good'} /> : null}
+        {canReadEmployees ? <SummaryCard detailIsDiagnostic label="Active vehicle assignments" value={activeAssignmentCount} detail="Current assignment rows" /> : null}
         {canReadEmployees ? <SummaryCard label="Departments" value={divisions.length} detail="Distinct visible departments" /> : null}
-        <SummaryCard label="My profile" value={currentUserInDirectory ? 'Available' : 'Pending'} detail={myProfile.profile?.has_linked_employee_profile ? 'Linked employee profile' : 'Account permission profile'} tone={currentUserInDirectory ? 'good' : 'warn'} />
-        <SummaryCard label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create, edit, and archive pending profiles" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
-        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : permissions.department || 'None'} detail="Server role/department rules" tone={canReadEmployees ? 'good' : 'warn'} />
+        <SummaryCard developmentOnly label="My profile" value={currentUserInDirectory ? 'Available' : 'Pending'} detail={myProfile.profile?.has_linked_employee_profile ? 'Linked employee profile' : 'Account permission profile'} tone={currentUserInDirectory ? 'good' : 'warn'} />
+        <SummaryCard developmentOnly label="Manage employees" value={permissions.canManageEmployees ? 'Granted' : 'Not granted'} detail="Create, edit, and archive pending profiles" tone={permissions.canManageEmployees ? 'good' : 'warn'} />
+        <SummaryCard detailIsDiagnostic developmentOnly label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : permissions.department || 'None'} detail="Server role/department rules" tone={canReadEmployees ? 'good' : 'warn'} />
       </div>
 
       <div className={`workspace-split employees-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
+          hideWhenSingle
           eyebrow="Employee Views"
           title="Employees"
           description="Directory browsing and current-user context."
@@ -633,8 +635,8 @@ export function EmployeesWorkspace({ permissions }) {
           {canReadEmployees ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Account Setup"
-              title="Awaiting Clerk sign-in"
-              description="These employee profiles are ready. They will move into the active directory automatically when the matching email address first signs in through Clerk."
+              title="Awaiting first sign-in"
+              description="These profiles appear in the directory after the employee signs in using their work email."
             />
             <DataTable
               columns={pendingProfileColumns}
@@ -646,13 +648,13 @@ export function EmployeesWorkspace({ permissions }) {
               dense
               minWidth="860px"
               emptyTitle="No employee profiles are awaiting sign-in"
-              emptyDescription="Create a profile above when you need to prepare an employee before their Clerk account is active."
+              emptyDescription="New employee profiles will appear here until their first sign-in."
             />
             {pendingProfileAction.error ? <StatePanel tone="danger" eyebrow="Archive Failed" title="Pending employee profile was not archived" description={pendingProfileAction.error.message || 'Unexpected archive error.'} compact /> : null}
           </article> : null}
 
           {canReadEmployees ? <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Directory"
               title={employeeViews.find((item) => item.key === activeView)?.label ?? 'Employees'}
               description="Rows come from the limited employee reference view and live vehicle assignment reads, following level/division scope."
@@ -684,15 +686,15 @@ export function EmployeesWorkspace({ permissions }) {
               emptyDescription={search
                 ? 'Try a different name, role, email, or division search.'
                 : activeView === 'mine'
-                  ? 'The current user is not present in the existing reference view yet, so this module shows the layout foundation without inventing profile data.'
-                  : 'This workspace renders real employee directory rows when the existing read path has visible data.'}
+                  ? 'Your profile is not available yet. Refresh or contact a developer.'
+                  : 'No employees match this view.'}
             />
           </article> : null}
 
           <article className="card workspace-card">
             {selectedEmployee ? (
               <>
-                <RecordHeader
+                <RecordHeader descriptionIsDiagnostic
                   eyebrow="Selected Employee"
                   title={employeeLabel(selectedEmployee)}
                   description={activeView === 'mine' ? 'Your employee profile is a secure read-only view. Contact, role, and assignment changes remain controlled workflows.' : 'Employee detail remains read-oriented in this phase. The shell is ready for richer sections later without implying account or permission editing.'}
@@ -715,10 +717,10 @@ export function EmployeesWorkspace({ permissions }) {
                     {profileEdit.open ? <form className="employee-profile-form" onSubmit={saveMyProfile}><div className="employee-profile-form__grid"><label><span>Display name</span><input value={profileEdit.displayName} onChange={(event) => setProfileEdit((current) => ({ ...current, displayName: event.target.value, error: null }))} required disabled={profileEdit.isSaving} /></label><label><span>Phone</span><input type="tel" value={profileEdit.phone} onChange={(event) => setProfileEdit((current) => ({ ...current, phone: event.target.value, error: null }))} disabled={profileEdit.isSaving} /></label><label className="employee-profile-form__wide"><span>Reason for change</span><input value={profileEdit.reason} onChange={(event) => setProfileEdit((current) => ({ ...current, reason: event.target.value, error: null }))} placeholder="Required for the audit log" required disabled={profileEdit.isSaving} /></label></div><div className="record-actions"><button type="submit" className="primary-button" disabled={profileEdit.isSaving || profileEdit.reason.trim().length < 3}>{profileEdit.isSaving ? 'Saving…' : 'Save profile'}</button><button type="button" className="secondary-button" onClick={() => setProfileEdit((current) => ({ ...current, open: false, error: null }))} disabled={profileEdit.isSaving}>Cancel</button></div>{profileEdit.error ? <StatePanel tone="danger" title="Profile was not updated" description={profileEdit.error.message} compact /> : null}</form> : null}
                     {profileEdit.success ? <StatePanel tone="success" title="Profile updated" description={profileEdit.success} compact /> : null}
                     <div className="module-fact-grid employees-fact-grid">
-                      <SummaryCard label="Email" value={selectedEmployee.email || '-'} detail="Managed through Clerk" />
-                      <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle || 'Unassigned'} detail="Active vehicle assignment" tone={selectedEmployee.current_vehicle ? 'good' : 'default'} />
-                      <SummaryCard label="Profile source" value={activeView === 'mine' ? (selectedEmployee.has_linked_employee_profile ? 'Employee profile' : 'Account permissions') : 'Reference view'} detail="No source mutation" />
-                      <SummaryCard label="Role source" value="Permissions row" detail="Display only" />
+                      <SummaryCard detailIsDiagnostic label="Email" value={selectedEmployee.email || '-'} detail="Managed through Clerk" />
+                      <SummaryCard detailIsDiagnostic label="Current Vehicle" value={selectedEmployee.current_vehicle || 'Unassigned'} detail="Active vehicle assignment" tone={selectedEmployee.current_vehicle ? 'good' : 'default'} />
+                      <SummaryCard detailIsDiagnostic developmentOnly label="Profile source" value={activeView === 'mine' ? (selectedEmployee.has_linked_employee_profile ? 'Employee profile' : 'Account permissions') : 'Reference view'} detail="No source mutation" />
+                      <SummaryCard detailIsDiagnostic developmentOnly label="Role source" value="Permissions row" detail="Display only" />
                     </div>
                   </>
                 ) : null}
@@ -729,7 +731,7 @@ export function EmployeesWorkspace({ permissions }) {
                     title="Contact details"
                     description={activeView === 'mine'
                       ? `Email: ${selectedEmployee.email || 'Unavailable'}. Phone: ${selectedEmployee.phone || 'Not recorded'}.`
-                      : `Email: ${selectedEmployee.email || 'Unavailable'}. Phone, supervisor, emergency contact, and credential fields remain hidden until an approved live source exists.`}
+                      : `Email: ${selectedEmployee.email || 'Unavailable'}.`}
                     tone="info"
                   />
                 ) : null}
@@ -738,15 +740,15 @@ export function EmployeesWorkspace({ permissions }) {
                   <>
                     {selectedEmployee.current_vehicle_assignment ? (
                       <div className="module-fact-grid employees-fact-grid">
-                        <SummaryCard label="Current Vehicle" value={selectedEmployee.current_vehicle_assignment.vehicle_label} detail="Active assignment row" tone="good" />
+                        <SummaryCard detailIsDiagnostic label="Current Vehicle" value={selectedEmployee.current_vehicle_assignment.vehicle_label} detail="Active assignment row" tone="good" />
                         <SummaryCard label="Assigned" value={formatDateTime(selectedEmployee.current_vehicle_assignment.assigned_at)} detail="Assignment start" />
-                        <SummaryCard label="Assigned By" value={selectedEmployee.current_vehicle_assignment.assigned_by_label || '-'} detail="Recorded actor" />
+                        <SummaryCard detailIsDiagnostic label="Assigned By" value={selectedEmployee.current_vehicle_assignment.assigned_by_label || '-'} detail="Recorded actor" />
                       </div>
                     ) : (
                       <StatePanel
                         eyebrow="Assignments"
                         title="No active vehicle assignment"
-                        description="This employee does not currently have an active vehicle assignment row."
+                        description="No vehicle is currently assigned."
                         tone="neutral"
                       />
                     )}
@@ -798,7 +800,7 @@ export function EmployeesWorkspace({ permissions }) {
                         </form>
                       </article>
                       <article className="card workspace-card">
-                        <Toolbar eyebrow="Personal To-Do" title="Open and completed items" description="Complete items remain here for reference until you archive them." actions={<button type="button" className="secondary-button" onClick={myTodos.reload} disabled={myTodos.isLoading}>Refresh</button>} />
+                        <Toolbar  eyebrow="Personal To-Do" title="Open and completed items" description="Complete items remain here for reference until you archive them." actions={<button type="button" className="secondary-button" onClick={myTodos.reload} disabled={myTodos.isLoading}>Refresh</button>} />
                         {myTodos.error ? <StatePanel tone="danger" title="To-do items could not be loaded" description={myTodos.error.message} compact /> : null}
                         {!myTodos.isLoading && !myTodos.error && myTodos.rows.length === 0 ? <StatePanel eyebrow="Personal To-Do" title="No to-do items" description="Add a personal task above. Add a due date when you want a Dashboard reminder." compact /> : null}
                         <div className="state-panel-stack">{myTodos.rows.map((todo) => <article className="state-panel" key={todo.id}><div><strong>{todo.title}</strong><p>{todo.details || 'No additional details.'}</p><p><strong>Due:</strong> {todo.due_date ? formatDateTime(`${todo.due_date}T00:00:00`) : 'No due date'} · {todo.completed_at ? `Completed ${formatDateTime(todo.completed_at)}` : 'Open'}</p></div><div className="record-actions"><button type="button" className="secondary-button" onClick={() => setPersonalTodoCompleted(todo, !todo.completed_at)} disabled={todoAction.id === todo.id}>{todoAction.id === todo.id ? 'Saving…' : todo.completed_at ? 'Reopen' : 'Complete'}</button><button type="button" className="secondary-button" onClick={() => editPersonalTodo(todo)} disabled={todoAction.id === todo.id}>Edit</button><button type="button" className="secondary-button secondary-button--danger" onClick={() => archivePersonalTodo(todo.id)} disabled={todoAction.id === todo.id}>Archive</button></div></article>)}</div>
@@ -812,7 +814,7 @@ export function EmployeesWorkspace({ permissions }) {
                   <StatePanel
                     eyebrow="Deferred"
                     title="Employee activity is not implemented yet"
-                    description="This tab is structurally reserved without inventing assignments, credentials, documents, or activity history."
+                    description="This section is not available yet."
                     tone="neutral"
                   />
                 ) : null}
@@ -823,7 +825,7 @@ export function EmployeesWorkspace({ permissions }) {
                 title={activeView === 'mine' ? 'Your employee profile is not available yet' : 'Select an employee to open the detail workspace'}
                 description={activeView === 'mine'
                   ? (myProfile.error ? 'Your profile could not be loaded. Refresh, or contact a Developer if this continues.' : `No linked employee profile has been found yet. Signed in as ${user?.primaryEmailAddress?.emailAddress ?? user?.id ?? 'current user'}.`)
-                  : 'The selected-employee header and tabs appear here when you choose a row from the directory.'}
+                  : 'Select an employee to view their details.'}
                 tone="neutral"
               />
             )}

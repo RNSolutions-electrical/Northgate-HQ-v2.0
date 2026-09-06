@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { permittedModules, permittedNavigationGroups } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
 import { StatePanel } from '../ui/StatePanel.jsx';
+import { DiagnosticsProvider } from '../ui/Diagnostics.jsx';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -19,15 +20,16 @@ export function AppLayout() {
   const { signOut } = useClerk();
   const permissions = usePermissions();
   const [highlightIncomplete] = useIncompleteHighlightPreference();
-  const { highlightDevelopment, hideDevelopment, showUiTerminology, highlightUndefinedUi } = useDevelopmentDisplayPreferences();
+  const { highlightDevelopment, showUiTerminology, highlightUndefinedUi, showDiagnostics } = useDevelopmentDisplayPreferences();
+  const diagnosticsEnabled = permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true && showDiagnostics;
   const navigate = useNavigate();
   const location = useLocation();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('ng-highlight-incomplete', highlightIncomplete);
-    document.documentElement.classList.toggle('ng-highlight-development', highlightDevelopment);
-    document.documentElement.classList.toggle('ng-hide-development', hideDevelopment);
+    document.documentElement.classList.toggle('ng-highlight-incomplete', permissions.canAccessDeveloper === true && highlightIncomplete);
+    document.documentElement.classList.toggle('ng-highlight-development', diagnosticsEnabled && highlightDevelopment);
+    document.documentElement.classList.toggle('ng-hide-development', !diagnosticsEnabled);
     document.documentElement.classList.toggle('ng-show-ui-terminology', permissions.canAccessDeveloper && showUiTerminology);
     document.documentElement.classList.toggle('ng-highlight-undefined-ui', permissions.canAccessDeveloper && highlightUndefinedUi);
     return () => {
@@ -37,7 +39,7 @@ export function AppLayout() {
       document.documentElement.classList.remove('ng-show-ui-terminology');
       document.documentElement.classList.remove('ng-highlight-undefined-ui');
     };
-  }, [highlightIncomplete, highlightDevelopment, hideDevelopment, permissions.canAccessDeveloper, showUiTerminology, highlightUndefinedUi]);
+  }, [highlightIncomplete, highlightDevelopment, diagnosticsEnabled, permissions.canAccessDeveloper, showUiTerminology, highlightUndefinedUi]);
 
   if (permissions.isLoading) {
     return (
@@ -69,7 +71,7 @@ export function AppLayout() {
   const activeModule = modules.find((module) => module.key === activeKey);
 
   return (
-    <>
+    <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
       <AppShell
       eyebrow="HEADQUARTERS"
       title="Northgate"
@@ -124,6 +126,6 @@ export function AppLayout() {
         <Outlet />
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
-    </>
+    </DiagnosticsProvider>
   );
 }

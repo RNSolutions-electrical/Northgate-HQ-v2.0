@@ -1,16 +1,20 @@
+import { useDiagnostics } from './Diagnostics.jsx';
+
 export function RecordHeader({
   eyebrow,
   title,
   description,
   meta = [],
   actions = null,
+  descriptionIsDiagnostic = false,
 }) {
+  const diagnostics = useDiagnostics();
   return (
     <section className="record-header">
       <div className="record-header__main">
         {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
         <h3>{title}</h3>
-        {description ? <p>{description}</p> : null}
+        {description && (!descriptionIsDiagnostic || diagnostics) ? <p>{description}</p> : null}
       </div>
       <div className="record-header__aside">
         {meta.length ? (

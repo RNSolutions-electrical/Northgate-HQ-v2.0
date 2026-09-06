@@ -340,7 +340,7 @@ export function VehiclesWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={vehicleState.reload} disabled={vehicleState.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={() => { setVehicleNotice(''); setIsCreateOpen(true); }} disabled={!canReadVehicles}>
+            <button hidden={!canReadVehicles} type="button" className="primary-button" onClick={() => { setVehicleNotice(''); setIsCreateOpen(true); }} disabled={!canReadVehicles}>
               <Plus aria-hidden="true" /> Add vehicle
             </button>
           </>
@@ -368,11 +368,11 @@ export function VehiclesWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard label="Visible vehicles" value={vehicles.length} detail={vehicleState.isLoading ? 'Loading references' : 'Destination reference rows'} />
-        <SummaryCard label="Active assignments" value={activeAssignmentCount} detail="Current operator rows" />
+        <SummaryCard detailIsDiagnostic label="Active assignments" value={activeAssignmentCount} detail="Current operator rows" />
         <SummaryCard label="Stock vehicles" value={stockCount} detail="Vehicles marked inventory-capable" />
         <SummaryCard label="General fleet" value={fleetCount} detail="Not marked as stock-holding" />
-        <SummaryCard label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : 'Limited'} detail="Vehicle department source pending" tone={canReadVehicles ? 'good' : 'warn'} incomplete={!vehiclesWithDivision} />
-        <SummaryCard
+        <SummaryCard detailIsDiagnostic developmentOnly label="Read scope" value={permissions.canViewAllDivisions ? 'All departments' : 'Limited'} detail="Vehicle department source pending" tone={canReadVehicles ? 'good' : 'warn'} incomplete={!vehiclesWithDivision} />
+        <SummaryCard developmentOnly
           label="Department source"
           value={vehiclesWithDivision ? 'Available' : 'Pending'}
           detail={vehiclesWithDivision ? `${vehiclesWithDivision} scoped row${vehiclesWithDivision === 1 ? '' : 's'}` : 'Vehicles do not expose department yet'}
@@ -402,7 +402,7 @@ export function VehiclesWorkspace({ permissions }) {
 
         <div className="workspace-surface">
           <article className="card workspace-card">
-            <Toolbar
+            <Toolbar descriptionIsDiagnostic
               eyebrow="Directory"
               title={vehicleViews.find((item) => item.key === activeView)?.label ?? 'Vehicles'}
               description="Rows come from the limited vehicle reference view, enriched with read-only assignment data for current operators."
@@ -440,7 +440,7 @@ export function VehiclesWorkspace({ permissions }) {
           <article className="card workspace-card">
             {selectedVehicle ? (
               <>
-                <RecordHeader
+                <RecordHeader descriptionIsDiagnostic
                   eyebrow="Selected Vehicle"
                   title={vehicleLabel(selectedVehicle)}
                   description="This selected-record shell preserves the approved detail pattern without inventing assignment or maintenance workflows."
@@ -459,10 +459,10 @@ export function VehiclesWorkspace({ permissions }) {
 
                 {activeTab === 'overview' ? (
                   <div className="module-fact-grid vehicles-fact-grid">
-                    <SummaryCard label="Make" value={selectedVehicle.make || '-'} detail="Reference field" />
-                    <SummaryCard label="Model" value={selectedVehicle.model || '-'} detail="Reference field" />
-                    <SummaryCard label="Current Operator" value={selectedVehicle.current_operator || 'Unassigned'} detail="Active assignment row" tone={selectedVehicle.current_operator ? 'good' : 'default'} />
-                    <SummaryCard label="Stock capable" value={selectedVehicle.holds_stock ? 'Yes' : 'No'} detail="holds_stock flag" tone={selectedVehicle.holds_stock ? 'good' : 'default'} />
+                    <SummaryCard detailIsDiagnostic label="Make" value={selectedVehicle.make || '-'} detail="Reference field" />
+                    <SummaryCard detailIsDiagnostic label="Model" value={selectedVehicle.model || '-'} detail="Reference field" />
+                    <SummaryCard detailIsDiagnostic label="Current Operator" value={selectedVehicle.current_operator || 'Unassigned'} detail="Active assignment row" tone={selectedVehicle.current_operator ? 'good' : 'default'} />
+                    <SummaryCard detailIsDiagnostic label="Stock capable" value={selectedVehicle.holds_stock ? 'Yes' : 'No'} detail="holds_stock flag" tone={selectedVehicle.holds_stock ? 'good' : 'default'} />
                   </div>
                 ) : null}
 
@@ -472,7 +472,7 @@ export function VehiclesWorkspace({ permissions }) {
                       <div className="module-fact-grid vehicles-fact-grid">
                         <SummaryCard label="Assigned To" value={selectedVehicle.current_assignment.user_label} detail={selectedVehicle.current_assignment.user_email || 'Employee reference'} tone="good" />
                         <SummaryCard label="Assigned" value={formatDateTime(selectedVehicle.current_assignment.assigned_at)} detail="Assignment start" />
-                        <SummaryCard label="Assigned By" value={selectedVehicle.current_assignment.assigned_by_label || '-'} detail="Recorded actor" />
+                        <SummaryCard detailIsDiagnostic label="Assigned By" value={selectedVehicle.current_assignment.assigned_by_label || '-'} detail="Recorded actor" />
                       </div>
                     ) : (
                       <StatePanel

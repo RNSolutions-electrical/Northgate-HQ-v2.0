@@ -382,9 +382,9 @@ export function DocumentsWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard label="Visible documents" value={documents.length} detail={documentIndex.isLoading ? 'Loading index' : 'Job-owned rows'} />
-        <SummaryCard label="Visible jobs" value={documentIndex.jobs.length} detail="Jobs in current scope" />
+        <SummaryCard detailIsDiagnostic label="Visible jobs" value={documentIndex.jobs.length} detail="Jobs in current scope" />
         <SummaryCard label="Checklist" value={`${uploadedChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Categories with uploads" tone={uploadedChecklistCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'warn'} />
-        <SummaryCard label="Manage job docs" value={canManageJobDocuments ? 'Granted' : 'Read only'} detail="Writes stay in Jobs" tone={canManageJobDocuments ? 'good' : 'warn'} />
+        <SummaryCard developmentOnly label="Manage job docs" value={canManageJobDocuments ? 'Granted' : 'Read only'} detail="Writes stay in Jobs" tone={canManageJobDocuments ? 'good' : 'warn'} />
       </div>
 
       <div className={`workspace-split documents-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -411,7 +411,7 @@ export function DocumentsWorkspace({ permissions }) {
           {activeSection === 'index' ? (
             <>
               <article className="card workspace-card">
-                <Toolbar
+                <Toolbar descriptionIsDiagnostic
                   eyebrow="Index"
                   title="Visible job documents"
                   description="Rows come from public.documents and follow the existing job document RLS policies."
@@ -464,9 +464,9 @@ export function DocumentsWorkspace({ permissions }) {
                       ]}
                     />
                     <div className="module-fact-grid documents-fact-grid">
-                      <SummaryCard label="Size" value={formatBytes(selectedDocument.file_size_bytes)} detail="Stored metadata" />
-                      <SummaryCard label="MIME" value={selectedDocument.mime_type || '-'} detail="Stored metadata" />
-                      <SummaryCard label="Updated" value={formatDate(selectedDocument.updated_at || selectedDocument.created_at)} detail="Document row timestamp" />
+                      <SummaryCard detailIsDiagnostic label="Size" value={formatBytes(selectedDocument.file_size_bytes)} detail="Stored metadata" />
+                      <SummaryCard detailIsDiagnostic label="MIME" value={selectedDocument.mime_type || '-'} detail="Stored metadata" />
+                      <SummaryCard detailIsDiagnostic label="Updated" value={formatDate(selectedDocument.updated_at || selectedDocument.created_at)} detail="Document row timestamp" />
                     </div>
                   </>
                 ) : (

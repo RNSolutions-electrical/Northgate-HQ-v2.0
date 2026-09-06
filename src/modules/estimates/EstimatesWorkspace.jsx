@@ -2754,7 +2754,7 @@ export function EstimatesWorkspace({ permissions }) {
       header: 'Actions',
       width: '110px',
       render: (row) => (
-        <button
+        <button hidden={!canEditEstimateDivision(permissions, row.division)}
           type="button"
           className="secondary-button"
           onClick={(event) => {
@@ -3115,7 +3115,7 @@ export function EstimatesWorkspace({ permissions }) {
                 <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>
                   Refresh
                 </button>
-                <button type="button" className="primary-button" onClick={startEstimateCreate} disabled={!canCreateEstimate || estimateForm.isSaving}>
+                <button hidden={!canCreateEstimate} type="button" className="primary-button" onClick={startEstimateCreate} disabled={!canCreateEstimate || estimateForm.isSaving}>
                   <Plus aria-hidden="true" /> Create Estimate
                 </button>
               </>
@@ -3278,7 +3278,7 @@ export function EstimatesWorkspace({ permissions }) {
                   <StatePanel tone="success" eyebrow="Saved" title="Estimate updated" description={estimateForm.success} compact />
                 ) : null}
                 <div className="tool-catalogue-form__actions">
-                  <button type="submit" className="primary-button" disabled={!canCreateEstimate || estimateForm.isSaving || !estimateForm.title.trim()}>
+                  <button hidden={!canCreateEstimate} type="submit" className="primary-button" disabled={!canCreateEstimate || estimateForm.isSaving || !estimateForm.title.trim()}>
                     <Plus aria-hidden="true" /> {estimateForm.isSaving ? 'Saving...' : mode === 'edit' ? 'Save Estimate' : 'Create Estimate'}
                   </button>
                 </div>
@@ -3307,7 +3307,7 @@ export function EstimatesWorkspace({ permissions }) {
                       <SummaryCard label="Pricing Lines" value={estimatePricing.lines.length} detail="Active line items" />
                       <SummaryCard label="Total Price" value={formatMoney(pricingTotal)} detail="Generated line totals" tone={pricingTotal ? 'accent' : 'default'} />
                       <SummaryCard label="Quote Packages" value={estimateQuotePackages.packages.length} detail="Available package inputs" />
-                      <SummaryCard label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
+                      <SummaryCard developmentOnly detailIsDiagnostic label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
                     </div>
                     {canEditSelectedEstimate ? (
                       <section className="estimate-pricing-actions" aria-label="Pricing input methods">
@@ -3674,7 +3674,7 @@ export function EstimatesWorkspace({ permissions }) {
                       <SummaryCard label="Checklist" value={`${uploadedDocumentCategoryCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Visual only; not blocking" tone={uploadedDocumentCategoryCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'default'} />
                       <SummaryCard label="Uploaded" value={estimateDocuments.documents.length} detail="Visible estimate-owned documents" />
                       <SummaryCard label="Owner" value="Estimate" detail="Follows estimate visibility" />
-                      <SummaryCard label="Edit" value={canEditSelectedEstimate ? 'Granted' : 'Read only'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
+                      <SummaryCard developmentOnly detailIsDiagnostic label="Edit" value={canEditSelectedEstimate ? 'Granted' : 'Read only'} detail="Estimate scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
                     </div>
 
                     <section className="job-document-checklist" aria-label="Estimate document checklist">
@@ -3793,14 +3793,14 @@ export function EstimatesWorkspace({ permissions }) {
                     <div className="summary-grid summary-grid--compact">
                       <SummaryCard label="Snapshots" value={estimateSnapshots.snapshots.length} detail="Immutable approval records" />
                       <SummaryCard label="Latest Total" value={formatMoney(latestSnapshot?.pricing_total)} detail={latestSnapshot ? `${latestSnapshot.pricing_line_count} pricing line${latestSnapshot.pricing_line_count === 1 ? '' : 's'}` : 'No snapshot'} tone={latestSnapshot ? 'good' : 'default'} />
-                      <SummaryCard label="Approval Access" value={canApproveSelectedEstimate ? 'Granted' : 'Read Only'} detail={selectedEstimate.status === 'approved' ? 'Already approved' : 'Permission scoped'} tone={canApproveSelectedEstimate ? 'good' : 'warn'} />
+                      <SummaryCard developmentOnly label="Approval Access" value={canApproveSelectedEstimate ? 'Granted' : 'Read Only'} detail={selectedEstimate.status === 'approved' ? 'Already approved' : 'Permission scoped'} tone={canApproveSelectedEstimate ? 'good' : 'warn'} />
                     </div>
                     <Toolbar
                       eyebrow="Approval"
                       title="Locked approval snapshots"
                       description="Approving captures the estimate and active pricing lines in an immutable database snapshot."
                       actions={(
-                        <button type="button" className="primary-button" onClick={handleEstimateApproval} disabled={!canApproveSelectedEstimate || estimateAction.action === 'approve'}>
+                        <button hidden={!canApproveSelectedEstimate} type="button" className="primary-button" onClick={handleEstimateApproval} disabled={!canApproveSelectedEstimate || estimateAction.action === 'approve'}>
                           <ShieldCheck aria-hidden="true" /> {estimateAction.action === 'approve' ? 'Approving...' : 'Approve Estimate'}
                         </button>
                       )}
@@ -3834,7 +3834,7 @@ export function EstimatesWorkspace({ permissions }) {
                       <SummaryCard label="Pricing" value={estimateHistory.rows.filter((row) => row.table_name === 'estimate_pricing_lines').length} detail="Line item changes" />
                       <SummaryCard label="Approvals" value={estimateHistory.rows.filter((row) => row.table_name === 'estimate_snapshots').length} detail="Snapshot changes" />
                     </div>
-                    <Toolbar
+                    <Toolbar descriptionIsDiagnostic
                       eyebrow="Audit"
                       title="Estimate History"
                       description="Read-only audit entries for this estimate and its pricing lines."
@@ -3863,13 +3863,13 @@ export function EstimatesWorkspace({ permissions }) {
                     <div className="module-fact-grid estimates-fact-grid">
                       <SummaryCard label="Bid due" value={formatDate(selectedEstimate.bid_due_at)} detail="Directory field" />
                       <SummaryCard label="Submitted" value={formatDate(selectedEstimate.submitted_at)} detail="Directory field" />
-                      <SummaryCard label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Level/division scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
+                      <SummaryCard developmentOnly detailIsDiagnostic label="Editable" value={canEditSelectedEstimate ? 'Yes' : 'No'} detail="Level/division scope" tone={canEditSelectedEstimate ? 'good' : 'warn'} />
                     </div>
                     <div className="tool-catalogue-form__actions">
-                      <button type="button" className="primary-button" onClick={() => startEstimateEdit(selectedEstimate)} disabled={!canEditSelectedEstimate}>
+                      <button hidden={!canEditSelectedEstimate} type="button" className="primary-button" onClick={() => startEstimateEdit(selectedEstimate)} disabled={!canEditSelectedEstimate}>
                         <Pencil aria-hidden="true" /> Edit Estimate
                       </button>
-                      <button type="button" className="secondary-button secondary-button--danger" onClick={handleEstimateArchive} disabled={!canArchiveSelectedEstimate || estimateAction.action === 'archive'}>
+                      <button hidden={!canArchiveSelectedEstimate} type="button" className="secondary-button secondary-button--danger" onClick={handleEstimateArchive} disabled={!canArchiveSelectedEstimate || estimateAction.action === 'archive'}>
                         <Archive aria-hidden="true" /> {estimateAction.action === 'archive' ? 'Archiving...' : 'Archive'}
                       </button>
                     </div>
@@ -3947,7 +3947,7 @@ export function EstimatesWorkspace({ permissions }) {
           />
           <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Takeoff Sections" value={estimateTakeoffs.takeoffs.length} detail="Estimate takeoff groups" />
-            <SummaryCard label="Takeoff Lines" value={estimateTakeoffs.lines.length} detail="Material/labor rows" />
+            <SummaryCard detailIsDiagnostic label="Takeoff Lines" value={estimateTakeoffs.lines.length} detail="Material/labor rows" />
             <SummaryCard label="Labor Hours" value={formatNumber(takeoffLaborHours)} detail="Generated from catalog rates" />
             <SummaryCard label="Takeoff Total" value={formatMoney(takeoffLineTotal)} detail="Material and labor total" tone={takeoffLineTotal ? 'accent' : 'default'} />
           </div>
@@ -4000,14 +4000,14 @@ export function EstimatesWorkspace({ permissions }) {
             )}
           />
           <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Visible Assemblies" value={assemblyLibrary.assemblies.length} detail="Division-scoped library" />
+            <SummaryCard detailIsDiagnostic label="Visible Assemblies" value={assemblyLibrary.assemblies.length} detail="Division-scoped library" />
             <SummaryCard label="Library Items" value={assemblyLibrary.assemblies.length - oneTimeAssemblyCount} detail="Reusable templates" />
             <SummaryCard label="One-time" value={oneTimeAssemblyCount} detail="Estimate-specific assemblies" />
-            <SummaryCard label="Write Access" value={canEstimate ? 'Granted' : 'Read only'} detail="Estimate permission" tone={canEstimate ? 'good' : 'warn'} />
+            <SummaryCard developmentOnly label="Write Access" value={canEstimate ? 'Granted' : 'Read only'} detail="Estimate permission" tone={canEstimate ? 'good' : 'warn'} />
           </div>
           {canEstimate ? (
             <form className="job-financials-form" onSubmit={handleAssemblySave}>
-              <Toolbar
+              <Toolbar descriptionIsDiagnostic
                 eyebrow="Create"
                 title="Add assembly"
                 description="Create a reusable assembly shell, then use Manage Materials in the table below to add catalog-linked material and labor rows."
@@ -4085,7 +4085,7 @@ export function EstimatesWorkspace({ permissions }) {
             <SummaryCard label="Visible Items" value={visibleCatalogItems.length} detail={`${catalogItems.items.length} estimating-enabled rows`} />
             <SummaryCard label="In Inventory" value={stockedCatalogCount} detail="Stocked material" tone={stockedCatalogCount ? 'good' : 'default'} />
             <SummaryCard label="Catalog Only" value={catalogOnlyCount} detail="Estimating/search only" />
-            <SummaryCard label="NECA Rates" value={catalogItems.items.filter((item) => Number(item.labor_rate_hrs) > 0).length} detail="Rows with labor hours" tone="accent" />
+            <SummaryCard detailIsDiagnostic label="NECA Rates" value={catalogItems.items.filter((item) => Number(item.labor_rate_hrs) > 0).length} detail="Rows with labor hours" tone="accent" />
           </div>
           <CatalogFilterControls
             items={catalogItems.items}

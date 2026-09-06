@@ -1,3 +1,5 @@
+import { useDiagnostics } from './Diagnostics.jsx';
+
 export function StatePanel({
   eyebrow,
   title,
@@ -9,8 +11,11 @@ export function StatePanel({
   incomplete = null,
   developmentOnly = null,
 }) {
+  const diagnostics = useDiagnostics();
   const isIncomplete = incomplete ?? hasIncompleteSignal([eyebrow, title, description]);
-  const isDevelopmentOnly = developmentOnly ?? hasDevelopmentSignal([eyebrow, title, description]);
+  const isDevelopmentOnly = (developmentOnly ?? hasDevelopmentSignal([eyebrow, title, description]))
+    && !actions && !children && !['danger', 'warn', 'warning'].includes(tone);
+  if (isDevelopmentOnly && !diagnostics) return null;
 
   return (
     <section

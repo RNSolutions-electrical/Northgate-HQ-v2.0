@@ -613,19 +613,19 @@ export function DashboardWorkspace({ permissions }) {
       </section>
 
       <div className="summary-grid">
-        <SummaryCard label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} developmentOnly />
+        <SummaryCard detailIsDiagnostic label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} developmentOnly />
         <SummaryCard label="Role" value={permissions.role ?? 'User'} detail={permissions.department ?? 'No department'} developmentOnly />
-        <SummaryCard label="Inventory" value={permissionLabel(permissions.canManageInventory || permissions.canInventoryTransactions)} detail="Existing flags" developmentOnly />
-        <SummaryCard label="Jobs" value={permissionLabel(permissions.canCreateJobs || permissions.canManageJobs)} detail="Existing flags" developmentOnly />
+        <SummaryCard detailIsDiagnostic label="Inventory" value={permissionLabel(permissions.canManageInventory || permissions.canInventoryTransactions)} detail="Existing flags" developmentOnly />
+        <SummaryCard detailIsDiagnostic label="Jobs" value={permissionLabel(permissions.canCreateJobs || permissions.canManageJobs)} detail="Existing flags" developmentOnly />
         <SummaryCard label="Job Attention" value={jobAttention.isLoading ? 'Loading' : jobAttention.items.length} detail="Buyout exceptions" tone={jobAttention.items.length ? 'warn' : 'good'} />
         {canSeeVehicleAssignments ? (
-          <SummaryCard label="My Vehicles" value={dashboardVehicles.isLoading ? 'Loading' : activeVehicleAssignments.length} detail="Active assignment rows" tone={activeVehicleAssignments.length ? 'good' : 'default'} />
+          <SummaryCard detailIsDiagnostic label="My Vehicles" value={dashboardVehicles.isLoading ? 'Loading' : activeVehicleAssignments.length} detail="Active assignment rows" tone={activeVehicleAssignments.length ? 'good' : 'default'} />
         ) : null}
         {canSeeTools ? (
-          <SummaryCard label="Company Tools" value={dashboardTools.isLoading ? 'Loading' : activeDashboardTools.length} detail="Visible active catalogue rows" tone={activeDashboardTools.length ? 'accent' : 'default'} />
+          <SummaryCard detailIsDiagnostic label="Company Tools" value={dashboardTools.isLoading ? 'Loading' : activeDashboardTools.length} detail="Visible active catalogue rows" tone={activeDashboardTools.length ? 'accent' : 'default'} />
         ) : null}
         {canSeeEstimates ? (
-          <SummaryCard label="My Estimates" value={dashboardEstimates.isLoading ? 'Loading' : dashboardEstimates.assigned.length} detail="Assigned estimate rows" tone={dashboardEstimates.assigned.length ? 'accent' : 'default'} />
+          <SummaryCard detailIsDiagnostic label="My Estimates" value={dashboardEstimates.isLoading ? 'Loading' : dashboardEstimates.assigned.length} detail="Assigned estimate rows" tone={dashboardEstimates.assigned.length ? 'accent' : 'default'} />
         ) : null}
         <SummaryCard label="My To-Do" value={dashboardTodoReminders.isLoading ? 'Loading' : dashboardTodoReminders.items.length} detail={overdueTodoCount ? `${overdueTodoCount} overdue` : 'Due soon or today'} tone={overdueTodoCount ? 'warn' : dashboardTodoReminders.items.length ? 'accent' : 'default'} />
       </div>
@@ -672,7 +672,7 @@ export function DashboardWorkspace({ permissions }) {
         <div className="workspace-surface">
           {activePanel === 'my-info' ? (
             <article className="card workspace-card module-directory-panel">
-              <Toolbar
+              <Toolbar descriptionIsDiagnostic
                 eyebrow="My Info"
                 title="Personal information"
                 description="Only real profile and permission data from approved sources is shown here. Missing values stay visibly unfilled."
@@ -786,7 +786,7 @@ export function DashboardWorkspace({ permissions }) {
                   description="Active company tools available through your existing division-scoped catalogue access. This list does not infer personal assignment or custody."
                   actions={(
                     <>
-                      <button type="button" className="secondary-button" onClick={dashboardTools.reload} disabled={!canSeeTools || dashboardTools.isLoading}>Refresh</button>
+                      <button type="button" className="secondary-button" onClick={dashboardTools.reload} hidden={!canSeeTools} disabled={!canSeeTools || dashboardTools.isLoading}>Refresh</button>
                       <button type="button" className="secondary-button" onClick={() => openModule('/tools')}>Open Tools Module</button>
                     </>
                   )}

@@ -562,10 +562,10 @@ export function ToolsWorkspace({ permissions }) {
         const canMutateRow = canManageToolDivision(permissions, row.division);
         return (
           <div className="tool-catalogue-actions" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="secondary-button" onClick={() => startToolEdit(row)} disabled={!canMutateRow || toolForm.isSaving}>
+            <button type="button" className="secondary-button" onClick={() => startToolEdit(row)} hidden={!canMutateRow} disabled={!canMutateRow || toolForm.isSaving}>
               Edit
             </button>
-            <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleToolArchive(row)} disabled={!canMutateRow || toolForm.isSaving}>
+            <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleToolArchive(row)} hidden={!canMutateRow} disabled={!canMutateRow || toolForm.isSaving}>
               {row.archived_at ? 'Restore' : 'Archive'}
             </button>
           </div>
@@ -589,7 +589,7 @@ export function ToolsWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={catalogue.reload} disabled={catalogue.isLoading}>
               Refresh
             </button>
-            <button type="button" className="primary-button" onClick={resetToolForm} disabled={!canManageToolCatalogue || toolForm.isSaving}>
+            <button hidden={!canManageToolCatalogue} type="button" className="primary-button" onClick={resetToolForm} disabled={!canManageToolCatalogue || toolForm.isSaving}>
               <Plus aria-hidden="true" /> Add tool
             </button>
           </>
@@ -597,10 +597,10 @@ export function ToolsWorkspace({ permissions }) {
       />
 
       <div className="summary-grid">
-        <SummaryCard label="Active tools" value={activeTools.length} detail="Visible catalogue rows" />
+        <SummaryCard detailIsDiagnostic label="Active tools" value={activeTools.length} detail="Visible catalogue rows" />
         <SummaryCard label="Missing" value={missingTools.length} detail="Status marked missing" tone={missingTools.length ? 'warn' : 'default'} />
-        <SummaryCard label="Archived" value={archivedTools.length} detail="Soft-archived rows" />
-        <SummaryCard label="Write access" value={permissions.canManageInventory ? 'Possible' : 'Read only'} detail="Existing RLS uses inventory management" tone={permissions.canManageInventory ? 'good' : 'warn'} />
+        <SummaryCard detailIsDiagnostic label="Archived" value={archivedTools.length} detail="Soft-archived rows" />
+        <SummaryCard detailIsDiagnostic developmentOnly label="Write access" value={permissions.canManageInventory ? 'Possible' : 'Read only'} detail="Existing RLS uses inventory management" tone={permissions.canManageInventory ? 'good' : 'warn'} />
       </div>
 
       <div className={`workspace-split tools-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -663,7 +663,7 @@ export function ToolsWorkspace({ permissions }) {
           <article className="card workspace-card">
             {selectedTool ? (
               <>
-                <RecordHeader
+                <RecordHeader descriptionIsDiagnostic
                   eyebrow="Selected Tool"
                   title={toolLabel(selectedTool)}
                   description="This selected-record shell shows catalogue fields only; custody and checkout behavior are not active in this pass."
@@ -681,10 +681,10 @@ export function ToolsWorkspace({ permissions }) {
 
                 {activeTab === 'overview' ? (
                   <div className="module-fact-grid tools-fact-grid">
-                    <SummaryCard label="Category" value={selectedTool.category || '-'} detail="Catalogue field" />
-                    <SummaryCard label="Brand" value={selectedTool.brand || '-'} detail="Catalogue field" />
-                    <SummaryCard label="Model" value={selectedTool.model || '-'} detail="Catalogue field" />
-                    <SummaryCard label="Condition" value={selectedTool.condition || 'Unknown'} detail="Catalogue field" />
+                    <SummaryCard detailIsDiagnostic label="Category" value={selectedTool.category || '-'} detail="Catalogue field" />
+                    <SummaryCard detailIsDiagnostic label="Brand" value={selectedTool.brand || '-'} detail="Catalogue field" />
+                    <SummaryCard detailIsDiagnostic label="Model" value={selectedTool.model || '-'} detail="Catalogue field" />
+                    <SummaryCard detailIsDiagnostic label="Condition" value={selectedTool.condition || 'Unknown'} detail="Catalogue field" />
                   </div>
                 ) : null}
 
@@ -722,7 +722,7 @@ export function ToolsWorkspace({ permissions }) {
                       <SummaryCard label="Updates" value={toolHistory.rows.filter((row) => row.action === 'update').length} detail="Recorded edits" />
                       <SummaryCard label="Archives" value={toolHistory.rows.filter((row) => row.action === 'archive').length} detail="Archive events" tone={toolHistory.rows.some((row) => row.action === 'archive') ? 'warn' : 'default'} />
                     </div>
-                    <Toolbar
+                    <Toolbar descriptionIsDiagnostic
                       eyebrow="Audit"
                       title="Tool History"
                       description="Read-only audit entries for this tool catalogue row."
@@ -845,7 +845,7 @@ export function ToolsWorkspace({ permissions }) {
               <StatePanel tone="success" eyebrow="Saved" title="Tool catalogue updated" description={toolForm.success} compact />
             ) : null}
             <div className="tool-catalogue-form__actions">
-              <button type="submit" className="primary-button" disabled={!canManageToolCatalogue || toolForm.isSaving || !toolForm.name.trim()}>
+              <button hidden={!canManageToolCatalogue} type="submit" className="primary-button" disabled={!canManageToolCatalogue || toolForm.isSaving || !toolForm.name.trim()}>
                 <Plus aria-hidden="true" /> {toolForm.isSaving ? 'Saving...' : toolForm.id ? 'Save Tool' : 'Add Tool'}
               </button>
             </div>

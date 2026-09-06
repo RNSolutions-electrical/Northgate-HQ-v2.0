@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { createServer } from 'vite';
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const mocks = path.resolve('tests/fixtures/ui-cleanup-mocks.js');
+const server = await createServer({ plugins: [{ name: 'isolated-employee-fixtures', enforce: 'pre', resolveId(id) {
+  if (id === '@clerk/clerk-react' || id.endsWith('/services/supabaseClient.js')) return mocks;
+} }], server: { host: '127.0.0.1', port: 5187, strictPort: true } });
+await server.listen();
+let browser;
+try {
+  browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  const url = 'http://127.0.0.1:5187/northgate/tests/fixtures/ui-cleanup.html';
+  const technical = ['Managed through Clerk', 'Active vehicle assignment', 'Profile source', 'Role source', 'Read scope', 'Manage employees', 'My profile', '0 visible contacts'];
+  await mkdir('.temp/ui-cleanup/screenshots', { recursive: true });
+  for (const [label,width,height] of [['desktop',1440,1000],['tablet',768,1024],['phone',390,844]]) {
+    await page.setViewportSize({width,height});
+    await page.goto(url);
+    await page.getByRole('heading',{name:'Test Employee',exact:true}).waitFor();
+    await page.getByRole('checkbox',{name:'Fixture diagnostics preference'}).check();
+    for(const text of technical) assert.equal(await page.getByText(text,{exact:true}).count(),0,`${label}: ${text}`);
+    assert.equal(await page.getByRole('button',{name:'Create employee',exact:true}).count(),0);
+    assert.equal(await page.getByRole('button',{name:'Page Menu',exact:true}).count(),0);
+    assert.equal(await page.locator('.employees-boundary-grid').isVisible(),false);
+    assert.equal(await page.getByText('$10,000',{exact:true}).isVisible(),true);
+    assert.equal(await page.getByText('Your changes were not saved. Retry.').isVisible(),true);
+    assert.equal(await page.getByRole('button',{name:'Saving record...'}).isVisible(),true);
+    assert.equal(await page.getByRole('button',{name:'Saving record...'}).isDisabled(),true);
+    await page.getByRole('button',{name:'Edit my profile',exact:true}).click();
+    await page.getByLabel('Display name',{exact:true}).fill('Updated Employee');
+    assert.equal(await page.getByLabel('Reason for change',{exact:true}).isVisible(),true);
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${label} overflow`);
+    await page.screenshot({path:`.temp/ui-cleanup/screenshots/${label}.png`,fullPage:true});
+  }
+  await page.setViewportSize({width:768,height:1024});
+  await page.goto(`${url}?mode=manager`);
+  await page.getByRole('heading',{name:'Test Employee',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Create employee',exact:true}).isVisible(),true);
+  await page.getByRole('button',{name:'Page Menu',exact:true}).click();
+  await page.locator('.workspace-sidebar.is-open').waitFor();
+  await page.getByRole('button',{name:'Employee Directory',exact:false}).click();
+  assert.equal(await page.locator('.workspace-sidebar.is-open').count(),0);
+  await page.setViewportSize({width:1440,height:1000});
+  assert.equal(await page.getByRole('button',{name:'Page Menu',exact:true}).count(),0);
+  await page.goto(`${url}?mode=developer`);
+  await page.getByRole('heading',{name:'Test Employee',exact:true}).waitFor();
+  const toggle=page.getByRole('checkbox',{name:'Fixture diagnostics preference'});
+  await toggle.uncheck();
+  assert.equal(await page.getByText('Profile source',{exact:true}).count(),0);
+  await toggle.check();
+  assert.equal(await page.getByText('Profile source',{exact:true}).isVisible(),true);
+  assert.equal(await page.getByText('Managed through Clerk',{exact:true}).isVisible(),true);
+  await toggle.uncheck();
+  assert.equal(await page.getByText('Profile source',{exact:true}).count(),0);
+  assert.deepEqual(errors,[]);
+  console.log('PASS: actual Employees workspace, user/manager/developer visibility, diagnostics opt-in, unauthorized actions, mobile menu, profile form, alerts, operational figures, and responsive overflow.');
+} finally { await browser?.close(); await server.close(); }

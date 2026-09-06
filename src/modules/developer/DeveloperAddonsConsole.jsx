@@ -62,7 +62,7 @@ export function DeveloperAddonsConsole() {
 
   return (
     <section className="developer-addons developer-console-page">
-      <Toolbar eyebrow="Tool Add-Ons" title="User access" description="Enable optional Northgate tools per user. Navigation, route access, database queries, and RLS all use the same server-authoritative assignment." actions={<button type="button" className="secondary-button" onClick={() => setRefreshKey((current) => current + 1)} disabled={state.isLoading}><RefreshCw aria-hidden="true" /> Refresh</button>} />
+      <Toolbar descriptionIsDiagnostic eyebrow="Tool Add-Ons" title="User access" description="Enable optional Northgate tools per user. Navigation, route access, database queries, and RLS all use the same server-authoritative assignment." actions={<button type="button" className="secondary-button" onClick={() => setRefreshKey((current) => current + 1)} disabled={state.isLoading}><RefreshCw aria-hidden="true" /> Refresh</button>} />
       {state.error ? <StatePanel tone="danger" title="Add-on access could not be loaded" description={state.error.message} compact /> : null}
       <div className="developer-addons__workspace">
         <div className="developer-addons__users" role="listbox" aria-label="Users">

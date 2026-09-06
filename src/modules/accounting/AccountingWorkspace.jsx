@@ -255,7 +255,7 @@ export function AccountingWorkspace({ permissions }) {
     if (activeView === 'category-totals') {
       return (
         <article className="card workspace-card">
-          <Toolbar
+          <Toolbar descriptionIsDiagnostic
             eyebrow="Review"
             title="Category Totals"
             description="Totals are calculated client-side from the authorized budget rows currently returned by Supabase."
@@ -332,7 +332,7 @@ export function AccountingWorkspace({ permissions }) {
 
     return (
       <article className="card workspace-card">
-        <Toolbar
+        <Toolbar descriptionIsDiagnostic
           eyebrow="Budget Foundation"
           title="Budget Review"
           description="Read-only active rows from job_budget_lines. Archived rows and write controls are excluded."
@@ -374,10 +374,10 @@ export function AccountingWorkspace({ permissions }) {
       />
 
       <div className="summary-grid">
-        <SummaryCard label="Budget Lines" value={visibleRows.length} detail="Active authorized rows" />
-        <SummaryCard label="Budget Total" value={formatMoney(summary.totalBudget)} detail="Budget foundation only" tone="good" />
-        <SummaryCard label="Jobs" value={summary.jobs} detail="Distinct job IDs in scope" />
-        <SummaryCard label="Departments" value={summary.divisions} detail="Visible departments in scope" />
+        <SummaryCard detailIsDiagnostic label="Budget Lines" value={visibleRows.length} detail="Active authorized rows" />
+        <SummaryCard detailIsDiagnostic label="Budget Total" value={formatMoney(summary.totalBudget)} detail="Budget foundation only" tone="good" />
+        <SummaryCard detailIsDiagnostic label="Jobs" value={summary.jobs} detail="Distinct job IDs in scope" />
+        <SummaryCard detailIsDiagnostic label="Departments" value={summary.divisions} detail="Visible departments in scope" />
       </div>
 
       <div className={`workspace-split accounting-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
@@ -406,7 +406,7 @@ export function AccountingWorkspace({ permissions }) {
         <div className="workspace-surface">
           {activeView === 'budget-review' ? (
             <article className="card workspace-card">
-              <Toolbar
+              <Toolbar descriptionIsDiagnostic
                 eyebrow="Filter"
                 title="Budget Lines"
                 description="Client-side filtering over rows already authorized by RLS."

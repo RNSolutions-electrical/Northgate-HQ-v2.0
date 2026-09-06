@@ -1394,6 +1394,15 @@ textarea {
    modules opt in when they need a rail. Styles live here so they work the
    moment a module does. */
 
+[hidden] { display: none !important; }
+.workspace-toggle { display: none !important; }
+.employees-workspace:not(:has(> .workspace-sidebar)) { grid-template-columns: minmax(0, 1fr); }
+.summary-grid:empty, [class$="-boundary-grid"]:empty { display: none; }
+@media (max-width: 899px) {
+  .workspace-header .workspace-header__actions { display: flex !important; flex-wrap: wrap; }
+  .workspace-header .workspace-toggle { display: inline-flex !important; }
+}
+
 .workspace-sidebar-scrim,
 .top-nav-scrim {
   position: fixed;

@@ -5796,7 +5796,7 @@ export function JobsWorkspace({ permissions }) {
     if (activeTab === 'history') {
       return (
         <>
-          <Toolbar
+          <Toolbar descriptionIsDiagnostic
             eyebrow="Audit"
             title="Job History"
             description="Read-only audit entries for this job and its job-owned sections."
@@ -5913,7 +5913,7 @@ export function JobsWorkspace({ permissions }) {
               <>
                 <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>Page Menu</button>
                 <button type="button" className="secondary-button" onClick={directory.reload} disabled={directory.isLoading}>Refresh</button>
-                <button type="button" className="primary-button" onClick={startJobCreate} disabled={!canCreateJobs}><Plus aria-hidden="true" /> Create Job</button>
+                <button hidden={!canCreateJobs} type="button" className="primary-button" onClick={startJobCreate} disabled={!canCreateJobs}><Plus aria-hidden="true" /> Create Job</button>
               </>
             )}
           </>
