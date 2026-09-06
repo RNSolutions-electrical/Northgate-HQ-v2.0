@@ -19621,10 +19621,12 @@ contract value.
   invalid-value rollback, submit, signed approval, idempotence, SOV, Pay App credit,
   revision delta, void, positive/zero cases, denied caller and audit.
 - No test jobs retained. Security advisors unchanged at 143 findings; none new.
-- Production frontend deployment pending; migration is applied.
+- Published commit `17af992`. Netlify deploy `6a9dc76bd157b5000809cc6e` ready;
+  secret scan clean. Production HTML/JS return 200, proper JavaScript MIME and
+  the expected signed-amount validation. Migration is applied.
 
 ### Next Action
-- Publish and verify frontend; Ryan tests deleted-fixture draft and client PDF.
+- Ryan tests deleted-fixture draft and client PDF on the refreshed production app.
 - See `docs/DEDUCTIVE_CHANGE_ORDERS.md` for acceptance and the existing billing
   revision-supersession limitation. Sitewide audit backlog remains separate.
-- New marker after publication: `DEDUCTIVE-CO-20260906-001`.
+- New marker: `DEDUCTIVE-CO-20260906-001`.

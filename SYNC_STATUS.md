@@ -4,8 +4,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `AUDIT-WORKFLOWS-20260906-001`
-- Release commit: `added25`
+- Marker: `DEDUCTIVE-CO-20260906-001`
+- Release commit: `17af992`
+- Previous audit workflow release commit: `added25`
 - Audit workflow implementation commit: `7359881`
 - Previous Tools compact UI commit: `8be1c04`
 - Checkout notes commit: `7e09d29`
@@ -14,11 +15,22 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9dbd220c117b00080c3c40`
+- Production deploy: `6a9dc76bd157b5000809cc6e`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker publishes the first audit-policy/Current Budget rollout.
+The current marker enables negative and mixed-sign Change Orders through draft,
+submission, client PDF and approval. Migration `20260906200342_deductive_change_orders`
+is applied. Signed financial postings, SOV allocations and existing Pay App credit
+calculations passed rollback tests. Void reversals no longer conflict with the
+obsolete posting uniqueness constraint. No permissions or RLS were relaxed.
+Nineteen Node tests, desktop/tablet/phone real-component fixtures, production build,
+pre/post-migration rollback tests and live HTML/JS checks pass. Netlify deploy is
+ready for `17af992`, secret scan clean; security advisors unchanged (143 existing).
+No test jobs retained. Ryan's authenticated acceptance remains pending. See
+`docs/DEDUCTIVE_CHANGE_ORDERS.md` for steps and existing billing-revision limitations.
+
+The previous marker publishes the first audit-policy/Current Budget rollout.
 Ryan explicitly approved the multi-module migration after the earlier safety
 review rejection. Migration `20260906191944_approved_financial_workflows` is
 applied. Protected Original Budget edits require reasons; routine financial
