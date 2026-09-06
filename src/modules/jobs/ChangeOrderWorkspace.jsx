@@ -158,8 +158,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
 
   async function saveDraft() {
     if (!canEditDraft || action.name) return null;
-    if (!form.co_number.trim() || !form.title.trim() || !form.reason.trim()) {
-      setAction({ name: '', error: new Error('Change Order number, title, and audit reason are required.'), success: '' });
+    if (!form.co_number.trim() || !form.title.trim()) {
+      setAction({ name: '', error: new Error('Change Order number and title are required.'), success: '' });
       return null;
     }
     const meaningfulLines = lines.filter((line) => line.job_budget_line_id || line.description.trim() || lineTotal(line) > 0);
@@ -439,7 +439,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
             <span>Change details</span>
             <strong>Scope and project information</strong>
           </div>
-          <small>Required audit reasons are retained with every workflow action.</small>
+          <small>Workflow actions are recorded in the audit history.</small>
         </div>
         <div className="change-order-form__grid">
           <label><span>Project</span><input value={`${job.job_number || ''} ${job.name}`.trim()} disabled /></label>
@@ -507,14 +507,14 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         </section> : null}
       </div> : null}
 
-      {isDraft ? <div className="change-order-action-reason" role="note" aria-label="Required audit reason">
+      {isDraft ? <div className="change-order-action-reason" role="note" aria-label="Optional draft note">
         <div className="change-order-action-reason__notice">
-          <strong>Audit reason required</strong>
-          <span>Enter why this Change Order is being created or edited before saving or submitting. The note is retained in project history.</span>
+          <strong>Draft note (optional)</strong>
+          <span>Optional context retained with this save.</span>
         </div>
         <label>
-          <span>Audit reason</span>
-          <input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Required before Save Draft or Submit Change Order" />
+          <span>Note (optional)</span>
+          <input value={form.reason} onChange={(e) => setField('reason', e.target.value)} disabled={Boolean(action.name)} placeholder="Optional context for this draft" />
         </label>
       </div> : null}
 

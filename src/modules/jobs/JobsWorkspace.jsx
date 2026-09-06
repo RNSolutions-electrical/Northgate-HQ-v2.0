@@ -25,6 +25,9 @@ import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
+import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
+import { effectiveCurrentBudget, hasCurrentBudgetOverride } from './currentBudget.js';
+import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
 
@@ -139,6 +142,7 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
   cost_code: '',
   description: '',
   budget_amount: '',
+  current_budget_override_amount: '',
   budget_change_amount: '',
   actual_cost_amount: '',
   committed_cost_amount: '',
@@ -287,6 +291,7 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'cost_code',
   'description',
   'budget_amount',
+  'current_budget_override_amount',
   'budget_change_amount',
   'actual_cost_amount',
   'committed_cost_amount',
@@ -1021,6 +1026,7 @@ function parseBulkBudgetRows(text) {
       forecast_final_amount: forecastFinal === null ? budgetAmount : forecastFinal,
       schedule_of_values_amount: scheduleOfValues === null ? 0 : scheduleOfValues,
       note: String(firstPresentValue(row, ['note', 'notes', 'comment', 'comments']) || '').trim() || null,
+      reason: String(firstPresentValue(row, ['reason', 'auditreason', 'changereason']) || '').trim(),
     };
   }).filter((row) => row.description || row.cost_code);
 
@@ -2027,6 +2033,7 @@ function budgetToForm(row) {
 
   return {
     ...DEFAULT_BUDGET_FORM,
+    expected_updated_at: row.updated_at,
     id: row.id || '',
     project_division_id: row.project_division_id || row.project_division?.id || '',
     project_division: row.project_division || null,
@@ -2035,6 +2042,7 @@ function budgetToForm(row) {
     cost_code: row.cost_code || '',
     description: row.description || '',
     budget_amount: row.budget_amount == null ? '' : String(row.budget_amount),
+    current_budget_override_amount: row.current_budget_override_amount == null ? '' : String(row.current_budget_override_amount),
     budget_change_amount: row.budget_change_amount == null ? '' : String(row.budget_change_amount),
     actual_cost_amount: row.actual_cost_amount == null ? '' : String(row.actual_cost_amount),
     committed_cost_amount: row.committed_cost_amount == null ? '' : String(row.committed_cost_amount),
@@ -2058,6 +2066,7 @@ function budgetAuditSnapshot(row) {
     cost_code: row.cost_code,
     description: row.description,
     budget_amount: row.budget_amount,
+    current_budget_override_amount: row.current_budget_override_amount,
     budget_change_amount: row.budget_change_amount,
     actual_cost_amount: row.actual_cost_amount,
     committed_cost_amount: row.committed_cost_amount,
@@ -2136,6 +2145,7 @@ function normalizeBudgetProtectedValue(value) {
 
 function budgetProtectedFieldsChanged(beforeRow, payload) {
   if (!beforeRow) return false;
+  payload = { ...beforeRow, ...payload };
 
   return normalizeBudgetProtectedValue(beforeRow.category) !== normalizeBudgetProtectedValue(payload.category)
     || Boolean(beforeRow.is_protected_financial) !== Boolean(payload.is_protected_financial)
@@ -2170,6 +2180,7 @@ export function JobsWorkspace({ permissions }) {
   const [buyoutQuoteUpload, setBuyoutQuoteUpload] = useState(DEFAULT_BUYOUT_QUOTE_UPLOAD);
   const [vendorQuoteForm, setVendorQuoteForm] = useState(DEFAULT_VENDOR_QUOTE_FORM);
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
+  const [budgetReasonOpen, setBudgetReasonOpen] = useState(false);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
   const [budgetEditFocusField, setBudgetEditFocusField] = useState('');
   const [revenueForm, setRevenueForm] = useState(DEFAULT_REVENUE_FORM);
@@ -3159,6 +3170,7 @@ export function JobsWorkspace({ permissions }) {
       is_protected_financial: budgetForm.is_protected_financial === true,
       cost_code: budgetForm.cost_code.trim() || null,
       description: budgetForm.description.trim(),
+      current_budget_override_amount: budgetForm.current_budget_override_amount === '' ? null : Number(budgetForm.current_budget_override_amount),
       budget_amount: budgetAmount,
       budget_change_amount: parseOptionalNumber(budgetForm.budget_change_amount) || 0,
       actual_cost_amount: parseOptionalNumber(budgetForm.actual_cost_amount) || 0,
@@ -3197,7 +3209,7 @@ export function JobsWorkspace({ permissions }) {
     setBudgetEditFocusField('');
   }
 
-  async function handleBudgetSave(event) {
+  async function handleBudgetSave(event, confirmedReason = '') {
     event?.preventDefault?.();
 
     if (!selectedJob || !canApproveSelectedBudget || budgetForm.isSaving) return;
@@ -3211,11 +3223,10 @@ export function JobsWorkspace({ permissions }) {
     const existingRow = budgetForm.id
       ? jobBudget.lines.find((line) => line.id === budgetForm.id)
       : null;
-    if (!budgetForm.change_reason.trim()) {
-      setBudgetForm((current) => ({
-        ...current,
-        error: new Error('Enter an audit reason before saving this financial line.'),
-      }));
+    const reason = confirmedReason || budgetForm.change_reason.trim();
+    if (requiresAuditReason({ action: existingRow ? 'update' : 'create', workflow: 'financial.routine',
+      protectedChange: budgetProtectedFieldsChanged(existingRow, basePayload) }) && !reason) {
+      setBudgetReasonOpen(true);
       return;
     }
 
@@ -3229,23 +3240,11 @@ export function JobsWorkspace({ permissions }) {
         throw new Error('Choose a project division by using its Add line button.');
       }
       const payload = { ...basePayload, project_division_id: projectDivisionId };
-      const { data, error } = await client.rpc('save_job_financial_line', {
+      const { error } = await client.rpc('save_job_financial_batch', {
         p_job_id: selectedJob.id,
-        p_line_id: budgetForm.id || null,
-        p_project_division_id: projectDivisionId,
-        p_category: payload.category,
-        p_is_protected_financial: payload.is_protected_financial,
-        p_cost_code: payload.cost_code,
-        p_description: payload.description,
-        p_budget_amount: payload.budget_amount,
-        p_budget_change_amount: payload.budget_change_amount,
-        p_actual_cost_amount: payload.actual_cost_amount,
-        p_committed_cost_amount: payload.committed_cost_amount,
-        p_forecast_to_complete_amount: payload.forecast_to_complete_amount,
-        p_forecast_final_amount: payload.forecast_final_amount,
-        p_schedule_of_values_amount: payload.schedule_of_values_amount,
-        p_note: payload.note,
-        p_reason: budgetForm.change_reason.trim(),
+        p_lines: [{ ...payload, id: budgetForm.id || null,
+          ...(existingRow ? { expected_updated_at: budgetForm.expected_updated_at } : {}) }],
+        p_reason: reason || null,
       });
 
       if (error) throw error;
@@ -3255,6 +3254,7 @@ export function JobsWorkspace({ permissions }) {
         success: `${payload.description} ${budgetForm.id ? 'updated' : 'added'} in Financials.`,
       });
       setIsAddingBudgetLine(false);
+      setBudgetReasonOpen(false);
       setBudgetEditFocusField('');
       jobBudget.reload();
     } catch (error) {
@@ -3475,60 +3475,33 @@ export function JobsWorkspace({ permissions }) {
         return;
       }
 
-      let createdRows = [];
-      if (linesToCreate.length) {
-        const { data, error } = await client.from('job_budget_lines').insert(linesToCreate.map((line) => ({
-          job_id: selectedJob.id,
-          division: selectedJob.division,
-          category: line.category,
-          cost_code: line.cost_code,
-          description: line.description,
-          project_division_id: line.project_division_id,
-          budget_amount: 0,
-          budget_change_amount: 0,
-          actual_cost_amount: 0,
-          committed_cost_amount: 0,
-          forecast_to_complete_amount: 0,
-          forecast_final_amount: 0,
-          schedule_of_values_amount: 0,
+      const alignmentReason = linesToUpdate.length
+        ? window.prompt('Why are these existing financial descriptions/categories being aligned? One reason covers this template batch.')
+        : null;
+      if (linesToUpdate.length && !alignmentReason?.trim()) {
+        setBudgetTemplateAction({ key: '', error: null, success: '' });
+        return;
+      }
+      const changes = [
+        ...linesToCreate.map((line) => ({
+          category: line.category, cost_code: line.cost_code, description: line.description,
+          project_division_id: line.project_division_id, budget_amount: 0,
           note: `Created from template: ${template.name}`,
-          created_by: createdBy,
-        }))).select(JOB_BUDGET_SELECT_FIELDS);
-        if (error) throw error;
-        createdRows = data ?? [];
-      }
-
-      const updatedRows = await Promise.all(linesToUpdate.map(async (line) => {
-        const existing = existingByCostCode.get(normalizeCostCode(line.cost_code));
-        const { data, error } = await client
-          .from('job_budget_lines')
-          .update({ category: line.category, description: line.description, project_division_id: line.project_division_id })
-          .eq('id', existing.id)
-          .eq('job_id', selectedJob.id)
-          .select(JOB_BUDGET_SELECT_FIELDS)
-          .single();
-        if (error) throw error;
-        return { before: existing, after: data };
-      }));
-
-      for (const row of createdRows) {
-        await writeJobChangeLog(client, {
-          action: 'create',
-          recordId: row.id,
-          beforeData: null,
-          afterData: budgetAuditSnapshot(row),
-          note: `Created from template: ${template.name}.`,
+        })),
+        ...linesToUpdate.map((line) => {
+          const existing = existingByCostCode.get(normalizeCostCode(line.cost_code));
+          return { id: existing.id, expected_updated_at: existing.updated_at,
+            category: line.category, description: line.description, project_division_id: line.project_division_id };
+        }),
+      ];
+      if (changes.length) {
+        const { error } = await client.rpc('save_job_financial_batch', {
+          p_job_id: selectedJob.id, p_lines: changes, p_reason: alignmentReason?.trim() || null,
         });
+        if (error) throw error;
       }
-      for (const row of updatedRows) {
-        await writeJobChangeLog(client, {
-          action: 'update',
-          recordId: row.after.id,
-          beforeData: budgetAuditSnapshot(row.before),
-          afterData: budgetAuditSnapshot(row.after),
-          note: `Aligned to template: ${template.name}. Financial amounts were preserved.`,
-        });
-      }
+      const createdRows = linesToCreate;
+      const updatedRows = linesToUpdate;
 
       setBudgetTemplateAction({
         key: '',
@@ -3553,10 +3526,17 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
+      const needsAlignmentReason = financialCatalogue.filter((line) => catalogueSelectedIds.includes(line.id))
+        .some((line) => jobBudget.lines.some((existing) => normalizeCostCode(existing.cost_code) === normalizeCostCode(line.cost_code)));
+      const reason = needsAlignmentReason ? window.prompt('Why are you aligning existing financial lines with the catalogue?') : null;
+      if (needsAlignmentReason && !reason?.trim()) {
+        setBudgetTemplateAction({ key: '', error: null, success: '' });
+        return;
+      }
       const { data, error } = await client.rpc('apply_financial_catalogue_to_job', {
         p_job_id: selectedJob.id,
         p_catalogue_ids: catalogueSelectedIds,
-        p_reason: 'Applied selected financial-line catalogue entries to this job.',
+        p_reason: reason?.trim() || null,
       });
       if (error) throw error;
       setBudgetTemplateAction({ key: '', error: null, success: `${data?.divisions_added || 0} project division(s) added, ${data?.lines_added || 0} financial line(s) added, and ${data?.lines_aligned || 0} existing line(s) aligned. Financial values were preserved.` });
@@ -3571,11 +3551,6 @@ export function JobsWorkspace({ permissions }) {
     event.preventDefault();
 
     if (!selectedJob || !canApproveSelectedBudget || budgetBulkInput.isSaving) return;
-
-    if (!budgetBulkInput.reason.trim()) {
-      setBudgetBulkInput((current) => ({ ...current, error: new Error('Enter one approval note for this bulk financial batch.'), success: '' }));
-      return;
-    }
 
     let rows;
     try {
@@ -3595,63 +3570,27 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
       const existingByKey = new Map(jobBudget.lines.map((line) => [budgetLineMatchKey(line), line]));
-      let createdCount = 0;
-      let updatedCount = 0;
-
-      for (const row of rows) {
-        const payload = {
-          category: row.category,
-          cost_code: row.cost_code,
-          description: row.description,
-          budget_amount: row.budget_amount,
-          budget_change_amount: row.budget_change_amount,
-          actual_cost_amount: row.actual_cost_amount,
-          committed_cost_amount: row.committed_cost_amount,
-          forecast_to_complete_amount: row.forecast_to_complete_amount,
-          forecast_final_amount: row.forecast_final_amount,
-          schedule_of_values_amount: row.schedule_of_values_amount,
-          note: row.note,
-        };
-        const existingRow = existingByKey.get(budgetLineMatchKey(payload));
-        const query = existingRow
-          ? client
-            .from('job_budget_lines')
-            .update(payload)
-            .eq('id', existingRow.id)
-            .eq('job_id', selectedJob.id)
-            .select(JOB_BUDGET_SELECT_FIELDS)
-            .single()
-          : client
-            .from('job_budget_lines')
-            .insert({
-              ...payload,
-              job_id: selectedJob.id,
-              division: selectedJob.division,
-              created_by: createdBy,
-            })
-            .select(JOB_BUDGET_SELECT_FIELDS)
-            .single();
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        await writeJobChangeLog(client, {
-          action: existingRow ? 'update' : 'create',
-          recordId: data?.id || existingRow?.id || '',
-          beforeData: budgetAuditSnapshot(existingRow),
-          afterData: budgetAuditSnapshot(data),
-          note: `Bulk financial approval: ${budgetBulkInput.reason.trim()}`,
-        });
-
-        if (existingRow) {
-          updatedCount += 1;
-        } else {
-          createdCount += 1;
-          existingByKey.set(budgetLineMatchKey(data), data);
-        }
+      const keys = rows.map(budgetLineMatchKey);
+      if (new Set(keys).size !== keys.length) throw new Error('Remove duplicate cost-code/description rows before saving.');
+      const changes = rows.map(({ rowNumber, ...row }) => {
+        const existing = existingByKey.get(budgetLineMatchKey(row));
+        return { ...row, id: existing?.id || null,
+          ...(existing ? { expected_updated_at: existing.updated_at } : {}) };
+      });
+      const reasonChecks = changes.map((change) => ({
+        requiresReason: budgetProtectedFieldsChanged(existingByKey.get(budgetLineMatchKey(change)), change),
+        reason: change.reason,
+      }));
+      if (!hasReasonCoverage(reasonChecks, budgetBulkInput.reason)) {
+        throw new Error('Protected changes need a batch reason or a Reason column on each affected row.');
       }
+      const { error } = await client.rpc('save_job_financial_batch', {
+        p_job_id: selectedJob.id, p_lines: changes, p_reason: budgetBulkInput.reason.trim() || null,
+      });
+      if (error) throw error;
+      const createdCount = changes.filter((line) => !line.id).length;
+      const updatedCount = changes.length - createdCount;
 
       setBudgetBulkInput({
         ...DEFAULT_BUDGET_BULK_INPUT,
@@ -3866,32 +3805,26 @@ export function JobsWorkspace({ permissions }) {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
 
-      for (const update of updates) {
-        const { line, actualCostAmount } = update;
-        const estimateUpdate = {
+      const isOriginalImport = budgetImport.mode === 'estimate';
+      const reason = isOriginalImport ? window.prompt('Why are you updating the Original Budget? This reason covers the entire import.') : null;
+      if (isOriginalImport && !reason?.trim()) {
+        setBudgetImport((current) => ({ ...current, isImporting: false }));
+        return;
+      }
+      const changes = updates.map(({ line, actualCostAmount }) => ({
+        id: line.id, expected_updated_at: line.updated_at,
+        ...(isOriginalImport ? {
           budget_amount: actualCostAmount,
           ...(Number(line.forecast_final_amount || 0) === Number(line.budget_amount || 0)
-            ? { forecast_final_amount: actualCostAmount }
-            : {}),
-        };
-        const { data, error } = await client
-          .from('job_budget_lines')
-          .update(budgetImport.mode === 'estimate' ? estimateUpdate : { actual_cost_amount: actualCostAmount })
-          .eq('id', line.id)
-          .eq('job_id', selectedJob.id)
-          .select(JOB_BUDGET_SELECT_FIELDS)
-          .single();
-
-        if (error) throw error;
-
-        await writeJobChangeLog(client, {
-          action: 'update',
-          recordId: data?.id || line.id,
-          beforeData: budgetAuditSnapshot(line),
-          afterData: budgetAuditSnapshot(data),
-          note: `${budgetImport.mode === 'estimate' ? 'Estimated cost' : 'Actual cost'} imported from ${budgetImport.file.name}.`,
-        });
-      }
+            ? { forecast_final_amount: actualCostAmount } : {}),
+        } : { actual_cost_amount: actualCostAmount }),
+        source: { kind: isOriginalImport ? 'original-budget-import' : 'actual-cost-import', file_name: budgetImport.file.name },
+      }));
+      const { error } = await client.rpc('save_job_financial_batch', {
+        p_job_id: selectedJob.id, p_lines: changes,
+        p_reason: isOriginalImport ? reason.trim() : null,
+      });
+      if (error) throw error;
 
       setBudgetImport({
         ...DEFAULT_BUDGET_IMPORT,
@@ -4827,13 +4760,13 @@ export function JobsWorkspace({ permissions }) {
       }, new Map());
       const approvedChangeOrderCostByProjectDivisionId = new Map();
       const budgetLineChangeOrderAmount = (row) => approvedChangeOrderCostByBudgetLineId.get(row.id) || 0;
-      const budgetLineRevisedBudget = (row) => revisedBudget(row) + budgetLineChangeOrderAmount(row);
+      const budgetLineRevisedBudget = (row) => effectiveCurrentBudget(row, budgetLineChangeOrderAmount(row));
       const manualChangeTotal = sumField(jobBudget.lines, 'budget_change_amount');
       const approvedChangeOrderTotal = [...approvedChangeOrderCostByBudgetLineId.values()]
         .reduce((total, amount) => total + amount, 0);
       const changeTotal = manualChangeTotal + approvedChangeOrderTotal;
-      const revisedTotal = jobBudget.lines.reduce((total, line) => total + revisedBudget(line), 0);
-      const financialRevisedTotal = revisedTotal + approvedChangeOrderTotal;
+      const financialRevisedTotal = jobBudget.lines.reduce((total, line) => total + budgetLineRevisedBudget(line), 0);
+      const budgetOverrideCount = jobBudget.lines.filter(hasCurrentBudgetOverride).length;
       const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
@@ -4962,19 +4895,13 @@ export function JobsWorkspace({ permissions }) {
           header: 'Description',
           render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'description'} /> : editableBudgetValue(row, 'description', <strong>{row.description || 'Untitled budget line'}</strong>, 'description'),
         },
-        {
-          key: 'is_protected_financial',
-          header: 'Access',
-          render: (row) => isEditingRevenueRow(row) ? (
-            <label className="job-financials-protected-toggle">
-              <input type="checkbox" checked={revenueForm.is_protected_financial === true} onChange={(event) => updateInlineRevenueField('is_protected_financial', event.target.checked)} disabled={revenueForm.isSaving || permissions?.canViewProtectedProjectFinancials !== true} />
-              <span>Protected</span>
-            </label>
-          ) : editableRevenueValue(row, 'is_protected_financial', row.is_protected_financial ? 'Protected' : 'Standard', 'financial access'),
-        },
-        { key: 'budget_amount', header: 'Original Estimate', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original estimate') || editableBudgetValue(row, 'budget_amount', financialValue(row.budget_amount), 'original estimate'), align: 'right' },
+        { key: 'budget_amount', header: 'Original Budget', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original budget') || editableBudgetValue(row, 'budget_amount', financialValue(row.budget_amount), 'original estimate'), align: 'right' },
         { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || editableBudgetValue(row, 'budget_change_amount', financialValue((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), 'budget changes'), align: 'right' },
-        { key: 'revised_budget', header: 'Revised', render: (row) => formatMoney(budgetLineRevisedBudget(row)), align: 'right' },
+        { key: 'revised_budget', header: 'Current Budget', width: '140px', render: (row) => <CurrentBudgetCell
+          line={isEditingBudgetRow(row) ? { ...row, ...buildBudgetPayload() } : row} changeOrders={budgetLineChangeOrderAmount(row)} editing={isEditingBudgetRow(row)}
+          value={budgetForm.current_budget_override_amount} onChange={(value) => updateInlineBudgetField('current_budget_override_amount', value)}
+          onEdit={canApproveSelectedBudget ? () => startBudgetEdit(row, 'current_budget_override_amount') : undefined}
+          disabled={budgetForm.isSaving} />, align: 'right' },
         { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || editableBudgetValue(row, 'actual_cost_amount', financialValue(row.actual_cost_amount), 'actual costs'), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || editableBudgetValue(row, 'committed_cost_amount', financialValue(row.committed_cost_amount), 'committed costs'), align: 'right' },
         { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => formatMoney(budgetLineRemaining(row)), align: 'right' },
@@ -5115,12 +5042,13 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
+          {budgetForm.error && !isAddingBudgetLine ? <StatePanel tone="danger" title="Financial line not saved" description={budgetForm.error.message} compact /> : null}
           <div className="summary-grid summary-grid--compact">
-            <SummaryCard label="Revised Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes`} />
+            <SummaryCard label="Current Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes; ${budgetOverrideCount} manual overrides`} />
             <SummaryCard label="Actual Costs" value={formatMoney(actualTotal)} detail="Costs posted to date" />
             <SummaryCard label="Committed Costs" value={formatMoney(committedTotal)} detail="Buyout or committed exposure" />
             <SummaryCard label="Completion Forecast" value={formatMoney(forecastFinalTotal)} detail="Expected total cost at completion" />
-            <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Revised budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : 'good'} />
+            <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Current budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : 'good'} />
             {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
             {canViewProtectedProjectFinancials ? <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} /> : null}
           </div>
@@ -5186,10 +5114,10 @@ export function JobsWorkspace({ permissions }) {
               ? approvedChangeOrderCostByProjectDivisionId.get(group.projectDivisionId) || 0
               : 0;
             const divisionOriginalBudget = sumField(rows, 'budget_amount');
-            const divisionApprovedChangeOrders = sumField(rows, 'budget_change_amount')
-              + rows.reduce((total, row) => total + budgetLineChangeOrderAmount(row), 0)
+            const divisionApprovedChangeOrders = rows.reduce((total, row) => total + budgetLineChangeOrderAmount(row), 0)
               + unassignedDivisionChangeOrders;
-            const divisionTotalBudget = divisionOriginalBudget + divisionApprovedChangeOrders;
+            const divisionTotalBudget = rows.reduce((total, row) => total + budgetLineRevisedBudget(row), 0) + unassignedDivisionChangeOrders;
+            const divisionOverrideCount = rows.filter(hasCurrentBudgetOverride).length;
             const divisionActualCosts = sumField(rows, 'actual_cost_amount');
             const divisionFinalForecast = rows.reduce((total, row) => total + forecastFinal(row), 0);
             const divisionRemainingBudget = divisionTotalBudget - divisionFinalForecast;
@@ -5203,7 +5131,7 @@ export function JobsWorkspace({ permissions }) {
                   </span>
                   <span className="job-budget-division__metrics">
                     <span>
-                      <small>Total budget</small>
+                      <small>Current budget{divisionOverrideCount ? ' (includes overrides)' : ''}</small>
                       <strong>{formatMoney(divisionTotalBudget)}</strong>
                     </span>
                     <span>
@@ -5291,13 +5219,13 @@ export function JobsWorkspace({ permissions }) {
                     />
                   </label>
                   <label className="job-financials-form__wide">
-                    <span>Batch approval note</span>
+                    <span>Batch reason (for protected changes)</span>
                     <input
                       type="text"
                       value={budgetBulkInput.reason}
                       onChange={(event) => setBudgetBulkInput((current) => ({ ...current, reason: event.target.value, error: null, success: '' }))}
                       disabled={budgetBulkInput.isSaving}
-                      placeholder="Enter once; this note covers every row in the batch"
+                      placeholder="Shared reason, or supply a Reason column on affected rows"
                     />
                   </label>
                 </div>
@@ -5308,7 +5236,7 @@ export function JobsWorkspace({ permissions }) {
                   <StatePanel tone="success" eyebrow="Bulk Input Saved" title="Financial lines saved" description={budgetBulkInput.success} compact />
                 ) : null}
                 <div className="job-financials-form__actions">
-                  <button type="submit" className="primary-button" disabled={budgetBulkInput.isSaving || !budgetBulkInput.text.trim() || !budgetBulkInput.reason.trim() || jobBudget.isLoading}>
+                  <button type="submit" className="primary-button" disabled={budgetBulkInput.isSaving || !budgetBulkInput.text.trim() || jobBudget.isLoading}>
                     {budgetBulkInput.isSaving ? 'Saving...' : 'Save Bulk Input'}
                   </button>
                 </div>
@@ -6237,6 +6165,11 @@ export function JobsWorkspace({ permissions }) {
           </article> : null}
         </div>
       </div>
+      <ConfirmDialog open={budgetReasonOpen} title="Justify protected financial changes" confirmLabel="Save financial line"
+        requireReason isSubmitting={budgetForm.isSaving} onCancel={() => setBudgetReasonOpen(false)}
+        onConfirm={(reason) => handleBudgetSave(null, reason)}>
+        {budgetForm.error ? <StatePanel tone="danger" title="Financial line not saved" description={budgetForm.error.message} compact /> : null}
+      </ConfirmDialog>
       {jobConfirmation ? (
         <ConfirmDialog
           open

@@ -74,7 +74,7 @@ const BUDGET_COLUMNS = [
   { key: 'description', header: 'Description' },
   {
     key: 'budget_amount',
-    header: 'Budget',
+    header: 'Original Budget',
     numeric: true,
     align: 'right',
     render: (row) => formatMoney(row.budget_amount),
@@ -375,7 +375,7 @@ export function AccountingWorkspace({ permissions }) {
 
       <div className="summary-grid">
         <SummaryCard detailIsDiagnostic label="Budget Lines" value={visibleRows.length} detail="Active authorized rows" />
-        <SummaryCard detailIsDiagnostic label="Budget Total" value={formatMoney(summary.totalBudget)} detail="Budget foundation only" tone="good" />
+        <SummaryCard detailIsDiagnostic label="Original Budget Total" value={formatMoney(summary.totalBudget)} detail="Original budget only; excludes changes and overrides" tone="good" />
         <SummaryCard detailIsDiagnostic label="Jobs" value={summary.jobs} detail="Distinct job IDs in scope" />
         <SummaryCard detailIsDiagnostic label="Departments" value={summary.divisions} detail="Visible departments in scope" />
       </div>

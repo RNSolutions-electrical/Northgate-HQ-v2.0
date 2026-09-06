@@ -2,6 +2,15 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
+## Local Unpublished Checkpoint - September 6, 2026
+
+The audit-policy/Current Budget first rollout is implemented and locally tested,
+but its production migration was blocked by automated safety review for its
+multi-module schema/trigger/privileged-RPC blast radius. Nothing was deployed.
+Do not push the pending frontend to main before database approval/application.
+See `docs/APPROVED_WORKFLOWS.md` for exact scope, tests, and remaining sitewide work.
+The durable shared marker below is unchanged.
+
 ## Current durable sync marker
 
 - Marker: `TOOLS-COMPACT-20260906-001`

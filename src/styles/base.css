@@ -3916,6 +3916,16 @@ textarea {
   white-space: nowrap;
 }
 
+@media (max-width: 1100px) {
+  .job-budget-division__header { flex-direction: column; align-items: stretch; }
+  .job-budget-division__header .job-budget-division__toggle { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+  .job-budget-division__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
+  .job-budget-division__metrics > span { text-align: left; }
+  .job-budget-division__metrics small { overflow-wrap: anywhere; letter-spacing: 0; }
+  .job-budget-division__title > span { white-space: normal; }
+  .job-budget-division__add-line { align-self: flex-end; }
+}
+
 .job-budget-division__metrics .is-positive strong {
   color: var(--ng-ok);
 }
@@ -5063,3 +5073,11 @@ textarea {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 }
+.current-budget-cell { display: grid; gap: 3px; min-width: 0; max-width: 100%; }
+.current-budget-cell__controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px; }
+.current-budget-cell__controls input { width: 100%; min-width: 0; max-width: 100%; flex: 1 1 60px; }
+.current-budget-cell__controls strong { max-width: 100%; overflow-wrap: anywhere; }
+.current-budget-cell .icon-button { width: 28px; height: 28px; flex: 0 0 28px; padding: 5px; }
+.current-budget-cell .icon-button svg { width: 16px; height: 16px; }
+.current-budget-cell small { font-size: 11px; color: #555; }
+.current-budget-cell .current-budget-cell__manual { color: #8a4b00; font-weight: 700; }

@@ -281,7 +281,7 @@ export function VehiclesWorkspace({ permissions }) {
 
   async function assignVehicle(event) {
     event.preventDefault();
-    if (!selectedVehicle || !assignmentForm.userId || !assignmentForm.reason.trim() || assignmentForm.isSaving) return;
+    if (!selectedVehicle || !assignmentForm.userId || assignmentForm.isSaving) return;
 
     setAssignmentForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
@@ -304,7 +304,7 @@ export function VehiclesWorkspace({ permissions }) {
   }
 
   async function releaseVehicle() {
-    if (!selectedVehicle?.current_assignment || !assignmentForm.releaseReason.trim() || assignmentForm.isSaving) return;
+    if (!selectedVehicle?.current_assignment || assignmentForm.isSaving) return;
 
     setAssignmentForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
@@ -349,14 +349,14 @@ export function VehiclesWorkspace({ permissions }) {
 
       {isCreateOpen ? (
         <form className="card workspace-card vehicle-create-form" onSubmit={createVehicle}>
-          <Toolbar eyebrow="Fleet Setup" title="Add vehicle" description="Add a vehicle to the internal fleet. A required reason records this change in the audit history." />
-          <p className="vehicle-create-form__hint"><strong>Enter a unit number or vehicle name.</strong> The audit reason is required before the vehicle can be added.</p>
+          <Toolbar eyebrow="Fleet Setup" title="Add vehicle" description="Add a vehicle to the internal fleet." />
+          <p className="vehicle-create-form__hint"><strong>Enter a unit number or vehicle name.</strong></p>
           <div className="vehicle-create-form__grid">
             <label><span>Unit number</span><input value={vehicleForm.vehicleNumber} onChange={(event) => setVehicleField('vehicleNumber', event.target.value)} disabled={vehicleForm.isSaving} placeholder="e.g., E-14" autoFocus /></label>
             <label><span>Vehicle name</span><input value={vehicleForm.name} onChange={(event) => setVehicleField('name', event.target.value)} disabled={vehicleForm.isSaving} placeholder="Required if no unit number" /></label>
             <label><span>Classification</span><select value={vehicleForm.classification} onChange={(event) => setVehicleField('classification', event.target.value)} disabled={vehicleForm.isSaving}><option>Residential</option><option>Commercial</option><option>Service</option><option>Other</option></select></label>
             <label className="vehicle-create-form__stock"><input type="checkbox" checked={vehicleForm.holdsStock} onChange={(event) => setVehicleField('holdsStock', event.target.checked)} disabled={vehicleForm.isSaving} /><span><strong>Holds inventory stock</strong><small>Enable only for a vehicle that can receive stock.</small></span></label>
-            <label className="vehicle-create-form__wide"><span>Reason for adding this vehicle <b aria-hidden="true">*</b></span><input value={vehicleForm.reason} onChange={(event) => setVehicleField('reason', event.target.value)} disabled={vehicleForm.isSaving} placeholder="e.g., Added to electrical service fleet" required /></label>
+            <label className="vehicle-create-form__wide"><span>Note (optional)</span><input value={vehicleForm.reason} onChange={(event) => setVehicleField('reason', event.target.value)} disabled={vehicleForm.isSaving} placeholder="Optional context" /></label>
             <label className="vehicle-create-form__wide"><span>Description</span><textarea value={vehicleForm.description} onChange={(event) => setVehicleField('description', event.target.value)} disabled={vehicleForm.isSaving} rows="3" placeholder="Optional fleet notes" /></label>
           </div>
           <div className="record-actions"><button type="submit" className="primary-button" disabled={vehicleForm.isSaving}>{vehicleForm.isSaving ? 'Saving…' : 'Save vehicle'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setVehicleForm(DEFAULT_VEHICLE_FORM); }} disabled={vehicleForm.isSaving}>Cancel</button></div>
@@ -486,7 +486,7 @@ export function VehiclesWorkspace({ permissions }) {
                       <Toolbar
                         eyebrow="Assignment Control"
                         title={selectedVehicle.current_assignment ? 'Transfer or reassign vehicle' : 'Assign vehicle'}
-                        description="Choose an employee in your approved scope and provide a required audit reason. Assigning an employee who already has a vehicle transfers them from that vehicle."
+                        description="Choose an employee in your approved scope."
                       />
                       <div className="module-form-grid">
                         <label>
@@ -501,11 +501,11 @@ export function VehiclesWorkspace({ permissions }) {
                           </select>
                         </label>
                         <label>
-                          Assignment reason
-                          <input type="text" maxLength={500} value={assignmentForm.reason} onChange={(event) => setAssignmentField('reason', event.target.value)} disabled={assignmentForm.isSaving} placeholder="Required audit reason" required />
+                          Assignment note (optional)
+                          <input type="text" maxLength={500} value={assignmentForm.reason} onChange={(event) => setAssignmentField('reason', event.target.value)} disabled={assignmentForm.isSaving} placeholder="Optional context" />
                         </label>
                       </div>
-                      <button type="submit" className="primary-button" disabled={assignmentForm.isSaving || !assignmentForm.userId || !assignmentForm.reason.trim()}>
+                      <button type="submit" className="primary-button" disabled={assignmentForm.isSaving || !assignmentForm.userId}>
                         {assignmentForm.isSaving ? 'Saving…' : selectedVehicle.current_assignment ? 'Save assignment / transfer' : 'Assign vehicle'}
                       </button>
                     </form>
@@ -515,11 +515,11 @@ export function VehiclesWorkspace({ permissions }) {
                         <Toolbar eyebrow="Release" title="Release current operator" description="End the active assignment without creating a replacement." />
                         <div className="module-form-grid">
                           <label>
-                            Release reason
-                            <input type="text" maxLength={500} value={assignmentForm.releaseReason} onChange={(event) => setAssignmentField('releaseReason', event.target.value)} disabled={assignmentForm.isSaving} placeholder="Required audit reason" />
+                            Release note (optional)
+                            <input type="text" maxLength={500} value={assignmentForm.releaseReason} onChange={(event) => setAssignmentField('releaseReason', event.target.value)} disabled={assignmentForm.isSaving} placeholder="Optional context" />
                           </label>
                         </div>
-                        <button type="button" className="secondary-button" onClick={releaseVehicle} disabled={assignmentForm.isSaving || !assignmentForm.releaseReason.trim()}>
+                        <button type="button" className="secondary-button" onClick={releaseVehicle} disabled={assignmentForm.isSaving}>
                           Release assignment
                         </button>
                       </article>
@@ -583,7 +583,7 @@ export function VehiclesWorkspace({ permissions }) {
             <StatePanel
               eyebrow="Boundary"
               title="Controlled assignment mutations"
-              description="Assignment create, transfer, and release use permission-checked RPCs with required reasons and audit rows. Cart-open continues to resolve the active vehicle from assignment history."
+              description="Assignment create, transfer, and release use permission-checked RPCs with optional notes and automatic audit rows. Cart-open continues to resolve the active vehicle from assignment history."
               compact
               incomplete={false}
             />

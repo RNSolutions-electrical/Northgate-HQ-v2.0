@@ -108,7 +108,7 @@ const OPEN_JOB_COLUMNS = [
 const JOB_COST_COLUMNS = [
   { key: 'category', header: 'Category', render: (row) => <strong>{formatLabel(row.category)}</strong> },
   { key: 'line_count', header: 'Lines', align: 'right', numeric: true },
-  { key: 'total_budget', header: 'Budget', align: 'right', numeric: true, render: (row) => formatMoney(row.total_budget) },
+  { key: 'total_budget', header: 'Original Budget', align: 'right', numeric: true, render: (row) => formatMoney(row.total_budget) },
 ];
 
 const DOCUMENT_COLUMNS = [

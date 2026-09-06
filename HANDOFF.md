@@ -19508,3 +19508,50 @@ contract value.
 ### Next Steps
 1. Ryan tests adding/editing SOV lines and confirms the revenue summary math.
 2. Decide later whether Change Orders should map directly to SOV lines.
+
+## Entry 200 - Audit Policy and Current Budget Local Checkpoint
+
+### Date / Request
+- September 6, 2026. Ryan approved the reason-versus-automatic-audit policy,
+  shared/line reasons and marked Current Budget overrides.
+- Production Mode; architecture-sensitive database/financial work authorized
+  by Ryan's current request. No separate Claude review was performed.
+
+### Implementation
+- Added nullable Current Budget override, protected-budget trigger, atomic
+  financial batch RPC, legacy RPC compatibility and rollback tests in
+  `supabase/migrations/20260906185501_approved_financial_workflows.sql`.
+- Financials single/bulk/import paths use the atomic RPC. Reasons are mandatory
+  for protected edits, optional for routine financial edits; batch and line
+  reasons are retained separately. Original Budget imports require a shared
+  reason. Actual imports retain source-file audit metadata without justification.
+- Current Budget override/reset, comparison and effective job/division totals;
+  original-only Accounting/Reports labels made explicit.
+- Optional reasons for self-contact, vehicle creation/assignment/release and CO
+  drafts; existing authorization, archives and certifications preserved.
+- Added reason-policy and current-budget helpers/components, Node/SQL/browser
+  tests, fixture transport, responsive budget-header and inline-error fixes.
+- Detailed file scope and follow-ups: `docs/APPROVED_WORKFLOWS.md`.
+
+### Verification
+- 19 Node tests passed; production build passed (existing large-chunk warning).
+- Real Jobs components with mocked transport passed at 1440, 768 and 390px:
+  manual override/reset, original reason dialog/cancel, failed-save retention,
+  visible errors, read-only controls and onscreen layout.
+- Rollback SQL executed mutations as authenticated: reason/permission/direct
+  write rejection, atomic failure, stale saves, old-client override preservation,
+  profile/fleet/CO routine writes. Audit assertions checked actor/time/snapshots.
+- `git diff --check` passed. No production fixture records remain.
+
+### Deployment Blocker / Next Action
+- Automated safety review rejected the combined production migration, citing
+  its broad persistent schema/trigger/SECURITY DEFINER/grant/RPC changes across
+  modules despite strong task authorization. Do not bypass this rejection.
+- No production migration, frontend deployment, or push occurred. Verified
+  zero new override columns/migration records and zero test users/jobs/vehicles.
+- Ask Ryan for explicit approval of the specific multi-module database release.
+  After approval, reassess/apply through the approved tool, run post-migration
+  tests/advisors, then publish frontend and verify production.
+- Remaining sitewide legacy mutation/atomic-audit and shared-reason batch
+  coverage is explicitly documented; this is not sitewide completion.
+- Shared sync marker remains `TOOLS-COMPACT-20260906-001`.
