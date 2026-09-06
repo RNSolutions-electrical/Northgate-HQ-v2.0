@@ -28,7 +28,7 @@ function blankLine(budgetLine = null, sortOrder = 0) {
 
 function numberValue(value) {
   const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function lineTotal(line) {
@@ -162,7 +162,11 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       setAction({ name: '', error: new Error('Change Order number and title are required.'), success: '' });
       return null;
     }
-    const meaningfulLines = lines.filter((line) => line.job_budget_line_id || line.description.trim() || lineTotal(line) > 0);
+    const meaningfulLines = lines.filter((line) => line.job_budget_line_id || line.description.trim() || MONEY_FIELDS.some((field) => Number(line[field] || 0) !== 0));
+    if (meaningfulLines.some((line) => MONEY_FIELDS.some((field) => !Number.isFinite(Number(line[field] || 0))))) {
+      setAction({ name: '', error: new Error('Breakdown amounts must be valid numbers.'), success: '' });
+      return null;
+    }
     if (meaningfulLines.some((line) => !line.job_budget_line_id || !line.description.trim())) {
       setAction({ name: '', error: new Error('Every breakdown line needs a financial line and description.'), success: '' });
       return null;
@@ -198,7 +202,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
   async function submitOrder() {
     if (!canSubmit || action.name) return;
     let target = order;
-    if (!target) target = await saveDraft();
+    if (canEditDraft) target = await saveDraft();
     if (!target) return;
     setAction({ name: 'submit', error: null, success: '' });
     try {
@@ -462,7 +466,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
                 <label><span>Financial line / cost code</span><select value={line.job_budget_line_id} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
                 <label><span>Vendor / subcontractor</span><input value={line.vendor_name || ''} onChange={(e) => updateLine(line.key, 'vendor_name', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 <label className="change-order-line__wide"><span>Description / scope</span><input value={line.description || ''} onChange={(e) => updateLine(line.key, 'description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-                {MONEY_FIELDS.map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" min="0" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
+                {MONEY_FIELDS.map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
               </div>
               {isDraft && canEditDraft ? <div className="change-order-line__actions"><button type="button" className="secondary-button" onClick={() => duplicateLine(line)}><Copy aria-hidden="true" /> Duplicate</button><button type="button" className="secondary-button secondary-button--danger" onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))} disabled={lines.length === 1}><Trash2 aria-hidden="true" /> Remove</button></div> : null}
             </article>
@@ -523,7 +527,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       <div className="change-order-workspace__actions">
         {isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={saveDraft} disabled={Boolean(action.name)}><Save aria-hidden="true" /> {action.name === 'save' ? 'Saving...' : 'Save Draft'}</button> : null}
         {order?.status === 'draft' && !order.signed_document_id && canCreate ? <button type="button" className="secondary-button secondary-button--danger" onClick={archiveEditableOrder} disabled={Boolean(action.name)}><Archive aria-hidden="true" /> {action.name === 'archive' ? 'Archiving...' : 'Archive Draft'}</button> : null}
-        {isDraft && canSubmit ? <button type="button" className="primary-button" onClick={submitOrder} disabled={Boolean(action.name) || total <= 0}><Send aria-hidden="true" /> {action.name === 'submit' ? 'Submitting...' : 'Submit Change Order'}</button> : null}
+        {isDraft && canSubmit ? <button type="button" className="primary-button" onClick={submitOrder} disabled={Boolean(action.name) || total === 0}><Send aria-hidden="true" /> {action.name === 'submit' ? 'Submitting...' : 'Submit Change Order'}</button> : null}
       </div>
     </section>
   );

@@ -19597,3 +19597,34 @@ contract value.
   profile/fleet/CO routine saves and archive/access safeguards.
 - Continue the documented remaining legacy-module audit coverage separately.
 - New marker: `AUDIT-WORKFLOWS-20260906-001`.
+
+## Entry 202 - Deductive Change Orders
+
+### Date / Scope
+- September 6, 2026; Production Mode. Ryan requested negative Change Orders for
+  deleted scope and customer credits. No accounting remapping or refund processing.
+
+### Changes
+- Signed component input, total/PDF rendering, draft persistence and submission.
+- Submit now saves the latest editable draft and stops on save errors.
+- Applied `20260906200342_deductive_change_orders`: signed finite money checks,
+  signed cost excluding markup, negative submission and SOV allocation support.
+- Retained approval/certification, job mappings, audit, permissions and RLS.
+- Fixed obsolete posting uniqueness that blocked void reversals; retained unique
+  order/line/kind. Allocation/void audits now use supported create/update actions.
+- No customer records or historical monetary values rewritten.
+
+### Verification
+- 19 Node tests, build, diff check and desktop/tablet/phone real-component browser
+  fixtures pass. Browser transport mocked; Ryan's authenticated UI acceptance pending.
+- Pre/post-migration authenticated rollback tests pass for signed/mixed draft,
+  invalid-value rollback, submit, signed approval, idempotence, SOV, Pay App credit,
+  revision delta, void, positive/zero cases, denied caller and audit.
+- No test jobs retained. Security advisors unchanged at 143 findings; none new.
+- Production frontend deployment pending; migration is applied.
+
+### Next Action
+- Publish and verify frontend; Ryan tests deleted-fixture draft and client PDF.
+- See `docs/DEDUCTIVE_CHANGE_ORDERS.md` for acceptance and the existing billing
+  revision-supersession limitation. Sitewide audit backlog remains separate.
+- New marker after publication: `DEDUCTIVE-CO-20260906-001`.
