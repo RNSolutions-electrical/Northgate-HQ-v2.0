@@ -4,13 +4,28 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `JADE-PANEL-MOBILE-20260904-001`
-- Baseline commit: `b4cfbc3`
+- Marker: `AMETHYST-PERMISSIONS-20260906-001`
+- Baseline commit: `d8c7c22`
+- Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9b5f5cee81555663a9640a`
+- Production deploy: `6a9d7934bc228900086c8d3e`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: September 4, 2026 (America/New_York)
+- Verified: September 6, 2026 (America/New_York)
+
+The current marker adds named, live-linked permission templates in Developer Console
+Access Control. Developers can edit existing role/department defaults and create,
+rename, duplicate, and assign custom templates. Permission selections remain drafts
+until Save opens an audit-reason dialog; template and user override saves are atomic,
+audited, and protected against stale edits. Individual overrides take precedence.
+Developer-console access remains protected by the existing role rules.
+
+Migration `20260906142923_permission_templates` is applied. All 20 seeded defaults
+preserve prior access. Database regression tests, seven Node tests, the full build,
+and desktop/tablet/mobile browser fixture checks passed. Production HTML and JS
+returned 200 with the new editor/RPC present and correct JavaScript MIME type.
+Authenticated production UI acceptance remains Ryan's final check.
+See `docs/PERMISSION_TEMPLATES.md` for implementation details and the test checklist.
 
 The hierarchy feature commit establishes the official Page/Card/Module/Function vocabulary,
 Department terminology for Northgate organizational scope, Inventory and Add-On
@@ -88,6 +103,8 @@ Before continuing Northgate HQ work on any machine:
 Every future completed cross-machine synchronization must replace the current marker with a new unique marker and retain the prior marker in the history section below.
 
 ## Marker history
+
+- `JADE-PANEL-MOBILE-20260904-001` - prior durable baseline at sync commit `6e76234`, mobile feature `b4cfbc3`, feature deploy `6a9b5f5cee81555663a9640a`.
 
 - `CORAL-PANEL-MOBILE-20260904-001` — mobile Panel Directory editor and print isolation fix, commit `b4cfbc3`, deploy `6a9b5f5cee81555663a9640a`; made the durable cross-machine baseline by `JADE-PANEL-MOBILE-20260904-001`.
 - `SAPPHIRE-PANEL-20260903-001` — approved v7 Panel Directory renderer, commit `4e7c3a2`.
