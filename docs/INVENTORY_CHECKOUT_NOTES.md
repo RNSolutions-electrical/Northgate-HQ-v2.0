@@ -46,6 +46,8 @@ checkout review. The server independently enforces note coverage.
 
 ## Manual Check
 
+Feature commit `7e09d29` is deployed as `6a9dac043776b5000734992b`.
+
 1. Add two materials and give each a different line note. Review is available
    without a cart note.
 2. Enter a cart note and apply a destination to all. Both line notes remain.

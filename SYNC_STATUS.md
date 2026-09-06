@@ -4,17 +4,27 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `INVENTORY-SEARCH-20260906-001`
-- Baseline / Inventory feature commit: `5305e73`
+- Marker: `INVENTORY-NOTES-20260906-001`
+- Baseline / Checkout notes commit: `7e09d29`
+- Inventory search feature commit: `5305e73`
 - Shared UI cleanup commit: `f5f78ac`
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9da715ae07620008f843e2`
+- Production deploy: `6a9dac043776b5000734992b`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker records the first Inventory search/cart cleanup pass. Inventory
+The current marker adds uniform checkout note coverage across all destinations:
+a cart note OR a note on every line, with both accepted and preserved separately.
+Apply To All and destination changes no longer erase line notes. Transaction
+history displays both notes. Migration `20260906180642_inventory_checkout_note_coverage`
+is applied. Fifteen Node tests, desktop/tablet/phone browser checks, rollback-only
+database persistence tests, and the build passed. Security advisors found no new
+issues. No test users or transactions were retained. See
+`docs/INVENTORY_CHECKOUT_NOTES.md` for contracts and acceptance checks.
+
+The previous marker records the first Inventory search/cart cleanup pass. Inventory
 defaults to tracked bin stock, groups materials by their locations, supports
 multi-term search and category filters, and separates the full catalogue. Stock
 reads now paginate beyond 1,000 rows. Add-to-cart opens/reuses the existing cart;
