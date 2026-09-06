@@ -19659,9 +19659,11 @@ contract value.
 - No retained test tools/users. Security advisors unchanged: 143, none new.
 - Anonymous RPC execution denied; authenticated direct audit-trigger execution
   denied. RPC is invoker, not a new privileged client endpoint.
-- Frontend publication pending; production migration is applied.
+- Frontend commit `68e74b9` published as Netlify deploy `6a9dd1dce22db200080ec5e6`.
+  Ready, secret scan clean. Live HTML/JS return 200 and proper JavaScript MIME;
+  expected atomic RPC and reason-dialog code present. Production migration applied.
 
 ### Next Action
-- Publish/verify frontend, then Ryan checks create/edit/archive/restore/history.
+- Ryan checks create/edit/archive/restore/history in the refreshed app.
 - Continue remaining module audit conversions after this Tools acceptance.
-- See `docs/TOOLS_AUDIT_WORKFLOW.md`; marker after publish: `TOOLS-AUDIT-20260906-001`.
+- See `docs/TOOLS_AUDIT_WORKFLOW.md`; marker: `TOOLS-AUDIT-20260906-001`.

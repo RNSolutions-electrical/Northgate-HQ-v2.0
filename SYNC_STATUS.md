@@ -4,8 +4,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `DEDUCTIVE-CO-20260906-001`
-- Release commit: `17af992`
+- Marker: `TOOLS-AUDIT-20260906-001`
+- Release commit: `68e74b9`
+- Previous deductive Change Order release: `17af992`
 - Previous audit workflow release commit: `added25`
 - Audit workflow implementation commit: `7359881`
 - Previous Tools compact UI commit: `8be1c04`
@@ -15,11 +16,23 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9dc76bd157b5000809cc6e`
+- Production deploy: `6a9dd1dce22db200080ec5e6`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker enables negative and mixed-sign Change Orders through draft,
+The current marker publishes Tools catalogue atomic audit workflows. Migration
+`20260906204812_tool_catalogue_audit_workflow` is applied. Normal creation needs
+no reason; edit/archive/restore use one action-time reason dialog. Invoker RPC
+preserves existing RLS and adds stale-save checks; restricted trigger records
+trusted before/after/actor/time atomically. Failed audit writes roll back tool
+changes. Operational notes stay separate. Old clients must refresh.
+Nineteen Node tests, desktop/tablet/phone browser fixtures, pre/post-migration
+authenticated rollback tests, build and live HTML/JS checks pass. Netlify ready
+for `68e74b9`, secret scan clean. Advisors unchanged (143 existing, none new).
+No test tools/users retained. Ryan's Tools acceptance remains pending; see
+`docs/TOOLS_AUDIT_WORKFLOW.md`. Other module audit conversions remain outstanding.
+
+The previous marker enables negative and mixed-sign Change Orders through draft,
 submission, client PDF and approval. Migration `20260906200342_deductive_change_orders`
 is applied. Signed financial postings, SOV allocations and existing Pay App credit
 calculations passed rollback tests. Void reversals no longer conflict with the
@@ -27,7 +40,7 @@ obsolete posting uniqueness constraint. No permissions or RLS were relaxed.
 Nineteen Node tests, desktop/tablet/phone real-component fixtures, production build,
 pre/post-migration rollback tests and live HTML/JS checks pass. Netlify deploy is
 ready for `17af992`, secret scan clean; security advisors unchanged (143 existing).
-No test jobs retained. Ryan's authenticated acceptance remains pending. See
+No test jobs retained. Ryan confirmed this Change Order pass worked beautifully. See
 `docs/DEDUCTIVE_CHANGE_ORDERS.md` for steps and existing billing-revision limitations.
 
 The previous marker publishes the first audit-policy/Current Budget rollout.
