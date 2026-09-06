@@ -4,16 +4,29 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `AMETHYST-PERMISSIONS-20260906-001`
-- Baseline commit: `d8c7c22`
+- Marker: `CLEARVIEW-UI-20260906-001`
+- Baseline commit: `38170a8`
+- Shared UI cleanup commit: `f5f78ac`
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9d7934bc228900086c8d3e`
+- Production deploy: `6a9d811fdabac50008492dae`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker adds named, live-linked permission templates in Developer Console
+The current marker adds clean operational views for everyone, with technical
+descriptions, source labels, and boundary panels available only through the
+developer-only Show developer diagnostics toggle. Shared headers and sidebars,
+Employees, Vehicles, Tools, Jobs, Estimates, Inventory, Documents, Accounting,
+Dashboard, and Developer Console were reviewed. Unauthorized actions are hidden;
+temporary disabled states, errors, required audit reasons, and business data remain.
+Employees omits redundant single-view navigation, and Page Menu is mobile-only.
+The real Employees component passed user/manager/developer browser fixture checks
+on desktop, tablet, and phone. Build, seven Node tests, permission-template browser
+regressions, and production HTTP/JavaScript MIME checks passed. Netlify's secret
+scan was clean. See `docs/USER_INTERFACE_DIAGNOSTICS.md` for the rules and smoke check.
+
+The baseline also includes named, live-linked permission templates in Developer Console
 Access Control. Developers can edit existing role/department defaults and create,
 rename, duplicate, and assign custom templates. Permission selections remain drafts
 until Save opens an audit-reason dialog; template and user override saves are atomic,
@@ -103,6 +116,8 @@ Before continuing Northgate HQ work on any machine:
 Every future completed cross-machine synchronization must replace the current marker with a new unique marker and retain the prior marker in the history section below.
 
 ## Marker history
+
+- `AMETHYST-PERMISSIONS-20260906-001` - permission templates, feature `d8c7c22`, sync commit `eba5fc2`, deploy `6a9d7934bc228900086c8d3e`.
 
 - `JADE-PANEL-MOBILE-20260904-001` - prior durable baseline at sync commit `6e76234`, mobile feature `b4cfbc3`, feature deploy `6a9b5f5cee81555663a9640a`.
 
