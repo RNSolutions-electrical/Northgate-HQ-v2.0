@@ -2,29 +2,38 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Release In Progress - September 6, 2026
-
-Ryan explicitly approved the multi-module production migration.
-`20260906191944_approved_financial_workflows` is applied and post-migration
-authenticated rollback tests passed. Frontend publication and a new shared marker
-are in progress. See `docs/APPROVED_WORKFLOWS.md` for scope, tests, the intentional
-authenticated RPC security advisory, and remaining sitewide work.
-
 ## Current durable sync marker
 
-- Marker: `TOOLS-COMPACT-20260906-001`
-- Baseline / Tools compact UI commit: `8be1c04`
+- Marker: `AUDIT-WORKFLOWS-20260906-001`
+- Release commit: `added25`
+- Audit workflow implementation commit: `7359881`
+- Previous Tools compact UI commit: `8be1c04`
 - Checkout notes commit: `7e09d29`
 - Inventory search feature commit: `5305e73`
 - Shared UI cleanup commit: `f5f78ac`
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9db2ead5c02b00087bd982`
+- Production deploy: `6a9dbd220c117b00080c3c40`
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 6, 2026 (America/New_York)
 
-The current marker adds collapsed Tools catalogue rows showing Tool #, category,
+The current marker publishes the first audit-policy/Current Budget rollout.
+Ryan explicitly approved the multi-module migration after the earlier safety
+review rejection. Migration `20260906191944_approved_financial_workflows` is
+applied. Protected Original Budget edits require reasons; routine financial
+updates, marked Current Budget overrides/reset, and atomic shared/line-reason
+batches are available. Profile contact, fleet and CO-draft routine saves accept
+optional notes. Existing archive/access/certification safeguards remain.
+
+Nineteen Node tests, the build, desktop/tablet/phone mocked-transport checks,
+post-migration authenticated rollback tests, and production HTML/JS checks passed.
+No test users/jobs/vehicles remain. Netlify secret scan is clean. Security advisors
+show 142 preexisting findings and one intentional authenticated SECURITY DEFINER
+RPC warning, reviewed and documented. Full sitewide legacy audit migration and
+Ryan's authenticated UI acceptance remain pending. See `docs/APPROVED_WORKFLOWS.md`.
+
+The previous marker adds collapsed Tools catalogue rows showing Tool #, category,
 and model, with inline expansion. Add a tool opens a dedicated module; successful
 creation or cancellation returns to the catalogue. Edit/archive/history and their
 existing permissions/audit paths are preserved. Fifteen Node tests, desktop/tablet/

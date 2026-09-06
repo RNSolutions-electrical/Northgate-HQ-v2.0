@@ -19555,3 +19555,45 @@ contract value.
 - Remaining sitewide legacy mutation/atomic-audit and shared-reason batch
   coverage is explicitly documented; this is not sitewide completion.
 - Shared sync marker remains `TOOLS-COMPACT-20260906-001`.
+
+## Entry 201 - Approved Audit Workflow Production Release
+
+### Date / Authorization
+- September 6, 2026; Production Mode. Ryan explicitly approved applying the
+  multi-module Supabase migration for Financials, employee contact edits,
+  vehicle assignments and draft Change Orders after the safety-review rejection.
+- This entry closes Entry 200's production blocker. Remaining sitewide work is
+  still listed in `docs/APPROVED_WORKFLOWS.md`; no unrelated scope was added.
+
+### Changes
+- Applied `20260906191944_approved_financial_workflows` and renamed the local
+  migration file to match its recorded production version.
+- Fixed the division-label synchronization function to restore its internal
+  reason after its update. Added a rollback regression assertion for leakage.
+- Published implementation `7359881` with release commit `added25`.
+- Updated `tests/financialWorkflows.sql`, the migration, approved-workflow
+  documentation, and `SYNC_STATUS.md`. No real financial values were rewritten.
+
+### Verification
+- Authenticated rollback tests passed before and after migration: permissions,
+  reason coverage, atomic failure, stale saves, override/reset, legacy RPC
+  compatibility, and routine profile/fleet/CO behavior.
+- Production column present; no retained test users, jobs or vehicles.
+- Anonymous execution of the new batch RPC is denied; authenticated callers
+  reach its job/financial/protected-line authorization gates.
+- 19 Node tests, desktop/tablet/phone integrated Jobs fixtures, build and diff
+  check passed. Browser fixtures deliberately reject a save to test error/draft
+  retention; those expected console messages are not production failures.
+- Security advisors: 142 preexisting findings plus the intentional new
+  authenticated SECURITY DEFINER RPC warning. Auth and privileged audit-table
+  access require this controlled path; no blanket grant or RLS relaxation added.
+- Netlify deploy `6a9dbd220c117b00080c3c40` is ready for commit `added25`;
+  secret scan clean. Live HTML and JS returned 200 and JavaScript MIME, with the
+  new override/batch/reset code present.
+
+### Next Action
+- Ryan checks authenticated Financials override/reset, protected Original
+  Budget reason prompts, routine forecast saves, shared/line batch reasons,
+  profile/fleet/CO routine saves and archive/access safeguards.
+- Continue the documented remaining legacy-module audit coverage separately.
+- New marker: `AUDIT-WORKFLOWS-20260906-001`.

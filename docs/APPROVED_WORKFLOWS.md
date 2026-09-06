@@ -1,9 +1,13 @@
 # Audit Reasons and Approved Workflows
 
-**Release status: database applied, September 6, 2026.** Ryan explicitly approved
+**Release status: deployed and verified, September 6, 2026.** Ryan explicitly approved
 the multi-module production migration after the initial safety-review rejection.
 `20260906191944_approved_financial_workflows.sql` is applied. The local filename
-matches Supabase's recorded version. Frontend publication is in progress.
+matches Supabase's recorded version. Frontend release `added25` is published as
+Netlify deploy `6a9dbd220c117b00080c3c40`. Production HTML and its JavaScript
+asset returned 200 with the correct JavaScript MIME type and the new batch/
+override/reset code. Netlify secret scan found no matches.
+Sync marker: `AUDIT-WORKFLOWS-20260906-001`.
 
 The pre-release checks and post-migration rollback-only authenticated database
 tests passed. A division-label synchronization fix restores its internal reason
