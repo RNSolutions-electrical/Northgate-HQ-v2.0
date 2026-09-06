@@ -1,0 +1,37 @@
+.permission-template-editor, .user-permission-template {
+  min-width: 0;
+  padding: 1rem 0;
+  border-block: 1px solid #d9dfe3;
+}
+.permission-template-heading, .permission-template-actions, .permission-template-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.permission-template-heading { justify-content: space-between; margin-bottom: 1rem; }
+.permission-template-heading h3 { margin: 0; font-size: 1.1rem; }
+.permission-template-select, .permission-template-fields label { display: grid; gap: 0.4rem; max-width: 100%; }
+.permission-template-select { width: 32rem; }
+.permission-template-fields { margin: 1rem 0; }
+.permission-template-fields label { flex: 1 1 18rem; }
+.permission-template-select select, .permission-template-fields input, .permission-template-fields select {
+  width: 100%; min-width: 0; min-height: 2.5rem; padding: 0.5rem;
+  border: 1px solid #bac4cc; border-radius: 4px; background: #fff; color: #18212a; font: inherit;
+}
+.permission-template-scope { font-size: 0.85rem; color: #52616d; overflow-wrap: anywhere; }
+.permission-template-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; }
+.permission-template-groups fieldset { min-width: 0; border: 0; border-top: 1px solid #d9dfe3; margin: 0; padding: 0.75rem 0; }
+.permission-template-groups legend { font-weight: 600; padding-right: 0.5rem; font-size: 0.9rem; }
+.permission-template-groups label { display: flex; gap: 0.6rem; align-items: center; min-height: 2.5rem; font-size: 0.9rem; }
+.permission-template-groups input { flex: 0 0 18px; width: 18px; height: 18px; accent-color: #b51624; }
+.permission-template-groups span { overflow-wrap: anywhere; }
+.permission-template-actions { margin-top: 1rem; }
+.permission-template-actions button { min-height: 2.5rem; }
+.permission-template-area { display: block; color: #52616d; }
+.user-permission-template .table-wrap { margin-top: 0.75rem; }
+@media (max-width: 600px) {
+  .permission-template-heading { align-items: flex-start; }
+  .permission-template-select, .permission-template-fields label { width: 100%; flex-basis: 100%; }
+  .permission-template-actions button { flex: 1 1 auto; }
+}

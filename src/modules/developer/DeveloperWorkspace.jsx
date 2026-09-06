@@ -27,6 +27,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
 import { FinancialLineCatalogueConsole } from './FinancialLineCatalogueConsole.jsx';
+import { PermissionTemplateEditor, UserPermissionTemplateEditor, usePermissionTemplates } from './PermissionTemplates.jsx';
 import {
   DEVELOPER_HELPFUL_LINKS,
   FUTURE_USER_MANAGEMENT_CAPABILITIES,
@@ -131,14 +132,6 @@ const PERMISSION_CONSOLE_COLUMNS = [
     render: (row) => formatDeveloperNoteDate(row.next_review_at),
   },
 ];
-
-const DEFAULT_PERMISSION_FORM = Object.freeze({
-  userId: '',
-  reason: '',
-  isSaving: false,
-  error: null,
-  success: '',
-});
 
 const DEFAULT_PROFILE_FORM = Object.freeze({
   userId: '',
@@ -392,32 +385,6 @@ function useDeveloperPermissionConsole({ enabled }) {
   return {
     ...state,
     reload: () => setRefreshKey((current) => current + 1),
-    async setOverride(form) {
-      const client = await getClient();
-      const changeOrderFlags = new Set([
-        'can_create_change_orders',
-        'can_submit_change_orders',
-        'can_verify_change_orders',
-        'can_approve_change_orders',
-        'can_revise_change_orders',
-      ]);
-      return client.rpc(changeOrderFlags.has(form.permissionFlag)
-        ? 'set_change_order_permission_override'
-        : 'set_permission_override', {
-        p_user_id: form.userId,
-        p_permission_flag: form.permissionFlag,
-        p_granted: form.granted,
-        p_reason: form.reason.trim(),
-      });
-    },
-    async clearOverride(form) {
-      const client = await getClient();
-      return client.rpc('clear_permission_override', {
-        p_user_id: form.userId,
-        p_permission_flag: form.permissionFlag,
-        p_reason: form.reason.trim(),
-      });
-    },
     async updateProfile(form) {
       const client = await getClient();
       return client.rpc('update_user_permission_profile', {
@@ -541,7 +508,6 @@ export function DeveloperWorkspace({ permissions }) {
     setHighlightUndefinedUi,
   } = useDevelopmentDisplayPreferences();
   const [noteForm, setNoteForm] = useState(DEFAULT_NOTE_FORM);
-  const [permissionForm, setPermissionForm] = useState(DEFAULT_PERMISSION_FORM);
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE_FORM);
   const [longTermForm, setLongTermForm] = useState(DEFAULT_LONG_TERM_FORM);
   const [selectedPermissionUserId, setSelectedPermissionUserId] = useState('');
@@ -557,6 +523,7 @@ export function DeveloperWorkspace({ permissions }) {
   const permissionConsole = useDeveloperPermissionConsole({
     enabled: permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true,
   });
+  const templateService = usePermissionTemplates(permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true);
 
   useEffect(() => {
     let mounted = true;
@@ -590,13 +557,6 @@ export function DeveloperWorkspace({ permissions }) {
     if (!row.next_review_at) return false;
     return new Date(row.next_review_at).getTime() <= Date.now();
   }).length;
-  const selectedOverrideByFlag = useMemo(() => {
-    const map = new Map();
-    activeOverrides.forEach((override) => {
-      map.set(override.permission_flag, override);
-    });
-    return map;
-  }, [activeOverrides]);
 
   useEffect(() => {
     if (!selectedPermissionUser) return;
@@ -606,12 +566,6 @@ export function DeveloperWorkspace({ permissions }) {
       userId: selectedPermissionUser.user_id,
       role: PERMISSION_LEVEL_OPTIONS.includes(selectedPermissionUser.role) ? selectedPermissionUser.role : 'User',
       division: DEPARTMENT_OPTIONS.includes(selectedPermissionUser.division) ? selectedPermissionUser.division : 'Electrical',
-      error: null,
-      success: '',
-    }));
-    setPermissionForm((current) => ({
-      ...current,
-      userId: selectedPermissionUser.user_id,
       error: null,
       success: '',
     }));
@@ -665,41 +619,6 @@ export function DeveloperWorkspace({ permissions }) {
     } catch (error) {
       console.error('Developer note update failed', error);
       setNoteForm((current) => ({ ...current, isSaving: false, error, success: '' }));
-    }
-  }
-
-  async function handlePermissionStateChange(permissionFlag, nextState) {
-    if (permissionForm.isSaving) return;
-    const targetUserId = selectedPermissionUser?.user_id || permissionForm.userId || '';
-
-    if (!targetUserId || !permissionFlag || !permissionForm.reason.trim()) {
-      setPermissionForm((current) => ({ ...current, error: new Error('Enter a change reason before adjusting permissions.') }));
-      return;
-    }
-
-    setPermissionForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
-
-    try {
-      const action = nextState === 'default'
-        ? permissionConsole.clearOverride({
-          userId: targetUserId,
-          permissionFlag,
-          reason: permissionForm.reason,
-        })
-        : permissionConsole.setOverride({
-          userId: targetUserId,
-          permissionFlag,
-          granted: nextState === 'grant',
-          reason: permissionForm.reason,
-        });
-      const { error } = await action;
-      if (error) throw error;
-      permissionConsole.reload();
-      setSelectedPermissionUserId(targetUserId);
-      setPermissionForm({ ...DEFAULT_PERMISSION_FORM, userId: targetUserId, success: 'Permission change saved and audit logged.' });
-    } catch (error) {
-      console.error('Permission override failed', error);
-      setPermissionForm((current) => ({ ...current, isSaving: false, error, success: '' }));
     }
   }
 
@@ -1046,13 +965,14 @@ export function DeveloperWorkspace({ permissions }) {
         <Toolbar
           eyebrow="Access Control"
           title="User permissions"
-          description="Select a user, adjust their default role/department, or override individual permissions. All changes require a reason and are audit logged."
           actions={(
-            <button type="button" className="secondary-button" onClick={permissionConsole.reload} disabled={permissionConsole.isLoading}>
+            <button type="button" className="secondary-button" onClick={() => { permissionConsole.reload(); templateService.reload(); }} disabled={permissionConsole.isLoading || templateService.isLoading}>
               Refresh Permissions
             </button>
           )}
         />
+
+        <PermissionTemplateEditor service={templateService} options={PERMISSION_FLAG_OPTIONS} onSaved={permissionConsole.reload} />
 
         <DataTable
           columns={PERMISSION_CONSOLE_COLUMNS}
@@ -1110,66 +1030,8 @@ export function DeveloperWorkspace({ permissions }) {
               <StatePanel tone="success" eyebrow="Saved" title="Permission profile updated" description={profileForm.success} compact />
             ) : null}
 
-            <label className="developer-permission-reason">
-              <span>Permission change reason</span>
-              <textarea rows={2} maxLength={500} value={permissionForm.reason} onChange={(event) => setPermissionForm((current) => ({ ...current, reason: event.target.value, error: null, success: '' }))} disabled={permissionForm.isSaving} placeholder="Required before changing any permission below" />
-            </label>
-            {permissionForm.error ? (
-              <StatePanel tone="danger" eyebrow="Permission Save Failed" title="Permission change was not saved" description={permissionForm.error.message || 'Unexpected permission update error.'} compact />
-            ) : null}
-            {permissionForm.success ? (
-              <StatePanel tone="success" eyebrow="Saved" title="Permission updated" description={permissionForm.success} compact />
-            ) : null}
-
-            <div className="developer-permission-matrix table-wrap">
-              <table className="data-table data-table--dense">
-                <thead>
-                  <tr>
-                    <th scope="col">Permission</th>
-                    <th scope="col">Default</th>
-                    <th scope="col">Grant</th>
-                    <th scope="col">Deny</th>
-                    <th scope="col">Effective</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PERMISSION_FLAG_OPTIONS.map((option) => {
-                    const override = selectedOverrideByFlag.get(option.flag);
-                    const state = override ? (override.granted ? 'grant' : 'deny') : 'default';
-                    const baseValue = selectedPermissionUser.base_permissions?.[option.flag] === true;
-                    const effectiveValue = selectedPermissionUser.effective_permissions?.[option.flag] === true;
-
-                    return (
-                      <tr key={option.flag}>
-                        <td data-label="Permission">
-                          <div className="developer-permission-name">
-                            <strong>{option.label}</strong>
-                            <span>{option.group}</span>
-                          </div>
-                        </td>
-                        {['default', 'grant', 'deny'].map((nextState) => (
-                          <td key={nextState} className="data-table__cell--center" data-label={nextState}>
-                            <input
-                              type="radio"
-                              name={`${selectedPermissionUser.user_id}:${option.flag}`}
-                              checked={state === nextState}
-                              disabled={permissionForm.isSaving}
-                              aria-label={`${option.label} ${nextState}`}
-                              onChange={() => handlePermissionStateChange(option.flag, nextState)}
-                            />
-                          </td>
-                        ))}
-                        <td data-label="Effective">
-                          <StatusBadge tone={override ? (effectiveValue ? 'warn' : 'danger') : effectiveValue ? 'good' : 'neutral'}>
-                            {override ? (effectiveValue ? 'Granted override' : 'Denied override') : baseValue ? 'Granted default' : 'Denied default'}
-                          </StatusBadge>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <UserPermissionTemplateEditor key={selectedPermissionUser.user_id} user={selectedPermissionUser}
+              service={templateService} options={PERMISSION_FLAG_OPTIONS} onSaved={permissionConsole.reload} />
 
             <form className="developer-permission-review" onSubmit={handleLongTermSubmit}>
               <label>
