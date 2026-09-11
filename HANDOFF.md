@@ -19692,10 +19692,12 @@ contract value.
 - No retained fixtures. Anonymous cleanup and direct audit-trigger calls denied.
 - Advisors: current tool reports five before/after, no new findings; no claim
   that this task resolved the historical advisor backlog.
-- Frontend publication pending. See `docs/DOCUMENT_AUDIT_WORKFLOW.md`.
+- Frontend `08d950b` published in Netlify deploy `6aa4369a3c5fea000840c011`.
+  Ready, secret scan clean; live HTML/JS 200, JavaScript MIME and new cleanup/
+  dialog code verified. See `docs/DOCUMENT_AUDIT_WORKFLOW.md`.
 
 ### Remaining / Next Action
-- Publish frontend, then Ryan tests upload/archive/history in Jobs and Estimates.
+- Ryan tests upload/archive/history in refreshed Jobs and Estimates.
 - Dedicated document edit/restore controls remain unimplemented; interrupted
   binary-upload reconciliation is separate. Storage is not a Postgres transaction.
-- Keep other module audit work separate. Intended marker: `DOCUMENTS-AUDIT-20260911-001`.
+- Keep other module audit work separate. Marker: `DOCUMENTS-AUDIT-20260911-001`.

@@ -4,8 +4,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `TOOLS-AUDIT-20260906-001`
-- Release commit: `68e74b9`
+- Marker: `DOCUMENTS-AUDIT-20260911-001`
+- Release commit: `08d950b`
+- Previous Tools audit release: `68e74b9`
 - Previous deductive Change Order release: `17af992`
 - Previous audit workflow release commit: `added25`
 - Audit workflow implementation commit: `7359881`
@@ -16,11 +17,25 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6a9dd1dce22db200080ec5e6`
+- Production deploy: `6aa4369a3c5fea000840c011`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: September 6, 2026 (America/New_York)
+- Verified: September 11, 2026 (America/New_York)
 
-The current marker publishes Tools catalogue atomic audit workflows. Migration
+The current marker publishes Documents upload/archive integrity. Migration
+`20260911171045_document_audit_integrity` is applied. Server triggers record
+metadata creation and archive snapshots/actor/time/reason atomically; ordinary
+uploads need no reason. Jobs/Estimates archive dialogs preserve retry input, and
+six upload/quote failure paths use checked cleanup. RLS policies unchanged;
+approved signed-CO protection retained. Storage remains a separate operation.
+Document edit/restore controls and interrupted-upload reconciliation remain
+unimplemented. See `docs/DOCUMENT_AUDIT_WORKFLOW.md` for boundaries and acceptance.
+Twenty-one Node tests, desktop/tablet/phone owner-page fixtures, pre/post-migration
+rollback and CO regression tests, build and live HTML/JS checks pass. Netlify ready
+for `08d950b`, secret scan clean. Current advisors: five before/after, none new;
+no claim that this task resolved older findings. No test fixtures retained.
+Ryan's authenticated upload/archive/history acceptance is pending.
+
+The previous marker publishes Tools catalogue atomic audit workflows. Migration
 `20260906204812_tool_catalogue_audit_workflow` is applied. Normal creation needs
 no reason; edit/archive/restore use one action-time reason dialog. Invoker RPC
 preserves existing RLS and adds stale-save checks; restricted trigger records
