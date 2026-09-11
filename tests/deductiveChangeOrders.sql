@@ -39,6 +39,12 @@ BEGIN
   VALUES ('Admin','job',j,co.id,'change_orders','__deductive_fixture/signed.pdf','signed.pdf') RETURNING id INTO doc;
   PERFORM public.attach_signed_job_change_order_document(co.id,doc,'Tester',true);
   co := public.approve_job_change_order(co.id,NULL,'Tester',true);
+  BEGIN
+    PERFORM public.archive_job_document(doc,'Attempt to remove approved authorization');
+    RAISE EXCEPTION 'Approved signed document archive accepted';
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN
+    IF SQLERRM <> 'approved signed Change Order documents cannot be archived' THEN RAISE; END IF;
+  END;
   PERFORM public.approve_job_change_order(co.id,NULL,'Tester',true);
   IF (SELECT count(*) FROM public.change_order_financial_postings WHERE change_order_id=co.id)<>1
     OR (SELECT sum(amount_delta) FROM public.change_order_financial_postings WHERE change_order_id=co.id)<>-110

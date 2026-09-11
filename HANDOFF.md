@@ -19667,3 +19667,35 @@ contract value.
 - Ryan checks create/edit/archive/restore/history in the refreshed app.
 - Continue remaining module audit conversions after this Tools acceptance.
 - See `docs/TOOLS_AUDIT_WORKFLOW.md`; marker: `TOOLS-AUDIT-20260906-001`.
+
+## Entry 204 - Document Upload and Archive Audit Integrity
+
+### Scope / Changes
+- September 11, 2026, Production Mode. User requested the next Documents audit
+  implementation. Fetched origin; main had no divergence or incoming changes.
+- Documents directory is read-only; hardened owner-page uploads/archives first.
+- Metadata creation/archive now commit with a protected server audit trigger.
+  Actual snapshots, actor/time and reasons replace separate/partial audit writes.
+- Jobs/Estimates reason dialogs retain input after failures. Uploads remain
+  reason-free. Shared checked cleanup covers six normal/quote attachment paths.
+- Applied `20260911171045_document_audit_integrity`; no RLS policy changes.
+- Fixed missing job archive reason validation and cross-owner endpoint selection.
+  Approved signed-CO documents remain protected. Metadata edits/restore have no
+  implemented UI and cannot bypass workflow through direct table changes.
+
+### Verification
+- 21 Node tests, build and diff check passed. Desktop/tablet/phone real Jobs and
+  Estimates mocked-transport browser checks passed.
+- Pre/post-migration rollback tests: audit failure atomicity, denied users,
+  owner isolation, archive reasons, cleanup actor and exact snapshots/counts.
+- Deductive CO regression, including signed-document protection, passed.
+- No retained fixtures. Anonymous cleanup and direct audit-trigger calls denied.
+- Advisors: current tool reports five before/after, no new findings; no claim
+  that this task resolved the historical advisor backlog.
+- Frontend publication pending. See `docs/DOCUMENT_AUDIT_WORKFLOW.md`.
+
+### Remaining / Next Action
+- Publish frontend, then Ryan tests upload/archive/history in Jobs and Estimates.
+- Dedicated document edit/restore controls remain unimplemented; interrupted
+  binary-upload reconciliation is separate. Storage is not a Postgres transaction.
+- Keep other module audit work separate. Intended marker: `DOCUMENTS-AUDIT-20260911-001`.

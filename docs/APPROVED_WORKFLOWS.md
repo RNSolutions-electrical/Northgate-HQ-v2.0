@@ -113,6 +113,12 @@ they are not silently reinterpreted as Current Budget reports.
 
 ## Remaining Sitewide Work
 
+Documents upload/archive integrity is implemented in
+`20260911171045_document_audit_integrity`: server-generated metadata/archive audits,
+required archive reasons, checked failed-upload cleanup and consistent retryable
+Jobs/Estimates dialogs. See `docs/DOCUMENT_AUDIT_WORKFLOW.md`. Document edit/restore
+controls and interrupted-upload reconciliation remain unimplemented.
+
 Tools catalogue follow-up is implemented in migration
 `20260906204812_tool_catalogue_audit_workflow`: invoker RPC plus protected atomic
 audit trigger, reason-free normal creation, one save-time reason for catalogue

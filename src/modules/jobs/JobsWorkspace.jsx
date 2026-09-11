@@ -1,4 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
+import { archiveFailedDocument } from '../documents/documentUploadCleanup.js';
 import {
   Archive,
   ArrowDown,
@@ -2723,14 +2724,7 @@ export function JobsWorkspace({ permissions }) {
         });
 
       if (uploadError) {
-        await client
-          .from('documents')
-          .update({
-            archived_at: new Date().toISOString(),
-            archived_by: createdBy,
-            archive_reason: `Upload failed: ${uploadError.message}`,
-          })
-          .eq('id', documentId);
+        await archiveFailedDocument(client, documentId, `Upload failed: ${uploadError.message}`);
         throw uploadError;
       }
 
@@ -2813,6 +2807,7 @@ export function JobsWorkspace({ permissions }) {
 
       if (error) throw error;
 
+      setJobConfirmation(null);
       setDocumentAction({ id: '', action: '', error: null });
       jobDocuments.reload();
     } catch (error) {
@@ -2909,14 +2904,7 @@ export function JobsWorkspace({ permissions }) {
           upsert: false,
         });
       if (uploadError) {
-        await client
-          .from('documents')
-          .update({
-            archived_at: new Date().toISOString(),
-            archived_by: createdBy,
-            archive_reason: `Quote upload failed: ${uploadError.message}`,
-          })
-          .eq('id', documentId);
+        await archiveFailedDocument(client, documentId, `Quote upload failed: ${uploadError.message}`);
         throw uploadError;
       }
 
@@ -3692,14 +3680,7 @@ export function JobsWorkspace({ permissions }) {
           });
 
         if (uploadError) {
-          await client
-            .from('documents')
-            .update({
-              archived_at: new Date().toISOString(),
-              archived_by: createdBy,
-              archive_reason: `Upload failed: ${uploadError.message}`,
-            })
-            .eq('id', documentId);
+          await archiveFailedDocument(client, documentId, `Upload failed: ${uploadError.message}`);
           throw uploadError;
         }
       }
@@ -4073,6 +4054,10 @@ export function JobsWorkspace({ permissions }) {
   async function confirmJobConfirmation(reason) {
     const confirmation = jobConfirmation;
     if (!confirmation) return;
+    if (confirmation.kind === 'document-archive') {
+      await handleDocumentArchive(confirmation.record, reason);
+      return;
+    }
     setJobConfirmation(null);
 
     switch (confirmation.kind) {
@@ -6180,10 +6165,11 @@ export function JobsWorkspace({ permissions }) {
           confirmLabel={confirmationCopy()?.confirmLabel}
           tone={confirmationCopy()?.tone}
           requireReason
+          isSubmitting={jobConfirmation.kind === 'document-archive' && Boolean(documentAction.id)}
           reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : jobConfirmation.kind === 'buyout-award' ? 'Award reason' : 'Archive reason'}
           reasonHint="This reason is recorded in the job audit history."
           reasonPlaceholder={jobConfirmation.kind === 'assignment' ? 'Why should this person be assigned or removed?' : jobConfirmation.kind === 'buyout-award' ? 'Why is this vendor being awarded?' : 'Why should this record be archived?'}
-        />
+        >{jobConfirmation.kind === 'document-archive' && documentAction.error ? <p role="alert">{documentAction.error.message}</p> : null}</ConfirmDialog>
       ) : null}
     </>
   );

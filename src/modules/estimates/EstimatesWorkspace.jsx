@@ -1,4 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
+import { archiveFailedDocument } from '../documents/documentUploadCleanup.js';
 import {
   ArrowLeft,
   Archive,
@@ -18,6 +19,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -1636,6 +1638,7 @@ export function EstimatesWorkspace({ permissions }) {
   const [selectedAssemblyId, setSelectedAssemblyId] = useState('');
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
+  const [documentArchiveTarget, setDocumentArchiveTarget] = useState(null);
   const [quotePackageAction, setQuotePackageAction] = useState({ id: '', action: '', error: null, success: '' });
   const [estimateAction, setEstimateAction] = useState({ action: '', error: null, success: '' });
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
@@ -2430,25 +2433,10 @@ export function EstimatesWorkspace({ permissions }) {
           });
 
         if (uploadError) {
-          await client
-            .from('documents')
-            .update({
-              archived_at: new Date().toISOString(),
-              archived_by: createdBy,
-              archive_reason: `Upload failed: ${uploadError.message}`,
-            })
-            .eq('id', documentId);
+          await archiveFailedDocument(client, documentId, `Upload failed: ${uploadError.message}`);
           throw uploadError;
         }
 
-        await writeEstimateChangeLog(client, {
-          tableName: 'documents',
-          action: 'create',
-          recordId: documentId,
-          beforeData: null,
-          afterData: documentPayload,
-          note: `${file.name} uploaded to Quotes.`,
-        });
       }
 
       const { data, error } = await client
@@ -2465,14 +2453,7 @@ export function EstimatesWorkspace({ permissions }) {
 
       if (error) {
         if (documentId) {
-          await client
-            .from('documents')
-            .update({
-              archived_at: new Date().toISOString(),
-              archived_by: createdBy,
-              archive_reason: `Quote package save failed: ${error.message}`,
-            })
-            .eq('id', documentId);
+          await archiveFailedDocument(client, documentId, `Quote package save failed: ${error.message}`);
         }
         throw error;
       }
@@ -2644,25 +2625,10 @@ export function EstimatesWorkspace({ permissions }) {
         });
 
       if (uploadError) {
-        await client
-          .from('documents')
-          .update({
-            archived_at: new Date().toISOString(),
-            archived_by: createdBy,
-            archive_reason: `Upload failed: ${uploadError.message}`,
-          })
-          .eq('id', documentId);
+        await archiveFailedDocument(client, documentId, `Upload failed: ${uploadError.message}`);
         throw uploadError;
       }
 
-      await writeEstimateChangeLog(client, {
-        tableName: 'documents',
-        action: 'create',
-        recordId: documentId,
-        beforeData: null,
-        afterData: insertPayload,
-        note: `${file.name} uploaded to ${documentCategoryLabel(category)}.`,
-      });
 
       setUploadState({
         ...DEFAULT_UPLOAD_STATE,
@@ -2721,11 +2687,14 @@ export function EstimatesWorkspace({ permissions }) {
     }
   }
 
-  async function handleDocumentArchive(document) {
+  async function handleDocumentArchive(document, reason = '') {
     if (!document?.id || !selectedEstimate?.id || !canEditSelectedEstimate || documentAction.id) return;
 
-    const reason = window.prompt(`Archive "${document.file_name || 'this document'}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!reason?.trim()) {
+      setDocumentAction({ id: '', action: '', error: null });
+      setDocumentArchiveTarget(document);
+      return;
+    }
 
     setDocumentAction({ id: document.id, action: 'archive', error: null });
 
@@ -2741,6 +2710,7 @@ export function EstimatesWorkspace({ permissions }) {
       setDocumentAction({ id: '', action: '', error: null });
       estimateDocuments.reload();
       estimateHistory.reload();
+      setDocumentArchiveTarget(null);
     } catch (error) {
       console.error('Estimate document archive failed', error);
       setDocumentAction({ id: '', action: '', error });
@@ -3096,6 +3066,12 @@ export function EstimatesWorkspace({ permissions }) {
 
   return (
     <>
+      <ConfirmDialog open={Boolean(documentArchiveTarget)} title={`Archive ${documentArchiveTarget?.file_name || 'document'}`}
+        confirmLabel="Archive document" requireReason isSubmitting={Boolean(documentAction.id)}
+        onCancel={() => setDocumentArchiveTarget(null)}
+        onConfirm={(reason) => handleDocumentArchive(documentArchiveTarget, reason)}>
+        {documentAction.error ? <p role="alert">{documentAction.error.message}</p> : null}
+      </ConfirmDialog>
       <WorkspaceHeader
         eyebrow="Workspace"
         title={selectedEstimate ? estimateLabel(selectedEstimate) : 'Estimates'}
