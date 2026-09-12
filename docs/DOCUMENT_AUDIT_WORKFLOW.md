@@ -2,7 +2,8 @@
 
 September 11, 2026. This pass strengthens existing upload/archive workflows in
 Jobs and Estimates, including quote attachments. The Documents workspace itself
-is read-only. Document editing and restoration do not yet have UI workflows.
+is read-only. Follow-up: document metadata editing and restoration were added
+September 12; see `DOCUMENT_EDIT_RESTORE.md` for the current workflow.
 
 ## Implemented
 
@@ -35,8 +36,8 @@ uncertain network outcomes still require reconciliation; no background upload
 recovery service was added. Signed-CO replacement retains its existing workflow.
 
 Metadata identity/path/owner edits and restoration cannot bypass reasons through
-direct table updates. Their dedicated controls/workflows remain unimplemented;
-this release does not claim they have been completed. Earlier cached clients may
+direct table updates. Their dedicated controls arrived in the September 12
+follow-up, not this original release. Earlier cached clients may
 still issue their old extra client-side audit call until refreshed.
 
 ## Verification
@@ -59,7 +60,7 @@ still issue their old extra client-side audit call until refreshed.
 2. Archive with a reason; confirm cancellation leaves the document untouched.
 3. Review the owner History for creation/archive entries and the retained note.
 
-Next Documents work requires dedicated metadata edit/restore workflows and a
-decision about reconciliation of interrupted uploads. Other module audit work
+Metadata edit/restore was completed in the September 12 follow-up; remaining
+Documents work requires a decision about reconciliation of interrupted uploads. Other module audit work
 remains in `docs/APPROVED_WORKFLOWS.md`. Authenticated production UI acceptance
 is Ryan's check; browser verification used mocked transport.

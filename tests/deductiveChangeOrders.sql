@@ -40,6 +40,13 @@ BEGIN
   PERFORM public.attach_signed_job_change_order_document(co.id,doc,'Tester',true);
   co := public.approve_job_change_order(co.id,NULL,'Tester',true);
   BEGIN
+    PERFORM public.maintain_owner_document(doc,'job',j,'edit','{"description":"Cannot alter authorization"}',
+      'Attempt signed edit',(SELECT updated_at FROM public.documents WHERE id=doc));
+    RAISE EXCEPTION 'Signed document edit accepted';
+  EXCEPTION WHEN SQLSTATE '22023' THEN
+    IF SQLERRM <> 'Use the dedicated Change Order document workflow' THEN RAISE; END IF;
+  END;
+  BEGIN
     PERFORM public.archive_job_document(doc,'Attempt to remove approved authorization');
     RAISE EXCEPTION 'Approved signed document archive accepted';
   EXCEPTION WHEN SQLSTATE 'P0001' THEN

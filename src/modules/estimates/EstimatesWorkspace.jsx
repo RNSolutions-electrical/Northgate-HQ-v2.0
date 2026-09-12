@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
+import { ArchivedDocuments, DocumentEditControl } from '../documents/DocumentMaintenance.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -2775,6 +2776,9 @@ export function EstimatesWorkspace({ permissions }) {
               {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
             </button>
             {canEditSelectedEstimate ? (
+              <DocumentEditControl key={row.id} document={row} ownerType="estimate" ownerId={selectedEstimate.id} disabled={isBusy} onChanged={() => { estimateDocuments.reload(); estimateHistory.reload(); }} />
+            ) : null}
+            {canEditSelectedEstimate ? (
               <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
                 {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
               </button>
@@ -3679,6 +3683,7 @@ export function EstimatesWorkspace({ permissions }) {
                       emptyTitle="No documents uploaded for this estimate"
                       emptyDescription="The checklist can still show required categories before files exist."
                     />
+                    {canEditSelectedEstimate ? <ArchivedDocuments key={selectedEstimate.id} ownerType="estimate" ownerId={selectedEstimate.id} refreshKey={estimateDocuments.documents} onChanged={() => { estimateDocuments.reload(); estimateHistory.reload(); }} /> : null}
 
                     {documentAction.error ? (
                       <StatePanel

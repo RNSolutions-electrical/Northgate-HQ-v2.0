@@ -116,8 +116,11 @@ they are not silently reinterpreted as Current Budget reports.
 Documents upload/archive integrity is implemented in
 `20260911171045_document_audit_integrity`: server-generated metadata/archive audits,
 required archive reasons, checked failed-upload cleanup and consistent retryable
-Jobs/Estimates dialogs. See `docs/DOCUMENT_AUDIT_WORKFLOW.md`. Document edit/restore
-controls and interrupted-upload reconciliation remain unimplemented.
+Jobs/Estimates dialogs. See `docs/DOCUMENT_AUDIT_WORKFLOW.md`. Document metadata
+edit/restore controls are implemented in `20260912134038_document_edit_restore`:
+one save-time reason, owner-scoped authorization, atomic audit, stale-save and
+missing-storage protection. See `docs/DOCUMENT_EDIT_RESTORE.md`. Interrupted-upload
+reconciliation remains unimplemented.
 
 Tools catalogue follow-up is implemented in migration
 `20260906204812_tool_catalogue_audit_workflow`: invoker RPC plus protected atomic

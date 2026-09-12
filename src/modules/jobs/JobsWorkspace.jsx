@@ -16,6 +16,7 @@ import { useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
+import { ArchivedDocuments, DocumentEditControl } from '../documents/DocumentMaintenance.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
@@ -4181,6 +4182,9 @@ export function JobsWorkspace({ permissions }) {
                   {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
                 </button>
                 {canManageSelectedJob ? (
+                  <DocumentEditControl key={row.id} document={row} ownerType="job" ownerId={selectedJob.id} disabled={isBusy} onChanged={() => { jobDocuments.reload(); jobHistory.reload(); }} />
+                ) : null}
+                {canManageSelectedJob ? (
                   <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
                     {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
                   </button>
@@ -4234,6 +4238,7 @@ export function JobsWorkspace({ permissions }) {
             emptyTitle={documentCategoryFilter ? `No ${documentCategoryLabel(documentCategoryFilter)} documents` : 'No documents uploaded for this job'}
             emptyDescription={documentCategoryFilter ? 'Choose another category or clear the filter to see all job documents.' : 'Upload the first document for this job.'}
           />
+          {canManageSelectedJob ? <ArchivedDocuments key={selectedJob.id} ownerType="job" ownerId={selectedJob.id} refreshKey={jobDocuments.documents} onChanged={() => { jobDocuments.reload(); jobHistory.reload(); }} /> : null}
           {documentAction.error ? (
             <StatePanel
               tone="danger"

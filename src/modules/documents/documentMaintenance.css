@@ -1,0 +1,8 @@
+.document-maintenance-fields { display: grid; gap: 12px; min-width: 0; }
+.document-maintenance-fields label { display: grid; gap: 6px; min-width: 0; }
+.document-maintenance-fields input, .document-maintenance-fields select, .document-maintenance-fields textarea { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; }
+.document-archive-section { margin-block: 16px; min-width: 0; }
+.document-archive-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; border-bottom: 1px solid #ddd; }
+.document-archive-row > div { min-width: 0; overflow-wrap: anywhere; }
+.document-archive-row p { margin-block: 4px; }
+.document-archive-row > button { flex-shrink: 0; }
