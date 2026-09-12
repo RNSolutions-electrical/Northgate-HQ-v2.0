@@ -4,8 +4,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `DOCUMENTS-AUDIT-20260911-001`
-- Release commit: `08d950b`
+- Marker: `DOCUMENTS-EDIT-RESTORE-20260912-001`
+- Release commit: `6cf8172`
+- Previous Documents upload/archive release: `08d950b`
 - Previous Tools audit release: `68e74b9`
 - Previous deductive Change Order release: `17af992`
 - Previous audit workflow release commit: `added25`
@@ -17,18 +18,37 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6aa4369a3c5fea000840c011`
+- Production deploy: `6aa556d7ff6f6f00086605b3`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: September 11, 2026 (America/New_York)
+- Verified: September 12, 2026 (America/New_York)
 
-The current marker publishes Documents upload/archive integrity. Migration
+The current marker publishes document metadata edit and restore in Jobs and
+Estimates. Migration `20260912134038_document_edit_restore` is applied. Owner
+editors get a pencil action, one save-time reason, archived-list pagination and
+restore with a reason. Audit and mutation are atomic; stale edits, missing stored
+files and signed/CO-linked document maintenance are rejected. Stored paths,
+owners and binaries cannot change. Document/storage RLS policies unchanged.
+Twenty-one Node tests, desktop/tablet/phone real-component mocked-transport
+checks, pre/post-migration rollback regressions and production build pass.
+Netlify ready for `6cf8172`, secret scan clean; live HTML/JS 200, correct MIME,
+edit/archive-read RPC code verified. No test records/storage metadata retained.
+Advisors: five groups, 144 individual findings before, 146 after; two intentional
+authenticated owner-checked definer RPC notices added, no new anonymous exposure.
+Earlier references to five findings counted groups; no historic findings fixed.
+Ryan's authenticated edit/restore/history acceptance is next. See
+`docs/DOCUMENT_EDIT_RESTORE.md` and HANDOFF Entry 205. Interrupted-upload recovery
+remains separate; next audit implementation candidate is Estimates' remaining
+legacy mutation paths, not new estimating features.
+
+The previous marker publishes Documents upload/archive integrity. Migration
 `20260911171045_document_audit_integrity` is applied. Server triggers record
 metadata creation and archive snapshots/actor/time/reason atomically; ordinary
 uploads need no reason. Jobs/Estimates archive dialogs preserve retry input, and
 six upload/quote failure paths use checked cleanup. RLS policies unchanged;
 approved signed-CO protection retained. Storage remains a separate operation.
-Document edit/restore controls and interrupted-upload reconciliation remain
-unimplemented. See `docs/DOCUMENT_AUDIT_WORKFLOW.md` for boundaries and acceptance.
+Document edit/restore controls were completed in the current follow-up;
+interrupted-upload reconciliation remains unimplemented. See
+`docs/DOCUMENT_AUDIT_WORKFLOW.md` for original boundaries and acceptance.
 Twenty-one Node tests, desktop/tablet/phone owner-page fixtures, pre/post-migration
 rollback and CO regression tests, build and live HTML/JS checks pass. Netlify ready
 for `08d950b`, secret scan clean. Current advisors: five before/after, none new;

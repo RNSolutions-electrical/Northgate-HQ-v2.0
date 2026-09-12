@@ -37,7 +37,7 @@ WARN). After: five groups, 146 findings; the two additions are the intentional
 authenticated owner-checked RPCs above. No new anonymous exposure or RLS findings.
 Existing advisories were not repaired by this pass. The previous documentation's
 "five findings" counted groups, not individual findings.
-See [Supabase definer-function advisory](https://supabase.com/docs/guides/database/database-linter?lint=0028_authenticated_security_definer_function_executable).
+See [Supabase definer-function advisory](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
 
 ## Verification
 

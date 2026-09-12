@@ -19701,3 +19701,45 @@ contract value.
 - Dedicated document edit/restore controls remain unimplemented; interrupted
   binary-upload reconciliation is separate. Storage is not a Postgres transaction.
 - Keep other module audit work separate. Marker: `DOCUMENTS-AUDIT-20260911-001`.
+
+## Entry 205 - Document Metadata Edit and Restore
+
+### Scope / Implementation
+- September 12, 2026, Production Mode. Fetched origin before work: main 0 ahead,
+  0 behind. Preserved all preexisting untracked deployment directories.
+- Shared Jobs/Estimates document pencil action edits displayed filename,
+  category and description. One reason on save; Back and failed saves preserve
+  input. Fixed a reason-clearing dialog transition found during browser tests.
+- Collapsed archived-document list, pagination and reason-required restore.
+- Applied `20260912134038_document_edit_restore`. Explicit active-owner permission
+  checks for both narrowly scoped definer endpoints; anonymous/helper execute
+  revoked. No document/storage RLS edits, no binary replacement or owner/path edits.
+- Existing trigger now records edit/restore before/after/actor/time/reason
+  atomically. Row locks and expected timestamp prevent stale writes; missing
+  storage and signed/CO-linked maintenance are rejected.
+
+### Verification / Release
+- 21 Node tests, production build and diff checks pass. Existing bundle warning.
+- Real Jobs/Estimates components with mocked transport at 1440/768/390 widths:
+  edits, category/description payload, save-only reason, Back/failure retention,
+  archive/restore, cleanup, no duplicate client audit and no horizontal overflow.
+- Pre/post-migration rollback tests pass for new maintenance, existing document
+  integrity and deductive CO workflows; signed edit/archive guards retained.
+- Forced audit failures roll back edit and restore. Missing file, stale timestamp,
+  wrong owner, denied caller and anonymous/helper ACL checks pass.
+- Zero retained test users/jobs/estimates/storage metadata. No test binary uploads.
+- Advisors: five groups / 144 findings before, five groups / 146 after. Two new
+  intentional authenticated definer endpoint warnings reviewed; no new anonymous
+  exposure or RLS notices. Previous "five findings" entries counted groups.
+- Feature commit `6cf8172ddd3b35b7244df63d9c6907a55f55d238`, Netlify production
+  `6aa556d7ff6f6f00086605b3` ready; secret scan clean. Live HTML/JS 200 and proper
+  MIME, new edit/archive-read RPCs and reason dialog code verified.
+
+### Remaining / Next Action
+- Ryan refreshes and tests document edit, archive, restore and History in a Job
+  and Estimate; verify owner-read-only users have no maintenance controls.
+- No authenticated production UI acceptance claimed; browser transport mocked.
+- Interrupted upload reconciliation remains separate. Continue remaining legacy
+  Estimates audit paths after acceptance; no new estimator features in this scope.
+- Guide: `docs/DOCUMENT_EDIT_RESTORE.md`.
+- Marker: `DOCUMENTS-EDIT-RESTORE-20260912-001`.
