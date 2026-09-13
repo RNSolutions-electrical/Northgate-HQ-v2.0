@@ -74,6 +74,8 @@ estimator-prototype remains unchanged and is not a production data client.
   at 1440/768/390: full 1,615-item pagination, search, project/shared saves, failed
   save input retention, versioned reopening and horizontal-overflow checks.
 - Browser tests are not a claim of signed-in production-user acceptance.
+- StrictMode workbench checks and existing Jobs/Estimates document maintenance
+  browser regression checks also passed.
 - Security advisor groups/counts unchanged: 6 + 4 + 6 + 13 + 117 findings.
 
 ## Separate security backlog
@@ -84,3 +86,7 @@ Review relevant advisories and upgrade with auth/navigation/import regression
 tests in a dedicated security pass. No forced dependency upgrades were performed.
 
 Sync marker: ESTIMATOR-CATALOGUE-20260913-001.
+
+Production feature release: commit 5983e4025ee07b1bf58e413d60bf5fe8df5c1c26,
+Netlify deploy 6aa6d5ac4aadce00085de1c8. Ready, secret scan clean, public route
+and main/workbench JavaScript MIME/content checks passed.

@@ -19761,5 +19761,9 @@ contract value.
   in docs/ESTIMATOR_CATALOGUE_INTEGRATION.md.
 - Await signed-in acceptance: catalogue search, project-only save/reopen, shared
   update and automatic audit; verify ordinary-user permission behavior.
-- Release status and sync SHA will be recorded after publishing.
+- Feature commit 5983e4025ee07b1bf58e413d60bf5fe8df5c1c26 published as production
+  deploy 6aa6d5ac4aadce00085de1c8, ready; secret scan clean. Public route and
+  main/workbench modules return 200 with correct HTML/JavaScript MIME types.
+- Signed-in production acceptance remains Ryan's check; no such acceptance is
+  implied by public-route smoke checks or mocked browser transport.
 - Marker: ESTIMATOR-CATALOGUE-20260913-001.
