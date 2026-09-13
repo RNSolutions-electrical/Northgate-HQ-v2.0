@@ -19743,3 +19743,23 @@ contract value.
   Estimates audit paths after acceptance; no new estimator features in this scope.
 - Guide: `docs/DOCUMENT_EDIT_RESTORE.md`.
 - Marker: `DOCUMENTS-EDIT-RESTORE-20260912-001`.
+
+## Entry 206 - New Estimator Catalogue Integration
+
+- Production Mode. Ryan approved using the new reviewed interface with live
+  catalogue data and reason-free routine material-value audit records.
+- Added opt-in /estimates/workbench, persistent versioned drafts, all active
+  catalogue pages, existing assembly reads, project-only and atomic shared saves.
+- Existing estimates stay in the original editor. New drafts cannot enter legacy
+  approval/conversion; shared templates/library writes remain follow-up work.
+- Applied controlled migration 20260913164527_estimate_workbench_catalogue.
+  Existing catalogue permissions/RLS retained; no secrets copied into prototype.
+- 24 Node tests, build, desktop/tablet/mobile mocked-transport checks passed.
+  Initial rollback database suite passed; no retained test fixtures. Expanded
+  ordinary-user permission test was blocked by safety review, not executed.
+- Documented pre-existing dependency/security backlog and exact draft boundaries
+  in docs/ESTIMATOR_CATALOGUE_INTEGRATION.md.
+- Await signed-in acceptance: catalogue search, project-only save/reopen, shared
+  update and automatic audit; verify ordinary-user permission behavior.
+- Release status and sync SHA will be recorded after publishing.
+- Marker: ESTIMATOR-CATALOGUE-20260913-001.

@@ -4,6 +4,8 @@ import { AppLayout } from './components/layout/AppLayout.jsx';
 import { InventoryScanRoute } from './modules/inventory/InventoryWorkspace.jsx';
 import { ModuleScreen } from './modules/ModuleScreen.jsx';
 import { MODULES } from './modules/registry.js';
+import { lazy, Suspense } from 'react';
+const WorkbenchRoute = lazy(() => import('./modules/estimates/workbench/WorkbenchRoute.jsx'));
 
 /**
  * App.jsx is routing and auth boundary only.
@@ -17,6 +19,7 @@ export default function App() {
       <SignedIn>
         <Routes>
           <Route element={<AppLayout />}>
+            <Route path="/estimates/workbench" element={<Suspense fallback={<p>Loading estimator...</p>}><WorkbenchRoute /></Suspense>} />
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/scan/location/:locationId" element={<InventoryScanRoute />} />
             {MODULES.map((module) => (

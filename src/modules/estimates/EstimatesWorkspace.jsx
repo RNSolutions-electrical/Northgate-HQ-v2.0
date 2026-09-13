@@ -17,7 +17,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { ArchivedDocuments, DocumentEditControl } from '../documents/DocumentMaintenance.jsx';
@@ -424,6 +424,9 @@ const CATALOG_ITEM_SELECT_FIELDS = [
   'neca_labor_unit',
   'is_active',
   'is_archived',
+  'updated_at',
+  'price_confirmed',
+  'labor_value_source',
 ].join(', ');
 
 const DEFAULT_CATALOG_FILTERS = Object.freeze({
@@ -975,6 +978,7 @@ function useEstimateDirectory({ enabled }) {
         const { data, error } = await client
           .from('estimates')
           .select(ESTIMATE_SELECT_FIELDS)
+          .eq('editor_version', 1)
           .order('updated_at', { ascending: false })
           .order('title', { ascending: true });
 
@@ -2276,56 +2280,25 @@ export function EstimatesWorkspace({ permissions }) {
 
   async function handleMasterMaterialPriceUpdate() {
     if (!selectedAssemblyCatalogItem || materialPriceUpdate.isSaving) return;
-
-    const nextPrice = assemblyItemForm.unit_cost_snapshot === '' ? 0 : Number(assemblyItemForm.unit_cost_snapshot);
-    const nextLaborRate = assemblyItemForm.labor_rate_hrs_snapshot === '' ? 0 : Number(assemblyItemForm.labor_rate_hrs_snapshot);
-
-    if (!Number.isFinite(nextPrice) || nextPrice < 0) {
-      setMaterialPriceUpdate({ isSaving: false, error: new Error('Master material price must be zero or greater.'), success: '' });
-      return;
+    const changes = {};
+    if (assemblyItemForm.unit_cost_snapshot !== '') changes.price_per_unit = Number(assemblyItemForm.unit_cost_snapshot);
+    if (assemblyItemForm.labor_rate_hrs_snapshot !== '') changes.labor_rate_hrs = Number(assemblyItemForm.labor_rate_hrs_snapshot);
+    if (!Object.keys(changes).length || Object.values(changes).some(value => !Number.isFinite(value) || value < 0)) {
+      setMaterialPriceUpdate({ isSaving: false, error: new Error('Enter a valid price or labor value.'), success: '' }); return;
     }
-    if (!Number.isFinite(nextLaborRate) || nextLaborRate < 0) {
-      setMaterialPriceUpdate({ isSaving: false, error: new Error('Master NECA labor hours must be zero or greater.'), success: '' });
-      return;
-    }
-
-    const reason = window.prompt(`Update master material pricing for "${selectedAssemblyCatalogItem.name}"? Enter a reason for the audit log.`);
-    if (!reason?.trim()) return;
-
     setMaterialPriceUpdate({ isSaving: true, error: null, success: '' });
-
     try {
       const client = await getEstimateClient();
-      const beforeData = selectedAssemblyCatalogItem;
-      const { data, error } = await client
-        .from('items')
-        .update({
-          price_per_unit: nextPrice,
-          labor_rate_hrs: nextLaborRate,
-        })
-        .eq('id', selectedAssemblyCatalogItem.id)
-        .select(CATALOG_ITEM_SELECT_FIELDS)
-        .single();
-
-      if (error) throw error;
-
-      await writeEstimateChangeLog(client, {
-        tableName: 'items',
-        action: 'update',
-        recordId: data?.id,
-        beforeData,
-        afterData: data,
-        note: `Master material pricing updated from assembly builder. Reason: ${reason.trim()}`,
+      const { data, error } = await client.rpc('save_material_catalogue_values', {
+        p_item_id: selectedAssemblyCatalogItem.id, p_changes: changes,
+        p_expected_updated_at: selectedAssemblyCatalogItem.updated_at,
+        p_estimate_id: selectedEstimate?.id || null,
       });
-
-      catalogItems.reload();
-      estimateHistory.reload();
-      setMaterialPriceUpdate({ isSaving: false, error: null, success: `${data?.name || 'Material'} master pricing updated.` });
-      setAssemblyItemForm((current) => catalogItemToAssemblyItemForm(data, current));
-    } catch (error) {
-      console.error('Master material price update failed', error);
-      setMaterialPriceUpdate({ isSaving: false, error, success: '' });
-    }
+      if (error) throw error;
+      catalogItems.reload(); estimateHistory.reload();
+      setMaterialPriceUpdate({ isSaving: false, error: null, success: 'Catalogue values saved with an automatic audit record.' });
+      setAssemblyItemForm(current => catalogItemToAssemblyItemForm(data, current));
+    } catch (error) { setMaterialPriceUpdate({ isSaving: false, error, success: '' }); }
   }
 
   async function handleAssemblySave(event) {
@@ -2993,7 +2966,7 @@ export function EstimatesWorkspace({ permissions }) {
               tone="neutral"
               eyebrow="Master Catalog"
               title={`${selectedAssemblyCatalogItem.name} is linked`}
-              description={`Current master values: ${formatMoney(selectedAssemblyCatalogItem.price_per_unit)} unit cost and ${formatNumber(selectedAssemblyCatalogItem.labor_rate_hrs)} NECA labor hrs. Saving this row updates the assembly snapshot. Update Master Price changes the shared material catalog and writes an audit entry.`}
+              description={`Current master values: ${formatMoney(selectedAssemblyCatalogItem.price_per_unit)} unit cost and ${formatNumber(selectedAssemblyCatalogItem.labor_rate_hrs)} labor hrs. Saving this row updates the assembly snapshot. Update Master Price changes the shared material catalog and writes an audit entry.`}
               compact
             />
           ) : (
@@ -3085,6 +3058,7 @@ export function EstimatesWorkspace({ permissions }) {
         status={<span className="status-pill">{selectedEstimate ? formatEstimateStatus(selectedEstimate.status) : mode === 'create' ? 'Create mode' : `${estimates.length} visible estimate${estimates.length === 1 ? '' : 's'}`}</span>}
         actions={(
           <>
+            <Link className="primary-button" to="/estimates/workbench">New estimator</Link>
             {selectedEstimate ? (
               <button type="button" className="secondary-button" onClick={returnToEstimateList}>Back to Estimates</button>
             ) : (

@@ -1,0 +1,43 @@
+import React, {useId, useState} from 'react';
+import {catalogue, money, searchMaterials} from './model.mjs';
+
+export function MaterialPicker({line,onType,onSelect}) {
+  const listId=useId();
+  const [open,setOpen]=useState(false);
+  const [active,setActive]=useState(-1);
+  const allMatches=searchMaterials(catalogue,line.name);const matches=allMatches.slice(0,60);
+  function select(material){onSelect(material);setOpen(false);setActive(-1);}
+  return <div className="material-picker" onBlur={event=>{
+    if(!event.currentTarget.contains(event.relatedTarget)){setOpen(false);setActive(-1);}
+  }}>
+    <label htmlFor={`${listId}-input`}>Material / labor description</label>
+    <input id={`${listId}-input`} required role="combobox" aria-autocomplete="list"
+      aria-expanded={open} aria-controls={open?listId:undefined}
+      aria-activedescendant={open&&matches[active]?`${listId}-${active}`:undefined}
+      autoComplete="off" value={line.name}
+      onFocus={()=>{setOpen(true);setActive(-1);}}
+      onChange={event=>{onType(event.target.value);setOpen(true);setActive(-1);}}
+      onKeyDown={event=>{
+        if(event.key==='Escape'){event.preventDefault();setOpen(false);setActive(-1);}
+        if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+          event.preventDefault();setOpen(true);
+          const next=event.key==='ArrowDown'?Math.min(active+1,matches.length-1):Math.max(active-1,0);
+          setActive(next);
+          const owner=event.currentTarget.ownerDocument;
+          requestAnimationFrame(()=>owner.getElementById(`${listId}-${next}`)?.scrollIntoView({block:'nearest'}));
+        }
+        if(event.key==='Enter'&&open){event.preventDefault();if(matches[active])select(matches[active]);else setOpen(false);}
+      }}/>
+    {open&&<div className="material-suggestions">
+      <div role="listbox" id={listId} aria-label="Catalogue suggestions">
+        {matches.map((material,index)=><button type="button" role="option" id={`${listId}-${index}`}
+          key={material.id} aria-selected={active===index} tabIndex={-1}
+          onMouseDown={event=>event.preventDefault()} onClick={()=>select(material)}>
+          <strong>{material.name}</strong><small>{material.price==null?'Not priced':money(material.price)} / {material.unit} · {material.hours==null?'Missing labor':material.hours+' labor h / '+material.unit}</small>
+        </button>)}
+      </div>
+      {allMatches.length>60&&<p>Keep typing to narrow {allMatches.length} matches.</p>}
+      {!matches.length&&<p role="status">No catalogue matches</p>}
+    </div>}
+  </div>;
+}
