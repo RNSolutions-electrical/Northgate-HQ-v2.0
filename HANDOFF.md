@@ -19767,3 +19767,11 @@ contract value.
 - Signed-in production acceptance remains Ryan's check; no such acceptance is
   implied by public-route smoke checks or mocked browser transport.
 - Marker: ESTIMATOR-CATALOGUE-20260913-001.
+
+## Entry 207 - Work item scope notes
+- Display saved work item notes beneath each item summary in entry detail and
+  the expanded entry list. Preserve line breaks and wrap on narrow screens.
+- No schema, permissions, audit, or calculation changes.
+- Verified save/reopen persistence and layout at 1440, 768, and 390 pixels with
+  mocked transport; all 24 Node tests pass.
+- Marker: ESTIMATOR-NOTES-20260913-001.

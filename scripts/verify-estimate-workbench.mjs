@@ -25,6 +25,8 @@ try{
   await frame.getByRole('button',{name:'Add work item',exact:true}).first().click();
   await frame.getByRole('button',{name:/^Material Catalogue/}).click();
   await frame.getByLabel('Work item name',{exact:true}).fill('Conductor run');
+  const scopeNote='Feeds Room 112 north wall.\nVerify final route with field lead before installation.';
+  await frame.getByLabel('Work item notes',{exact:true}).fill(scopeNote);
   const picker=frame.getByRole('combobox',{name:'Material / labor description'});
   await picker.fill('copper test');
   await frame.getByRole('option',{name:/Copper test conductor/}).click();
@@ -33,6 +35,7 @@ try{
   await frame.getByLabel('Save destination',{exact:true}).selectOption('project');
   await frame.getByRole('button',{name:'Save changes',exact:true}).click();
   await frame.getByRole('button',{name:/Conductor run/}).first().waitFor();
+  assert.equal(await frame.locator('.work-item-note').textContent(),scopeNote);
   assert.equal(await page.evaluate(()=>window.workbenchFixture.calls.at(-1).args.p_catalogue_updates.length),0);
   await frame.getByRole('button',{name:/Conductor run/}).first().click();
   await frame.locator('summary').filter({hasText:'Copper test conductor'}).click();
@@ -45,6 +48,7 @@ try{
   await frame.getByRole('button',{name:'Save changes',exact:true}).click();
   await frame.getByRole('button',{name:/Conductor run/}).first().waitFor();
   const request=await page.evaluate(()=>window.workbenchFixture.calls.at(-1).args);
+  assert.equal(request.p_document.entries[0].items[0].notes,scopeNote);
   assert.equal(request.p_catalogue_updates[0].changes.price_per_unit,3);
   assert.equal(request.p_catalogue_updates[0].changes.labor_rate_hrs,0.02);
   assert.equal(request.p_expected_revision,2);
@@ -53,6 +57,8 @@ try{
   await frame.getByRole('button',{name:'All estimates',exact:true}).click();
   await page.getByRole('button',{name:'Realistic estimate',exact:true}).click();
   await frame.getByRole('button',{name:/Entry 001/}).first().waitFor();
+  await frame.getByRole('button',{name:/Entry 001/}).first().click();
+  assert.equal(await frame.locator('.work-item-note').textContent(),scopeNote);
   assert.deepEqual(errors,[]);await page.close();
  }
  console.log('PASS: authenticated route with mocked transport, 1615 catalogue rows, project/shared saves, failure retention, revisions, reopen and responsive editor.');
