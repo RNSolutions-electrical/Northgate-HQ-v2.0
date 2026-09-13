@@ -32,6 +32,12 @@ try{
   await frame.getByRole('option',{name:/Copper test conductor/}).click();
   await frame.getByLabel('Material $ / unit',{exact:true}).fill('2.5');
   await frame.getByLabel('Labor hours / unit',{exact:true}).fill('0.02');
+  assert.equal(await frame.locator('.labor-time').textContent(),'0 hr 1 min');
+  await frame.getByLabel('Labor hours / unit',{exact:true}).fill('1.25');
+  assert.equal(await frame.locator('.labor-time').textContent(),'1 hr 15 min');
+  assert.equal(await frame.locator('body').evaluate(el=>el.scrollWidth<=el.ownerDocument.defaultView.innerWidth),true);
+  await page.screenshot({path:`.temp/workbench/labor-reference-${width}.png`});
+  await frame.getByLabel('Labor hours / unit',{exact:true}).fill('0.02');
   await frame.getByLabel('Save destination',{exact:true}).selectOption('project');
   await frame.getByRole('button',{name:'Save changes',exact:true}).click();
   await frame.getByRole('button',{name:/Conductor run/}).first().waitFor();

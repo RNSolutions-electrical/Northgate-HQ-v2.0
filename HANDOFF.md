@@ -19775,3 +19775,12 @@ contract value.
 - Verified save/reopen persistence and layout at 1440, 768, and 390 pixels with
   mocked transport; all 24 Node tests pass.
 - Marker: ESTIMATOR-NOTES-20260913-001.
+
+## Entry 208 - Labor hours reference
+- Added a live hours/minutes reference beside the work item labor hours input.
+  Decimal hours remain the stored/calculated value; the reference rounds to the
+  nearest minute, with positive sub-minute values shown as less than one minute.
+- Blank/invalid input has no reference. No schema or permission changes.
+- Validation: 25 Node tests, production build, and mocked browser checks at
+  desktop/tablet/mobile widths passed, including live conversion and save values.
+- Marker: ESTIMATOR-LABOR-REFERENCE-20260913-001.

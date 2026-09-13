@@ -37,6 +37,7 @@
 @media(prefers-reduced-motion:no-preference){button{transition:background .12s,color .12s}}
 .package-group {padding:20px 0;border-top:1px solid #d8dde0;}
 .item-summary{min-width:0}
+.labor-time{display:inline-block;font-size:12px;font-weight:400;color:var(--muted);text-transform:none}
 .work-item-note{display:block;margin-top:6px;font-size:13px;line-height:1.5;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}
 .package-group .quote-row {grid-template-columns:minmax(150px,2fr) minmax(100px,1fr) minmax(160px,1fr) auto;}
 .package-group .awarded {background:#edf7ef;border-left:3px solid #438451;}
