@@ -20349,3 +20349,25 @@ canonical Git-triggered build and subsequent artifact verification.
 Marker: HARBOR-SERVICE-BILLING-20260914-001. Commit/push and live verification follow.
 Do not rebuild/deploy older branches over this release. No private workbooks/import
 payloads or old dist-* directories belong in the commit or published bundle.
+
+## Entry 230 — HARBOR Live Verification
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Release complete
+
+Feature commit 27b64e088c6841b06acbeab03a7bb1adada15307 is on origin/main.
+Git-triggered production deployment 6aa84a412dea6b000814b521 published successfully.
+Live HTML and every JS/CSS asset hash match the tested production-configured build.
+Verified percentage charge, monthly report and attention feature strings, correct
+public Supabase/Clerk configuration, and Jobs/legacy-scorecard/Add-On/Estimates deep
+links. Existing silas-chat function is retained. Database migration is applied;
+original historical values and financial security boundaries are preserved.
+
+Marker remains HARBOR-SERVICE-BILLING-20260914-001. This documentation-only follow-up
+uses [skip ci] to leave the verified application bundle unchanged. Other machines
+must fetch and fast-forward main and verify this marker before continuing. Live
+signed-in acceptance is Ryan's next step; no claim of live UI writes beyond the
+rollback-only synthetic database tests. Pre-existing Supabase security advisories
+remain unchanged and are outside this release's scope; see
+https://supabase.com/docs/guides/database/database-linter for remediation guidance.

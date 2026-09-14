@@ -11,7 +11,10 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Database migration: `20260914192338_service_invoice_percentage_charges.sql`, applied and rollback-tested in production.
 - Existing 27 invoices, 27 invoice groups and 24 payments verified unchanged by pre/post hashes (excluding new default/nullable columns).
 - Checks: 59 unit tests; both Service Calls desktop/tablet/phone browser suites; legacy and percentage-charge SQL integration suites; production-configured build.
-- Release status: tested; production publish verification pending. See HANDOFF Entry 229 for scope and deployment order.
+- Feature commit: `27b64e088c6841b06acbeab03a7bb1adada15307`, pushed to origin/main.
+- Release status: live and verified, September 14, 2026. Production deploy `6aa84a412dea6b000814b521` is published/ready.
+- Production URL: `https://rnsolutions.net/northgate/`. Live HTML and every JS/CSS SHA-256 match the tested production-configured build; required feature strings and deep links verified. Existing silas-chat function retained.
+- Authenticated user acceptance remains next; automated UI tests used fixtures. See HANDOFF Entries 229–230.
 - Existing private imports and historical untracked build directories are excluded. No historical financial values reinterpreted.
 
 ## Previous release — MAPLE
