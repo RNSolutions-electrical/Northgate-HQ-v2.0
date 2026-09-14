@@ -20440,3 +20440,24 @@ anonymous revocation and direct-write restrictions were tested. All other
 advisories are unchanged. See the
 [Supabase security-function guidance](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
 Production deployment ID and live verification follow when publishing completes.
+
+## Entry 233 — WILLOW Live Verification
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Release complete
+
+Feature commit fff41961c48fa0304bb9b92121d34d63911d6d37 is pushed to origin/main.
+Git-triggered production deploy 6aa85234e8ac090008d977e7 is published and ready.
+Live HTML and every JavaScript/CSS hash match the tested production-configured
+build. Verified Void invoice, Void payment, Voided invoices and svc_void_billing
+feature strings, production Supabase/Clerk configuration and Jobs/Add-On/legacy
+scorecard/Estimates deep links. Database correction tests passed after migration;
+pre/post fingerprints confirm existing billing records preserved.
+
+Marker: **WILLOW-BILLING-CORRECTIONS-20260914-001**. Other machines must fetch and
+fast-forward main without discarding local changes. This documentation-only
+verification commit uses [skip ci] to preserve the verified production bundle.
+Ryan can now open Service Calls > call > Costs & Billing and void the duplicate.
+Payments are under each invoice's payment history. No real invoice/payment was
+voided by Codex, and no external refund/cancellation is performed by these actions.

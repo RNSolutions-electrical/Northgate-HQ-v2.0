@@ -9,10 +9,13 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Release: audited Service Calls invoice/payment void actions, preserved history and corrected collection totals.
 - Previous marker: `HARBOR-SERVICE-BILLING-20260914-001` (baseline `6bc4cfa`).
 - Migration: `20260914195657_service_billing_voids.sql`, applied to production.
-- Release status: approved; production deployment and live verification in progress.
+- Feature commit: `fff41961c48fa0304bb9b92121d34d63911d6d37`, pushed to origin/main.
+- Release status: live and verified, September 14, 2026. Production deploy `6aa85234e8ac090008d977e7` is published/ready.
+- Production URL: `https://rnsolutions.net/northgate/`. Live HTML and every JavaScript/CSS SHA-256 match the tested build; correction features, production configuration and deep links verified.
+- All 30 existing invoices, 30 groups and 26 payments preserved, verified by pre/post hashes.
 - Checks: 61 Node tests, three Service Calls/scorecard browser suites, rollback-only SQL correction and invoice-charge suites, production-configured build.
 - No actual customer invoice or payment has been voided. Shared invoices void as a group; active payments block invoice voiding.
-- See HANDOFF Entries 231–232. Preserve historical untracked dist-* and private import files.
+- See HANDOFF Entries 231–233. Preserve historical untracked dist-* and private import files. Authenticated user acceptance is next; automatic browser tests used fixtures.
 
 ## Previous release — HARBOR
 
