@@ -35,26 +35,31 @@ export function TopNavigation({
           const isActive = activeKey === item.key || item.items?.some((child) => child.key === activeKey);
 
           return (
-            <div key={item.key} className={`top-nav__group${isGroup ? ' top-nav__group--menu' : ''}`}>
+            <div key={item.key} className={`top-nav__group${isGroup ? ' top-nav__group--menu' : ''}`}
+              onPointerEnter={e=>{if(isGroup&&e.pointerType==='mouse'&&window.matchMedia('(min-width: 900px) and (hover: hover)').matches)setOpenGroup(item.key);}}
+              onPointerLeave={e=>{if(e.pointerType==='mouse')setOpenGroup(null);}}
+              onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setOpenGroup(null);}}
+              onKeyDown={e=>{if(e.key==='Escape')setOpenGroup(null);}}
+            >
               <button
                 type="button"
                 className="top-nav__item"
                 aria-current={isActive ? 'page' : undefined}
-                aria-expanded={isGroup ? openGroup === item.key : undefined}
-                aria-haspopup={isGroup ? 'menu' : undefined}
+                onKeyDown={e=>{if(isGroup&&e.key==='ArrowDown'){e.preventDefault();setOpenGroup(item.key);}}}
                 onClick={() => {
-                  if (isGroup) {
-                    setOpenGroup((current) => current === item.key ? null : item.key);
-                    return;
-                  }
-                  onSelect(item);
+                  onSelect(item.defaultTarget||item);
+                  setOpenGroup(null);
                   onCloseMobile?.();
                 }}
               >
                 {Icon ? <Icon aria-hidden="true" className="top-nav__icon" /> : null}
                 <span>{item.label}</span>
-                {isGroup ? <ChevronDown aria-hidden="true" className="top-nav__chevron" /> : null}
               </button>
+              {isGroup&&<button type="button" className="top-nav__disclosure" aria-label={`Show ${item.label} options`}
+                aria-expanded={openGroup===item.key} aria-haspopup="menu"
+                onClick={()=>setOpenGroup(current=>current===item.key?null:item.key)}>
+                <ChevronDown aria-hidden="true" className="top-nav__chevron"/>
+              </button>}
               {isGroup && openGroup === item.key ? (
                 <div className="top-nav__menu" role="menu" aria-label={`${item.label} navigation`}>
                   {item.items.map((child) => (

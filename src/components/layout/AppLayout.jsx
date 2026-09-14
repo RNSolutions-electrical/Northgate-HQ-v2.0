@@ -80,21 +80,30 @@ export function AppLayout() {
       activeWorkspace={activeKey}
       activeWorkspaceLabel={activeModule?.label ?? 'Workspace'}
       workspaceResetKey={location.state?.workspaceHomeKey ?? location.pathname}
-      onBack={() => navigate(-1)}
-      onDashboard={() => navigate('/dashboard')}
+      onBack={() => {if(document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))navigate(-1);}}
+      onDashboard={() => {if(document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))navigate('/dashboard');}}
       onWorkspaceHome={() => {
+        if(!document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))return;
         if (!activeModule) {
           navigate('/dashboard');
           return;
         }
         const workspaceHomeKey = Date.now();
+        const defaultTarget=navItems.find(item=>item.key===activeModule.key)?.defaultTarget;
+        if(defaultTarget?.path){navigate(defaultTarget.path,{state:{...defaultTarget.navigationState,workspaceHomeKey}});return;}
         const navigationState = activeModule.key === 'jobs'
           ? { directoryType: 'jobs', openJobsDirectory: workspaceHomeKey, workspaceHomeKey }
           : { workspaceHomeKey };
         navigate(activeModule.path, { state: navigationState });
       }}
       onOpenWorkspace={(selection) => {
+        if(!document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))return;
         const key = typeof selection === 'string' ? selection : selection?.key;
+        const requested=typeof selection==='string'?navItems.find(item=>item.key===key)?.defaultTarget:selection;
+        if(requested?.path){
+          navigate(requested.path,{state:{...requested.navigationState,workspaceHomeKey:Date.now()}});
+          return;
+        }
         const targetKey = selection?.path ? selection.key.replace(/-(service-calls|electrical|construction|admin|my-profile)$/, '') : key;
         const target = modules.find((module) => module.key === targetKey)
           ?? modules.find((module) => module.key === key)

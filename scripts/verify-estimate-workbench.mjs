@@ -101,5 +101,48 @@ try{
   await frame.getByRole('button',{name:/Reusable labor/}).first().waitFor();
   assert.deepEqual(errors,[]);await page.close();
  }
- console.log('PASS: authenticated route with mocked transport, 1615 catalogue rows, project/shared saves, failure retention, revisions, reopen and responsive editor.');
+ for(const width of [1440,390]){
+  const page=await browser.newPage({viewport:{width,height:1000}});
+  await page.goto('http://127.0.0.1:5198/northgate/tests/fixtures/workbench.html?library-only');
+  const frame=page.frameLocator('iframe[title="Estimate editor"]');
+  await frame.getByRole('button',{name:'Create assembly',exact:true}).click();
+  await frame.getByLabel('Work item name',{exact:true}).fill('Standalone test');
+  await frame.getByRole('button',{name:'Labor line',exact:true}).click();
+  await frame.getByLabel('Labor hours / unit',{exact:true}).fill('1.25');
+  const labor=await frame.getByLabel('Labor hours / unit',{exact:true}).boundingBox();
+  const material=await frame.getByLabel('Material $ / unit',{exact:true}).boundingBox();
+  assert.ok(Math.abs(labor.y-material.y)<2);
+  await page.screenshot({path:`.temp/workbench/aligned-inputs-${width}.png`});
+  await frame.getByRole('button',{name:'Save changes',exact:true}).click();
+  await frame.getByText('Standalone test',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>window.workbenchFixture.rows.length),0);
+  const download=page.waitForEvent('download');
+  await frame.getByRole('button',{name:'Export library CSV',exact:true}).click();
+  assert.ok((await download).suggestedFilename().endsWith('.csv'));
+  await frame.getByRole('button',{name:'Archive',exact:true}).click();
+  await frame.getByLabel('Archive reason',{exact:true}).fill('Test no longer needed');
+  await frame.getByRole('button',{name:'Archive assembly',exact:true}).click();
+  await frame.getByText('0 assemblies',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>window.workbenchFixture.library.length),0);
+  await page.close();
+ }
+ for(const width of [1440,390]){
+  const page=await browser.newPage({viewport:{width,height:1000}});
+  await page.goto('http://127.0.0.1:5198/northgate/tests/fixtures/navigation.html');
+  const estimates=page.getByRole('button',{name:'Estimates',exact:true});
+  if(width===1440){await estimates.hover();await page.getByRole('menuitem',{name:'Assembly Library',exact:true}).waitFor();}
+  else{await page.getByRole('button',{name:'Show Estimates options',exact:true}).click();await page.getByRole('menuitem',{name:'Assembly Library',exact:true}).waitFor();}
+  await estimates.click();
+  assert.equal(await page.evaluate(()=>window.navSelection.navigationState.department),'Construction');
+  await page.getByRole('button',{name:'Employees',exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.navSelection.navigationState.employeeView),'mine');
+  await page.getByRole('button',{name:'Vehicles',exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.navSelection.navigationState.vehicleView),'mine');
+  await page.getByRole('button',{name:'Inventory',exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.navSelection.path),'/inventory');
+  await page.getByRole('button',{name:'Add-On Tools',exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.navSelection.path),'/add-on-tools');
+  await page.close();
+ }
+ console.log('PASS: estimator regression, standalone library save/archive/CSV, aligned inputs, desktop hover and mobile navigation defaults.');
 }finally{await browser.close();await server.close();}

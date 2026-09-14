@@ -19809,3 +19809,19 @@ contract value.
 - Local database fixture now includes the exact production action constraint.
   Assembly save/edit/removal and rollback regression tests pass.
 - Sync marker: ESTIMATOR-ASSEMBLY-AUDIT-FIX-20260913-001.
+
+## Entry 212 - Navigation and primary estimator pass pending approval
+- Implemented locally; no migration or deployment attempted for this pass.
+- Pending explicit approval: standalone assembly save/archive migration and
+  narrowly scoped archived-row SELECT policy adjustment.
+- See docs/NAVIGATION_PRIMARY_ESTIMATOR_PASS.md for complete scope, validation
+  and resume instructions. Prior production sync marker remains unchanged.
+
+## Entry 213 - Approved navigation and primary estimator release
+- Ryan approved the standalone assembly database changes.
+- Applied 20260914010605_standalone_assembly_library; live invoker-only and
+  authenticated-only RPC privileges verified. No new security advisor findings.
+- 27 Node tests and local Postgres save/archive/rollback tests passed.
+- Browser fixture covers desktop hover, mobile defaults, standalone library,
+  CSV download and aligned inputs; signed-in acceptance remains a user check.
+- Marker: NAVIGATION-PRIMARY-ESTIMATOR-20260913-001.

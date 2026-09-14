@@ -25,6 +25,7 @@
  *   export const MODULE_SCREENS = { dashboard: DashboardWorkspace };
  */
 import { DashboardWorkspace } from './dashboard/DashboardWorkspace.jsx';
+import {AddOnToolsWorkspace} from './addons/AddOnToolsWorkspace.jsx';
 import { AccountingWorkspace } from './accounting/AccountingWorkspace.jsx';
 import { DeveloperWorkspace } from './developer/DeveloperWorkspace.jsx';
 import { DocumentsWorkspace } from './documents/DocumentsWorkspace.jsx';
@@ -40,6 +41,7 @@ import { ToolsWorkspace } from './tools/ToolsWorkspace.jsx';
 import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
 
 export const MODULE_SCREENS = {
+  'add-on-tools':AddOnToolsWorkspace,
   accounting: AccountingWorkspace,
   dashboard: DashboardWorkspace,
   developer: DeveloperWorkspace,

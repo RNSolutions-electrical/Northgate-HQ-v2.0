@@ -42,6 +42,7 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  {key:'add-on-tools',path:'/add-on-tools',label:'Add-On Tools',icon:Puzzle,status:'live'},
   {
     key: 'dashboard',
     path: '/dashboard',
@@ -209,9 +210,10 @@ export function permittedNavigationGroups(permissions) {
       ];
     }
     if (group.key === 'estimates') {
-      return ['Electrical', 'Construction']
+      return [...['Electrical', 'Construction']
         .filter(canUseDepartment)
-        .map((department) => ({ ...module, key: `estimates-${department.toLowerCase()}`, label: `${department} Estimates`, navigationState: { department } }));
+        .map((department) => ({ ...module, key: `estimates-${department.toLowerCase()}`, label: `${department} Estimates`, navigationState: { department } })),
+        {...module,key:'estimates-assemblies',label:'Assembly Library',path:'/estimates/assemblies'}];
     }
     if (group.key === 'employees') {
       const myProfile = { ...module, key: 'employees-my-profile', label: 'My Profile', navigationState: { employeeView: 'mine' } };
@@ -238,7 +240,15 @@ export function permittedNavigationGroups(permissions) {
 
     const items = (group.moduleKeys || []).map((key) => byKey.get(key)).filter(Boolean)
       .flatMap((module) => groupItems(group, module));
-    return items.length ? [{ key: group.key, label: group.label, icon: group.icon, items }] : [];
+    const module=byKey.get(group.key);
+    const defaults={
+      employees:{...module,navigationState:{employeeView:'mine'}},
+      vehicles:{...module,navigationState:{vehicleView:'mine'}},
+      jobs:{...module,navigationState:{directoryType:'jobs'}},
+      estimates:{...module,navigationState:{department:permissions.department||permissions.division}},
+      'add-on-tools':byKey.get('add-on-tools'),
+    };
+    return items.length ? [{ key: group.key, label: group.label, icon: group.icon, items,defaultTarget:defaults[group.key]||items[0] }] : [];
   });
 }
 

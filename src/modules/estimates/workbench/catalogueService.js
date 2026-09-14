@@ -36,12 +36,12 @@ export async function loadAssemblyLibrary(client){
  const rows=[];
  for(let from=0;;from+=500){
   const {data,error}=await client.from('assemblies')
-   .select('id,name,unit,description,updated_at,assembly_items(id,item_id,description,quantity,waste_percent,unit,unit_cost_snapshot,labor_rate_hrs_snapshot,note,archived_at,stage,fixed_quantity,price_missing,labor_missing,sort_order)')
+   .select('id,name,division,unit,description,updated_at,assembly_items(id,item_id,description,quantity,waste_percent,unit,unit_cost_snapshot,labor_rate_hrs_snapshot,note,archived_at,stage,fixed_quantity,price_missing,labor_missing,sort_order)')
    .eq('is_library_item',true).is('archived_at',null).order('id').range(from,from+499);
   if(error)throw error;rows.push(...data);
   if(data.length<500)break;
  }
- return rows.map(a=>({id:a.id,libraryId:a.id,updatedAt:a.updated_at,name:a.name,notes:a.description||'',qty:1,kind:'Assembly',status:'Not started',lines:(a.assembly_items||[]).filter(l=>!l.archived_at).sort((a,b)=>a.sort_order-b.sort_order).map(l=>({
+ return rows.map(a=>({id:a.id,libraryId:a.id,division:a.division,updatedAt:a.updated_at,name:a.name,notes:a.description||'',qty:1,kind:'Assembly',status:'Not started',lines:(a.assembly_items||[]).filter(l=>!l.archived_at).sort((a,b)=>a.sort_order-b.sort_order).map(l=>({
   id:l.id,libraryLineId:l.id,catalogueId:l.item_id||'',name:l.description,qty:Number(l.quantity)*(1+Number(l.waste_percent||0)/100),unit:l.unit||'EA',
   price:l.price_missing?null:Number(l.unit_cost_snapshot),hours:l.labor_missing?null:Number(l.labor_rate_hrs_snapshot),stage:l.stage||'Rough-in',fixed:l.fixed_quantity||false,notes:l.note||''
  }))}));

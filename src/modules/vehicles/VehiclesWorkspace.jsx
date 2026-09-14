@@ -170,7 +170,7 @@ export function VehiclesWorkspace({ permissions }) {
   const location = useLocation();
   const canReadVehicles = permissions.permissionSource === 'server' && permissions.canManageVehicles === true;
   const vehicleState = useVehicleReferences({ enabled: canReadVehicles });
-  const [activeView, setActiveView] = useState('all');
+  const [activeView, setActiveView] = useState(location.state?.vehicleView==='mine'?'mine':'all');
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [search, setSearch] = useState('');
@@ -209,6 +209,7 @@ export function VehiclesWorkspace({ permissions }) {
   const activeAssignmentCount = assignments.filter((assignment) => assignment.is_active).length;
 
   const vehicleViews = [
+    {key:'mine',label:'My Vehicle',icon:Truck},
     { key: 'all', label: 'All Vehicles', icon: Truck, description: 'Every visible destination vehicle.', badge: vehicles.length },
     { key: 'stock', label: 'Stock Vehicles', icon: Briefcase, description: 'Vehicles flagged to hold inventory.', badge: stockCount },
     { key: 'fleet', label: 'General Fleet', icon: MapPin, description: 'Visible vehicles not flagged as stock-holding.', badge: fleetCount },
@@ -218,13 +219,14 @@ export function VehiclesWorkspace({ permissions }) {
     const normalizedSearch = search.trim().toLowerCase();
 
     return vehicles.filter((vehicle) => {
+      if(activeView==='mine'&&vehicle.current_assignment?.user_id!==permissions.userId)return false;
       if (directoryDepartment && vehicle.division !== directoryDepartment) return false;
       if (activeView === 'stock' && !vehicle.holds_stock) return false;
       if (activeView === 'fleet' && vehicle.holds_stock) return false;
       if (!normalizedSearch) return true;
       return vehicleSearchText(vehicle).includes(normalizedSearch);
     });
-  }, [activeView, directoryDepartment, search, vehicles]);
+  }, [activeView, directoryDepartment, search, vehicles,permissions.userId]);
 
   const selectedVehicle = filteredVehicles.find((vehicle) => vehicle.id === selectedVehicleId)
     ?? vehicles.find((vehicle) => vehicle.id === selectedVehicleId)
@@ -232,6 +234,13 @@ export function VehiclesWorkspace({ permissions }) {
   const selectedVehicleAssignments = selectedVehicle
     ? assignments.filter((assignment) => assignment.vehicle_id === selectedVehicle.id)
     : EMPTY_ASSIGNMENTS;
+
+  useEffect(()=>{
+    if(activeView==='mine'&&!selectedVehicleId&&!vehicleState.isLoading){
+      const assigned=vehicles.find(vehicle=>vehicle.current_assignment?.user_id===permissions.userId);
+      if(assigned)setSelectedVehicleId(assigned.id);
+    }
+  },[activeView,selectedVehicleId,vehicleState.isLoading,vehicles,permissions.userId]);
 
   useEffect(() => {
     if (selectedVehicleId && !vehicles.some((vehicle) => vehicle.id === selectedVehicleId)) {
@@ -430,7 +439,7 @@ export function VehiclesWorkspace({ permissions }) {
               selectedRowKey={selectedVehicle?.id ?? null}
               dense
               minWidth="760px"
-              emptyTitle={search ? 'No vehicles matched this search' : 'No vehicles are visible'}
+              emptyTitle={search ? 'No vehicles matched this search' : activeView==='mine'?'No assigned vehicle':'No vehicles are visible'}
               emptyDescription={search
                 ? 'Try searching by unit number, make, model, classification, or division.'
                 : 'This directory stays honest when the existing read path has no visible vehicle rows.'}

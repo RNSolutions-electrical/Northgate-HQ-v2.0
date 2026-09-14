@@ -1,0 +1,10 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {TopNavigation} from '../../src/components/layout/TopNavigation.jsx';
+import {permittedNavigationGroups} from '../../src/modules/registry.js';
+import '../../src/styles/tokens.css';
+import '../../src/styles/base.css';
+const permissions={canEstimate:true,canViewAllDivisions:true,canManageEmployees:true,canManageVehicles:true,canInventoryTransactions:true,department:'Construction',division:'Construction',canAccessAddon:()=>true};
+const items=permittedNavigationGroups(permissions);
+window.navItems=items;
+createRoot(document.getElementById('root')).render(<TopNavigation items={items} id="test-nav" mobileOpen onSelect={selection=>{window.navSelection=selection;}}/>);

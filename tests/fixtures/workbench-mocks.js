@@ -13,6 +13,10 @@ export function createSupabaseClient(){return {
  async rpc(name,args){
   const f=window.workbenchFixture;f.calls.push({name,args});
   if(f.failNext){f.failNext=false;return {error:{message:'Fixture stale catalogue; input retained'}};}
+  if(name==='archive_assembly_library'){
+   if(!args.p_reason.trim())return {error:{message:'Archive reason required'}};
+   f.library=f.library.filter(a=>a.id!==args.p_assembly_id);return {data:null};
+  }
   if(args.p_assembly){
    const a=args.p_assembly,prior=f.library.find(x=>x.id===a.id);
    if(prior&&prior.updated_at!==a.updatedAt)return {error:{message:'Assembly changed. Refresh library.'}};
@@ -22,6 +26,7 @@ export function createSupabaseClient(){return {
      unit_cost_snapshot:l.price??0,labor_rate_hrs_snapshot:l.hours??0,price_missing:l.price==null,labor_missing:l.hours==null,
      stage:l.stage,fixed_quantity:l.fixed,note:l.notes,sort_order:i}))}];
   }
+  if(name==='save_assembly_library')return {data:f.library.at(-1)};
   const row={estimate_id:args.p_estimate_id||'estimate-1',revision:(args.p_expected_revision||0)+1,document:structuredClone(args.p_document)};
   f.rows=[row];
   for(const patch of args.p_catalogue_updates){const m=materialRows.find(m=>m.id===patch.item_id);Object.assign(m,patch.changes,{price_confirmed:true,updated_at:'2026-09-13T01:00:00Z'});}

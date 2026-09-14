@@ -30,6 +30,7 @@ try {
  await db.exec(original.slice(original.indexOf('CREATE TABLE IF NOT EXISTS public.assemblies ('),original.indexOf('GRANT SELECT, INSERT, UPDATE ON public.assembly_items TO authenticated;')+'GRANT SELECT, INSERT, UPDATE ON public.assembly_items TO authenticated;'.length));
  await db.exec(await readFile('supabase/migrations/20260914002830_workbench_assembly_library.sql','utf8'));
  await db.exec(await readFile('supabase/migrations/20260914004020_fix_assembly_audit_actions.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20260914010605_standalone_assembly_library.sql','utf8'));
  const estimate=(await db.query("insert into estimates(division) values('Electrical') returning id")).rows[0].id;
  await db.exec("set role authenticated;select set_config('test.actor','local-user',false),set_config('test.allowed','yes',false)");
  const line={name:'Custom wire',qty:2,price:1.5,hours:0.2,stage:'Trim-out',fixed:true,unit:'FT',notes:'Library detail'};
@@ -45,7 +46,7 @@ try {
  await save({id:a.id,updatedAt:a.updated_at,name:'Revised outlet',lines:[{...line,libraryLineId:l.id}]});
  assert.equal((await db.query('select count(*)::int as n from assembly_items where archived_at is null')).rows[0].n,1);
  await db.exec("select set_config('test.allowed','no',false)");
- await assert.rejects(save({name:'Denied',lines:[line]}),/Editable estimate required/);
+ await assert.rejects(save({name:'Denied',lines:[line]}),/Assembly edit permission required/);
  await db.exec("select set_config('test.allowed','yes',false)");
  await assert.rejects(save({name:'Rollback',lines:[line]},{fail:'yes'}),/Forced draft failure/);
  assert.equal((await db.query('select count(*)::int as n from assemblies')).rows[0].n,1);
@@ -55,5 +56,11 @@ try {
  await db.exec("create function fail_audit() returns trigger language plpgsql as $$ begin raise exception 'Forced audit failure';end $$;create trigger fail_audit before insert on change_logs for each row execute function fail_audit();set role authenticated");
  await assert.rejects(save({name:'Audit rollback',lines:[line]}),/Forced audit failure/);
  assert.equal((await db.query('select count(*)::int as n from assemblies')).rows[0].n,1);
- console.log('PASS: local Postgres assembly creation, editing, stages, scaling, removal, permission denial, stale conflicts, draft and audit rollback.');
+ await db.exec('reset role;drop trigger fail_audit on change_logs;set role authenticated');
+ await db.query('select public.save_assembly_library($1,$2)', ['Electrical',{name:'Standalone',lines:[line]}]);
+ const standalone=(await db.query("select id,updated_at::text as stamp from assemblies where name='Standalone'")).rows[0];
+ await assert.rejects(db.query('select public.archive_assembly_library($1,$2,$3)',[standalone.id,standalone.stamp,' ']),/reason required/);
+ await db.query('select public.archive_assembly_library($1,$2,$3)',[standalone.id,standalone.stamp,'No longer used']);
+ assert.equal((await db.query('select archive_reason from assemblies where id=$1',[standalone.id])).rows[0].archive_reason,'No longer used');
+ console.log('PASS: local Postgres assembly creation, editing, standalone save/archive, stages, scaling, removal, permission denial, stale conflicts, draft and audit rollback.');
 } finally {await db.close();}

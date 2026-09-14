@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {useAuth} from '@clerk/clerk-react';
-import {Link} from 'react-router-dom';
+import {Link,useLocation,useNavigate} from 'react-router-dom';
 import {Plus,ArrowLeft,RefreshCw} from 'lucide-react';
 import {usePermissions} from '../../../hooks/usePermissions.js';
 import {createSupabaseClient} from '../../../services/supabaseClient.js';
@@ -10,16 +10,20 @@ import {seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary} from './catalogueService.js';
 import css from './style.css?inline';
 
-function EditorFrame({document,onSave,permissions,onDirty,onExit,onReloadLibrary}){
+function EditorFrame({document,onSave,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly}){
  const ref=useRef(),[target,setTarget]=useState(null);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{width:'100%',height:'calc(100dvh - 130px)',minHeight:620,border:0}}
- >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} canEditCatalog={permissions.canEditCatalog} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary}/>,target)}</iframe>;
+ >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} canEditCatalog={permissions.canEditCatalog} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly}/>,target)}</iframe>;
 }
-export default function WorkbenchRoute(){
+export default function WorkbenchRoute({libraryOnly=false}){
+ const location=useLocation(),navigate=useNavigate();
  const permissions=usePermissions(),{getToken}=useAuth();
  const [rows,setRows]=useState([]),[selected,setSelected]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false);
+ const allowedDivisions=permissions.canViewAllDivisions?['Electrical','Construction','Admin']:[permissions.division].filter(Boolean);
+ const requestedDivision=location.state?.department||permissions.department||permissions.division;
+ const division=allowedDivisions.includes(requestedDivision)?requestedDivision:permissions.division;
  const dirty=useRef(false),active=useRef(null),saving=useRef(false);
  const library=useRef([]);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
@@ -29,11 +33,11 @@ export default function WorkbenchRoute(){
   try{
    const db=await client();const materials=await loadCatalogue(db);
    library.current=await loadAssemblyLibrary(db);
-   const response=await db.from('estimate_workbenches').select('estimate_id,revision,document,updated_at').order('updated_at',{ascending:false});
+   const response=libraryOnly?{data:[]}:await db.from('estimate_workbenches').select('estimate_id,revision,document,updated_at,estimates!inner(division)').eq('estimates.division',division).order('updated_at',{ascending:false});
    if(response.error)throw response.error;
    setCatalogue(materials);setRows(response.data);
   }catch(e){setError(e.message);}finally{setLoading(false);}
- },[client]);
+ },[client,division,libraryOnly]);
  useEffect(()=>{if(!permissions.isLoading&&(permissions.canEstimate||permissions.canApproveEstimates))reload();else if(!permissions.isLoading)setLoading(false);},[permissions.isLoading,permissions.canEstimate,permissions.canApproveEstimates,reload]);
  useEffect(()=>{const warn=e=>{if(dirty.current){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[]);
  useEffect(()=>{
@@ -43,15 +47,17 @@ export default function WorkbenchRoute(){
     e.preventDefault();e.stopPropagation();
    }
   };
+  const beforeNavigate=e=>{if(dirty.current&&!window.confirm('Leave without saving your changes?'))e.preventDefault();};
+  window.document.addEventListener('northgate:before-navigate',beforeNavigate);
   document.addEventListener('click',guard,true);
-  return()=>document.removeEventListener('click',guard,true);
+  return()=>{document.removeEventListener('click',guard,true);window.document.removeEventListener('northgate:before-navigate',beforeNavigate);};
  },[]);
  async function save(document,updates=[],assembly=null){
   if(saving.current)throw new Error('A save is already in progress.');
   saving.current=true;
   try{
    const db=await client();const {data,error}=await db.rpc(assembly?'save_workbench_assembly':'save_estimate_workbench',{
-    p_estimate_id:active.current?.estimate_id||null,p_division:permissions.division,
+    p_estimate_id:active.current?.estimate_id||null,p_division:division,
     p_document:document,p_expected_revision:active.current?.revision||null,p_catalogue_updates:updates,
     ...(assembly?{p_assembly:assembly}:{})
    });
@@ -64,6 +70,19 @@ export default function WorkbenchRoute(){
    return data;
   }finally{saving.current=false;}
  }
+ async function archiveAssembly(item,reason){
+  const db=await client();const {error}=await db.rpc('archive_assembly_library',{p_assembly_id:item.libraryId,p_expected_updated_at:item.updatedAt,p_reason:reason});
+  if(error)throw error;library.current=library.current.filter(a=>a.id!==item.id);
+ }
+ async function saveLibrary(document,updates,assembly){
+  if(!assembly)throw new Error('Select an assembly to save.');
+  const db=await client(),{data,error}=await db.rpc('save_assembly_library',{p_division:division,p_assembly:assembly});
+  if(error)throw error;
+  const saved={...assembly,id:data.id,libraryId:data.id,updatedAt:null,qty:1,kind:'Assembly',status:'Not started'};
+  library.current=[...library.current.filter(a=>a.id!==saved.id),saved];
+  try{library.current=await loadAssemblyLibrary(db);}catch{setError('Saved. Library refresh failed; refresh before further edits.');}
+  return {document:{...document,library:structuredClone(library.current)}};
+ }
  async function create(e){
   e.preventDefault();setCreating(true);setError('');
   try{const f=new FormData(e.target);active.current=null;const doc=seed(f.get('name').trim(),f.get('customer').trim(),f.get('template'));doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
@@ -75,10 +94,11 @@ export default function WorkbenchRoute(){
  }
  if(permissions.isLoading||loading)return <p>Loading estimator and material catalogue...</p>;
  if(!permissions.canEstimate&&!permissions.canApproveEstimates)return <p>Estimate access is required.</p>;
- if(selected)return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={{...selected.document,library:structuredClone(library.current)}} onSave={save} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}}/></>;
+ if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...seed('Assembly library'),library:structuredClone(library.current)}} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} libraryOnly onArchiveAssembly={archiveAssembly}/></>;
+ if(selected)return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={{...selected.document,library:structuredClone(library.current)}} onSave={save} onArchiveAssembly={archiveAssembly} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}}/></>;
  return <section>
-  <Link to="/estimates"><ArrowLeft size={16}/> Existing estimator</Link>
-  <h1>Estimates</h1>
+  <Link to="/estimates/assemblies">Assembly library</Link>
+  <h1>{division} Estimates</h1>
   {error&&<p role="alert">{error}</p>}
   <button type="button" onClick={reload}><RefreshCw size={16}/> Refresh catalogue</button>
   {permissions.canEstimate&&<form className="job-financials-form" onSubmit={create}>
@@ -89,6 +109,6 @@ export default function WorkbenchRoute(){
   </form>}
   <h2>Draft estimates</h2>
   {rows.map(row=><button className="secondary-button" key={row.estimate_id} onClick={()=>{active.current=row;setSelected(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.document.name}</strong><span>{row.document.customer}</span></button>)}
-  {!rows.length&&<p>No drafts in the new estimator yet.</p>}
+  {!rows.length&&<p>No estimates yet.</p>}
  </section>;
 }

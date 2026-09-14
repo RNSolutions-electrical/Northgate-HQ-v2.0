@@ -241,12 +241,17 @@ svg { stroke-width: 1.8; }
 
 .ng-shell__actions { display: flex; align-items: center; gap: 10px; margin-left: auto; flex: 0 0 auto; }
 
-.top-nav__group { position: relative; }
+.top-nav__group { position: relative; display:flex;align-items:center; }
+.top-nav__disclosure{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;padding:8px;min-height:36px}
+.top-nav__group--menu>.top-nav__item{padding-right:3px}
+.addon-tools-list{display:flex;flex-wrap:wrap;gap:16px;margin-top:20px}
+.addon-tool{display:flex;align-items:center;gap:12px;padding:20px;border:1px solid var(--ng-border);border-radius:6px;color:inherit;text-decoration:none;background:var(--ng-card-bg)}
+.addon-tool:hover{background:var(--ng-panel-bg-alt)}
 .top-nav__chevron { width: 12px; height: 12px; margin-left: -2px; }
 .top-nav__menu {
   position: absolute;
   z-index: 60;
-  top: calc(100% + 4px);
+  top: 100%;
   left: 0;
   min-width: 180px;
   padding: 5px;
@@ -972,7 +977,9 @@ textarea {
     border-color: rgba(191, 31, 42, 0.22);
     background: var(--ng-brand-red-soft);
   }
-  .top-nav__group { width: 100%; }
+  .top-nav__group { width: 100%; flex-wrap:wrap; }
+  .top-nav__group--menu>.top-nav__item{flex:1;width:auto}
+  .top-nav__disclosure{min-width:44px;min-height:44px}
   .top-nav__menu {
     position: static;
     width: 100%;

@@ -846,7 +846,7 @@ export function DashboardWorkspace({ permissions }) {
                     eyebrow="Approval Queue"
                     title="Submitted estimates"
                     description="Visible submitted estimates awaiting approval review."
-                    actions={<button type="button" className="secondary-button" onClick={() => openModule('/estimates')}>Review in Estimates</button>}
+                    actions={<button type="button" className="secondary-button" onClick={() => openModule('/estimates/legacy')}>Review in Estimates</button>}
                   />
                   <DataTable
                     columns={DASHBOARD_ESTIMATE_COLUMNS}

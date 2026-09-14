@@ -19,6 +19,8 @@ export default function App() {
       <SignedIn>
         <Routes>
           <Route element={<AppLayout />}>
+            <Route path="/estimates" element={<Suspense fallback={<p>Loading estimator...</p>}><WorkbenchRoute /></Suspense>} />
+            <Route path="/estimates/assemblies" element={<Suspense fallback={<p>Loading assemblies...</p>}><WorkbenchRoute libraryOnly /></Suspense>} />
             <Route path="/estimates/workbench" element={<Suspense fallback={<p>Loading estimator...</p>}><WorkbenchRoute /></Suspense>} />
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/scan/location/:locationId" element={<InventoryScanRoute />} />
