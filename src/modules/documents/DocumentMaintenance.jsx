@@ -13,7 +13,7 @@ export function DocumentEditControl({ document: row, ownerType, ownerId, onChang
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (row.change_order_id || row.owner_type !== ownerType) return null;
+  if (row.change_order_id || row.document_type === 'service_inspections' || row.owner_type !== ownerType) return null;
 
   async function save(reason) {
     setBusy(true); setError('');
@@ -40,7 +40,7 @@ export function DocumentEditControl({ document: row, ownerType, ownerId, onChang
       {draft && stage === 'edit' ? <div className="document-maintenance-fields">
         <label>Filename<input type="text" maxLength={255} value={draft.changes.file_name} onChange={(e) => setDraft({ ...draft, changes: { ...draft.changes, file_name: e.target.value } })} /></label>
         <label htmlFor={`${fieldId}-category`}>Category</label><select id={`${fieldId}-category`} value={draft.changes.document_type} onChange={(e) => setDraft({ ...draft, changes: { ...draft.changes, document_type: e.target.value } })}>
-          {JOB_DOCUMENT_CATEGORIES.map((category) => <option key={category.key} value={category.key}>{category.label}</option>)}
+          {JOB_DOCUMENT_CATEGORIES.filter(category=>!category.optional).map((category) => <option key={category.key} value={category.key}>{category.label}</option>)}
         </select>
         <label>Description<textarea rows={3} maxLength={10000} value={draft.changes.description} onChange={(e) => setDraft({ ...draft, changes: { ...draft.changes, description: e.target.value } })} /></label>
       </div> : null}

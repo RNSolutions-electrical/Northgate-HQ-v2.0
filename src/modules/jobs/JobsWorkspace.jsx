@@ -1,3 +1,4 @@
+import {JobPermitRegister} from '../electrical-inspections/JobPermitRegister.jsx';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { archiveFailedDocument } from '../documents/documentUploadCleanup.js';
 import {
@@ -2169,6 +2170,9 @@ export function JobsWorkspace({ permissions }) {
   const [activeView, setActiveView] = useState('active');
   const [directoryType, setDirectoryType] = useState('jobs');
   const [activeTab, setActiveTab] = useState('overview');
+  const [permitPanelState,setPermitPanelState]=useState({dirty:false,busy:false});
+  const [leavePermit,setLeavePermit]=useState(null);
+  const guardPermit=action=>{if(permitPanelState.busy)return;if(activeTab==='permits'&&permitPanelState.dirty)setLeavePermit(()=>action);else action();};
   const [selectedJobId, setSelectedJobId] = useState('');
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState('browse');
@@ -2378,11 +2382,12 @@ export function JobsWorkspace({ permissions }) {
     ...(canViewFinancials ? [{ key: 'billing', label: 'Billing', meta: 'Live' }] : []),
     ...(canViewFinancials ? [{ key: 'change_orders', label: 'Change Orders', meta: 'Live' }] : []),
     { key: 'documents', label: 'Documents', meta: 'Live' },
+    { key: 'permits', label: 'Permits & Inspections' },
     { key: 'schedule', label: 'Schedule', meta: 'Live' },
     { key: 'history', label: 'History', meta: 'Live' },
   ];
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false &&
-    (selectedJob?.job_type !== 'service_call' || ['overview','assignments','transactions','documents','schedule','history'].includes(tab.key)))
+    (selectedJob?.job_type !== 'service_call' || ['overview','assignments','transactions','documents','permits','schedule','history'].includes(tab.key)))
     .map((tab) => selectedJob?.job_type === 'service_call' && tab.key === 'overview' ? {...tab,label:'Service Call'} : tab),
   [canViewFinancials,selectedJob?.job_type]);
 
@@ -2433,7 +2438,9 @@ export function JobsWorkspace({ permissions }) {
     setIsAddingScheduleItem(false);
   }
 
-  function returnToJobList() {
+  function returnToJobList(confirmed=false) {
+    if(confirmed!==true&&activeTab==='permits'&&(permitPanelState.dirty||permitPanelState.busy)){guardPermit(()=>returnToJobList(true));return;}
+    setPermitPanelState({dirty:false,busy:false});
     setSelectedJobId('');
     setActiveTab('overview');
     setMode('browse');
@@ -2459,7 +2466,7 @@ export function JobsWorkspace({ permissions }) {
   useEffect(() => {
     if (location.state?.openJobId) {
       setSelectedJobId(location.state.openJobId);
-      setActiveTab('overview');
+      setActiveTab(location.state?.openTab || 'overview');
       setMode('browse');
       return;
     }
@@ -4122,6 +4129,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function renderActiveTab() {
+    if (activeTab === 'permits') return <JobPermitRegister job={selectedJob} permissions={permissions} onPanelState={setPermitPanelState} />;
     if (activeTab === 'assignments') {
       const columns = [
         { key: 'display_name', header: 'User', render: (row) => <strong>{row.display_name || row.email || row.user_id}</strong> },
@@ -4163,7 +4171,7 @@ export function JobsWorkspace({ permissions }) {
 
     if (activeTab === 'documents') {
       const uploadedCategoryKeys = new Set(jobDocuments.documents.map((document) => document.document_type).filter(Boolean));
-      const checklistRows = JOB_DOCUMENT_CATEGORIES.map((category) => ({
+      const checklistRows = JOB_DOCUMENT_CATEGORIES.filter(category=>!category.optional).map((category) => ({
         ...category,
         status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
       }));
@@ -4185,10 +4193,10 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'download')} disabled={isBusy}>
                   {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
                 </button>
-                {canManageSelectedJob ? (
+                {canManageSelectedJob && row.document_type !== 'service_inspections' ? (
                   <DocumentEditControl key={row.id} document={row} ownerType="job" ownerId={selectedJob.id} disabled={isBusy} onChanged={() => { jobDocuments.reload(); jobHistory.reload(); }} />
                 ) : null}
-                {canManageSelectedJob ? (
+                {canManageSelectedJob && row.document_type !== 'service_inspections' ? (
                   <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
                     {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
                   </button>
@@ -4268,7 +4276,7 @@ export function JobsWorkspace({ permissions }) {
                     onChange={(event) => setUploadState((current) => ({ ...current, category: event.target.value, error: null, success: '' }))}
                     disabled={uploadState.isUploading}
                   >
-                    {JOB_DOCUMENT_CATEGORIES.map((category) => (
+                    {JOB_DOCUMENT_CATEGORIES.filter(category=>!category.optional).map((category) => (
                       <option key={category.key} value={category.key}>{category.label}</option>
                     ))}
                   </select>
@@ -6162,7 +6170,7 @@ export function JobsWorkspace({ permissions }) {
                 <WorkspaceTabs
                   tabs={visibleTabs}
                   activeKey={activeTab}
-                  onChange={setActiveTab}
+                  onChange={next=>guardPermit(()=>{setPermitPanelState({dirty:false,busy:false});setActiveTab(next);})}
                   ariaLabel="Job detail sections"
                 />
                 {renderActiveTab()}
@@ -6171,6 +6179,7 @@ export function JobsWorkspace({ permissions }) {
           </article> : null}
         </div>
       </div>
+      <ConfirmDialog open={!!leavePermit} title="Discard permit register edits?" description="Leave this form and return to the saved register." onCancel={()=>setLeavePermit(null)} onConfirm={()=>{const action=leavePermit;setLeavePermit(null);setPermitPanelState({dirty:false,busy:false});action?.();}} />
       <ConfirmDialog open={budgetReasonOpen} title="Justify protected financial changes" confirmLabel="Save financial line"
         requireReason isSubmitting={budgetForm.isSaving} onCancel={() => setBudgetReasonOpen(false)}
         onConfirm={(reason) => handleBudgetSave(null, reason)}>

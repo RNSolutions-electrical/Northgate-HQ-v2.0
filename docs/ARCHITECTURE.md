@@ -1,4 +1,7 @@
 # Northgate HQ v2 — Architecture Lock Document
+### Version 2.32 — Electrical Systems Health Inspection and shared job permit register implemented as a local release candidate (Section 52, Entry 242). Atomic multi-equipment drafts, explicit reviewer authority, immutable evidence/reports, canonical job/service-call integration, and independent permit attempts. Production migration and account grants remain pending.
+### Version 2.31 — Codex owns architecture review and authorized implementation; mandatory Claude routing, two-model cross-clearance, and Claude verdict footers retired by Ryan (2026-09-14, Entry 241). Section 51 is the current review policy and supersedes conflicting review-routing text throughout this document. Existing technical safeguards and business-scope authority remain.
+
 ### Version 2.30 — Northgate UI System locked (new Section 50): approved cross-application visual and navigation standard based on Ryan's reference mockup (Entry 139); persistent global header (branding, permission-aware top-level module nav, compact profile menu replacing the standalone Clerk settings block); primary sidebar for stable workspace navigation and optional secondary sidebar for filters/saved views/status groups, both operating strictly at the workspace/module layer — explicitly reconciled against Section 42 (v2.24), whose "no sidebar inside record detail" rule and horizontal detail-tab pattern remain fully in force and unchanged; consistent main-workspace hierarchy (heading → controls → table/surface → record header → Section 42 tabs → summary cards → detail content); data-dense tables as default with protected columns omitted entirely (not blanked) per existing `can_view_financials` and other canonical flags — no new permission flags introduced; Northgate red as primary active-state accent (bright green excluded from general nav); full responsive behavior specified for desktop/tablet/mobile per Constitutional Rule 18, designed in from Phase 1; locked three-phase rollout — Phase 1 shell + Inventory conversion, Phase 2 Jobs reusing Section 42 unchanged, Phase 3 remaining modules; explicitly does not authorize schema changes, migrations, new permission flags, new RPCs, direct writes, or changes to inventory/checkout/financial/auth/Section 17b behavior; docs-only lock, does not authorize React/CSS/Supabase implementation. (Entry 139)
 ### Version 2.29 (documentation clarified — Entry 138) — Section 17b runtime behavior confirmed and documented after live post-implementation testing, no schema or behavior change: (1) `effective_permissions_for_user()` is caller-scoped only (resolves via `auth.jwt() ->> 'sub'` internally, no target-user parameter) — recorded as a permanent boundary, not a defect, and must not be repurposed for checking another user's permissions; any such future feature needs its own target-scoped function; (2) legacy `user_permissions.permission_overrides` JSONB confirmed single-purpose — read only for `can_access_developer`, all other flags resolve exclusively from role defaults + `user_permission_overrides`; (3) no-RLS-recursion mechanism confirmed via live inspection — `effective_permissions_for_user()` is `SECURITY DEFINER` owned by a role with `rolbypassrls = true`, a distinct and non-conflicting mechanism from the non-recursive `current_user_has_developer_access()` helper. All three confirmed directly against the live function body and database role configuration; Section 17b updated with a new "Confirmed Runtime Behavior" subsection recording these as permanent facts.
 ### Version 2.29 (second-pass corrected) — Granular Permission Overrides (Section 17b, locked — Entry 136, Rule 20 cross-cleared twice): user-level override system allowing developers to grant/revoke individual permission flags per user without role elevation. First cross-clearance pass (Entry 135) fixed identity model, invalid FK, history-preserving uniqueness, and the can_access_developer escalation gap. Second cross-clearance pass (Entry 136, this version) fixed three further implementation blockers found before Codex migration: (1) RLS recursion risk — the original write/read-all gate called `effective_permissions_for_user()`, which itself would query `user_permission_overrides`, creating a self-referential RLS loop; corrected to require a dedicated non-recursive Developer-authority check that never touches the override table; (2) wrong role source — `users.role` was referenced, but no `users` table exists in this schema; corrected to `user_permissions.role`, matching every other locked section's identity pattern; (3) direct client writes — the original draft allowed a client-facing INSERT RLS policy with app-layer target blocking; corrected to RLS-denies-all-client-writes with a single controlled `SECURITY DEFINER`-style RPC (`set_permission_override`) that atomically validates authority, rejects can_access_developer and cross-developer targets, deactivates the prior active row, inserts the new row, and writes the change_logs entry in one transaction. Entries 134 and 135 are both superseded and not implementation-accurate; this version (136) is final. No new canonical permission flags added. Use cases: grant `can_manage_inventory` to field tech auditor; revoke transaction capability from user on leave; grant `can_view_financials` to field supervisor for one contract.
@@ -1645,29 +1648,13 @@ formal lock document update reviewed by Ryan.
     Violations trigger a mandatory documentation reconciliation before further
     code work.
 
-20. **The coordination documents are never edited or repaired silently.** No
-    model may modify, reformat, re-encode, or repair `ARCHITECTURE.md` or
-    `HANDOFF.md` on its own initiative or "behind the scenes" — not even a
-    correct, well-intentioned fix. This is separate from, and does not block, the
-    sanctioned append of a new correctly formatted HANDOFF entry (Rule 19,
-    Section 34): routine logging remains the normal path and needs no special
-    clearance. Every change *beyond* that clean append — encoding / line-ending /
-    BOM / mojibake repairs, structural or formatting fixes, a logged correction to
-    a prior entry (Rule 19a), or any edit to ARCHITECTURE — must follow this
-    protocol, in order:
-    (a) **Ryan first.** The need for the edit is surfaced to Ryan before anything
-    is changed. Ryan is never bypassed and must never discover a
-    coordination-document change after the fact.
-    (b) **A model is in the loop.** At minimum the proposed edit is brought to
-    Claude or ChatGPT. It is never applied unilaterally by the model that noticed
-    the problem.
-    (c) **Cross-clearance between the two models.** A coordination-document fix
-    proposed by Claude must be cleared by ChatGPT; one proposed by ChatGPT must be
-    cleared by Claude. The proposing model never self-approves the edit. Ryan
-    retains final authority and is the one who applies and commits the change.
-    A silent or unilateral repair — however minor or technically correct — is
-    itself a documentation-drift event and a constitutional violation, and
-    triggers the mandatory reconciliation in Rule 19.
+20. **Coordination-document changes remain visible and accountable.** Explain
+    material changes to Ryan and record them in HANDOFF. Codex may apply and
+    verify changes within Ryan's existing authorization without another model's
+    clearance. Preserve append-only HANDOFF history, canonical filenames and
+    relevant technical decisions; do not silently rewrite prior events. Routine
+    logging remains the normal path. The former mandatory two-model clearance
+    and Ryan-only application rules are superseded by Section 51 (Entry 241).
 
 ---
 
@@ -1843,6 +1830,12 @@ Inventory must be built to later integrate with:
 ---
 
 ## 30. AI Development Roles
+
+**Current policy — v2.31, Entry 241:** Codex handles architecture review and
+authorized implementation. External review is optional when Ryan requests it.
+The older role split, mandatory communication/routing rules, tie-breaker and
+Claude verdict templates retained below are historical guidance, superseded by
+Section 51. Their technical review topics remain useful; they are not gates.
 
 One GitHub repository. One Supabase schema. One Architecture Lock Document.
 One implementation roadmap.
@@ -2360,14 +2353,16 @@ to Bucket 3.
 Any task that touches or arguably touches protected scope in Section 35c is
 Architecture-sensitive.
 
-Codex must route Bucket 3 work to Claude before implementation unless the exact
-decision has already been locked in this document and Codex is only implementing
-the already-approved shape without changing protected behavior.
+Codex reviews Bucket 3 work here before implementation, records the relevant
+architecture delta and risks, and proceeds within Ryan's authorized scope.
+Material unresolved business rules or scope changes go to Ryan. A separate
+Claude/external-model review is not required (Section 51, Entry 241).
 
 ### 35c. Standard Protected-Scope Rules
 
-The following areas are protected scope. Codex must not change them unless the
-change is already locked or has been routed through Claude under Section 30:
+The following areas require architecture-sensitive review and appropriate
+validation. Codex may change them within Ryan's authorized scope after reviewing
+the concrete change under Section 51; external-model clearance is not required:
 
 - Supabase schema;
 - migrations;
@@ -2451,20 +2446,16 @@ The HANDOFF entry must:
 - state task classification when relevant;
 - list files changed;
 - state verification results;
-- state whether Claude review was needed;
+- state the review performed and any material unresolved decisions;
 - state whether any protected scope was touched;
 - carry forward or close architecture drift warnings honestly.
 
 ### 35g. Standard Routing Verdict
 
-Every Codex final summary for project work must end with one routing verdict:
-
-- `No Claude review needed — within locked decisions (ARCHITECTURE v__, HANDOFF Entry __).`
-- `No Claude review needed — Rule 20 cross-cleared adoption applied (ARCHITECTURE v__, HANDOFF Entry __).`
-- `Claude review required before proceeding — [trigger].`
-
-The verdict must use the current architecture version and the current latest
-HANDOFF entry after the task is logged.
+Mandatory Claude routing verdicts are retired by Section 51 (Entry 241).
+Summaries state the outcome, meaningful verification, and any specific decision
+or blocker requiring Ryan's input. Do not add an external-review gate or canned
+review footer solely because the work touches protected scope.
 
 ### 35h. Standard Short Footer for Future Codex Prompts
 
@@ -2474,12 +2465,12 @@ operating instructions:
 ```
 Use ARCHITECTURE.md Section 35 Standard Codex Operating Instructions.
 Classify the task before coding.
-Stay out of protected scope unless explicitly authorized and routed.
+Review protected-scope changes here and stay within Ryan's authorization.
 For Bucket 2, confirm the existing flow accepts the new context without
 modification before proceeding.
 Verify with the Section 35e checklist.
 Append HANDOFF using Section 34/35f.
-End with the required Section 35g routing verdict.
+Summarize outcomes, verification and any material unresolved decisions.
 ```
 
 ---
@@ -4316,5 +4307,102 @@ itself authorize React, CSS, Supabase, or any runtime implementation.
 Phase 1 implementation (application shell + Inventory conversion) requires a
 separate Codex prompt, gated on Ryan's decision to proceed after this
 docs-only update is committed (HANDOFF Entry 139).
+
+---
+
+## 51. Architecture review ownership (v2.31 — Entry 241)
+
+On 2026-09-14 Ryan stated that the need for Claude reviews had been eliminated.
+The current policy is:
+
+1. Codex owns architecture review, implementation and verification within the
+   user's authorized task. This includes schema, permission, audit and other
+   architecture-sensitive changes; the need for technical review remains.
+2. Mandatory Claude routing, dual-model cross-clearance, cross-model sync
+   recommendations and fixed Claude review verdicts are retired. This section
+   supersedes conflicting requirements in Rule 20, Section 30, Section 35 and
+   historical feature sections. It does not retroactively alter HANDOFF history.
+3. Resolve routine technical decisions through evidence and the existing system.
+   Bring material unresolved business meaning, scope changes or decisions beyond
+   current authorization to Ryan. Do not repeatedly ask for already-given
+   authorization merely because another model is no longer in the process.
+4. Preserve integrations, customer data, source provenance, audit history,
+   authorization boundaries and required validation. Document approved changes
+   and actual evidence; do not claim an independent review that did not happen.
+5. External review remains available when Ryan explicitly requests it. Do not
+   send material to another reviewer or create a separate task automatically.
+6. This is a review-process decision. It does not itself adopt every pending
+   feature proposal, approve unrelated product scope, import customer data,
+   change production, or authorize deployment.
+
+The inspection integration plan may be reviewed and developed here within the
+selected task scope. Entry 240's mandatory-Claude conclusion is superseded by
+this decision; its technical findings and proposed design remain available.
+
+---
+
+## 52. Electrical Systems Health Inspection and job permit register (v2.32 — Entry 242)
+
+Ryan authorized implementation with “Proceed” after Entries 240/241. These are
+the implemented local contracts; production release has not occurred. Review
+ownership remains Section 51.
+
+1. Add-On Tools uses key electrical_inspection and route /electrical-inspections.
+   Clerk subjects, active accounts, existing department/job scopes and canonical
+   permission templates/overrides remain authoritative. Add-on access alone does
+   not grant reviewer or job-management authority.
+2. can_review_electrical_inspections is explicit and defaults false for every role.
+   Assigned technician/creator and scoped managers/reviewers can read the working
+   inspection. Scoped draft edits, assignment eligibility and lifecycle actions are
+   enforced server-side, not solely by disabled controls.
+3. A versioned health_inspections.document saves equipment, readings, checklists
+   and findings atomically. Stable nested IDs, whole-document validation, parent
+   locks and expected versions prevent partial saves and stale overwrites.
+   Immutable health_inspection_revisions freeze the report projection and linked
+   job, technician/reviewer identity display, issue metadata and photo IDs.
+4. Missing/zero readings, measured/exception states, units and voltage conductor
+   pairs are distinct. New finding category/priority is separate from legacy
+   severity. Completion is not an equipment-condition or compliance grade.
+5. Original imported state and exact file provenance are retained under protected
+   health_inspection ownership. HTML extraction is inert. Ambiguous source values
+   remain review notes requiring resolution before issue; unknown data is retained
+   in source provenance, not silently coerced into new operational facts.
+6. One optional current jobs.id parent covers jobs and service calls. Relinking is
+   explicit/audited and retains historical snapshots. ServiceCallFields and the
+   existing svc_save_call are reused by an idempotent create-and-link transaction.
+   No parallel call numbering, job creation engine or financial calculation exists.
+7. health_inspection_files references canonical documents.id. Reserved uploads
+   require object existence, size/type checks and client byte-hash verification
+   before finalization. Paths cannot be overwritten/deleted. Finalized report
+   records and referenced evidence are immutable, including through legacy
+   SECURITY DEFINER document-maintenance paths. Failed report reservations can be
+   cancelled with authority/reason and regenerated without altering issued data.
+8. Preview/download/publication use identical PDF bytes. Job-owned final reports
+   appear under optional Service Inspections; draft/source evidence stays private
+   to authorized inspection users. New predicates explicitly support the existing
+   participating-department job audience. Signed Change Order safeguards remain.
+   Entry 243 refines the unreleased renderer's presentation using Ryan's reference:
+   branded summary/checklist tables, paired odd/even circuit schedules, complete
+   numbered notes and equipment findings/photos. Bundled branding loads on demand;
+   layout does not import source condition grades or change issued-data semantics.
+9. job_permits and job_inspections form one shared optional register on both job
+   types. Multiple permit URLs, independent attempts, previous failed/partial
+   attempts, same-job document links and audit/version controls are supported.
+   Health references are derived from their canonical job link. Issuing a health
+   report never sets a jurisdiction result or closes a permit.
+10. New tables are RLS-enabled, with direct client writes revoked and narrowly
+    granted authenticated APIs. Active actor, scope, stale version, replay and
+    atomic audit controls apply to all mutations. No authentication replacement,
+    financial workflow change, destructive migration or automatic customer import.
+11. Session drafts remain in memory under the signed-in account; they are not an
+    offline synchronization system. Failed saves and navigation retain edits.
+    Reload/closure requires saving/exporting. Actual device, Clerk and Storage
+    acceptance remain release checks.
+
+Physical schema, evidence, limits and rollout sequence are documented in
+[the implementation record](reviews/ELECTRICAL_INSPECTION_IMPLEMENTATION.md).
+Migration 20260914225732_electrical_inspection_workflow.sql is pending. The earlier
+plan's proposed split equipment/findings tables and duplicate health-reference
+rows are superseded by the atomic aggregate and derived-reference design above.
 
 ---

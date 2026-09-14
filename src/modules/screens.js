@@ -24,6 +24,7 @@
  *   import { DashboardWorkspace } from './dashboard/DashboardWorkspace.jsx';
  *   export const MODULE_SCREENS = { dashboard: DashboardWorkspace };
  */
+import { ElectricalInspectionWorkspace } from './electrical-inspections/ElectricalInspectionWorkspace.jsx';
 import { DashboardWorkspace } from './dashboard/DashboardWorkspace.jsx';
 import {AddOnToolsWorkspace} from './addons/AddOnToolsWorkspace.jsx';
 import { AccountingWorkspace } from './accounting/AccountingWorkspace.jsx';
@@ -40,6 +41,7 @@ import { ToolsWorkspace } from './tools/ToolsWorkspace.jsx';
 import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
 
 export const MODULE_SCREENS = {
+  'electrical-inspections':ElectricalInspectionWorkspace,
   'add-on-tools':AddOnToolsWorkspace,
   accounting: AccountingWorkspace,
   dashboard: DashboardWorkspace,

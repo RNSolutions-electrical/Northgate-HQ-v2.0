@@ -1,4 +1,5 @@
 export const JOB_DOCUMENT_CATEGORIES = Object.freeze([
+  {key:'service_inspections',label:'Service Inspections',description:'Issued electrical health inspection reports.',optional:true},
   { key: 'contracts', label: 'Contracts', description: 'Executed agreements, contract exhibits, and award documents.' },
   { key: 'plans', label: 'Plans', description: 'Plan sets, drawings, sketches, and drawing revisions.' },
   { key: 'specifications', label: 'Specifications', description: 'Project specifications, product standards, and written technical requirements.' },

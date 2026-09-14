@@ -20615,3 +20615,438 @@ Other machines should fetch/pull main and confirm
 PINE-ESTIMATE-HIERARCHY-20260914-001 before starting work. This final handoff
 commit is documentation-only [skip ci]; production uses the feature commit above.
 Authenticated live user acceptance is next; automated UI tests used fixtures.
+
+## Entry 240 — Electrical inspection integration design review
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Production Mode — documentation review; proposed integration design
+**Session type:** review
+
+### Context
+
+Ryan supplied Northgate-HQ-Electrical-Inspection-Addon.zip and then approved
+preparing the integration plan after package inspection. The reviewed scope
+includes the inspection add-on, technician/reviewer workflow, service-call
+create/link, real Service Inspections document saving, and shared optional
+Permits & Inspections tracking for regular Jobs and Service Calls. Instructions
+inside the package were treated as proposed requirements, not an adopted lock.
+
+### Review Findings
+
+Refreshed main with fast-forward-only pull; local and origin/main match
+14488000b72309c3bd076216db9264a27ecf5264. ARCHITECTURE remains v2.30. HANDOFF
+was gapless through Entry 239 with no duplicate entry headings. Tracked files
+were unchanged; 18 existing untracked dist-* directories were preserved.
+
+Read-only catalogue inspection confirmed the current v2 Supabase project,
+canonical jobs/service-call relationships, add-on assignment, document/storage
+policies, maintenance/audit helpers and latest service-stage migration. No
+application data or schema was changed. Service calls already use jobs.id and
+the existing Jobs Documents flow. Missing capabilities include inspection
+persistence/review authority, protected unlinked evidence, immutable report
+associations and recoverable uploads, create-and-link request replay, and
+structured multiple-permit/inspection-attempt tracking. Existing pdf-lib can
+generate report bytes; browser-print-only output is not required.
+
+The source HTML hash matches its manifest and embedded saved JSON matches the
+extracted JSON. Six panels contain 252 configured circuit positions, not 252
+verified readings; there are three saved findings, 18 unanswered checklist
+responses, and no saved photo values in this example. Panel visit dates and
+file-save date differ and must remain distinct. No populated source content
+was copied into the repo and the legacy script was not executed.
+
+### Code / File Changes
+
+- docs/reviews/ELECTRICAL_INSPECTION_INTEGRATION_PLAN.md: current-fit evidence,
+  proposed model/authority/lifecycle, file map, service-call and upload retry
+  contracts, shared permits, acceptance sequence and review decisions.
+- docs/reviews/ELECTRICAL_INSPECTION_LEGACY_MAPPING.md: field-by-field mapping,
+  exact template wording, source integrity and unresolved/provenance handling.
+- HANDOFF.md: this append-only review entry.
+
+### Lock Document Changes
+
+None. The proposed implementation is Bucket 3; the completed work is a review.
+No new architectural decision, permission, migration, UI or backend behavior
+was implemented. SYNC_STATUS.md remains PINE-ESTIMATE-HIERARCHY-20260914-001.
+
+### What Codex Needs to Know
+
+Use existing add-on assignment and canonical service-call creation; do not
+invent another authentication/customer/document/numbering system. Preserve
+private source files and historical dist-* directories. All package Section
+11 scope is included in the plan. Do not make permit/inspection entries or the
+new document category mandatory for normal job progress/closeout. Implementation
+must verify both metadata and storage access for participating departments.
+
+### What Claude Needs to Know
+
+Review the concrete schema/capability/owner-policy/revision/upload and create-
+link contracts under Sections 30/35 before implementation. Proposed reviewer
+authority is a separate canonical permission; ordinary add-on access is not
+report-issue authority. New persistence and protected cross-module writes are
+not covered by the existing UI lock. Claude review has not occurred.
+
+### Next Steps (in order)
+
+1. Review the plan and confirm its authority, parent-ownership and connectivity
+   decisions; adopt only the approved architecture delta.
+2. Implement the staged foundation, import/review/report, call/document and
+   shared permit workflows with the stated acceptance cases.
+3. Verify synthetic cases and then authorized private field pilots before
+   any release or real customer import.
+
+### Open Questions / Concerns
+
+Representative image/import limits and offline needs require confirmation.
+Actual target reviewer/technician accounts must be selected through HQ authority,
+not inferred from names in the source package. No authenticated live UI tests,
+prototype runtime tests, migration tests or implementation tests were performed
+for this documentation-only task. Build skipped because no app code changed.
+Documentation checks cover diff whitespace, relative links, sequential headings,
+append-only HANDOFF integrity, scope and unchanged sync marker.
+
+### Architecture Drift Warnings
+
+ARCHITECTURE v2.30 describes older foundations; later HANDOFF entries and live
+catalogue definitions are necessary evidence. In particular, job metadata gates
+support participating departments while inspected file policies remain division-
+based; confirm and review any narrow correction required for new file workflows.
+Existing permission-resolver signatures must be inspected live before changes.
+No unrelated legacy policy cleanup or auth migration was performed.
+
+Routing verdict: Claude review required before implementation — new inspection,
+reviewer, evidence/revision, permit and cross-module write contracts
+(ARCHITECTURE v2.30, HANDOFF Entry 240).
+
+---
+
+## Entry 241 — Retire mandatory Claude review
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Production Mode — review-process update
+**Session type:** decision
+
+### Context
+
+After the inspection integration plan, Ryan stated that the need for Claude
+reviews had been eliminated. Codex interpreted the voice/text reference to
+"clause reviews" as Claude reviews and explained the intended project-rule
+update before editing. This decision supersedes Entry 240's mandatory external
+review conclusion; that historical entry remains unchanged.
+
+### Decisions Made This Session (locked)
+
+Codex owns architecture review and implementation within Ryan's authorized task.
+Mandatory external Claude review, two-model cross-clearance, cross-model sync
+recommendations and Claude routing verdict footers are retired. External review
+is optional when Ryan explicitly requests it. Routine technical decisions stay
+here; material unresolved business rules and scope changes go to Ryan. Existing
+technical review, validation, permission boundaries, auditability, source/data
+preservation and authorized release boundaries remain.
+
+### Code / File Changes
+
+- AGENTS.md: current review policy at the project entry point.
+- docs/CODEX_DISCIPLINE_PROTOCOL.md: architecture-review ownership.
+- docs/ARCHITECTURE.md: v2.31, updated Rule 20 and Section 35, historical-policy
+  notice in Section 30, and authoritative Section 51 supersession.
+- docs/reviews/ELECTRICAL_INSPECTION_INTEGRATION_PLAN.md: removed mandatory
+  external review and referenced the current policy.
+- HANDOFF.md: this appended decision.
+
+### Lock Document Changes
+
+Review ownership/process only. No inspection feature schema, permission model,
+business rule or deployment was adopted by this process decision. Historical
+technical decisions and past review records remain intact. Old external-review
+wording retained in historical sections is superseded by Section 51.
+
+### What Codex Needs to Know
+
+Do not stop authorized architecture-sensitive work solely for Claude review.
+Do not restore that gate based on older HANDOFF entries or feature sections.
+Do the necessary review here and surface specific unresolved business decisions.
+The existing inspection plan and source mapping remain the design starting point.
+
+### Next Steps (in order)
+
+Continue the selected inspection work within its authorized scope using the
+current review policy. Resolve material product decisions through Ryan and
+record actual design/implementation/verification evidence as work proceeds.
+
+### Open Questions / Concerns
+
+This task updates local working rules only; no app code, migration, customer
+record, permission grant, commit, push or deployment was performed. The current
+production sync marker remains PINE-ESTIMATE-HIERARCHY-20260914-001.
+Build skipped because only project instructions and documentation changed.
+Verification: whitespace/scope checks, policy consistency, sequential HANDOFF
+headings and preservation of the complete pre-existing HANDOFF prefix.
+
+### Architecture Drift Warnings
+
+The external-review requirement recorded in Entry 240 is superseded, not silently
+rewritten. The technical data/storage/permission questions from that review remain
+valid design work. Removing external review does not remove those checks or
+automatically approve unrelated scope.
+
+---
+
+## Entry 242 — Electrical inspection workflow and shared permit register
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Production Mode — authorized implementation, local release candidate
+**Session type:** implementation
+
+### Context
+
+Ryan said “Proceed” after the inspection plan and retirement of mandatory Claude
+review. Implemented the full inspection, service-call/Documents and shared permit
+scope locally. Production release and real-account/customer pilot are pending.
+
+### Decisions Made This Session (locked)
+
+- ARCHITECTURE v2.32 Section 52 records the adopted feature contracts; Section 51
+  remains the current review policy. No external-model review was requested.
+- Store equipment/checklists/readings/findings atomically in one versioned JSON
+  inspection, with stable nested IDs. Keep immutable revisions, source provenance,
+  file relationships and job permit/inspection attempts relational.
+- Use canonical jobs.id and the existing svc_save_call function. Extract one shared
+  ServiceCallFields form and wrap creation/link/audit/request receipt in one transaction.
+- Add explicit can_review_electrical_inspections, false for all roles until granted
+  through the existing permission system. Preserve Clerk identity and active-user gates.
+- Separate observation completion from condition assessment; never score blank
+  readings as healthy or map legacy severity automatically to priority.
+- Publish immutable PDF bytes to real job Documents under optional Service
+  Inspections. Draft/source/photo access remains inspection-scoped. Finished
+  report/evidence bytes cannot be replaced, including through generic maintenance RPCs.
+- Derive linked health references from their canonical parent; jurisdiction results
+  and permit status are independent. Tracking is available for both job types.
+- Preserve in-session drafts without writing customer data to browser local storage.
+  Browser reload/closure still requires saving/exporting. No offline synchronization.
+
+### Files Changed
+
+- New src/modules/electrical-inspections: model/importer, API, equipment/findings
+  editors, main workspace, PDF renderer, shared JobPermitRegister, responsive CSS.
+- src/modules/service-calls/ServiceCallForm.jsx and ServiceCallsWorkspace.jsx:
+  shared existing fields and a Permits & Inspections resource link.
+- Registry/screens, usePermissions and Developer permission groups wire the new tool.
+- JobsWorkspace, document categories and maintenance controls integrate the register
+  and immutable optional report category without changing required-document totals.
+- New migration 20260914225732_electrical_inspection_workflow.sql; not applied.
+- Inspection unit tests, captured public authorization definitions, synthetic local
+  PostgreSQL/UI fixtures, and database/browser/PDF verification scripts.
+- docs/reviews/ELECTRICAL_INSPECTION_IMPLEMENTATION.md records actual contracts,
+  evidence and release steps; prior design plan marked as implemented/superseded.
+
+### Lock Document Changes
+
+Added v2.32 summary and Section 52 for the authorized feature. This is a local
+implementation contract, not a claim that schema or permission grants are live.
+All prior HANDOFF entries are preserved byte-for-byte; normalized prior-prefix
+SHA-256 before append: 149307eee1aa9ae153c40dc97e936e2bbee4de865230a84c270faaef0349a1ad.
+
+### What Codex Needs to Know
+
+Active checkout: nested northgate-hq-v2-current, main at 14488000b72309c3bd076216db9264a27ecf5264.
+Durable marker remains PINE-ESTIMATE-HIERARCHY-20260914-001. No commit, push,
+deployment, production migration, account grant or live customer import occurred.
+All 18 historical untracked dist-* directories and the original ZIP are preserved.
+Private extraction/QA files remain ignored in .temp; do not add them to Git or builds.
+
+Verification: 77 Node tests pass; 42 isolated PostgreSQL checks pass; inspection
+UI at 1440/768/390 passes with synthetic APIs, including save retry, navigation
+recovery, linking, review, PDF saving and reinspection. Existing service-call UI
+suite passes after form extraction. Deterministic 9-page PDF passes text-boundary
+checks and rendered visual QA. Both supplied source formats preserve six panels,
+252 configured circuits, 149 measured circuit temperatures and three findings;
+40 mapping notes remain for human disposition before any issue.
+
+The local environment lacks the three required public VITE settings. A compilation
+build passed with isolated test values at .temp/inspection-build-1789428502726.
+It must not be deployed. Existing large-bundle/XLSX warnings remain. PDF code is
+loaded on demand. No application dependency or lockfile changes were required.
+
+### Next Steps (in order)
+
+1. Obtain the production release decision for this concrete candidate.
+2. Apply the new migration in the existing project; select actual technician and
+   reviewer accounts, then configure add-on/reviewer access through existing tools.
+3. Verify actual Clerk/Storage/job/participating-department behavior and canonical
+   service-call creation, then build with real public configuration and release.
+4. Commit/push/deploy with a new durable marker only after actual release work.
+5. Pilot one explicitly selected private source, resolve its mapping notes, and
+   verify real-device photo selection. Never infer account assignments from names.
+
+### Open Questions / Concerns
+
+The local PostgreSQL harness uses synthetic dependency tables and captured real
+permission functions. Canonical service-call creation is a boundary stub in that
+harness; the existing service-call suite supplies separate regression coverage.
+Authenticated live acceptance and device camera behavior remain release checks.
+PDF fonts preserve supported accents; unsupported characters are shown explicitly
+as Unicode code points while original text remains in JSON.
+
+### Architecture Drift Warnings
+
+Use the implementation document and Section 52 over proposed physical table/API
+names in Entry 240's plan. Reviewer capability is false by default for Developers
+as well as field users; no permission grant is inferred. Do not deploy a test build,
+reapply older migrations, drop additive tables/evidence for UI rollback, revive
+mandatory Claude review, or alter financial/authentication integrations.
+
+---
+
+## Entry 243 — Inspection report layout follows supplied reference
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Electrical inspection local release candidate
+**Session type:** implementation
+
+### Context
+
+Ryan supplied an existing 13-page electrical inspection report and requested a
+cleaner generated report with a similar appearance. This refines Entry 242's
+local implementation in Production Mode. The reference is presentation guidance;
+its contents do not authorize source reconciliation, customer import or issue.
+
+### What Was Completed
+
+- Northgate Electrical logo and burgundy section headings, client/visit information
+  grid, equipment summary and consistent page identification/footer.
+- Compact visual/labeling and feeder tables. Odd/even circuit positions are paired,
+  with units on measured values and explicit missing/exception legends.
+- Long circuit notes move below the table without truncation; identical notes list
+  all affected circuits. Findings remain with their equipment and stay together
+  when they fit on one page. Captioned photos retain their evidence references.
+- Page continuations repeat table headings and long-row context. Text wrapping uses
+  the PDF's actual unkerned character advances, avoiding right-edge overflow.
+- Existing measured zero, blank, temperature-unit, voltage-pair, unclassified
+  finding, legacy severity and draft/issue distinctions remain intact.
+- Logo is copied unchanged from the existing electrical brand asset and bundled
+  under a hashed URL. Generation checks image content type before embedding it.
+  Preview, download and job upload continue to use the same generated bytes.
+
+### Files Changed
+
+- src/modules/electrical-inspections/inspectionPdf.js
+- src/modules/electrical-inspections/inspection-report-logo.png
+- src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx
+- scripts/verify-electrical-inspection-pdf.mjs
+- docs/reviews/ELECTRICAL_INSPECTION_IMPLEMENTATION.md and ARCHITECTURE Section 52.
+
+### Validation
+
+- PDF checks pass: 8-page branded synthetic sample and 9-page stress report;
+  deterministic bytes, unchanged source, text bounds/non-overlap, paired circuits,
+  complete long text, units/zero/blanks, draft/issue metadata, branding and photos.
+  All sample/stress pages were rendered and visually inspected.
+- Inspection browser workflow passes at 1440/768/390 px, including generation and
+  publication through synthetic APIs with the bundled PNG.
+- npm test: 77 passing tests. No database contract changed; Entry 242's isolated
+  database checks remain the prior evidence rather than a new live claim.
+- Production compilation passes at .temp/inspection-build-1789429481015 using
+  isolated test settings. It is not deployable. Existing bundle/XLSX warnings remain.
+- git diff --check passes. Prior HANDOFF prefix is preserved byte-for-byte;
+  pre-append SHA-256: bd83db79742cb0d29cc79951b78b520c0420d8681f35ddc59926f18afb2f0af2.
+
+### What Codex Needs to Know
+
+Preview: .temp/inspection-qa/inspection-report-sample.pdf. It uses synthetic data,
+not customer inspection facts; the illustrative photo is explicitly labeled.
+The supplied ACC Blvd PDF has later findings/photos than the earlier ZIP's saved
+state. Neither source was overwritten, reissued, imported or silently reconciled.
+Reference PDF SHA-256: f8d1855e83e4aefb87235f432937ac65a8c9f2ad2a39719b62d13198fb25ddb0.
+
+No commit, push, deployment, production migration or permission grant occurred.
+Durable sync marker remains PINE-ESTIMATE-HIERARCHY-20260914-001.
+All historical dist-* directories and prior local implementation are retained.
+
+### Next Steps (in order)
+
+1. Review the sample's appearance.
+2. Follow Entry 242's existing release and authenticated acceptance sequence when
+   Ryan selects production release; do not deploy an isolated test build.
+3. If regenerating the historical customer report, deliberately reconcile the PDF
+   and ZIP differences before issue, preserving both sources and real evidence.
+
+### Open Questions / Concerns
+
+Real Clerk/Storage/device acceptance remains a release step. Renderer version 1
+remains unreleased; no already-issued production PDF is changed by this layout.
+
+### Architecture Drift Warnings
+
+The reference's condition scores are not an approved new grading model. Missing
+readings do not become zero or evidence of good condition. This layout refinement
+does not authorize production release, customer data migration or reviewer grants.
+
+---
+
+
+## Entry 244 — Inspection release readiness
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Electrical inspection release preparation
+**Session type:** review
+
+### Context
+
+Ryan approved the report appearance and asked whether the work is ready to commit
+and deploy. This turn checked readiness without publishing or applying changes.
+
+### Review Findings
+
+- Remote main still equals local HEAD 14488000b72309c3bd076216db9264a27ecf5264.
+  All inspection changes remain uncommitted; no remote reconciliation is needed.
+- Re-ran isolated PostgreSQL checks: all 42 pass. Prior evidence remains 77 Node
+  tests, desktop/tablet/phone workflow coverage and rendered PDF checks.
+- Removed the local production-build uncertainty: validated existing public
+  production configuration from the current app and built successfully without
+  printing settings or modifying environment files. Candidate output:
+  .temp/inspection-production-check-1789429764115.
+- Existing Netlify site verified: northgate-hq-v2,
+  16adb4ff-83a9-4440-8aad-fcb820d55cac. No site or integration was replaced.
+- Read-only SQL on keogysnoukbendfkfjcn confirms migration 20260914225732 and
+  health_inspections/job_permits are not live. Latest migration is 20260914204755.
+- Code is ready to commit and enter the coordinated release. Apply the new
+  migration before making the new application live, configure intended accounts,
+  and complete actual signed-in file/permission acceptance.
+- Existing bundle-size/XLSX warnings persist; no new build failure.
+
+### Code / File Changes
+
+Updated docs/reviews/ELECTRICAL_INSPECTION_IMPLEMENTATION.md with the fresh
+production-configured build and current live-migration/remote checks.
+Build helper and output remain ignored under .temp. No application code changed.
+
+### What Codex Needs to Know
+
+No commit, push, migration, deployment, account grant or customer import happened.
+Marker remains PINE-ESTIMATE-HIERARCHY-20260914-001. Do not deploy earlier builds
+that used isolated placeholder settings. Prior HANDOFF bytes are preserved;
+pre-append SHA-256: bbfbed4c90cfd528d03c01dc9e310f6e544cc59f1172722c8d20b9de8cea4dbb.
+
+### Next Steps (in order)
+
+1. Commit the reviewed feature and documentation when release is requested.
+2. Apply the inspection migration and verify actual database security/behavior
+   before pushing or publishing the new application to production.
+3. Deploy using the existing project and production configuration; verify the
+   served build, route/asset content types and live signed-in PDF workflow.
+4. Configure only explicitly intended reviewer/technician accounts and complete
+   device acceptance. Record the actual release commit and new durable marker.
+
+### Open Questions / Concerns
+
+The actual reviewer/technician account selection and live Clerk/Storage/device
+acceptance remain release tasks. No permission grant is inferred from source names.
+
+---

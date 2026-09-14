@@ -1,3 +1,4 @@
+import {ServiceCallFields,EMPTY_SERVICE_CALL} from './ServiceCallForm.jsx';
 import { useAuth } from '@clerk/clerk-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
@@ -20,10 +21,7 @@ import { directoryStatus, BILLING_METHODS, money, callFinancials, invoiceBalance
 import './serviceCalls.css';
 
 const today = () => new Date().toLocaleDateString('en-CA');
-const EMPTY = { service_call_number:'', name:'', division:'Electrical', work_stage:'upcoming',
-  billing_method:'time_and_materials', related_job_id:'', business_name:'', first_name:'', last_name:'',
-  contact_name:'', phone:'', billing_email:'', address_line1:'', city:'', state:'NC', postal_code:'',
-  description:'', notes:'', service_date:'', lead_name:'' };
+const EMPTY = EMPTY_SERVICE_CALL;
 
 export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs, onResources, onReturnList,
   embedded = false, onSaved, onPanelState, initialDirectoryView = 'operations' }) {
@@ -189,22 +187,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       {(mode === 'create' || mode === 'edit') && <form onSubmit={(event) => {event.preventDefault(); write('svc_save_call', {
         p_job_id:mode === 'create' ? null : call.id, p_data:form, p_expected_updated_at:mode === 'create' ? null : call.updated_at,
       }, 'Service call saved.');}}>
-        <section className="svc-section"><h2>Work details</h2><div className="svc-grid">
-          {field('service_call_number','Service call / job number','text',true)}{field('name','Call name / customer','text',true)}
-          {mode === 'create' ? select('division','Department',{Electrical:'Electrical',Construction:'Construction',Admin:'Admin'}) : <p>Department: {call.division}</p>}
-          {select('work_stage','Work stage',workStages)}{select('billing_method','Billing method',BILLING_METHODS)}
-          {field('service_date','Date of service','date')}{field('lead_name','Employee / lead')}
-          <label>Related service call<select value={form.related_job_id || ''} onChange={(e) => change('related_job_id',e.target.value)}>
-            <option value="">No related call</option>{calls.filter((item) => item.id !== call?.id).map((item) => <option key={item.id} value={item.id}>{item.service_call_number} — {item.name}</option>)}
-          </select><small>Link a follow-up or split call to its original. Links do not combine financial values.</small></label>
-          <label className="svc-wide">Scope<textarea rows={3} value={form.description || ''} onChange={(e) => change('description',e.target.value)} /></label>
-        </div></section>
-        <section className="svc-section"><h2>Customer & location</h2><div className="svc-grid">
-          {field('business_name','Business name')}{field('first_name','First name')}{field('last_name','Last name')}
-          {field('contact_name','Contact / homeowner')}{field('phone','Phone','tel')}{field('billing_email','Billing email','email')}
-          {field('address_line1','Service address')}{field('city','City')}{field('state','State')}{field('postal_code','ZIP')}
-          <label className="svc-wide">Notes<textarea rows={3} value={form.notes || ''} onChange={(e) => change('notes',e.target.value)} /></label>
-        </div></section><button className="primary-button" type="submit">Save service call</button>
+        <ServiceCallFields form={form} change={change} stages={stages} calls={calls} call={call} creating={mode === 'create'} /><button className="primary-button" type="submit">Save service call</button>
       </form>}
       {mode === 'preview' && <ServiceImportPreview existing={all} />}
       {mode === 'invoice' && invoice && <form onSubmit={(e) => {e.preventDefault(); setConfirm('invoice');}}>
@@ -295,7 +278,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
         <nav className="jobs-directory-tabs" aria-label="Service call workspace">
           <button className={tab === 'details' ? 'is-active' : ''} onClick={() => setTab('details')}>Details & linked calls</button>
           {call.financials && <button className={tab === 'billing' ? 'is-active' : ''} onClick={() => setTab('billing')}>Costs & Billing</button>}
-          {!call.archived_at && ['assignments','documents','transactions','schedule','history'].map((key) => <button key={key} onClick={() => onResources(call,key)}>{key[0].toUpperCase()+key.slice(1)}</button>)}
+          {!call.archived_at && ['assignments','documents','permits','transactions','schedule','history'].map((key) => <button key={key} onClick={() => onResources(call,key)}>{key==='permits'?'Permits & Inspections':key[0].toUpperCase()+key.slice(1)}</button>)}
         </nav>
         {call.archived_at && <StatePanel title="Archived service call" description={call.archive_reason || 'This call and its billing history are preserved. Editing is disabled.'} tone="neutral" />}
         {tab === 'details' && <>

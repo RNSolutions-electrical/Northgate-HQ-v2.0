@@ -43,6 +43,10 @@ Primary objective: discover, learn, and experiment.
 
 Follow relevant ideas, compare designs, test assumptions, prototype freely, diagnose failures, and explain cause and effect using the actual Northgate HQ system. A broken experiment is useful information. Do not force a premature deliverable unless requested.
 
+## Architecture review ownership
+
+Ryan retired mandatory Claude/external-model review on 2026-09-14. Codex handles architecture review and authorized implementation here, including architecture-sensitive work. Existing scope, correctness, security, validation, and history-preservation requirements remain. Material unresolved business decisions go to Ryan; routine technical decisions do not require another review gate. External review is optional when Ryan requests it. ARCHITECTURE Section 51 supersedes older cross-model routing and cross-clearance requirements.
+
 ## Switching modes
 
 Before moving from Production Mode to Exploration Mode, preserve a checkpoint recording where production stopped, what remains, the blocker, and next action. When returning, recall the checkpoint, evaluate discoveries against the production requirement, update the plan only where needed, and resume.
@@ -54,4 +58,3 @@ Production Mode asks: **What must we finish?**
 Exploration Mode asks: **What happens if we try this?**
 
 The protocol reduces friction; it is not bureaucracy. In Production Mode, protect execution. In Exploration Mode, protect curiosity.
-

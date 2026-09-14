@@ -41,6 +41,7 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  {key:'electrical-inspections',path:'/electrical-inspections',label:'Electrical Systems Health Inspection',icon:PanelTop,requiresAddon:'electrical_inspection',status:'live',description:'Equipment observations, findings and issued inspection reports.'},
   {key:'add-on-tools',path:'/add-on-tools',label:'Add-On Tools',icon:Puzzle,status:'live'},
   {
     key: 'dashboard',
@@ -186,7 +187,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'reports', moduleKey: 'reports' },
   { key: 'accounting', moduleKey: 'accounting' },
   { key: 'silas', moduleKey: 'silas' },
-  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory'] },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
