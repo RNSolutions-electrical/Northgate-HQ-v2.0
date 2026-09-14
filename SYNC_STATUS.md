@@ -8,7 +8,12 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Branch: `main`
 - Release: combined Service Calls workflow/import preview and Estimate Proposal Builder / linked revisions / draft deletion.
 - Previous marker: `COPPER-DECIMAL-20260914-001` (`e37d62c`).
-- Production frontend publication: pending release verification; see the follow-up record carrying this same marker.
+- Feature commit: `23c2e9c2c5a36659281c1d9e504da20f80a851de`, pushed to origin/main.
+- Production deploy: `6aa7eb647db05775d8eab870` (ready, published September 14, 2026).
+- Production URL: `https://rnsolutions.net/northgate/`.
+- Git-triggered build `6aa7eb33ef2f68000848f8b4` also completed for the same feature commit; its secret scan found no matches. Final CLI deployment uses the verified local dist and preserves silas-chat.
+- Live verification: HTML and every JS/CSS SHA-256 match the tested build. Main and Workbench assets contain the correct configuration and new workflows.
+- Anonymous browser deep link reached the account sign-in service with no app runtime errors, but Cloudflare's bot check prevented completing automated sign-in. Authenticated user acceptance is still required.
 - Required database migrations are already applied: `20260914114401`, `20260914121940`, `20260914123229`.
 - Release checks: 43 unit tests, configured production build, desktop/tablet/phone Service Calls and Estimates fixtures.
 - No historical spreadsheet records imported. No production estimate/call was created, revised, billed, or deleted by verification.

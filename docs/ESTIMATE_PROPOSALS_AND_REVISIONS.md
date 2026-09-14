@@ -1,6 +1,8 @@
 # Estimates: proposals, draft deletion and linked revisions
 
-Working checkpoint: **PROPOSAL-LINK-20260914-001**. This is not a pushed sync marker.
+Released under **CEDAR-SERVICE-PROPOSAL-20260914-001**, feature commit `23c2e9c`,
+production deploy `6aa7eb647db05775d8eab870`. Original local checkpoint:
+PROPOSAL-LINK-20260914-001.
 
 ## User workflow
 
@@ -55,7 +57,7 @@ Existing records become version 1 without changing their prices, contents, appro
 
 ## Boundaries / release status
 
-- Database migration is applied. Frontend changes are **not committed, pushed or deployed** in this checkpoint.
+- Database migrations are applied; frontend is committed, pushed and deployed. Live HTML/JS/CSS match the tested build. Authenticated acceptance remains with Ryan; automated sign-in encountered the account site's Cloudflare bot check.
 - Existing Service Calls work and pre-existing untracked dist-* directories are preserved.
 - Browser tests use fixtures, not real estimates. No real estimate was approved, deleted or revised by these tests.
 - Concurrent numbering is protected by the family lock and unique index; simultaneous live sessions were not exercised. Retry and stale-save cases were exercised.

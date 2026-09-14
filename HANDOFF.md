@@ -19979,3 +19979,12 @@ The configured production build and all 43 unit tests passed. Release assets:
 built dist directory, avoiding a second unconfigured local build. Production
 verification and deployment ID will be recorded in the follow-up commit under
 the same release marker.
+
+**Release verified:** Feature commit `23c2e9c` is pushed to origin/main.
+Netlify's Git build `6aa7eb33ef2f68000848f8b4` succeeded with a clean secret scan;
+final CLI production deploy `6aa7eb647db05775d8eab870` is ready and preserves
+`silas-chat`. Live HTML and every JS/CSS asset hash match the tested local build.
+Service Calls and Estimates browser fixtures passed at desktop/tablet/phone widths.
+The anonymous live browser reached the account sign-in service without app runtime
+errors, then Cloudflare's bot challenge prevented automated sign-in completion.
+Do not claim authenticated live acceptance; Ryan's normal session is next.

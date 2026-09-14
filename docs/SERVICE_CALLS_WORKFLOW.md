@@ -1,5 +1,7 @@
 # Service Calls — combined workflow and import preview
-Date: 2026-09-14 · Production Mode · Working checkpoint: SERVICE-LINK-20260914-001
+Date: 2026-09-14 · Production Mode · Released: CEDAR-SERVICE-PROPOSAL-20260914-001
+Feature commit: `23c2e9c`. Production deploy: `6aa7eb647db05775d8eab870`.
+Original local checkpoint: SERVICE-LINK-20260914-001.
 
 ## Scope and decisions
 - Reuse canonical Jobs with job_type=service_call and the existing svc_* tables.
@@ -73,14 +75,13 @@ The bare local build lacked Supabase/Clerk environment variables and would produ
 vite.config.js now stops the build if these are missing.
 Netlify's local build failed during npm ci because Windows locked node_modules/.bin. Pinned dependencies were restored with npm install; package-lock.json was unchanged.
 A configured full build passed using only existing public client configuration from a previous production artifact (no secret keys).
-Release artifact: dist/assets/index-Z_cVJHn3.js. Its contents were checked for the new RPCs/import preview and the correct Supabase project URL.
-No new frontend deployment, commit or push is claimed by this working checkpoint.
+Combined release artifact: dist/assets/index-z6h1fAaw.js. Its contents were checked for the new RPCs/import preview and the correct Supabase project URL.
+Both frontends are committed, pushed and deployed. Live HTML/JS/CSS hashes match the tested build. All 43 current unit tests and responsive fixtures pass. Automated sign-in reached the account service but encountered its Cloudflare bot check; real authenticated acceptance remains required.
 Existing untracked dist-* directories were preserved.
 
 ## Remaining acceptance / follow-up
-1. Review and publish the frontend build, then test a real service call with the intended roles.
+1. Test a real service call in the published frontend with the intended roles.
 2. Review preview matches, regular-job exclusions and proposed shared-invoice allocations before designing/approving historical import.
 3. Confirm historical number sequence before automatic number suggestions are introduced.
 4. Controlled invoice/payment corrections or reversals and archive restoration are not included; ordinary posted ledger edits/deletes are blocked.
 5. Preview reads exports of Google Sheets, not a continuously synchronized Google account connection.
-
