@@ -61,7 +61,7 @@ try{
   assert.equal(await frame.locator('body').evaluate(el=>el.scrollWidth<=el.ownerDocument.defaultView.innerWidth),true);
   await page.screenshot({path:`.temp/workbench/editor-${width}.png`});
   await frame.getByRole('button',{name:'All estimates',exact:true}).click();
-  await page.getByRole('button',{name:'Realistic estimate',exact:true}).click();
+  await page.getByRole('button',{name:/^Realistic estimate/}).click();
   await frame.getByRole('button',{name:/Entry 001/}).first().waitFor();
   await frame.getByRole('button',{name:/Entry 001/}).first().click();
   assert.equal(await frame.locator('.work-item-note').textContent(),scopeNote);

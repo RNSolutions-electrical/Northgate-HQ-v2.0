@@ -4,6 +4,20 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `CEDAR-SERVICE-PROPOSAL-20260914-001`
+- Branch: `main`
+- Release: combined Service Calls workflow/import preview and Estimate Proposal Builder / linked revisions / draft deletion.
+- Previous marker: `COPPER-DECIMAL-20260914-001` (`e37d62c`).
+- Production frontend publication: pending release verification; see the follow-up record carrying this same marker.
+- Required database migrations are already applied: `20260914114401`, `20260914121940`, `20260914123229`.
+- Release checks: 43 unit tests, configured production build, desktop/tablet/phone Service Calls and Estimates fixtures.
+- No historical spreadsheet records imported. No production estimate/call was created, revised, billed, or deleted by verification.
+- Preserve older untracked `dist-*` folders; they are not part of this release.
+
+Details: `docs/SERVICE_CALLS_WORKFLOW.md`, `docs/ESTIMATE_PROPOSALS_AND_REVISIONS.md`, HANDOFF Entries 218–220.
+
+## Previous durable sync record
+
 - Marker: `COPPER-DECIMAL-20260914-001`
 - Database hotfix: Workbench approval accepts `.32`, `0.32`, and `1.`; see the commit carrying this marker.
 - Release commit: `c7ffbe1`

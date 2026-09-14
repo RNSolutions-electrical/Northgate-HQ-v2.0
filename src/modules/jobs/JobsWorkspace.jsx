@@ -26,6 +26,7 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
+import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
 import { effectiveCurrentBudget, hasCurrentBudgetOverride } from './currentBudget.js';
@@ -2380,7 +2381,10 @@ export function JobsWorkspace({ permissions }) {
     { key: 'schedule', label: 'Schedule', meta: 'Live' },
     { key: 'history', label: 'History', meta: 'Live' },
   ];
-  const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false), [canViewFinancials]);
+  const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible !== false &&
+    (selectedJob?.job_type !== 'service_call' || ['overview','assignments','transactions','documents','schedule','history'].includes(tab.key)))
+    .map((tab) => selectedJob?.job_type === 'service_call' && tab.key === 'overview' ? {...tab,label:'Service Call'} : tab),
+  [canViewFinancials,selectedJob?.job_type]);
 
   useEffect(() => {
     if (!visibleTabs.some((tab) => tab.key === activeTab)) {
@@ -5802,6 +5806,17 @@ export function JobsWorkspace({ permissions }) {
         }}
       />
     );
+  }
+
+  if ((directoryType === 'service_calls' && !selectedJob) || (selectedJob?.job_type === 'service_call' && activeTab === 'overview')) {
+    return <ServiceCallsWorkspace
+      key={location.key}
+      permissions={permissions}
+      initialJobId={selectedJob?.id || null}
+      onJobs={() => { returnToJobList(); setDirectoryType('jobs'); }}
+      onReturnList={() => { returnToJobList(); setDirectoryType('service_calls'); directory.reload(); }}
+      onResources={(job, tab) => { selectJob(job); setActiveTab(tab); setDirectoryType('service_calls'); directory.reload(); }}
+    />;
   }
 
   return (

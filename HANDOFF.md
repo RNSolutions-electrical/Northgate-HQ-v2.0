@@ -19924,3 +19924,58 @@ A temporary copy of the affected saved estimate also approved successfully and
 was rolled back. Security advisors remain at the same 147 findings. Next: Ryan
 can retry Review & approve on the original estimate. This does not implement
 estimate-to-Job conversion or alter quote-package handling.
+
+## Entry 218 — Service Calls Workflow / Preview Working Checkpoint
+
+**Date:** 2026-09-14 · **Mode:** Production
+**Working marker:** `SERVICE-LINK-20260914-001` (not yet a pushed sync marker)
+
+Ryan approved a combined Service Calls workflow and spreadsheet import preview,
+linked/archived calls, and allocated shared invoices. Implementation extends
+canonical Jobs and svc_* tables; regular Jobs/SOV/Pay Apps are unchanged.
+Migration `20260914114401_service_call_workflow.sql` is applied to production.
+Rollback-only synthetic integration tests passed and retained no test records.
+No historical imports or spreadsheet writes occurred.
+
+Frontend code, responsive fixture tests, source comparison, permission rules,
+calculation details, deployment status and remaining acceptance are documented in
+`docs/SERVICE_CALLS_WORKFLOW.md`. The new frontend is not yet committed, pushed or
+deployed. Do not confuse this local checkpoint with the durable sync marker.
+Preserve the pre-existing untracked dist-* directories.
+
+## Entry 219 — Estimate Proposal Builder and Linked Revisions
+
+**Date:** 2026-09-14 · **Mode:** Production
+**Working marker:** `PROPOSAL-LINK-20260914-001` (not yet a pushed sync marker)
+
+Ryan requested customer-facing proposal content, draft entry/work-item deletion,
+linked editable versions of approved estimates, and cleanup of the unstyled
+Estimates header. Implemented in the existing Workbench, preserving Entry 218.
+
+Migration `20260914121940_estimate_workbench_revisions.sql` is applied to
+production. It adds business-version lineage without modifying existing
+approvals/pricing. Follow-up `20260914123229_estimate_revision_archived_numbering.sql`
+is also applied; archived version numbers are reserved without bypassing RLS.
+Synthetic authenticated rollback tests passed; no test data
+remains. Proposal/deletion unit tests, responsive browser fixtures, existing
+Workbench regression, PDF visual checks and the full production build passed.
+
+See `docs/ESTIMATE_PROPOSALS_AND_REVISIONS.md` for workflow, security, tests,
+limitations and deployment order. Frontend remains uncommitted/unpushed/undeployed.
+The durable pushed marker remains `COPPER-DECIMAL-20260914-001`.
+
+## Entry 220 — Combined Service Calls / Estimates Frontend Release
+
+**Date:** 2026-09-14 · **Mode:** Production
+**Release marker:** `CEDAR-SERVICE-PROPOSAL-20260914-001`
+
+Ryan authorized publishing both pending frontends. Origin/main was fetched and
+matched local HEAD before release. Only the Service Calls/Estimates implementation,
+associated tests/docs/migrations, terminology registry and missing-environment build
+guard are included; pre-existing dist-* folders remain untouched.
+
+The configured production build and all 43 unit tests passed. Release assets:
+`index-z6h1fAaw.js` and `WorkbenchRoute-DUGXVl71.js`. Deployment uses the already
+built dist directory, avoiding a second unconfigured local build. Production
+verification and deployment ID will be recorded in the follow-up commit under
+the same release marker.

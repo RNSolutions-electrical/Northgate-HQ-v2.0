@@ -1,0 +1,294 @@
+import { useAuth } from '@clerk/clerk-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
+import { Toolbar } from '../../components/ui/Toolbar.jsx';
+import { DataTable } from '../../components/ui/DataTable.jsx';
+import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
+import { StatePanel } from '../../components/ui/StatePanel.jsx';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
+import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
+import { uiElementAttributes } from '../../config/uiTerminology.js';
+import { ServiceImportPreview } from './ServiceImportPreview.jsx';
+import { WORK_STAGES, BILLING_METHODS, money, callFinancials, invoiceBalance, allocationRemaining } from './serviceCallModel.js';
+import './serviceCalls.css';
+
+const today = () => new Date().toLocaleDateString('en-CA');
+const EMPTY = { service_call_number:'', name:'', division:'Electrical', work_stage:'upcoming',
+  billing_method:'time_and_materials', related_job_id:'', business_name:'', first_name:'', last_name:'',
+  contact_name:'', phone:'', billing_email:'', address_line1:'', city:'', state:'NC', postal_code:'',
+  description:'', notes:'', service_date:'', lead_name:'' };
+
+export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs, onResources, onReturnList }) {
+  const { getToken } = useAuth();
+  const [calls, setCalls] = useState([]);
+  const [archivedCalls, setArchivedCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [selectedId, setSelectedId] = useState(initialJobId);
+  const [mode, setMode] = useState('browse');
+  const [filter, setFilter] = useState('active');
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('details');
+  const [form, setForm] = useState(EMPTY);
+  const [invoice, setInvoice] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [directoryView, setDirectoryView] = useState('operations');
+  const sequence = useRef(0);
+
+  const rpc = useCallback((name, args) => withSupabaseTokenRetry(getToken, async (client) => {
+    const { data, error: failure } = await client.rpc(name, args);
+    if (failure) throw failure;
+    return data;
+  }), [getToken]);
+  const reload = useCallback(async () => {
+    const request = ++sequence.current;
+    setLoading(true);
+    try {
+      const read = async (archived) => {
+        const result = [];
+        for (let offset = 0; ; offset += 200) {
+          const page = await rpc('svc_read_calls', { p_archived: archived, p_offset: offset, p_limit: 200 });
+          result.push(...page);
+          if (page.length < 200) return result;
+        }
+      };
+      const [active, archived] = await Promise.all([read(false), read(true)]);
+      if (request !== sequence.current) return;
+      setCalls(active); setArchivedCalls(archived);
+    } catch (e) { if (request === sequence.current) setError(e.message); }
+    finally { if (request === sequence.current) setLoading(false); }
+  }, [rpc]);
+  useEffect(() => { reload(); return () => { sequence.current += 1; }; }, [reload]);
+  useEffect(() => { setSelectedId(initialJobId); setMode('browse'); }, [initialJobId]);
+  const all = [...calls, ...archivedCalls];
+  const call = all.find((item) => item.id === selectedId);
+  const financials = call && callFinancials(call);
+  const canCreate = permissions?.can_create_jobs === true || permissions?.canCreateJobs === true;
+  const canViewFinance = permissions?.can_view_project_financials === true || permissions?.canViewProjectFinancials === true;
+  const open = (item) => { setSelectedId(item.id); setMode('browse'); setTab('details'); setError(''); setMessage(''); };
+  const back = () => { setMode('browse'); setError(''); setMessage(''); };
+  const list = () => { setSelectedId(null); back(); onReturnList?.(); };
+  const change = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const field = (key, label, type = 'text', required = false) => <label key={key}>{label}
+    <input type={type} value={form[key] ?? ''} onChange={(e) => change(key, e.target.value)} required={required}
+      {...(type === 'number' ? { step: '0.01' } : {})} />
+  </label>;
+  const select = (key, label, options) => <label>{label}<select value={form[key] || ''} onChange={(e) => change(key, e.target.value)}>
+    {Object.entries(options).map(([value, name]) => <option key={value} value={value}>{name}</option>)}
+  </select></label>;
+  async function write(name, args, success) {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true); setError(''); setMessage('');
+    try {
+      const id = await rpc(name, args);
+      setConfirm(null);
+      await reload();
+      if (name === 'svc_save_call') setSelectedId(id);
+      if (name === 'svc_archive_call') { setSelectedId(null); setFilter('archived'); onReturnList?.(); }
+      setMode('browse'); setMessage(success);
+    } catch (e) { setError(e.message); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  function startEdit() {
+    setForm({ ...EMPTY, ...call, ...call.profile, related_job_id:call.profile?.related_job_id || '',
+      work_stage:call.profile?.work_stage || (call.status === 'complete' ? 'complete' : 'upcoming') });
+    setMode('edit'); setError(''); setMessage('');
+  }
+  function commercial(action, data = {}) { setForm(action === 'payment' ? {...data,request_id:crypto.randomUUID()} : data); setMode(action); setError(''); setMessage(''); }
+  function startInvoice() {
+    setInvoice({ requestId:crypto.randomUUID(), invoice_number:'', invoice_date:today(), due_date:'',
+      total_revenue:'', sales_tax:'0', note:'', allocations:[{ job_id:call.id, amount:'', expected_updated_at:call.updated_at }] });
+    setMode('invoice'); setError(''); setMessage('');
+  }
+  const updateInvoice = (key, value) => setInvoice((old) => ({ ...old, [key]:value }));
+  const saveCommercial = (event) => {
+    event.preventDefault();
+    write('svc_save_commercial', { p_job_id:call.id, p_action:mode, p_data:form, p_expected_updated_at:call.updated_at }, 'Financial information saved.');
+  };
+  const posted = call?.financials?.invoices?.filter((item) => item.status === 'posted') || [];
+  const rows = (filter === 'archived' ? archivedCalls : calls).filter((item) => {
+    const stage = item.profile?.work_stage || (item.status === 'complete' ? 'complete' : 'upcoming');
+    return (filter === 'active' || filter === 'archived' || stage === filter) &&
+      [item.service_call_number,item.name,item.description,item.profile?.business_name,item.address_line1,item.profile?.lead_name].join(' ').toLowerCase().includes(search.toLowerCase());
+  });
+  const parent = all.find((item) => item.id === call?.profile?.related_job_id);
+  const linked = call ? all.filter((item) => item.id !== call.id && (item.profile?.related_job_id === call.id ||
+    item.id === call.profile?.related_job_id || (call.profile?.related_job_id && item.profile?.related_job_id === call.profile.related_job_id))) : [];
+  const isFinancialMode = ['quote','cost','payment','invoice'].includes(mode);
+  let invoiceRemaining = null;
+  try { if (invoice) invoiceRemaining = allocationRemaining(invoice.total_revenue || 0,invoice.allocations); } catch { /* Invalid input remains editable; the server validates on save. */ }
+  return <div className="svc-workspace" {...uiElementAttributes('MODULE','Service Calls')}>
+    <WorkspaceHeader eyebrow="Workspace" title={mode === 'create' ? 'Create Service Call' : call ? (call.service_call_number || call.job_number) + ' — ' + call.name : 'Service Calls'}
+      description="Track the work, then record its costs, invoice, and payments."
+      actions={<div className="svc-actions">
+        <button className="secondary-button" onClick={mode !== 'browse' ? back : call ? list : onJobs} disabled={busy}>{mode !== 'browse' ? 'Cancel' : call ? 'Back to Service Calls' : 'Back to Jobs'}</button>
+        {mode === 'browse' && !call && canCreate && <button className="primary-button" onClick={() => {setForm(EMPTY);setMode('create');setError('');}}>Create Service Call</button>}
+      </div>} />
+    <div className="card workspace-card svc-content">
+      {error && <StatePanel tone="warning" title="Service call action needs attention" description={error} />}
+      {message && <StatePanel tone="success" title="Service Calls updated" description={message} />}
+      {loading && <p role="status">Loading service calls…</p>}
+      {selectedId && !call && !loading && <StatePanel title="Service call unavailable" description="Refresh or return to the directory. It may be outside your current access." />}
+      <fieldset disabled={busy || loading} className="svc-fieldset">
+      {(mode === 'create' || mode === 'edit') && <form onSubmit={(event) => {event.preventDefault(); write('svc_save_call', {
+        p_job_id:mode === 'create' ? null : call.id, p_data:form, p_expected_updated_at:mode === 'create' ? null : call.updated_at,
+      }, 'Service call saved.');}}>
+        <section className="svc-section"><h2>Work details</h2><div className="svc-grid">
+          {field('service_call_number','Service call / job number','text',true)}{field('name','Call name / customer','text',true)}
+          {mode === 'create' ? select('division','Department',{Electrical:'Electrical',Construction:'Construction',Admin:'Admin'}) : <p>Department: {call.division}</p>}
+          {select('work_stage','Work stage',WORK_STAGES)}{select('billing_method','Billing method',BILLING_METHODS)}
+          {field('service_date','Date of service','date')}{field('lead_name','Employee / lead')}
+          <label>Related service call<select value={form.related_job_id || ''} onChange={(e) => change('related_job_id',e.target.value)}>
+            <option value="">No related call</option>{calls.filter((item) => item.id !== call?.id).map((item) => <option key={item.id} value={item.id}>{item.service_call_number} — {item.name}</option>)}
+          </select><small>Link a follow-up or split call to its original. Links do not combine financial values.</small></label>
+          <label className="svc-wide">Scope<textarea rows={3} value={form.description || ''} onChange={(e) => change('description',e.target.value)} /></label>
+        </div></section>
+        <section className="svc-section"><h2>Customer & location</h2><div className="svc-grid">
+          {field('business_name','Business name')}{field('first_name','First name')}{field('last_name','Last name')}
+          {field('contact_name','Contact / homeowner')}{field('phone','Phone','tel')}{field('billing_email','Billing email','email')}
+          {field('address_line1','Service address')}{field('city','City')}{field('state','State')}{field('postal_code','ZIP')}
+          <label className="svc-wide">Notes<textarea rows={3} value={form.notes || ''} onChange={(e) => change('notes',e.target.value)} /></label>
+        </div></section><button className="primary-button" type="submit">Save service call</button>
+      </form>}
+      {mode === 'preview' && <ServiceImportPreview existing={all} />}
+      {mode === 'invoice' && invoice && <form onSubmit={(e) => {e.preventDefault(); setConfirm('invoice');}}>
+        <h2>Record invoice</h2><p>Record an invoice issued through your billing system. Allocate its pre-tax amount across the completed calls below. This does not generate or send an invoice.</p>
+        <div className="svc-grid">{[['invoice_number','Invoice number','text'],['invoice_date','Invoice date','date'],['due_date','Due date (optional)','date'],['total_revenue','Total before tax','number'],['sales_tax','Sales tax','number']].map(([key,label,type]) =>
+          <label key={key}>{label}<input type={type} value={invoice[key]} onChange={(e) => updateInvoice(key,e.target.value)} required={key !== 'due_date'} {...(type === 'number' ? {min:0,step:'.01'} : {})} /></label>)}</div>
+        <section className="svc-section"><h3>Invoice allocations</h3>
+          {invoice.allocations.map((allocation,index) => <div className="svc-allocation" key={allocation.job_id}>
+            <label>Service call<select value={allocation.job_id} onChange={(e) => {
+              const item = calls.find((row) => row.id === e.target.value);
+              updateInvoice('allocations',invoice.allocations.map((row,i) => i === index ? {...row,job_id:item.id,expected_updated_at:item.updated_at} : row));
+            }}>{calls.filter((row) => row.can_bill && row.status === 'complete' && (row.id === allocation.job_id || !invoice.allocations.some((a) => a.job_id === row.id))).map((row) =>
+              <option key={row.id} value={row.id}>{row.service_call_number} — {row.name}</option>)}</select></label>
+            <label>Allocated amount<input type="number" min=".01" step=".01" value={allocation.amount} required onChange={(e) =>
+              updateInvoice('allocations',invoice.allocations.map((row,i) => i === index ? {...row,amount:e.target.value} : row))} /></label>
+            <button type="button" className="secondary-button" disabled={invoice.allocations.length === 1} onClick={() => updateInvoice('allocations',invoice.allocations.filter((_,i) => i !== index))}>Remove</button>
+          </div>)}
+          <div className="svc-actions"><button type="button" className="secondary-button" onClick={() => {
+            const next = calls.find((row) => row.can_bill && row.status === 'complete' && !invoice.allocations.some((a) => a.job_id === row.id));
+            if (next) updateInvoice('allocations',[...invoice.allocations,{job_id:next.id,amount:'',expected_updated_at:next.updated_at}]);
+          }} disabled={!calls.some((row) => row.can_bill && row.status === 'complete' && !invoice.allocations.some((a) => a.job_id === row.id))}>Add another call</button>
+          <strong>Unallocated: {invoiceRemaining === null ? 'Check amounts' : money(invoiceRemaining)}</strong></div>
+          <p>Tax is distributed proportionately and reconciled to the cent. Each call will show only its allocated invoice and payment share.</p>
+        </section>
+        <button className="primary-button" disabled={invoiceRemaining !== 0}>Review & record invoice</button>
+      </form>}
+      {isFinancialMode && mode !== 'invoice' && call && <form onSubmit={saveCommercial}>
+        <h2>{mode === 'quote' ? 'Estimate / quoted amount' : mode === 'cost' ? 'Update cumulative cost' : 'Record allocated payment'}</h2>
+        <p>{mode === 'cost' ? 'Enter total costs to date, not just new costs. The previous snapshot remains in history. Inventory and timesheet amounts are not automatically added again.' :
+          mode === 'payment' ? 'For a shared invoice, record only the payment allocated to this call, including its share of tax.' : 'Changes adjust the expected quoted amount, not invoices already recorded.'}</p>
+        <div className="svc-grid">
+          {mode === 'quote' && <>{field('quote_amount','Original estimate / quote','number')}{field('changes_amount','Approved changes (+ / −)','number')}</>}
+          {mode === 'cost' && <>{field('labor_hard_cost','Labor cost to date','number',true)}{field('material_hard_cost','Material cost to date','number',true)}{field('other_hard_cost','Other cost to date','number',true)}{field('cost_through','Cost through','date',true)}
+            {select('reconciliation_status','Cost status',{preliminary:'Preliminary',final:'Final'})}{field('source_note','Cost source / reason','text',true)}</>}
+          {mode === 'payment' && <><label>Invoice<select required value={form.invoice_id || ''} onChange={(e) => change('invoice_id',e.target.value)}>
+            <option value="">Select invoice</option>{posted.filter((item) => invoiceBalance(item) > 0).map((item) => <option value={item.id} key={item.id}>{item.invoice_number} — {money(invoiceBalance(item))} outstanding</option>)}
+          </select></label>{field('amount','This call’s payment share','number',true)}{field('payment_date','Payment date','date',true)}{field('reference','Payment reference')}{field('note','Note')}</>}
+        </div><button className="primary-button" type="submit">Save</button>
+      </form>}
+      {mode === 'browse' && !selectedId && <>
+        <Toolbar title="Service Call Directory" description="Work stage and billing status are tracked separately."
+          search={<label><span className="sr-only">Search service calls</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search number, customer, scope or lead…" /></label>}
+          actions={<div className="svc-actions"><label>View<select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="active">All non-archived</option>{Object.entries(WORK_STAGES).map(([key,label]) => <option key={key} value={key}>{label}</option>)}<option value="archived">Archived</option>
+          </select></label><button className="secondary-button" onClick={reload}>Refresh</button>
+            {canCreate && canViewFinance && <button className="secondary-button" onClick={() => setMode('preview')}>Import preview</button>}
+          </div>} />
+        <nav className="jobs-directory-tabs" aria-label="Service call directory views">
+          <button className={directoryView === 'operations' ? 'is-active' : ''} onClick={() => setDirectoryView('operations')}>Operations</button>
+          {canViewFinance && <button className={directoryView === 'financials' ? 'is-active' : ''} onClick={() => setDirectoryView('financials')}>Financial scorecard</button>}
+        </nav>
+        <DataTable rows={rows} getRowKey={(row) => row.id} onRowClick={open} minWidth="950px" emptyTitle="No service calls in this view" columns={[
+          {key:'service_call_number',header:'Call #'}, {key:'name',header:'Customer / call'}, {key:'division',header:'Department'},
+          ...(directoryView === 'financials' && canViewFinance ? [
+            ...[['revenue','Billed (ex tax)'],['cost','Cost'],['profit','Profit'],['collected','Collected'],['outstanding','Outstanding']].map(([key,header]) => ({key,header,render:(row) => {
+              const f = callFinancials(row); return !f || (key === 'cost' && !f.costKnown) || f[key] === null ? '—' : money(f[key]);
+            }})),
+            {key:'billing_status',header:'Billing',render:(row) => callFinancials(row)?.billingStatus || 'Restricted'},
+          ] : [
+            {key:'work_stage',header:'Work stage',render:(row) => WORK_STAGES[row.profile?.work_stage] || (row.status === 'complete' ? WORK_STAGES.complete : 'Set work details')},
+            {key:'billing_method',header:'Billing type',render:(row) => BILLING_METHODS[row.profile?.billing_method] || 'Not set'},
+            {key:'service_date',header:'Service date',render:(row) => row.profile?.service_date || '—'},
+            {key:'lead_name',header:'Lead',render:(row) => row.profile?.lead_name || '—'},
+          ]),
+        ]} />
+      </>}
+      {mode === 'browse' && call && <>
+        <nav className="jobs-directory-tabs" aria-label="Service call workspace">
+          <button className={tab === 'details' ? 'is-active' : ''} onClick={() => setTab('details')}>Details & linked calls</button>
+          {call.financials && <button className={tab === 'billing' ? 'is-active' : ''} onClick={() => setTab('billing')}>Costs & Billing</button>}
+          {!call.archived_at && ['assignments','documents','transactions','schedule','history'].map((key) => <button key={key} onClick={() => onResources(call,key)}>{key[0].toUpperCase()+key.slice(1)}</button>)}
+        </nav>
+        {call.archived_at && <StatePanel title="Archived service call" description={call.archive_reason || 'This call and its billing history are preserved. Editing is disabled.'} tone="neutral" />}
+        {tab === 'details' && <>
+          <Toolbar title={WORK_STAGES[call.profile?.work_stage] || 'Service call details'} actions={<div className="svc-actions">
+            {call.can_manage && <button className="primary-button" onClick={startEdit}>Edit details / link call</button>}
+            {call.can_manage && call.can_archive && <button className="secondary-button danger-button" onClick={() => setConfirm('archive')}>Archive</button>}
+          </div>} />
+          <dl className="svc-facts svc-grid">{[
+            ['Billing type',BILLING_METHODS[call.profile?.billing_method]],['Business',call.profile?.business_name],
+            ['Customer',[call.profile?.first_name,call.profile?.last_name].filter(Boolean).join(' ')],
+            ['Contact',call.profile?.contact_name],['Phone',call.profile?.phone],['Billing email',call.profile?.billing_email],
+            ['Service address',[call.address_line1,call.city,call.state,call.postal_code].filter(Boolean).join(', ')],
+            ['Service date',call.profile?.service_date],['Lead',call.profile?.lead_name],['Scope',call.description],['Notes',call.notes],
+          ].map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}</dd></div>)}</dl>
+          <section className="svc-section"><h3>Linked service calls</h3><p>{parent ? 'Original / related call: ' + parent.service_call_number : call.profile?.related_job_id ? 'Related call is outside this directory’s access.' : 'No original call linked.'} Links keep split work and follow-ups together; invoices are allocated separately.</p>
+            <div className="svc-actions">{linked.map((item) => <button key={item.id} className="secondary-button" onClick={() => open(item)}>{item.service_call_number} — {item.name}{item.archived_at ? ' (archived)' : ''}</button>)}</div>
+          </section>
+        </>}
+        {tab === 'billing' && financials && <>
+          <div className="module-fact-grid">
+            <SummaryCard label="Billed before tax" value={money(financials.revenue)} />
+            <SummaryCard label="Cost to date" value={financials.costKnown ? money(financials.cost) : 'Not entered'} />
+            <SummaryCard label="Gross profit" value={financials.profit === null ? 'Not available' : money(financials.profit)} detail={financials.margin === null ? 'Enter costs to calculate profit' : financials.margin.toFixed(1)+'% margin'} />
+            <SummaryCard label="Collected" value={money(financials.collected)} detail="Includes allocated tax" />
+            <SummaryCard label="Outstanding" value={money(financials.outstanding)} detail={financials.billingStatus} />
+          </div>
+          <Toolbar title="Estimate, costs & billing" description={'Estimate: '+(call.financials.quote_amount === null ? 'Not entered' : money(call.financials.quote_amount))+' · Changes: '+money(call.financials.changes_amount || 0)}
+            actions={call.can_bill && <div className="svc-actions">
+              <button className="secondary-button" onClick={() => commercial('quote',{quote_amount:call.financials.quote_amount ?? '',changes_amount:call.financials.changes_amount || 0})}>Edit estimate</button>
+              <button className="secondary-button" onClick={() => {const c=call.financials.costs.find((item) => item.is_active); commercial('cost',{labor_hard_cost:c?.labor_hard_cost || 0,material_hard_cost:c?.material_hard_cost || 0,other_hard_cost:c?.other_hard_cost || 0,cost_through:today(),reconciliation_status:'preliminary',source_note:''});}}>Update costs</button>
+              <button className="primary-button" disabled={call.status !== 'complete'} onClick={startInvoice}>Record invoice</button>
+              <button className="secondary-button" disabled={!posted.some((item) => invoiceBalance(item) > 0)} onClick={() => commercial('payment',{payment_date:today(),amount:'',invoice_id:''})}>Record payment</button>
+            </div>} />
+          {call.can_bill && !call.profile?.job_id && <p>Save the call’s details before entering costs or payments.</p>}
+          {call.status !== 'complete' && <p>Set the work stage to Complete / ready to invoice when work is finished to enable invoice recording.</p>}
+          <h3>Invoices — this call’s allocated share</h3>
+          <DataTable rows={posted} getRowKey={(row) => row.id} minWidth="700px" emptyTitle="No invoices recorded" columns={[
+            {key:'invoice_number',header:'Invoice'}, {key:'invoice_date',header:'Date'},{key:'due_date',header:'Due'},
+            {key:'revenue_excluding_tax',header:'Before tax',render:(row) => money(row.revenue_excluding_tax)},
+            {key:'sales_tax',header:'Tax',render:(row) => money(row.sales_tax)},
+            {key:'outstanding',header:'Outstanding',render:(row) => money(invoiceBalance(row))},
+            {key:'invoice_group_id',header:'Billing group',render:(row) => row.invoice_group_id ? 'Allocated invoice' : 'Existing invoice'},
+          ]} />
+          {posted.map((item) => <details className="svc-section" key={item.id}><summary>{item.invoice_number} — payment history</summary>
+            <div className="svc-actions">{all.filter((other) => other.id !== call.id && item.invoice_group_id && other.financials?.invoices?.some((i) => i.invoice_group_id === item.invoice_group_id)).map((other) =>
+              <button type="button" className="secondary-button" key={other.id} onClick={() => open(other)}>Same invoice: {other.service_call_number} — {other.name}</button>)}</div>
+            <DataTable rows={item.payments || []} getRowKey={(row) => row.id} minWidth="500px" emptyTitle="No payments recorded" columns={[
+              {key:'payment_date',header:'Date'},{key:'amount',header:'Allocated payment',render:(row) => money(row.amount)},{key:'reference',header:'Reference'},{key:'created_by',header:'Recorded by'},{key:'created_at',header:'Recorded at'},
+            ]} />
+          </details>)}
+          <details className="svc-section"><summary>Cost history</summary><DataTable rows={call.financials.costs || []} getRowKey={(row) => row.id} minWidth="650px" emptyTitle="No cost snapshots" columns={[
+            {key:'cost_through',header:'Through'},{key:'total_hard_cost',header:'Total to date',render:(row) => money(row.total_hard_cost)},
+            {key:'source_note',header:'Source / reason'},{key:'reconciliation_status',header:'Status'},{key:'is_active',header:'Version',render:(row) => row.is_active ? 'Current' : 'Historical'},
+          ]} /></details>
+          <details className="svc-section"><summary>Financial audit history</summary><DataTable rows={call.financials.audit || []} getRowKey={(row) => row.created_at + row.note} minWidth="600px" emptyTitle="No financial changes recorded" columns={[
+            {key:'created_at',header:'Recorded at'},{key:'user_name',header:'Recorded by'},{key:'note',header:'Action'},
+          ]} /></details>
+        </>}
+      </>}
+      </fieldset>
+    </div>
+    <ConfirmDialog open={confirm === 'archive'} title="Archive service call?" description="Linked calls, invoice allocations, payments and history will be preserved. The call moves to the Archived directory."
+      requireReason confirmLabel="Archive" tone="danger" isSubmitting={busy} onCancel={() => setConfirm(null)}
+      onConfirm={(reason) => write('svc_archive_call',{p_job_id:call.id,p_reason:reason,p_expected_updated_at:call.updated_at},'Service call archived.')} />
+    <ConfirmDialog open={confirm === 'invoice'} title="Record the allocated invoice?" description="I confirm the invoice and each call’s allocated amount are correct. This records billing; it does not send an invoice."
+      confirmLabel="Confirm & record" isSubmitting={busy} onCancel={() => setConfirm(null)}
+      onConfirm={() => {const {requestId,...data}=invoice;write('svc_post_invoice',{p_request_id:requestId,p_data:data},'Invoice recorded with reconciled call allocations.');}} />
+  </div>;
+}
