@@ -19800,3 +19800,12 @@ contract value.
 - Existing estimate copies remain independent. Signed-in live acceptance remains
   Ryan's check; automated transport tests do not imply live user acceptance.
 - Sync marker: ESTIMATOR-ASSEMBLY-LIBRARY-20260913-001.
+
+## Entry 211 - Assembly audit action correction
+- Production reported change_logs_action_check: INSERT was incorrectly mapped
+  to insert rather than the allowed create action.
+- Applied 20260914004020_fix_assembly_audit_actions; verified live create mapping
+  and unchanged non-callable trigger permissions.
+- Local database fixture now includes the exact production action constraint.
+  Assembly save/edit/removal and rollback regression tests pass.
+- Sync marker: ESTIMATOR-ASSEMBLY-AUDIT-FIX-20260913-001.

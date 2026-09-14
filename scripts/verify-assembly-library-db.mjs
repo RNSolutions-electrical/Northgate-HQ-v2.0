@@ -14,6 +14,7 @@ try {
  CREATE TABLE public.estimates(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),division text,status text DEFAULT 'draft',archived_at timestamptz,editor_version int DEFAULT 2);
  CREATE TABLE public.items(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),is_active boolean DEFAULT true,is_archived boolean DEFAULT false,estimating_enabled boolean DEFAULT true);
  CREATE TABLE public.change_logs(id bigint GENERATED ALWAYS AS IDENTITY,user_id text,user_name text,table_name text,record_id text,action text,before_data jsonb,after_data jsonb,note text);
+ ALTER TABLE public.change_logs ADD CONSTRAINT change_logs_action_check CHECK(action IN ('create','update','delete','restore','archive','import','permission_change','physical_count_correction','certify','deny'));
  ALTER TABLE public.change_logs ENABLE ROW LEVEL SECURITY;
  CREATE TABLE public.estimate_workbenches(estimate_id uuid PRIMARY KEY,revision int,document jsonb,updated_at timestamptz DEFAULT now());
  GRANT USAGE ON SCHEMA auth TO authenticated;
@@ -28,6 +29,7 @@ try {
  const original=await readFile('supabase/migrations/20260823103000_estimating_catalog_assemblies_takeoffs.sql','utf8');
  await db.exec(original.slice(original.indexOf('CREATE TABLE IF NOT EXISTS public.assemblies ('),original.indexOf('GRANT SELECT, INSERT, UPDATE ON public.assembly_items TO authenticated;')+'GRANT SELECT, INSERT, UPDATE ON public.assembly_items TO authenticated;'.length));
  await db.exec(await readFile('supabase/migrations/20260914002830_workbench_assembly_library.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20260914004020_fix_assembly_audit_actions.sql','utf8'));
  const estimate=(await db.query("insert into estimates(division) values('Electrical') returning id")).rows[0].id;
  await db.exec("set role authenticated;select set_config('test.actor','local-user',false),set_config('test.allowed','yes',false)");
  const line={name:'Custom wire',qty:2,price:1.5,hours:0.2,stage:'Trim-out',fixed:true,unit:'FT',notes:'Library detail'};
