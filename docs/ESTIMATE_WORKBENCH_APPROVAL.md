@@ -55,3 +55,15 @@ source-of-truth and reconciliation design; this release does not infer one.
 - Rollback-only database verification: `tests/estimateWorkbenchApproval.sql`
 - The verification covers calculated totals, locked status, immutable snapshots,
   denied approval, and no retained test records.
+
+## Decimal approval correction — September 14, 2026
+
+Migration `20260914111032_workbench_approval_decimal_values.sql` corrects all seven
+numeric expressions in the existing internal approval function. It handles both
+the over-escaped live expression and the original repository expression, requires
+exactly seven replacements, and preserves grants and the rest of the definition.
+Values such as `.32`, `0.32`, and `1.` are valid; blank, null, negative, malformed,
+NaN, and infinite values remain invalid. Stored input is never rewritten.
+`tests/estimateWorkbenchDecimals.sql` reproduces the original failure and passes
+after the fix, including a $2.82 approved total, 21 invalid cases, null rejection,
+atomic failure, and public/internal RPC grant checks. It rolls everything back.

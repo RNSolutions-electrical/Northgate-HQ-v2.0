@@ -19903,3 +19903,24 @@ and CSV backup content.
   passed. The database test verifies calculation, immutable snapshots, blocked
   ordinary edits, blocked incomplete items, and denied approval; it retains no
   test records.
+
+## Entry 217 — Workbench Approval Decimal Validation
+
+**Date:** 2026-09-14
+**Mode:** Production
+**Sync marker:** `COPPER-DECIMAL-20260914-001`
+
+Ryan encountered the non-negative component validation error on saved estimate
+values including `.32` price and `.02` labor. The live internal approval function
+also contained a double-escaped decimal separator. Migration
+`20260914111032_workbench_approval_decimal_values.sql` replaces exactly seven
+numeric expressions with an escape-free decimal pattern while preserving all
+other function behavior and grants. Applied to production; no frontend deployment
+is needed. Original estimates and financial values were not modified.
+
+The rollback regression failed before the fix and passed afterward, testing the
+approved $2.82 calculation, 21 invalid cases, null input, atomic failure and grants.
+A temporary copy of the affected saved estimate also approved successfully and
+was rolled back. Security advisors remain at the same 147 findings. Next: Ryan
+can retry Review & approve on the original estimate. This does not implement
+estimate-to-Job conversion or alter quote-package handling.

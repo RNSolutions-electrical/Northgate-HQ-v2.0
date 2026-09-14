@@ -4,7 +4,8 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `SANDSTONE-WORKBENCH-20260914-001`
+- Marker: `COPPER-DECIMAL-20260914-001`
+- Database hotfix: Workbench approval accepts `.32`, `0.32`, and `1.`; see the commit carrying this marker.
 - Release commit: `c7ffbe1`
 - Previous release marker: `DOCUMENTS-EDIT-RESTORE-20260912-001`
 - Previous Documents upload/archive release: `08d950b`
@@ -23,7 +24,17 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Production URL: `https://rnsolutions.net/northgate/`
 - Verified: September 14, 2026 (America/New_York)
 
-The current marker publishes Workbench estimate Draft → Approved approval and
+The current marker fixes Workbench approval decimal validation with migration
+`20260914111032_workbench_approval_decimal_values`, applied to production.
+The original live regex was over-escaped and also rejected leading-dot decimal
+strings saved by the editor. All seven checks now accept ordinary non-negative
+decimal forms. No estimate data, calculations, permissions, or frontend assets
+were changed. Rollback tests verified approval and its total, 21 invalid-input
+cases, null rejection, unchanged grants, and approval of a temporary copy of the
+affected saved estimate. Security advisor findings are unchanged (147). No test
+records remain. The frontend deployment below remains current.
+
+Previous marker `SANDSTONE-WORKBENCH-20260914-001` publishes Workbench estimate Draft → Approved approval and
 customer-safe approved proposal export. Additive migrations
 `20260914103331_estimate_workbench_approval` and
 `20260914110000_validate_workbench_approval_components`, and
@@ -32,7 +43,7 @@ uses the established immutable estimate snapshot and `can_approve_estimates`
 permission; it remains unavailable to anonymous users. Job conversion is
 intentionally excluded pending a separate estimate-to-Job financial mapping and
 reconciliation design. Node tests, build, rollback-only database validation, and
-live deployment-asset verification passed. The durable cross-machine marker is
+live deployment-asset verification passed. The preceding frontend release marker was
 `SANDSTONE-WORKBENCH-20260914-001`.
 
 Historical marker `DOCUMENTS-EDIT-RESTORE-20260912-001` published document metadata edit and restore in Jobs and
