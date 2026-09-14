@@ -24,6 +24,7 @@ import {itemPricing,entryPricing,sumPricing,hasOverride} from './pricing.mjs';
 import {ProposalBuilder} from './ProposalBuilder.jsx';
 import {proposalFields,suggestedScope} from './proposal.mjs';
 import {deleteDraftContent} from './draftDeletion.mjs';
+import {WorkItemReview} from './WorkItemReview.jsx';
 
 const number=n=>String(n).padStart(3,'0');
 function IconButton({icon:Icon,label,onClick,...props}){return <button type="button" className="icon" title={label} aria-label={label} onClick={onClick} {...props}><Icon size={18}/></button>;}
@@ -48,6 +49,8 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  const [selected,setSelected]=useState(null);const [edit,setEdit]=useState(null);const [modal,setModal]=useState(null);
  const [query,setQuery]=useState('');const [location,setLocation]=useState('');const [section,setSection]=useState('');const [status,setStatus]=useState('');
  const [expanded,setExpanded]=useState(new Set());const [notice,setNotice]=useState('');const listScroll=useRef(0);const detailScroll=useRef(0);
+ const [expandedItems,setExpandedItems]=useState(new Set());
+ const toggleItem=(item,parent)=>setExpandedItems(current=>{const next=new Set(current),key=parent.id+':'+item.id;next.has(key)?next.delete(key):next.add(key);return next;});
  useEffect(()=>{const clean=JSON.stringify(data)===baseline.current&&!edit;setSaved(clean);onDirty(!clean);},[data,edit,onDirty]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),3500);return ()=>clearTimeout(timer);},[notice]);
  const update=fn=>{if(busy||readOnly)return;if(data.approvedAt){setNotice('Approved estimate: changes are locked.');return;}try{setData(fn(clone(data)));}catch(error){setNotice(error.message);}};
@@ -112,11 +115,11 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  const editLine=(lineId,changes)=>setEdit(e=>({...e,item:{...e.item,lines:e.item.lines.map(l=>l.id===lineId?{...l,...changes}:l)}}));
  function addComponent(labor=false){setEdit(e=>({...e,item:{...e.item,lines:[...e.item.lines,{id:id(),name:labor?'Additional labor':'',catalogueId:'',qty:1,unit:labor?'HR':'EA',price:0,hours:labor?1:0,stage:'Rough-in',fixed:labor,notes:''}]}}));}
  function moveEntry(e,direction){update(d=>{const index=d.entries.findIndex(x=>x.id===e.id);const next=index+direction;if(next>=0&&next<d.entries.length)[d.entries[index],d.entries[next]]=[d.entries[next],d.entries[index]];return d;});}
- function renderItem(item,parent){const v=itemPricing(item,data);return <div className="item-row" key={item.id}>
-  <button className="item-open" onClick={()=>openItem(item,parent)}><span className="identifier">{number(parent.number)}.{item.number}</span><span className="item-summary"><strong>{item.name}</strong><small>{item.kind} · {item.qty} {item.qty===1?'unit':'units'}</small>{item.notes?.trim()&&<span className="work-item-note">{item.notes}</span>}</span></button>
-  <select aria-label={`Status for ${item.name}`} value={item.status} onChange={ev=>update(d=>{d.entries.find(e=>e.id===parent.id).items.find(i=>i.id===item.id).status=ev.target.value;return d;})}>{statuses.map(s=><option key={s}>{s}</option>)}</select>
-  <strong className="amount">{money(v.price)}{hasOverride(item)&&<small className="manual">Markup override</small>}</strong><div className="item-actions"><IconButton icon={ChevronRight} label={`Open ${item.name}`} onClick={()=>openItem(item,parent)}/>{!readOnly&&!data.approvedAt&&<IconButton icon={Trash2} label={`Delete work item ${item.name}`} disabled={busy} onClick={()=>setModal({type:'delete',entry:parent,item})}/>}</div>
- </div>;}
+ function renderItem(item,parent){const v=itemPricing(item,data),isExpanded=expandedItems.has(parent.id+':'+item.id);return <React.Fragment key={item.id}><div className="item-row">
+  <button className="item-open" aria-expanded={isExpanded} aria-label={`${isExpanded?'Collapse':'Expand'} work item ${item.name}`} onClick={()=>toggleItem(item,parent)}>{isExpanded?<ChevronDown size={16}/>:<ChevronRight size={16}/>}<span className="identifier">{number(parent.number)}.{item.number}</span><span className="item-summary"><strong>{item.name}</strong><small>{item.kind} · {item.qty} {item.qty===1?'unit':'units'}</small>{item.notes?.trim()&&<span className="work-item-note">{item.notes}</span>}</span></button>
+  <select disabled={readOnly||!!data.approvedAt||busy} aria-label={`Status for ${item.name}`} value={item.status} onChange={ev=>update(d=>{d.entries.find(e=>e.id===parent.id).items.find(i=>i.id===item.id).status=ev.target.value;return d;})}>{statuses.map(s=><option key={s}>{s}</option>)}</select>
+  <strong className="amount">{money(v.price)}{hasOverride(item)&&<small className="manual">Markup override</small>}</strong><div className="item-actions">{!readOnly&&!data.approvedAt&&<><IconButton icon={ChevronRight} label={`Open ${item.name}`} onClick={()=>openItem(item,parent)}/><IconButton icon={Trash2} label={`Delete work item ${item.name}`} disabled={busy} onClick={()=>setModal({type:'delete',entry:parent,item})}/></>}</div>
+ </div>{isExpanded&&<WorkItemReview item={item} parent={parent} data={data}/>}</React.Fragment>;}
  const libraryRows=filterAssemblies(data.library,libraryFilters);
  const editorTotals=edit?totals(edit.item,data.rate):null;
  return <>

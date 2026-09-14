@@ -22,6 +22,7 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'MODULE', name: 'Permission Console', location: 'Developer Page', status: 'live' },
   { type: 'MODULE', name: 'Service Scorecard', location: 'Add-On Tools', status: 'live' },
   { type: 'MODULE', name: 'Service Calls', location: 'Jobs › Service Calls', status: 'ready for testing' },
+  { type: 'MODULE', name: 'Service Call Profit Summary', location: 'Service Calls', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Service Call Import Preview', location: 'Service Calls', status: 'preview only' },
   { type: 'FUNCTION', name: 'Allocate Service Invoice', location: 'Service Calls › Costs & Billing', status: 'ready for testing' },
   { type: 'MODULE', name: 'Panel Directory', location: 'Add-On Tools', status: 'live' },

@@ -7,6 +7,23 @@ export const BILLING_METHODS = Object.freeze({
   time_and_materials: 'Time & materials', quoted: 'Quoted',
   time_and_materials_plus_quote: 'Time & materials + quote', warranty_no_charge: 'Warranty / no charge',
 });
+// Directory-only stages follow the authorized ledger; never persist them as work stages.
+export const DIRECTORY_STAGES = Object.freeze({ ...WORK_STAGES,
+  invoice_sent: 'Invoice Sent', payment_received: 'Payment Received',
+});
+export function directoryStatus(call, today) {
+  const workStage = call.profile?.work_stage || (call.status === 'complete' ? 'complete' : 'upcoming');
+  const stageLabel = WORK_STAGES[workStage] || 'Set work details';
+  if (call.archived_at || ['void', 'not_proceeding'].includes(workStage)) return { stage: workStage, label: stageLabel, tone: '' };
+  const financials = callFinancials(call, today);
+  if (financials?.billingStatus === 'Overdue') return { stage: 'invoice_sent', label: 'Invoice Sent · Payment overdue', tone: 'overdue' };
+  if (financials?.billingStatus === 'Paid') return { stage: 'payment_received', label: 'Payment Received', tone: 'paid' };
+  if (['Invoiced', 'Part paid'].includes(financials?.billingStatus)) return {
+    stage: 'invoice_sent', label: financials.billingStatus === 'Part paid' ? 'Invoice Sent · Part paid' : 'Invoice Sent', tone: '',
+  };
+  // Missing financial access is not proof that an invoice still needs sending.
+  return { stage: workStage, label: stageLabel, tone: workStage === 'complete' && financials?.billingStatus === 'Not invoiced' ? 'ready' : '' };
+}
 export function cents(value = 0) {
   const number = Number(value);
   if (!Number.isFinite(number) || Math.abs(number) > 999999999999.99) throw new Error('Enter a valid currency amount.');
@@ -111,4 +128,3 @@ export function combinePreview(registry, scorecard, existing = []) {
     return { number, customer: r?.customer || s?.customer || 'Unnamed', match: matches.length === 1 ? 'Exact number match' : matches.length > 1 ? 'Multiple existing matches' : 'New / review', sources, issues };
   }).sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 }
-

@@ -9,7 +9,9 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
 import { ServiceImportPreview } from './ServiceImportPreview.jsx';
-import { WORK_STAGES, BILLING_METHODS, money, callFinancials, invoiceBalance, allocationRemaining } from './serviceCallModel.js';
+import { ServiceProfitSummary } from './ServiceProfitSummary.jsx';
+import { inProfitPeriod, isVoidCall, profitDate } from './serviceProfit.js';
+import { WORK_STAGES, DIRECTORY_STAGES, directoryStatus, BILLING_METHODS, money, callFinancials, invoiceBalance, allocationRemaining } from './serviceCallModel.js';
 import './serviceCalls.css';
 
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -36,6 +38,8 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   const [invoice, setInvoice] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [directoryView, setDirectoryView] = useState('operations');
+  const [period, setPeriod] = useState({year:new Date().getFullYear(),quarter:'all',basis:'invoice'});
+  const [includeUndated, setIncludeUndated] = useState(false);
   const sequence = useRef(0);
 
   const rpc = useCallback((name, args) => withSupabaseTokenRetry(getToken, async (client) => {
@@ -110,10 +114,12 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   };
   const posted = call?.financials?.invoices?.filter((item) => item.status === 'posted') || [];
   const rows = (filter === 'archived' ? archivedCalls : calls).filter((item) => {
-    const stage = item.profile?.work_stage || (item.status === 'complete' ? 'complete' : 'upcoming');
+    const stage = directoryStatus(item).stage;
     return (filter === 'active' || filter === 'archived' || stage === filter) &&
       [item.service_call_number,item.name,item.description,item.profile?.business_name,item.address_line1,item.profile?.lead_name].join(' ').toLowerCase().includes(search.toLowerCase());
   });
+  const directoryRows = directoryView === 'financials' && canViewFinance
+    ? rows.filter((item) => inProfitPeriod(item, {...period,through:today()}) || (includeUndated && !profitDate(item,period.basis))) : rows;
   const parent = all.find((item) => item.id === call?.profile?.related_job_id);
   const linked = call ? all.filter((item) => item.id !== call.id && (item.profile?.related_job_id === call.id ||
     item.id === call.profile?.related_job_id || (call.profile?.related_job_id && item.profile?.related_job_id === call.profile.related_job_id))) : [];
@@ -192,10 +198,11 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
         </div><button className="primary-button" type="submit">Save</button>
       </form>}
       {mode === 'browse' && !selectedId && <>
-        <Toolbar title="Service Call Directory" description="Work stage and billing status are tracked separately."
+        {canViewFinance && <ServiceProfitSummary calls={all} period={period} onChange={setPeriod} today={today()} />}
+        <Toolbar title="Service Call Directory" description="Invoice Sent and Payment Received follow recorded billing. Green: paid · Red: overdue · Yellow: ready to invoice. Recording an invoice does not send it."
           search={<label><span className="sr-only">Search service calls</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search number, customer, scope or lead…" /></label>}
-          actions={<div className="svc-actions"><label>View<select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="active">All non-archived</option>{Object.entries(WORK_STAGES).map(([key,label]) => <option key={key} value={key}>{label}</option>)}<option value="archived">Archived</option>
+          actions={<div className="svc-actions"><label>View<select aria-label="View" value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="active">All non-archived</option>{Object.entries(DIRECTORY_STAGES).filter(([key]) => canViewFinance || !['invoice_sent','payment_received'].includes(key)).map(([key,label]) => <option key={key} value={key}>{label}</option>)}<option value="archived">Archived</option>
           </select></label><button className="secondary-button" onClick={reload}>Refresh</button>
             {canCreate && canViewFinance && <button className="secondary-button" onClick={() => setMode('preview')}>Import preview</button>}
           </div>} />
@@ -203,15 +210,17 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           <button className={directoryView === 'operations' ? 'is-active' : ''} onClick={() => setDirectoryView('operations')}>Operations</button>
           {canViewFinance && <button className={directoryView === 'financials' ? 'is-active' : ''} onClick={() => setDirectoryView('financials')}>Financial scorecard</button>}
         </nav>
-        <DataTable rows={rows} getRowKey={(row) => row.id} onRowClick={open} minWidth="950px" emptyTitle="No service calls in this view" columns={[
+        {directoryView === 'financials' && canViewFinance && <label className="svc-checkbox"><input type="checkbox" checked={includeUndated} onChange={(e) => setIncludeUndated(e.target.checked)} />Show calls with no reporting date for review</label>}
+        <DataTable rows={directoryRows} getRowKey={(row) => row.id} rowClassName={(row) => {const tone=directoryStatus(row).tone;return tone ? 'svc-row--'+tone : '';}} onRowClick={open} minWidth="1100px" emptyTitle="No service calls in this view" columns={[
           {key:'service_call_number',header:'Call #'}, {key:'name',header:'Customer / call'}, {key:'division',header:'Department'},
           ...(directoryView === 'financials' && canViewFinance ? [
-            ...[['revenue','Billed (ex tax)'],['cost','Cost'],['profit','Profit'],['collected','Collected'],['outstanding','Outstanding']].map(([key,header]) => ({key,header,render:(row) => {
-              const f = callFinancials(row); return !f || (key === 'cost' && !f.costKnown) || f[key] === null ? '—' : money(f[key]);
+            {key:'reporting_date',header:'Reporting date',render:(row) => profitDate(row,period.basis) || 'Needs review'},
+            ...[['revenue','Billed (ex tax)'],['cost','Cost'],['profit','Profit $'],['margin','Profit %'],['collected','Collected'],['outstanding','Outstanding']].map(([key,header]) => ({key,header,render:(row) => {
+              const f = callFinancials(row); return isVoidCall(row) ? 'Void' : !f || (key === 'cost' && !f.costKnown) || f[key] === null ? '—' : key === 'margin' ? f[key].toFixed(1)+'%' : money(f[key]);
             }})),
             {key:'billing_status',header:'Billing',render:(row) => callFinancials(row)?.billingStatus || 'Restricted'},
           ] : [
-            {key:'work_stage',header:'Work stage',render:(row) => WORK_STAGES[row.profile?.work_stage] || (row.status === 'complete' ? WORK_STAGES.complete : 'Set work details')},
+            {key:'work_stage',header:'Work stage',render:(row) => directoryStatus(row).label},
             {key:'billing_method',header:'Billing type',render:(row) => BILLING_METHODS[row.profile?.billing_method] || 'Not set'},
             {key:'service_date',header:'Service date',render:(row) => row.profile?.service_date || '—'},
             {key:'lead_name',header:'Lead',render:(row) => row.profile?.lead_name || '—'},

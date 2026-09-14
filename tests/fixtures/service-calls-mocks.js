@@ -8,7 +8,19 @@ const calls=[1,2].map(n=>({
  profile:{job_id:'00000000-0000-4000-8000-00000000000'+n,work_stage:'complete',billing_method:'time_and_materials',business_name:'Fixture business',related_job_id:n===2?'00000000-0000-4000-8000-000000000001':null},
  financials:readonly?null:{quote_amount:100,changes_amount:0,invoices:[],costs:[],audit:[]},
 }));
+if(!readonly && new URLSearchParams(location.search).has('profit')) {
+ for(const [index,call] of calls.entries()) {
+  call.profile.service_date='2026-01-01';
+  call.financials.invoices=[{id:crypto.randomUUID(),status:'posted',invoice_date:index===0?'2026-03-31':'2026-04-01',revenue_excluding_tax:index===0?100:900,sales_tax:0,payments:[]}];
+  call.financials.costs=[{is_active:true,total_hard_cost:index===0?20:630,reconciliation_status:'final'}];
+ }
+}
 window.serviceFixture={calls,requests:[]};
+if(!readonly && new URLSearchParams(location.search).has('stages')) {
+ calls.push({...structuredClone(calls[0]),id:'stage-ready',name:'Ready fixture',service_call_number:'26-003'});
+ calls[0].financials.invoices=[{id:'paid-invoice',status:'posted',revenue_excluding_tax:100,sales_tax:7.25,due_date:'2020-01-01',payments:[{amount:107.25}]}];
+ calls[1].financials.invoices=[{id:'overdue-invoice',status:'posted',revenue_excluding_tax:100,sales_tax:7.25,due_date:'2020-01-01',payments:[]}];
+}
 export async function withSupabaseTokenRetry(_getToken,operation) {
  return operation({rpc:async(name,args)=>{
   window.serviceFixture.requests.push({name,args});
@@ -22,4 +34,3 @@ export async function withSupabaseTokenRetry(_getToken,operation) {
   return {data:args.p_request_id || args.p_job_id};
  }});
 }
-

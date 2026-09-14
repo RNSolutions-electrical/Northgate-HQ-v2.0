@@ -13,7 +13,7 @@ const server=await createServer({cacheDir:path.join(tmpdir(),'svc-fixture-'+proc
 await server.listen(); let browser;
 try {
  browser=await chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'msedge'});
- const page=await browser.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error(e.message);});
  await mkdir('.temp/service-calls/screenshots',{recursive:true});
  const url='http://127.0.0.1:5198/northgate/tests/fixtures/service-calls.html';
  for(const [size,width,height] of [['desktop',1440,1000],['tablet',768,1024],['phone',390,844]]){
@@ -51,6 +51,29 @@ try {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,size+' directory overflow');
  }
  await page.setViewportSize({width:1440,height:1000});
+ for(const [width,height] of [[1440,1000],[768,1024],[390,844]]) {
+  await page.setViewportSize({width,height});await page.goto(url+'?stages');
+  await page.locator('td[data-label="Work stage"]').filter({hasText:'Payment Received'}).waitFor();
+  await page.locator('td[data-label="Work stage"]').filter({hasText:'Invoice Sent · Payment overdue'}).waitFor();
+  const colors=[];
+  for(const tone of ['paid','overdue','ready']) {
+   const cells=page.locator('tr.svc-row--'+tone+' > td');
+   assert.ok(await cells.count()>0,tone+' row exists');
+   const backgrounds=await cells.evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).backgroundColor));
+   assert.equal(new Set(backgrounds).size,1,'Whole row has consistent highlighting');
+   assert.ok(!['rgba(0, 0, 0, 0)','rgb(255, 255, 255)'].includes(backgrounds[0]),tone+' is visibly tinted');
+   colors.push(backgrounds[0]);
+  }
+  assert.equal(new Set(colors).size,3,'Paid, overdue and ready have distinct colors');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Stage directory fits viewport');
+  await page.screenshot({path:'.temp/service-calls/screenshots/stages-'+width+'.png',fullPage:true});
+  await page.getByLabel('View',{exact:true}).selectOption('payment_received');
+  assert.equal(await page.locator('tbody tr').count(),1);
+  await page.getByLabel('View',{exact:true}).selectOption('invoice_sent');
+  assert.equal(await page.locator('tbody tr').count(),1);
+  assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>r.name!=='svc_read_calls')),false,'Directory display never writes billing');
+ }
+ await page.setViewportSize({width:1440,height:1000});
  await page.goto(url);
  await page.getByRole('button',{name:'Import preview',exact:true}).click();
  await page.getByLabel('Job-number registry export',{exact:false}).setInputFiles({name:'registry.csv',mimeType:'text/csv',buffer:Buffer.from('JOB NUMBER,Customer,Job Stage\\n26-001,Fixture business,Upcoming\\n'.replaceAll('\\n','\n'))});
@@ -72,6 +95,29 @@ try {
  assert.equal(await page.getByRole('button',{name:'Edit details / link call'}).count(),0);
  await page.getByRole('button',{name:'Documents',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.serviceFixture.navigation),'documents');
+ assert.equal(await page.getByRole('region',{name:'Service call profit summary'}).count(),0,'No financial summaries for restricted users');
+ for(const [size,width,height] of [['desktop',1440,1000],['tablet',768,1024],['phone',390,844]]){
+  await page.setViewportSize({width,height});await page.goto(url+'?profit');
+  await page.getByLabel('Reporting year',{exact:true}).selectOption('2026');
+  await page.getByRole('button',{name:'Financial scorecard',exact:true}).click();
+  await page.locator('th').filter({hasText:'Profit %'}).waitFor({state:'attached'});
+  assert.equal(await page.locator('td[data-label="Profit %"]').filter({hasText:'80.0%'}).count(),1);
+  const summary=page.getByRole('region',{name:'Service call profit summary'});
+  assert.ok((await summary.innerText()).includes('35.0%'),'Weighted annual profit');
+  await page.getByLabel('Reporting quarter',{exact:true}).selectOption('1');
+  await page.locator('td[data-label="Customer / call"]').filter({hasText:'Service fixture 1'}).waitFor();
+  assert.equal(await page.locator('td[data-label="Customer / call"]').filter({hasText:'Service fixture 2'}).count(),0);
+  assert.ok((await summary.innerText()).includes('80.0%'),'Q1 profit');
+  await page.screenshot({path:'.temp/service-calls/screenshots/'+size+'-profit.png',fullPage:true});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,size+' profit controls overflow');
+  await page.getByLabel('Reporting quarter',{exact:true}).selectOption('2');
+  assert.equal(await page.locator('td[data-label="Customer / call"]').filter({hasText:'Service fixture 1'}).count(),0);
+  await page.locator('td[data-label="Customer / call"]').filter({hasText:'Service fixture 2'}).waitFor();
+  await page.getByLabel('Group calls by',{exact:true}).selectOption('paid');
+  assert.equal(await page.locator('td[data-label="Customer / call"]').filter({hasText:'Service fixture 2'}).count(),0);
+  await page.getByLabel('Show calls with no reporting date for review',{exact:true}).check();
+  assert.equal(await page.locator('td[data-label="Reporting date"]').filter({hasText:'Needs review'}).count(),2);
+ }
  assert.deepEqual(errors,[]);
- console.log('PASS: service-call desktop/tablet/phone editing, invoice allocation, confirmation, archive, CSV preview without writes, creation, readonly controls and resource navigation; zero runtime errors.');
+ console.log('PASS: service-call desktop/tablet/phone editing, invoice allocation, confirmation, archive, CSV preview without writes, creation, readonly controls, profit margins, quarter/date filters, missing dates and resource navigation; zero runtime errors.');
 } finally {await browser?.close();await server.close();}

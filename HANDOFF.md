@@ -19988,3 +19988,175 @@ Service Calls and Estimates browser fixtures passed at desktop/tablet/phone widt
 The anonymous live browser reached the account sign-in service without app runtime
 errors, then Cloudflare's bot challenge prevented automated sign-in completion.
 Do not claim authenticated live acceptance; Ryan's normal session is next.
+
+## Entry 221 — Service Call Profit / Workbook Review Checkpoint
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Historical service-call review and financial scorecard
+**Session type:** implementation
+
+### Context
+
+Ryan requested workbook review before historical import, preservation of void
+records, reverse tax/card-fee calculations, per-call profit and year/quarter totals.
+
+### What Was Completed
+
+Prepared an annotated private workbook copy while preserving the original file,
+including black/strikethrough void markers. Identified duplicate identifiers,
+shared-billing conflicts and invalid/missing financial inputs. Added local profit
+margin and reporting controls to the existing Service Calls financial scorecard.
+All 50 unit tests, responsive fixture tests and configured build passed.
+
+### Schema Changes
+
+None. No historical import or production data mutation was performed. An existing
+posted invoice must be preserved until its conflicting source split is resolved.
+
+### Code / File Changes
+
+See `docs/SERVICE_CALL_PROFIT_AND_IMPORT_REVIEW.md` for formulas, reporting limits,
+tests and import blockers. Private workbook data is not tracked in this public repo.
+
+### Next Steps (in order)
+
+1. Resolve tax/card applicability, shared allocations, duplicate numbers and dates.
+2. Confirm existing posted-invoice correction and missing operational classifications.
+3. Prepare/test an idempotent import, then import reconciled rows with provenance.
+4. Commit/push/deploy the tested frontend when authorized.
+
+### Open Questions / Concerns
+
+Changes are local/uncommitted/undeployed. Durable pushed sync marker remains
+`CEDAR-SERVICE-PROPOSAL-20260914-001`; do not advertise this as a new synced release.
+Profit summaries group lifetime call totals by a selected reporting date, not
+accrual-period costs. The current default is latest invoice date, configurable
+in the UI and subject to Ryan's confirmation. Existing dist-* folders remain intact.
+
+## Entry 222 — Authorized 2026 Service Call Import
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Session type:** Production Mode data import
+
+Ryan resolved cutoff/tax/fee assumptions and approved In progress for dated calls
+without billing or known status. Executed data batch
+`SVC-RETRO-20260914-2026-TAX725-FEE3-001` using existing permission-checked RPCs,
+without schema or policy changes. Created 37 calls, enriched 2, and preserved the
+remaining existing call and its posted financial history. Added 24 invoices,
+22 payments and 27 cost snapshots. Three qualifying void calls retain Void.
+Eighteen source rows did not satisfy the date cutoff and were not imported.
+
+Verified rollback, exact financial reconciliation, post-commit history preservation,
+idempotent retry (40 recognized, zero new writes), authorized directory reads and
+unauthenticated denial. The original workbook is unchanged. A new review workbook
+contains only remaining questions and opens normally in native Excel.
+
+See `docs/SERVICE_CALL_PROFIT_AND_IMPORT_REVIEW.md` for representation, defaults,
+validation and unresolved cases. Private source/manifests/backups remain untracked.
+Do not silently reimport or overwrite historical financials when resolving review
+answers. Use a separately audited correction/import for those remaining fields.
+
+No code commit, push or deploy in this pass. The last pushed release marker remains
+`CEDAR-SERVICE-PROPOSAL-20260914-001`; frontend work from Entry 221 remains local.
+
+## Entry 223 — Historical Pursuit Consolidation
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Session type:** Production Mode data import
+
+Ryan approved combining both source scopes for service call 26-046 into one
+Pursuit, an explicit exception to the date cutoff for this undated call only.
+Imported through the existing permission-checked `svc_save_call` RPC with audit
+marker `SVC-26-046-PURSUIT-20260914-001`. Missing dates and quote remain null;
+no invoice, payment or cost record was created. The required billing-method
+field retains the existing Time & materials default, noted as unconfirmed.
+
+Verified rollback, committed creation, and duplicate-safe retry returning the
+same record without writes. Ryan accepts the other missing historical information;
+do not invent values, overwrite financial history, or treat this as blanket
+authorization to import other date-ineligible rows. The earlier review workbook
+predates this resolution. All other records and source workbooks remain unchanged.
+
+No frontend change, commit, push, or deployment in this pass. Existing local work
+is preserved; the last pushed release marker is unchanged.
+
+## Entry 224 — Service Directory Stages and Estimate Verification
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Session type:** Production Mode frontend implementation (local only)
+
+Added Invoice Sent and Payment Received to the Service Call Directory Work stage
+display and filters. These are derived from the existing authorized invoice/payment
+ledger, not new stored work-stage values or manual payment assertions. Recording an
+invoice still does not send it. Full payment includes tax; partially paid calls
+remain Invoice Sent. Overdue requires an unpaid posted invoice with a past due date.
+Green = paid, red = overdue, light yellow = complete and not invoiced. Colors apply
+to every table cell in Operations and Financial scorecard, including mobile layouts.
+Void/archived calls are neutral; restricted financial payloads do not infer billing
+states or ready-to-invoice action colors. No permissions, RLS, schema or data changes.
+
+Estimate entries retain existing expansion. Clicking a work-item summary now toggles
+read-only verification details: entry context, quantities, components, prices, labor,
+notes, markup and linked quote information. The separate Open action still edits
+unapproved drafts. Approved and read-only versions can inspect details without an
+editable revision, write RPC, dirty document, or snapshot mutation. Revisions retain
+their existing workflow.
+
+Validation: 18 focused Node tests passed. Service-call and estimate-editing browser
+suites passed at 1440/768/390px, including computed whole-row colors, stage filters,
+read-only verification, snapshot preservation, existing invoice/edit/revision/delete
+workflows and no runtime errors. Inspected desktop/mobile screenshots. Diff check
+passed. Standard build correctly failed closed without production environment values;
+an isolated fixture-only build passed in `.temp/ui-verification-build` (DO NOT DEPLOY).
+Production build must load the real target environment before any release.
+
+All existing local frontend changes are preserved. Nothing committed, pushed or
+deployed in this pass; sync marker remains `CEDAR-SERVICE-PROPOSAL-20260914-001`.
+
+## Entry 225 — MAPLE Service Profit and Verification Release
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Service Calls and Estimates beta release
+**Session type:** implementation
+
+### Context
+
+Ryan explicitly approved committing, pushing and deploying all pending frontend
+changes, including the prior service-call profit summaries. Origin/main was fetched
+and matched the local baseline; no other-machine changes required reconciliation.
+
+### What Was Completed
+
+Release includes weighted profit summaries and year/quarter/date-basis filters,
+per-call financial scorecard, Invoice Sent/Payment Received directory stages,
+whole-row paid/overdue/ready colors, and read-only Estimate work-item verification
+on drafts, approved snapshots and revisions. Existing revision/edit/delete and
+invoice/payment workflows remain intact. No new database migration or data mutation.
+
+### Code / File Changes
+
+Service Calls modules, Estimate Workbench review component/styles, terminology
+registry, unit/browser tests, and import/handoff documentation. Private workbooks,
+customer import payloads, and old untracked build directories are excluded.
+
+### What Codex Needs to Know
+
+Release marker: `MAPLE-SERVICE-REVIEW-20260914-001`.
+All 53 unit tests and both 1440/768/390px browser suites passed. The production
+build passed using public client configuration validated against the current live
+site, without logging values or bypassing the missing-environment guard. Local
+Netlify build's npm ci hit Windows file locks in Dropbox, as did repair via npm
+install. Built an isolated source copy in the OS temp directory using a fresh
+lockfile-exact npm ci. No source or historical build directory was removed. The
+Dropbox node_modules may need reinstall after its file locks are released.
+
+### Next Steps (in order)
+
+Publish the tested bundle with silas-chat preserved, verify live asset hashes and
+update SYNC_STATUS with commit/deploy identifiers. Authenticated acceptance remains
+Ryan's next step; automated UI tests use fixtures and do not write production data.

@@ -37,6 +37,20 @@ try{
   await frame.getByRole('checkbox',{name:/I confirm this estimate/}).check();await frame.getByRole('button',{name:'Approve estimate',exact:true}).click();
   await frame.getByRole('button',{name:'Create editable revision',exact:true}).waitFor();
   const original=await page.evaluate(()=>JSON.stringify(window.workbenchFixture.snapshots[0]));
+  await nav('Pricing');
+  await frame.getByRole('button',{name:'Expand entry 001',exact:true}).click();
+  await frame.getByRole('button',{name:'Expand work item Install receptacles',exact:true}).click();
+  const review=frame.getByRole('region',{name:'Verification details for Install receptacles'});
+  await review.getByRole('heading',{name:'Receptacle',exact:true}).waitFor();
+  assert.match(await review.innerText(),/Private field note/);
+  assert.match(await review.innerText(),/0.40/);
+  assert.equal(await frame.getByLabel('Status for Install receptacles',{exact:true}).isDisabled(),true);
+  assert.equal(await frame.getByRole('button',{name:'Open Install receptacles',exact:true}).count(),0);
+  assert.equal(await frame.locator('body').evaluate(el=>el.scrollWidth<=el.ownerDocument.defaultView.innerWidth),true,'Expanded review fits viewport');
+  await review.getByRole('heading',{name:'Work item verification'}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:'.temp/estimate-editing/review-'+width+'.png',fullPage:true});
+  assert.equal(await page.evaluate(()=>JSON.stringify(window.workbenchFixture.snapshots[0])),original);
+  await frame.getByRole('button',{name:'Collapse work item Install receptacles',exact:true}).click();
   await nav('Proposal');assert.equal(await frame.getByLabel('Customer-facing scope',{exact:true}).isDisabled(),true);
   await frame.getByRole('button',{name:'Create editable revision',exact:true}).click();await frame.getByLabel('Revision reason',{exact:true}).fill('Client requested a different scope.');
   await frame.getByRole('button',{name:'Create revision',exact:true}).click();await frame.getByText('Version 2',{exact:true}).waitFor();
@@ -60,6 +74,10 @@ try{
  const page=await browser.newPage();await page.goto('http://127.0.0.1:5197/northgate/tests/fixtures/workbench.html?editing&view-only');
  await page.getByRole('button',{name:/^Revision test/}).click();const frame=page.frameLocator('iframe[title="Estimate editor"]');
  assert.equal(await frame.getByRole('button',{name:'Delete entry 001',exact:true}).count(),0);
+ await frame.getByRole('button',{name:'Expand entry 001',exact:true}).click();
+ await frame.getByRole('button',{name:'Expand work item Install receptacles',exact:true}).click();
+ await frame.getByRole('region',{name:'Verification details for Install receptacles'}).waitFor();
+ assert.equal(await page.evaluate(()=>window.workbenchFixture.calls.length),0,'Read-only expansion must not call a write RPC');
  await page.close();
  console.log('PASS: proposal builder/save/PDF, approval lock, linked V2, failed-delete retry, item/entry deletion, original snapshot, read-only controls at 1440/768/390px.');
 }finally{await browser.close();await server.close();}

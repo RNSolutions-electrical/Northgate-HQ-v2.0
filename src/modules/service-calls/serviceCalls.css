@@ -15,9 +15,22 @@
 .svc-workspace dd { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .svc-workspace summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
 .svc-workspace form > .primary-button { margin-top: 18px; }
+.svc-workspace .svc-profit-summary { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--ng-border); }
+.svc-workspace .svc-profit-summary .module-fact-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 16px; }
+.svc-workspace .svc-profit-summary h2 { margin-right: auto; }
+.svc-workspace .svc-profit-note { font-size: .8rem; }
+.svc-workspace .svc-checkbox { flex-direction: row; align-items: center; margin: 12px 0; }
+.svc-workspace .svc-checkbox input { width: auto; }
+/* Apply to cells as well as rows so the shared table's cell backgrounds cannot mask status. */
+.svc-workspace .data-table tbody tr.svc-row--paid > td { background: var(--ng-ok-bg, #e8f4ec); }
+.svc-workspace .data-table tbody tr.svc-row--overdue > td { background: var(--ng-err-bg, #fcebea); }
+.svc-workspace .data-table tbody tr.svc-row--ready > td { background: #fff8dc; }
+@media(max-width:1000px) {
+ .svc-workspace .svc-profit-summary .module-fact-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
 @media(max-width:700px) {
+ .svc-workspace .svc-profit-summary .module-fact-grid { grid-template-columns: 1fr; }
  .svc-workspace .svc-grid,.svc-workspace .svc-allocation { grid-template-columns: 1fr; }
  .svc-workspace .svc-content { margin: 10px; }
  .svc-workspace .svc-actions { align-items: stretch; }
 }
-

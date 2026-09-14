@@ -4,6 +4,17 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `MAPLE-SERVICE-REVIEW-20260914-001`
+- Branch: `main`
+- Release: Service Call profit summaries/scorecard, billing-derived directory stages and row colors, and read-only Estimate work-item verification.
+- Previous marker: `CEDAR-SERVICE-PROPOSAL-20260914-001` (baseline `9f3deeb`).
+- Release status: approved for commit/push/deploy; production verification pending.
+- Checks: 53 unit tests and Service Calls/Estimate desktop/tablet/phone browser suites passed.
+- No new schema, permission, or RLS changes in this release. Existing authorized historical imports are live separately; see HANDOFF Entries 222–223.
+- Preserve private imports and older untracked `dist-*` directories; neither belongs in Git or the deploy bundle.
+
+## Previous release — CEDAR
+
 - Marker: `CEDAR-SERVICE-PROPOSAL-20260914-001`
 - Branch: `main`
 - Release: combined Service Calls workflow/import preview and Estimate Proposal Builder / linked revisions / draft deletion.
