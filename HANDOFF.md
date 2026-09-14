@@ -20160,3 +20160,41 @@ Dropbox node_modules may need reinstall after its file locks are released.
 Publish the tested bundle with silas-chat preserved, verify live asset hashes and
 update SYNC_STATUS with commit/deploy identifiers. Authenticated acceptance remains
 Ryan's next step; automated UI tests use fixtures and do not write production data.
+
+## Entry 226 — MAPLE Production Verified
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Release completion
+**Session type:** implementation
+
+### What Was Completed
+
+Feature commit `ec1214894ff080745f1663fec50c570e2c7ec2d6` is pushed to main.
+Netlify's Git-triggered production deploy `6aa83f8ead53150008a34d51` is ready
+and published. Live HTML and every JS/CSS asset SHA-256 exactly match the tested
+production-configured build. Checked required feature strings, correct public
+Supabase/Clerk configuration, and successful deep links. Netlify scanned 504 files
+with no secret matches; existing silas-chat function is retained.
+
+The optional CLI preview command rejected a context/no-build flag combination
+before upload; no manual preview or production publish was needed because the
+canonical Git-triggered build completed successfully and matched the tested bundle.
+
+### What Codex Needs to Know
+
+The dependency issue in Entry 225 is resolved: copied the clean lockfile-matched
+installation back without deleting/moving folders; zero copy failures. Local
+`npm ls --depth=0` and all 53 tests pass. No package or lockfile change. Production
+build variables were confirmed present in Netlify without exposing their values.
+
+Sync marker remains `MAPLE-SERVICE-REVIEW-20260914-001`. This documentation-only
+completion commit uses [skip ci] because it does not change the verified bundle.
+Private data/import files and older untracked build directories remain preserved
+and excluded. No migration or production business-data writes in this release.
+
+### Next Steps (in order)
+
+Refresh the live app and test Service Call stages/colors/profit filters and Estimate
+verification expansion with Ryan's signed-in account. Other machines should fetch
+and fast-forward main, read SYNC_STATUS, and confirm this marker before editing.

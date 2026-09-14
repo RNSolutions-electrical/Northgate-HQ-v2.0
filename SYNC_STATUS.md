@@ -8,7 +8,14 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Branch: `main`
 - Release: Service Call profit summaries/scorecard, billing-derived directory stages and row colors, and read-only Estimate work-item verification.
 - Previous marker: `CEDAR-SERVICE-PROPOSAL-20260914-001` (baseline `9f3deeb`).
-- Release status: approved for commit/push/deploy; production verification pending.
+- Feature commit: `ec1214894ff080745f1663fec50c570e2c7ec2d6`, pushed to origin/main.
+- Release status: live and verified on September 14, 2026.
+- Production deploy: `6aa83f8ead53150008a34d51` (Git-triggered production, ready).
+- Production URL: `https://rnsolutions.net/northgate/`.
+- Live HTML and every JavaScript/CSS SHA-256 match the tested production-configured build. Deep links respond successfully; correct Supabase/Clerk configuration and new features verified.
+- Netlify secret scan: 504 files, no matches. Existing `silas-chat` function preserved.
+- Production environment variable presence confirmed without displaying values. Isolated locked-dependency build avoided Dropbox file locks; local dependencies subsequently restored and npm ls plus all 53 tests pass.
+- Authenticated user acceptance remains next; browser regression coverage used fixtures, with no production business-data writes.
 - Checks: 53 unit tests and Service Calls/Estimate desktop/tablet/phone browser suites passed.
 - No new schema, permission, or RLS changes in this release. Existing authorized historical imports are live separately; see HANDOFF Entries 222–223.
 - Preserve private imports and older untracked `dist-*` directories; neither belongs in Git or the deploy bundle.
