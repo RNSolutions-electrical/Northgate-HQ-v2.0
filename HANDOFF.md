@@ -19825,3 +19825,17 @@ contract value.
 - Browser fixture covers desktop hover, mobile defaults, standalone library,
   CSV download and aligned inputs; signed-in acceptance remains a user check.
 - Marker: NAVIGATION-PRIMARY-ESTIMATOR-20260913-001.
+
+## Entry 214 - Assembly categories and logo
+- Missing logo URL returned HTML behind /northgate; logo is now a bundled,
+  hashed image served through the existing working assets route.
+- Added keyword search, category filtering and sorting in library and picker.
+- Builder supports multiple categories with Select all that apply and Add category.
+  Twelve requested defaults are built in; custom categories become shared choices
+  when saved on an assembly. Categories are included in CSV backups.
+- Applied 20260914012059_assembly_categories. Existing single-category data remains
+  readable; omitted categories in older save clients are preserved. No RLS changes.
+- 29 Node tests, local database category/rollback tests and responsive browser
+  checks passed, including nonblank logo and custom-category filtering.
+- Live column/RPC permissions verified; no new security advisor findings.
+- Marker: ASSEMBLY-CATEGORIES-20260913-001.

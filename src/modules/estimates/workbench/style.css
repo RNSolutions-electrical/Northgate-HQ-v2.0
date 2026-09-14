@@ -41,6 +41,15 @@
 .component-fields{align-items:stretch}
 .component-fields>label>input,.component-fields>label>select{margin-top:auto}
 .component-fields .labor-time{min-height:18px}
+.assembly-filters{display:grid;grid-template-columns:minmax(160px,1fr) minmax(140px,230px) minmax(140px,180px);align-items:end;gap:12px;margin:16px 0}
+.assembly-filters .search{margin:0}
+.assembly-filters select{width:100%}
+.assembly-categories{border:0;padding:16px 0;margin:0;min-width:0}
+.assembly-categories legend{font-weight:600}
+.assembly-categories p{font-size:12px;color:var(--muted);margin-bottom:12px}
+.assembly-category-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.assembly-category-options label{display:flex;flex-direction:row;align-items:center;font-weight:400}
+@media(max-width:650px){.assembly-filters{grid-template-columns:1fr 1fr}.assembly-filters>.search{grid-column:1/-1}.assembly-category-options{grid-template-columns:1fr 1fr}.assembly-category-options label{overflow-wrap:anywhere}}
 .work-item-note{display:block;margin-top:6px;font-size:13px;line-height:1.5;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere}
 .package-group .quote-row {grid-template-columns:minmax(150px,2fr) minmax(100px,1fr) minmax(160px,1fr) auto;}
 .package-group .awarded {background:#edf7ef;border-left:3px solid #438451;}

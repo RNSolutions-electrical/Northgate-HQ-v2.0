@@ -107,6 +107,12 @@ try{
   const frame=page.frameLocator('iframe[title="Estimate editor"]');
   await frame.getByRole('button',{name:'Create assembly',exact:true}).click();
   await frame.getByLabel('Work item name',{exact:true}).fill('Standalone test');
+  await frame.getByRole('checkbox',{name:'Commercial',exact:true}).check();
+  await frame.getByRole('checkbox',{name:'Rough-in',exact:true}).check();
+  await frame.getByRole('button',{name:'Add category',exact:true}).click();
+  await frame.getByLabel('New category',{exact:true}).fill('Old Work');
+  await frame.getByRole('button',{name:'Add category',exact:true}).click();
+  assert.equal(await frame.getByRole('checkbox',{name:'Old Work',exact:true}).isChecked(),true);
   await frame.getByRole('button',{name:'Labor line',exact:true}).click();
   await frame.getByLabel('Labor hours / unit',{exact:true}).fill('1.25');
   const labor=await frame.getByLabel('Labor hours / unit',{exact:true}).boundingBox();
@@ -115,6 +121,14 @@ try{
   await page.screenshot({path:`.temp/workbench/aligned-inputs-${width}.png`});
   await frame.getByRole('button',{name:'Save changes',exact:true}).click();
   await frame.getByText('Standalone test',{exact:true}).waitFor();
+  assert.deepEqual(await page.evaluate(()=>window.workbenchFixture.library[0].categories),['Commercial','Rough-in','Old Work']);
+  await frame.getByRole('combobox',{name:'Filter assembly category'}).selectOption('Residential');
+  await frame.getByText('No assemblies match these filters.',{exact:true}).waitFor();
+  await frame.getByRole('combobox',{name:'Filter assembly category'}).selectOption('Old Work');
+  await frame.getByRole('searchbox',{name:'Search assemblies'}).fill('standalone');
+  await frame.getByText('Standalone test',{exact:true}).waitFor();
+  assert.equal(await frame.locator('.brand img').evaluate(img=>img.complete&&img.naturalWidth>0),true);
+  await page.screenshot({path:`.temp/workbench/categories-${width}.png`});
   assert.equal(await page.evaluate(()=>window.workbenchFixture.rows.length),0);
   const download=page.waitForEvent('download');
   await frame.getByRole('button',{name:'Export library CSV',exact:true}).click();
