@@ -26,7 +26,8 @@ This file is the repository-visible source of truth for Codex handoffs between m
 The current marker publishes Workbench estimate Draft → Approved approval and
 customer-safe approved proposal export. Additive migrations
 `20260914103331_estimate_workbench_approval` and
-`20260914110000_validate_workbench_approval_components` are applied. Approval
+`20260914110000_validate_workbench_approval_components`, and
+`20260914111500_restrict_workbench_approval_internal` are applied. Approval
 uses the established immutable estimate snapshot and `can_approve_estimates`
 permission; it remains unavailable to anonymous users. Job conversion is
 intentionally excluded pending a separate estimate-to-Job financial mapping and

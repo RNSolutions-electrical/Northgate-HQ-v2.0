@@ -50,7 +50,8 @@ source-of-truth and reconciliation design; this release does not infer one.
 ## Migration and Verification
 
 - Migrations: `20260914103331_estimate_workbench_approval.sql` and
-  `20260914110000_validate_workbench_approval_components.sql`
+  `20260914110000_validate_workbench_approval_components.sql`, followed by
+  `20260914111500_restrict_workbench_approval_internal.sql`
 - Rollback-only database verification: `tests/estimateWorkbenchApproval.sql`
 - The verification covers calculated totals, locked status, immutable snapshots,
   denied approval, and no retained test records.
