@@ -14,8 +14,9 @@ import { ServiceProfitSummary } from './ServiceProfitSummary.jsx';
 import { ServiceMonthlyReport } from './ServiceMonthlyReport.jsx';
 import { serviceAttention, serviceScorecardCsv } from './serviceScorecard.js';
 import { invoiceCharges } from './invoiceCharges.js';
+import { DEFAULT_SERVICE_STAGES, noChargeStage, stageRowStyle } from './serviceStages.js';
 import { inProfitPeriod, isVoidCall, profitDate } from './serviceProfit.js';
-import { WORK_STAGES, DIRECTORY_STAGES, directoryStatus, BILLING_METHODS, money, callFinancials, invoiceBalance, allocationRemaining } from './serviceCallModel.js';
+import { directoryStatus, BILLING_METHODS, money, callFinancials, invoiceBalance, allocationRemaining } from './serviceCallModel.js';
 import './serviceCalls.css';
 
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -28,6 +29,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   embedded = false, onSaved, onPanelState, initialDirectoryView = 'operations' }) {
   const { getToken } = useAuth();
   const [calls, setCalls] = useState([]);
+  const [stages, setStages] = useState(DEFAULT_SERVICE_STAGES);
   const [archivedCalls, setArchivedCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -78,9 +80,11 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           if (page.length < 200) return result;
         }
       };
-      const [active, archived] = await Promise.all([read(false), read(true)]);
+      const [active, archived, catalogue] = await Promise.all([read(false), read(true), rpc('svc_read_stages', {})]);
       if (request !== sequence.current) return;
       setCalls(active); setArchivedCalls(archived);
+      if (!Array.isArray(catalogue)) throw new Error('Service stages could not be loaded. Refresh before editing.');
+      setStages(catalogue);
     } catch (e) { if (request === sequence.current) setError(e.message); }
     finally { if (request === sequence.current) setLoading(false); }
   }, [rpc]);
@@ -88,6 +92,9 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   useEffect(() => { setSelectedId(initialJobId); setMode('browse'); }, [initialJobId]);
   const all = [...calls, ...archivedCalls];
   const call = all.find((item) => item.id === selectedId);
+  const workStages = Object.fromEntries(stages.filter(s=>s.kind==='work').map(s=>[s.key,s.label]));
+  const statusFor = item => directoryStatus(item, today(), stages);
+  const canInvoice = item => item.can_bill && !item.profile?.financially_closed_at && (item.status === 'complete' || noChargeStage(item));
   const financials = call && callFinancials(call);
   const canCreate = permissions?.can_create_jobs === true || permissions?.canCreateJobs === true;
   const canViewFinance = permissions?.can_view_project_financials === true || permissions?.canViewProjectFinancials === true;
@@ -132,7 +139,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   function commercial(action, data = {}) { setForm(action === 'payment' ? {...data,request_id:crypto.randomUUID()} : data); setMode(action); setError(''); setMessage(''); setDirty(false); }
   function startInvoice() {
     setInvoice({ requestId:crypto.randomUUID(), invoice_number:'', invoice_date:today(), due_date:'',
-      total_revenue:'', sales_tax_percent:'7.25', credit_card_percent:'3', note:'', allocations:[{ job_id:call.id, amount:'', expected_updated_at:call.updated_at }] });
+      total_revenue:noChargeStage(call)?'0':'', sales_tax_percent:'7.25', credit_card_percent:'3', certify_complete:false, note:'', allocations:[{ job_id:call.id, amount:noChargeStage(call)?'0':'', expected_updated_at:call.updated_at }] });
     setMode('invoice'); setError(''); setMessage(''); setDirty(false);
   }
   const updateInvoice = (key, value) => { setDirty(true); setInvoice((old) => ({ ...old, [key]:value })); };
@@ -142,7 +149,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   };
   const posted = call?.financials?.invoices?.filter((item) => item.status === 'posted') || [];
   const rows = (filter === 'archived' ? archivedCalls : calls).filter((item) => {
-    const stage = directoryStatus(item).stage;
+    const stage = statusFor(item).stage;
     return (filter === 'active' || filter === 'archived' || stage === filter) &&
       [item.service_call_number,item.name,item.description,item.profile?.business_name,item.address_line1,item.profile?.lead_name].join(' ').toLowerCase().includes(search.toLowerCase());
   });
@@ -150,7 +157,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
     ? rows.filter((item) => (inProfitPeriod(item, {...period,through:today()}) || (includeUndated && !profitDate(item,period.basis))) && (!attentionOnly || serviceAttention(item,today()).length > 0)) : rows;
   function exportScorecard() {
     if (!canViewFinance) return;
-    const blob = new Blob([serviceScorecardCsv(directoryRows,period,today())],{type:'text/csv;charset=utf-8'});
+    const blob = new Blob([serviceScorecardCsv(directoryRows,period,today(),stages)],{type:'text/csv;charset=utf-8'});
     const url = URL.createObjectURL(blob), anchor = document.createElement('a');
     anchor.href=url; anchor.download=`northgate-service-scorecard-${period.year}-${period.quarter === 'all' ? 'year' : 'Q'+period.quarter}.csv`;
     anchor.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -185,7 +192,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
         <section className="svc-section"><h2>Work details</h2><div className="svc-grid">
           {field('service_call_number','Service call / job number','text',true)}{field('name','Call name / customer','text',true)}
           {mode === 'create' ? select('division','Department',{Electrical:'Electrical',Construction:'Construction',Admin:'Admin'}) : <p>Department: {call.division}</p>}
-          {select('work_stage','Work stage',WORK_STAGES)}{select('billing_method','Billing method',BILLING_METHODS)}
+          {select('work_stage','Work stage',workStages)}{select('billing_method','Billing method',BILLING_METHODS)}
           {field('service_date','Date of service','date')}{field('lead_name','Employee / lead')}
           <label>Related service call<select value={form.related_job_id || ''} onChange={(e) => change('related_job_id',e.target.value)}>
             <option value="">No related call</option>{calls.filter((item) => item.id !== call?.id).map((item) => <option key={item.id} value={item.id}>{item.service_call_number} — {item.name}</option>)}
@@ -206,7 +213,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           <label key={key}>{label}<input type={type} value={invoice[key]} onChange={(e) => updateInvoice(key,e.target.value)} required={key !== 'due_date'} {...(type === 'number' ? {min:0,step:'.01'} : {})} /></label>)}</div>
         <section className="svc-section"><h3>Invoice total</h3>
           <div className="svc-charge-grid">
-            <label>Subtotal<input type="number" min="0.01" step=".01" required value={invoice.total_revenue} onChange={e=>updateInvoice('total_revenue',e.target.value)} /></label><output aria-label="Subtotal amount">{charges?money(charges.subtotal):'—'}</output>
+            <label>Subtotal<input type="number" min={noChargeStage(call)?'0':'0.01'} step=".01" required value={invoice.total_revenue} onChange={e=>updateInvoice('total_revenue',e.target.value)} /></label><output aria-label="Subtotal amount">{charges?money(charges.subtotal):'—'}</output>
             <label>Sales Tax %<input type="number" min="0" max="100" step=".01" required value={invoice.sales_tax_percent} onChange={e=>updateInvoice('sales_tax_percent',e.target.value)} /></label><output aria-label="Sales tax amount">{charges?money(charges.salesTax):'—'}</output>
             <label>Credit Card Fee %<input type="number" min="0" max="100" step=".01" required value={invoice.credit_card_percent} onChange={e=>updateInvoice('credit_card_percent',e.target.value)} /></label><output aria-label="Credit card fee amount">{charges?money(charges.creditCardFee):'—'}</output>
             <strong>Total</strong><output aria-label="Invoice total"><strong>{charges?money(charges.total):'—'}</strong></output>
@@ -219,9 +226,9 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             <label>Service call<select value={allocation.job_id} onChange={(e) => {
               const item = calls.find((row) => row.id === e.target.value);
               updateInvoice('allocations',invoice.allocations.map((row,i) => i === index ? {...row,job_id:item.id,expected_updated_at:item.updated_at} : row));
-            }}>{calls.filter((row) => row.can_bill && row.status === 'complete' && (row.id === allocation.job_id || !invoice.allocations.some((a) => a.job_id === row.id))).map((row) =>
+            }}>{calls.filter((row) => canInvoice(row) && (row.id === allocation.job_id || !invoice.allocations.some((a) => a.job_id === row.id))).map((row) =>
               <option key={row.id} value={row.id}>{row.service_call_number} — {row.name}</option>)}</select></label>
-            <label>Allocated amount<input type="number" min=".01" step=".01" value={allocation.amount} required onChange={(e) =>
+            <label>Allocated amount<input type="number" min={noChargeStage(calls.find(c=>c.id===allocation.job_id))?'0':'.01'} step=".01" value={allocation.amount} required onChange={(e) =>
               updateInvoice('allocations',invoice.allocations.map((row,i) => i === index ? {...row,amount:e.target.value} : row))} /></label>
             <button type="button" className="secondary-button" disabled={invoice.allocations.length === 1} onClick={() => updateInvoice('allocations',invoice.allocations.filter((_,i) => i !== index))}>Remove</button>
           </div>)}
@@ -232,7 +239,8 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           <strong>Unallocated: {invoiceRemaining === null ? 'Check amounts' : money(invoiceRemaining)}</strong></div>
           <p>Tax and card fees are distributed proportionately and reconciled to the cent. Allocate only the subtotal; each call shows its own share of all charges and payments.</p>
         </section>
-        <button className="primary-button" disabled={invoiceRemaining !== 0 || !charges}>Review & record invoice</button>
+        {charges?.total === 0 && <label className="svc-checkbox"><input type="checkbox" checked={invoice.certify_complete} onChange={e=>updateInvoice('certify_complete',e.target.checked)} />I confirm the work is complete and this Warranty / Pro-Bono call can be closed with no payment due.</label>}
+        <button className="primary-button" disabled={invoiceRemaining !== 0 || !charges || (charges.total===0 && (!invoice.certify_complete || invoice.allocations.length!==1 || !noChargeStage(calls.find(c=>c.id===invoice.allocations[0]?.job_id))))}>Review & record invoice</button>
       </form>}
       {isFinancialMode && mode !== 'invoice' && call && <form onSubmit={saveCommercial}>
         <h2>{mode === 'quote' ? 'Estimate / quoted amount' : mode === 'cost' ? 'Update cumulative cost' : 'Record allocated payment'}</h2>
@@ -249,10 +257,10 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       </form>}
       {mode === 'browse' && !selectedId && <>
         {canViewFinance && <ServiceProfitSummary calls={all} period={period} onChange={setPeriod} today={today()} />}
-        <Toolbar title="Service Call Directory" description="Invoice Sent and Payment Received follow recorded billing. Green: paid · Red: overdue · Yellow: ready to invoice. Recording an invoice does not send it."
+        <Toolbar title="Service Call Directory" description="Row colors follow the work stage. Invoice Sent and Payment Received follow recorded billing; overdue balances remain flagged. Recording an invoice does not send it."
           search={<label><span className="sr-only">Search service calls</span><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search number, customer, scope or lead…" /></label>}
           actions={<div className="svc-actions"><label>View<select aria-label="View" value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="active">All non-archived</option>{Object.entries(DIRECTORY_STAGES).filter(([key]) => canViewFinance || !['invoice_sent','payment_received'].includes(key)).map(([key,label]) => <option key={key} value={key}>{label}</option>)}<option value="archived">Archived</option>
+            <option value="active">All non-archived</option>{stages.filter(s=>s.key!=='archived' && (canViewFinance || s.kind==='work')).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}<option value="archived">{stages.find(s=>s.key==='archived')?.label || 'Archived'}</option>
           </select></label><button className="secondary-button" onClick={reload}>Refresh</button>
             {canCreate && canViewFinance && <button className="secondary-button" onClick={() => setMode('preview')}>Import preview</button>}
           </div>} />
@@ -265,7 +273,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           <label className="svc-checkbox"><input type="checkbox" checked={attentionOnly} onChange={(e)=>setAttentionOnly(e.target.checked)} />Needs attention only</label>
           <button className="secondary-button" onClick={exportScorecard} {...uiElementAttributes('FUNCTION','Export Service Scorecard')}>Export CSV</button>
         </div>}
-        <DataTable rows={directoryRows} getRowKey={(row) => row.id} selectedRowKey={panelId} rowClassName={(row) => {const tone=directoryStatus(row).tone;return tone ? 'svc-row--'+tone : '';}} onRowClick={openDirectoryCall} minWidth="1100px" emptyTitle="No service calls in this view" columns={[
+        <DataTable rows={directoryRows} getRowKey={(row) => row.id} selectedRowKey={panelId} rowClassName={() => 'svc-stage-row'} rowStyle={row=>stageRowStyle(stages.find(s=>s.key===statusFor(row).stage))} onRowClick={openDirectoryCall} minWidth="1100px" emptyTitle="No service calls in this view" columns={[
           {key:'service_call_number',header:'Call #',render:row=><button className="svc-call-link" onClick={event=>{event.stopPropagation();openDirectoryCall(row);}} aria-label={'Open service call '+row.service_call_number}>{row.service_call_number}</button>}, {key:'name',header:'Customer / call'}, {key:'division',header:'Department'},
           ...(directoryView === 'financials' && canViewFinance ? [
             {key:'reporting_date',header:'Reporting date',render:(row) => profitDate(row,period.basis) || 'Needs review'},
@@ -275,11 +283,11 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             {key:'billing_status',header:'Billing',render:(row) => callFinancials(row)?.billingStatus || 'Restricted'},
             ...(attentionOnly ? [{key:'attention',header:'Needs attention',render:row=>serviceAttention(row,today()).join(' · ')}] : []),
           ] : [
-            {key:'work_stage',header:'Work stage',render:(row) => directoryStatus(row).label},
             {key:'billing_method',header:'Billing type',render:(row) => BILLING_METHODS[row.profile?.billing_method] || 'Not set'},
             {key:'service_date',header:'Service date',render:(row) => row.profile?.service_date || '—'},
             {key:'lead_name',header:'Lead',render:(row) => row.profile?.lead_name || '—'},
           ]),
+          {key:'work_stage',header:'Work stage',render:(row) => statusFor(row).label},
         ]} />
         {directoryView === 'financials' && canViewFinance && <ServiceMonthlyReport calls={all} period={period} today={today()} />}
       </>}
@@ -291,7 +299,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
         </nav>
         {call.archived_at && <StatePanel title="Archived service call" description={call.archive_reason || 'This call and its billing history are preserved. Editing is disabled.'} tone="neutral" />}
         {tab === 'details' && <>
-          <Toolbar title={WORK_STAGES[call.profile?.work_stage] || 'Service call details'} actions={<div className="svc-actions">
+          <Toolbar title={statusFor(call).label} actions={<div className="svc-actions">
             {call.can_manage && <button className="primary-button" onClick={startEdit}>Edit details / link call</button>}
             {call.can_manage && call.can_archive && <button className="secondary-button danger-button" onClick={() => setConfirm('archive')}>Archive</button>}
           </div>} />
@@ -318,11 +326,12 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             actions={call.can_bill && <div className="svc-actions">
               <button className="secondary-button" onClick={() => commercial('quote',{quote_amount:call.financials.quote_amount ?? '',changes_amount:call.financials.changes_amount || 0})}>Edit estimate</button>
               <button className="secondary-button" onClick={() => {const c=call.financials.costs.find((item) => item.is_active); commercial('cost',{labor_hard_cost:c?.labor_hard_cost || 0,material_hard_cost:c?.material_hard_cost || 0,other_hard_cost:c?.other_hard_cost || 0,cost_through:today(),reconciliation_status:'preliminary',source_note:''});}}>Update costs</button>
-              <button className="primary-button" disabled={call.status !== 'complete'} onClick={startInvoice}>Record invoice</button>
+              <button className="primary-button" disabled={!canInvoice(call) || !!call.profile?.financially_closed_at} onClick={startInvoice}>Record invoice</button>
               <button className="secondary-button" disabled={!posted.some((item) => invoiceBalance(item) > 0)} onClick={() => commercial('payment',{payment_date:today(),amount:'',invoice_id:''})}>Record payment</button>
             </div>} />
           {call.can_bill && !call.profile?.job_id && <p>Save the call’s details before entering costs or payments.</p>}
-          {call.status !== 'complete' && <p>Set the work stage to Complete / ready to invoice when work is finished to enable invoice recording.</p>}
+          {call.status !== 'complete' && !noChargeStage(call) && <p>Set the work stage to Complete / ready to invoice when work is finished to enable invoice recording.</p>}
+          {noChargeStage(call) && <p>{call.profile?.financially_closed_at ? 'Closed with no payment due. Void the closeout invoice if this needs correction.' : 'Record a zero-dollar invoice when the work is complete to close this call with no payment due.'}</p>}
           <h3>Invoices — this call’s allocated share</h3>
           <DataTable rows={posted} getRowKey={(row) => row.id} minWidth="700px" emptyTitle="No invoices recorded" columns={[
             {key:'invoice_number',header:'Invoice'}, {key:'invoice_date',header:'Date'},{key:'due_date',header:'Due'},

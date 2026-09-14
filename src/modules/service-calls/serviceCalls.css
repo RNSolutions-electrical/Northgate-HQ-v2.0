@@ -32,9 +32,11 @@
 .svc-workspace--panel .svc-allocation { grid-template-columns:minmax(0,1fr); }
 @media(max-width:700px) { .svc-workspace--panel .svc-content { margin:0; } .svc-workspace--panel .module-fact-grid { grid-template-columns:1fr; } }
 /* Apply to cells as well as rows so the shared table's cell backgrounds cannot mask status. */
-.svc-workspace .data-table tbody tr.svc-row--paid > td { background: var(--ng-ok-bg, #e8f4ec); }
-.svc-workspace .data-table tbody tr.svc-row--overdue > td { background: var(--ng-err-bg, #fcebea); }
-.svc-workspace .data-table tbody tr.svc-row--ready > td { background: #fff8dc; }
+.svc-workspace .data-table tbody tr.svc-stage-row > td { background: var(--svc-stage-bg); color: var(--svc-stage-fg); text-decoration: var(--svc-stage-decoration); }
+.svc-workspace .svc-stage-row .svc-call-link { color: inherit; text-decoration: inherit; }
+.svc-workspace .svc-stage-row > td::before { color: inherit; }
+.svc-stage-preview { padding:12px; border:1px solid var(--ng-border); border-radius:var(--ui-radius,4px); }
+.svc-workspace input[type='color'] { min-height:44px; padding:4px; cursor:pointer; }
 @media(max-width:1000px) {
  .svc-workspace .svc-profit-summary .module-fact-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }

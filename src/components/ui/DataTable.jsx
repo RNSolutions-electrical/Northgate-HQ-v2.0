@@ -88,6 +88,7 @@ export function DataTable({
   minWidth = null,
   footNote = '',
   rowClassName = null,
+  rowStyle = null,
 }) {
   const permitted = visibleColumns(columns, permissions);
 
@@ -172,6 +173,7 @@ export function DataTable({
 
             return (
               <tr
+                style={typeof rowStyle === 'function' ? rowStyle(row) : undefined}
                 key={rowKey}
                 className={`${typeof rowClassName === 'function' ? rowClassName(row) : ''} ${isSelected ? 'data-table__row--selected' : ''}${
                   onRowClick ? ' data-table__row--clickable' : ''

@@ -4,12 +4,14 @@ import { ServiceCallsWorkspace } from '../../src/modules/service-calls/ServiceCa
 import { MemoryRouter,Routes,Route,useLocation } from 'react-router-dom';
 import { LegacyServiceScorecardRedirect } from '../../src/modules/service-calls/LegacyServiceScorecardRedirect.jsx';
 import { AddOnToolsWorkspace } from '../../src/modules/addons/AddOnToolsWorkspace.jsx';
+import { ServiceStageConsole } from '../../src/modules/developer/ServiceStageConsole.jsx';
 import '../../src/styles/tokens.css';
 import '../../src/styles/base.css';
 import '../../src/styles/primitives.css';
 const readonly = new URLSearchParams(location.search).has('readonly');
 function Workspace() {
  const location=useLocation();window.serviceFixture.route={pathname:location.pathname,state:location.state};
+ if(new URLSearchParams(window.location.search).has('stage-console'))return <ServiceStageConsole/>;
  return <ServiceCallsWorkspace initialDirectoryView={location.state?.serviceCallView} permissions={{canCreateJobs:!readonly,canViewProjectFinancials:!readonly}}
  onJobs={()=>{window.serviceFixture.navigation='jobs';}} onReturnList={()=>{}} onResources={(call,tab)=>{window.serviceFixture.navigation=tab;}} />;
 }

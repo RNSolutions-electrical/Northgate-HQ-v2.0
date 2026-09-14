@@ -75,7 +75,7 @@ try {
  assert.equal(await panel.getByRole('button',{name:'Update costs',exact:true}).count(),0);
  await panel.getByRole('button',{name:'Details & linked calls',exact:true}).click();
  assert.equal(await panel.getByRole('button',{name:'Edit details / link call'}).count(),0);
- assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>r.name!=='svc_read_calls')),false);
+ assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>!['svc_read_calls','svc_read_stages'].includes(r.name))),false);
  await page.close();
  for (const width of [1440,390]) {
   const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];

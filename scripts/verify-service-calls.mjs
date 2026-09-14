@@ -60,8 +60,8 @@ try {
   await page.locator('td[data-label="Work stage"]').filter({hasText:'Payment Received'}).waitFor();
   await page.locator('td[data-label="Work stage"]').filter({hasText:'Invoice Sent · Payment overdue'}).waitFor();
   const colors=[];
-  for(const tone of ['paid','overdue','ready']) {
-   const cells=page.locator('tr.svc-row--'+tone+' > td');
+  for(const tone of ['Payment Received','Invoice Sent · Payment overdue','Complete / ready to invoice']) {
+   const cells=page.locator('tr.svc-stage-row').filter({has:page.locator('td[data-label="Work stage"]',{hasText:tone})}).locator('td');
    assert.ok(await cells.count()>0,tone+' row exists');
    const backgrounds=await cells.evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).backgroundColor));
    assert.equal(new Set(backgrounds).size,1,'Whole row has consistent highlighting');
@@ -75,7 +75,7 @@ try {
   assert.equal(await page.locator('tbody tr').count(),1);
   await page.getByLabel('View',{exact:true}).selectOption('invoice_sent');
   assert.equal(await page.locator('tbody tr').count(),1);
-  assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>r.name!=='svc_read_calls')),false,'Directory display never writes billing');
+  assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>!['svc_read_calls','svc_read_stages'].includes(r.name))),false,'Directory display never writes billing');
  }
  await page.setViewportSize({width:1440,height:1000});
  await page.goto(url);
@@ -84,7 +84,7 @@ try {
  await page.getByLabel('Electrical scorecard',{exact:false}).setInputFiles({name:'scorecard.csv',mimeType:'text/csv',buffer:Buffer.from('Job #,Business Name,Amount Billed,Cost\\n26-001,Fixture business,100,25\\n'.replaceAll('\\n','\n'))});
  await page.getByRole('cell',{name:'Exact number match',exact:true}).click();
  await page.getByRole('heading',{name:'26-001 — source comparison',exact:true}).waitFor();
- assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>r.name!=='svc_read_calls')),false,'Preview must not call a write RPC');
+ assert.equal(await page.evaluate(()=>window.serviceFixture.requests.some(r=>!['svc_read_calls','svc_read_stages'].includes(r.name))),false,'Preview must not call a write RPC');
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  await page.getByRole('button',{name:'Create Service Call',exact:true}).click();
  await page.getByLabel('Service call / job number',{exact:true}).fill('26-003');

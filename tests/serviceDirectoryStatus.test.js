@@ -11,12 +11,12 @@ test('ready, invoiced, partial, paid, and overdue use ledger balances including 
  assert.equal(directoryStatus(call([invoice(100)]),today).stage,'invoice_sent');
  assert.deepEqual(directoryStatus(call([invoice(107.25)]),today),{stage:'payment_received',label:'Payment Received',tone:'paid'});
  assert.equal(directoryStatus(call([invoice(20,'2026-09-13')]),today).tone,'overdue');
- assert.equal(directoryStatus(call([invoice(0,today)]),today).tone,'');
- assert.equal(directoryStatus(call([invoice(0,null)]),today).tone,'');
+ assert.equal(directoryStatus(call([invoice(0,today)]),today).tone,'invoice_sent');
+ assert.equal(directoryStatus(call([invoice(0,null)]),today).tone,'invoice_sent');
 });
 test('void, archived and restricted records do not infer paid status or ready billing actions',()=>{
  const paid=call([invoice(107.25)]);
- assert.equal(directoryStatus({...paid,archived_at:today},today).tone,'');
+ assert.equal(directoryStatus({...paid,archived_at:today},today).tone,'archived');
  assert.equal(directoryStatus({...paid,profile:{work_stage:'void'}},today).label,'Void');
  assert.equal(directoryStatus({...paid,financials:null},today).tone,'');
  assert.equal(directoryStatus({...paid,financials:null},today).stage,'complete');

@@ -27,6 +27,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
 import { FinancialLineCatalogueConsole } from './FinancialLineCatalogueConsole.jsx';
+import { ServiceStageConsole } from './ServiceStageConsole.jsx';
 import { PermissionTemplateEditor, UserPermissionTemplateEditor, usePermissionTemplates } from './PermissionTemplates.jsx';
 import {
   DEVELOPER_HELPFUL_LINKS,
@@ -1164,6 +1165,7 @@ export function DeveloperWorkspace({ permissions }) {
 
       {activeConsolePage === 'systems' ? (
       <div className="developer-systems-page">
+        <ServiceStageConsole />
         <FinancialLineCatalogueConsole />
         <DeveloperHelpfulLinks />
 

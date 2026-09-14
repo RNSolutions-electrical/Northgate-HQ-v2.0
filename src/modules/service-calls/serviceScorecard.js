@@ -28,12 +28,12 @@ function csvCell(value) {
   if (typeof value === 'string' && /^[\s]*[=+@-]/.test(text)) text = "'" + text;
   return '"' + text.replaceAll('"','""') + '"';
 }
-export function serviceScorecardCsv(calls, period, today) {
+export function serviceScorecardCsv(calls, period, today, stages) {
   const header = ['Call #','Customer / call','Department','Scope','Reporting basis','Reporting date','Work stage','Archived','Subtotal billed (ex tax/fees)','Cost','Profit $','Profit %','Collected','Outstanding','Billing','Review','Sales tax','Credit card fee'];
   const rows = calls.filter(call=>call.financials).map(call => {
     const f = callFinancials(call,today), voided = isVoidCall(call);
     return [call.service_call_number,call.name,call.division,call.description,period.basis,profitDate(call,period.basis),
-      directoryStatus(call,today).label,call.archived_at ? 'Yes' : 'No',
+      directoryStatus(call,today,stages).label,call.archived_at ? 'Yes' : 'No',
       ...[f.revenue,f.costKnown?f.cost:null,f.profit,f.margin,f.collected,f.outstanding].map(value=>voided ? null : value),
       voided?'Void':f.billingStatus,voided?'Void — excluded from profit':serviceAttention(call,today).join('; '),voided?null:f.tax,voided?null:f.cardFee];
   });

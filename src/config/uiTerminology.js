@@ -24,6 +24,7 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'MODULE', name: 'Service Monthly Profit Report', location: 'Jobs › Service Calls › Financial scorecard', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Export Service Scorecard', location: 'Jobs › Service Calls › Financial scorecard', status: 'ready for testing' },
   { type: 'MODULE', name: 'Service Calls', location: 'Jobs › Service Calls', status: 'ready for testing' },
+  { type: 'MODULE', name: 'Service Call Stages', location: 'Developer › Systems', status: 'ready for testing' },
   { type: 'MODULE', name: 'Service Call Profit Summary', location: 'Service Calls', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Service Call Import Preview', location: 'Service Calls', status: 'preview only' },
   { type: 'FUNCTION', name: 'Allocate Service Invoice', location: 'Service Calls › Costs & Billing', status: 'ready for testing' },

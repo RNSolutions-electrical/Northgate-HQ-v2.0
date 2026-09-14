@@ -1,8 +1,5 @@
-export const WORK_STAGES = Object.freeze({
-  pursuit: 'Pursuit', proposal_sent: 'Proposal sent', upcoming: 'Upcoming',
-  in_progress: 'In progress', complete: 'Complete / ready to invoice',
-  not_proceeding: 'Not proceeding', void: 'Void',
-});
+import {DEFAULT_SERVICE_STAGES, noChargeStage} from './serviceStages.js';
+export const WORK_STAGES = Object.freeze(Object.fromEntries(DEFAULT_SERVICE_STAGES.filter(s=>s.kind==='work').map(s=>[s.key,s.label])));
 export const BILLING_METHODS = Object.freeze({
   time_and_materials: 'Time & materials', quoted: 'Quoted',
   time_and_materials_plus_quote: 'Time & materials + quote', warranty_no_charge: 'Warranty / no charge',
@@ -11,15 +8,18 @@ export const BILLING_METHODS = Object.freeze({
 export const DIRECTORY_STAGES = Object.freeze({ ...WORK_STAGES,
   invoice_sent: 'Invoice Sent', payment_received: 'Payment Received',
 });
-export function directoryStatus(call, today) {
+export function directoryStatus(call, today, stages=DEFAULT_SERVICE_STAGES) {
   const workStage = call.profile?.work_stage || (call.status === 'complete' ? 'complete' : 'upcoming');
-  const stageLabel = WORK_STAGES[workStage] || 'Set work details';
-  if (call.archived_at || ['void', 'not_proceeding'].includes(workStage)) return { stage: workStage, label: stageLabel, tone: '' };
+  const label = key=>stages.find(s=>s.key===key)?.label || WORK_STAGES[key] || key;
+  const stageLabel = label(workStage);
+  if (call.archived_at) return {stage:'archived',label:label('archived'),tone:'archived'};
+  if (['void', 'not_proceeding'].includes(workStage)) return { stage: workStage, label: stageLabel, tone: workStage };
+  if (noChargeStage(call) && call.profile?.financially_closed_at) return {stage:workStage,label:stageLabel+' · Closed — no charge',tone:workStage};
   const financials = callFinancials(call, today);
-  if (financials?.billingStatus === 'Overdue') return { stage: 'invoice_sent', label: 'Invoice Sent · Payment overdue', tone: 'overdue' };
-  if (financials?.billingStatus === 'Paid') return { stage: 'payment_received', label: 'Payment Received', tone: 'paid' };
+  if (financials?.billingStatus === 'Overdue') return { stage: 'invoice_sent', label: label('invoice_sent')+' · Payment overdue', tone: 'overdue' };
+  if (financials?.billingStatus === 'Paid') return { stage: 'payment_received', label: label('payment_received'), tone: 'paid' };
   if (['Invoiced', 'Part paid'].includes(financials?.billingStatus)) return {
-    stage: 'invoice_sent', label: financials.billingStatus === 'Part paid' ? 'Invoice Sent · Part paid' : 'Invoice Sent', tone: '',
+    stage: 'invoice_sent', label: label('invoice_sent')+(financials.billingStatus === 'Part paid' ? ' · Part paid' : ''), tone: 'invoice_sent',
   };
   // Missing financial access is not proof that an invoice still needs sending.
   return { stage: workStage, label: stageLabel, tone: workStage === 'complete' && financials?.billingStatus === 'Not invoiced' ? 'ready' : '' };
@@ -54,7 +54,7 @@ export function callFinancials(call, today = new Date().toLocaleDateString('en-C
     costKnown: !!cost, profit: cost ? (revenue - costs) / 100 : null,
     margin: cost && revenue ? ((revenue - costs) / revenue) * 100 : null,
     outstanding: balance / 100,
-    billingStatus: !invoices.length ? 'Not invoiced' : balance <= 0 ? 'Paid' :
+    billingStatus: invoices.length && invoices.every(i=>i.is_no_charge_closeout) ? 'Closed — no charge' : !invoices.length ? 'Not invoiced' : balance <= 0 ? 'Paid' :
       invoices.some((item) => item.due_date && item.due_date < today && invoiceBalance(item) > 0) ? 'Overdue' :
       collected > 0 ? 'Part paid' : 'Invoiced',
   };

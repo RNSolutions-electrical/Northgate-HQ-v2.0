@@ -1,3 +1,5 @@
+import {DEFAULT_SERVICE_STAGES} from '../../src/modules/service-calls/serviceStages.js';
+const stageCatalogue=structuredClone(DEFAULT_SERVICE_STAGES).map(s=>({...s,updated_at:'2026-09-14T10:00:00Z'}));
 const token=async()=> 'fixture-token';
 export const useAuth=()=>({getToken:token});
 const readonly=new URLSearchParams(location.search).has('readonly');
@@ -20,6 +22,16 @@ if(new URLSearchParams(location.search).has('voids')) {
   {id:'void-payment',amount:110.47,payment_date:'2026-09-14',reference:'Accidental duplicate'}
  ]}];
 }
+if(new URLSearchParams(location.search).has('palette')) {
+ const base=structuredClone(calls[0]);
+ calls.splice(0,calls.length,...stageCatalogue.map((s,index)=>{
+  const call={...structuredClone(base),id:'palette-'+s.key,name:s.label,service_call_number:'COLOR-'+index,archived_at:s.key==='archived'?'2026-09-14':null,
+   profile:{...base.profile,work_stage:s.kind==='work'?s.key:'complete',service_date:'2026-09-14'}};
+  if(['invoice_sent','payment_received'].includes(s.key))call.financials.invoices=[{id:s.key,status:'posted',invoice_date:'2026-09-14',revenue_excluding_tax:100,sales_tax:0,payments:s.key==='payment_received'?[{amount:100}]:[]}];
+  return call;
+ }));
+}
+if(new URLSearchParams(location.search).has('no-charge')) {calls[0].profile.work_stage='warranty';calls[0].status='active';}
 window.serviceFixture={calls,requests:[]};
 if(new URLSearchParams(location.search).has('financial-viewer')) for(const call of calls) {
  call.can_manage=false;call.can_bill=false;call.can_archive=false;
@@ -32,6 +44,20 @@ if(!readonly && new URLSearchParams(location.search).has('stages')) {
 export async function withSupabaseTokenRetry(_getToken,operation) {
  return operation({rpc:async(name,args)=>{
   window.serviceFixture.requests.push({name,args});
+  if(name==='svc_read_stages')return {data:stageCatalogue};
+  if(name==='svc_post_invoice' && new URLSearchParams(location.search).has('no-charge')){
+   const call=calls.find(c=>c.id===args.p_data.allocations[0].job_id);
+   call.status='complete';call.profile.financially_closed_at='2026-09-14';
+   call.financials.invoices=[{id:crypto.randomUUID(),invoice_number:args.p_data.invoice_number,status:'posted',revenue_excluding_tax:0,sales_tax:0,credit_card_fee:0,payments:[],is_no_charge_closeout:true}];
+   return {data:args.p_request_id};
+  }
+  if(name==='svc_save_stage'){
+   const existing=stageCatalogue.find(s=>s.key===args.p_key);
+   const record=existing || {key:'custom_fixture',kind:'work',job_status:'active',sort_order:100};
+   Object.assign(record,{label:args.p_label,background_color:args.p_color,updated_at:'2026-09-14T11:00:00Z'});
+   if(!existing)stageCatalogue.push(record);
+   return {data:record.key};
+  }
   if(name !== 'svc_read_calls' && window.serviceFixture.failNext) {window.serviceFixture.failNext=false;return {error:{message:'This call changed. Refresh before saving.'}};}
   if(name !== 'svc_read_calls' && window.serviceFixture.holdWrites) await new Promise(resolve=>{window.serviceFixture.releaseWrite=()=>{window.serviceFixture.holdWrites=false;resolve();};});
   if(name==='svc_read_calls')return {data:calls.filter(c=>!!c.archived_at===args.p_archived)};

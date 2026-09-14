@@ -20461,3 +20461,83 @@ verification commit uses [skip ci] to preserve the verified production bundle.
 Ryan can now open Service Calls > call > Costs & Billing and void the duplicate.
 Payments are under each invoice's payment history. No real invoice/payment was
 voided by Codex, and no external refund/cancellation is performed by these actions.
+
+## Entry 234 — Configurable Service Stages (Local, Not Released)
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Implementation and local verification; release approval still needed
+
+Requested row colors now cover Operations and Financial Scorecard consistently:
+Not Proceeding gray/strikethrough; Void black/white/strikethrough; Complete light
+orange; Invoice Sent light green; Payment Received bright green; Pursuit light
+yellow; Proposal Sent bright yellow; Archived light red; Warranty light blue;
+Pro-Bono / Donation medium blue. Archive takes visual priority. Overdue invoices
+keep the Invoice Sent color but retain explicit overdue labels/attention warnings.
+Warranty and Pro-Bono remain blue on no-charge closure, not falsely marked paid.
+
+Developer > Systems now has the Service Call Stages Module. Developers can add
+active-work stages and edit catalogue names/colors, with automatic readable text
+contrast, a preview, required audit reason and stale-edit protection. System
+billing/archive states remain derived; names/colors do not grant billing authority.
+No stage deletion is exposed. Existing stored keys remain stable.
+
+Local migration: 20260914204755_service_stage_catalogue.sql. Creates one shared
+svc_stage_definitions catalogue (no equivalent was found), unique label index,
+RLS/RPC-only access, active-user svc_read_stages and Developer-only svc_save_stage.
+Replaces the fixed work_stage check with a foreign key and index; svc_save_call
+accepts only catalogue work stages. Adds is_no_charge_closeout to existing invoices.
+Extends svc_post_invoice for single-call certified zero-dollar Warranty/Pro-Bono
+closeout, preserving normal positive invoice validation. Existing invoices block
+zero closeout; closed no-charge calls reject another invoice until voided.
+Closes jobs/profiles without fabricating a payment. svc_void_billing reopens an
+accidental no-charge closeout. Non-stage detail edits preserve that closure.
+
+Tests: 64 Node tests; Service Calls, scorecard panel, invoice/payment void and new
+stage browser suites. New suite checks every requested full-row color, both views,
+archive priority, white void text and strikes, mobile layout, Developer creation/
+preview, and zero-charge completion confirmation. Visual review improved the
+Developer form and color picker. SQL migration + new stage/zero-closeout tests and
+existing invoice-charge/void suites passed in rollback-only transactions. Includes
+Developer vs User permissions, unsafe colors, duplicate labels, stale edits,
+custom/derived-stage validation, ordinary zero rejection, missing certification,
+both no-charge categories, duplicate closeout prevention, preserved detail edits,
+void/reopen, history and grants. No synthetic actors retained; live stage catalogue
+remains absent. No existing production records changed.
+
+Final configured build uses .temp/stages-build-20260914 because Dropbox locked
+the earlier dist/assets folder. Do not deploy that incomplete old dist directory.
+Use a fresh configured build when releasing; run migration before frontend and
+post-migration security checks. Current baseline advisories unchanged (6 no-policy,
+4 definer views, 6 mutable-search-path, 13 anonymous and 124 authenticated definer
+RPC notices); new RPC access is deliberate and guarded. Review guidance:
+https://supabase.com/docs/guides/database/database-linter
+
+Not committed, pushed or deployed. Current live marker remains
+WILLOW-BILLING-CORRECTIONS-20260914-001, HEAD d4144ef. Preserve unrelated old
+dist-* directories and ignored private imports.
+
+## Entry 235 — IRIS service stages release preparation (2026-09-14)
+
+Ryan approved commit, push and production deployment. Marker:
+IRIS-SERVICE-STAGES-20260914-001. Origin/main and local HEAD matched d4144ef.
+Applied 20260914204755_service_stage_catalogue.sql to keogysnoukbendfkfjcn;
+local filename aligned to the actual Supabase migration history version.
+Reran serviceStages.sql, serviceInvoiceCharges.sql and serviceBillingVoids.sql
+against the applied schema, all rollback-only tests passed. Pre/post hashes
+confirm all 31 invoices, 31 invoice groups, 27 payments and 42 service profiles
+unchanged. No real service calls were closed or voided by these tests.
+
+Fresh production-configured build passed in .temp/iris-release-20260914:
+index-REjTQYlH.js and index-BCIZ41Ed.css. Git-based Netlify deployment will build
+cleanly; old dist folders and private import files are excluded from this commit.
+The only new security advisories are the intentionally authenticated, guarded
+svc_read_stages and svc_save_stage definer RPCs. No new anonymous exposure or
+RLS warnings. Existing unrelated advisories remain unchanged. Review guidance:
+https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+Developer > Systems > Service Call Stages is the catalogue editor. Existing
+billing-derived stages retain their behavior. Warranty/Pro-Bono certified
+single-call zero invoices close the call without fabricating payment; voiding
+that invoice reopens it. Authenticated live user acceptance remains after release;
+automated browser coverage uses fixtures.
