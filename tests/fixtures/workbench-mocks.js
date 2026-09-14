@@ -6,6 +6,10 @@ window.workbenchFixture={calls:[],rows:[],snapshots:[],library:[],failNext:false
 if(location.search.includes('editing')){
  const doc=seed('Revision test','Acme customer','Commercial');
  doc.entries=[{id:'entry-1',number:1,name:'Lighting circuits',location:'Lobby',section:'Power',status:'Not started',items:[{id:'item-1',number:1,name:'Install receptacles',kind:'Material',qty:4,status:'Not started',notes:'Private field note',lines:[{id:'line-1',name:'Receptacle',qty:1,price:10,hours:0.1,unit:'EA',stage:'Rough-in'}]}]}];
+ if(location.search.includes('references'))doc.entries[0].items=Array.from({length:3},(_,i)=>({
+  ...structuredClone(doc.entries[0].items[0]),id:'item-'+(i+1),number:i+1,name:'Assembly '+(i+1),kind:'Assembly',
+  lines:['Trim-out','Rough-in','Trim-out'].map((stage,j)=>({id:`line-${i}-${j}`,name:`Component ${i+1}-${j+1}`,qty:1,price:10,hours:0.1,unit:'EA',stage,notes:''})),
+ }));
  window.workbenchFixture.rows=[{estimate_id:'estimate-1',revision:1,document:doc,estimates:{division:'Electrical',status:'draft',version_number:1}}];
 }
 export function createSupabaseClient(){return {

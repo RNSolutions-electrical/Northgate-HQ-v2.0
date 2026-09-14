@@ -1,6 +1,7 @@
 import React from 'react';
 import {money} from './model.mjs';
 import {itemPricing} from './pricing.mjs';
+import {componentReference} from './references.mjs';
 
 const value = input => input === null || input === undefined || input === '' ? 'Not entered' : String(input);
 const currency = input => value(input) === 'Not entered' ? 'Not entered' : money(input);
@@ -29,7 +30,7 @@ export function WorkItemReview({item, parent, data}) {
    const quantity = Number(line.qty) * (line.fixed ? 1 : Number(item.qty));
    const known = input => input !== null && input !== undefined && input !== '' && Number.isFinite(Number(input));
    const hours = known(line.hours) && known(line.qty) && (line.fixed || known(item.qty)) ? quantity * Number(line.hours) : null;
-   return <div className="review-component" key={line.id || index}><h4>{line.name || 'Unnamed component'}</h4><dl className="review-facts">{[
+   return <div className="review-component" key={line.id || index}><small className="component-reference">{componentReference(parent,item,index)}</small><h4>{line.name || 'Unnamed component'}</h4><dl className="review-facts">{[
     ['Stage',line.stage],['Quantity',line.qty],['Unit',line.unit],['Scaling',line.fixed ? 'Fixed total' : 'Per work-item unit'],
     ['Extended quantity',known(line.qty) && (line.fixed || known(item.qty)) ? quantity : null],
     ['Material / unit',currency(line.price)],['Labor hours / unit',line.hours],['Total labor hours',hours === null ? null : hours.toFixed(2)],

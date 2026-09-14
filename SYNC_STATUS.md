@@ -4,6 +4,18 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `PINE-ESTIMATE-HIERARCHY-20260914-001`
+- Branch: `main`
+- Release: Estimates component references (001.1.1) and clearer collapsible work-item groups.
+- Previous marker: `IRIS-SERVICE-STAGES-20260914-001` (baseline `d0f2fd3`).
+- Release status: approved for production; Git-triggered deployment pending this commit.
+- Checks: 66 Node tests; three Estimates browser suites at desktop/tablet/phone widths; production-configured build.
+- No database migrations, permission changes, financial changes or snapshot rewrites.
+- References are display positions in the saved component order, not permanent record IDs; stage grouping does not restart numbering.
+- See HANDOFF Entries 237–238. Preserve historical untracked dist-* and private imports.
+
+## Previous release — IRIS
+
 - Marker: `IRIS-SERVICE-STAGES-20260914-001`
 - Branch: `main`
 - Release: configurable Service Call row colors/stages and Warranty/Pro-Bono zero-dollar closeout.

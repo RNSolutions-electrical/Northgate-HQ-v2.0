@@ -20558,3 +20558,44 @@ application remains next.
 Other machines should fetch/pull main and verify IRIS-SERVICE-STAGES-20260914-001
 in SYNC_STATUS.md before editing. This documentation-only follow-up skips CI;
 the published production feature commit above remains authoritative.
+
+## Entry 237 — Local Estimates hierarchy and grouping (2026-09-14)
+
+Ryan requested component sub-references and clearer/collapsible work items.
+Reused the existing Entry and work-item numbers and existing expansion state.
+Added shared display-reference helpers: Entry 001 > work item 001.1 > components
+001.1.1, 001.1.2, etc., with no alphabet limit. References appear in the component
+editor and verification view. Component numbering uses the full saved lines array
+so stage grouping does not restart it. These are display positions, not permanent
+record IDs: removing a preceding component changes later positions in that draft.
+Underlying IDs and immutable approved snapshots are untouched. Library components
+use Component 1, Component 2 until placed in an estimate, avoiding fake job IDs.
+
+Work items now have a bounded group with a subtle red edge, component count and
+Show/Hide details affordance. Existing work-item review starts collapsed; component
+editor disclosures have clear boundaries. No schema/RPC/permission/calculation or
+export behavior changed. No new card/workflow implementation.
+
+Checks passed: 66 Node tests; new estimate-reference browser suite at 1440/768/390px
+(three work items, cross-stage numbers, keyboard component expansion, edit/save,
+non-mutating expansion, no horizontal overflow); existing estimate-editing suite
+(approval lock, immutable snapshot, V2, deletion retries, read-only controls); full
+workbench/library/navigation suite. Updated two old test selectors to the explicit
+Open/edit button; they had incorrectly clicked the pre-existing review expander.
+Screenshots inspected for phone groups and desktop editor. Fresh configured build
+passed in .temp/estimate-references-20260914-build (WorkbenchRoute-d9Gno9yS.js).
+Existing bundle-size/xlsx chunk warnings remain. git diff --check passed.
+
+Not committed, pushed or deployed. Live remains IRIS-SERVICE-STAGES-20260914-001
+(main d0f2fd3). Preserve old untracked dist-* and ignored private import files.
+
+## Entry 238 — PINE Estimates release preparation (2026-09-14)
+
+Ryan approved commit and deployment of Entry 237. Release marker:
+PINE-ESTIMATE-HIERARCHY-20260914-001. Local main and fetched origin/main matched
+d0f2fd3 before committing. Netlify authenticated and linked to existing site
+16adb4ff-83a9-4440-8aad-fcb820d55cac. Use existing Git-triggered production build.
+Only the Estimates hierarchy/grouping code, fixtures/tests and handoff documents
+are included. No database deployment needed. Verified build output is
+.temp/estimate-references-20260914-build; do not deploy older dist folders.
+Post-publish verification must compare live JS/CSS hashes and Workbench features.

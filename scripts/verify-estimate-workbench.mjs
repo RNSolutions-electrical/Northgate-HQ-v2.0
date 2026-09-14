@@ -43,7 +43,7 @@ try{
   await frame.getByRole('button',{name:/Conductor run/}).first().waitFor();
   assert.equal(await frame.locator('.work-item-note').textContent(),scopeNote);
   assert.equal(await page.evaluate(()=>window.workbenchFixture.calls.at(-1).args.p_catalogue_updates.length),0);
-  await frame.getByRole('button',{name:/Conductor run/}).first().click();
+  await frame.getByRole('button',{name:'Open Conductor run',exact:true}).click();
   await frame.locator('summary').filter({hasText:'Copper test conductor'}).click();
   await frame.getByLabel('Material $ / unit',{exact:true}).fill('3');
   await frame.getByLabel('Save destination',{exact:true}).selectOption('both');
@@ -66,7 +66,7 @@ try{
   await frame.getByRole('button',{name:/Entry 001/}).first().click();
   assert.equal(await frame.locator('.work-item-note').textContent(),scopeNote);
 
-  await frame.getByRole('button',{name:/Conductor run/}).first().click();
+  await frame.getByRole('button',{name:'Open Conductor run',exact:true}).click();
   await frame.getByLabel('Save a copy to assembly library',{exact:true}).check();
   await frame.getByLabel('Library assembly name',{exact:true}).fill('Reusable conductor');
   await frame.getByRole('button',{name:'Save changes',exact:true}).click();
