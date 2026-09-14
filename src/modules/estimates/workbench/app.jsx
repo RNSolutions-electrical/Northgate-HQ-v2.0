@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {catalogueChanges} from './catalogueService.js';
+import {assemblyLibrarySave} from './assemblyLibrary.mjs';
 import {laborTime} from './laborTime.mjs';
 import {ArrowLeft, ArrowUp, ArrowDown, ChevronRight, ChevronDown, Plus, Search, X, Copy, Save, Trash2, RotateCcw, TrendingUp, FolderOpen, List, LayoutGrid, BookOpen, ClipboardList, Check, SlidersHorizontal} from 'lucide-react';
 import {catalogue, sections, statuses, seed, clone, id, money, totals, entryTotal, freshItem, materialLine, makeTemplate, refreshed} from './model.mjs';
@@ -29,7 +30,7 @@ function LineDetails({line,summary,children}){
  useEffect(()=>{if(!line.name||line.name==='Additional labor')ref.current.open=true;},[]);
  return <details ref={ref} className="component"><summary>{summary}</summary><div className="component-editor">{children}</div></details>;
 }
-export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,readOnly=false,frameWindow,onDirty,onExit}){
+export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,readOnly=false,frameWindow,onDirty,onExit,onReloadLibrary}){
  const window=frameWindow;
  const [busy,setBusy]=useState(false);const [saveError,setSaveError]=useState('');
  const baseline=useRef(JSON.stringify(initialDocument));
@@ -49,17 +50,19 @@ export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,r
  const openEntry=e=>{listScroll.current=window.scrollY;setSelected(e.id);window.scrollTo(0,0);};
  const backEntries=()=>{setSelected(null);requestAnimationFrame(()=>window.scrollTo(0,listScroll.current));};
  const openItem=(item,parent)=>{if(data.approvedAt){setNotice("Approved estimate: changes are locked.");return;}if(item.quoteId){setModal({type:'quote',quote:(data.quotes||[]).find(q=>q.id===item.quoteId)});return;}detailScroll.current=window.scrollY;setEdit({item:clone(item),parentId:parent.id,isNew:false,library:false});window.scrollTo(0,0);};
+ const openLibrary=(item)=>{setSaveError('');setEdit({item:item?clone(item):{id:id(),name:'',qty:1,kind:'Assembly',status:'Not started',notes:'',lines:[]},libraryMode:true,isNew:!item,library:false});window.scrollTo(0,0);};
  const backItem=()=>{setEdit(null);requestAnimationFrame(()=>window.scrollTo(0,detailScroll.current));};
  const filterLink=(kind,value)=>{setSelected(null);setPage('Pricing');kind==='location'?(setLocation(value),setSection('')):(setSection(value),setLocation(''));setQuery('');setStatus('');window.scrollTo(0,0);};
  function addItem(template,kind='Assembly'){
   const item=template?refreshed(template):{id:id(),name:'',qty:1,kind,status:'Not started',notes:'',lines:[]};
+  if(template){item.notes=template.notes||'';item.lines=item.lines.map((l,index)=>({...l,notes:template.lines[index].notes||''}));}
   item.number=Math.max(0,...entry.items.map(i=>i.number))+1;
   if(!template&&kind!=='Assembly')item.lines=[{id:id(),name:kind==='Labor'?'Additional labor':'',catalogueId:'',qty:1,unit:kind==='Labor'?'HR':'EA',price:0,hours:kind==='Labor'?1:0,stage:'Rough-in',fixed:true,notes:''}];
   setModal(null);detailScroll.current=window.scrollY;setEdit({item,parentId:entry.id,isNew:true,library:false});window.scrollTo(0,0);
  }
- async function persist(next,updates=[]){
+ async function persist(next,updates=[],assembly=null){
   setBusy(true);setSaveError('');
-  try{await onSave(next,updates);baseline.current=JSON.stringify(next);setData(next);setSaved(true);setNotice('Saved to Supabase');return true;}
+  try{const result=await onSave(next,updates,assembly);next=result?.document||next;baseline.current=JSON.stringify(next);setData(next);setSaved(true);setNotice('Saved to Supabase');return true;}
   catch(error){setSaveError(error.message||'Save failed. Your input is retained.');return false;}
   finally{setBusy(false);}
  }
@@ -69,9 +72,9 @@ export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,r
   try{
    const updates=edit.saveCatalogue?catalogueChanges(edit.item.lines,catalogue):[];
    const next=clone(data),parent=next.entries.find(e=>e.id===edit.parentId);
-   if(edit.isNew)parent.items.push(clone(edit.item));else parent.items=parent.items.map(i=>i.id===edit.item.id?clone(edit.item):i);
-   if(edit.library)next.library.push({...freshItem(edit.item),materialMarkupOverride:null,lines:edit.item.lines.map(l=>({...clone(l),notes:''}))});
-   if(await persist(next,updates))backItem();
+   if(!edit.libraryMode){if(edit.isNew)parent.items.push(clone(edit.item));else parent.items=parent.items.map(i=>i.id===edit.item.id?clone(edit.item):i);}
+   const assembly=edit.libraryMode||edit.library?assemblyLibrarySave(edit.item,{editingLibrary:edit.libraryMode,name:edit.libraryMode?edit.item.name:edit.libraryName}):null;
+   if(await persist(next,updates,assembly))backItem();
   }catch(error){setSaveError(error.message);}
  }
  const editField=(field,value)=>setEdit(e=>({...e,item:{...e.item,[field]:value}}));
@@ -94,11 +97,11 @@ export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,r
    <div className="estimate-header"><div><div className="eyebrow">ESTIMATE WORKSPACE</div><h1>{data.name}</h1><div className="meta"><Badge status={data.approvedAt?'Approved':'In progress'}/><span>{data.template}</span><span>{data.customer}</span></div></div><div className="estimate-total"><small>Estimate price</small><strong>{money(summary.price)}</strong>{!edit&&page!=='Takeoff'&&<button className="export-trigger" onClick={()=>setModal({type:'export',kind:'estimate',scope:page==='Pricing'?(location?'room':section?'section':'all'):'all',value:page==='Pricing'?(location||section):''})}><Download size={15}/> Export</button>}</div></div>
    {!edit&&<><nav className="desktop-nav" aria-label="Estimate sections">{[['Overview',LayoutGrid],['Pricing',List],['Takeoff',ClipboardList],['Quotes & packages',FolderOpen],['Assembly library',BookOpen]].map(([name,Icon])=><button className={page===name?'active':''} key={name} onClick={()=>navigate(name)}><Icon size={17}/>{name}</button>)}</nav><label className="mobile-nav">Workspace<select aria-label="Workspace" value={page} onChange={e=>navigate(e.target.value)}>{['Overview','Pricing','Takeoff','Quotes & packages','Assembly library'].map(p=><option key={p}>{p}</option>)}</select></label></>}
    {edit?<form onSubmit={saveItem} className="editor"><fieldset disabled={busy||readOnly} className="editor-fields">
-    <div className="section-heading"><button type="button" className="text-button" onClick={backItem}><ArrowLeft size={17}/> Back to {entry?`Entry ${number(entry.number)}`:'entries'}</button><span className="identifier">{number(data.entries.find(e=>e.id===edit.parentId).number)}.{edit.item.number}</span></div>
-    <div className="section-heading"><h2>{edit.isNew?'Add work item':'Edit work item'}</h2><strong>{money(itemPricing(edit.item,data).price)}</strong></div>
-    <div className="fields"><label className="wide">Work item name<input required value={edit.item.name} onChange={e=>editField('name',e.target.value)} placeholder="NW Wall Receptacles"/></label><label>Assembly / item quantity<input type="number" min="0.001" step="any" required value={edit.item.qty} onChange={e=>editField('qty',e.target.value)}/></label><label>Status<select aria-label="Status" value={edit.item.status} onChange={e=>editField('status',e.target.value)}>{statuses.map(s=><option key={s}>{s}</option>)}</select></label></div>
+    <div className="section-heading"><button type="button" className="text-button" onClick={backItem}><ArrowLeft size={17}/> Back to {entry?`Entry ${number(entry.number)}`:'entries'}</button><span className="identifier">{edit.libraryMode?'Library':`${number(data.entries.find(e=>e.id===edit.parentId).number)}.${edit.item.number}`}</span></div>
+    <div className="section-heading"><h2>{edit.libraryMode?(edit.item.libraryId?'Edit library assembly':'Create library assembly'):edit.isNew?'Add work item':'Edit work item'}</h2><strong>{money(itemPricing(edit.item,data).price)}</strong></div>
+    <div className="fields"><label className="wide">Work item name<input required value={edit.item.name} onChange={e=>editField('name',e.target.value)} placeholder="NW Wall Receptacles"/></label><label>Assembly / item quantity<input type="number" min="0.001" step="any" required disabled={edit.libraryMode} value={edit.item.qty} onChange={e=>editField('qty',e.target.value)}/></label><label>Status<select aria-label="Status" value={edit.item.status} onChange={e=>editField('status',e.target.value)}>{statuses.map(s=><option key={s}>{s}</option>)}</select></label></div>
     <div className="metrics"><span>Material <strong>{money(editorTotals.material)}</strong></span><span>Labor <strong>{editorTotals.hours.toFixed(2)} hours × {money(data.rate)}</strong></span><span>Labor cost <strong>{money(editorTotals.hours*data.rate)}</strong></span></div>
-    <MarkupControls item={edit.item} data={data} onChange={editField}/>
+    {!edit.libraryMode&&<MarkupControls item={edit.item} data={data} onChange={editField}/>}
     {[...new Set(['Rough-in','Trim-out',...edit.item.lines.map(l=>l.stage)])].map(stage=>{const lines=edit.item.lines.filter(l=>l.stage===stage);if(!lines.length)return null;const v=totals({...edit.item,lines},data.rate);return <section className="stage" key={stage}><div className="stage-heading"><h3>{stage}</h3><span>{v.hours.toFixed(2)} hours · {money(v.total)}</span></div>
      {lines.map(line=>{const material=catalogue.find(m=>m.id===line.catalogueId);const q=Number(line.qty)*(line.fixed?1:Number(edit.item.qty));return <LineDetails key={line.id} line={line} summary={<><ChevronRight size={16}/><span><strong>{line.name||"New material line"}</strong><small>{line.qty} {line.unit} {line.fixed?"fixed":"per unit"} · {(q*Number(line.hours)).toFixed(2)} labor hours{(line.priceOverride||line.laborOverride)?" · Manual":""}</small></span>{data.priceAlerts&&material&&material.price>material.baseline&&<TrendingUp size={15} className="increase-icon"/>}<strong>{money(q*(Number(line.price)+Number(line.hours)*data.rate))}</strong></>}>
       <div className="component-top"><MaterialPicker line={line} onType={name=>editLine(line.id,{name,catalogueId:'',needsReview:false,priceOverride:line.priceOverride||Boolean(line.catalogueId),laborOverride:line.laborOverride||Boolean(line.catalogueId)})} onSelect={m=>editLine(line.id,{...materialLine(m.id,line.qty,line.stage),id:line.id,fixed:line.fixed,notes:line.notes,priceOverride:false,laborOverride:false,needsReview:false})}/><IconButton icon={Trash2} label={`Remove ${line.name||'line'}`} onClick={()=>setEdit(e=>({...e,item:{...e.item,lines:e.item.lines.filter(l=>l.id!==line.id)}}))}/></div>
@@ -109,8 +112,8 @@ export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,r
     </section>;})}
     <datalist id="stages">{['Rough-in','Trim-out','Testing','Startup'].map(s=><option key={s}>{s}</option>)}</datalist>
     <div className="actions"><button type="button" onClick={()=>addComponent()}><Plus size={16}/> Material line</button><button type="button" onClick={()=>addComponent(true)}><Plus size={16}/> Labor line</button></div>
-    <label className="notes">Work item notes<textarea value={edit.item.notes||''} onChange={e=>editField('notes',e.target.value)} rows={2}/></label>
-    <div className="save-bar"><label className="check"><input type="checkbox" checked={edit.library} onChange={e=>setEdit({...edit,library:e.target.checked})}/> Keep reusable copy in this estimate</label><div><button type="button" onClick={backItem}>Cancel</button><label>Save destination<select aria-label="Save destination" value={edit.saveCatalogue?'both':'project'} onChange={e=>setEdit({...edit,saveCatalogue:e.target.value==='both'})}><option value="project">Project only</option><option value="both" disabled={!canEditCatalog||!edit.item.lines.some(l=>l.catalogueId)}>Project + catalogue</option></select></label><button className="primary" type="submit"><Save size={16}/> Save changes</button></div></div></fieldset>
+    <label className="notes">Work item notes<textarea aria-label="Work item notes" value={edit.item.notes||''} onChange={e=>editField('notes',e.target.value)} rows={2}/></label>
+    <div className="save-bar">{!edit.libraryMode&&<label className="check"><input type="checkbox" checked={edit.library} onChange={e=>setEdit({...edit,library:e.target.checked,libraryName:edit.libraryName||edit.item.name})}/> Save a copy to assembly library</label>}{edit.library&&!edit.libraryMode&&<label>Library assembly name<input required value={edit.libraryName||''} onChange={e=>setEdit({...edit,libraryName:e.target.value})}/></label>}<div><button type="button" onClick={backItem}>Cancel</button><label>Save destination<select aria-label="Save destination" value={edit.saveCatalogue?'both':'project'} onChange={e=>setEdit({...edit,saveCatalogue:e.target.value==='both'})}><option value="project">{edit.libraryMode?'Assembly library':'Project only'}</option><option value="both" disabled={edit.libraryMode||!canEditCatalog||!edit.item.lines.some(l=>l.catalogueId)}>{edit.libraryMode?'Library + catalogue':'Project + catalogue'}</option></select></label><button className="primary" type="submit"><Save size={16}/> Save changes</button></div></div></fieldset>
    </form>:page==='Pricing'?<>
     {entry?<>
      <div className="section-heading"><button className="text-button" onClick={backEntries}><ArrowLeft size={17}/> All entries</button><Badge status={progress(entry)}/></div>
@@ -134,7 +137,7 @@ export default function WorkbenchEditor({initialDocument,onSave,canEditCatalog,r
     {packageView()}
 
    </>:page==='Assembly library'?<>
-    <div className="section-heading"><h2>Assembly library</h2><span className="muted">{data.library.length} reusable assemblies / items</span></div><div className="library-list">{data.library.map(i=><div key={i.id}><BookOpen size={22}/><div><strong>{i.name}</strong><small>{i.lines.length} components · {totals({...i,qty:1},data.rate).hours.toFixed(2)} hours / unit</small></div><strong>{money(totals({...i,qty:1},data.rate).total)} / unit</strong><button onClick={()=>setModal({type:'inspect',item:i})}>Details</button></div>)}</div>
+    <div className="section-heading"><h2>Assembly library</h2><div className="actions"><span className="muted">{data.library.length} assemblies</span><button disabled={busy} onClick={async()=>{try{setBusy(true);const library=await onReloadLibrary();setData(d=>({...d,library}));}catch(e){setSaveError(e.message);}finally{setBusy(false);}}}>Refresh library</button>{!readOnly&&<button className="primary" onClick={()=>openLibrary()}><Plus size={16}/> Create assembly</button>}</div></div><div className="library-list">{data.library.map(i=><div key={i.id}><BookOpen size={22}/><div><strong>{i.name}</strong><small>{i.lines.length} components · {totals({...i,qty:1},data.rate).hours.toFixed(2)} hours / unit</small></div><strong>{money(totals({...i,qty:1},data.rate).total)} / unit</strong><div className="actions"><button onClick={()=>setModal({type:'inspect',item:i})}>Details</button>{!readOnly&&<button onClick={()=>openLibrary(i)}>Edit assembly</button>}</div></div>)}</div>
    </>:<Takeoff data={data} onExport={filter=>setModal({type:'export',kind:'takeoff',scope:filter?'section':'all',value:filter})}/>}
   </main>
   <footer className="page-footer"><span>Northgate HQ · Draft estimating</span><span>Draft pricing · review before bidding</span></footer>

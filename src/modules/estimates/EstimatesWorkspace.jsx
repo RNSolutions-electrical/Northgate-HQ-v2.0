@@ -2256,14 +2256,7 @@ export function EstimatesWorkspace({ permissions }) {
 
       if (error) throw error;
 
-      await writeEstimateChangeLog(client, {
-        tableName: 'assembly_items',
-        action: assemblyItemForm.id ? 'update' : 'create',
-        recordId: data?.id,
-        beforeData: existingItem,
-        afterData: data,
-        note: `${data?.description || 'Assembly item'} ${assemblyItemForm.id ? 'updated' : 'added'} in ${selectedAssemblyForItems.name}.`,
-      });
+      // Assembly writes and their audit records now commit together in the database.
 
       assemblyItems.reload();
       estimateHistory.reload();
@@ -2329,14 +2322,7 @@ export function EstimatesWorkspace({ permissions }) {
 
       if (error) throw error;
 
-      await writeEstimateChangeLog(client, {
-        tableName: 'assemblies',
-        action: 'create',
-        recordId: data?.id,
-        beforeData: null,
-        afterData: data,
-        note: `${data?.name || 'Assembly'} created${data?.is_library_item ? ' in the library' : ' for this estimate'}.`,
-      });
+      // The assembly trigger records the actual saved row atomically.
 
       assemblyLibrary.reload();
       estimateHistory.reload();

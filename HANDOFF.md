@@ -19784,3 +19784,19 @@ contract value.
 - Validation: 25 Node tests, production build, and mocked browser checks at
   desktop/tablet/mobile widths passed, including live conversion and save values.
 - Marker: ESTIMATOR-LABOR-REFERENCE-20260913-001.
+
+## Entry 209 - Assembly library implementation awaiting migration approval
+- Local implementation and tests are ready; NOT deployed or committed.
+- Production migration attempt was rejected pending explicit approval of its
+  table, RLS, trigger and RPC changes. Do not retry via raw SQL or bypass.
+- See docs/ASSEMBLY_LIBRARY_WORKBENCH.md for precise scope and resume steps.
+- Last live sync marker remains ESTIMATOR-LABOR-REFERENCE-20260913-001.
+
+## Entry 210 - Approved assembly library release
+- Ryan explicitly approved the shared assembly schema and policy migration.
+- Applied 20260914002830_workbench_assembly_library through the migration tool.
+- Verified live fields and function ACLs; local Postgres rollback tests, 26 Node
+  tests and mocked browser checks at desktop/tablet/mobile widths pass.
+- Existing estimate copies remain independent. Signed-in live acceptance remains
+  Ryan's check; automated transport tests do not imply live user acceptance.
+- Sync marker: ESTIMATOR-ASSEMBLY-LIBRARY-20260913-001.

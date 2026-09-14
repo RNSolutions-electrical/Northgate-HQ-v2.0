@@ -10,12 +10,12 @@ import {seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary} from './catalogueService.js';
 import css from './style.css?inline';
 
-function EditorFrame({document,onSave,permissions,onDirty,onExit}){
+function EditorFrame({document,onSave,permissions,onDirty,onExit,onReloadLibrary}){
  const ref=useRef(),[target,setTarget]=useState(null);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{width:'100%',height:'calc(100dvh - 130px)',minHeight:620,border:0}}
- >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} canEditCatalog={permissions.canEditCatalog} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit}/>,target)}</iframe>;
+ >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} canEditCatalog={permissions.canEditCatalog} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary}/>,target)}</iframe>;
 }
 export default function WorkbenchRoute(){
  const permissions=usePermissions(),{getToken}=useAuth();
@@ -46,19 +46,21 @@ export default function WorkbenchRoute(){
   document.addEventListener('click',guard,true);
   return()=>document.removeEventListener('click',guard,true);
  },[]);
- async function save(document,updates=[]){
+ async function save(document,updates=[],assembly=null){
   if(saving.current)throw new Error('A save is already in progress.');
   saving.current=true;
   try{
-   const db=await client();const {data,error}=await db.rpc('save_estimate_workbench',{
+   const db=await client();const {data,error}=await db.rpc(assembly?'save_workbench_assembly':'save_estimate_workbench',{
     p_estimate_id:active.current?.estimate_id||null,p_division:permissions.division,
-    p_document:document,p_expected_revision:active.current?.revision||null,p_catalogue_updates:updates
+    p_document:document,p_expected_revision:active.current?.revision||null,p_catalogue_updates:updates,
+    ...(assembly?{p_assembly:assembly}:{})
    });
    if(error)throw error;
    active.current=data;dirty.current=false;
    setRows(current=>[data,...current.filter(r=>r.estimate_id!==data.estimate_id)]);
    // A refresh failure must not turn a committed transaction into a reported failed save.
    if(updates.length){try{setCatalogue(await loadCatalogue(db));}catch{setError('Saved successfully. Catalogue refresh failed; reopen before another shared update.');}}
+   if(assembly){try{library.current=await loadAssemblyLibrary(db);data.document={...data.document,library:structuredClone(library.current)};}catch{setError('Saved successfully. Library refresh failed; refresh the catalogue before editing shared assemblies again.');}}
    return data;
   }finally{saving.current=false;}
  }
@@ -73,7 +75,7 @@ export default function WorkbenchRoute(){
  }
  if(permissions.isLoading||loading)return <p>Loading estimator and material catalogue...</p>;
  if(!permissions.canEstimate&&!permissions.canApproveEstimates)return <p>Estimate access is required.</p>;
- if(selected)return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={selected.document} onSave={save} permissions={permissions} onDirty={markDirty} onExit={exit}/></>;
+ if(selected)return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={{...selected.document,library:structuredClone(library.current)}} onSave={save} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}}/></>;
  return <section>
   <Link to="/estimates"><ArrowLeft size={16}/> Existing estimator</Link>
   <h1>Estimates</h1>
