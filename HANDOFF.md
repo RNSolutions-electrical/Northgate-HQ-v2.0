@@ -19839,3 +19839,67 @@ contract value.
   checks passed, including nonblank logo and custom-category filtering.
 - Live column/RPC permissions verified; no new security advisor findings.
 - Marker: ASSEMBLY-CATEGORIES-20260913-001.
+
+## Entry 215 — Assembly Library Production Acceptance
+
+**Date:** 2026-09-14
+**Updated by:** Ryan / Codex
+**Phase:** Estimator — Assembly Library
+**Session type:** acceptance
+
+### Context
+
+Ryan completed the signed-in production acceptance checks for the shared Assembly
+Library release: project estimate creation, assembly copy/save, multiple categories
+and filtering, shared edit/audit behavior, reuse in a second estimate, soft archive,
+and CSV backup content.
+
+### Decisions Made This Session (locked)
+
+- The accepted Assembly Library release is a stable foundation for the next
+  estimator scope.
+- The next scope is editor-version-2 estimate approval and a customer-safe proposal
+  export. Job conversion remains a separate controlled workflow because the mapping
+  from estimating entries to Job financial lines has not been defined.
+
+### Next Steps (in order)
+
+1. Complete and validate the editor-version-2 approval/snapshot migration.
+2. Release the Workbench review/approval and approved-proposal export UI.
+3. Run authenticated production acceptance with a non-production estimate.
+
+### Architecture Drift Warnings
+
+- Do not bypass the existing immutable estimate snapshot system or create a second
+  approval record.
+- Do not enable Job conversion as part of this scope.
+
+## Entry 216 — Workbench Estimate Approval Release
+
+**Date:** 2026-09-14
+**Phase:** Estimator — Workbench lifecycle
+**Status:** released for authenticated production acceptance
+
+### Implemented
+
+- Editor-version-2 Workbench estimates now use the existing `estimates`,
+  `estimate_snapshots`, `can_approve_estimates`, and change-log architecture for
+  Draft → Approved approval.
+- Approval calculates and stores its server-authoritative price and locked source
+  document atomically. The immutable snapshot is the sole source for the
+  customer-safe approved proposal export.
+- Empty Workbench entries or items cannot be approved, and ordinary saves cannot
+  edit an approved Workbench estimate.
+
+### Explicit Boundary
+
+- Job conversion remains intentionally deferred. A controlled mapping between
+  Workbench entries and Job financial lines still needs its own reconciliation
+  design and must not be inferred from approved estimate data.
+
+### Validation
+
+- Node tests, production build, and rollback-only production database validation
+  passed. The database test verifies calculation, immutable snapshots, blocked
+  ordinary edits, blocked incomplete items, and denied approval; it retains no
+  test records.

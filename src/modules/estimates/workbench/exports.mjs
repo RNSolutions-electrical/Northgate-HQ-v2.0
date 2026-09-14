@@ -134,6 +134,58 @@ export async function exportPdf(data,entries,options,scopeLabel){
  const pages=doc.getPages();pages.forEach((p,index)=>{p.drawLine({start:{x:margin,y:36},end:{x:570,y:36},thickness:.5,color:rule});p.drawText('Northgate HQ | Draft - review before bidding or ordering',{x:margin,y:22,size:8,font:normal,color:muted});p.drawText(`${index+1} / ${pages.length}`,{x:540,y:22,size:8,font:normal,color:muted});});
  return doc.save();
 }
+
+/** Builds a client-safe proposal only from the immutable approval snapshot. */
+export async function exportApprovedProposalPdf(snapshot){
+ const document=snapshot?.workbench_document;
+ if(!document)throw new Error('The approved Workbench snapshot is unavailable. Reopen the estimate and try again.');
+ const {PDFDocument,StandardFonts,rgb}=await import('pdf-lib');
+ const pdf=await PDFDocument.create();
+ const normal=await pdf.embedFont(StandardFonts.Helvetica);
+ const bold=await pdf.embedFont(StandardFonts.HelveticaBold);
+ const dark=rgb(.13,.16,.18),muted=rgb(.39,.43,.46),red=rgb(.7,.15,.18),rule=rgb(.86,.88,.9);
+ const page=pdf.addPage([612,792]);const margin=48;let y=74;
+ const clean=value=>String(value??'').replace(/[\r\n\t]+/g,' ').replace(/[^ -~]/g,'?');
+ const draw=(value,x,top,size=10,font=normal,color=dark)=>page.drawText(clean(value),{x,y:792-top-size,size,font,color});
+ const wrap=(value,width,size=10,font=normal)=>{
+  const words=clean(value).split(/\s+/);const lines=[];let line='';
+  for(const word of words){const next=line?`${line} ${word}`:word;if(font.widthOfTextAtSize(next,size)>width&&line){lines.push(line);line=word;}else line=next;}
+  if(line)lines.push(line);return lines;
+ };
+ const paragraph=(value,{size=10,font=normal,color=dark,gap=8}={})=>{
+  for(const line of wrap(value,516,size,font)){draw(line,margin,y,size,font,color);y+=size+5;}y+=gap;
+ };
+ const date=snapshot.approved_at?new Intl.DateTimeFormat('en-US',{dateStyle:'long'}).format(new Date(snapshot.approved_at)):'';
+ page.drawRectangle({x:margin,y:758,width:516,height:3,color:red});
+ draw('NORTHGATE GROUP',margin,42,16,bold);
+ draw('PROPOSAL',margin+390,44,12,bold,red);
+ draw(date,margin+390,62,8,normal,muted);
+ y=102;
+ paragraph(snapshot.title||document.name,{size:20,font:bold,gap:4});
+ if(snapshot.customer_name||document.customer)paragraph(`Prepared for: ${snapshot.customer_name||document.customer}`,{size:11,color:muted,gap:14});
+ paragraph('Scope of work',{size:12,font:bold,gap:6});
+ const entries=Array.isArray(document.entries)?document.entries:[];
+ if(entries.length){
+  for(const entry of entries){
+   const heading=[entry.section,entry.location,entry.name].filter(Boolean).join(' — ')||'Scope item';
+   if(y>690){break;}
+   paragraph(`• ${heading}`,{size:10,gap:3});
+  }
+ }else paragraph('Scope details are included in the approved estimate.',{color:muted});
+ if(y>660){draw('See approved estimate record for the complete scope of work.',margin,682,9,normal,muted);y=704;}
+ page.drawLine({start:{x:margin,y:792-y},end:{x:564,y:792-y},thickness:.75,color:rule});y+=16;
+ draw('TOTAL PROPOSAL',margin,y,10,bold,muted);
+ draw(money(Number(snapshot.pricing_total||0)),430,y-4,20,bold);
+ y+=42;
+ const terms=document.proposalTerms?.trim();
+ if(terms){paragraph('Proposal notes',{size:10,font:bold,gap:4});paragraph(terms,{size:9,color:muted,gap:0});}
+ page.drawLine({start:{x:margin,y:36},end:{x:564,y:36},thickness:.5,color:rule});
+ draw('Northgate Group · Approved proposal',margin,758,8,normal,muted);
+ draw(`Approved ${date||'date unavailable'}`,420,758,8,normal,muted);
+ pdf.setTitle(`${snapshot.title||document.name||'Northgate proposal'} - Approved proposal`);
+ pdf.setAuthor('Northgate HQ');
+ return pdf.save();
+}
 export function downloadFile(content,mime,filename){
  const url=URL.createObjectURL(new Blob([content],{type:mime}));const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }

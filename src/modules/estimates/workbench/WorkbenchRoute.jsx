@@ -10,12 +10,12 @@ import {seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary} from './catalogueService.js';
 import css from './style.css?inline';
 
-function EditorFrame({document,onSave,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly}){
+function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly}){
  const ref=useRef(),[target,setTarget]=useState(null);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{width:'100%',height:'calc(100dvh - 130px)',minHeight:620,border:0}}
- >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} canEditCatalog={permissions.canEditCatalog} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly}/>,target)}</iframe>;
+ >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog} canApprove={permissions.canApproveEstimates} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly}/>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
@@ -33,9 +33,16 @@ export default function WorkbenchRoute({libraryOnly=false}){
   try{
    const db=await client();const materials=await loadCatalogue(db);
    library.current=await loadAssemblyLibrary(db);
-   const response=libraryOnly?{data:[]}:await db.from('estimate_workbenches').select('estimate_id,revision,document,updated_at,estimates!inner(division)').eq('estimates.division',division).order('updated_at',{ascending:false});
+   const response=libraryOnly?{data:[]}:await db.from('estimate_workbenches').select('estimate_id,revision,document,updated_at,estimates!inner(division,status,submitted_at)').eq('estimates.division',division).order('updated_at',{ascending:false});
    if(response.error)throw response.error;
-   setCatalogue(materials);setRows(response.data);
+   const workbenches=response.data||[];
+   let snapshotsByEstimate=new Map();
+   if(workbenches.length){
+    const snapshots=await db.from('estimate_snapshots').select('id,estimate_id,approved_at,approved_by,approval_note,title,customer_name,pricing_total,workbench_document').in('estimate_id',workbenches.map(row=>row.estimate_id)).order('approved_at',{ascending:false});
+    if(snapshots.error)throw snapshots.error;
+    for(const snapshot of snapshots.data||[])if(!snapshotsByEstimate.has(snapshot.estimate_id))snapshotsByEstimate.set(snapshot.estimate_id,snapshot);
+   }
+   setCatalogue(materials);setRows(workbenches.map(row=>({...row,snapshot:snapshotsByEstimate.get(row.estimate_id)||null})));
   }catch(e){setError(e.message);}finally{setLoading(false);}
  },[client,division,libraryOnly]);
  useEffect(()=>{if(!permissions.isLoading&&(permissions.canEstimate||permissions.canApproveEstimates))reload();else if(!permissions.isLoading)setLoading(false);},[permissions.isLoading,permissions.canEstimate,permissions.canApproveEstimates,reload]);
@@ -74,6 +81,17 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const db=await client();const {error}=await db.rpc('archive_assembly_library',{p_assembly_id:item.libraryId,p_expected_updated_at:item.updatedAt,p_reason:reason});
   if(error)throw error;library.current=library.current.filter(a=>a.id!==item.id);
  }
+ async function approve(document,note){
+  if(!active.current?.estimate_id)throw new Error('Save the estimate before approval.');
+  const db=await client();
+  const {data:snapshotId,error}=await db.rpc('approve_workbench_estimate',{p_estimate_id:active.current.estimate_id,p_approval_note:note||null});
+  if(error)throw error;
+  const snapshotResponse=await db.from('estimate_snapshots').select('id,estimate_id,approved_at,approved_by,approval_note,title,customer_name,pricing_total,workbench_document').eq('id',snapshotId).single();
+  if(snapshotResponse.error)throw snapshotResponse.error;
+  const snapshot=snapshotResponse.data;
+  setRows(current=>current.map(row=>row.estimate_id===active.current.estimate_id?{...row,estimates:{...row.estimates,status:'approved',submitted_at:snapshot.approved_at},snapshot}:row));
+  return snapshot;
+ }
  async function saveLibrary(document,updates,assembly){
   if(!assembly)throw new Error('Select an assembly to save.');
   const db=await client(),{data,error}=await db.rpc('save_assembly_library',{p_division:division,p_assembly:assembly});
@@ -95,7 +113,11 @@ export default function WorkbenchRoute({libraryOnly=false}){
  if(permissions.isLoading||loading)return <p>Loading estimator and material catalogue...</p>;
  if(!permissions.canEstimate&&!permissions.canApproveEstimates)return <p>Estimate access is required.</p>;
  if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...seed('Assembly library'),library:structuredClone(library.current)}} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} libraryOnly onArchiveAssembly={archiveAssembly}/></>;
- if(selected)return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={{...selected.document,library:structuredClone(library.current)}} onSave={save} onArchiveAssembly={archiveAssembly} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}}/></>;
+ if(selected){
+  const approvedSnapshot=selected.snapshot||null;
+  const document={...selected.document,approvedAt:approvedSnapshot?.approved_at||null,library:structuredClone(library.current)};
+  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onArchiveAssembly={archiveAssembly} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}}/></>;
+ }
  return <section>
   <Link to="/estimates/assemblies">Assembly library</Link>
   <h1>{division} Estimates</h1>
@@ -107,8 +129,8 @@ export default function WorkbenchRoute({libraryOnly=false}){
     <label>Template<select name="template">{Object.keys(sections).map(s=><option key={s}>{s}</option>)}</select></label>
    </div><button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button>
   </form>}
-  <h2>Draft estimates</h2>
-  {rows.map(row=><button className="secondary-button" key={row.estimate_id} onClick={()=>{active.current=row;setSelected(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.document.name}</strong><span>{row.document.customer}</span></button>)}
+  <h2>Workbench estimates</h2>
+  {rows.map(row=><button className="secondary-button" key={row.estimate_id} onClick={()=>{active.current=row;setSelected(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.document.name}</strong><span>{row.document.customer}</span><span>{row.estimates?.status === 'approved' ? 'Approved' : 'Draft'}</span></button>)}
   {!rows.length&&<p>No estimates yet.</p>}
  </section>;
 }
