@@ -9,11 +9,13 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Release: configurable Service Call row colors/stages and Warranty/Pro-Bono zero-dollar closeout.
 - Previous marker: `WILLOW-BILLING-CORRECTIONS-20260914-001` (baseline `d4144ef`).
 - Migration: `20260914204755_service_stage_catalogue.sql`, applied to production.
-- Release status: migration verified; frontend release pending this commit's Git-triggered deployment.
+- Feature commit: `0acd6aeba9f9ea9f2ced7afe2bf98d6018d12858`, pushed to origin/main.
+- Release status: live and verified September 14, 2026. Production deploy `6aa85e2f1db4c100088ad5d6` is published/ready.
+- Production URL: `https://rnsolutions.net/northgate/`. Live HTML and every JavaScript/CSS SHA-256 match the fresh tested build; feature strings, public production configuration and deep links verified.
 - Checks: 64 Node tests; four Service Calls/scorecard browser suites; three rollback-only SQL suites; fresh production-configured build.
 - Existing 31 invoices, 31 groups, 27 payments and 42 profiles preserved by pre/post hashes.
 - Developer stage editor: Developer > Systems > Service Call Stages. Authenticated live user acceptance follows deployment.
-- See HANDOFF Entries 234–235. Preserve old untracked dist-* and private imports.
+- See HANDOFF Entries 234–236. Preserve old untracked dist-* and private imports.
 
 ## Previous release — WILLOW
 

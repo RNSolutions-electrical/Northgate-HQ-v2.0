@@ -20541,3 +20541,20 @@ billing-derived stages retain their behavior. Warranty/Pro-Bono certified
 single-call zero invoices close the call without fabricating payment; voiding
 that invoice reopens it. Authenticated live user acceptance remains after release;
 automated browser coverage uses fixtures.
+
+## Entry 236 — IRIS live verification (2026-09-14)
+
+Feature commit 0acd6aeba9f9ea9f2ced7afe2bf98d6018d12858 pushed to main.
+Git-triggered production deploy 6aa85e2f1db4c100088ad5d6 published at
+2026-09-14T20:51:11.899Z, state ready. Live https://rnsolutions.net/northgate/
+HTML and every JavaScript/CSS SHA-256 match .temp/iris-release-20260914.
+Confirmed new catalogue RPCs, stage editor, zero-charge labels, retained billing
+corrections and Estimate workbench features, production Supabase/Clerk public
+configuration, and working deep links. Reran all 64 Node tests and the stage
+browser suite immediately before commit; passed. No actual customer calls were
+edited during release verification. User acceptance in the authenticated live
+application remains next.
+
+Other machines should fetch/pull main and verify IRIS-SERVICE-STAGES-20260914-001
+in SYNC_STATUS.md before editing. This documentation-only follow-up skips CI;
+the published production feature commit above remains authoritative.
