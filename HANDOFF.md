@@ -20599,3 +20599,19 @@ Only the Estimates hierarchy/grouping code, fixtures/tests and handoff documents
 are included. No database deployment needed. Verified build output is
 .temp/estimate-references-20260914-build; do not deploy older dist folders.
 Post-publish verification must compare live JS/CSS hashes and Workbench features.
+
+## Entry 239 — PINE live verification (2026-09-14)
+
+Feature commit 59b59127b43d18c0660f4a87081dfada4e5505aa pushed to main.
+Netlify production deploy 6aa862f8e966720008a22502 is ready/published at
+2026-09-14T21:11:36.637Z. Live https://rnsolutions.net/northgate/ HTML and all
+JavaScript/CSS SHA-256 hashes match the tested estimate-references build.
+Verified Workbench component-reference/work-item-group and Show/Hide details
+features, retained revision/verification features, Service Call stages/billing,
+production public configuration and deep links. Existing silas-chat function
+preserved. No database migrations or production business-data writes performed.
+
+Other machines should fetch/pull main and confirm
+PINE-ESTIMATE-HIERARCHY-20260914-001 before starting work. This final handoff
+commit is documentation-only [skip ci]; production uses the feature commit above.
+Authenticated live user acceptance is next; automated UI tests used fixtures.

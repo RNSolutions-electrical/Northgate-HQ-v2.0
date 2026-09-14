@@ -8,11 +8,13 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Branch: `main`
 - Release: Estimates component references (001.1.1) and clearer collapsible work-item groups.
 - Previous marker: `IRIS-SERVICE-STAGES-20260914-001` (baseline `d0f2fd3`).
-- Release status: approved for production; Git-triggered deployment pending this commit.
+- Feature commit: `59b59127b43d18c0660f4a87081dfada4e5505aa`, pushed to origin/main.
+- Release status: live and verified September 14, 2026. Deploy `6aa862f8e966720008a22502` is published/ready.
+- Production URL: `https://rnsolutions.net/northgate/`. Live HTML and every JavaScript/CSS SHA-256 match the tested build; new Workbench features, retained Service Call features, public configuration and deep links verified.
 - Checks: 66 Node tests; three Estimates browser suites at desktop/tablet/phone widths; production-configured build.
 - No database migrations, permission changes, financial changes or snapshot rewrites.
 - References are display positions in the saved component order, not permanent record IDs; stage grouping does not restart numbering.
-- See HANDOFF Entries 237–238. Preserve historical untracked dist-* and private imports.
+- See HANDOFF Entries 237–239. Preserve historical untracked dist-* and private imports. Authenticated live user acceptance remains next; browser tests used fixtures.
 
 ## Previous release — IRIS
 
