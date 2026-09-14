@@ -4,8 +4,9 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
-- Marker: `DOCUMENTS-EDIT-RESTORE-20260912-001`
-- Release commit: `6cf8172`
+- Marker: `SANDSTONE-WORKBENCH-20260914-001`
+- Release commit: `c7ffbe1`
+- Previous release marker: `DOCUMENTS-EDIT-RESTORE-20260912-001`
 - Previous Documents upload/archive release: `08d950b`
 - Previous Tools audit release: `68e74b9`
 - Previous deductive Change Order release: `17af992`
@@ -18,11 +19,22 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Permission template feature commit: `d8c7c22`
 - Panel mobile feature commit: `b4cfbc3`
 - GitHub branch: `main`
-- Production deploy: `6aa556d7ff6f6f00086605b3`
+- Production deploy: `6aa7d4187f242d50da22a2c1`
 - Production URL: `https://rnsolutions.net/northgate/`
-- Verified: September 12, 2026 (America/New_York)
+- Verified: September 14, 2026 (America/New_York)
 
-The current marker publishes document metadata edit and restore in Jobs and
+The current marker publishes Workbench estimate Draft → Approved approval and
+customer-safe approved proposal export. Additive migrations
+`20260914103331_estimate_workbench_approval` and
+`20260914110000_validate_workbench_approval_components` are applied. Approval
+uses the established immutable estimate snapshot and `can_approve_estimates`
+permission; it remains unavailable to anonymous users. Job conversion is
+intentionally excluded pending a separate estimate-to-Job financial mapping and
+reconciliation design. Node tests, build, rollback-only database validation, and
+live deployment-asset verification passed. The durable cross-machine marker is
+`SANDSTONE-WORKBENCH-20260914-001`.
+
+Historical marker `DOCUMENTS-EDIT-RESTORE-20260912-001` published document metadata edit and restore in Jobs and
 Estimates. Migration `20260912134038_document_edit_restore` is applied. Owner
 editors get a pencil action, one save-time reason, archived-list pagination and
 restore with a reason. Audit and mutation are atomic; stale edits, missing stored
