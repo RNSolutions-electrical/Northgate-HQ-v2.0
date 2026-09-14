@@ -42,6 +42,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   const [form, setForm] = useState(EMPTY);
   const [invoice, setInvoice] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [voidTarget, setVoidTarget] = useState(null);
   const [directoryView, setDirectoryView] = useState(initialDirectoryView === 'financials' && (permissions?.can_view_project_financials === true || permissions?.canViewProjectFinancials === true) ? 'financials' : 'operations');
   const [attentionOnly,setAttentionOnly] = useState(false);
   const [period, setPeriod] = useState({year:new Date().getFullYear(),quarter:'all',basis:'invoice'});
@@ -114,6 +115,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       const id = await rpc(name, args);
       setDirty(false);
       setConfirm(null);
+      setVoidTarget(null);
       await reload();
       if (name === 'svc_save_call') setSelectedId(id);
       if (name === 'svc_archive_call') { setSelectedId(null); setFilter('archived'); onReturnList?.(); }
@@ -330,14 +332,24 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             {key:'total',header:'Total',render:(row) => money(Number(row.revenue_excluding_tax)+Number(row.sales_tax)+Number(row.credit_card_fee || 0))},
             {key:'outstanding',header:'Outstanding',render:(row) => money(invoiceBalance(row))},
             {key:'invoice_group_id',header:'Billing group',render:(row) => row.invoice_group_id ? 'Allocated invoice' : 'Existing invoice'},
+            ...(call.can_bill ? [{key:'actions',header:'Actions',render:(row) => <button className="secondary-button danger-button" onClick={() => {setError('');setVoidTarget({kind:'invoice',id:row.id,label:row.invoice_number,shared:!!row.invoice_group_id});}}>Void invoice</button>}] : []),
           ]} />
           {posted.map((item) => <details className="svc-section" key={item.id}><summary>{item.invoice_number} — payment history</summary>
             <div className="svc-actions">{all.filter((other) => other.id !== call.id && item.invoice_group_id && other.financials?.invoices?.some((i) => i.invoice_group_id === item.invoice_group_id)).map((other) =>
               <button type="button" className="secondary-button" key={other.id} onClick={() => open(other)}>Same invoice: {other.service_call_number} — {other.name}</button>)}</div>
             <DataTable rows={item.payments || []} getRowKey={(row) => row.id} minWidth="500px" emptyTitle="No payments recorded" columns={[
               {key:'payment_date',header:'Date'},{key:'amount',header:'Allocated payment',render:(row) => money(row.amount)},{key:'reference',header:'Reference'},{key:'created_by',header:'Recorded by'},{key:'created_at',header:'Recorded at'},
+              {key:'voided_at',header:'Status',render:(row) => row.voided_at ? 'Voided · '+row.void_reason+' · '+row.voided_at : 'Recorded'},
+              ...(call.can_bill ? [{key:'actions',header:'Actions',render:(row) => !row.voided_at && <button className="secondary-button danger-button" onClick={() => {setError('');setVoidTarget({kind:'payment',id:row.id,label:money(row.amount)+' — '+item.invoice_number});}}>Void payment</button>}] : []),
             ]} />
           </details>)}
+          <details className="svc-section"><summary>Voided invoices</summary>
+            <DataTable rows={(call.financials.invoices || []).filter(item => item.status === 'void')} getRowKey={row=>row.id} minWidth="500px" emptyTitle="No voided invoices" columns={[
+              {key:'invoice_number',header:'Invoice'},{key:'revenue_excluding_tax',header:'Original subtotal',render:row=>money(row.revenue_excluding_tax)},
+              {key:'void_reason',header:'Reason'},{key:'voided_by',header:'Voided by'},{key:'voided_at',header:'Voided at'},
+              {key:'payments',header:'Preserved payments',render:row=>(row.payments || []).map(p=>money(p.amount)+' — '+(p.void_reason || 'Historical payment')).join('; ') || 'None'},
+            ]} />
+          </details>
           <details className="svc-section"><summary>Cost history</summary><DataTable rows={call.financials.costs || []} getRowKey={(row) => row.id} minWidth="650px" emptyTitle="No cost snapshots" columns={[
             {key:'cost_through',header:'Through'},{key:'total_hard_cost',header:'Total to date',render:(row) => money(row.total_hard_cost)},
             {key:'source_note',header:'Source / reason'},{key:'reconciliation_status',header:'Status'},{key:'is_active',header:'Version',render:(row) => row.is_active ? 'Current' : 'Historical'},
@@ -353,6 +365,14 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       <ServiceCallsWorkspace key={panelId} embedded permissions={permissions} initialJobId={panelId} onSaved={reload} onPanelState={setPanelState}
         onJobs={closePanel} onReturnList={()=>{requestAnimationFrame(()=>setPanelId(null));reload();}} onResources={(item,section)=>{setPanelId(null);onResources(item,section);}} />
     </Drawer>}
+    <ConfirmDialog open={!!voidTarget} title={voidTarget?.kind === 'payment' ? 'Void payment?' : 'Void invoice?'}
+      description={voidTarget?.kind === 'payment' ? 'Remove this payment from collected totals. This only corrects the recorded payment; it does not issue a refund. The original record and reason remain in history.' : 'Remove this invoice from billing totals. Any recorded payments must be voided first. Original records remain in history; no external invoice is cancelled.'}
+      requireReason reasonHint="At least 3 characters. Recorded with your name and timestamp." tone="danger" confirmLabel={voidTarget?.kind === 'payment' ? 'Void payment' : 'Void invoice'} isSubmitting={busy}
+      onCancel={()=>{setVoidTarget(null);setError('');}} onConfirm={reason=>write('svc_void_billing',{p_job_id:call.id,p_kind:voidTarget.kind,p_record_id:voidTarget.id,p_reason:reason,p_expected_updated_at:call.updated_at},'Billing record voided. Totals updated; history preserved.')}>
+      <p>{voidTarget?.label}</p>
+      {voidTarget?.shared && <p>This voids the entire shared invoice, including every linked call’s allocation. You must have billing permission on all those calls.</p>}
+      {error && <p role="alert">{error}</p>}
+    </ConfirmDialog>
     <ConfirmDialog open={discardPanel} title="Discard unsaved changes?" description="Your service call edits have not been saved. Keep editing or discard them and return to the scorecard." confirmLabel="Discard changes" cancelLabel="Keep editing"
       onCancel={()=>setDiscardPanel(false)} onConfirm={()=>{setDiscardPanel(false);requestAnimationFrame(()=>setPanelId(null));}} />
     <ConfirmDialog open={!!leaveAction} title="Discard unsaved changes?" description="These edits have not been saved." confirmLabel="Discard changes" cancelLabel="Keep editing"

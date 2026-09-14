@@ -4,6 +4,18 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `WILLOW-BILLING-CORRECTIONS-20260914-001`
+- Branch: `main`
+- Release: audited Service Calls invoice/payment void actions, preserved history and corrected collection totals.
+- Previous marker: `HARBOR-SERVICE-BILLING-20260914-001` (baseline `6bc4cfa`).
+- Migration: `20260914195657_service_billing_voids.sql`, applied to production.
+- Release status: approved; production deployment and live verification in progress.
+- Checks: 61 Node tests, three Service Calls/scorecard browser suites, rollback-only SQL correction and invoice-charge suites, production-configured build.
+- No actual customer invoice or payment has been voided. Shared invoices void as a group; active payments block invoice voiding.
+- See HANDOFF Entries 231–232. Preserve historical untracked dist-* and private import files.
+
+## Previous release — HARBOR
+
 - Marker: `HARBOR-SERVICE-BILLING-20260914-001`
 - Branch: `main`
 - Release: canonical Jobs Service Calls / scorecard, editing drawer, CSV/monthly/attention reporting, and percentage tax plus pass-through card fees.

@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {createServer} from 'vite';
+const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const mocks=path.resolve('tests/fixtures/service-calls-mocks.js');
+const server=await createServer({cacheDir:path.join(tmpdir(),'svc-void-'+process.pid),plugins:[{name:'fixture',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||id.endsWith('/services/supabaseClient.js'))return mocks;}}],server:{host:'127.0.0.1',port:5197,strictPort:true}});
+await server.listen();
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+try {
+ await mkdir('.temp/service-calls/voids',{recursive:true});
+ for(const width of [1440,390]) {
+  const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];
+  page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:5197/northgate/tests/fixtures/service-calls.html?voids');
+  await page.getByText('Service fixture 1',{exact:true}).click();
+  await page.getByRole('button',{name:'Costs & Billing',exact:true}).click();
+  await page.getByRole('button',{name:'Void invoice',exact:true}).click();
+  const dialog=page.getByRole('alertdialog');
+  await dialog.getByText(/entire shared invoice/).waitFor();
+  assert.equal(await dialog.getByRole('button',{name:'Void invoice',exact:true}).isDisabled(),true);
+  await dialog.getByLabel('Reason',{exact:false}).fill('Duplicate invoice');
+  await dialog.getByRole('button',{name:'Void invoice',exact:true}).click();
+  await dialog.getByRole('alert').filter({hasText:'Void recorded payments'}).waitFor();
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByText('TEST-VOID — payment history',{exact:true}).click();
+  await page.getByRole('button',{name:'Void payment',exact:true}).click();
+  await dialog.getByLabel('Reason',{exact:false}).fill('Duplicate payment');
+  await page.screenshot({path:'.temp/service-calls/voids/confirm-'+width+'.png'});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>({tag:e.tagName,cls:e.className,right:e.getBoundingClientRect().right})).slice(0,12))));
+  await dialog.getByRole('button',{name:'Void payment',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  assert.equal(await page.locator('td[data-label="Outstanding"]').innerText(),'$110.47');
+  assert.equal(await page.getByRole('button',{name:'Void payment',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Void invoice',exact:true}).click();
+  await dialog.getByLabel('Reason',{exact:false}).fill('Duplicate invoice');
+  await dialog.getByRole('button',{name:'Void invoice',exact:true}).click();
+  await dialog.waitFor({state:'hidden'});
+  await page.getByText('No invoices recorded',{exact:true}).waitFor();
+  await page.getByText('Voided invoices',{exact:true}).click();
+  await page.getByText('Duplicate invoice',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Void invoice',exact:true}).count(),0);
+  assert.deepEqual(errors,[]);
+  await page.close();
+ }
+ const page=await browser.newPage();
+ await page.goto('http://127.0.0.1:5197/northgate/tests/fixtures/service-calls.html?voids&financial-viewer');
+ await page.getByText('Service fixture 1',{exact:true}).click();
+ await page.getByRole('button',{name:'Costs & Billing',exact:true}).click();
+ await page.getByText('TEST-VOID — payment history',{exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:/Void (invoice|payment)/}).count(),0);
+ await page.close();
+ console.log('PASS: desktop/mobile confirmations, payment gate, restored balance, history, read-only controls.');
+} finally {await browser.close();await server.close();}

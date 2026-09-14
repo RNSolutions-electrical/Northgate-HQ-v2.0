@@ -1,4 +1,4 @@
-import { callFinancials, cents } from './serviceCallModel.js';
+import { activePayments, callFinancials, cents } from './serviceCallModel.js';
 
 export function dateOnly(value) {
   const text = String(value || '').slice(0, 10);
@@ -15,7 +15,7 @@ export function profitDate(call, basis = 'invoice') {
   if (basis === 'service') return dateOnly(call.profile?.service_date);
   const invoices = (call.financials?.invoices || []).filter((i) => i.status === 'posted');
   const dates = basis === 'paid'
-    ? invoices.flatMap((i) => (i.payments || []).map((p) => dateOnly(p.payment_date)))
+    ? invoices.flatMap((i) => activePayments(i).map((p) => dateOnly(p.payment_date)))
     : invoices.map((i) => dateOnly(i.invoice_date));
   return dates.filter(Boolean).sort().at(-1) || null;
 }

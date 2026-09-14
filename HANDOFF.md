@@ -20371,3 +20371,72 @@ signed-in acceptance is Ryan's next step; no claim of live UI writes beyond the
 rollback-only synthetic database tests. Pre-existing Supabase security advisories
 remain unchanged and are outside this release's scope; see
 https://supabase.com/docs/guides/database/database-linter for remediation guidance.
+
+## Entry 231 — Service Billing Corrections (Local, Not Released)
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Tested locally; awaiting commit/push/deploy approval
+
+Ryan requested payment deletion after accidentally recording a second invoice.
+Implemented audited **Void invoice** and **Void payment** actions in the existing
+Service Calls Costs & Billing interface (also reused by the scorecard side panel).
+No actual customer invoice/payment has been corrected or deleted.
+
+- Required reason, actor and timestamp; original amounts and history retained.
+- Shared invoice correction voids the entire group, never just one allocation.
+  Every linked call must be active and billing-authorized; any active payment
+  blocks invoice voiding. Void its payments first. No external refund or invoice
+  cancellation is performed.
+- Voided payments are excluded from balances, collection totals and paid-date
+  reporting. Voided invoices use the existing void status and are excluded from
+  revenue. History remains accessible; invoice numbers/request IDs remain reserved.
+- Added local migration
+  `20260914195657_service_billing_voids.sql`: nullable void metadata on the existing
+  invoice/payment/group tables; existing payment-save RPC and financial view
+  exclude voided payments; new guarded `svc_void_billing` RPC. No new table or
+  permission system. Direct writes remain revoked, financial view remains
+  security-invoker, anonymous RPC execution revoked.
+- Shared job/invoice locks follow existing sorted lock order. Stale requests fail;
+  repeated successful voids return without duplicate audits. Group updates and
+  audits are atomic.
+
+Validation completed: 61 Node tests; existing Service Calls and scorecard-panel
+browser suites; new desktop/mobile billing-void suite; visual inspection of both
+confirmation sizes; production-configured build; git diff whitespace check.
+SQL migration plus synthetic tests ran in rollback-only transactions: payment
+void/restored balance/re-recording, paid-invoice block, shared invoice atomicity,
+missing reason, stale edits, denied viewer, wrong-call ID, archived shared member,
+idempotency, exact audit count, history retention, direct-write/anonymous grants,
+and existing percentage-charge suite. No test users retained; live void RPC remains
+absent. Actual simultaneous multi-connection contention was not exercised; locking
+was reviewed and stale/idempotent cases tested.
+
+Deploy migration before the frontend. Run post-migration security advisors and
+signed-in acceptance after approved release. Current baseline security advisories
+are pre-existing (see Entry 230); no production schema changes retained this turn.
+Live sync marker remains **HARBOR-SERVICE-BILLING-20260914-001**, HEAD 6bc4cfa.
+Do not claim these new actions are live until released. Preserve pre-existing
+untracked dist-* directories and private ignored import files.
+
+## Entry 232 — WILLOW Billing Corrections Release
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Approved; migration applied, frontend publishing
+
+Ryan explicitly approved commit, push and production deployment. New marker:
+**WILLOW-BILLING-CORRECTIONS-20260914-001** (previous HARBOR, baseline 6bc4cfa).
+Supabase assigned migration version 20260914195657; the local filename was aligned
+to that applied version. The correction SQL suite passed again after application.
+Pre/post hashes prove all existing 30 invoices, 30 groups and 26 payments unchanged
+excluding the newly added nullable metadata. No actual duplicate was voided.
+
+61 Node tests pass; prior browser/build verification remains valid (only release
+documentation and migration filename changed). Advisors show only the expected
+new signed-in SECURITY DEFINER RPC notice for svc_void_billing. Its existing
+job-level billing/read authority, active linked-call checks, empty search_path,
+anonymous revocation and direct-write restrictions were tested. All other
+advisories are unchanged. See the
+[Supabase security-function guidance](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+Production deployment ID and live verification follow when publishing completes.

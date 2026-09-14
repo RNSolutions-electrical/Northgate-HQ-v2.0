@@ -15,6 +15,11 @@ if(!readonly && new URLSearchParams(location.search).has('profit')) {
   call.financials.costs=[{id:crypto.randomUUID(),is_active:true,total_hard_cost:index===0?20:630,reconciliation_status:'final'}];
  }
 }
+if(new URLSearchParams(location.search).has('voids')) {
+ calls[0].financials.invoices=[{id:'void-invoice',invoice_number:'TEST-VOID',invoice_group_id:'shared-fixture',status:'posted',revenue_excluding_tax:100,sales_tax:7.25,credit_card_fee:3.22,payments:[
+  {id:'void-payment',amount:110.47,payment_date:'2026-09-14',reference:'Accidental duplicate'}
+ ]}];
+}
 window.serviceFixture={calls,requests:[]};
 if(new URLSearchParams(location.search).has('financial-viewer')) for(const call of calls) {
  call.can_manage=false;call.can_bill=false;call.can_archive=false;
@@ -36,6 +41,15 @@ export async function withSupabaseTokenRetry(_getToken,operation) {
    const id=crypto.randomUUID();calls.push({...calls[0],...args.p_data,id,profile:{...args.p_data,job_id:id},financials:{invoices:[],costs:[],audit:[]}});return {data:id};
   }
   if(name==='svc_archive_call'){const call=calls.find(c=>c.id===args.p_job_id);call.archived_at='2026-09-14';call.archive_reason=args.p_reason;call.can_manage=false;call.can_bill=false;return {data:call.id};}
+  if(name==='svc_void_billing') {
+   const call=calls.find(c=>c.id===args.p_job_id),invoice=call.financials.invoices[0];
+   if(args.p_reason.trim().length<3)return {error:{message:'Enter a reason of at least 3 characters for this correction'}};
+   if(args.p_kind==='invoice' && invoice.payments.some(p=>!p.voided_at))return {error:{message:'Void recorded payments on every linked call before voiding this invoice. No invoice was changed.'}};
+   const record=args.p_kind==='invoice'?invoice:invoice.payments.find(p=>p.id===args.p_record_id);
+   Object.assign(record,{voided_at:'2026-09-14',voided_by:'Fixture user',void_reason:args.p_reason});
+   if(args.p_kind==='invoice')record.status='void';
+   return {data:call.id};
+  }
   if(name==='svc_save_commercial') {
    const call=calls.find(c=>c.id===args.p_job_id);
    if(args.p_action==='quote') Object.assign(call.financials,args.p_data);

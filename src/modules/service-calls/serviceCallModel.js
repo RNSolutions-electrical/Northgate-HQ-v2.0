@@ -32,9 +32,12 @@ export function cents(value = 0) {
 export function money(value = 0) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
 }
+export function activePayments(invoice) {
+  return (invoice.payments || []).filter((payment) => !payment.voided_at);
+}
 export function invoiceBalance(invoice) {
   return (cents(invoice.revenue_excluding_tax) + cents(invoice.sales_tax) + cents(invoice.credit_card_fee || 0) -
-    (invoice.payments || []).reduce((sum, payment) => sum + cents(payment.amount), 0)) / 100;
+    activePayments(invoice).reduce((sum, payment) => sum + cents(payment.amount), 0)) / 100;
 }
 export function callFinancials(call, today = new Date().toLocaleDateString('en-CA')) {
   if (!call.financials) return null;
@@ -43,7 +46,7 @@ export function callFinancials(call, today = new Date().toLocaleDateString('en-C
   const revenue = invoices.reduce((sum, item) => sum + cents(item.revenue_excluding_tax), 0);
   const tax = invoices.reduce((sum, item) => sum + cents(item.sales_tax), 0);
   const cardFee = invoices.reduce((sum, item) => sum + cents(item.credit_card_fee || 0), 0);
-  const collected = invoices.reduce((sum, item) => sum + (item.payments || []).reduce((s, p) => s + cents(p.amount), 0), 0);
+  const collected = invoices.reduce((sum, item) => sum + activePayments(item).reduce((s, p) => s + cents(p.amount), 0), 0);
   const costs = cents(cost?.total_hard_cost || 0);
   const balance = revenue + tax + cardFee - collected;
   return {
