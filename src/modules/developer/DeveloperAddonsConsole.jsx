@@ -5,6 +5,7 @@ import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { RETIRED_ADDON_KEYS } from '../registry.js';
 
 export function DeveloperAddonsConsole() {
   const { getToken } = useAuth();
@@ -37,14 +38,14 @@ export function DeveloperAddonsConsole() {
     const map = new Map();
     state.rows.forEach((row) => {
       if (!map.has(row.user_id)) map.set(row.user_id, { user_id: row.user_id, display_name: row.display_name, email: row.email, role: row.role, division: row.division, addons: [] });
-      map.get(row.user_id).addons.push(row);
+      if (!RETIRED_ADDON_KEYS.includes(row.addon_key)) map.get(row.user_id).addons.push(row);
     });
     return [...map.values()];
   }, [state.rows]);
   const selected = users.find((user) => user.user_id === selectedUserId) ?? users[0] ?? null;
 
   async function setAccess(addon, enabled) {
-    if (!selected || saveState.isSaving || reason.trim().length < 3) return;
+    if (!selected || RETIRED_ADDON_KEYS.includes(addon.addon_key) || saveState.isSaving || reason.trim().length < 3) return;
     setSaveState({ isSaving: true, error: null, success: '' });
     try {
       const token = await getToken({ template: 'supabase' });
@@ -64,6 +65,7 @@ export function DeveloperAddonsConsole() {
     <section className="developer-addons developer-console-page">
       <Toolbar descriptionIsDiagnostic eyebrow="Tool Add-Ons" title="User access" description="Enable optional Northgate tools per user. Navigation, route access, database queries, and RLS all use the same server-authoritative assignment." actions={<button type="button" className="secondary-button" onClick={() => setRefreshKey((current) => current + 1)} disabled={state.isLoading}><RefreshCw aria-hidden="true" /> Refresh</button>} />
       {state.error ? <StatePanel tone="danger" title="Add-on access could not be loaded" description={state.error.message} compact /> : null}
+      <p>Service Scorecard is now part of Jobs → Service Calls. Its access follows job and project-financial permissions, not an add-on assignment.</p>
       <div className="developer-addons__workspace">
         <div className="developer-addons__users" role="listbox" aria-label="Users">
           {users.map((user) => <button type="button" key={user.user_id} className={selected?.user_id === user.user_id ? 'is-active' : ''} onClick={() => { setSelectedUserId(user.user_id); setReason(''); setSaveState({ isSaving: false, error: null, success: '' }); }}><strong>{user.display_name || user.email || user.user_id}</strong><span>{user.role} · {user.division || 'Unassigned'}</span></button>)}

@@ -1,4 +1,6 @@
 .svc-workspace .svc-content { margin: 20px; }
+.svc-workspace .svc-charge-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(80px,auto); gap:14px; align-items:end; max-width:650px; }
+.svc-workspace .svc-charge-grid output { text-align:right; padding:10px 0; }
 .svc-workspace .svc-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .svc-workspace .svc-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
 .svc-workspace label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: .8rem; color: var(--ng-muted); }
@@ -21,6 +23,14 @@
 .svc-workspace .svc-profit-note { font-size: .8rem; }
 .svc-workspace .svc-checkbox { flex-direction: row; align-items: center; margin: 12px 0; }
 .svc-workspace .svc-checkbox input { width: auto; }
+.svc-workspace .svc-call-link { border:0; padding:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.svc-workspace.svc-workspace--panel .svc-content { margin:0; padding:0; border:0; box-shadow:none; }
+.svc-workspace--panel .svc-panel-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.svc-workspace--panel .svc-panel-heading h2 { font-size:1rem; overflow-wrap:anywhere; margin:0; }
+.svc-workspace--panel .module-fact-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.svc-workspace--panel .jobs-directory-tabs { flex-wrap:wrap; }
+.svc-workspace--panel .svc-allocation { grid-template-columns:minmax(0,1fr); }
+@media(max-width:700px) { .svc-workspace--panel .svc-content { margin:0; } .svc-workspace--panel .module-fact-grid { grid-template-columns:1fr; } }
 /* Apply to cells as well as rows so the shared table's cell backgrounds cannot mask status. */
 .svc-workspace .data-table tbody tr.svc-row--paid > td { background: var(--ng-ok-bg, #e8f4ec); }
 .svc-workspace .data-table tbody tr.svc-row--overdue > td { background: var(--ng-err-bg, #fcebea); }

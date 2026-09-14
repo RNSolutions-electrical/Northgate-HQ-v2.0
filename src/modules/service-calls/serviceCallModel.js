@@ -33,7 +33,7 @@ export function money(value = 0) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
 }
 export function invoiceBalance(invoice) {
-  return (cents(invoice.revenue_excluding_tax) + cents(invoice.sales_tax) -
+  return (cents(invoice.revenue_excluding_tax) + cents(invoice.sales_tax) + cents(invoice.credit_card_fee || 0) -
     (invoice.payments || []).reduce((sum, payment) => sum + cents(payment.amount), 0)) / 100;
 }
 export function callFinancials(call, today = new Date().toLocaleDateString('en-CA')) {
@@ -42,11 +42,12 @@ export function callFinancials(call, today = new Date().toLocaleDateString('en-C
   const cost = (call.financials.costs || []).find((item) => item.is_active);
   const revenue = invoices.reduce((sum, item) => sum + cents(item.revenue_excluding_tax), 0);
   const tax = invoices.reduce((sum, item) => sum + cents(item.sales_tax), 0);
+  const cardFee = invoices.reduce((sum, item) => sum + cents(item.credit_card_fee || 0), 0);
   const collected = invoices.reduce((sum, item) => sum + (item.payments || []).reduce((s, p) => s + cents(p.amount), 0), 0);
   const costs = cents(cost?.total_hard_cost || 0);
-  const balance = revenue + tax - collected;
+  const balance = revenue + tax + cardFee - collected;
   return {
-    revenue: revenue / 100, tax: tax / 100, collected: collected / 100, cost: costs / 100,
+    revenue: revenue / 100, tax: tax / 100, cardFee: cardFee / 100, collected: collected / 100, cost: costs / 100,
     costKnown: !!cost, profit: cost ? (revenue - costs) / 100 : null,
     margin: cost && revenue ? ((revenue - costs) / revenue) * 100 : null,
     outstanding: balance / 100,

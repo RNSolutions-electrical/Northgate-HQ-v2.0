@@ -4,6 +4,18 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `HARBOR-SERVICE-BILLING-20260914-001`
+- Branch: `main`
+- Release: canonical Jobs Service Calls / scorecard, editing drawer, CSV/monthly/attention reporting, and percentage tax plus pass-through card fees.
+- Previous marker: `MAPLE-SERVICE-REVIEW-20260914-001` (baseline `32d9dd1`).
+- Database migration: `20260914192338_service_invoice_percentage_charges.sql`, applied and rollback-tested in production.
+- Existing 27 invoices, 27 invoice groups and 24 payments verified unchanged by pre/post hashes (excluding new default/nullable columns).
+- Checks: 59 unit tests; both Service Calls desktop/tablet/phone browser suites; legacy and percentage-charge SQL integration suites; production-configured build.
+- Release status: tested; production publish verification pending. See HANDOFF Entry 229 for scope and deployment order.
+- Existing private imports and historical untracked build directories are excluded. No historical financial values reinterpreted.
+
+## Previous release — MAPLE
+
 - Marker: `MAPLE-SERVICE-REVIEW-20260914-001`
 - Branch: `main`
 - Release: Service Call profit summaries/scorecard, billing-derived directory stages and row colors, and read-only Estimate work-item verification.

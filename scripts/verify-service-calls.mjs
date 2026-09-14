@@ -25,8 +25,10 @@ try {
   await page.getByRole('button',{name:'Costs & Billing',exact:true}).click();
   await page.getByRole('button',{name:'Record invoice',exact:true}).click();
   await page.getByLabel('Invoice number',{exact:true}).fill('INV-TEST');
-  await page.getByLabel('Total before tax',{exact:true}).fill('100');
-  await page.getByLabel('Sales tax',{exact:true}).fill('7');
+  await page.getByLabel('Subtotal',{exact:true}).fill('100');
+  await page.getByLabel('Sales Tax %',{exact:true}).fill('7.25');
+  await page.getByLabel('Credit Card Fee %',{exact:true}).fill('3');
+  assert.equal(await page.getByLabel('Invoice total',{exact:true}).innerText(),'$110.47');
   await page.getByLabel('Allocated amount',{exact:true}).fill('60');
   await page.getByRole('button',{name:'Add another call'}).click();
   await page.getByLabel('Allocated amount',{exact:true}).nth(1).fill('40');
@@ -41,6 +43,8 @@ try {
   await page.getByText('Invoice recorded with reconciled call allocations.',{exact:true}).waitFor();
   const request=await page.evaluate(()=>window.serviceFixture.requests.find(r=>r.name==='svc_post_invoice'));
   assert.equal(request.args.p_data.allocations.length,2);
+  assert.equal(request.args.p_data.sales_tax,7.25);
+  assert.equal(request.args.p_data.credit_card_fee,3.22);
   assert.equal(request.args.p_data.allocations.reduce((s,a)=>s+Number(a.amount),0),100);
   await page.getByRole('button',{name:'Details & linked calls',exact:true}).click();
   await page.getByRole('button',{name:'Archive',exact:true}).click();

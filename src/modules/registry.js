@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  Activity,
   PanelTop,
   Boxes,
   BriefcaseBusiness,
@@ -138,15 +137,6 @@ export const MODULES = [
     description: 'Permission-aware assistant.',
   },
   {
-    key: 'service-performance',
-    path: '/service-performance',
-    label: 'Service Scorecard',
-    icon: Activity,
-    requiresAddon: 'service_performance',
-    status: 'live',
-    description: 'Electrical service-call cost, margin, billing, and collection scorecard.',
-  },
-  {
     key: 'panel-directory',
     path: '/panel-directory',
     label: 'Panel Directory',
@@ -167,6 +157,8 @@ export const MODULES = [
 ];
 
 /** Same fail-closed predicate the DataTable uses: `=== true` only. */
+export const RETIRED_ADDON_KEYS = Object.freeze(['service_performance']);
+
 export function isModulePermitted(module, permissions) {
   if (module.requiresAddon && permissions?.canAccessAddon?.(module.requiresAddon) !== true) return false;
   if (module.requires?.length) {
@@ -194,7 +186,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'reports', moduleKey: 'reports' },
   { key: 'accounting', moduleKey: 'accounting' },
   { key: 'silas', moduleKey: 'silas' },
-  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['service-performance', 'panel-directory'] },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
@@ -228,7 +220,7 @@ export function permittedNavigationGroups(permissions) {
         .filter(canUseDepartment)
         .map((department) => ({ ...module, key: `vehicles-${department.toLowerCase()}`, label: `${department} Vehicles`, navigationState: { vehicleDepartment: department } }));
     }
-    const displayLabels = { inventory: 'Material Inventory', tools: 'Tool Inventory', 'service-performance': 'Service Scorecard', 'panel-directory': 'Panel Directory' };
+    const displayLabels = { inventory: 'Material Inventory', tools: 'Tool Inventory', 'panel-directory': 'Panel Directory' };
     return [{ ...module, label: displayLabels[module.key] || module.label }];
   };
 

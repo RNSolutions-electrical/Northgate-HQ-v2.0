@@ -5,6 +5,7 @@ import { InventoryScanRoute } from './modules/inventory/InventoryWorkspace.jsx';
 import { ModuleScreen } from './modules/ModuleScreen.jsx';
 import { MODULES } from './modules/registry.js';
 import { lazy, Suspense } from 'react';
+import { LegacyServiceScorecardRedirect } from './modules/service-calls/LegacyServiceScorecardRedirect.jsx';
 const WorkbenchRoute = lazy(() => import('./modules/estimates/workbench/WorkbenchRoute.jsx'));
 
 /**
@@ -24,6 +25,8 @@ export default function App() {
             <Route path="/estimates/workbench" element={<Suspense fallback={<p>Loading estimator...</p>}><WorkbenchRoute /></Suspense>} />
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/scan/location/:locationId" element={<InventoryScanRoute />} />
+            {/* Retired add-on bookmarks use the canonical Jobs workflow and its permissions. */}
+            <Route path="/service-performance/*" element={<LegacyServiceScorecardRedirect />} />
             {MODULES.map((module) => (
               <Route
                 key={module.key}

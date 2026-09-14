@@ -6,10 +6,14 @@ import { DataTable } from '../../components/ui/DataTable.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
+import { Drawer } from '../../components/ui/Drawer.jsx';
 import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
 import { ServiceImportPreview } from './ServiceImportPreview.jsx';
 import { ServiceProfitSummary } from './ServiceProfitSummary.jsx';
+import { ServiceMonthlyReport } from './ServiceMonthlyReport.jsx';
+import { serviceAttention, serviceScorecardCsv } from './serviceScorecard.js';
+import { invoiceCharges } from './invoiceCharges.js';
 import { inProfitPeriod, isVoidCall, profitDate } from './serviceProfit.js';
 import { WORK_STAGES, DIRECTORY_STAGES, directoryStatus, BILLING_METHODS, money, callFinancials, invoiceBalance, allocationRemaining } from './serviceCallModel.js';
 import './serviceCalls.css';
@@ -20,7 +24,8 @@ const EMPTY = { service_call_number:'', name:'', division:'Electrical', work_sta
   contact_name:'', phone:'', billing_email:'', address_line1:'', city:'', state:'NC', postal_code:'',
   description:'', notes:'', service_date:'', lead_name:'' };
 
-export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs, onResources, onReturnList }) {
+export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs, onResources, onReturnList,
+  embedded = false, onSaved, onPanelState, initialDirectoryView = 'operations' }) {
   const { getToken } = useAuth();
   const [calls, setCalls] = useState([]);
   const [archivedCalls, setArchivedCalls] = useState([]);
@@ -37,10 +42,23 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   const [form, setForm] = useState(EMPTY);
   const [invoice, setInvoice] = useState(null);
   const [confirm, setConfirm] = useState(null);
-  const [directoryView, setDirectoryView] = useState('operations');
+  const [directoryView, setDirectoryView] = useState(initialDirectoryView === 'financials' && (permissions?.can_view_project_financials === true || permissions?.canViewProjectFinancials === true) ? 'financials' : 'operations');
+  const [attentionOnly,setAttentionOnly] = useState(false);
   const [period, setPeriod] = useState({year:new Date().getFullYear(),quarter:'all',basis:'invoice'});
   const [includeUndated, setIncludeUndated] = useState(false);
+  const [panelId, setPanelId] = useState(null);
+  const [panelState, setPanelState] = useState({dirty:false,busy:false});
+  const [discardPanel, setDiscardPanel] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [leaveAction, setLeaveAction] = useState(null);
   const sequence = useRef(0);
+  useEffect(() => { onPanelState?.({dirty,busy}); }, [dirty,busy,onPanelState]);
+  useEffect(() => {
+    if (!embedded || !dirty) return;
+    const warn = event => { event.preventDefault(); event.returnValue=''; };
+    window.addEventListener('beforeunload',warn);
+    return () => window.removeEventListener('beforeunload',warn);
+  }, [embedded,dirty]);
 
   const rpc = useCallback((name, args) => withSupabaseTokenRetry(getToken, async (client) => {
     const { data, error: failure } = await client.rpc(name, args);
@@ -72,10 +90,16 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   const financials = call && callFinancials(call);
   const canCreate = permissions?.can_create_jobs === true || permissions?.canCreateJobs === true;
   const canViewFinance = permissions?.can_view_project_financials === true || permissions?.canViewProjectFinancials === true;
-  const open = (item) => { setSelectedId(item.id); setMode('browse'); setTab('details'); setError(''); setMessage(''); };
-  const back = () => { setMode('browse'); setError(''); setMessage(''); };
+  const open = (item) => { setSelectedId(item.id); setMode('browse'); setTab('details'); setError(''); setMessage(''); setDirty(false); };
+  const guard = action => { if (busyRef.current) return; if (embedded && dirty) setLeaveAction(()=>action); else action(); };
+  const back = () => guard(() => { setMode('browse'); setError(''); setMessage(''); setDirty(false); });
   const list = () => { setSelectedId(null); back(); onReturnList?.(); };
-  const change = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const change = (key, value) => { setDirty(true); setForm((current) => ({ ...current, [key]: value })); };
+  const closePanel = () => { if (panelState.busy) return; if (panelState.dirty) setDiscardPanel(true); else setPanelId(null); };
+  const openDirectoryCall = item => {
+    if (directoryView === 'financials' && !embedded) { setPanelState({dirty:false,busy:false}); setPanelId(item.id); }
+    else open(item);
+  };
   const field = (key, label, type = 'text', required = false) => <label key={key}>{label}
     <input type={type} value={form[key] ?? ''} onChange={(e) => change(key, e.target.value)} required={required}
       {...(type === 'number' ? { step: '0.01' } : {})} />
@@ -88,26 +112,28 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
     busyRef.current = true; setBusy(true); setError(''); setMessage('');
     try {
       const id = await rpc(name, args);
+      setDirty(false);
       setConfirm(null);
       await reload();
       if (name === 'svc_save_call') setSelectedId(id);
       if (name === 'svc_archive_call') { setSelectedId(null); setFilter('archived'); onReturnList?.(); }
       setMode('browse'); setMessage(success);
+      await onSaved?.();
     } catch (e) { setError(e.message); }
     finally { busyRef.current = false; setBusy(false); }
   }
   function startEdit() {
     setForm({ ...EMPTY, ...call, ...call.profile, related_job_id:call.profile?.related_job_id || '',
       work_stage:call.profile?.work_stage || (call.status === 'complete' ? 'complete' : 'upcoming') });
-    setMode('edit'); setError(''); setMessage('');
+    setMode('edit'); setError(''); setMessage(''); setDirty(false);
   }
-  function commercial(action, data = {}) { setForm(action === 'payment' ? {...data,request_id:crypto.randomUUID()} : data); setMode(action); setError(''); setMessage(''); }
+  function commercial(action, data = {}) { setForm(action === 'payment' ? {...data,request_id:crypto.randomUUID()} : data); setMode(action); setError(''); setMessage(''); setDirty(false); }
   function startInvoice() {
     setInvoice({ requestId:crypto.randomUUID(), invoice_number:'', invoice_date:today(), due_date:'',
-      total_revenue:'', sales_tax:'0', note:'', allocations:[{ job_id:call.id, amount:'', expected_updated_at:call.updated_at }] });
-    setMode('invoice'); setError(''); setMessage('');
+      total_revenue:'', sales_tax_percent:'7.25', credit_card_percent:'3', note:'', allocations:[{ job_id:call.id, amount:'', expected_updated_at:call.updated_at }] });
+    setMode('invoice'); setError(''); setMessage(''); setDirty(false);
   }
-  const updateInvoice = (key, value) => setInvoice((old) => ({ ...old, [key]:value }));
+  const updateInvoice = (key, value) => { setDirty(true); setInvoice((old) => ({ ...old, [key]:value })); };
   const saveCommercial = (event) => {
     event.preventDefault();
     write('svc_save_commercial', { p_job_id:call.id, p_action:mode, p_data:form, p_expected_updated_at:call.updated_at }, 'Financial information saved.');
@@ -119,20 +145,32 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       [item.service_call_number,item.name,item.description,item.profile?.business_name,item.address_line1,item.profile?.lead_name].join(' ').toLowerCase().includes(search.toLowerCase());
   });
   const directoryRows = directoryView === 'financials' && canViewFinance
-    ? rows.filter((item) => inProfitPeriod(item, {...period,through:today()}) || (includeUndated && !profitDate(item,period.basis))) : rows;
+    ? rows.filter((item) => (inProfitPeriod(item, {...period,through:today()}) || (includeUndated && !profitDate(item,period.basis))) && (!attentionOnly || serviceAttention(item,today()).length > 0)) : rows;
+  function exportScorecard() {
+    if (!canViewFinance) return;
+    const blob = new Blob([serviceScorecardCsv(directoryRows,period,today())],{type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob), anchor = document.createElement('a');
+    anchor.href=url; anchor.download=`northgate-service-scorecard-${period.year}-${period.quarter === 'all' ? 'year' : 'Q'+period.quarter}.csv`;
+    anchor.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
   const parent = all.find((item) => item.id === call?.profile?.related_job_id);
   const linked = call ? all.filter((item) => item.id !== call.id && (item.profile?.related_job_id === call.id ||
     item.id === call.profile?.related_job_id || (call.profile?.related_job_id && item.profile?.related_job_id === call.profile.related_job_id))) : [];
   const isFinancialMode = ['quote','cost','payment','invoice'].includes(mode);
   let invoiceRemaining = null;
+  let charges=null,chargeError='';
+  try { if (invoice) charges=invoiceCharges(invoice.total_revenue,invoice.sales_tax_percent,invoice.credit_card_percent); }
+  catch (e) { chargeError=e.message; }
   try { if (invoice) invoiceRemaining = allocationRemaining(invoice.total_revenue || 0,invoice.allocations); } catch { /* Invalid input remains editable; the server validates on save. */ }
-  return <div className="svc-workspace" {...uiElementAttributes('MODULE','Service Calls')}>
-    <WorkspaceHeader eyebrow="Workspace" title={mode === 'create' ? 'Create Service Call' : call ? (call.service_call_number || call.job_number) + ' — ' + call.name : 'Service Calls'}
+  return <div className={'svc-workspace'+(embedded ? ' svc-workspace--panel' : '')} {...uiElementAttributes('MODULE','Service Calls')}>
+    {embedded ? <div className="svc-panel-heading"><h2>{call ? (call.service_call_number || call.job_number)+' — '+call.name : 'Loading service call…'}</h2>
+      {mode !== 'browse' && <button className="secondary-button" onClick={back} disabled={busy}>Cancel editing</button>}
+    </div> : <WorkspaceHeader eyebrow="Workspace" title={mode === 'create' ? 'Create Service Call' : call ? (call.service_call_number || call.job_number) + ' — ' + call.name : 'Service Calls'}
       description="Track the work, then record its costs, invoice, and payments."
       actions={<div className="svc-actions">
         <button className="secondary-button" onClick={mode !== 'browse' ? back : call ? list : onJobs} disabled={busy}>{mode !== 'browse' ? 'Cancel' : call ? 'Back to Service Calls' : 'Back to Jobs'}</button>
         {mode === 'browse' && !call && canCreate && <button className="primary-button" onClick={() => {setForm(EMPTY);setMode('create');setError('');}}>Create Service Call</button>}
-      </div>} />
+      </div>} />}
     <div className="card workspace-card svc-content">
       {error && <StatePanel tone="warning" title="Service call action needs attention" description={error} />}
       {message && <StatePanel tone="success" title="Service Calls updated" description={message} />}
@@ -161,9 +199,19 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       </form>}
       {mode === 'preview' && <ServiceImportPreview existing={all} />}
       {mode === 'invoice' && invoice && <form onSubmit={(e) => {e.preventDefault(); setConfirm('invoice');}}>
-        <h2>Record invoice</h2><p>Record an invoice issued through your billing system. Allocate its pre-tax amount across the completed calls below. This does not generate or send an invoice.</p>
-        <div className="svc-grid">{[['invoice_number','Invoice number','text'],['invoice_date','Invoice date','date'],['due_date','Due date (optional)','date'],['total_revenue','Total before tax','number'],['sales_tax','Sales tax','number']].map(([key,label,type]) =>
+        <h2>Record invoice</h2><p>Record an invoice issued through your billing system. Allocate its subtotal across the completed calls below. This does not generate or send an invoice.</p>
+        <div className="svc-grid">{[['invoice_number','Invoice number','text'],['invoice_date','Invoice date','date'],['due_date','Due date (optional)','date']].map(([key,label,type]) =>
           <label key={key}>{label}<input type={type} value={invoice[key]} onChange={(e) => updateInvoice(key,e.target.value)} required={key !== 'due_date'} {...(type === 'number' ? {min:0,step:'.01'} : {})} /></label>)}</div>
+        <section className="svc-section"><h3>Invoice total</h3>
+          <div className="svc-charge-grid">
+            <label>Subtotal<input type="number" min="0.01" step=".01" required value={invoice.total_revenue} onChange={e=>updateInvoice('total_revenue',e.target.value)} /></label><output aria-label="Subtotal amount">{charges?money(charges.subtotal):'—'}</output>
+            <label>Sales Tax %<input type="number" min="0" max="100" step=".01" required value={invoice.sales_tax_percent} onChange={e=>updateInvoice('sales_tax_percent',e.target.value)} /></label><output aria-label="Sales tax amount">{charges?money(charges.salesTax):'—'}</output>
+            <label>Credit Card Fee %<input type="number" min="0" max="100" step=".01" required value={invoice.credit_card_percent} onChange={e=>updateInvoice('credit_card_percent',e.target.value)} /></label><output aria-label="Credit card fee amount">{charges?money(charges.creditCardFee):'—'}</output>
+            <strong>Total</strong><output aria-label="Invoice total"><strong>{charges?money(charges.total):'—'}</strong></output>
+          </div>
+          <p>Tax applies to the subtotal. The card fee applies to subtotal + tax. Both are pass-through charges, excluded from profit. Set either percentage to 0 when it does not apply. Confirm rates against the issued invoice.</p>
+          {chargeError && <p role="status">{chargeError}</p>}
+        </section>
         <section className="svc-section"><h3>Invoice allocations</h3>
           {invoice.allocations.map((allocation,index) => <div className="svc-allocation" key={allocation.job_id}>
             <label>Service call<select value={allocation.job_id} onChange={(e) => {
@@ -180,14 +228,14 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             if (next) updateInvoice('allocations',[...invoice.allocations,{job_id:next.id,amount:'',expected_updated_at:next.updated_at}]);
           }} disabled={!calls.some((row) => row.can_bill && row.status === 'complete' && !invoice.allocations.some((a) => a.job_id === row.id))}>Add another call</button>
           <strong>Unallocated: {invoiceRemaining === null ? 'Check amounts' : money(invoiceRemaining)}</strong></div>
-          <p>Tax is distributed proportionately and reconciled to the cent. Each call will show only its allocated invoice and payment share.</p>
+          <p>Tax and card fees are distributed proportionately and reconciled to the cent. Allocate only the subtotal; each call shows its own share of all charges and payments.</p>
         </section>
-        <button className="primary-button" disabled={invoiceRemaining !== 0}>Review & record invoice</button>
+        <button className="primary-button" disabled={invoiceRemaining !== 0 || !charges}>Review & record invoice</button>
       </form>}
       {isFinancialMode && mode !== 'invoice' && call && <form onSubmit={saveCommercial}>
         <h2>{mode === 'quote' ? 'Estimate / quoted amount' : mode === 'cost' ? 'Update cumulative cost' : 'Record allocated payment'}</h2>
         <p>{mode === 'cost' ? 'Enter total costs to date, not just new costs. The previous snapshot remains in history. Inventory and timesheet amounts are not automatically added again.' :
-          mode === 'payment' ? 'For a shared invoice, record only the payment allocated to this call, including its share of tax.' : 'Changes adjust the expected quoted amount, not invoices already recorded.'}</p>
+          mode === 'payment' ? 'For a shared invoice, record only the payment allocated to this call, including its share of tax and card fees.' : 'Changes adjust the expected quoted amount, not invoices already recorded.'}</p>
         <div className="svc-grid">
           {mode === 'quote' && <>{field('quote_amount','Original estimate / quote','number')}{field('changes_amount','Approved changes (+ / −)','number')}</>}
           {mode === 'cost' && <>{field('labor_hard_cost','Labor cost to date','number',true)}{field('material_hard_cost','Material cost to date','number',true)}{field('other_hard_cost','Other cost to date','number',true)}{field('cost_through','Cost through','date',true)}
@@ -210,15 +258,20 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           <button className={directoryView === 'operations' ? 'is-active' : ''} onClick={() => setDirectoryView('operations')}>Operations</button>
           {canViewFinance && <button className={directoryView === 'financials' ? 'is-active' : ''} onClick={() => setDirectoryView('financials')}>Financial scorecard</button>}
         </nav>
-        {directoryView === 'financials' && canViewFinance && <label className="svc-checkbox"><input type="checkbox" checked={includeUndated} onChange={(e) => setIncludeUndated(e.target.checked)} />Show calls with no reporting date for review</label>}
-        <DataTable rows={directoryRows} getRowKey={(row) => row.id} rowClassName={(row) => {const tone=directoryStatus(row).tone;return tone ? 'svc-row--'+tone : '';}} onRowClick={open} minWidth="1100px" emptyTitle="No service calls in this view" columns={[
-          {key:'service_call_number',header:'Call #'}, {key:'name',header:'Customer / call'}, {key:'division',header:'Department'},
+        {directoryView === 'financials' && canViewFinance && <div className="svc-actions" {...uiElementAttributes('MODULE','Service Scorecard')}>
+          <label className="svc-checkbox"><input type="checkbox" checked={includeUndated} onChange={(e) => setIncludeUndated(e.target.checked)} />Show calls with no reporting date for review</label>
+          <label className="svc-checkbox"><input type="checkbox" checked={attentionOnly} onChange={(e)=>setAttentionOnly(e.target.checked)} />Needs attention only</label>
+          <button className="secondary-button" onClick={exportScorecard} {...uiElementAttributes('FUNCTION','Export Service Scorecard')}>Export CSV</button>
+        </div>}
+        <DataTable rows={directoryRows} getRowKey={(row) => row.id} selectedRowKey={panelId} rowClassName={(row) => {const tone=directoryStatus(row).tone;return tone ? 'svc-row--'+tone : '';}} onRowClick={openDirectoryCall} minWidth="1100px" emptyTitle="No service calls in this view" columns={[
+          {key:'service_call_number',header:'Call #',render:row=><button className="svc-call-link" onClick={event=>{event.stopPropagation();openDirectoryCall(row);}} aria-label={'Open service call '+row.service_call_number}>{row.service_call_number}</button>}, {key:'name',header:'Customer / call'}, {key:'division',header:'Department'},
           ...(directoryView === 'financials' && canViewFinance ? [
             {key:'reporting_date',header:'Reporting date',render:(row) => profitDate(row,period.basis) || 'Needs review'},
             ...[['revenue','Billed (ex tax)'],['cost','Cost'],['profit','Profit $'],['margin','Profit %'],['collected','Collected'],['outstanding','Outstanding']].map(([key,header]) => ({key,header,render:(row) => {
               const f = callFinancials(row); return isVoidCall(row) ? 'Void' : !f || (key === 'cost' && !f.costKnown) || f[key] === null ? '—' : key === 'margin' ? f[key].toFixed(1)+'%' : money(f[key]);
             }})),
             {key:'billing_status',header:'Billing',render:(row) => callFinancials(row)?.billingStatus || 'Restricted'},
+            ...(attentionOnly ? [{key:'attention',header:'Needs attention',render:row=>serviceAttention(row,today()).join(' · ')}] : []),
           ] : [
             {key:'work_stage',header:'Work stage',render:(row) => directoryStatus(row).label},
             {key:'billing_method',header:'Billing type',render:(row) => BILLING_METHODS[row.profile?.billing_method] || 'Not set'},
@@ -226,6 +279,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             {key:'lead_name',header:'Lead',render:(row) => row.profile?.lead_name || '—'},
           ]),
         ]} />
+        {directoryView === 'financials' && canViewFinance && <ServiceMonthlyReport calls={all} period={period} today={today()} />}
       </>}
       {mode === 'browse' && call && <>
         <nav className="jobs-directory-tabs" aria-label="Service call workspace">
@@ -272,6 +326,8 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
             {key:'invoice_number',header:'Invoice'}, {key:'invoice_date',header:'Date'},{key:'due_date',header:'Due'},
             {key:'revenue_excluding_tax',header:'Before tax',render:(row) => money(row.revenue_excluding_tax)},
             {key:'sales_tax',header:'Tax',render:(row) => money(row.sales_tax)},
+            {key:'credit_card_fee',header:'Card fee',render:(row) => money(row.credit_card_fee || 0)},
+            {key:'total',header:'Total',render:(row) => money(Number(row.revenue_excluding_tax)+Number(row.sales_tax)+Number(row.credit_card_fee || 0))},
             {key:'outstanding',header:'Outstanding',render:(row) => money(invoiceBalance(row))},
             {key:'invoice_group_id',header:'Billing group',render:(row) => row.invoice_group_id ? 'Allocated invoice' : 'Existing invoice'},
           ]} />
@@ -293,11 +349,21 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
       </>}
       </fieldset>
     </div>
+    {!embedded && panelId && <Drawer open onClose={closePanel} title="Service call" eyebrow="Financial scorecard" description="Edit the call without leaving your scorecard." width="min(880px, 100vw)" closeLabel="Close service call panel" labelledById="service-scorecard-panel-title">
+      <ServiceCallsWorkspace key={panelId} embedded permissions={permissions} initialJobId={panelId} onSaved={reload} onPanelState={setPanelState}
+        onJobs={closePanel} onReturnList={()=>{requestAnimationFrame(()=>setPanelId(null));reload();}} onResources={(item,section)=>{setPanelId(null);onResources(item,section);}} />
+    </Drawer>}
+    <ConfirmDialog open={discardPanel} title="Discard unsaved changes?" description="Your service call edits have not been saved. Keep editing or discard them and return to the scorecard." confirmLabel="Discard changes" cancelLabel="Keep editing"
+      onCancel={()=>setDiscardPanel(false)} onConfirm={()=>{setDiscardPanel(false);requestAnimationFrame(()=>setPanelId(null));}} />
+    <ConfirmDialog open={!!leaveAction} title="Discard unsaved changes?" description="These edits have not been saved." confirmLabel="Discard changes" cancelLabel="Keep editing"
+      onCancel={()=>setLeaveAction(null)} onConfirm={()=>{const action=leaveAction;setLeaveAction(null);setDirty(false);action?.();}} />
     <ConfirmDialog open={confirm === 'archive'} title="Archive service call?" description="Linked calls, invoice allocations, payments and history will be preserved. The call moves to the Archived directory."
       requireReason confirmLabel="Archive" tone="danger" isSubmitting={busy} onCancel={() => setConfirm(null)}
       onConfirm={(reason) => write('svc_archive_call',{p_job_id:call.id,p_reason:reason,p_expected_updated_at:call.updated_at},'Service call archived.')} />
     <ConfirmDialog open={confirm === 'invoice'} title="Record the allocated invoice?" description="I confirm the invoice and each call’s allocated amount are correct. This records billing; it does not send an invoice."
       confirmLabel="Confirm & record" isSubmitting={busy} onCancel={() => setConfirm(null)}
-      onConfirm={() => {const {requestId,...data}=invoice;write('svc_post_invoice',{p_request_id:requestId,p_data:data},'Invoice recorded with reconciled call allocations.');}} />
+      onConfirm={() => {if(!charges)return;const {requestId,...data}=invoice;write('svc_post_invoice',{p_request_id:requestId,p_data:{...data,sales_tax_percent:Number(data.sales_tax_percent),credit_card_percent:Number(data.credit_card_percent),sales_tax:charges.salesTax,credit_card_fee:charges.creditCardFee}},'Invoice recorded with reconciled call allocations.');}} >
+      {charges && <p>Subtotal {money(charges.subtotal)} + sales tax {money(charges.salesTax)} + card fee {money(charges.creditCardFee)} = total {money(charges.total)}.</p>}
+    </ConfirmDialog>
   </div>;
 }

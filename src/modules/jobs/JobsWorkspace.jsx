@@ -5813,6 +5813,7 @@ export function JobsWorkspace({ permissions }) {
       key={location.key}
       permissions={permissions}
       initialJobId={selectedJob?.id || null}
+      initialDirectoryView={location.state?.serviceCallView}
       onJobs={() => { returnToJobList(); setDirectoryType('jobs'); }}
       onReturnList={() => { returnToJobList(); setDirectoryType('service_calls'); directory.reload(); }}
       onResources={(job, tab) => { selectJob(job); setActiveTab(tab); setDirectoryType('service_calls'); directory.reload(); }}

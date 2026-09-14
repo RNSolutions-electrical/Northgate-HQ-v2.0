@@ -20198,3 +20198,154 @@ and excluded. No migration or production business-data writes in this release.
 Refresh the live app and test Service Call stages/colors/profit filters and Estimate
 verification expansion with Ryan's signed-in account. Other machines should fetch
 and fast-forward main, read SYNC_STATUS, and confirm this marker before editing.
+
+## Entry 227 — Service Scorecard Side-Panel Editing (Local)
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Production Mode, scoped implementation
+**Session type:** implementation
+
+### What Was Completed
+
+Clicking a call in the Financial scorecard now opens the shared Drawer with the
+existing Service Calls workspace embedded inside it. Details, linked calls and
+Costs & Billing reuse the existing forms and audited RPCs. Successful saves refresh
+the underlying rows/profit summaries without resetting the reporting filters.
+Operations continues to open its full workspace. Posted invoices/payments are not
+made directly editable, and existing per-record permissions remain authoritative.
+
+Unsaved edits prompt before closing/cancelling; in-flight saves block closing.
+The shared drawer retains keyboard navigation, focus restoration and scroll lock.
+Responsive form styling is scoped to the embedded panel. No SQL, RLS, migration,
+production-data writes, import or new permission system was introduced.
+
+### Validation
+
+All 53 node tests passed. Existing Service Calls browser suite passed, including
+editing, invoice allocation, archive, import preview, read-only controls, profit
+filters and resource navigation. New verify-service-scorecard-panel.mjs passed at
+1440/768/390px: keyboard opening, failed-save input preservation/retry, timestamp
+payload, busy-close guard, cost save/scorecard refresh, period retention, dirty
+cancel/Escape/discard, focus/scroll restoration and financial-viewer restrictions.
+Browser tests use mocked RPCs, not live writes. Desktop/phone screenshots reviewed.
+Production-configured Vite build passed with its environment guard enabled;
+existing large-chunk/xlsx mixed-import warnings remain.
+
+### Next Steps
+
+This change is local, uncommitted and not deployed. Obtain release approval, commit
+with a new sync marker, push and verify production. Last deployed marker remains
+MAPLE-SERVICE-REVIEW-20260914-001 (Entry 226); do not represent this local panel as live.
+
+## Entry 228 — Canonical Service Calls / Scorecard Consolidation (Local Only)
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Production Mode
+**Session type:** implementation
+
+### What Was Completed
+
+Jobs → Service Calls is the sole active service-call UI. Removed the legacy
+Service Scorecard module from routing/navigation registries and the Add-On Tools
+listing. Its old /service-performance/* bookmarks redirect, with history replacement,
+to Jobs → Service Calls → Financial scorecard. Users without project-financial
+access land in Operations. Panel Directory remains an independently gated add-on.
+Developer Add-On controls omit the retired service_performance assignment and
+explain the replacement; stored assignments are not modified.
+
+Ported CSV export (current directory filters/period; safe text-cell escaping),
+Needs attention only (ready to invoice, unpaid/overdue, billed calls missing costs,
+margin below the legacy 30% review threshold), and a collapsed monthly profit report
+into the canonical scorecard. Rows still open the shared editing side panel from
+Entry 227. The monthly report shares the existing Jobs scorecard calculation and
+selected date basis: lifetime call revenue/cost, grouped once, through today.
+It is not period cash flow. Archived history is included, void records excluded,
+unknown costs excluded/flagged, and margins weighted. Search/status filters affect
+directory/CSV; monthly and YTD summaries explicitly remain independent of those.
+
+### Preservation / Compatibility
+
+No migrations, permission-default changes, database writes or imports. Existing
+jobs, svc_service_profiles, svc_cost_snapshots, svc_invoices, svc_payments, audit
+history, legacy views/RPCs and add-on assignments are preserved. Legacy source and
+styles remain recoverable in the repo but are not registered or imported as a live
+screen. Legacy completed/created-date reporting is not retained as a second active
+calculation path; reporting now uses the visible canonical date selector.
+
+### Validation
+
+All 57 node tests passed. Both Service Calls browser suites passed, including
+the prior operations/invoice/archive/import-preview scenarios and side-panel
+editing. New browser checks cover legacy redirects, restricted-user Operations,
+add-on retirement with developer-equivalent access, Panel Directory retention,
+filtered CSV download, attention filtering and monthly report values at desktop
+and phone widths. Visually reviewed both layouts. Tests use fixture RPCs; no live
+financial writes. Production-configured local Vite build and git diff --check
+passed; existing chunk-size/xlsx warnings remain.
+
+### Release Boundary / Next Steps
+
+Ryan explicitly requested local work and notification before deployment. All
+Entry 227/228 source changes remain uncommitted, unpushed and undeployed. No new
+sync marker has been issued; production remains MAPLE-SERVICE-REVIEW-20260914-001.
+On release approval, commit the combined local changes with a fresh sync marker,
+push and verify the production bundle and authenticated user acceptance. No SQL
+deployment is required for this UI consolidation. Preserve private import files
+and pre-existing untracked historical build directories.
+
+## Entry 229 — HARBOR Service Billing Release
+
+**Date:** 2026-09-14
+**Updated by:** Codex
+**Phase:** Production Mode, approved commit/push/deploy
+
+### Scope and Calculations
+
+Includes the pending side-panel and scorecard consolidation from Entries 227–228.
+Invoice entry now follows Subtotal → Sales Tax % → Credit Card Fee % → Total.
+Defaults are editable 7.25% tax and 3% card fee; either may be zero. Tax is rounded
+to cents on subtotal, then card fee is rounded on subtotal plus rounded tax. Both
+are pass-through amounts excluded from profit. Payments and outstanding/paid/overdue
+status include both. CSV includes distinct tax and fee amounts. Allocations remain
+subtotal-only; tax/fees are proportional with deterministic final-call remainder.
+
+### Database / Preservation
+
+Migration 20260914192338_service_invoice_percentage_charges adds credit_card_fee
+(default zero) and nullable sales_tax_percent / credit_card_percent to svc_invoices
+and svc_invoice_groups. Existing foreign keys/indexes/RLS/grants remain. Reuses and
+extends svc_post_invoice and svc_save_commercial, retaining role checks, stable
+job locks, stale checks, request idempotency, audit names, and atomic posting.
+New requests are recalculated/validated server-side; old amount-based tax requests
+remain supported with no fee. svc_call_financials remains security_invoker and its
+outstanding balance includes fees without changing revenue/profit formulas.
+
+The migration is applied before frontend publication. Before/after fingerprints
+prove all original fields in 27 invoices, 27 groups and 24 payments are unchanged.
+Historical rates remain unknown/null; no reverse-calculated historical rewrite.
+The CLI-created local filename was aligned to Supabase's recorded migration version.
+
+### Verification
+
+59 node tests passed. Both browser suites passed at desktop/tablet/phone widths,
+including the $100 + $7.25 + $3.22 = $110.47 form, allocation payload, side-panel
+saves, redirect/permissions, CSV and monthly report. Production-configured build
+passed; existing large-chunk/mixed-xlsx warnings remain. SQL charge and legacy
+workflows passed in rollback-only transactions, including duplicates, stale writes,
+invalid rates, mismatched fees, full payment including charges, overpayment rejection,
+unchanged profit, failed-post rollback, read-only masking and archive preservation.
+Charge suite passed again after migration. No synthetic records retained.
+
+Supabase/Postgres skills guided the additive migration, retained RLS/security-invoker
+view and stable locks. Security-advisor finding categories/counts are unchanged from
+before this release (including pre-existing security-definer views and function
+warnings); no unrelated security policies were altered. Netlify skills guide the
+canonical Git-triggered build and subsequent artifact verification.
+
+### Release
+
+Marker: HARBOR-SERVICE-BILLING-20260914-001. Commit/push and live verification follow.
+Do not rebuild/deploy older branches over this release. No private workbooks/import
+payloads or old dist-* directories belong in the commit or published bundle.
