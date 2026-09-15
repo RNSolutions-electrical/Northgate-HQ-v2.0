@@ -21323,3 +21323,27 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   11051e83171391e2a4b847ea15b7dda407f5eceb502e11d04c15f32d76d430f6.
 
 ---
+
+## Entry 256 — BIRCH Storage production verification complete
+
+2026-09-15 · BIRCH-STORAGE-EXPLORER-20260915-001.
+
+- Feature commit 1beb5d36452855175976a45b3ccbaaadf523075d pushed to main.
+- Netlify production deploy 6aa96724e6c5dc0007992273 is ready/published from
+  that exact commit. Live route: /northgate/inventory?view=storage.
+- Live HTML and all 14 assets match the fresh tested build by SHA-256/MIME;
+  Storage Explorer, retained workflows, public configuration and deep links pass.
+  silas-chat retained; secret scan covered 584 files with no matches.
+- All six minimum-size QR codes decode from the rendered Avery PDF to exact
+  stable location URLs. Actual-size printer alignment remains the physical test.
+- The timestamp-excluded profile hash remained stable in follow-up checks; no
+  role/default/permission edits were part of this release.
+- Migration 20260915153440 is applied; do not replay. Other machines should pull
+  main and verify this marker. Final release-record commit uses [skip ci], keeping
+  deployed bytes unchanged. Unrelated dist-* and private/local files preserved.
+- Signed-in production user acceptance, real simultaneous-session stress and
+  physical print alignment remain explicit follow-up checks, not claimed here.
+- Prior HANDOFF prefix SHA-256:
+  2afb7648e3b6571687945b9d21c865fd2af889e84fc90add91390f085218fdba.
+
+---

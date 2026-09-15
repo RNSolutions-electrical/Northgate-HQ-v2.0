@@ -8,10 +8,15 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: unified Storage Explorer, editable details and hierarchy moves, adjustable QR and bulk Avery 5164 labels.
 - Previous marker: `ASPEN-CATALOG-FOUNDATION-20260915-001`; starting HEAD `21587a1`.
-- Status: migration applied and verified; approved frontend release in progress.
+- Status: LIVE and verified September 15, 2026.
+- Feature commit: `1beb5d36452855175976a45b3ccbaaadf523075d`, pushed to origin/main.
+- Production deployment: `6aa96724e6c5dc0007992273`, ready/published from that exact commit.
+- Live URL: https://rnsolutions.net/northgate/inventory?view=storage
+- Live HTML and all 14 assets match the tested fresh build by SHA-256/MIME. Public Supabase/Clerk configuration and deep links verified; silas-chat retained. Netlify scanned 584 files with no secret matches.
+- Final release-record commit uses [skip ci]; deployed frontend bytes are unchanged.
 - Applied migration: `20260915153440_inventory_storage_workspace`; do not replay the former local timestamp 20260915151207.
 - 81 Node tests, isolated SQL checks, actual-schema rollback smoke and responsive Storage/catalogue/location/stock regression tests passed. Fresh production-config build passed.
-- Existing records, UUID scan links, stock ledger and permissions retained. Concurrent user shelf edits were audit-reconciled and preserved.
+- Existing records, UUID scan links and stock ledger retained. Concurrent user shelf edits were audit-reconciled and preserved; timestamp-excluded profile hash stayed stable during release verification. No role defaults or user grants changed.
 - Other machines: pull main and verify this marker. Read docs/reviews/STORAGE_WORKSPACE.md. Preserve local environments, private files and historical untracked dist-* directories.
 - No AFC Phases 2–4. Signed-in acceptance, simultaneous-session stress checks and physical printer alignment remain follow-up tests.
 

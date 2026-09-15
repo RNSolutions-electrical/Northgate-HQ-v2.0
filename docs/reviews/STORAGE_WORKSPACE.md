@@ -1,6 +1,6 @@
 # Storage Explorer — release implementation
 
-2026-09-15. Production Mode. Separate authorized Inventory follow-up before AFC Phases 2–4. Ryan approved migration, commit, push and production deployment. Sync marker: `BIRCH-STORAGE-EXPLORER-20260915-001`. Database applied; frontend release verification pending below.
+2026-09-15. Production Mode. Separate authorized Inventory follow-up before AFC Phases 2–4. Ryan approved migration, commit, push and production deployment. Sync marker: `BIRCH-STORAGE-EXPLORER-20260915-001`. LIVE: feature commit `1beb5d36452855175976a45b3ccbaaadf523075d`, Netlify deploy `6aa96724e6c5dc0007992273`.
 
 ## Existing architecture and changes
 
@@ -27,7 +27,7 @@ Storage was a 10-row unit/bin preview. Locations & QR was a flat hierarchy table
 
 Applied before the frontend. Live function definitions were inspected first; all four create/map/count function bodies are identical afterward except for the added shared lock. Both edit signatures deny anonymous execution and grant authenticated execution with internal permission validation. No production business-data migration or quantity backfill.
 
-Preservation checks across 11 tables: nine matched original-row counts/hashes exactly, including catalogue, balances, transaction history and permission overrides. Concurrent user shelf edits changed the shelf hash; reconstructing the prior values from their audit entries matches the baseline exactly. The Developer profile updated_at also advanced during use; a separate timestamp-excluded profile hash is retained for post-release comparison. No permissions/defaults were changed by this migration. Security advisor counts unchanged: 13 RLS-without-policy, 4 definer-view, 5 mutable-search-path, 11 anonymous-definer and 145 authenticated-definer findings. Existing findings remain outside this release; the guarded nine-argument edit function replaces the former seven-argument definer finding. [Advisor remediation reference](https://supabase.com/docs/guides/database/database-linter).
+Preservation checks across 11 tables: nine matched original-row counts/hashes exactly, including catalogue, balances, transaction history and permission overrides. Concurrent user shelf edits changed the shelf hash; reconstructing the prior values from their audit entries matches the baseline exactly. The Developer profile updated_at also advanced during use; a separate timestamp-excluded profile hash stayed stable during release verification. No permissions/defaults were changed by this migration. Security advisor counts unchanged: 13 RLS-without-policy, 4 definer-view, 5 mutable-search-path, 11 anonymous-definer and 145 authenticated-definer findings. Existing findings remain outside this release; the guarded nine-argument edit function replaces the former seven-argument definer finding. [Advisor remediation reference](https://supabase.com/docs/guides/database/database-linter).
 
 Moving a branch changes its current location path and inherited department. Existing IDs/QRs/ledger entries remain; reports that display the *current* path will reflect the move. Existing historical audit snapshots are not rewritten. Previously printed human-readable names/paths may need replacement even though the QR still resolves.
 
@@ -51,6 +51,7 @@ Sources: [Avery 5164](https://www.avery.com/templates/5164), [compatible label g
 - Minimum/default/maximum label PDFs rendered with Poppler; first/continuation pages visually inspected. All six minimum-size QR codes decoded from a 300-DPI rendered PDF to their exact original URLs using jsQR.
 - Existing catalogue/location browser regressions passed after updating selectors for the consolidated UI.
 - Production-config fresh build passed; existing chunk-size/xlsx warnings remain.
+- Production HTML and all 14 assets match the tested build by SHA-256 and MIME. Required public configuration, Storage features and deep links verified. Existing silas-chat function retained; Netlify scanned 584 files with no secret matches. Release-record documentation is pushed with [skip ci].
 - Live-schema rollback-only smoke passed: actual authenticated RPC/RLS create, map/count, shelf/bay/bin moves, stable descendants/quantity, details, old-client preservation, stale/type/collision/reason/unknown-actor rejection, archive/restore. All synthetic records and audit entries rolled back. Reproduce with tests/storageWorkspaceReleaseSmoke.sql.
 - Remaining: genuine simultaneous-session PostgreSQL checks, signed-in production acceptance and physical label/printer test. Browser transport is mocked; do not confuse responsive fixtures with signed-in production acceptance.
 
