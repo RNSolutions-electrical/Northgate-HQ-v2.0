@@ -21470,3 +21470,25 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   c30f0107edb95884f83d565108184cf31948853b7b11e6706b996edf3aaf37ba.
 
 ---
+
+## Entry 262 — JUNIPER production verification complete
+
+2026-09-15 · JUNIPER-DATA-CORRECTION-20260915-001.
+
+- Feature commit c472d581d6a6b290d1b4fefef7d54c3bac2a4370 pushed to main.
+- Netlify 6aa97df0c7c490000818b7b9 is ready/published from that exact commit
+  at 17:18:57 UTC. Live: https://rnsolutions.net/northgate/inventory?view=storage.
+- Live HTML/all 14 asset SHA-256 and MIME comparisons passed, including new
+  correction controls, retained workflows, public configuration and deep links.
+  silas-chat retained; Netlify secret scan checked 602 files with no matches.
+- 84 Node tests, all isolated SQL safety suites and desktop/mobile correction
+  browser tests rerun and passed. Prior live rollback smoke remains documented.
+- No migration/grant replay; no real inventory records restored or deleted.
+- Final documentation-only record uses [skip ci]. Other machines should pull
+  main and verify this marker. Preserve historical builds and private files.
+- Signed-in acceptance and independent-session contention stress remain follow-up.
+  Revoke the sole temporary main-account correction grant before official rollout.
+- Prior HANDOFF prefix SHA-256:
+  6bed8f54197f9d80dd411a08bed9946a1be424d82dfdda5de6ff38bb131a134c.
+
+---

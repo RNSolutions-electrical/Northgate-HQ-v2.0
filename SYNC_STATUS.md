@@ -7,11 +7,16 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Marker: `JUNIPER-DATA-CORRECTION-20260915-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: audited, narrowly scoped Developer restoration of retired material assignments.
-- Status: release approved; commit/push and exact production verification in progress.
+- Status: LIVE and verified September 15, 2026.
+- Feature commit: `c472d581d6a6b290d1b4fefef7d54c3bac2a4370`, pushed to origin/main.
+- Production deployment: `6aa97df0c7c490000818b7b9`, ready/published from that exact commit.
+- Live URL: https://rnsolutions.net/northgate/inventory?view=storage
+- Live HTML and all 14 assets match the tested build by SHA-256/MIME; correction controls, retained workflows, public configuration and deep links verified. silas-chat retained. Netlify scanned 602 files with no secret matches.
+- Final release-record commit uses [skip ci]; deployed frontend bytes are unchanged.
 - Migration `20260915164220_developer_data_correction` is already applied; never replay former local version 20260915163330.
 - Only the approved main Developer account has the new explicit correction grant. No actual retired assignments restored, quantities changed or transaction history removed.
 - 84 Node tests, isolated SQL safety checks, actual-schema rollback smoke, responsive browser regressions and fresh production-config build passed.
-- Other machines: pull main and verify this marker; read `docs/reviews/DEVELOPER_DATA_CORRECTION.md` and HANDOFF Entries 260–261. Preserve private files and historical untracked dist-* directories.
+- Other machines: pull main and verify this marker; read `docs/reviews/DEVELOPER_DATA_CORRECTION.md` and HANDOFF Entries 260–262. Preserve private files and historical untracked dist-* directories.
 - Signed-in acceptance and independent-session concurrency stress remain follow-up checks. Revoke the temporary correction grant before official rollout.
 
 ## Previous release — WILLOW Storage Safety

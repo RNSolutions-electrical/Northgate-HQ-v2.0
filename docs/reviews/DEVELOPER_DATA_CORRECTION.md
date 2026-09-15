@@ -1,6 +1,6 @@
 # Developer Data Correction
 
-2026-09-15 · Production Mode · release approved; commit/push/production verification in progress.
+2026-09-15 · Production Mode · LIVE and verified.
 Sync marker: `JUNIPER-DATA-CORRECTION-20260915-001`.
 Database migration and approved single-account grant are already applied; do not repeat them.
 
@@ -14,7 +14,7 @@ The generic override editor intentionally excludes Developer targets. A dedicate
 
 This permission has the existing standard review cadence, not automatic expiration. Revoke it before official rollout. Do not mark it long-term as a substitute for a rollout review.
 
-## User workflow (after frontend publication)
+## User workflow
 
 1. Storage → open the bin, e.g. C211 → View retired assignments.
 2. Select only the correct material assignment and choose Restore assignment.
@@ -46,6 +46,8 @@ Approval grant applied September 15 at 16:44:14 UTC using the guarded function, 
 - Final fresh production-config build passes at `.temp/data-correction-final-20260915`; public configuration reused without logging secrets. Existing chunk-size/xlsx warnings remain.
 - Live function grants/search paths verified. Security advisor baseline: 13 RLS-without-policy, 4 definer-view, 5 mutable-search-path, 11 anonymous-definer, and 147 authenticated-definer findings. Only the four new guarded authenticated functions were added (151). Existing warnings remain separately tracked: [Supabase linter reference](https://supabase.com/docs/guides/database/database-linter).
 
-## Remaining release work
+## Production release and remaining acceptance
 
-User authorized commit, push and deployment. Publish the tested source; do not reapply the migration or duplicate the account grant. Preserve historical untracked dist-* folders and private files. Exact production commit/assets verification is pending. Signed-in user acceptance and true simultaneous-session contention stress remain unclaimed.
+Feature commit `c472d581d6a6b290d1b4fefef7d54c3bac2a4370` is pushed to main. Netlify deployment `6aa97df0c7c490000818b7b9` is ready/published from that exact commit. Live HTML and all 14 assets match the tested build by SHA-256/MIME; correction controls, public configuration, existing workflows and deep links verified. `silas-chat` retained. Netlify scanned 602 files with no secret matches. All 84 Node tests, isolated SQL suites and correction desktop/mobile browser checks were rerun during release and passed.
+
+Do not reapply the migration or duplicate the account grant. Historical untracked dist-* folders and private files are preserved. Final release documentation uses [skip ci] without changing deployed frontend bytes. Signed-in user acceptance and true simultaneous-session contention stress remain unclaimed. No real assignments were restored/deleted by this release; revoke temporary correction access before official rollout.
