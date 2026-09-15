@@ -8,6 +8,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { permittedModules, permittedNavigationGroups } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
 import { StatePanel } from '../ui/StatePanel.jsx';
+import {canCorrectInventoryData} from '../../modules/inventory/dataCorrectionAccess.js';
 import { DiagnosticsProvider } from '../ui/Diagnostics.jsx';
 
 /**
@@ -132,6 +133,7 @@ export function AppLayout() {
         </>
       )}
       >
+        {canCorrectInventoryData(permissions)&&<StatePanel tone="warning" compact title="Developer Data Correction enabled" description="Temporary audited inventory correction access. History and stock safeguards remain enforced. Revoke in Developer → Permissions before official rollout." />}
         <Outlet />
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />

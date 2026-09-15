@@ -22,6 +22,8 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'FUNCTION', name: 'Export Storage QR Labels', location: 'Material Inventory › Storage', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Archive Storage Location', location: 'Material Inventory › Storage', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Permanently Delete Storage Location', location: 'Material Inventory › Storage', status: 'ready for testing' },
+  { type: 'FUNCTION', name: 'Restore Retired Material Assignment', location: 'Material Inventory › Storage › Bin', status: 'ready for testing' },
+  { type: 'FUNCTION', name: 'Manage Developer Data Correction', location: 'Developer › Permissions', status: 'ready for testing' },
   { type: 'MODULE', name: 'Material Aliases', location: 'Material Inventory › Full Catalogue', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Map Material to Location', location: 'Material Inventory › Count', status: 'ready for testing' },
   { type: 'PAGE', name: 'Tool Inventory', location: '/tools', status: 'live' },

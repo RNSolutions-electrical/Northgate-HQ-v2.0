@@ -21422,3 +21422,51 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   9515a0902aa94276f74768c9bcf66db1415ea8c8e2237861c62eb2a2a04ddfc9.
 
 ---
+
+## Entry 260 — Developer Data Correction (database applied; frontend LOCAL)
+
+2026-09-15 · Production Mode · released frontend remains WILLOW / 150a6f7.
+
+- Ryan approved narrowly scoped Developer Data Correction, not a blanket bypass.
+  Retired C211–C214/C224 material assignments retain history; bins are not retired.
+- Added explicit per-user flag in existing override table, active Developer and
+  technical-access checks, dedicated grant/revoke control beside existing editor,
+  global enabled warning, and retired-bin assignment list/restore controls.
+- Applied 20260915164220_developer_data_correction; renamed local file/test path
+  from generated 20260915163330. Do not replay. No role default changes.
+- Main account crncmk@gmail.com received the sole active grant via guarded RPC
+  with an audit entry. Unrelated override hash unchanged. No real assignments
+  restored; no quantities, history, locations, or material pairings changed.
+- 84 Node tests, extended isolated SQL, live-schema rollback smoke, responsive
+  correction/Storage/deletion browser fixtures and fresh production build pass.
+  Six before/after hash comparisons matched across migration/rollback smoke.
+- Four guarded authenticated-definer advisor findings added (147→151), with
+  empty search paths and no anonymous execution; other advisor counts unchanged.
+- See docs/reviews/DEVELOPER_DATA_CORRECTION.md for behavior, tests, limitations
+  and rollout revocation. Frontend remains LOCAL/uncommitted/unpushed/undeployed.
+  Commit/push/publish approval and exact-live verification are the next step.
+- Existing location edit/move/delete safety remains. No permission/RLS bypass,
+  destructive history cleanup, automatic stock restoration or AFC Phases 2–4.
+- Prior HANDOFF prefix SHA-256:
+  ab326130270a294d5bb9eb72cd9b08a5daa474889d4b19178cfa5289bf077eff.
+
+---
+
+## Entry 261 — JUNIPER Developer Data Correction release checkpoint
+
+2026-09-15 · JUNIPER-DATA-CORRECTION-20260915-001 · Production Mode.
+
+- User explicitly authorized commit, push and production deployment.
+- Fetched origin; main and origin/main both start at 150a6f7, with no divergence.
+- Release includes only the tested correction controls, migration record, tests
+  and handoff documentation. Historical untracked builds/private files preserved.
+- Migration 20260915164220 and the sole main-account grant are already applied;
+  neither is replayed. No real assignment restoration or deletion performed.
+- All 84 Node tests rerun and passed. Prior isolated SQL, actual-schema rollback,
+  responsive UI checks and fresh production build are documented in the review.
+- Push main to publish; verify exact feature commit and all production assets.
+  Signed-in acceptance and independent-session concurrency stress remain follow-up.
+- Prior HANDOFF prefix SHA-256:
+  c30f0107edb95884f83d565108184cf31948853b7b11e6706b996edf3aaf37ba.
+
+---

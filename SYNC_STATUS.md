@@ -4,6 +4,18 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `JUNIPER-DATA-CORRECTION-20260915-001`
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Release: audited, narrowly scoped Developer restoration of retired material assignments.
+- Status: release approved; commit/push and exact production verification in progress.
+- Migration `20260915164220_developer_data_correction` is already applied; never replay former local version 20260915163330.
+- Only the approved main Developer account has the new explicit correction grant. No actual retired assignments restored, quantities changed or transaction history removed.
+- 84 Node tests, isolated SQL safety checks, actual-schema rollback smoke, responsive browser regressions and fresh production-config build passed.
+- Other machines: pull main and verify this marker; read `docs/reviews/DEVELOPER_DATA_CORRECTION.md` and HANDOFF Entries 260–261. Preserve private files and historical untracked dist-* directories.
+- Signed-in acceptance and independent-session concurrency stress remain follow-up checks. Revoke the temporary correction grant before official rollout.
+
+## Previous release — WILLOW Storage Safety
+
 - Marker: `WILLOW-STORAGE-SAFETY-20260915-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: archived duplicate discovery and guarded Developer-only storage-location deletion.

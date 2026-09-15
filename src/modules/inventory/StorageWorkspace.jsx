@@ -3,6 +3,7 @@ import {useSearchParams} from 'react-router-dom';
 import {DataTable} from '../../components/ui/DataTable.jsx';
 import {Toolbar} from '../../components/ui/Toolbar.jsx';
 import {StorageLocationLifecycle} from './StorageLocationLifecycle.jsx';
+import {RetiredBinAssignments} from './RetiredBinAssignments.jsx';
 import {canManageInventoryDepartment} from './inventoryAccess.js';
 import {activeStorage,labelSelection,locationTrail,storageLevels,storageNames} from './storageHierarchy.js';
 import {buildLocationQrSvg} from '../../lib/locationQr.js';
@@ -52,6 +53,7 @@ export function StorageWorkspace({records,sheet,permissions,onReload,onAdd,onCou
     <><div className="storage-actions"><label>Search this level<input type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label><label><input type="checkbox" checked={archived} onChange={e=>setArchived(e.target.checked)}/> Include archived locations</label></div>
      <DataTable columns={[{key:'code',header:'Code'},{key:'label',header:'Name'},{key:'physical_location',header:'Physical location'},{key:'materials_summary',header:'Materials / purpose'},{key:'children',header:'Contents',render:r=>r.type==='bin'?`${sheet.rows.filter(s=>s.bin_id===r.id).length} material lines`:`${visible.filter(c=>c.parentId===r.id).length} ${storageNames[storageLevels[storageLevels.indexOf(r.type)+1]].toLowerCase()} locations`},{key:'archived_at',header:'Status',render:r=>r.archived_at?'Archived':'Active'},{key:'open',header:'Open',render:r=><button className="secondary-button" onClick={e=>{e.stopPropagation();choose(r.id);}}>Open {r.code}</button>}]} rows={children} permissions={permissions} getRowKey={r=>r.id} onRowClick={r=>choose(r.id)} isLoading={sheet.isLoading} error={sheet.error} dense emptyTitle="No locations here" emptyDescription="Add a location or clear your search."/>
     </>}
+   {current?.type==='bin'&&<RetiredBinAssignments key={current.id} location={current} permissions={permissions} onRestored={onReload}/>}
   </article>
  </section>;
 }

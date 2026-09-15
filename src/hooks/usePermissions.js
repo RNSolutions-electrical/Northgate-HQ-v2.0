@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
 
 const DENY_ALL = Object.freeze({
+  can_developer_data_correction: false,
   can_review_electrical_inspections: false,
   can_access_developer: false,
   can_manage_users: false,
@@ -38,6 +39,7 @@ const DENY_ALL = Object.freeze({
 
 function camel(flags) {
   return {
+    canDeveloperDataCorrection: flags.can_developer_data_correction,
     canReviewElectricalInspections: flags.can_review_electrical_inspections,
     canAccessDeveloper: flags.can_access_developer,
     canManageUsers: flags.can_manage_users,
@@ -161,9 +163,11 @@ export function usePermissions() {
     }
 
     load();
+    window.addEventListener('northgate:permissions-updated', load);
 
     return () => {
       isMounted = false;
+      window.removeEventListener('northgate:permissions-updated', load);
     };
   }, [getToken, isSignedIn, isUserLoaded, user]);
 

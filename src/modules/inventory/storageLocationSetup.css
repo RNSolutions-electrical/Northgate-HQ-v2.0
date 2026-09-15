@@ -15,3 +15,7 @@
 .inventory-delete-certification{display:flex;align-items:flex-start;gap:8px;margin-top:14px}
 .inventory-delete-certification input{flex:none;margin-top:3px}
 @media(max-width:650px){.inventory-location-setup{margin:12px;padding:16px}.inventory-setup-grid{grid-template-columns:1fr}.inventory-setup-actions>button{flex:1 1 180px}.inventory-setup-grid input,.inventory-setup-grid select{font-size:16px}}
+.inventory-retired-assignment{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--ng-border);padding:12px 0;overflow-wrap:anywhere}
+.inventory-retired-assignment p{margin:4px 0}.inventory-retired-assignment button{flex-shrink:0}
+.inventory-correction-reason{display:grid;gap:6px;margin-top:12px}.inventory-correction-reason input{width:100%}
+@media(max-width:600px){.inventory-retired-assignment{align-items:stretch;flex-direction:column}}

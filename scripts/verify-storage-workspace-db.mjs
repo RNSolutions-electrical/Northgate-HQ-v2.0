@@ -2,6 +2,7 @@ import {PGlite} from '../.temp/inspection-checks/node_modules/@electric-sql/pgli
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {checkStorageDeletion} from './check-storage-deletion-db.mjs';
+import {checkDataCorrection} from './check-data-correction-db.mjs';
 const db=new PGlite();
 const query=(sql,args=[])=>db.query(sql,args);
 const one=async(sql,args=[])=>Object.values((await query(sql,args)).rows[0])[0];
@@ -116,5 +117,6 @@ try{
  console.log('PASS: storage details; old client preserves details; shelf/bay/bin moves with stable descendants, IDs, quantities and ledger; stale revision; destination type/archive/collision; source and destination permissions; reason/audit rollback; anonymous denial.');
 
  await checkStorageDeletion(db);
+ await checkDataCorrection(db);
  console.log('True simultaneous database sessions and live production deployment not tested by this isolated runner.');
 }catch(e){console.error({message:e.message,query:e.query,where:e.where,stack:e.stack?.split('\n').slice(0,3)});process.exitCode=1;}finally{await db.close();}

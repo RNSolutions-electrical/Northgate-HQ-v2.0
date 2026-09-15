@@ -26,6 +26,7 @@ import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } fr
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
+import {DeveloperDataCorrectionControl} from './DeveloperDataCorrectionControl.jsx';
 import { FinancialLineCatalogueConsole } from './FinancialLineCatalogueConsole.jsx';
 import { ServiceStageConsole } from './ServiceStageConsole.jsx';
 import { PermissionTemplateEditor, UserPermissionTemplateEditor, usePermissionTemplates } from './PermissionTemplates.jsx';
@@ -1025,6 +1026,7 @@ export function DeveloperWorkspace({ permissions }) {
               <StatePanel tone="success" eyebrow="Saved" title="Permission profile updated" description={profileForm.success} compact />
             ) : null}
 
+            <DeveloperDataCorrectionControl key={'correction:'+selectedPermissionUser.user_id} user={selectedPermissionUser} permissions={permissions} onSaved={permissionConsole.reload}/>
             <UserPermissionTemplateEditor key={selectedPermissionUser.user_id} user={selectedPermissionUser}
               service={templateService} options={PERMISSION_FLAG_OPTIONS} onSaved={permissionConsole.reload} />
 

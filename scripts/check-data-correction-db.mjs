@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+export async function checkDataCorrection(db){
+ const q=(sql,args=[])=>db.query(sql,args),one=async(sql,args=[])=>Object.values((await q(sql,args)).rows[0])[0];
+ const actor=async name=>{await db.exec('reset role');await q("select set_config('test.actor',$1,false)",[name]);await db.exec('set role authenticated');};
+ await db.exec('reset role;ALTER TABLE bin_items ADD COLUMN archived_by text,ADD COLUMN archive_reason text');
+ const defaults=await one("select jsonb_object_agg(r,default_permissions_for_role(r)) from unnest(array['User','Supervisor','Manager','Director','Developer']) r");
+ await db.exec(await readFile('supabase/migrations/20260915164220_developer_data_correction.sql','utf8'));
+ assert.deepEqual(await one("select jsonb_object_agg(r,default_permissions_for_role(r)) from unnest(array['User','Supervisor','Manager','Director','Developer']) r"),defaults);
+ const grant=(id,enabled=true,expected=false,reason='Temporary setup correction')=>one('select set_developer_data_correction($1,$2,$3,$4)',[id,enabled,expected,reason]);
+ await actor('deleter');assert.equal(await one('select current_user_can_correct_inventory_data()'),false);
+ await assert.rejects(()=>grant('manager'),/Only active Developers/);await assert.rejects(()=>grant('inactive'),/Only active Developers/);await assert.rejects(()=>grant('deleter',true,false,''),/reason/);
+ await grant('deleter');assert.equal(await one('select current_user_can_correct_inventory_data()'),true);
+ await assert.rejects(()=>grant('deleter'),/changed/);
+ await actor('otherdev');assert.equal(await one('select current_user_can_correct_inventory_data()'),false);
+ const create=(kind,parent,code)=>one('select create_inventory_location($1,$2,$3,$4,$5,$6,0,$7)',[crypto.randomUUID(),kind,parent,code,code,'Electrical','Synthetic correction']);
+ await actor('deleter');const u=await create('unit',null,'CORRECT'),s=await create('shelf',u.id,'CS'),b=await create('bay',s.id,'CB'),n=await create('bin',b.id,'CN');
+ await db.exec('reset role');const item=await one('select id from items limit 1');
+ const bi=await one("insert into bin_items(bin_id,item_id,archived_at,archive_reason)values($1,$2,now(),'Incorrect location') returning to_jsonb(bin_items)",[n.id,item]);
+ await q('insert into inventory_balances(bin_item_id,quantity)values($1,0)',[bi.id]);
+ const restore=(stamp=bi.archived_at,reason='Restore correct assignment')=>one('select restore_retired_bin_assignment($1,$2,$3)',[bi.id,stamp,reason]);
+ for(const who of ['manager','super','director','user','inactive','otherdev','']){await actor(who);await assert.rejects(()=>restore(),/permission/);await assert.rejects(()=>one('select read_retired_bin_assignments($1)',[n.id]),/permission/);}
+ await actor('manager');await assert.rejects(()=>grant('deleter',false,true),/Developer access/);
+ await actor('deleter');assert.equal((await one('select read_retired_bin_assignments($1)',[n.id])).length,1);
+ await assert.rejects(()=>restore(bi.archived_at,''),/reason/);await assert.rejects(()=>restore('2020-01-01'),/Retirement changed/);
+ await grant('deleter',false,true);await assert.rejects(()=>restore(),/permission/);await grant('deleter');
+ await db.exec('reset role');await q("update user_permissions set permission_overrides='{\"can_access_developer\":false}' where clerk_user_id='deleter'");await actor('deleter');await assert.rejects(()=>restore(),/permission/);
+ await db.exec('reset role');await q("update user_permissions set permission_overrides='{}' where clerk_user_id='deleter'");
+ await q("update bins set archived_at=now() where id=$1",[n.id]);await actor('deleter');await assert.rejects(()=>restore(),/parents first/);
+ await db.exec('reset role');await q('update bins set archived_at=null where id=$1',[n.id]);await q('update items set is_active=false where id=$1',[item]);await actor('deleter');await assert.rejects(()=>restore(),/catalogue material/);
+ await db.exec('reset role');await q('update items set is_active=true where id=$1',[item]);await q('update inventory_balances set quantity=2 where bin_item_id=$1',[bi.id]);await actor('deleter');await assert.rejects(()=>restore(),/zero balance/);
+ await db.exec('reset role');await q('update inventory_balances set quantity=0 where bin_item_id=$1',[bi.id]);
+ // Seed conflicting historical state only inside the isolated fixture.
+ await db.exec('ALTER TABLE transaction_items DISABLE TRIGGER USER');
+ const bad=await one("insert into transaction_items(bin_item_id,item_id,quantity,transaction_type,status,occurred_at)values($1,$2,2,'add_stock','approved',now()) returning id",[bi.id,item]);
+ await db.exec('ALTER TABLE transaction_items ENABLE TRIGGER USER');await actor('deleter');await assert.rejects(()=>restore(),/ledger is not zero/);
+ await db.exec('reset role;ALTER TABLE transaction_items DISABLE TRIGGER USER');await q("update transaction_items set status='pending' where id=$1",[bad]);await db.exec('ALTER TABLE transaction_items ENABLE TRIGGER USER');await actor('deleter');await assert.rejects(()=>restore(),/Unresolved inventory/);
+ await db.exec('reset role;ALTER TABLE transaction_items DISABLE TRIGGER USER');await q('delete from transaction_items where id=$1',[bad]);await db.exec('ALTER TABLE transaction_items ENABLE TRIGGER USER');
+ await q("insert into user_permission_overrides(user_id,permission_flag,granted)values('deleter','can_manage_inventory',false)");await actor('deleter');await assert.rejects(()=>restore(),/Inventory management access/);
+ await db.exec('reset role');await q("update user_permission_overrides set is_active=false where user_id='deleter' and permission_flag='can_manage_inventory'");
+ await db.exec('CREATE TRIGGER fail_correction_audit BEFORE INSERT ON change_logs FOR EACH ROW EXECUTE FUNCTION fail_phase1_audit()');
+ await actor('deleter');await assert.rejects(()=>restore(),/Synthetic audit failure/);
+ await db.exec('reset role');assert.ok(await one('select archived_at from bin_items where id=$1',[bi.id]));await db.exec('DROP TRIGGER fail_correction_audit ON change_logs');
+ const history=await one('select jsonb_agg(to_jsonb(t) order by id) from transaction_items t'),balances=await one('select jsonb_agg(to_jsonb(t) order by bin_item_id) from inventory_balances t');
+ await actor('deleter');const saved=await restore();assert.equal(saved.restored,true);assert.equal(saved.quantity_unchanged,0);await assert.rejects(()=>restore(),/already active/);
+ assert.equal((await one('select read_retired_bin_assignments($1)',[n.id])).length,0);
+ await db.exec('reset role');assert.deepEqual(await one('select jsonb_agg(to_jsonb(t) order by id) from transaction_items t'),history);assert.deepEqual(await one('select jsonb_agg(to_jsonb(t) order by bin_item_id) from inventory_balances t'),balances);
+ assert.equal(await one("select count(*)::int from change_logs where record_id=$1 and action='restore'",[bi.id]),1);
+ for(const signature of ['current_user_can_correct_inventory_data()','set_developer_data_correction(text,boolean,boolean,text)','read_retired_bin_assignments(uuid)','restore_retired_bin_assignment(uuid,timestamp with time zone,text)'])assert.equal(await one("select has_function_privilege('anon',$1,'execute')",['public.'+signature]),false);
+ await actor('deleter');await assert.rejects(()=>q('update bin_items set archived_at=null where id=$1',[bi.id]),/permission denied/);
+ console.log('PASS: explicit correction grant/revoke, no role-default changes, active Developer/technical access gates, retired-list scope, stale/reason/location/catalogue/zero-balance guards, atomic audit rollback, no duplicate restoration and unchanged balances/history.');
+}
