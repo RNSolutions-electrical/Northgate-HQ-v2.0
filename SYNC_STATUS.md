@@ -2,16 +2,23 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Release in progress — Estimate workflow handoff
+## Current durable sync marker — Estimate workflow handoff
 
 - Marker: `CEDAR-ESTIMATE-HANDOFF-20260915-001`. Ryan approved migration, live verification, commit, push and deployment.
+- Status: LIVE and verified September 15, 2026.
+- Feature commit: `189b1c66b5f4ffa4ae7959375bb8f692f74bec92`, pushed to origin/main.
+- Production deployment: `6aa9a0763c03550008271b42` (automatic Git production build of that commit, ready/published).
+- Preview: `6aa9a12c4fe8b100a467997e`; exact committed source with tested assets and existing silas-chat function.
+- Live URL: https://rnsolutions.net/northgate/estimates
 - Read `docs/reviews/ESTIMATE_WORKFLOW_HANDOFF.md` and HANDOFF Entries 263–264.
 - Migration `20260915194050_estimate_workflow_handoffs.sql` is applied. Local filename was aligned to Supabase's recorded version.
 - Existing full-price CO posting preserved. Estimate-to-CO creates a draft; existing/new jobs and service calls receive proposed pricing for review, not actual costs or invoices.
 - Authenticated rollback-only actual-schema smoke passed; zero test data retained. Security advisors reviewed; only new finding is the intentional guarded authenticated transaction endpoint.
-- Frontend release is pending in this commit; the prior live marker is retained below until deployment verification.
+- Production and preview HTML/all 14 assets match the tested build by SHA-256; MIME, live configuration, deep links and anonymous RPC denial passed. Netlify production secret scan: 613 files, no matches. silas-chat retained.
+- 86 unit tests, isolated SQL, real-schema rollback smoke and existing estimator/CO/service-call browser regressions passed. Signed-in browser acceptance and independent-session concurrency tests are not claimed.
+- Existing dependency/security findings are recorded in the review document; no dependency versions changed.
 
-## Current durable sync marker
+## Previous durable sync marker
 
 - Marker: `JUNIPER-DATA-CORRECTION-20260915-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.

@@ -64,3 +64,15 @@ The migration is applied. `scripts/verify-estimate-handoff-live.sql` passed agai
 Post-migration security advisors are unchanged except the intentional authenticated SECURITY DEFINER endpoint count, 151 → 152. This endpoint requires active actor, source edit authority and destination financial/management authority, uses a fixed empty search path, and is not executable by anon. Existing 13 no-policy, 4 definer-view, 5 mutable-path and 11 anonymous-definer findings remain outside this release; see the advisor reference above.
 
 Release marker: `CEDAR-ESTIMATE-HANDOFF-20260915-001`. Migration precedes frontend publication. Signed-in browser acceptance and independent-session contention tests are not claimed. Historical jobs/estimates are not retroactively converted. No new approval queue or automatic job-budget initialization was invented.
+
+## Verified production release
+
+- Feature commit `189b1c66b5f4ffa4ae7959375bb8f692f74bec92` pushed to main.
+- Git-triggered production deploy `6aa9a0763c03550008271b42` published after migration and live-schema checks. Existing silas-chat function retained. Secret scan: 613 files, zero matches.
+- Clean-archive preview `6aa9a12c4fe8b100a467997e` also verified. No separate manual production overwrite was necessary: the automatic production build was byte-identical to the tested build.
+- `scripts/verify-estimate-handoff-release.mjs` passed for production and preview: HTML/all 14 assets match SHA-256; JS/CSS MIME, required public Supabase/Clerk configuration, feature markers, deep links and anonymous RPC denial.
+- Live: https://rnsolutions.net/northgate/estimates — open an estimate and choose Submit for review.
+
+## Follow-up security maintenance (outside this feature)
+
+The unchanged lockfile reports four high-severity dependency entries: @clerk/clerk-react, react-router, react-router-dom (via react-router), and xlsx. No versions were upgraded during this release. Schedule a scoped dependency security pass with authentication/navigation/import regression tests; do not use an unreviewed force-upgrade. See [Clerk advisory](https://github.com/advisories/GHSA-w24r-5266-9c3c), [React Router advisory](https://github.com/advisories/GHSA-2w69-qvjg-hvjx), and [SheetJS advisory](https://github.com/advisories/GHSA-4r6h-8v6p-xvw6). Broader Supabase advisor findings above also remain open.

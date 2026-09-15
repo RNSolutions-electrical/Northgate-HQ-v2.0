@@ -21545,3 +21545,27 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   125934b7cc8aa0ee25f92831f41b545d3f1c00ea050749be2878e7b39bf35a33.
 
 ---
+
+## Entry 265 — CEDAR verified production release
+
+2026-09-15 · CEDAR-ESTIMATE-HANDOFF-20260915-001 · LIVE.
+
+- Feature commit 189b1c66b5f4ffa4ae7959375bb8f692f74bec92 pushed to main.
+- Git integration automatically published production deploy 6aa9a0763c03550008271b42
+  after the migration/actual-schema smoke passed. Exact feature commit confirmed.
+- Production HTML and all 14 assets match the tested build by SHA-256; configuration,
+  MIME, feature markers, deep links and anonymous RPC denial verified.
+- Clean-archive preview 6aa9a12c4fe8b100a467997e also passed those checks. No manual
+  production overwrite was needed. silas-chat retained; production secret scan found
+  no matches across 613 files.
+- Live testing starts at Estimates > Submit for review. New jobs begin On Hold,
+  new service calls Pursuit, and CO handoffs are editable drafts, not approvals.
+- 86 unit tests and isolated SQL reran successfully for release. Actual schema tests
+  left zero test rows. Signed-in browser acceptance/concurrent-session tests not claimed.
+- Existing lockfile audit reports four high entries (Clerk, Router/Router DOM, xlsx).
+  Follow-up security maintenance is recorded in docs/reviews/ESTIMATE_WORKFLOW_HANDOFF.md.
+- This documentation-only sync commit uses [skip ci]; production code is unchanged.
+- Prior HANDOFF prefix SHA-256:
+  3379d82da0c16821ee24a3f013c21d7994eeac212db935207db4db57f542eced.
+
+---
