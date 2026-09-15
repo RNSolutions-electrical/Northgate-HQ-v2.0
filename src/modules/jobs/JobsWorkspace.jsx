@@ -1,4 +1,5 @@
 import {JobPermitRegister} from '../electrical-inspections/JobPermitRegister.jsx';
+import {AttachedEstimates} from '../estimates/AttachedEstimates.jsx';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { archiveFailedDocument } from '../documents/documentUploadCleanup.js';
 import {
@@ -2318,6 +2319,13 @@ export function JobsWorkspace({ permissions }) {
       return String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' }) * direction;
     });
   }, [changeOrderSort, jobChangeOrders.rows]);
+  const openedEstimateHandoff = useRef('');
+  useEffect(() => {
+    const id=location.state?.openChangeOrderId;
+    if(!id||openedEstimateHandoff.current===location.key||selectedJob?.id!==location.state?.openJobId)return;
+    const order=jobChangeOrders.rows.find(row=>row.id===id);
+    if(order){openedEstimateHandoff.current=location.key;setChangeOrderWorkspaceOrder(order);}
+  },[location.key,location.state,selectedJob?.id,jobChangeOrders.rows]);
   const sortChangeOrders = (key) => {
     setChangeOrderSort((current) => ({
       key,
@@ -4149,6 +4157,7 @@ export function JobsWorkspace({ permissions }) {
     if (activeTab === 'details') {
       return (
         <div className="job-detail-facts">
+          <AttachedEstimates jobId={selectedJob.id} permissions={permissions}/>
           <div className="profile-field-grid job-detail-facts__metadata">
             {renderFact('Job number', selectedJob.job_number || 'Not assigned')}
             {renderFact('Name', selectedJob.name)}
@@ -5822,6 +5831,7 @@ export function JobsWorkspace({ permissions }) {
       permissions={permissions}
       initialJobId={selectedJob?.id || null}
       initialDirectoryView={location.state?.serviceCallView}
+      initialTab={location.state?.serviceCallTab}
       onJobs={() => { returnToJobList(); setDirectoryType('jobs'); }}
       onReturnList={() => { returnToJobList(); setDirectoryType('service_calls'); directory.reload(); }}
       onResources={(job, tab) => { selectJob(job); setActiveTab(tab); setDirectoryType('service_calls'); directory.reload(); }}

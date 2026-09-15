@@ -25,6 +25,7 @@ import {ProposalBuilder} from './ProposalBuilder.jsx';
 import {proposalFields,suggestedScope} from './proposal.mjs';
 import {deleteDraftContent} from './draftDeletion.mjs';
 import {WorkItemReview} from './WorkItemReview.jsx';
+import {EstimateHandoff} from './EstimateHandoff.jsx';
 import {entryReference,workItemReference,componentReference} from './references.mjs';
 
 const number=entryReference;
@@ -41,7 +42,7 @@ function LineDetails({line,summary,children}){
  useEffect(()=>{if(!line.name||line.name==='Additional labor')ref.current.open=true;},[]);
  return <details ref={ref} className="component"><summary>{summary}</summary><div className="component-editor">{children}</div></details>;
 }
-export default function WorkbenchEditor({initialDocument,onSave,onApprove,approvedSnapshot,canEditCatalog,canApprove=false,readOnly=false,frameWindow,onDirty,onExit,onReloadLibrary,libraryOnly=false,onArchiveAssembly,onCreateRevision,version=1,onOpenOriginal}){
+export default function WorkbenchEditor({initialDocument,onSave,onApprove,approvedSnapshot,canEditCatalog,canApprove=false,readOnly=false,frameWindow,onDirty,onExit,onReloadLibrary,libraryOnly=false,onArchiveAssembly,onCreateRevision,version=1,onOpenOriginal,handoffClient,onHandoff,onOpenHandoff,existingHandoff}){
  const window=frameWindow;
  const [libraryFilters,setLibraryFilters]=useState({query:'',category:'',sort:'name'});
  const [busy,setBusy]=useState(false);const [saveError,setSaveError]=useState('');const [approval,setApproval]=useState(approvedSnapshot||null);
@@ -123,11 +124,12 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  </div>{isExpanded&&<WorkItemReview item={item} parent={parent} data={data}/>}</section>;}
  const libraryRows=filterAssemblies(data.library,libraryFilters);
  const editorTotals=edit?totals(edit.item,data.rate):null;
+ if(page==='handoff')return <main><EstimateHandoff document={data} client={handoffClient} onSubmit={onHandoff} onOpen={onOpenHandoff} onBack={()=>setPage('Pricing')}/></main>;
  return <>
   <div className="prototype-bar"><span>{libraryOnly?'ASSEMBLY LIBRARY':'DRAFT ESTIMATOR'}</span><span>{busy?'Saving...':saved?'Saved to Supabase':'Unsaved changes'}</span></div>
   <header className="brand"><img src={logoUrl} alt="Northgate Group"/><span className="brand-divider"/><strong>HQ <span> / Estimating</span></strong><button onClick={onExit}><ArrowLeft size={16}/> All estimates</button></header>
   <main>
-   {!libraryOnly&&<div className="actions"><button className="primary" disabled={busy||readOnly||!!edit||!!data.approvedAt} onClick={()=>persist(data)}><Save size={16}/> Save estimate</button><span>{catalogue.length} catalogue materials</span></div>}
+   {!libraryOnly&&<div className="actions"><button className="primary" disabled={busy||readOnly||!!edit||!!data.approvedAt} onClick={()=>persist(data)}><Save size={16}/> Save estimate</button>{onHandoff&&<button disabled={busy||!!edit||readOnly} onClick={async()=>{if(existingHandoff){onOpenHandoff(existingHandoff);return;}if(!saved&&!data.approvedAt&&!await persist(data))return;setPage('handoff');}}>{existingHandoff?'Open review destination':'Submit for review'}</button>}<span>{catalogue.length} catalogue materials</span></div>}
    {!libraryOnly&&(onOpenOriginal||data.approvedAt)&&<div className="actions">{onOpenOriginal&&<button onClick={onOpenOriginal}><ArrowLeft size={16}/> View previous version</button>}{data.approvedAt&&!readOnly&&onCreateRevision&&<button className="primary" disabled={busy} onClick={()=>setModal({type:'revision'})}><Copy size={16}/> Create editable revision</button>}</div>}
    {saveError&&<p role="alert" className="save-error">{saveError}</p>}
    {data.entries.some(e=>e.items.some(i=>i.lines.some(l=>l.price==null||l.price===''||l.hours==null||l.hours==='')))&&<p className="missing-warning">Missing price or labor values. Totals are provisional.</p>}

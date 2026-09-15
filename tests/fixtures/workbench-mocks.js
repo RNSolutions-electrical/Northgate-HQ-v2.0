@@ -2,7 +2,7 @@ const getToken=async()=>'fixture-token';
 export const useAuth=()=>({getToken});
 export const usePermissions=()=>({isLoading:false,canEstimate:!location.search.includes('view-only'),canApproveEstimates:true,canEditCatalog:!location.search.includes('readonly-catalogue'),division:'Electrical'});
 const materialRows=Array.from({length:1615},(_,i)=>({id:'material-'+i,name:i===1614?'Copper test conductor':'Material '+i,material_code:'M'+i,unit_of_measure:'FT',price_per_unit:0,price_confirmed:false,labor_rate_hrs:null,updated_at:null}));
-window.workbenchFixture={calls:[],rows:[],snapshots:[],library:[],failNext:false};
+window.workbenchFixture={calls:[],rows:[],snapshots:[],library:[],handoffs:[],failNext:false};
 if(location.search.includes('editing')){
  const doc=seed('Revision test','Acme customer','Commercial');
  doc.entries=[{id:'entry-1',number:1,name:'Lighting circuits',location:'Lobby',section:'Power',status:'Not started',items:[{id:'item-1',number:1,name:'Install receptacles',kind:'Material',qty:4,status:'Not started',notes:'Private field note',lines:[{id:'line-1',name:'Receptacle',qty:1,price:10,hours:0.1,unit:'EA',stage:'Rough-in'}]}]}];
@@ -15,13 +15,17 @@ if(location.search.includes('editing')){
 export function createSupabaseClient(){return {
  from(table){
   let start=0,end=999,filters={},single=false;
-  const q={select:()=>q,eq(k,v){filters[k]=v;return q;},in:()=>q,single(){single=true;return q;},is:()=>q,order:()=>q,range(a,b){start=a;end=b;return q;},
-   then(resolve){const f=window.workbenchFixture;let data=table==='items'?materialRows.slice(start,end+1):table==='assemblies'?f.library.slice(start,end+1):table==='estimate_snapshots'?f.snapshots:table==='estimates'?f.rows.map(r=>({id:r.estimate_id,...r.estimates})):f.rows;data=data.filter(r=>Object.entries(filters).every(([k,v])=>table==='items'||table==='assemblies'||k.includes('.')||r[k]===v));return Promise.resolve({data:single?data[0]:data}).then(resolve);}};
+  const q={select:()=>q,eq(k,v){filters[k]=v;return q;},in:()=>q,single(){single=true;return q;},is:()=>q,order:()=>q,limit:()=>q,range(a,b){start=a;end=b;return q;},
+   then(resolve){const f=window.workbenchFixture;let data=table==='estimate_workflow_handoffs'?f.handoffs:table==='jobs'?[{id:'job-1',name:'Review job',job_number:'TEST',division:'Electrical',job_type:'job'},{id:'call-1',name:'Service review',job_number:'SC-1',division:'Electrical',job_type:'service_call'}]:table==='job_budget_lines'?[{id:'budget-1',job_id:'job-1',cost_code:'16.CO',description:'Electrical Change Orders'}]:table==='items'?materialRows.slice(start,end+1):table==='assemblies'?f.library.slice(start,end+1):table==='estimate_snapshots'?f.snapshots:table==='estimates'?f.rows.map(r=>({id:r.estimate_id,...r.estimates})):f.rows;data=data.filter(r=>Object.entries(filters).every(([k,v])=>table==='items'||table==='assemblies'||k.includes('.')||r[k]===v));return Promise.resolve({data:single?data[0]:data}).then(resolve);}};
   return q;
  },
  async rpc(name,args){
   const f=window.workbenchFixture;f.calls.push({name,args});
   if(f.failNext){f.failNext=false;return {error:{message:'Fixture stale catalogue; input retained'}};}
+  if(name==='submit_estimate_for_review'){
+   const saved=f.handoffs.find(h=>h.estimate_id===args.p_estimate_id)||{id:'handoff-1',estimate_id:args.p_estimate_id,job_id:args.p_job_id||'new-job',change_order_id:args.p_destination==='change_order'?'co-1':null,destination:args.p_destination,source_version:1,source_revision:args.p_expected_revision};
+   if(!f.handoffs.includes(saved))f.handoffs.push(saved);return {data:saved};
+  }
   if(name==='approve_workbench_estimate'){
    const row=f.rows.find(r=>r.estimate_id===args.p_estimate_id);
    const snapshot={id:'snapshot-'+row.estimate_id,estimate_id:row.estimate_id,approved_at:'2026-09-14T12:00:00Z',title:row.document.name,customer_name:row.document.customer,workbench_document:structuredClone(row.document),pricing_total:sumPricing(row.document.entries.flatMap(e=>e.items),row.document).price};

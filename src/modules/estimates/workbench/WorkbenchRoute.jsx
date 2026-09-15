@@ -10,13 +10,14 @@ import {seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary} from './catalogueService.js';
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
 import css from './style.css?inline';
+import {handoffDestinationState} from './handoff.mjs';
 
-function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onCreateRevision,version,onOpenOriginal}){
+function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onCreateRevision,version,onOpenOriginal,...handoffProps}){
  const ref=useRef(),[target,setTarget]=useState(null);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{width:'100%',height:'calc(100dvh - 130px)',minHeight:620,border:0}}
- >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog} canApprove={permissions.canApproveEstimates} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal}/>,target)}</iframe>;
+ >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog} canApprove={permissions.canApproveEstimates} readOnly={!permissions.canEstimate} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
@@ -27,6 +28,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const division=allowedDivisions.includes(requestedDivision)?requestedDivision:permissions.division;
  const dirty=useRef(false),active=useRef(null),saving=useRef(false);
  const library=useRef([]);
+ const [handoffs,setHandoffs]=useState({});
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
  const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
  const reload=useCallback(async()=>{
@@ -37,6 +39,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
    const response=libraryOnly?{data:[]}:await db.from('estimate_workbenches').select('estimate_id,revision,document,updated_at,estimates!estimate_workbenches_estimate_id_fkey!inner(division,status,submitted_at,version_number,revision_of,revision_root_id,source_snapshot_id)').eq('estimates.division',division).order('updated_at',{ascending:false});
    if(response.error)throw response.error;
    const workbenches=response.data||[];
+   if(workbenches.length){const links=await db.from('estimate_workflow_handoffs').select('id,estimate_id,job_id,change_order_id,destination,source_version,source_revision').in('estimate_id',workbenches.map(r=>r.estimate_id));if(links.error)throw links.error;setHandoffs(Object.fromEntries((links.data||[]).map(h=>[h.estimate_id,h])));}
    let snapshotsByEstimate=new Map();
    if(workbenches.length){
     const snapshots=await db.from('estimate_snapshots').select('id,estimate_id,approved_at,approved_by,approval_note,title,customer_name,pricing_total,workbench_document').in('estimate_id',workbenches.map(row=>row.estimate_id)).order('approved_at',{ascending:false});
@@ -83,6 +86,18 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const db=await client();const {error}=await db.rpc('archive_assembly_library',{p_assembly_id:item.libraryId,p_expected_updated_at:item.updatedAt,p_reason:reason});
   if(error)throw error;library.current=library.current.filter(a=>a.id!==item.id);
  }
+ async function submitHandoff(values){
+  if(saving.current)throw new Error('Wait for the current save to finish.');
+  const current=active.current;if(!current?.estimate_id)throw new Error('Save the estimate first.');
+  const db=await client(),{data,error}=await db.rpc('submit_estimate_for_review',{
+   p_estimate_id:current.estimate_id,p_expected_revision:current.revision,p_destination:values.destination,
+   p_job_id:values.jobId||null,p_new_job:values.newJob,p_co_number:values.coNumber||null,p_line_targets:values.targets});
+  if(error)throw error;setHandoffs(h=>({...h,[current.estimate_id]:data}));return data;
+ }
+ function openHandoff(handoff){
+  if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;
+  dirty.current=false;navigate('/jobs',{state:handoffDestinationState(handoff)});
+ }
  async function approve(document,note){
   if(!active.current?.estimate_id)throw new Error('Save the estimate before approval.');
   const db=await client();
@@ -127,7 +142,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  if(selected){
   const approvedSnapshot=selected.snapshot||null;
   const document={...selected.document,approvedAt:approvedSnapshot?.approved_at||null,library:structuredClone(library.current)};
-  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onArchiveAssembly={archiveAssembly} onCreateRevision={createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}}/></>;
+  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onArchiveAssembly={archiveAssembly} onCreateRevision={createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={client} onHandoff={submitHandoff} onOpenHandoff={openHandoff} existingHandoff={handoffs[selected.estimate_id]}/></>;
  }
  return <section className="workspace-stack">
   <WorkspaceHeader eyebrow="Workspace" title={division+' Estimates'} description="Build pricing, prepare a client proposal, and retain approved versions." descriptionIsDiagnostic={false} actions={<><button className="secondary-button" type="button" onClick={()=>navigate('/estimates/assemblies')}>Assembly library</button><button className="secondary-button" type="button" onClick={reload}><RefreshCw size={16}/> Refresh catalogue</button></>}/>

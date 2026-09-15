@@ -21492,3 +21492,56 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   6bed8f54197f9d80dd411a08bed9946a1be424d82dfdda5de6ff38bb131a134c.
 
 ---
+
+## Entry 263 — Estimate workflow handoff (LOCAL, migration unapplied)
+
+2026-09-15 · Production Mode · released marker remains JUNIPER / 51c36d4.
+
+- Ryan confirmed full-price CO budget posting remains unchanged; "internal"
+  means client documents should not expose material/labor/markup breakdowns.
+- Submit for review creates an editable CO draft using the existing workflow.
+  Ryan also approved creating new jobs/service calls, not just attaching existing.
+- Added dedicated estimator handoff workspace, per-work-item .CO division mapping,
+  server-calculated internal components/line totals, fee reconciliation, immutable
+  source copy, idempotent destination link and direct review navigation.
+- New jobs start On Hold; service calls start Pursuit. Attached estimates remain
+  proposed pricing, not actual costs, automatic budget changes or invoices.
+  Service quote adoption opens the existing quote editor for explicit saving.
+- New local migration 20260915190723_estimate_workflow_handoffs is UNAPPLIED.
+  No live schema/data changes, no commits/push/deployment in this turn.
+- 86 Node tests; isolated SQL with captured live destination functions and real
+  permission helpers; desktop/mobile handoff checks; existing estimator/CO
+  desktop/tablet/phone regressions; production-config build passed.
+- Migration must precede frontend. Actual-schema rollback smoke, live advisors,
+  signed-in acceptance and independent-session contention checks remain.
+- Read docs/reviews/ESTIMATE_WORKFLOW_HANDOFF.md before release. Preserve private
+  files/historical builds. Source copies are not another CO or billing system.
+- Prior HANDOFF prefix SHA-256:
+  5a0bf834dbe87b7bf27ea81a7c4850bce22e5d81132d6240b9a0e6a96e730825.
+
+---
+
+## Entry 264 — CEDAR estimate handoff release preparation
+
+2026-09-15 · Production Mode · CEDAR-ESTIMATE-HANDOFF-20260915-001.
+
+- Ryan explicitly approved migration, live-schema verification, commit, push and deployment.
+- Origin/main matched HEAD before release. Historical/private local builds remain untouched.
+- Applied the approved migration through Supabase MCP. Its recorded version is
+  20260915194050; local migration renamed from 20260915190723 to match, SQL unchanged.
+- Real-schema rollback-only smoke passed using authenticated workflow calls:
+  estimate save, CO draft/retry, stale rejection, new/existing jobs and calls,
+  exact $72.97 reconciliation, immutable source, RLS/unauthorized denial and no
+  premature budget/quote/invoice posting. No test records or audits remain.
+- Post-migration advisors: existing baseline unchanged except the expected guarded
+  authenticated SECURITY DEFINER endpoint (151 to 152). No new anonymous endpoint,
+  missing policy or mutable search path. Existing broader findings remain separate.
+- Final local build: .temp/estimate-handoff-final-20260915,
+  index-TWmlYoYq.js / WorkbenchRoute-VLHrnxdt.js. Existing bundle/xlsx warnings only.
+- Service-call desktop/tablet/phone regressions also passed after adapting its fixture.
+- Signed-in browser acceptance and independent-session contention are not claimed.
+  Next: commit/push exact source, publish built assets/functions, verify hashes/deep links.
+- Prior HANDOFF prefix SHA-256:
+  125934b7cc8aa0ee25f92831f41b545d3f1c00ea050749be2878e7b39bf35a33.
+
+---

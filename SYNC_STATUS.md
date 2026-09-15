@@ -2,6 +2,15 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
+## Release in progress — Estimate workflow handoff
+
+- Marker: `CEDAR-ESTIMATE-HANDOFF-20260915-001`. Ryan approved migration, live verification, commit, push and deployment.
+- Read `docs/reviews/ESTIMATE_WORKFLOW_HANDOFF.md` and HANDOFF Entries 263–264.
+- Migration `20260915194050_estimate_workflow_handoffs.sql` is applied. Local filename was aligned to Supabase's recorded version.
+- Existing full-price CO posting preserved. Estimate-to-CO creates a draft; existing/new jobs and service calls receive proposed pricing for review, not actual costs or invoices.
+- Authenticated rollback-only actual-schema smoke passed; zero test data retained. Security advisors reviewed; only new finding is the intentional guarded authenticated transaction endpoint.
+- Frontend release is pending in this commit; the prior live marker is retained below until deployment verification.
+
 ## Current durable sync marker
 
 - Marker: `JUNIPER-DATA-CORRECTION-20260915-001`

@@ -40,6 +40,8 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'FUNCTION', name: 'Allocate Service Invoice', location: 'Service Calls › Costs & Billing', status: 'ready for testing' },
   { type: 'MODULE', name: 'Panel Directory', location: 'Add-On Tools', status: 'live' },
   { type: 'MODULE', name: 'Estimate Proposal Builder', location: 'Estimates › Proposal', status: 'ready for testing' },
+  { type: 'FUNCTION', name: 'Submit Estimate for Review', location: 'Estimates', status: 'ready for testing' },
+  { type: 'MODULE', name: 'Attached Estimates for Review', location: 'Jobs › Details / Service Calls › Billing', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Create Editable Estimate Revision', location: 'Estimates', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Delete Draft Estimate Content', location: 'Estimates › Pricing', status: 'ready for testing' },
   { type: 'MODULE', name: 'Project Financials', location: 'Jobs Page', status: 'live' },

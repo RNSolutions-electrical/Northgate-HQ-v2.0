@@ -2,6 +2,13 @@ import {DEFAULT_SERVICE_STAGES} from '../../src/modules/service-calls/serviceSta
 const stageCatalogue=structuredClone(DEFAULT_SERVICE_STAGES).map(s=>({...s,updated_at:'2026-09-14T10:00:00Z'}));
 const token=async()=> 'fixture-token';
 export const useAuth=()=>({getToken:token});
+export function createSupabaseClient(){
+ return {from(table){
+  if(table!=='estimate_workflow_handoffs')throw new Error('Unexpected fixture table: '+table);
+  const query={select(){return query;},eq(){return query;},is(){return query;},order(){return query;},then(resolve,reject){return Promise.resolve({data:[],error:null}).then(resolve,reject);}};
+  return query;
+ }};
+}
 const readonly=new URLSearchParams(location.search).has('readonly');
 const calls=[1,2].map(n=>({
  id:'00000000-0000-4000-8000-00000000000'+n,name:'Service fixture '+n,service_call_number:'26-00'+n,job_number:'26-00'+n,division:'Electrical',

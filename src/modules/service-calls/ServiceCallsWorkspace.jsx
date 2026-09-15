@@ -1,4 +1,5 @@
 import {ServiceCallFields,EMPTY_SERVICE_CALL} from './ServiceCallForm.jsx';
+import {AttachedEstimates} from '../estimates/AttachedEstimates.jsx';
 import { useAuth } from '@clerk/clerk-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
@@ -24,7 +25,7 @@ const today = () => new Date().toLocaleDateString('en-CA');
 const EMPTY = EMPTY_SERVICE_CALL;
 
 export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs, onResources, onReturnList,
-  embedded = false, onSaved, onPanelState, initialDirectoryView = 'operations' }) {
+  embedded = false, onSaved, onPanelState, initialDirectoryView = 'operations', initialTab = 'details' }) {
   const { getToken } = useAuth();
   const [calls, setCalls] = useState([]);
   const [stages, setStages] = useState(DEFAULT_SERVICE_STAGES);
@@ -38,7 +39,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
   const [mode, setMode] = useState('browse');
   const [filter, setFilter] = useState('active');
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState('details');
+  const [tab, setTab] = useState(initialTab==='billing'&&(permissions?.canViewProjectFinancials||permissions?.can_view_project_financials)?'billing':'details');
   const [form, setForm] = useState(EMPTY);
   const [invoice, setInvoice] = useState(null);
   const [confirm, setConfirm] = useState(null);
@@ -298,6 +299,7 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
           </section>
         </>}
         {tab === 'billing' && financials && <>
+          <AttachedEstimates jobId={call.id} permissions={permissions} onUseQuote={call.can_bill?(total)=>commercial('quote',{quote_amount:total,changes_amount:call.financials.changes_amount||0}):undefined}/>
           <div className="module-fact-grid">
             <SummaryCard label="Billed before tax" value={money(financials.revenue)} />
             <SummaryCard label="Cost to date" value={financials.costKnown ? money(financials.cost) : 'Not entered'} />

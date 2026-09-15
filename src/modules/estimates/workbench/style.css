@@ -8,6 +8,8 @@
 .component>summary>svg{flex-shrink:0}
 .component[open]>summary>svg:first-child{transform:rotate(90deg)}
 .component-editor{margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.estimate-handoff td:last-child{white-space:nowrap}@media(max-width:650px){.estimate-handoff thead{display:none}.estimate-handoff tbody{display:block}.estimate-handoff tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid var(--border)}.estimate-handoff tbody td{border:0}.estimate-handoff tbody td:first-child{grid-column:1/-1;font-weight:600}.estimate-handoff tbody td:last-child{align-self:center;text-align:right}}
+.estimate-handoff{padding:20px}.estimate-handoff .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.estimate-handoff label{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}.estimate-handoff select,.estimate-handoff input{width:100%;min-width:0}.estimate-handoff table{width:100%;border-collapse:collapse}.estimate-handoff th,.estimate-handoff td{text-align:left;border-bottom:1px solid var(--border);padding:12px;overflow-wrap:anywhere}.estimate-handoff .table-scroll{overflow-x:auto}.estimate-handoff td select{min-width:180px}@media(max-width:650px){.estimate-handoff{padding:12px}.estimate-handoff .form-grid{grid-template-columns:1fr}.estimate-handoff th,.estimate-handoff td{padding:8px}.estimate-handoff td select{min-width:120px}}
 .increase-icon{color:#a86513}
 .pricing-overview,.markup-controls{margin-block:22px;padding-block:16px;border-block:1px solid var(--border)}
 .baseline-form,.markup-fields{display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end;margin-block:18px}

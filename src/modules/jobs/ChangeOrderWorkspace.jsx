@@ -1,4 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
+import {AttachedEstimates} from '../estimates/AttachedEstimates.jsx';
 import { Archive, ArrowLeft, Ban, Copy, Download, FileCheck2, Plus, Save, Send, ShieldCheck, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -417,6 +418,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
 
   return (
     <section className="change-order-workspace">
+      {order?.id&&<AttachedEstimates jobId={job.id} changeOrderId={order.id} permissions={permissions}/>}
       <div className="change-order-workspace__topbar">
         <button type="button" className="secondary-button" onClick={onClose} disabled={Boolean(action.name)}><ArrowLeft aria-hidden="true" /> Back to Change Orders</button>
         <div className="change-order-workspace__identity">
