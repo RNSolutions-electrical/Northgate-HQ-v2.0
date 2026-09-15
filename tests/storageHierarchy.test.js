@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {activeStorage,labelSelection,locationTrail} from '../src/modules/inventory/storageHierarchy.js';
+import {labelBounds,createStorageLabels} from '../src/modules/inventory/storageLabels.js';
+import {PDFDocument} from 'pdf-lib';
+const rows=[{id:'u',type:'unit',parentId:null,path:'U'},{id:'s',type:'shelf',parentId:'u',path:'U/S'},{id:'b',type:'bay',parentId:'s',path:'U/S/B'},{id:'n',type:'bin',parentId:'b',path:'U/S/B/N'},{id:'other',type:'unit',parentId:null,path:'X',archived_at:'today'},{id:'hidden',type:'shelf',parentId:'other',path:'X/S'}];
+test('Storage trail, branch label scopes, and archived ancestors',()=>{assert.deepEqual(locationTrail(rows,'n').map(r=>r.id),['u','s','b','n']);assert.equal(activeStorage(rows).length,4);assert.deepEqual(labelSelection(rows,'s','bin').map(r=>r.id),['n']);});
+test('Avery 5164 exact sheet geometry and continuation',()=>{assert.deepEqual(labelBounds(0),{page:0,x:11.25,y:516,width:288,height:240});assert.equal(labelBounds(5).y,36);assert.equal(labelBounds(5).x,312.75);assert.equal(labelBounds(6).page,1);});
+test('Label export validates size, emits Letter pages and handles partial sheets',async()=>{const sample=Array.from({length:7},(_,i)=>({id:'00000000-0000-4000-8000-'+String(i).padStart(12,'0'),typeLabel:'Bin',path:'SHOP/S1/A/'+i,label:'Conduit fittings'}));const bytes=await createStorageLabels(sample,{startSlot:6,qrInches:.75});const pdf=await PDFDocument.load(bytes);assert.equal(pdf.getPageCount(),2);assert.deepEqual(pdf.getPage(0).getSize(),{width:612,height:792});await assert.rejects(()=>createStorageLabels(sample,{qrInches:0}),/size/);await assert.rejects(()=>createStorageLabels([]),/Select/);});

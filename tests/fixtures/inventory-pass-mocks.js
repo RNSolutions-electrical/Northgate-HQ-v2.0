@@ -71,6 +71,8 @@ export function createSupabaseClient() { return {
      if(name==='edit_inventory_location'){
       if(row.revision!==args.p_expected_revision)return {error:{message:'Location changed. Refresh and review.'}};
       Object.assign(row,{[code]:args.p_code,[label]:args.p_label,position:args.p_position});
+      Object.assign(row,args.p_details||{});
+      if(args.p_parent_id)row[{shelf:'unit_id',bay:'shelf_id',bin:'bay_id'}[args.p_kind]]=args.p_parent_id;
      }else{
       if(args.p_archived&&args.p_kind==='bin'&&stock.some(s=>s.bin_id===row.id))return {error:{message:'Location has active child locations or material links.'}};
       row.archived_at=args.p_archived?new Date().toISOString():null;row.archive_reason=args.p_reason;

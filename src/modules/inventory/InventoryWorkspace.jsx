@@ -29,7 +29,7 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx';
 import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
 import { StorageLocationSetup } from './StorageLocationSetup.jsx';
-import { StorageLocationLifecycle } from './StorageLocationLifecycle.jsx';
+import { StorageWorkspace } from './StorageWorkspace.jsx';
 import { MaterialAliases } from './MaterialAliases.jsx';
 import { searchMaterials, resolveMaterials } from '../../lib/materialResolver.js';
 import { canManageInventoryDepartment } from './inventoryAccess.js';
@@ -42,14 +42,13 @@ import { useInventoryCountSheet } from '../../hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { buildLocationQrSvg, buildLocationQrUrl, buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
+import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
 const INVENTORY_VIEWS = [
   { key: 'stock', label: 'Inventory', icon: PackageSearch },
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Live stock summary and valuation export preview.' },
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
-  { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units and bin previews.' },
-  { key: 'locations', label: 'Locations & QR', icon: QrCode, description: 'Physical hierarchy records and QR outputs.' },
+  { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units, shelves, bays, bins and QR labels.' },
   { key: 'scan', label: 'Scan', icon: QrCode, description: 'Resolve location QR codes and dispatch to cart or count.' },
   { key: 'accounting', label: 'Accounting Export', icon: Download, description: 'Read-only inventory valuation export preview.' },
   { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
@@ -99,17 +98,7 @@ const CATALOG_COLUMNS = [
   { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
 ];
 
-const STORAGE_COLUMNS = [
-  { key: 'unit_code', header: 'Unit', render: (row) => <strong>{row.unit_code || '-'}</strong> },
-  { key: 'name', header: 'Name', fallback: '-' },
-  { key: 'division', header: 'Department', fallback: '-' },
-];
 
-const BIN_COLUMNS = [
-  { key: 'bin_code', header: 'Bin', render: (row) => <strong>{row.bin_code || '-'}</strong> },
-  { key: 'label', header: 'Label', fallback: '-' },
-  { key: 'qr_code', header: 'QR Payload', fallback: '-' },
-];
 
 const CANDIDATE_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
@@ -196,12 +185,6 @@ const ACCOUNTING_COLUMNS = [
   { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
 ];
 
-const LOCATION_COLUMNS = [
-  { key: 'typeLabel', header: 'Level', render: (row) => <StatusBadge tone={row.type === 'bin' ? 'good' : 'neutral'}>{row.typeLabel}</StatusBadge> },
-  { key: 'code', header: 'Code', render: (row) => <strong>{row.code || '-'}</strong> },
-  { key: 'label', header: 'Label', fallback: '-' },
-  { key: 'path', header: 'Path', fallback: '-' },
-];
 
 function formatMoney(value) {
   const numeric = Number(value);
@@ -254,6 +237,7 @@ function buildLocationRecords(locationSheet) {
 
   const unitRecords = locationSheet.storageUnits.map((unit) => ({
     id: unit.id,
+    parentId:null, physical_location:unit.physical_location, materials_summary:unit.materials_summary,
     archived_at: unit.archived_at, archive_reason: unit.archive_reason, revision:unit.revision,position:0,
     type: 'unit',
     typeLabel: 'Unit',
@@ -267,6 +251,7 @@ function buildLocationRecords(locationSheet) {
     const unit = unitById.get(shelf.unit_id);
     return {
       id: shelf.id,
+    parentId:shelf.unit_id, physical_location:shelf.physical_location, materials_summary:shelf.materials_summary,
       archived_at: shelf.archived_at, archive_reason: shelf.archive_reason, revision:shelf.revision,position:shelf.position,
       type: 'shelf',
       typeLabel: 'Shelf',
@@ -282,6 +267,7 @@ function buildLocationRecords(locationSheet) {
     const unit = shelf ? unitById.get(shelf.unit_id) : null;
     return {
       id: bay.id,
+    parentId:bay.shelf_id, physical_location:bay.physical_location, materials_summary:bay.materials_summary,
       archived_at: bay.archived_at, archive_reason: bay.archive_reason, revision:bay.revision,position:bay.position,
       type: 'bay',
       typeLabel: 'Bay',
@@ -298,6 +284,7 @@ function buildLocationRecords(locationSheet) {
     const unit = shelf ? unitById.get(shelf.unit_id) : null;
     return {
       id: bin.id,
+    parentId:bin.bay_id, physical_location:bin.physical_location, materials_summary:bin.materials_summary,
       archived_at: bin.archived_at, archive_reason: bin.archive_reason, revision:bin.revision,position:bin.position,
       type: 'bin',
       typeLabel: 'Bin',
@@ -523,7 +510,7 @@ export function InventoryWorkspace({ permissions }) {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const frameRef = useRef(null);
-  const requestedView = searchParams.get('view') ?? '';
+  const requestedView = searchParams.get('view') === 'locations' ? 'storage' : searchParams.get('view') ?? '';
   const scanBinId = searchParams.get('scanBinId') ?? '';
   const scanBinCode = searchParams.get('scanBinCode') ?? '';
   const scanContext = scanBinId ? { binId: scanBinId, binCode: scanBinCode } : null;
@@ -535,10 +522,10 @@ export function InventoryWorkspace({ permissions }) {
   const canWriteCounts = canReadCounts;
   const canRetireBinItems = canWriteCounts && isDeveloperOrAdminRole(permissions?.role) && permissions?.canArchiveRecords === true;
   const [creatingLocation, setCreatingLocation] = useState(false);
+  const [locationSetupContext,setLocationSetupContext] = useState(null);
   const [intakeSearch, setIntakeSearch] = useState('');
   const [mapOnly, setMapOnly] = useState(true);
   const [aliasItem, setAliasItem] = useState(null);
-  const [showArchivedLocations, setShowArchivedLocations] = useState(false);
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState(
@@ -577,7 +564,6 @@ export function InventoryWorkspace({ permissions }) {
   const [scanMessage, setScanMessage] = useState('');
   const [scanMatches, setScanMatches] = useState([]);
   const [cameraStatus, setCameraStatus] = useState('idle');
-  const [selectedLocationId, setSelectedLocationId] = useState('');
 
   const history = useInventoryTransactionHistory({
     enabled: canLoadInventory && activeView === 'history',
@@ -586,7 +572,7 @@ export function InventoryWorkspace({ permissions }) {
     limit: 75,
   });
   const countSheet = useInventoryCountSheet({
-    enabled: canReadCounts && (creatingLocation || ['overview', 'accounting', 'locations', 'count', 'scan'].includes(activeView)),
+    enabled: canLoadInventory && (creatingLocation || ['storage', 'overview', 'accounting', 'locations', 'count', 'scan'].includes(activeView)),
   });
   const countCorrection = useInventoryCountCorrection();
   const countIntake = useInventoryCountIntake();
@@ -621,14 +607,6 @@ export function InventoryWorkspace({ permissions }) {
     ));
     return searchMaterials(scopedRows, search);
   }, [catalogCategory, catalogSubcategory, model.catalogPreview, search]);
-  const visibleStorageUnits = useMemo(
-    () => filterRows(model.storageUnitsPreview, search, ['unit_code', 'name', 'division']),
-    [model.storageUnitsPreview, search],
-  );
-  const visibleBins = useMemo(
-    () => filterRows(model.binsPreview, search, ['bin_code', 'label', 'qr_code']),
-    [model.binsPreview, search],
-  );
   const visibleCandidates = useMemo(
     () => {
       const rows = scanContext?.binId
@@ -686,15 +664,6 @@ export function InventoryWorkspace({ permissions }) {
     () => buildLocationRecords(countSheet),
     [countSheet.storageUnits, countSheet.shelves, countSheet.bays, countSheet.bins],
   );
-  const visibleLocationRecords = useMemo(
-    () => filterRows(locationRecords.filter(row=>showArchivedLocations||!row.archived_at), search, ['typeLabel', 'code', 'label', 'path', 'id']),
-    [locationRecords, search, showArchivedLocations],
-  );
-  const selectedLocation =
-    visibleLocationRecords.find((record) => record.id === selectedLocationId)
-    ?? locationRecords.find((record) => record.id === selectedLocationId)
-    ?? visibleLocationRecords[0]
-    ?? null;
   const overviewQuantity = visibleOverviewRows.reduce(
     (sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0),
     0,
@@ -1307,11 +1276,6 @@ export function InventoryWorkspace({ permissions }) {
     downloadTextFile('northgate-inventory-accounting-export.csv', buildAccountingCsv(visibleAccountingRows), 'text/csv');
   }
 
-  function handleDownloadSelectedQr() {
-    if (!selectedLocation) return;
-    const code = selectedLocation.code || selectedLocation.id;
-    downloadTextFile(`northgate-location-${code}.svg`, buildLocationQrSvg(selectedLocation.id), 'image/svg+xml');
-  }
 
   function setCountMessage(key, tone, text) {
     setCountMessages((current) => ({
@@ -1625,84 +1589,6 @@ export function InventoryWorkspace({ permissions }) {
       );
     }
 
-    if (activeView === 'locations') {
-      return (
-        <div className="inventory-section-stack">
-          <article className="card workspace-card">
-            <Toolbar descriptionIsDiagnostic
-              eyebrow="Locations"
-              title="Location Records"
-              description="Select a location for QR labels, archive history, and administration."
-              actions={(
-                <><label><input type="checkbox" checked={showArchivedLocations} onChange={e=>setShowArchivedLocations(e.target.checked)}/> Include archived locations</label><button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
-                  <RefreshCw aria-hidden="true" /> Refresh Locations
-                </button></>
-              )}
-              dense
-            />
-            <DataTable
-              columns={[...LOCATION_COLUMNS,{key:'archived_at',header:'Status',render:row=>row.archived_at?'Archived':'Active'}]}
-              rows={visibleLocationRecords}
-              getRowKey={(row) => row.id}
-              permissions={permissions}
-              isLoading={countSheet.isLoading}
-              error={countSheet.error}
-              onRowClick={(row) => setSelectedLocationId(row.id)}
-              selectedRowKey={selectedLocation?.id ?? null}
-              dense
-              minWidth="820px"
-              emptyTitle="No location records"
-              emptyDescription="The existing storage hierarchy read path returned no location rows."
-            />
-          </article>
-
-          <article className="card workspace-card">
-            {selectedLocation ? (
-              <div className="inventory-location-qr-panel">
-                <div>
-                  <Toolbar
-                    eyebrow="QR Output"
-                    title={getLocationDisplay(selectedLocation)}
-                    description="Stable location QR output. The QR route resolves context only and does not change inventory."
-                    actions={(
-                      <>
-                        <button type="button" className="secondary-button" disabled={Boolean(selectedLocation.archived_at)} onClick={() => openLocationScan(selectedLocation.id)}>
-                          <QrCode aria-hidden="true" /> Open Scan Result
-                        </button>
-                        <button type="button" className="secondary-button" onClick={handleDownloadSelectedQr}>
-                          <Download aria-hidden="true" /> Download SVG
-                        </button>
-                      </>
-                    )}
-                    dense
-                  />
-                  <div className="inventory-cart-facts">
-                    <span>Level: <strong>{selectedLocation.typeLabel}</strong></span>
-                    <span>Code: <strong>{selectedLocation.code || '-'}</strong></span>
-                    <span>Path: <strong>{selectedLocation.path || '-'}</strong></span>
-                    <span>URL: <strong>{buildLocationQrUrl(selectedLocation.id)}</strong></span>
-                  </div>
-                </div>
-                <div
-                  className="inventory-location-qr-preview"
-                  aria-label={`QR code for ${getLocationDisplay(selectedLocation)}`}
-                  dangerouslySetInnerHTML={{ __html: buildLocationQrSvg(selectedLocation.id) }}
-                />
-              </div>
-            ) : (
-              <StatePanel
-                eyebrow="QR Output"
-                title="Select a location"
-                description="Choose a unit, shelf, bay, or bin to preview and download its QR output."
-                tone="neutral"
-              />
-            )}
-            {selectedLocation&&<StorageLocationLifecycle key={`${selectedLocation.id}:${selectedLocation.revision}`} location={selectedLocation} permissions={permissions} onSaved={()=>{countSheet.reload();readModel.reload();history.reload();}}/>}
-          </article>
-        </div>
-      );
-    }
-
     if (activeView === 'scan') {
       return (
         <div className="inventory-section-stack">
@@ -1825,50 +1711,12 @@ export function InventoryWorkspace({ permissions }) {
     }
 
     if (activeView === 'storage') {
-      return (
-        <div className="inventory-section-stack">
-          <article className="card workspace-card">
-            <Toolbar descriptionIsDiagnostic
-              eyebrow="Storage"
-              title="Storage Units"
-              description="Preview rows from the existing storage_units read path."
-              dense
-            />
-            <DataTable
-              columns={STORAGE_COLUMNS}
-              rows={visibleStorageUnits}
-              getRowKey={(row) => row.id}
-              permissions={permissions}
-              isLoading={readModel.isLoading}
-              error={readModel.error}
-              dense
-              minWidth="520px"
-              emptyTitle="No storage units in preview"
-              emptyDescription="This preview stays bounded to the retained inventory read model."
-            />
-          </article>
-          <article className="card workspace-card">
-            <Toolbar descriptionIsDiagnostic
-              eyebrow="Storage"
-              title="Bins"
-              description="Preview rows from the existing bins read path."
-              dense
-            />
-            <DataTable
-              columns={BIN_COLUMNS}
-              rows={visibleBins}
-              getRowKey={(row) => row.id}
-              permissions={permissions}
-              isLoading={readModel.isLoading}
-              error={readModel.error}
-              dense
-              minWidth="620px"
-              emptyTitle="No bins in preview"
-              emptyDescription="QR payloads are displayed only as existing read-model data."
-            />
-          </article>
-        </div>
-      );
+      return <StorageWorkspace records={locationRecords} sheet={countSheet} permissions={permissions}
+        onReload={()=>{countSheet.reload();readModel.reload();}}
+        onAdd={parent=>{setLocationSetupContext(parent);setCreatingLocation(true);}}
+        onCount={bin=>{setCountIntakeDraft(current=>({...current,bin_id:bin.id,item_id:''}));navigate(`/inventory?view=count&scanBinId=${bin.id}&scanBinCode=${encodeURIComponent(bin.code)}`);setActiveView('count');}}
+        countColumns={countColumns}
+        onScan={id=>openLocationScan(id)}/>;
     }
 
     if (activeView === 'cart') {
@@ -2370,10 +2218,10 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   if (aliasItem) return <MaterialAliases item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
-  if (creatingLocation && canReadCounts) return <StorageLocationSetup permissions={permissions} locations={locationRecords.filter(row=>!row.archived_at)}
+  if (creatingLocation && canReadCounts) return <StorageLocationSetup initialParent={locationSetupContext} permissions={permissions} locations={locationRecords.filter(row=>!row.archived_at)}
     isLoading={countSheet.isLoading} error={countSheet.error} onReload={countSheet.reload}
-    onClose={()=>{setCreatingLocation(false);updateInventoryView('locations');}}
-    onCreated={result=>{setSelectedLocationId(result.id);countSheet.reload();readModel.reload();}}
+    onClose={saved=>{setCreatingLocation(false);if(saved?.id){navigate(`/inventory?view=storage&locationId=${saved.id}`);setActiveView('storage');}else updateInventoryView('storage');}}
+    onCreated={result=>{countSheet.reload();readModel.reload();}}
     onStock={result=>{setCreatingLocation(false);setCountIntakeDraft(current=>({...current,bin_id:result.id,item_id:''}));navigate(`/inventory?view=count&scanBinId=${result.id}&scanBinCode=${encodeURIComponent(result.code)}`);setActiveView('count');}} />;
 
   return (
@@ -2386,7 +2234,7 @@ export function InventoryWorkspace({ permissions }) {
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
-            {canReadCounts ? <><button type="button" className="primary-button" onClick={()=>setCreatingLocation(true)}><Plus aria-hidden="true"/> Add Storage Location</button><button type="button" className="secondary-button" onClick={()=>updateInventoryView('count')}>Add materials / Count</button></> : null}
+            {canReadCounts ? <><button type="button" className="primary-button" onClick={()=>{setLocationSetupContext(null);setCreatingLocation(true);}}><Plus aria-hidden="true"/> Add Storage Location</button><button type="button" className="secondary-button" onClick={()=>updateInventoryView('count')}>Add materials / Count</button></> : null}
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Page Menu
             </button>
@@ -2430,7 +2278,7 @@ export function InventoryWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
-          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart'].includes(activeView) ? (
+          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart', 'storage'].includes(activeView) ? (
             <article className="card workspace-card">
               <Toolbar descriptionIsDiagnostic
                 eyebrow="Filter"

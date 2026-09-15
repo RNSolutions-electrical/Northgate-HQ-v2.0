@@ -9,9 +9,9 @@ import './storageLocationSetup.css';
 const levels = ['unit','shelf','bay','bin'];
 const names = {unit:'Storage unit',shelf:'Shelf',bay:'Bay',bin:'Bin'};
 const blank = (kind='unit',parent='',department='') => ({kind,parent,department,code:'',label:'',position:'0',reason:'Initial storage setup'});
-export function StorageLocationSetup({permissions,locations,isLoading,error:onLoadError,onReload,onClose,onCreated,onStock}) {
+export function StorageLocationSetup({initialParent,permissions,locations,isLoading,error:onLoadError,onReload,onClose,onCreated,onStock}) {
  const {getToken}=useAuth();
- const [draft,setDraft]=useState(()=>blank('unit','',permissions.department||permissions.division||''));
+ const [draft,setDraft]=useState(()=>blank(initialParent?levels[levels.indexOf(initialParent.type)+1]:'unit',initialParent?.id||'',initialParent?.division||permissions.department||permissions.division||''));
  const [saved,setSaved]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const lock=useRef(false),request=useRef(null);
  const all=locations;
@@ -46,7 +46,7 @@ export function StorageLocationSetup({permissions,locations,isLoading,error:onLo
    {saved?<div role="status"><h2>{names[saved.kind]} saved</h2><p>{saved.code} — {saved.label}</p><p>{saved.kind==='bin'?'This bin is ready for materials and an initial physical count.':'Continue to the next level, or return to your location list.'}</p><div className="inventory-setup-actions">
     {nextKind?<button className="primary-button" disabled={isLoading||!all.some(row=>row.id===saved.id)} onClick={()=>{setDraft(blank(nextKind,saved.id,saved.division));setSaved(null);request.current=null;}}><Plus size={16}/> Add {names[nextKind].toLowerCase()} here</button>:<button className="primary-button" onClick={()=>onStock(saved)}>Add materials and quantities</button>}
     <button className="secondary-button" onClick={()=>{setDraft(blank(saved.kind,'',saved.division));setSaved(null);request.current=null;}}>Add another location</button>
-    <button className="secondary-button" onClick={onClose}>Done</button>
+    <button className="secondary-button" onClick={()=>onClose(saved)}>Done</button>
    </div>{onLoadError&&<p role="alert">Location saved, but the refreshed list failed to load. <button className="secondary-button" onClick={onReload}>Retry refresh</button></p>}</div>:<form onSubmit={save}>
     <h2>Location details</h2><p>Use a short code for labels and QR scanning, plus a descriptive name.</p>
     {error&&<p role="alert" className="inventory-setup-error">{error}</p>}

@@ -63,7 +63,7 @@ try{
  const attempts=await page.evaluate(()=>window.inventoryFixture.calls.filter(c=>c.name==='create_inventory_location').slice(-2));
  assert.equal(attempts[0].args.p_request_id,attempts[1].args.p_request_id);
  await page.getByRole('button',{name:'Done',exact:true}).click();
- await page.getByRole('button',{name:'Add materials / Count',exact:true}).click();
+ await page.getByRole('button',{name:'Add materials / Count',exact:true}).first().click();
  await page.getByRole('heading',{name:'Record Count Intake',exact:true}).waitFor();
  assert.equal(await page.getByLabel('Bin',{exact:true}).locator('option[value="b2"]').count(),0);
  const electrical=page.locator('tr').filter({hasText:'EMT connector'}).filter({hasText:'A1'}).first();
@@ -73,7 +73,7 @@ try{
  const outside=page.locator('tr').filter({hasText:'EMT connector'}).filter({hasText:'VAN1'}).first();
  assert.equal(await outside.locator('input[type=number]').isDisabled(),true);
  await page.goto(url+'?locations&largeLocations');
- await page.getByRole('button',{name:'Add materials / Count',exact:true}).click();
+ await page.getByRole('button',{name:'Add materials / Count',exact:true}).first().click();
  await page.getByLabel('Bin',{exact:true}).selectOption('extraBin1000');
  assert.ok(await page.evaluate(()=>window.inventoryFixture.calls.some(c=>c.table==='bins'&&c.range[0]===1000)));
  await page.goto(url+'?readonly');

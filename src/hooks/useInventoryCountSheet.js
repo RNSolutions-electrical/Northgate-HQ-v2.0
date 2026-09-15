@@ -80,22 +80,22 @@ export function useInventoryCountSheet({ enabled }) {
             .order('id', { ascending: true })),
           readAll(client
             .from('bins')
-            .select('id,bin_code,label,bay_id,position,archived_at,archive_reason,revision')
+            .select('id,bin_code,label,bay_id,position,archived_at,archive_reason,revision,physical_location,materials_summary')
             .order('position', { ascending: true })
             .order('bin_code', { ascending: true }).order('id', { ascending: true })),
           readAll(client
             .from('bays')
-            .select('id,bay_code,label,shelf_id,position,archived_at,archive_reason,revision')
+            .select('id,bay_code,label,shelf_id,position,archived_at,archive_reason,revision,physical_location,materials_summary')
             .order('position', { ascending: true })
             .order('bay_code', { ascending: true }).order('id', { ascending: true })),
           readAll(client
             .from('shelves')
-            .select('id,shelf_code,label,unit_id,position,archived_at,archive_reason,revision')
+            .select('id,shelf_code,label,unit_id,position,archived_at,archive_reason,revision,physical_location,materials_summary')
             .order('position', { ascending: true })
             .order('shelf_code', { ascending: true }).order('id', { ascending: true })),
           readAll(client
             .from('storage_units')
-            .select('id,unit_code,name,division,archived_at,archive_reason,revision')
+            .select('id,unit_code,name,division,archived_at,archive_reason,revision,physical_location,materials_summary')
             .order('unit_code', { ascending: true }).order('id', { ascending: true })),
         ]);
 

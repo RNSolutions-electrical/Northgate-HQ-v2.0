@@ -331,7 +331,7 @@ function getPenalty(matrix) {
   return penalty;
 }
 
-function createQrModules(value) {
+export function createQrModules(value) {
   const bytes = new TextEncoder().encode(value);
   const versionInfo = QR_VERSIONS.find((candidate) => bytes.length <= candidate.byteCapacity);
   if (!versionInfo) {

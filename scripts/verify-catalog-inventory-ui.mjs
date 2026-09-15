@@ -27,7 +27,7 @@ try{
   await page.getByRole('button',{name:'Back to Inventory',exact:true}).click();
   await page.getByRole('searchbox',{name:'Search materials',exact:true}).fill('flex');
   await page.locator('details.inventory-material').filter({hasText:'EMT connector'}).waitFor();
-  await page.getByRole('button',{name:'Add materials / Count',exact:true}).click();
+  await page.getByRole('button',{name:'Add materials / Count',exact:true}).first().click();
   await page.getByLabel('Bin',{exact:true}).selectOption('b1');await page.getByLabel('Search materials',{exact:true}).fill('Lighting panel');await page.getByLabel('Catalog Item',{exact:true}).selectOption('i2');
   assert.equal(await page.getByLabel('Counted Qty',{exact:true}).count(),0);
   await page.getByRole('button',{name:'Confirm material mapping',exact:true}).click();await page.getByText('Material mapped. Quantity remains uncounted; use the count sheet when ready.',{exact:true}).waitFor();
@@ -38,14 +38,13 @@ try{
   assert.equal(await row.getByText('Not counted',{exact:true}).count(),0);
   // Create an empty bin, then edit/archive/restore it without modifying inventory.
   await page.getByRole('button',{name:'Add Storage Location',exact:true}).click();await page.getByLabel('Location type').selectOption('bin');await page.getByLabel('Parent bay').selectOption('a1');await page.getByLabel('Location code').fill('EMPTY');await page.getByLabel('Location name').fill('Empty test bin');await page.getByRole('button',{name:'Save location',exact:true}).click();await page.getByRole('heading',{name:'Bin saved',exact:true}).waitFor();await page.getByRole('button',{name:'Done',exact:true}).click();
-  await page.getByRole('button',{name:'Edit location',exact:true}).click();await page.getByLabel('Location code').fill('EDITED');await page.getByLabel('Location name').fill('Edited bin');await page.getByLabel('Sort position').fill('3');await page.getByLabel('Reason for editing location').fill('Correct bin label');
+  await page.getByText('Location details & administration',{exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).click();await page.getByLabel('Location code').fill('EDITED');await page.getByLabel('Location name').fill('Edited bin');await page.getByLabel('Sort position').fill('3');await page.getByLabel('Reason for editing location').fill('Correct bin label');
   await page.screenshot({path:`.temp/catalog-inventory-ui/${device}-edit.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.getByRole('button',{name:'Save location changes',exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
   const edit=await page.evaluate(()=>window.inventoryFixture.calls.find(c=>c.name==='edit_inventory_location'));
   assert.equal(edit.args.p_code,'EDITED');assert.equal(edit.args.p_expected_revision,1);assert.equal(edit.args.p_position,3);
   assert.equal(await page.getByRole('button',{name:'Archive location',exact:true}).isDisabled(),true);
   await page.getByLabel('Reason for archiving location').fill('No longer in use');await page.getByRole('button',{name:'Archive location',exact:true}).click();await page.getByRole('heading',{name:'Archived location',exact:true}).waitFor();
-  await page.getByLabel('Include archived locations').check();
   await page.screenshot({path:`.temp/catalog-inventory-ui/${device}-archived.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.getByLabel('Reason for restoring location').fill('Return to active service');await page.getByRole('button',{name:'Restore location',exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
  }

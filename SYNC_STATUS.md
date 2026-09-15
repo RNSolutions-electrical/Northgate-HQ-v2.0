@@ -4,6 +4,19 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `BIRCH-STORAGE-EXPLORER-20260915-001`
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Release: unified Storage Explorer, editable details and hierarchy moves, adjustable QR and bulk Avery 5164 labels.
+- Previous marker: `ASPEN-CATALOG-FOUNDATION-20260915-001`; starting HEAD `21587a1`.
+- Status: migration applied and verified; approved frontend release in progress.
+- Applied migration: `20260915153440_inventory_storage_workspace`; do not replay the former local timestamp 20260915151207.
+- 81 Node tests, isolated SQL checks, actual-schema rollback smoke and responsive Storage/catalogue/location/stock regression tests passed. Fresh production-config build passed.
+- Existing records, UUID scan links, stock ledger and permissions retained. Concurrent user shelf edits were audit-reconciled and preserved.
+- Other machines: pull main and verify this marker. Read docs/reviews/STORAGE_WORKSPACE.md. Preserve local environments, private files and historical untracked dist-* directories.
+- No AFC Phases 2–4. Signed-in acceptance, simultaneous-session stress checks and physical printer alignment remain follow-up tests.
+
+## Previous release — ASPEN catalogue foundation
+
 - Marker: `ASPEN-CATALOG-FOUNDATION-20260915-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: Phase 1 catalogue aliases/shared search, quantity-free inventory mapping, audited location editing and archive/restore.

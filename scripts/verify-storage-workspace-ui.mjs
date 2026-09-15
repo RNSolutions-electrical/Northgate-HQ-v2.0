@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir} from 'node:fs/promises';
+import path from 'node:path';import {tmpdir} from 'node:os';
+import {createServer} from 'vite';
+const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const mocks=path.resolve('tests/fixtures/inventory-pass-mocks.js');
+const server=await createServer({cacheDir:path.join(tmpdir(),'ng-storage-workspace'),plugins:[{name:'fixture',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||id.endsWith('/services/supabaseClient.js')||id.endsWith('/hooks/usePermissions.js'))return mocks;}}],server:{host:'127.0.0.1',port:5192,strictPort:true}});
+await server.listen();let browser;
+try{
+ browser=await chromium.launch({headless:true,channel:'msedge'});
+ await mkdir('.temp/storage-workspace',{recursive:true});
+ for(const width of [1440,768,390]){
+  const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+  await page.goto('http://127.0.0.1:5192/northgate/tests/fixtures/inventory-pass.html?locations&storage&phase1');
+  await page.getByRole('button',{name:'Open SHOP',exact:true}).click();
+  await page.getByRole('button',{name:'Open S1',exact:true}).click();
+  await page.getByText('Location details & administration',{exact:true}).click();
+  await page.getByRole('button',{name:'Edit location',exact:true}).click();
+  await page.getByLabel('Physical location',{exact:true}).fill('North wall, aisle 2');
+  await page.getByLabel('Materials stored / purpose').fill('Electrical fittings');
+  await page.getByLabel('Reason for editing location').fill('Identify shelf contents');
+  await page.getByRole('button',{name:'Save location changes'}).click();
+  await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
+  assert.ok((await page.evaluate(()=>window.inventoryFixture.calls.find(c=>c.name==='edit_inventory_location'))).args.p_details.physical_location);
+  await page.getByRole('button',{name:'Open A',exact:true}).click();
+  await page.getByRole('button',{name:'Open A1',exact:true}).click();
+  await page.getByText('EMT connector',{exact:true}).first().waitFor();
+  await page.getByRole('button',{name:'QR labels',exact:true}).click();
+  await page.getByLabel('QR size (inches)').fill('.75');
+  const dl=page.waitForEvent('download');await page.getByRole('button',{name:'Export Avery 5164 PDF (1)',exact:true}).click();
+  const download=await dl;if(width===1440)await download.saveAs('.temp/storage-workspace/bin-label.pdf');
+  assert.equal(await download.failure(),null);
+  await page.screenshot({path:`.temp/storage-workspace/${width}-bin.png`,fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'horizontal overflow '+width);
+  await page.getByRole('button',{name:'A',exact:true}).click();
+  await page.getByRole('button',{name:'Add bin',exact:true}).click();
+  assert.equal(await page.getByLabel('Parent bay').inputValue(),'a1');
+  await page.getByLabel('Location code').fill('NEW');await page.getByLabel('Location name').fill('New bin');
+  await page.getByRole('button',{name:'Save location',exact:true}).click();await page.getByRole('button',{name:'Done',exact:true}).click();
+  await page.getByRole('button',{name:'NEW',exact:true}).waitFor();
+  await page.getByText('Location details & administration',{exact:true}).click();
+  await page.getByRole('button',{name:'Edit location',exact:true}).click();
+  await page.getByLabel('Parent location',{exact:true}).selectOption('a2');
+  await page.getByLabel('Reason for editing location').fill('Move empty bin to Construction storage');
+  await page.getByRole('button',{name:'Save location changes'}).click();
+  await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
+  assert.ok((await page.evaluate(()=>window.inventoryFixture.calls.filter(c=>c.name==='edit_inventory_location').at(-1))).args.p_parent_id==='a2');
+  await page.getByLabel('Reason for archiving location').fill('No longer needed');await page.getByRole('button',{name:'Archive location',exact:true}).click();
+  await page.getByLabel('Reason for restoring location').fill('Restore for test');await page.getByRole('button',{name:'Restore location',exact:true}).click();
+  await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
+  assert.deepEqual(errors,[]);await page.close();
+ }
+ const page=await browser.newPage();await page.goto('http://127.0.0.1:5192/northgate/tests/fixtures/inventory-pass.html?locations&legacyLocations');
+ await page.getByRole('button',{name:'Open SHOP',exact:true}).waitFor();
+ console.log('PASS: desktop/tablet/phone hierarchy, details, stable edit payload, move confirmation/payload, archive/restore, contextual add, bin contents, PDF download, legacy locations link, no browser errors/overflow. Transport mocked.');
+}finally{await browser?.close();await server.close();}

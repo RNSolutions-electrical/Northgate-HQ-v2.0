@@ -21265,3 +21265,61 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   30e08f2a14353e073a51378d57db0175ff205276f7960393e01ebda7f798db67.
 
 ---
+
+## Entry 254 — Storage Explorer follow-up (LOCAL, NOT DEPLOYED)
+
+2026-09-15 · Production Mode · released baseline remains ASPEN / 21587a1.
+
+- Ryan requested consolidating Storage and Locations & QR into a drill-down
+  unit/shelf/bay/bin workspace, editable details, QR sizing and bulk Avery 5164
+  labels. Explicit follow-up answer approved moving children between parents.
+- One Storage Explorer reuses current records, hooks and design components.
+  Legacy locations URLs and UUID scan links are preserved; flat duplicate UI
+  and unused preview selectors are removed.
+- Pending migration 20260915151207_inventory_storage_workspace adds two details
+  fields per hierarchy table and extends the audited edit RPC, with old-client
+  compatibility, source/destination permission checks and shared/exclusive locks
+  coordinating moves against existing create/map/count workflows.
+- No inventory balances, role defaults, production records or history changed.
+  Children retain their IDs/QRs/quantities on moves. Current path/department changes
+  are intentional; labels showing human-readable paths may need reprinting.
+- 81 Node tests, isolated SQL movement/permission/rollback checks, responsive
+  Storage UI, label rendering/decoding and existing catalogue/location regressions
+  passed. See docs/reviews/STORAGE_WORKSPACE.md for details and remaining checks.
+- User has not authorized applying this migration or releasing this follow-up.
+  Commit/push/deploy and live acceptance remain pending. Phases 2–4 untouched.
+- Preserve unrelated dist-* directories, local environments and private files.
+- Prior HANDOFF prefix SHA-256:
+  f6a777cdd395c56f5880112633ba2e7b5c97a9eedd2e56709bd969f618ba3485.
+
+---
+
+## Entry 255 — BIRCH Storage release authorized; migration verified
+
+2026-09-15 · Production Mode · BIRCH-STORAGE-EXPLORER-20260915-001.
+
+- Ryan approved all outstanding migration/commit/push/deploy steps. Entry 254's
+  pending-authorization statement is superseded, not rewritten.
+- Fetched origin; main matched 21587a1. Pending scope preserved, unrelated local
+  dist-* folders/private files untouched. No AFC Phases 2–4.
+- Applied migration as 20260915153440_inventory_storage_workspace. Local filename
+  and test references use that server version, not original 20260915151207.
+- Existing create/map/count bodies verified unchanged apart from shared locking.
+  Anonymous edit execution denied; authenticated endpoints retain scoped guards.
+  Security advisor counts unchanged; existing warnings remain documented.
+- Nine of eleven original-row hashes unchanged. Concurrent user shelf edits are
+  explained by audit snapshots, whose reconstructed pre-edit hash matches exactly.
+  Developer profile updated_at advanced during use; stable-field comparison is
+  tracked separately. This migration changes no role defaults or user grants.
+- Real-schema authenticated rollback smoke passed all three move types, stable
+  children/stock, details/old-client compatibility, stale/type/collision/reason/
+  actor rejections and archive/restore. No synthetic rows or audit entries retained.
+- 81 Node tests, isolated SQL, responsive Storage/catalogue/location and existing
+  stock/cart regressions pass. Fresh production-config build passes. See review doc.
+- Frontend commit/push and exact-deploy verification follow this checkpoint.
+  Signed-in acceptance, true concurrent-session stress and printer alignment remain
+  explicitly unclaimed; print Avery 5164 at Actual size / 100% for the physical test.
+- Prior HANDOFF prefix SHA-256:
+  11051e83171391e2a4b847ea15b7dda407f5eceb502e11d04c15f32d76d430f6.
+
+---
