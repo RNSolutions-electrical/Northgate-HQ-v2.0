@@ -4401,7 +4401,13 @@ ownership remains Section 51.
 
 Physical schema, evidence, limits and rollout sequence are documented in
 [the implementation record](reviews/ELECTRICAL_INSPECTION_IMPLEMENTATION.md).
-Migration 20260914225732_electrical_inspection_workflow.sql is pending. The earlier
+Migrations 20260914235450_electrical_inspection_workflow.sql and
+20260915000120_inspection_reviewer_permission_management.sql are applied to production.
+The existing batch permission editor supports explicit inspection-reviewer overrides
+for Developer accounts while requiring their other overrides and template assignment
+to remain unchanged. Active Developer authorization, expected-state checks and audit
+history remain enforced. Role defaults still deny the new capability.
+The earlier
 plan's proposed split equipment/findings tables and duplicate health-reference
 rows are superseded by the atomic aggregate and derived-reference design above.
 

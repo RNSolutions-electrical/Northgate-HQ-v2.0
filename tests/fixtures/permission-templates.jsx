@@ -9,6 +9,7 @@ const options = [
   { flag: 'can_estimate', group: 'Financials and estimates', label: 'Estimate' },
   { flag: 'can_view_protected_project_financials', group: 'Financials and estimates', label: 'View Protected Project Financials' },
   { flag: 'can_create_jobs', group: 'Jobs', label: 'Create Jobs' },
+  { flag: 'can_review_electrical_inspections', group: 'Inspections', label: 'Review Electrical Inspections' },
 ];
 const initial = { id: 'template-1', name: 'Electrical / User', permissions: { can_estimate: false, can_view_protected_project_financials: false, can_create_jobs: false }, version: 1, default_role: 'User', default_division: 'Electrical', linked_users: 2 };
 window.testCalls = [];
@@ -32,6 +33,7 @@ function Fixture() {
     },
   };
   return <main style={{ padding: '16px', maxWidth: '1100px', margin: 'auto' }}>
+    <button type="button" onClick={() => setUser((u) => ({ ...u, role: 'Developer', base_permissions: { ...u.base_permissions, can_access_developer: true } }))}>Test Developer account</button>
     <PermissionTemplateEditor service={service} options={options} />
     <UserPermissionTemplateEditor user={user} service={service} options={options} />
   </main>;

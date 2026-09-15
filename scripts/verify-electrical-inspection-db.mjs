@@ -1,6 +1,7 @@
 import {PGlite} from '../.temp/inspection-checks/node_modules/@electric-sql/pglite/dist/index.js';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import {verifyReviewerManagement} from './verify-inspection-reviewer-management.mjs';
 import {blankInspection,blankEquipment,blankReading,blankFinding} from '../src/modules/electrical-inspections/inspectionModel.js';
 const db=new PGlite();let checks=0;
 const query=async(sql,args=[])=>db.query(sql,args),one=async(sql,args=[])=>Object.values((await query(sql,args)).rows[0])[0];
@@ -12,8 +13,11 @@ try{
  await db.exec('set check_function_bodies=off');await db.exec(await readFile('tests/fixtures/inspectionAuthFunctions.sql','utf8'));await db.exec('set check_function_bodies=on');
  await db.exec(await readFile('supabase/migrations/20260912134038_document_edit_restore.sql','utf8'));
  await db.exec('CREATE TRIGGER guard_document_audit_mutation BEFORE INSERT OR UPDATE ON public.documents FOR EACH ROW EXECUTE FUNCTION public.guard_document_audit_mutation()');
- await db.exec(await readFile('supabase/migrations/20260914225732_electrical_inspection_workflow.sql','utf8'));checks++;
+ await db.exec(await readFile('supabase/migrations/20260914235450_electrical_inspection_workflow.sql','utf8'));checks++;
+ await db.exec(await readFile('tests/fixtures/inspectionPermissionManagement.sql','utf8'));
+ await db.exec(await readFile('supabase/migrations/20260915000120_inspection_reviewer_permission_management.sql','utf8'));
  await db.exec("insert into user_permissions(clerk_user_id,role,division,display_name)values('tech','User','Electrical','Test Technician'),('other','User','Electrical','Other Technician'),('reviewer','Manager','Electrical','Test Reviewer'),('outside','User','Construction','Outside User'),('inactive','Developer','Electrical','Inactive');update user_permissions set is_active=false where clerk_user_id='inactive';insert into tool_addon_access values('electrical_inspection','tech',true),('electrical_inspection','other',true),('electrical_inspection','reviewer',true),('electrical_inspection','outside',true);insert into user_permission_overrides(user_id,permission_flag,granted)values('reviewer','can_review_electrical_inspections',true);");
+ await verifyReviewerManagement({db,query,one,actor,denied,assert});
  const job=await one("insert into jobs(name,job_number,division)values('Test Job','TEST-001','Electrical')returning id"),outsideJob=await one("insert into jobs(name,job_number,division)values('Outside','OTHER-001','Construction')returning id");
  const doc=blankInspection();doc.client.clientName='Example Facility';doc.client.siteAddress='100 Example Way';doc.visitDate='2026-09-14';doc.equipment=[blankEquipment()];doc.equipment[0].designator='P-1';doc.equipment[0].unassessedReason='No readings collected in this synthetic fixture';doc.assessment='Further assessment needed';doc.reviewSummary='Field observations reviewed.';
  const save=(id=null,version=null,document=doc,request=crypto.randomUUID(),extra=null)=>one('select hi_save($1,$2,$3,$4,$5,$6,false,$7)',[request,id,version,document,'Electrical',extra,'']);

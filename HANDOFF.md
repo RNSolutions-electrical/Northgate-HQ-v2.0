@@ -21050,3 +21050,21 @@ The actual reviewer/technician account selection and live Clerk/Storage/device
 acceptance remain release tasks. No permission grant is inferred from source names.
 
 ---
+
+## Entry 245 - CEDAR inspection release: migrations, reviewer access and production verification
+
+Date: 2026-09-14. Mode: Production. Ryan authorized commit/deploy and explicitly selected both Ryan Noel accounts for reviewer access.
+
+- Feature committed at 8152528d8a802286a1f83166b489bc3d1c8116ac.
+- Applied 20260914235450_electrical_inspection_workflow and 20260915000120_inspection_reviewer_permission_management to existing project keogysnoukbendfkfjcn. Original source migration was renamed to the server version without changing its SQL.
+- Live preflight found the existing permission editor rejected Developer targets. The follow-up allows only the explicit inspection reviewer override, keeping other Developer permissions/template assignment protected. No role defaults or shared templates changed.
+- Both selected Ryan accounts received audited reviewer grants. Manager Ryan also received add-on access; Developer Ryan already had it. Other accounts were not targeted.
+- Verified 77 Node tests, 51 isolated DB checks plus grant/deny/default/stale/audit/history assertions, and permission editor responsive browser coverage. Original inspection/PDF/service-call fixture evidence remains valid.
+- Production rollback-only smoke with both selected account subjects passed actual svc_save_call integration/replay, permit/reinspection, issue/revise immutability and missing-object rejection. No synthetic records retained: 51 jobs, 18 documents and zero new inspection/permit rows.
+- Fresh production-configured build: .temp/inspection-production-check-1789430532866. Public configuration values were not logged or saved into environment files. Existing Netlify site/integrations remain the deployment target.
+- Prior security-advisor errors are pre-existing; expected new notices are API-only RLS tables and authenticated inspection APIs. No new anonymous exposure or mutable-search-path warnings.
+- Browser remains signed out. Real Clerk/Storage/device acceptance and any customer pilot remain separate user actions. No real customer import, issue or file upload occurred.
+- Production push/deployment and final live byte verification follow in the next entry. New release marker: CEDAR-INSPECTIONS-20260914-001.
+- HANDOFF prefix SHA-256 before this append: 4ce1a80413a37964124a6fd67a0ba475916468c063a3cb6402ed0524eb38bffc. Preserve all prior entries and untracked dist-* directories.
+
+---

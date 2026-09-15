@@ -34,7 +34,13 @@ These supersede the proposed physical table/API names in the earlier integration
 
 ### Server and storage boundaries
 
-Migration: `supabase/migrations/20260914225732_electrical_inspection_workflow.sql` (created with the Supabase CLI, **not applied**).
+Applied migrations: `20260914235450_electrical_inspection_workflow.sql` and
+`20260915000120_inspection_reviewer_permission_management.sql`, on the existing
+production project `keogysnoukbendfkfjcn`. Local filenames match server-recorded versions.
+The follow-up migration extends the current audited batch permission editor so only
+the inspection-reviewer override can change on Developer accounts. It preserves
+their template assignment and other overrides. The legacy single-flag setter/clear
+RPCs keep their existing Developer restrictions; the UI uses the batch editor.
 
 All seven new tables use RLS and revoke direct anonymous/authenticated table writes. Only the named `hi_*` API functions are executable by authenticated clients; private helpers are revoked. Every API checks an active account and the relevant add-on/job/division/record authority. Parent row locks, expected versions, and actor/request receipts make writes atomic and retries safe. Audit failure rolls back the operation, including creation of a linked service call.
 
@@ -47,28 +53,31 @@ Finalization verifies the stored object exists and matches reserved size/type. T
 | Check | Result |
 |---|---|
 | `npm test` | 77 passing tests, including 11 inspection model/import tests and existing financial/estimate/document tests. |
-| `node scripts/verify-electrical-inspection-db.mjs` | 42 checks passing in isolated PGlite/PostgreSQL: migration, active/inactive/anonymous and add-on/reviewer revocation, scoped reads, direct-write denial, stale saves, request replay, duplicate imports, issue requirements, pending files, immutable evidence, generic-maintenance bypass protection, report recovery, permits/reinspection, and rollback. |
+| `node scripts/verify-electrical-inspection-db.mjs` | 51 checks passing in isolated PGlite/PostgreSQL, plus reviewer grant/deny/default, target-scoped audit, preserved other override history and Developer protection assertions. Covers migration, active/inactive/anonymous and add-on/reviewer revocation, scoped reads, direct-write denial, stale saves, request replay, duplicate imports, issue requirements, pending files, immutable evidence, generic-maintenance bypass protection, report recovery, permits/reinspection, and rollback. |
 | Database harness scope | Uses synthetic dependency tables and captured current public permission functions. Canonical service-call creation is a tested integration boundary stub here; its full existing workflow is covered separately. This is not a production-authentication test. |
 | `node scripts/verify-electrical-inspection-ui.mjs` | 1440 / 768 / 390 px: creation, failed-save retry with same request ID, panel editing, navigation recovery, job link, review/issue, PDF publication, permit/reinspection and read-only controls. Synthetic APIs; no live customer writes. |
 | `node scripts/verify-service-calls.mjs` | Existing desktop/tablet/phone creation/editing, invoicing, archive, import preview, financial views and resource navigation pass after shared-form extraction. |
 | `node scripts/verify-electrical-inspection-pdf.mjs` | Deterministic 8-page branded synthetic sample and 9-page pagination stress report. Source unchanged; paired circuit positions, full long notes and recommendations, units/zero/missing/exception states, unresolved voltage pairs, draft/issue metadata, branding and photo evidence preserved. All text within bounds with no overlap; rendered pages visually inspected. |
 | Supplied private ZIP | Both JSON and HTML parsed locally: six panels, 252 configured circuit positions, 149 measured circuit temperatures, three findings, 40 review notes; identical saved-state fingerprint. Populated source stays in ignored `.temp/inspection-private`, outside fixtures, bundles, and Git. No live import. |
-| Build | Release-readiness check passes with the existing public production Clerk/Supabase settings, validated from the live app without logging values. Candidate: `.temp/inspection-production-check-1789429764115`. The prior isolated test build `.temp/inspection-build-1789429481015` remains **not deployable**. Logo is a bundled hashed PNG loaded on demand with a content-type check. Existing bundle-size/XLSX import warnings remain. |
+| Build | Release-readiness check passes with the existing public production Clerk/Supabase settings, validated from the live app without logging values. Candidate: `.temp/inspection-production-check-1789430532866`. The prior isolated test build `.temp/inspection-build-1789429481015` remains **not deployable**. Logo is a bundled hashed PNG loaded on demand with a content-type check. Existing bundle-size/XLSX import warnings remain. |
 
 Test harness dependencies are isolated: install `@electric-sql/pglite` under `.temp/inspection-checks`; set `PLAYWRIGHT_MODULE` to the available Playwright package. The supplied workspace runtime was used. No application package/lockfile dependency changes were needed. Browser screenshot/PDF artifacts are in ignored `.temp/inspection-qa`.
 
-The 2026-09-14 presentation revision uses the supplied 13-page ACC Blvd PDF as a visual reference only. Its SHA-256 is `f8d1855e83e4aefb87235f432937ac65a8c9f2ad2a39719b62d13198fb25ddb0`. It includes later findings/photos than the earlier ZIP's saved state; neither source was overwritten or silently reconciled. The preview uses synthetic data and an explicitly labeled illustrative photo. It is not a regenerated customer inspection. Renderer version 1 is still the unreleased local implementation; this changes no existing production revision or migration.
+The 2026-09-14 presentation revision uses the supplied 13-page ACC Blvd PDF as a visual reference only. Its SHA-256 is `f8d1855e83e4aefb87235f432937ac65a8c9f2ad2a39719b62d13198fb25ddb0`. It includes later findings/photos than the earlier ZIP's saved state; neither source was overwritten or silently reconciled. The preview uses synthetic data and an explicitly labeled illustrative photo. It is not a regenerated customer inspection. Renderer version 1 is the first release; the reference-driven layout changes no historical customer revision.
 
 ## Release sequence and remaining acceptance
 
-**Readiness checked 2026-09-14:** origin/main still matches local HEAD `14488000b72309c3bd076216db9264a27ecf5264`; changes remain uncommitted. The 42 isolated PostgreSQL checks pass again, and a fresh build with production public configuration passes. Read-only production SQL confirms migration `20260914225732` and the new inspection/permit tables are absent (latest live migration `20260914204755`). The code is ready to commit and enter the coordinated release sequence; production use still requires the migration, intended account grants and authenticated acceptance below. No production changes occurred during this readiness check.
+**Release authorized September 14, 2026:** feature commit `8152528`; both migrations applied. Both Ryan Noel accounts have explicit reviewer overrides. The Manager account also has the inspection add-on enabled; the Developer account already receives add-on access. These audited changes target only the two accounts Ryan selected.
 
-1. Review the local candidate and explicitly select the production release. Existing durable marker remains `PINE-ESTIMATE-HIERARCHY-20260914-001`; no new marker is claimed.
-2. Select actual reviewer/technician accounts through the Developer Console. Enable the add-on for the intended field users and explicitly grant the review flag to authorized reviewers. Publishing to a job additionally needs existing job-management authority. No grants were inferred from names in the attachment.
-3. Apply the new migration to the existing Northgate project in the approved release window, run security/advisor checks, and verify effective permissions with actual Clerk sessions. Do not reapply older migrations or replace integrations.
-4. Produce a fresh build with the actual public Supabase/Clerk configuration, commit/push, deploy through the established project, and write a new durable sync marker with the real release commit and deployment evidence. Never deploy the isolated test build.
-5. With selected test accounts, exercise real Storage reserve/upload/finalize/download, job/participating-department PDF access, missing/revoked access, the exact existing service-call creation function, and both regular-job and service-call permit tabs.
-6. Select one private legacy inspection for the pilot, resolve its actual mapping notes, choose its real technician/reviewer and job, and verify camera/photo selection on the intended device. Customer import and report issue remain deliberate actions. The original attachment has not been imported into production.
+The release preflight caught the existing Developer-target restriction in the batch permission editor. The follow-up permits only this new flag for Developer targets, retaining stale-save validation and unchanged override history. Template editing fills newly introduced boolean flags with false when loading an older template.
+
+Verification: 77 Node tests; 51 database checks plus permission-management assertions; permission-editor browser tests at desktop/tablet/phone widths, including the Developer reviewer control. A production rollback-only test using both authorized account subjects passed canonical service-call creation and replay, permits/reinspection, issue/revise immutability and missing-upload rejection. All synthetic rows rolled back: production remains 51 jobs, 18 documents, and zero inspection/revision/file/permit/register rows.
+
+Security advisors: no new error-level findings, anonymous executable functions, or mutable-search-path findings from this release. The seven RLS-enabled API-only tables and 14 checked authenticated inspection APIs create expected informational/warning notices. Existing security-definer-view errors predate this release; see [Supabase guidance](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view).
+
+Deployment is being published through the existing Netlify/Git integration. SYNC_STATUS.md and the next HANDOFF entry record the final commit, deployment ID and live asset checks.
+
+Remaining user acceptance: the browser is signed out. Real Clerk sign-in, camera/photo selection, Storage upload/download and a customer pilot remain to be exercised interactively. The database test uses authenticated-role JWT claims inside a rolled-back SQL transaction; it does not prove a browser-issued Clerk session or upload actual Storage bytes. No customer source was imported or issued. The supplied PDF/ZIP remain preserved private source material.
 
 Rollback retains the additive schema and issued evidence; disable the new add-on/revert the UI release if needed. Do not delete inspection history, Storage objects, permission history, or source files to roll back a UI deployment.
 

@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { createServer } from 'vite';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const server = await createServer({
+  cacheDir: path.join(tmpdir(), 'permission-template-vite-' + process.pid),
   define: { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify('https://fixture.invalid'), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify('test-fixture-only') },
   server: { host: '127.0.0.1', port: 5186, strictPort: true },
 });
@@ -37,6 +40,7 @@ try {
   assert.equal(calls.length, 1);
   assert.equal(calls[0].params.p_permissions.can_estimate, true);
   assert.equal(calls[0].params.p_permissions.can_create_jobs, true);
+  assert.equal(calls[0].params.p_permissions.can_review_electrical_inspections, false);
   assert.equal(calls[0].params.p_reason, 'Original estimator access template');
 
   await page.getByRole('combobox', { name: 'User permission template', exact: true }).selectOption('template-2');
@@ -69,6 +73,18 @@ try {
     await page.screenshot({ path: `.temp/permission-templates/${label}.png`, fullPage: true });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${label} page overflow`);
   }
+  await page.getByRole('button', { name: 'Test Developer account' }).click();
+  assert.equal(await page.getByRole('combobox', { name: 'User permission template' }).isDisabled(), true);
+  assert.equal(await page.getByRole('radio', { name: 'Estimate grant', exact: true }).isDisabled(), true);
+  await page.getByRole('radio', { name: 'Review Electrical Inspections grant', exact: true }).check();
+  await page.getByRole('button', { name: 'Save User Permissions', exact: true }).click();
+  await dialog.getByRole('textbox', { name: 'Reason' }).fill('Explicit Developer reviewer access');
+  await dialog.getByRole('button', { name: 'Save Permissions', exact: true }).click();
+  await page.getByText('User template and overrides saved.').waitFor();
+  calls = await page.evaluate(() => window.testCalls);
+  assert.equal(calls.at(-1).params.p_overrides.can_review_electrical_inspections, true);
+  assert.equal(calls.at(-1).params.p_overrides.can_estimate, false);
+  assert.equal(calls.at(-1).params.p_overrides.can_view_protected_project_financials, true);
   assert.deepEqual(errors, []);
   console.log('Browser checks passed: draft edits, save-time reason, cancel, template and override batches, failed-save recovery, desktop/tablet/mobile overflow.');
 } finally {
