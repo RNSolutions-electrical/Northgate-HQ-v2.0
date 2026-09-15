@@ -1,6 +1,6 @@
 # Material Inventory — location setup and count access
 
-2026-09-15 · Production Mode · release authorized; database applied, frontend publication in progress.
+2026-09-15 · Production Mode · committed, pushed, database applied and LIVE.
 
 ## Scope and reuse
 
@@ -116,5 +116,17 @@ Marker: OAK-INVENTORY-SETUP-20260915-001. Base: 9c010f5.
   balances and user permission records match exactly.
 - 74 Node tests and the isolated database/browser suites pass. Fresh production
   output: `.temp/inventory-production-20260915-oak`.
-- Deployment result and cross-machine commit are recorded in SYNC_STATUS.md and
-  the next HANDOFF entry once publication is verified.
+- Feature commit: `78c4eed14db489725c9c0c9410506edbe2f63ff3`, pushed to main.
+- Netlify production deploy `6aa92ec765368c0009719a34` is published/ready from that
+  exact commit. HTML and all 13 assets match the tested build by SHA-256 and MIME;
+  Inventory, Jobs, Estimates and Inspection deep links serve the matching app.
+  Public Supabase/Clerk configuration is present. Existing silas-chat retained.
+  Secret scan: 562 files, no matches.
+- Security-advisor delta: no new view/RLS/search-path findings. Anonymous execution
+  findings for both count RPCs were removed. The only added notice is the
+  intentionally authenticated, guarded location-creation endpoint. Existing
+  unrelated findings remain. See [Supabase function-access guidance](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+- Signed-in browser acceptance with real physical inventory is still a user test;
+  release verification did not create a persistent test bin or alter a real count.
+- SYNC_STATUS.md and HANDOFF Entry 249 record the verified release. Release metadata
+  commits use [skip ci] because they do not alter deployed frontend bytes.

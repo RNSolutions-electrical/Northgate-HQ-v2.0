@@ -21139,3 +21139,31 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   afbf78d5757853d23e46b17c74c02fd0c4a76d781252b3ff3c4aa1ed8aa418f7.
 
 ---
+
+## Entry 249 - OAK inventory release published and verified
+
+2026-09-15 · Production Mode · OAK-INVENTORY-SETUP-20260915-001.
+
+- Committed and pushed 78c4eed14db489725c9c0c9410506edbe2f63ff3 to main.
+  Netlify production deploy 6aa92ec765368c0009719a34 is ready/published from that
+  exact commit; no build error. The existing silas-chat function is retained.
+- Live rnsolutions.net/northgate HTML and all 13 assets match the tested fresh
+  build by SHA-256 and MIME. Inventory/Jobs/Estimates/Inspection deep links serve
+  the same app. Correct public production configuration present.
+- Netlify secret scan checked 562 files with no matches.
+- Security comparison: no new RLS/view/search-path findings. Anonymous execution
+  removed from both count functions. New authenticated location RPC appears as
+  expected in definer endpoint notices and has explicit actor/permission/department
+  guards. Pre-existing unrelated advisor findings were not expanded.
+- Migration 20260915113613 is already live; real-schema rollback smoke passed and
+  preserved existing location, quantity and user-permission hashes exactly.
+  No actual material count or persistent test location was entered.
+- Signed-in real-inventory acceptance remains Ryan's next test. Open Inventory →
+  Add Storage Location, create/select hierarchy, then Add materials and quantities.
+- Release notes and sync status are being committed with [skip ci]; frontend bytes
+  are unchanged. Other machines should pull main and verify the OAK marker.
+  Preserve local environments, private imports and historical untracked dist-*.
+- Prior HANDOFF prefix SHA-256:
+  835345b721149d2d4b61e30aa57de96d2290cd4ebf0e09da8fd5c96e0f79772b.
+
+---

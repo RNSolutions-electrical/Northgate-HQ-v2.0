@@ -8,12 +8,16 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: Material Inventory storage-location setup and granular count access.
 - Previous marker: `CEDAR-INSPECTIONS-20260914-001`; starting HEAD `9c010f5`.
-- Status: release authorized; database applied and rollback-tested; frontend publication pending verification.
+- Status: LIVE and verified September 15, 2026.
+- Feature commit: `78c4eed14db489725c9c0c9410506edbe2f63ff3`, pushed to origin/main.
+- Production deployment: `6aa92ec765368c0009719a34`, ready/published from that commit.
+- Live URL: https://rnsolutions.net/northgate/inventory
+- Live HTML and all 13 assets match the tested production build by SHA-256 and MIME. Required public configuration and deep links verified; silas-chat retained; Netlify secret scan: 562 files, no matches.
 - Applied migration: `20260915113613_inventory_location_setup_permissions`.
 - Existing storage hierarchy, quantities and user permissions preserved by before/after hashes. No user grants or retirement-policy changes.
 - 74 Node tests, isolated database checks and responsive inventory/location/cart tests pass.
 - Other machines: pull main and verify this marker. Do not reapply the migration or overwrite local environment files/private imports/untracked dist-*.
-- Release notes: docs/reviews/INVENTORY_LOCATION_SETUP.md; HANDOFF Entry 248.
+- Release notes: docs/reviews/INVENTORY_LOCATION_SETUP.md; HANDOFF Entries 248–249. Signed-in physical-inventory acceptance is the next user test.
 
 ## Previous release — CEDAR inspections
 
