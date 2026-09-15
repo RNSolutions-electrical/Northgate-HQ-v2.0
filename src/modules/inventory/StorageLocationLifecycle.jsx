@@ -2,9 +2,10 @@ import {useRef,useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
 import {canManageInventoryDepartment} from './inventoryAccess.js';
+import {StorageLocationDelete} from './StorageLocationDelete.jsx';
 import './storageLocationSetup.css';
 
-export function StorageLocationLifecycle({location,locations=[],permissions,onSaved}) {
+export function StorageLocationLifecycle({location,locations=[],permissions,onSaved,onDeleted}) {
  const {getToken}=useAuth(),lock=useRef(false);
  const [reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [editing,setEditing]=useState(false),[code,setCode]=useState(location.code||''),[label,setLabel]=useState(location.label||''),[position,setPosition]=useState(String(location.position||0));
@@ -50,5 +51,6 @@ export function StorageLocationLifecycle({location,locations=[],permissions,onSa
   {allowed&&!editing&&<form onSubmit={save} className="inventory-setup-grid"><label>Reason for {location.archived_at?'restoring':'archiving'} location<input required value={reason} disabled={busy} onChange={e=>setReason(e.target.value)}/></label>
    <div className="inventory-setup-actions"><button className={location.archived_at?'secondary-button':'secondary-button secondary-button--danger'} disabled={busy||!reason.trim()}>{busy?'Saving…':location.archived_at?'Restore location':'Archive location'}</button></div>
   </form>}
+  <StorageLocationDelete location={location} permissions={permissions} onDeleted={onDeleted||onSaved}/>
  </section>;
 }

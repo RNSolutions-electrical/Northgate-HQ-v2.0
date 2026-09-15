@@ -4,6 +4,19 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `WILLOW-STORAGE-SAFETY-20260915-001`
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Release: archived duplicate discovery and guarded Developer-only storage-location deletion.
+- Previous marker: `BIRCH-STORAGE-EXPLORER-20260915-001`; starting HEAD `e9e3910`.
+- Status: migration applied; frontend publication and exact-deploy verification in progress.
+- Applied migration: `20260915161130_inventory_storage_safe_delete`. Do not replay former local timestamp 20260915155751.
+- 82 Node tests, isolated SQL safety matrix, responsive browser regressions, actual-schema rollback smoke and fresh production-config build passed.
+- No real locations deleted. Concurrent user bay edits, counts and binding archives preserved. No permission defaults or grants to users changed.
+- Other machines: pull main, verify this marker and read docs/reviews/STORAGE_SAFE_DELETE.md. Preserve private files and historical untracked dist-* directories.
+- No AFC Phases 2–4. Signed-in production acceptance and independent-session concurrent stress remain follow-up checks.
+
+## Previous release — BIRCH Storage Explorer
+
 - Marker: `BIRCH-STORAGE-EXPLORER-20260915-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: unified Storage Explorer, editable details and hierarchy moves, adjustable QR and bulk Avery 5164 labels.

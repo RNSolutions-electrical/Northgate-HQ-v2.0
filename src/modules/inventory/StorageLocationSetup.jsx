@@ -4,6 +4,7 @@ import {ArrowLeft, Plus, Save} from 'lucide-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
 import {WorkspaceHeader} from '../../components/ui/WorkspaceHeader.jsx';
 import {canManageInventoryDepartment} from './inventoryAccess.js';
+import {activeStorage,findStorageCodeConflict,locationTrail} from './storageHierarchy.js';
 import './storageLocationSetup.css';
 
 const levels = ['unit','shelf','bay','bin'];
@@ -15,7 +16,9 @@ export function StorageLocationSetup({initialParent,permissions,locations,isLoad
  const [saved,setSaved]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const lock=useRef(false),request=useRef(null);
  const all=locations;
- const parents=all.filter(row=>row.type===levels[levels.indexOf(draft.kind)-1] && canManageInventoryDepartment(permissions,row.division));
+ const parents=activeStorage(all).filter(row=>row.type===levels[levels.indexOf(draft.kind)-1] && canManageInventoryDepartment(permissions,row.division));
+ const conflict=findStorageCodeConflict(all,draft.kind,draft.parent,draft.code);
+ const conflictArchived=conflict&&locationTrail(all,conflict.id).some(row=>row.archived_at);
  const parent=parents.find(row=>row.id===draft.parent);
  const department=draft.kind==='unit'?draft.department:parent?.division;
  const departments=[...new Set(['Electrical','Construction','Admin',...all.map(row=>row.division),permissions.department||permissions.division].filter(Boolean))]
@@ -24,6 +27,7 @@ export function StorageLocationSetup({initialParent,permissions,locations,isLoad
  const close=()=>{if(busy)return;if(!saved&&(draft.code||draft.label)&&!window.confirm('Discard this unsaved storage location?'))return;onClose();};
  async function save(event) {
   event.preventDefault();if(lock.current)return;
+  if(conflict){setError('That code is reserved by the existing location shown below. Open it to review or restore it, or choose another code.');return;}
   const payload={p_kind:draft.kind,p_parent_id:draft.kind==='unit'?null:draft.parent,p_code:draft.code.trim().toUpperCase(),p_label:draft.label.trim(),p_division:department,p_position:Number(draft.position),p_reason:draft.reason.trim()};
   if(!new RegExp('^[A-Z0-9][A-Z0-9._/-]{0,59}$').test(payload.p_code)){setError('Enter a code starting with a letter or number. Use only letters, numbers, dots, dashes, underscores or slashes.');return;}
   if(!canManageInventoryDepartment(permissions,department)||!payload.p_label||!payload.p_reason||!Number.isInteger(payload.p_position)||payload.p_position<0){setError('Choose an authorized department/parent and enter a name, position and reason.');return;}
@@ -36,7 +40,7 @@ export function StorageLocationSetup({initialParent,permissions,locations,isLoad
    if(rpcError)throw rpcError;
    if(!data?.id)throw new Error('The server did not confirm the saved location. Retry to verify it.');
    setSaved(data);onCreated(data);
-  }catch(e){setError(e.message||'Location was not saved. Your input is retained.');}
+  }catch(e){setError(e.message||'Location was not saved. Your input is retained.');onReload();}
   finally{lock.current=false;setBusy(false);}
  }
  const nextKind=saved?levels[levels.indexOf(saved.kind)+1]:null;
@@ -50,6 +54,7 @@ export function StorageLocationSetup({initialParent,permissions,locations,isLoad
    </div>{onLoadError&&<p role="alert">Location saved, but the refreshed list failed to load. <button className="secondary-button" onClick={onReload}>Retry refresh</button></p>}</div>:<form onSubmit={save}>
     <h2>Location details</h2><p>Use a short code for labels and QR scanning, plus a descriptive name.</p>
     {error&&<p role="alert" className="inventory-setup-error">{error}</p>}
+    {conflict&&<div className="inventory-location-conflict" role="status"><strong>Existing {conflict.typeLabel||names[conflict.type]}: {conflict.path} — {conflict.label}</strong><p>{conflictArchived?'Archived location or parent — its code remains reserved.':'Active location — this code is already in use.'} Department: {conflict.division}.</p><button type="button" className="secondary-button" disabled={busy} onClick={()=>{if(window.confirm('Open the existing location? Your unsaved new-location form will be discarded.'))onClose(conflict);}}>Open existing location</button></div>}
     {onLoadError&&<p role="alert">Locations could not be loaded. <button type="button" className="secondary-button" onClick={onReload}>Retry</button></p>}
     <fieldset disabled={busy} className="inventory-setup-grid">
      <label>Location type<select value={draft.kind} onChange={e=>change({kind:e.target.value,parent:''})}>{levels.map(kind=><option key={kind} value={kind}>{names[kind]}</option>)}</select></label>

@@ -2218,7 +2218,7 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   if (aliasItem) return <MaterialAliases item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
-  if (creatingLocation && canReadCounts) return <StorageLocationSetup initialParent={locationSetupContext} permissions={permissions} locations={locationRecords.filter(row=>!row.archived_at)}
+  if (creatingLocation && canReadCounts) return <StorageLocationSetup initialParent={locationSetupContext} permissions={permissions} locations={locationRecords}
     isLoading={countSheet.isLoading} error={countSheet.error} onReload={countSheet.reload}
     onClose={saved=>{setCreatingLocation(false);if(saved?.id){navigate(`/inventory?view=storage&locationId=${saved.id}`);setActiveView('storage');}else updateInventoryView('storage');}}
     onCreated={result=>{countSheet.reload();readModel.reload();}}

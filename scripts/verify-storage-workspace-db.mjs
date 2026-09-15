@@ -1,6 +1,7 @@
 import {PGlite} from '../.temp/inspection-checks/node_modules/@electric-sql/pglite/dist/index.js';
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import {checkStorageDeletion} from './check-storage-deletion-db.mjs';
 const db=new PGlite();
 const query=(sql,args=[])=>db.query(sql,args);
 const one=async(sql,args=[])=>Object.values((await query(sql,args)).rows[0])[0];
@@ -114,5 +115,6 @@ try{
  assert.equal(await one('select bin_code from bins where id=$1',[bin.id]),'01');
  console.log('PASS: storage details; old client preserves details; shelf/bay/bin moves with stable descendants, IDs, quantities and ledger; stale revision; destination type/archive/collision; source and destination permissions; reason/audit rollback; anonymous denial.');
 
+ await checkStorageDeletion(db);
  console.log('True simultaneous database sessions and live production deployment not tested by this isolated runner.');
 }catch(e){console.error({message:e.message,query:e.query,where:e.where,stack:e.stack?.split('\n').slice(0,3)});process.exitCode=1;}finally{await db.close();}

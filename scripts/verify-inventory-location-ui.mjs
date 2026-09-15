@@ -52,7 +52,7 @@ try{
  assert.equal(await page.getByRole('option',{name:/CON/}).count(),0);
  await page.getByLabel('Location code').fill('A1');await page.getByLabel('Location name').fill('Duplicate');
  await page.getByRole('button',{name:'Save location',exact:true}).click();
- await page.getByText('That location code already exists under this parent.',{exact:true}).waitFor();
+ await page.getByText('That code is reserved by the existing location shown below. Open it to review or restore it, or choose another code.',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('Location name').inputValue(),'Duplicate');
  await page.getByLabel('Location code').fill('RETRY');
  await page.evaluate(()=>window.inventoryFixture.failNext=true);

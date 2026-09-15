@@ -21347,3 +21347,56 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   2afb7648e3b6571687945b9d21c865fd2af889e84fc90add91390f085218fdba.
 
 ---
+
+## Entry 257 — Storage duplicate recovery and Developer deletion (LOCAL)
+
+2026-09-15 · Production Mode · released baseline remains BIRCH / e9e3910.
+
+- Ryan approved implementing restricted permanent deletion plus clearer duplicate
+  guidance. No existing location was authorized for actual deletion or deleted.
+- Existing archived shelf E / E1 explained the reported duplicate. Add Location
+  now includes archived matches with name/path/status and Open existing location;
+  parent selections exclude archived ancestry. Existing code uniqueness retained.
+- Archived locations gain a collapsed Developer-only deletion workflow: reason,
+  initials, server-backed JSON export, saved-file acknowledgment, exact code and
+  final confirmation. Database checks active Developer AND existing technical
+  access; no Manager/Director elevation. Backup and deletion audit survive.
+- Pending migration 20260915155751_inventory_storage_safe_delete adds guarded
+  prepare/delete RPCs and private helper; no new tables or permission defaults.
+  Blocks children (even archived), material links, stock/history and other FKs.
+  Revalidates snapshot/references at deletion; atomic audit and idempotent retry.
+- 82 Node tests, isolated SQL safety/rollback/retry matrix and responsive browser
+  deletion/duplicate/permission checks pass. Local production-config build passes.
+  See docs/reviews/STORAGE_SAFE_DELETE.md for security/recovery/test details.
+- Nothing applied to production, committed, pushed or deployed for this follow-up.
+  Apply migration before frontend when releasing; preserve all private/untracked
+  files and existing work. No AFC Phases 2–4 or automatic recovery flow introduced.
+- Prior HANDOFF prefix SHA-256:
+  cefa7e198b00d7b7dfa39e2ff721c0df2df71a0db1359b18b1010ca53ff63913.
+
+---
+
+## Entry 258 — WILLOW storage safety migration and release checkpoint
+
+2026-09-15 · WILLOW-STORAGE-SAFETY-20260915-001 · Production Mode.
+
+- Ryan explicitly approved migration, commit, push and deployment. Origin/main
+  was fetched and matched e9e3910 before integration; existing work preserved.
+- Applied 20260915161130_inventory_storage_safe_delete, renaming the local SQL
+  and test reference to the actual version. Never replay local 20260915155751.
+- Actual-schema rollback smoke passed all four hierarchy levels, archived-child
+  blocking, archive/reason/code/download/actor gates, durable backup/delete audit
+  and retry. No synthetic records or backup/delete operations remain afterward.
+- 82 Node tests, isolated SQL safety matrix, responsive duplicate/deletion and
+  existing inventory regressions pass. Fresh production-config build passed.
+- Grants verified. Advisor counts only add the expected two authenticated
+  guarded definer RPCs (145 to 147); prior findings remain separately tracked.
+- Concurrent user bay edits, physical count corrections and binding archives
+  explain live data differences and were preserved. No real locations deleted,
+  user grants changed or role defaults altered. No AFC Phases 2–4 included.
+- Commit/publication and exact live-asset verification follow this checkpoint.
+  Signed-in acceptance and true simultaneous-session stress remain unclaimed.
+- Prior HANDOFF prefix SHA-256:
+  ac346f676c6e59a95f14263af365ff6fd699104efee3424dc4d6977e2827ace6.
+
+---

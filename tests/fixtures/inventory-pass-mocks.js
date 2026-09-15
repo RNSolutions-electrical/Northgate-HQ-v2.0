@@ -24,6 +24,7 @@ if(locationMode) {
  for(const item of catalog) {item.is_active=true;item.is_archived=false;item.division='Electrical';item.item_aliases=[];}
 }
 for(const rows of Object.values(hierarchy))for(const row of rows){row.revision=1;row.archived_at=null;}
+if(new URLSearchParams(location.search).has('safeDelete'))hierarchy.shelves.push({id:'archivedShelf',unit_id:'u1',shelf_code:'OLD',label:'Archived empty shelf',revision:2,archived_at:'2026-09-15T00:00:00Z',archive_reason:'Unused'});
 if(phase1Mode){catalog[0].item_aliases=[{id:'alias1',alias:'Greenfield',archived_at:null}];stock[2].quantity_recorded=false;}
 if(new URLSearchParams(location.search).has('largeLocations'))for(let i=0;i<1001;i++)hierarchy.bins.push({id:`extraBin${i}`,bay_id:'a1',bin_code:`EXTRA${i}`,label:`Extra bin ${i}`});
 window.inventoryFixture = { calls: [], failNext: false };
@@ -31,7 +32,7 @@ const getToken = async () => 'fixture-token';
 const user = { fullName: 'Fixture Employee' };
 export const useAuth = () => ({ getToken });
 export const useUser = () => ({ user });
-export const usePermissions = () => ({ permissionSource: 'server', canInventoryTransactions: true, canManageInventory: locationMode&&fixtureRole!=='User',canEditCatalog:locationMode&&fixtureRole==='Manager',canArchiveRecords:locationMode&&fixtureRole==='Manager',role:fixtureRole,division:'Electrical' });
+export const usePermissions = () => ({ permissionSource: 'server', canInventoryTransactions: true, canManageInventory: locationMode&&fixtureRole!=='User',canEditCatalog:locationMode&&fixtureRole==='Manager',canArchiveRecords:locationMode&&['Manager','Developer'].includes(fixtureRole),canAccessDeveloper:fixtureRole==='Developer'&&!new URLSearchParams(location.search).has('denyDeveloper'),role:fixtureRole,division:'Electrical' });
 export function createSupabaseClient() { return {
   from(table) {
     let range = null, head = false, nullFields=[];
@@ -58,6 +59,13 @@ export function createSupabaseClient() { return {
      if(hierarchy[table].some(row=>row[code]===args.p_code&&(!parent||row[parent]===args.p_parent_id)))return {error:{message:'That location code already exists under this parent.'}};
      hierarchy[table].push({id:args.p_request_id,[code]:args.p_code,[label]:args.p_label,...(parent?{[parent]:args.p_parent_id}:{division:args.p_division}),position:args.p_position,revision:1,archived_at:null});
      return {data:{id:args.p_request_id,kind:args.p_kind,code:args.p_code,label:args.p_label,division:args.p_division}};
+    }
+    if(name==='prepare_storage_location_deletion'){
+     if(window.inventoryFixture.blockDeletion)return {error:{message:'Cannot permanently delete: referenced by public.bin_items. Archived material links must be preserved.'}};
+     const record=hierarchy.shelves.find(row=>row.id===args.p_id),backup={backup_id:crypto.randomUUID(),code:record.shelf_code,record:structuredClone(record),reason:args.p_reason,initials:args.p_initials};window.inventoryFixture.backup=backup;return {data:backup};
+    }
+    if(name==='permanently_delete_storage_location'){
+     const id=window.inventoryFixture.backup.record.id;hierarchy.shelves=hierarchy.shelves.filter(row=>row.id!==id);return {data:{id,deleted:true}};
     }
     if(name==='save_material_alias'){
      const item=catalog.find(row=>row.id===args.p_item_id);

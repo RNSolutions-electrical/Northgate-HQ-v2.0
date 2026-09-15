@@ -10,4 +10,8 @@
 .inventory-alias-list li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--ng-border)}
 .inventory-location-lifecycle{border-top:1px solid var(--ng-border);margin-top:20px;padding-top:16px}
 .inventory-location-lifecycle .inventory-setup-error{color:var(--ng-err)}
+.inventory-location-conflict,.inventory-delete-location{border:1px solid var(--ng-border);border-radius:var(--ng-radius-control);padding:16px;margin-top:18px}
+.inventory-delete-location summary{cursor:pointer;color:var(--ng-err);font-weight:600}
+.inventory-delete-certification{display:flex;align-items:flex-start;gap:8px;margin-top:14px}
+.inventory-delete-certification input{flex:none;margin-top:3px}
 @media(max-width:650px){.inventory-location-setup{margin:12px;padding:16px}.inventory-setup-grid{grid-template-columns:1fr}.inventory-setup-actions>button{flex:1 1 180px}.inventory-setup-grid input,.inventory-setup-grid select{font-size:16px}}
