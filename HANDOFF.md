@@ -21167,3 +21167,74 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   835345b721149d2d4b61e30aa57de96d2290cd4ebf0e09da8fd5c96e0f79772b.
 
 ---
+
+## Entry 250 — Phase 1 catalogue / inventory foundation (LOCAL, NOT DEPLOYED)
+
+2026-09-15 · Production Mode · No new release sync marker yet.
+
+- Ryan corrected the AFC integration scope: Phase 1 is catalogue aliases, shared
+  material resolution, location mapping without quantities, and existing physical
+  counts. AFC, Documents reorganization, and AI/MCP are deferred to Phases 2–4.
+- Added Ryan's follow-up requirements: storage location archive/restore with a
+  valid reason and safe blockers; edit code/name/sort order with reason, audit,
+  and stale-revision rejection. Identity, QR URLs, parent/department, quantities,
+  and transaction history are preserved. No implicit move or cascade.
+- Pending additive migration: 20260915115633_catalog_inventory_foundation.sql.
+  Apply before the frontend; it is NOT live. No roles/defaults were replaced.
+- Local SQL, 78 Node tests, responsive browser fixtures, inventory regressions,
+  Estimate Workbench regression, and production-config build passed. Real signed-in
+  production acceptance and simultaneous-session validation remain release checks.
+- See docs/reviews/CATALOG_INVENTORY_PHASE1.md for architecture, RPC/RLS/trigger
+  details, tests, safe archive constraints, retirement boundary, and release order.
+- No commit, push, or deployment was authorized/performed for this phase. Current
+  released baseline remains 0607287 / OAK-INVENTORY-SETUP-20260915-001. Preserve
+  unrelated dist-* folders, local environments, and private files on this machine.
+
+---
+
+## Entry 251 — Phase 1 database migration applied (FRONTEND NOT DEPLOYED)
+
+2026-09-15 · Production Mode · Database-only authorization.
+
+- Ryan explicitly requested applying the prepared database migration. Applied
+  20260915122542_catalog_inventory_foundation to production project
+  keogysnoukbendfkfjcn after live schema checks and another isolated SQL test pass.
+- Renamed the local migration from 20260915115633 to the Supabase-assigned
+  20260915122542 version, with unchanged SQL. Do not apply the old version again.
+  Entry 250 describes the earlier local-only state; this entry supersedes that
+  database status without changing its historical record.
+- Real-schema authenticated rollback smoke passed for aliases/RLS, mapping/retry,
+  unknown-to-zero ledger counts, stable edits/stale rejection, archive reasons
+  and blockers, restore, and unauthorized-actor denial. No persistent test data.
+- Existing record hashes/counts matched before and after across 11 inventory,
+  catalogue, transaction, and permission tables, including recently added locations.
+  No quantity backfill, role/default change, or history rewrite occurred.
+- Security advisor delta is limited to four intentional guarded authenticated
+  RPC notices and removal of one mutable-search-path finding. No new anonymous
+  execution, RLS-without-policy, or definer-view findings. Unrelated notices remain.
+- Details and reproducible smoke script are recorded in
+  docs/reviews/CATALOG_INVENTORY_PHASE1.md and tests/catalogInventoryReleaseSmoke.sql.
+- No commit, push, frontend deployment, or new sync marker in this step. Frontend
+  remains local pending release authorization; signed-in acceptance and true
+  simultaneous-session tests remain pending. Preserve all existing machine work.
+- Prior HANDOFF prefix SHA-256:
+  4b827d7e4e8646a1cc76abaa76e15bde888dd3f1cd35754d8d64984b3fbf3ed7.
+
+---
+
+## Entry 252 — ASPEN Phase 1 release authorized
+
+2026-09-15 · Production Mode · ASPEN-CATALOG-FOUNDATION-20260915-001.
+
+- Ryan authorized commit, push, and deployment of the completed Phase 1 work.
+- Fetched origin/main: no divergence from 0607287. Existing unrelated untracked
+  build directories and private/local files remain untouched and excluded.
+- Re-ran 78 Node tests and responsive desktop/tablet/phone inventory tests;
+  production-config Vite build passed with existing bundle-size/xlsx warnings.
+- Migration 20260915122542 is already applied and verified (Entry 251).
+- Commit/push and publishing are in progress. Final deploy ID and verification
+  will be recorded after publication; no Phases 2–4 implementation is included.
+- Prior HANDOFF prefix SHA-256:
+  b3b39da3a3c1c336bfdac0b1bcffc24d1971214dbbfffeee0bd3a98e5c3a8705.
+
+---

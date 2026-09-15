@@ -1,5 +1,6 @@
 import React, {useId, useState} from 'react';
 import {catalogue, money, searchMaterials} from './model.mjs';
+import {resolveMaterials} from '../../../lib/materialResolver.js';
 
 export function MaterialPicker({line,onType,onSelect}) {
   const listId=useId();
@@ -29,11 +30,12 @@ export function MaterialPicker({line,onType,onSelect}) {
         if(event.key==='Enter'&&open){event.preventDefault();if(matches[active])select(matches[active]);else setOpen(false);}
       }}/>
     {open&&<div className="material-suggestions">
+      {resolveMaterials(catalogue,line.name).ambiguous&&<p>Multiple materials match. Verify the code, size, and description before selecting.</p>}
       <div role="listbox" id={listId} aria-label="Catalogue suggestions">
         {matches.map((material,index)=><button type="button" role="option" id={`${listId}-${index}`}
           key={material.id} aria-selected={active===index} tabIndex={-1}
           onMouseDown={event=>event.preventDefault()} onClick={()=>select(material)}>
-          <strong>{material.name}</strong><small>{material.price==null?'Not priced':money(material.price)} / {material.unit} · {material.hours==null?'Missing labor':material.hours+' labor h / '+material.unit}</small>
+          <strong>{material.material_code?`${material.material_code} — `:''}{material.name}</strong><small>{material.price==null?'Not priced':money(material.price)} / {material.unit} · {material.hours==null?'Missing labor':material.hours+' labor h / '+material.unit}</small>
         </button>)}
       </div>
       {allMatches.length>60&&<p>Keep typing to narrow {allMatches.length} matches.</p>}

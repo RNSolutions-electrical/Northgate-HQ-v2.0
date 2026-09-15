@@ -7,7 +7,7 @@ const quantity = value => Number(value || 0).toLocaleString(undefined, { maximum
 const money = value => value == null || value === '' ? 'Not priced' : Number(value).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 
 export function InventoryStockBrowser({ model, loading, error, fullCatalogue, onScopeChange, canTransact,
-  busy, quantities, messages, onQuantityChange, onAdd, scanBinId = '', onClearScan }) {
+  busy, quantities, messages, onQuantityChange, onAdd, scanBinId = '', onClearScan, onAliases }) {
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState(scanBinId);
   const [page, setPage] = useState(0);
@@ -58,13 +58,14 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
       <div className="inventory-material-list">
         {materials.slice(currentPage * 40, currentPage * 40 + 40).map(item => <details className="inventory-material" key={item.id}>
           <summary><span className="inventory-material-name"><strong>{item.name}</strong><small>{[item.material_code, item.manufacturer, item.broad_category].filter(Boolean).join(' / ')}</small></span>
-            <span className="inventory-material-quantity"><strong>{quantity(item.quantity)} {item.unit_of_measure}</strong><small>{item.locations.length ? `${item.locations.length} location${item.locations.length === 1 ? '' : 's'}` : 'Not stocked'}</small></span>
+            <span className="inventory-material-quantity"><strong>{item.uncountedLocations===item.locations.length&&item.locations.length?'Not counted':`${quantity(item.quantity)} ${item.unit_of_measure||''}`}</strong><small>{item.locations.length ? `${item.locations.length} location${item.locations.length === 1 ? '' : 's'}${item.uncountedLocations?` · ${item.uncountedLocations} uncounted`:''}` : 'Not stocked'}</small></span>
           </summary>
           <div className="inventory-material-detail">
             <p>Unit cost: <strong>{money(item.price_per_unit)}</strong></p>
+            {onAliases&&<button className="secondary-button" onClick={()=>onAliases(item)}>Material aliases</button>}
             {item.locations.map(row => <div className="inventory-stock-location" key={row.bin_item_id}>
               <span><strong>{row.bin_code}</strong><small>{row.bin_label}</small></span>
-              <span>{quantity(row.quantity_on_hand)} {row.unit_of_measure} on hand</span>
+              <span>{row.quantity_recorded===false?'Not counted':`${quantity(row.quantity_on_hand)} ${row.unit_of_measure||''} on hand`}</span>
               {canTransact ? <div className="inventory-cart-action-cell"><label><span className="sr-only">Quantity for {item.name} at {row.bin_code}</span>
                 <input type="number" min="0.01" step="0.01" max={row.quantity_on_hand} value={quantities[row.bin_item_id] ?? '1'}
                   disabled={busy || Number(row.quantity_on_hand) <= 0} onChange={event => onQuantityChange(row.bin_item_id, event.target.value)} /></label>

@@ -66,36 +66,36 @@ export function useInventoryCountSheet({ enabled }) {
           readAll(client
             .from('inventory_cart_candidates_view')
             .select(
-              'bin_item_id,item_id,bin_id,bin_code,bin_label,material_code,item_name,unit_of_measure,division,price_per_unit,quantity_on_hand,min_quantity',
+              'bin_item_id,item_id,bin_id,bin_code,bin_label,material_code,item_name,unit_of_measure,division,price_per_unit,quantity_on_hand,min_quantity,quantity_recorded',
             )
             .order('bin_code', { ascending: true })
             .order('material_code', { ascending: true })
             .order('bin_item_id', { ascending: true })),
           readAll(client
             .from('items')
-            .select('*')
+            .select('*,item_aliases(id,alias,archived_at)')
             .eq('is_active', true)
             .eq('is_archived', false)
             .order('material_code', { ascending: true })
             .order('id', { ascending: true })),
           readAll(client
             .from('bins')
-            .select('id,bin_code,label,bay_id,position')
+            .select('id,bin_code,label,bay_id,position,archived_at,archive_reason,revision')
             .order('position', { ascending: true })
             .order('bin_code', { ascending: true }).order('id', { ascending: true })),
           readAll(client
             .from('bays')
-            .select('id,bay_code,label,shelf_id,position')
+            .select('id,bay_code,label,shelf_id,position,archived_at,archive_reason,revision')
             .order('position', { ascending: true })
             .order('bay_code', { ascending: true }).order('id', { ascending: true })),
           readAll(client
             .from('shelves')
-            .select('id,shelf_code,label,unit_id,position')
+            .select('id,shelf_code,label,unit_id,position,archived_at,archive_reason,revision')
             .order('position', { ascending: true })
             .order('shelf_code', { ascending: true }).order('id', { ascending: true })),
           readAll(client
             .from('storage_units')
-            .select('id,unit_code,name,division')
+            .select('id,unit_code,name,division,archived_at,archive_reason,revision')
             .order('unit_code', { ascending: true }).order('id', { ascending: true })),
         ]);
 
@@ -138,6 +138,7 @@ export function useInventoryCountSheet({ enabled }) {
 
           return {
             ...row,
+            item_aliases: item.item_aliases ?? [],
             broad_category: item.broad_category ?? null,
             sub_category: item.sub_category ?? null,
             sub_category_2: item.sub_category_2 ?? null,
@@ -169,7 +170,8 @@ export function useInventoryCountSheet({ enabled }) {
             storage_unit_code: storageUnit.unit_code ?? '',
             storage_unit_name: storageUnit.name ?? '',
             storage_unit_division: storageUnit.division ?? '',
-            system_quantity: row.quantity_on_hand,
+            system_quantity: row.quantity_recorded === false ? null : row.quantity_on_hand,
+            quantity_on_hand: row.quantity_recorded === false ? null : row.quantity_on_hand,
           };
         });
 

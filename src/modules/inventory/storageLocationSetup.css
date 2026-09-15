@@ -6,4 +6,8 @@
 .inventory-setup-wide{grid-column:1/-1}
 .inventory-setup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
 .inventory-location-setup .inventory-setup-error{color:var(--ng-err)}
+.inventory-alias-list{padding:0;list-style:none;margin-top:24px}
+.inventory-alias-list li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--ng-border)}
+.inventory-location-lifecycle{border-top:1px solid var(--ng-border);margin-top:20px;padding-top:16px}
+.inventory-location-lifecycle .inventory-setup-error{color:var(--ng-err)}
 @media(max-width:650px){.inventory-location-setup{margin:12px;padding:16px}.inventory-setup-grid{grid-template-columns:1fr}.inventory-setup-actions>button{flex:1 1 180px}.inventory-setup-grid input,.inventory-setup-grid select{font-size:16px}}

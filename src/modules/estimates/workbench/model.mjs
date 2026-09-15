@@ -1,3 +1,4 @@
+export {searchMaterials} from '../../../lib/materialResolver.js';
 export const sections = {
   Residential: ['General requirements','Power','Lighting','Panels / distribution','Homeruns','Mechanical equipment','Grounding & bonding','Exterior'],
   Commercial: ['General requirements','Power','Lighting','Panels / distribution','Homeruns','Mechanical equipment','Underground','Generators','Grounding & bonding','Vendor quotes','Subcontractors'],
@@ -9,10 +10,6 @@ export const statuses=['Not started','In progress','Needs review','Complete','No
 export let catalogue=[];
 export function setCatalogue(rows){catalogue=rows;}
 export const id=()=>crypto.randomUUID();
-export function searchMaterials(materials,query){
- const tokens=query.trim().toLowerCase().split(/\s+/).filter(Boolean);
- return materials.filter(m=>tokens.every(token=>`${m.name} ${m.unit} ${m.keywords||''}`.toLowerCase().includes(token)));
-}
 export const clone=(v)=>structuredClone(v);
 export const money=(v)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(v);
 export function materialLine(key,qty=1,stage='Rough-in'){

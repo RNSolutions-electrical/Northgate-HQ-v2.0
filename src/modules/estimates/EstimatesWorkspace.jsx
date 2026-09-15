@@ -1,4 +1,5 @@
 import { useAuth, useUser } from '@clerk/clerk-react';
+import {searchMaterials} from '../../lib/materialResolver.js';
 import { archiveFailedDocument } from '../documents/documentUploadCleanup.js';
 import {
   ArrowLeft,
@@ -403,6 +404,7 @@ const ASSEMBLY_ITEM_SELECT_FIELDS = [
 ].join(', ');
 
 const CATALOG_ITEM_SELECT_FIELDS = [
+  'item_aliases(id,alias,archived_at)',
   'id',
   'name',
   'material_code',
@@ -533,28 +535,8 @@ function catalogFilterOptions(items, field, filters, precedingFields = []) {
 }
 
 function filterCatalogItems(items, filters) {
-  const normalizedSearch = filters.search.trim().toLowerCase();
   const exactFields = ['broad_category', 'sub_category', 'sub_category_2', 'sub_category_3', 'size', 'manufacturer'];
-
-  return items.filter((item) => {
-    if (exactFields.some((field) => filters[field] && item[field] !== filters[field])) return false;
-    if (!normalizedSearch) return true;
-
-    return [
-      item.material_code,
-      item.name,
-      item.description,
-      item.broad_category,
-      item.sub_category,
-      item.sub_category_2,
-      item.sub_category_3,
-      item.size,
-      item.length,
-      item.manufacturer,
-      item.manufacturer_sub,
-      item.unit_of_measure,
-    ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
-  });
+  return searchMaterials(items.filter(item=>exactFields.every(field=>!filters[field]||item[field]===filters[field])),filters.search);
 }
 
 function CatalogFilterControls({ items, filters, onChange, idPrefix }) {

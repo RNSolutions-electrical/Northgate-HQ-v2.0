@@ -1,4 +1,4 @@
-export const catalogueFields='id,material_code,name,description,unit_of_measure,division,price_per_unit,price_confirmed,labor_rate_hrs,labor_value_source,updated_at,broad_category,sub_category,sub_category_2,sub_category_3,sub_category_4,size,length,manufacturer,manufacturer_sub';
+export const catalogueFields='id,material_code,name,description,unit_of_measure,division,price_per_unit,price_confirmed,labor_rate_hrs,labor_value_source,updated_at,broad_category,sub_category,sub_category_2,sub_category_3,sub_category_4,size,length,manufacturer,manufacturer_sub,item_aliases(id,alias,archived_at)';
 export function catalogueMaterial(row){
  return {...row,unit:row.unit_of_measure||'EA',price:row.price_confirmed||Number(row.price_per_unit)>0?Number(row.price_per_unit):null,
   hours:row.labor_rate_hrs==null?null:Number(row.labor_rate_hrs),

@@ -13,6 +13,7 @@ try{
  const page=await browser.newPage(),errors=[];
  page.setDefaultTimeout(10000);
  page.on('pageerror',e=>errors.push(e.message));
+ page.on('dialog',dialog=>dialog.accept());
  const url='http://127.0.0.1:5189/northgate/tests/fixtures/inventory-pass.html';
  await mkdir('.temp/inventory-locations/screenshots',{recursive:true});
  for(const [label,width,height] of [['desktop',1440,1000],['tablet',768,1024],['phone',390,844]]){
@@ -31,6 +32,7 @@ try{
   }
   await page.getByRole('button',{name:'Add materials and quantities',exact:true}).click();
   await page.getByRole('heading',{name:'Record Count Intake',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Pass 2 — Record quantity',exact:true}).click();
   const last=await page.evaluate(()=>window.inventoryFixture.calls.filter(c=>c.name==='create_inventory_location').at(-1).args);
   assert.equal(await page.getByLabel('Bin',{exact:true}).inputValue(),last.p_request_id);
   await page.getByLabel('Search materials',{exact:true}).fill('Extra material 249');

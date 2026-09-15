@@ -4,6 +4,20 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `ASPEN-CATALOG-FOUNDATION-20260915-001`
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Release: Phase 1 catalogue aliases/shared search, quantity-free inventory mapping, audited location editing and archive/restore.
+- Previous marker: `OAK-INVENTORY-SETUP-20260915-001`; starting HEAD `0607287`.
+- Status: Release authorized; commit/push and production deployment in progress.
+- Applied migration: `20260915122542_catalog_inventory_foundation`. Do not apply the original local timestamp 20260915115633.
+- 78 Node tests, isolated SQL checks, real-schema rollback smoke and responsive inventory checks passed; production-config build passed.
+- Inventory, catalogue, transaction and permission records preserved across 11-table before/after checks.
+- No AFC, Documents restructuring, AI/MCP or Phases 2–4 included.
+- Other machines: pull main, verify this marker and read docs/reviews/CATALOG_INVENTORY_PHASE1.md. Preserve local environments, private files and historical dist-* folders.
+- Signed-in user acceptance and true simultaneous-session validation remain follow-up checks.
+
+## Previous release — OAK inventory setup
+
 - Marker: `OAK-INVENTORY-SETUP-20260915-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: Material Inventory storage-location setup and granular count access.

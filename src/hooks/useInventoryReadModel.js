@@ -47,7 +47,7 @@ async function getActiveCatalog(client) {
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await client
       .from('items')
-      .select('id, material_code, name, broad_category, sub_category, sub_category_2, sub_category_3, size, length, manufacturer, unit_of_measure, division, price_per_unit')
+      .select('id, material_code, name, description, broad_category, sub_category, sub_category_2, sub_category_3, size, length, manufacturer, unit_of_measure, division, price_per_unit, item_aliases(id,alias,archived_at)')
       .eq('is_active', true)
       .eq('is_archived', false)
       .order('name', { ascending: true })
@@ -68,7 +68,7 @@ async function getTrackedStock(client) {
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await client.from('inventory_cart_candidates_view')
-      .select('bin_item_id, item_id, bin_id, bin_code, bin_label, material_code, item_name, unit_of_measure, division, price_per_unit, quantity_on_hand, min_quantity')
+      .select('bin_item_id, item_id, bin_id, bin_code, bin_label, material_code, item_name, unit_of_measure, division, price_per_unit, quantity_on_hand, min_quantity, quantity_recorded')
       .order('bin_code', { ascending: true }).order('bin_item_id', { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) return { data: null, error };
@@ -135,11 +135,13 @@ export function useInventoryReadModel({ enabled }) {
           client
             .from('storage_units')
             .select('id, unit_code, name, division')
+            .is('archived_at', null)
             .order('unit_code', { ascending: true })
             .limit(10),
           client
             .from('bins')
             .select('id, bin_code, label, qr_code')
+            .is('archived_at', null)
             .order('bin_code', { ascending: true })
             .limit(10),
           getTrackedStock(client),

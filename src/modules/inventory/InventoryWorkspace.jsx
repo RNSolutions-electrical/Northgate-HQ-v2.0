@@ -29,6 +29,9 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx';
 import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
 import { StorageLocationSetup } from './StorageLocationSetup.jsx';
+import { StorageLocationLifecycle } from './StorageLocationLifecycle.jsx';
+import { MaterialAliases } from './MaterialAliases.jsx';
+import { searchMaterials, resolveMaterials } from '../../lib/materialResolver.js';
 import { canManageInventoryDepartment } from './inventoryAccess.js';
 import { hasCheckoutNoteCoverage } from './checkoutNotes.js';
 import { useBinItemRetirement } from '../../hooks/useBinItemRetirement.js';
@@ -79,6 +82,7 @@ const DESTINATIONS_REQUIRING_ID = new Set(['job', 'service_call', 'vehicle', 'us
 const VALID_DESTINATION_TYPES = new Set(DESTINATION_OPTIONS.map((option) => option.value));
 
 const COUNT_REASON_OPTIONS = [
+  { value: 'location mapping', label: 'Location Mapping' },
   { value: 'cycle count', label: 'Cycle Count' },
   { value: 'initial shelf count', label: 'Initial Shelf Count' },
   { value: 'correction', label: 'Correction' },
@@ -159,7 +163,7 @@ const COUNT_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
   { key: 'item_name', header: 'Item' },
   { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
-  { key: 'system_quantity', header: 'System Qty', numeric: true, render: (row) => formatQuantity(row.system_quantity) },
+  { key: 'system_quantity', header: 'System Qty', numeric: true, render: (row) => row.quantity_recorded===false?'Not counted':formatQuantity(row.system_quantity) },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
   { key: 'min_quantity', header: 'Min', numeric: true, render: (row) => formatQuantity(row.min_quantity) },
 ];
@@ -168,7 +172,7 @@ const SCAN_CONTENT_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
   { key: 'item_name', header: 'Item' },
   { key: 'bin_code', header: 'Bin' },
-  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
+  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => row.quantity_recorded===false?'Not counted':formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
 ];
 
@@ -176,7 +180,7 @@ const OVERVIEW_COLUMNS = [
   { key: 'material_code', header: 'Code', render: (row) => <strong>{row.material_code || '-'}</strong> },
   { key: 'item_name', header: 'Item' },
   { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
-  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
+  { key: 'quantity_on_hand', header: 'On Hand', numeric: true, render: (row) => row.quantity_recorded===false?'Not counted':formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
   { key: 'min_quantity', header: 'Min', numeric: true, render: (row) => formatQuantity(row.min_quantity) },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
   { key: 'division', header: 'Department', fallback: '-' },
@@ -206,6 +210,7 @@ function formatMoney(value) {
 }
 
 function formatQuantity(value) {
+  if (value == null) return '-';
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return '-';
   return numeric.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -249,6 +254,7 @@ function buildLocationRecords(locationSheet) {
 
   const unitRecords = locationSheet.storageUnits.map((unit) => ({
     id: unit.id,
+    archived_at: unit.archived_at, archive_reason: unit.archive_reason, revision:unit.revision,position:0,
     type: 'unit',
     typeLabel: 'Unit',
     code: unit.unit_code,
@@ -261,6 +267,7 @@ function buildLocationRecords(locationSheet) {
     const unit = unitById.get(shelf.unit_id);
     return {
       id: shelf.id,
+      archived_at: shelf.archived_at, archive_reason: shelf.archive_reason, revision:shelf.revision,position:shelf.position,
       type: 'shelf',
       typeLabel: 'Shelf',
       code: shelf.shelf_code,
@@ -275,6 +282,7 @@ function buildLocationRecords(locationSheet) {
     const unit = shelf ? unitById.get(shelf.unit_id) : null;
     return {
       id: bay.id,
+      archived_at: bay.archived_at, archive_reason: bay.archive_reason, revision:bay.revision,position:bay.position,
       type: 'bay',
       typeLabel: 'Bay',
       code: bay.bay_code,
@@ -290,6 +298,7 @@ function buildLocationRecords(locationSheet) {
     const unit = shelf ? unitById.get(shelf.unit_id) : null;
     return {
       id: bin.id,
+      archived_at: bin.archived_at, archive_reason: bin.archive_reason, revision:bin.revision,position:bin.position,
       type: 'bin',
       typeLabel: 'Bin',
       code: bin.bin_code,
@@ -308,6 +317,7 @@ function getLocationDisplay(record) {
 }
 
 function buildScanDestinationModel(locationId, locationSheet) {
+  locationSheet={...locationSheet,...Object.fromEntries(['storageUnits','shelves','bays','bins'].map(key=>[key,locationSheet[key].filter(row=>!row.archived_at)]))};
   const unitById = new Map(locationSheet.storageUnits.map((unit) => [unit.id, unit]));
   const shelfById = new Map(locationSheet.shelves.map((shelf) => [shelf.id, shelf]));
   const bayById = new Map(locationSheet.bays.map((bay) => [bay.id, bay]));
@@ -526,6 +536,9 @@ export function InventoryWorkspace({ permissions }) {
   const canRetireBinItems = canWriteCounts && isDeveloperOrAdminRole(permissions?.role) && permissions?.canArchiveRecords === true;
   const [creatingLocation, setCreatingLocation] = useState(false);
   const [intakeSearch, setIntakeSearch] = useState('');
+  const [mapOnly, setMapOnly] = useState(true);
+  const [aliasItem, setAliasItem] = useState(null);
+  const [showArchivedLocations, setShowArchivedLocations] = useState(false);
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState(
@@ -553,7 +566,7 @@ export function InventoryWorkspace({ permissions }) {
     bin_id: '',
     item_id: '',
     countedQuantity: '',
-    reason: 'initial shelf count',
+    reason: 'location mapping',
     customReason: '',
   });
   const [retirementDraft, setRetirementDraft] = useState({
@@ -606,19 +619,7 @@ export function InventoryWorkspace({ permissions }) {
       (!catalogCategory || row.broad_category === catalogCategory)
       && (!catalogSubcategory || row.sub_category === catalogSubcategory)
     ));
-    return filterRows(scopedRows, search, [
-      'material_code',
-      'name',
-      'description',
-      'broad_category',
-      'sub_category',
-      'sub_category_2',
-      'sub_category_3',
-      'size',
-      'length',
-      'manufacturer',
-      'division',
-    ]);
+    return searchMaterials(scopedRows, search);
   }, [catalogCategory, catalogSubcategory, model.catalogPreview, search]);
   const visibleStorageUnits = useMemo(
     () => filterRows(model.storageUnitsPreview, search, ['unit_code', 'name', 'division']),
@@ -650,16 +651,7 @@ export function InventoryWorkspace({ permissions }) {
       const rows = scanContext?.binId
         ? countSheet.rows.filter((row) => row.bin_id === scanContext.binId)
         : countSheet.rows;
-      return filterRows(rows, countSearch, [
-        'material_code',
-        'item_name',
-        'bin_code',
-        'bin_label',
-        'storage_unit_code',
-        'shelf_code',
-        'bay_code',
-        'division',
-      ]);
+      return searchMaterials(rows.map(row=>({...row,locationText:buildStoragePath(row)})),countSearch);
     },
     [countSearch, countSheet.rows, scanContext?.binId],
   );
@@ -669,9 +661,7 @@ export function InventoryWorkspace({ permissions }) {
         .filter((row) => row.bin_id === countIntakeDraft.bin_id)
         .map((row) => row.item_id),
     );
-    return model.catalogPreview
-      .filter((item) => !existingInBin.has(item.id))
-      .filter(item => `${item.material_code||''} ${item.name||''}`.toLowerCase().includes(intakeSearch.trim().toLowerCase()))
+    return searchMaterials(model.catalogPreview.filter((item) => !existingInBin.has(item.id)), intakeSearch)
       .slice(0, 200);
   }, [countIntakeDraft.bin_id, model.catalogPreview, countSheet.rows, intakeSearch]);
   const visibleOverviewRows = useMemo(
@@ -697,8 +687,8 @@ export function InventoryWorkspace({ permissions }) {
     [countSheet.storageUnits, countSheet.shelves, countSheet.bays, countSheet.bins],
   );
   const visibleLocationRecords = useMemo(
-    () => filterRows(locationRecords, search, ['typeLabel', 'code', 'label', 'path', 'id']),
-    [locationRecords, search],
+    () => filterRows(locationRecords.filter(row=>showArchivedLocations||!row.archived_at), search, ['typeLabel', 'code', 'label', 'path', 'id']),
+    [locationRecords, search, showArchivedLocations],
   );
   const selectedLocation =
     visibleLocationRecords.find((record) => record.id === selectedLocationId)
@@ -1446,15 +1436,19 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   async function handleRecordCountIntake() {
-    if (!canManageInventoryDepartment(permissions, locationRecords.find(row=>row.id===countIntakeDraft.bin_id)?.division) || !isCountDraftReady(countIntakeDraft) || !countIntakeDraft.bin_id || !countIntakeDraft.item_id) {
+    if (!canManageInventoryDepartment(permissions, locationRecords.find(row=>row.id===countIntakeDraft.bin_id)?.division) || !(mapOnly ? resolveCountReason(countIntakeDraft).trim() : isCountDraftReady(countIntakeDraft)) || !countIntakeDraft.bin_id || !countIntakeDraft.item_id) {
       setCountMessages((current) => ({
         ...current,
-        new: { tone: 'error', text: 'Bin, item, count, and reason required.' },
+        new: { tone: 'error', text: 'Choose a bin, material, and reason. Enter a quantity when recording a count.' },
       }));
       return;
     }
 
+    const item=model.catalogPreview.find(row=>row.id===countIntakeDraft.item_id);
+    const bin=locationRecords.find(row=>row.id===countIntakeDraft.bin_id);
+    if(!window.confirm(`${mapOnly?'Map':'Count'} ${item?.material_code||''} — ${item?.name||''} at ${bin?.path||''}? ${mapOnly?'No quantity will be recorded.':`Physical quantity: ${countIntakeDraft.countedQuantity}.`}`))return;
     const result = await countIntake.recordCount({
+      mapOnly,
       binId: countIntakeDraft.bin_id,
       itemId: countIntakeDraft.item_id,
       countedQuantity: Number(countIntakeDraft.countedQuantity),
@@ -1473,14 +1467,14 @@ export function InventoryWorkspace({ permissions }) {
       ...current,
       new: {
         tone: 'success',
-        text: `Recorded ${formatQuantity(result.counted_quantity)}. Variance ${formatQuantity(result.variance)}.`,
+        text: mapOnly ? 'Material mapped. Quantity remains uncounted; use the count sheet when ready.' : `Recorded ${formatQuantity(result.counted_quantity)}. Variance ${formatQuantity(result.variance)}.`,
       },
     }));
     setCountIntakeDraft({
       bin_id: countIntakeDraft.bin_id,
       item_id: '',
       countedQuantity: '',
-      reason: 'initial shelf count',
+      reason: mapOnly?'location mapping':'initial shelf count',
       customReason: '',
     });
     countSheet.reload();
@@ -1545,6 +1539,7 @@ export function InventoryWorkspace({ permissions }) {
       return <>
         {cartState.error ? <StatePanel title="Cart action failed" description={cartState.error.message} tone="danger" /> : null}
         <InventoryStockBrowser model={model} loading={readModel.isLoading} error={readModel.error}
+          onAliases={setAliasItem}
           fullCatalogue={activeView === 'catalog'} onScopeChange={full => updateInventoryView(full ? 'catalog' : 'stock')}
           canTransact={canTransact} busy={cartActionInProgress} quantities={candidateQuantities} messages={candidateMessages}
           onQuantityChange={updateCandidateQuantity} onAdd={handleAddCandidate} scanBinId={scanBinId}
@@ -1637,16 +1632,16 @@ export function InventoryWorkspace({ permissions }) {
             <Toolbar descriptionIsDiagnostic
               eyebrow="Locations"
               title="Location Records"
-              description="Read-only storage hierarchy records from the existing count-sheet location read model."
+              description="Select a location for QR labels, archive history, and administration."
               actions={(
-                <button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
+                <><label><input type="checkbox" checked={showArchivedLocations} onChange={e=>setShowArchivedLocations(e.target.checked)}/> Include archived locations</label><button type="button" className="secondary-button" onClick={countSheet.reload} disabled={countSheet.isLoading}>
                   <RefreshCw aria-hidden="true" /> Refresh Locations
-                </button>
+                </button></>
               )}
               dense
             />
             <DataTable
-              columns={LOCATION_COLUMNS}
+              columns={[...LOCATION_COLUMNS,{key:'archived_at',header:'Status',render:row=>row.archived_at?'Archived':'Active'}]}
               rows={visibleLocationRecords}
               getRowKey={(row) => row.id}
               permissions={permissions}
@@ -1671,7 +1666,7 @@ export function InventoryWorkspace({ permissions }) {
                     description="Stable location QR output. The QR route resolves context only and does not change inventory."
                     actions={(
                       <>
-                        <button type="button" className="secondary-button" onClick={() => openLocationScan(selectedLocation.id)}>
+                        <button type="button" className="secondary-button" disabled={Boolean(selectedLocation.archived_at)} onClick={() => openLocationScan(selectedLocation.id)}>
                           <QrCode aria-hidden="true" /> Open Scan Result
                         </button>
                         <button type="button" className="secondary-button" onClick={handleDownloadSelectedQr}>
@@ -1702,6 +1697,7 @@ export function InventoryWorkspace({ permissions }) {
                 tone="neutral"
               />
             )}
+            {selectedLocation&&<StorageLocationLifecycle key={`${selectedLocation.id}:${selectedLocation.revision}`} location={selectedLocation} permissions={permissions} onSaved={()=>{countSheet.reload();readModel.reload();history.reload();}}/>}
           </article>
         </div>
       );
@@ -2168,6 +2164,11 @@ export function InventoryWorkspace({ permissions }) {
                 compact
               />
             ) : null}
+            <div className="inventory-setup-actions" role="group" aria-label="Inventory setup pass" data-ng-ui-type="FUNCTION" data-ng-ui-name="Map Material to Location">
+              <button type="button" className={mapOnly?'primary-button':'secondary-button'} aria-pressed={mapOnly} disabled={countIntake.isRecording} onClick={()=>{setMapOnly(true);updateCountIntakeDraft({reason:'location mapping'});}}>Pass 1 — Map materials</button>
+              <button type="button" className={!mapOnly?'primary-button':'secondary-button'} aria-pressed={!mapOnly} disabled={countIntake.isRecording} onClick={()=>{setMapOnly(false);updateCountIntakeDraft({reason:'initial shelf count'});}}>Pass 2 — Record quantity</button>
+            </div>
+            <p>{mapOnly?'Choose what belongs in this bin. No count or balance will be recorded.':'Record the physical quantity. Already mapped materials can be counted in the count sheet above.'}</p>
             <div className="inventory-count-intake-grid">
               <label>
                 <span>Bin</span>
@@ -2178,7 +2179,7 @@ export function InventoryWorkspace({ permissions }) {
                   onChange={(event) => updateCountIntakeDraft({ bin_id: event.target.value, item_id: '' })}
                 >
                   <option value="">Select bin</option>
-                  {countSheet.bins.filter(bin=>canManageInventoryDepartment(permissions,locationRecords.find(row=>row.id===bin.id)?.division)).map((bin) => (
+                  {countSheet.bins.filter(bin=>!bin.archived_at&&canManageInventoryDepartment(permissions,locationRecords.find(row=>row.id===bin.id)?.division)).map((bin) => (
                     <option key={bin.id} value={bin.id}>
                       {locationRecords.find(row=>row.id===bin.id)?.path} — {bin.label || bin.bin_code}
                     </option>
@@ -2188,7 +2189,7 @@ export function InventoryWorkspace({ permissions }) {
               <label>
                 <span>Search materials</span>
                 <input type="search" aria-label="Search materials" value={intakeSearch} onChange={event=>{setIntakeSearch(event.target.value);updateCountIntakeDraft({item_id:''});}} placeholder="Code or description" />
-                <small>Showing up to 200 matches. Search to find other catalogue items.</small>
+                <small>Search code, name, or alias. Choose the exact material below; suggestions are never selected automatically. {resolveMaterials(countIntakeItems,intakeSearch).ambiguous?'Multiple candidates match — verify size, code, and description.':''}</small>
               </label>
               <label>
                 <span>Catalog Item</span>
@@ -2206,7 +2207,7 @@ export function InventoryWorkspace({ permissions }) {
                   ))}
                 </select>
               </label>
-              <label>
+              {!mapOnly&&<label>
                 <span>Counted Qty</span>
                 <input
                   type="number"
@@ -2216,9 +2217,9 @@ export function InventoryWorkspace({ permissions }) {
                   aria-label="Counted Qty"
                   disabled={!canWriteCounts || countIntake.isRecording}
                   onChange={(event) => updateCountIntakeDraft({ countedQuantity: event.target.value })}
-                  placeholder="0"
+                  placeholder="Enter a count (zero is valid)"
                 />
-              </label>
+              </label>}
               <label>
                 <span>Reason</span>
                 <select
@@ -2247,10 +2248,10 @@ export function InventoryWorkspace({ permissions }) {
                 <button hidden={!canWriteCounts}
                   type="button"
                   className="primary-button"
-                  disabled={!canWriteCounts || countIntake.isRecording || !countIntakeDraft.bin_id || !countIntakeDraft.item_id || !isCountDraftReady(countIntakeDraft)}
+                  disabled={!canWriteCounts || countIntake.isRecording || !countIntakeDraft.bin_id || !countIntakeDraft.item_id || !(mapOnly ? resolveCountReason(countIntakeDraft).trim() : isCountDraftReady(countIntakeDraft))}
                   onClick={handleRecordCountIntake}
                 >
-                  <Plus aria-hidden="true" /> {countIntake.isRecording ? 'Recording...' : 'Record Count Intake'}
+                  <Plus aria-hidden="true" /> {countIntake.isRecording ? 'Saving...' : mapOnly ? 'Confirm material mapping' : 'Record Count Intake'}
                 </button>
                 {intakeMessage ? (
                   <span className={`inventory-cart-row-message inventory-cart-row-message--${intakeMessage.tone}`}>
@@ -2353,6 +2354,7 @@ export function InventoryWorkspace({ permissions }) {
         />
         <DataTable
           columns={CATALOG_COLUMNS}
+          onRowClick={setAliasItem}
           rows={visibleCatalogue}
           getRowKey={(row) => row.id}
           permissions={permissions}
@@ -2367,7 +2369,8 @@ export function InventoryWorkspace({ permissions }) {
     );
   }
 
-  if (creatingLocation && canReadCounts) return <StorageLocationSetup permissions={permissions} locations={locationRecords}
+  if (aliasItem) return <MaterialAliases item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
+  if (creatingLocation && canReadCounts) return <StorageLocationSetup permissions={permissions} locations={locationRecords.filter(row=>!row.archived_at)}
     isLoading={countSheet.isLoading} error={countSheet.error} onReload={countSheet.reload}
     onClose={()=>{setCreatingLocation(false);updateInventoryView('locations');}}
     onCreated={result=>{setSelectedLocationId(result.id);countSheet.reload();readModel.reload();}}

@@ -8,7 +8,7 @@ export function useInventoryCountIntake() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
 
-  const recordCount = useCallback(async ({ binId, itemId, countedQuantity, reason }) => {
+  const recordCount = useCallback(async ({ binId, itemId, countedQuantity, reason, mapOnly = false }) => {
     setIsRecording(true);
     setError(null);
     setResult(null);
@@ -16,10 +16,10 @@ export function useInventoryCountIntake() {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { data, error: rpcError } = await client.rpc('intake_inventory_count', {
+      const { data, error: rpcError } = await client.rpc(mapOnly ? 'map_material_to_inventory_bin' : 'intake_inventory_count', {
         p_bin_id: binId,
         p_item_id: itemId,
-        p_counted_quantity: countedQuantity,
+        ...(mapOnly ? {} : {p_counted_quantity: countedQuantity}),
         p_reason: reason,
       });
 
