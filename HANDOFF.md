@@ -21238,3 +21238,30 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   b3b39da3a3c1c336bfdac0b1bcffc24d1971214dbbfffeee0bd3a98e5c3a8705.
 
 ---
+
+## Entry 253 — ASPEN Phase 1 published and verified
+
+2026-09-15 · Production Mode · ASPEN-CATALOG-FOUNDATION-20260915-001.
+
+- Feature commit 5f7a912267450e5ca1f8bc0b92e9c73e264e1dc6 pushed to main.
+  Git-triggered Netlify production deploy 6aa93bf2078edd00080a6433 is ready and
+  published from that exact commit (2026-09-15T12:37:22Z).
+- Live rnsolutions.net/northgate HTML and all 13 assets match a fresh tested build
+  by SHA-256/MIME. Inventory, Jobs, Estimates and Inspection deep links passed.
+  Required public Supabase/Clerk configuration present; silas-chat retained.
+- Netlify secret scan checked 572 files, no matches. Existing Vite bundle-size
+  and xlsx dynamic-import warnings remain non-blocking.
+- 78 Node tests, responsive Phase 1 inventory tests, existing stock/cart/count
+  regression and Estimate Workbench regression passed. Edge was used for the
+  legacy browser test after its default bundled Chromium was unavailable.
+- Initial asset comparison included a stale local output file; rebuilt into a
+  fresh ignored directory and all current assets matched. No production defect.
+- Database migration 20260915122542 is already live; do not reapply. Signed-in
+  user acceptance and true simultaneous-session checks remain next testing steps.
+- Final release metadata is committed/pushed with [skip ci]; deployed bytes remain
+  unchanged. Other machines should pull main and verify the ASPEN marker.
+  Historical untracked dist-* directories and private/local files remain untouched.
+- Prior HANDOFF prefix SHA-256:
+  30e08f2a14353e073a51378d57db0175ff205276f7960393e01ebda7f798db67.
+
+---

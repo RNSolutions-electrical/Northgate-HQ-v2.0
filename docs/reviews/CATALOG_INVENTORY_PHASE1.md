@@ -65,7 +65,9 @@ The UI transport is mocked and the SQL fixture is isolated; these are not signed
 
 ## Status
 
-Database migration applied and verified with Ryan's explicit approval. Ryan subsequently authorized commit, push, and deployment. Release marker: `ASPEN-CATALOG-FOUNDATION-20260915-001`. Production publishing and final verification are in progress; see SYNC_STATUS.md for the final release record.
+LIVE and verified on 2026-09-15 with Ryan's explicit commit/push/deploy approval. Marker: `ASPEN-CATALOG-FOUNDATION-20260915-001`. Feature commit `5f7a912267450e5ca1f8bc0b92e9c73e264e1dc6`; production deploy `6aa93bf2078edd00080a6433`. Live HTML and all 13 assets match a fresh production-config build by SHA-256/MIME; deep links and required public configuration passed. Existing silas-chat function retained. Netlify scanned 572 files with no secret matches. Final documentation commit uses [skip ci] to preserve the verified frontend.
+
+Release reruns: 78 Node tests; desktop/tablet/phone Phase 1 UI tests; existing inventory stock/cart/count regression; Estimate Workbench regression; production build. Initial regression launch needed the installed Edge channel instead of absent bundled Chromium; rerun passed. The initial asset verifier encountered a stale file in a reused local output folder; a fresh output build verified every current asset. No production defect or extra deploy was required.
 
 ### Production database verification — 2026-09-15
 

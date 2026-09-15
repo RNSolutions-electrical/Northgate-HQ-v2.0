@@ -8,9 +8,14 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: Phase 1 catalogue aliases/shared search, quantity-free inventory mapping, audited location editing and archive/restore.
 - Previous marker: `OAK-INVENTORY-SETUP-20260915-001`; starting HEAD `0607287`.
-- Status: Release authorized; commit/push and production deployment in progress.
+- Status: LIVE and verified September 15, 2026.
+- Feature commit: `5f7a912267450e5ca1f8bc0b92e9c73e264e1dc6`, pushed to origin/main.
+- Production deployment: `6aa93bf2078edd00080a6433`, ready/published from that exact commit.
+- Live URL: https://rnsolutions.net/northgate/inventory
+- Live HTML and all 13 assets match a fresh tested production build by SHA-256/MIME; required public configuration and deep links verified; silas-chat retained.
+- Netlify secret scan: 572 files, no matches. Final release-record commit uses [skip ci]; frontend bytes are unchanged.
 - Applied migration: `20260915122542_catalog_inventory_foundation`. Do not apply the original local timestamp 20260915115633.
-- 78 Node tests, isolated SQL checks, real-schema rollback smoke and responsive inventory checks passed; production-config build passed.
+- 78 Node tests, isolated SQL checks, real-schema rollback smoke, responsive inventory/location tests, existing stock/cart/count tests, and Estimate Workbench regressions passed; production-config build passed.
 - Inventory, catalogue, transaction and permission records preserved across 11-table before/after checks.
 - No AFC, Documents restructuring, AI/MCP or Phases 2–4 included.
 - Other machines: pull main, verify this marker and read docs/reviews/CATALOG_INVENTORY_PHASE1.md. Preserve local environments, private files and historical dist-* folders.
