@@ -4,6 +4,23 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `CEDAR-INSPECTIONS-20260914-001`
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Release: Electrical Systems Health Inspection, branded PDF reports, job/service-call links and permit/jurisdiction inspection tracking.
+- Previous marker: `PINE-ESTIMATE-HIERARCHY-20260914-001` (starting HEAD `1448800`).
+- Feature commits: `8152528d8a802286a1f83166b489bc3d1c8116ac` and `fa26a6627f58d6c6947faa775bca1bc6b68cf3d9`, pushed to origin/main.
+- Production deployment: `6aa88bc4748c3500071c76ba`, ready/published September 14, 2026; source commit `fa26a66`.
+- Live URL: https://rnsolutions.net/northgate/electrical-inspections
+- Verified HTML and all 13 assets against the tested production build by SHA-256 and MIME. Existing silas-chat function retained; Netlify scanned 551 files with no secret matches.
+- Applied migrations: `20260914235450_electrical_inspection_workflow`, `20260915000120_inspection_reviewer_permission_management`, `20260915000719_inspection_list_alias`. The last fixes the live list/search row-alias conflict; no frontend rebuild is needed.
+- Both Ryan Noel accounts have explicit reviewer grants; Manager Ryan also received add-on access. No other accounts or shared templates were changed.
+- Validation: 77 Node tests; 58 PostgreSQL checks plus reviewer management assertions; responsive inspection, service-call and permission-editor browser coverage; branded PDF/pagination visual checks. Live rollback-only workflow passed canonical service-call creation/replay, permits/reinspection, issue/revise immutability and missing-upload rejection.
+- Signed-in live Developer session verified add-on navigation, list, new form and successful draft PDF generation. The Codex embedded PDF frame stayed blank; ordinary-browser PDF viewing, real photo upload and a customer pilot remain acceptance checks.
+- No test/customer inspection saved or issued persistently. Rollback tests retained zero synthetic records.
+- See HANDOFF Entries 240–246. Pull main on other machines and confirm this marker. Migrations are already applied: do not replay them or overwrite local environment settings. Preserve untracked dist-* and private source files.
+
+## Previous release — PINE
+
 - Marker: `PINE-ESTIMATE-HIERARCHY-20260914-001`
 - Branch: `main`
 - Release: Estimates component references (001.1.1) and clearer collapsible work-item groups.

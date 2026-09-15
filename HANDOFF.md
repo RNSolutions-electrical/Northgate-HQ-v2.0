@@ -21068,3 +21068,19 @@ Date: 2026-09-14. Mode: Production. Ryan authorized commit/deploy and explicitly
 - HANDOFF prefix SHA-256 before this append: 4ce1a80413a37964124a6fd67a0ba475916468c063a3cb6402ed0524eb38bffc. Preserve all prior entries and untracked dist-* directories.
 
 ---
+
+## Entry 246 - CEDAR inspection release published and signed-in list correction
+
+Date: 2026-09-14. Mode: Production. Marker: CEDAR-INSPECTIONS-20260914-001.
+
+- Pushed feature commits 8152528 and fa26a66 to main. Existing Git integration published Netlify deploy 6aa88bc4748c3500071c76ba from fa26a6627f58d6c6947faa775bca1bc6b68cf3d9; ready, no deployment error.
+- Live https://rnsolutions.net/northgate/ HTML and all 13 bundled assets match .temp/inspection-production-check-1789430532866 by SHA-256 and proper MIME, including report logo and renderer. Existing silas-chat retained. Secret scan: 551 files, no matches.
+- Ryan signed in during verification. The actual directory exposed a PL/pgSQL alias collision in hi_read list/search that detail tests had missed. Applied 20260915000719_inspection_list_alias; it changes only the local list alias and preserves API/security behavior. Local coverage now includes empty/populated lists, text search, offset, archive filter and scoped exclusion: 58 DB checks plus permission assertions pass.
+- Live directory refresh now succeeds without an error; Manager account list/search also passed an authenticated-role SQL check. The live Developer session opened a new unsaved form and completed draft PDF generation. The embedded Codex PDF frame stayed blank, so ordinary-browser preview remains an acceptance item. No persistent inspection or upload was created through the browser.
+- Earlier rollback-only SQL verified both Ryan grants and actual canonical service-call/permit/issue flows without retaining any synthetic rows. Both explicit reviewer grants remain live; only Manager Ryan required additional add-on access.
+- Real photo upload/download, ordinary-browser PDF viewing and the deliberate customer pilot remain acceptance checks. No private attachment imported or customer report issued.
+- Database list correction and release metadata are committed with [skip ci]: deployed frontend bytes are unchanged. All three migrations are already applied; do not replay them on another machine.
+- SYNC_STATUS.md records the release. Other machines should pull main, verify this marker, preserve local environment settings, private imports and historical untracked dist-*.
+- HANDOFF prefix SHA-256 before append: 983a575b2781925b2b6b2bd2adfeace0c5d26ec89b91e173fbe5239563914bd2. All prior bytes preserved.
+
+---

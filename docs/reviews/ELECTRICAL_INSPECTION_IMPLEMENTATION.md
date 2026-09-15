@@ -37,7 +37,8 @@ These supersede the proposed physical table/API names in the earlier integration
 Applied migrations: `20260914235450_electrical_inspection_workflow.sql` and
 `20260915000120_inspection_reviewer_permission_management.sql`, on the existing
 production project `keogysnoukbendfkfjcn`. Local filenames match server-recorded versions.
-The follow-up migration extends the current audited batch permission editor so only
+The list/search correction `20260915000719_inspection_list_alias.sql` is also applied.
+The follow-up permission migration extends the current audited batch permission editor so only
 the inspection-reviewer override can change on Developer accounts. It preserves
 their template assignment and other overrides. The legacy single-flag setter/clear
 RPCs keep their existing Developer restrictions; the UI uses the batch editor.
@@ -53,7 +54,7 @@ Finalization verifies the stored object exists and matches reserved size/type. T
 | Check | Result |
 |---|---|
 | `npm test` | 77 passing tests, including 11 inspection model/import tests and existing financial/estimate/document tests. |
-| `node scripts/verify-electrical-inspection-db.mjs` | 51 checks passing in isolated PGlite/PostgreSQL, plus reviewer grant/deny/default, target-scoped audit, preserved other override history and Developer protection assertions. Covers migration, active/inactive/anonymous and add-on/reviewer revocation, scoped reads, direct-write denial, stale saves, request replay, duplicate imports, issue requirements, pending files, immutable evidence, generic-maintenance bypass protection, report recovery, permits/reinspection, and rollback. |
+| `node scripts/verify-electrical-inspection-db.mjs` | 58 checks passing in isolated PGlite/PostgreSQL, plus reviewer grant/deny/default, target-scoped audit, preserved other override history and Developer protection assertions. Covers migration, active/inactive/anonymous and add-on/reviewer revocation, scoped reads, direct-write denial, stale saves, request replay, duplicate imports, issue requirements, pending files, immutable evidence, generic-maintenance bypass protection, report recovery, permits/reinspection, and rollback. |
 | Database harness scope | Uses synthetic dependency tables and captured current public permission functions. Canonical service-call creation is a tested integration boundary stub here; its full existing workflow is covered separately. This is not a production-authentication test. |
 | `node scripts/verify-electrical-inspection-ui.mjs` | 1440 / 768 / 390 px: creation, failed-save retry with same request ID, panel editing, navigation recovery, job link, review/issue, PDF publication, permit/reinspection and read-only controls. Synthetic APIs; no live customer writes. |
 | `node scripts/verify-service-calls.mjs` | Existing desktop/tablet/phone creation/editing, invoicing, archive, import preview, financial views and resource navigation pass after shared-form extraction. |
@@ -67,17 +68,17 @@ The 2026-09-14 presentation revision uses the supplied 13-page ACC Blvd PDF as a
 
 ## Release sequence and remaining acceptance
 
-**Release authorized September 14, 2026:** feature commit `8152528`; both migrations applied. Both Ryan Noel accounts have explicit reviewer overrides. The Manager account also has the inspection add-on enabled; the Developer account already receives add-on access. These audited changes target only the two accounts Ryan selected.
+**Release authorized September 14, 2026:** feature commit `8152528`; all three migrations applied. Both Ryan Noel accounts have explicit reviewer overrides. The Manager account also has the inspection add-on enabled; the Developer account already receives add-on access. These audited changes target only the two accounts Ryan selected.
 
 The release preflight caught the existing Developer-target restriction in the batch permission editor. The follow-up permits only this new flag for Developer targets, retaining stale-save validation and unchanged override history. Template editing fills newly introduced boolean flags with false when loading an older template.
 
-Verification: 77 Node tests; 51 database checks plus permission-management assertions; permission-editor browser tests at desktop/tablet/phone widths, including the Developer reviewer control. A production rollback-only test using both authorized account subjects passed canonical service-call creation and replay, permits/reinspection, issue/revise immutability and missing-upload rejection. All synthetic rows rolled back: production remains 51 jobs, 18 documents, and zero inspection/revision/file/permit/register rows.
+Verification: 77 Node tests; 58 database checks plus permission-management assertions; permission-editor browser tests at desktop/tablet/phone widths, including the Developer reviewer control. A production rollback-only test using both authorized account subjects passed canonical service-call creation and replay, permits/reinspection, issue/revise immutability and missing-upload rejection. All synthetic rows rolled back: production remains 51 jobs, 18 documents, and zero inspection/revision/file/permit/register rows.
 
 Security advisors: no new error-level findings, anonymous executable functions, or mutable-search-path findings from this release. The seven RLS-enabled API-only tables and 14 checked authenticated inspection APIs create expected informational/warning notices. Existing security-definer-view errors predate this release; see [Supabase guidance](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view).
 
-Deployment is being published through the existing Netlify/Git integration. SYNC_STATUS.md and the next HANDOFF entry record the final commit, deployment ID and live asset checks.
+Published through the existing Netlify/Git integration: deploy `6aa88bc4748c3500071c76ba`, source `fa26a66`. Live HTML and all 13 assets match the tested build by SHA-256 and MIME; silas-chat is retained and the 551-file secret scan has no matches. The signed-in check caught a list/search alias collision, corrected by the third applied migration with new empty/populated/scoped/search/archive/pagination tests.
 
-Remaining user acceptance: the browser is signed out. Real Clerk sign-in, camera/photo selection, Storage upload/download and a customer pilot remain to be exercised interactively. The database test uses authenticated-role JWT claims inside a rolled-back SQL transaction; it does not prove a browser-issued Clerk session or upload actual Storage bytes. No customer source was imported or issued. The supplied PDF/ZIP remain preserved private source material.
+Signed-in acceptance: Ryan signed in during release verification. The live Developer session successfully opened the add-on, loaded the corrected list, opened a new form and generated draft PDF bytes (Download PDF became available). The Codex embedded PDF frame remained blank; ordinary-browser viewing still needs confirmation. Camera/photo selection, actual Storage upload/download and a customer pilot remain to be exercised interactively. The database test uses authenticated-role JWT claims inside a rolled-back SQL transaction; it does not upload actual Storage bytes; the separate live browser check verifies Clerk sign-in for Developer Ryan. No customer source was imported or issued. The supplied PDF/ZIP remain preserved private source material.
 
 Rollback retains the additive schema and issued evidence; disable the new add-on/revert the UI release if needed. Do not delete inspection history, Storage objects, permission history, or source files to roll back a UI deployment.
 

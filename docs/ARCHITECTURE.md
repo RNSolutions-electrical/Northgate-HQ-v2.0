@@ -4402,7 +4402,8 @@ ownership remains Section 51.
 Physical schema, evidence, limits and rollout sequence are documented in
 [the implementation record](reviews/ELECTRICAL_INSPECTION_IMPLEMENTATION.md).
 Migrations 20260914235450_electrical_inspection_workflow.sql and
-20260915000120_inspection_reviewer_permission_management.sql are applied to production.
+20260915000120_inspection_reviewer_permission_management.sql, and
+20260915000719_inspection_list_alias.sql are applied to production.
 The existing batch permission editor supports explicit inspection-reviewer overrides
 for Developer accounts while requiring their other overrides and template assignment
 to remain unchanged. Active Developer authorization, expected-state checks and audit
