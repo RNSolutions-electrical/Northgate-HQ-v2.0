@@ -1,7 +1,7 @@
 # Storage duplicate guidance and guarded permanent deletion
 
 2026-09-15 · Production Mode · WILLOW-STORAGE-SAFETY-20260915-001.
-Migration applied; frontend publication and verification in progress. Previous release: BIRCH / e9e3910.
+LIVE: migration applied and deployment verified. Previous release: BIRCH / e9e3910.
 
 ## Scope and behavior
 
@@ -45,4 +45,4 @@ Reproduce: `node scripts/verify-storage-workspace-db.mjs`, `node scripts/verify-
 
 ## Release and remaining checks
 
-Migration 20260915161130 is applied and the local filename/test reference now matches. Do not apply it again. No real locations have been deleted. Production publication follows the tested commit; see SYNC_STATUS.md for the final deployment record. True independent-session concurrent stress and signed-in production acceptance are not claimed by these isolated/mocked tests.
+Migration 20260915161130 is applied and the local filename/test reference now matches. Do not apply it again. No real locations have been deleted. Feature commit c016cf8ed706717d4c1c559265dc2cc92ec7de78 is published in ready production deploy 6aa96fd3299c040008299945. Live HTML and all 14 assets match the fresh tested build by SHA-256/MIME; public configuration, retained workflows and deep links verified. silas-chat is retained; Netlify scanned 590 files with no secret matches. The final documentation-only commit uses [skip ci] and does not alter deployed bytes. True independent-session concurrent stress and signed-in production acceptance are not claimed by these isolated/mocked tests.

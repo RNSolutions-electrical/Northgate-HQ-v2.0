@@ -8,7 +8,12 @@ This file is the repository-visible source of truth for Codex handoffs between m
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: archived duplicate discovery and guarded Developer-only storage-location deletion.
 - Previous marker: `BIRCH-STORAGE-EXPLORER-20260915-001`; starting HEAD `e9e3910`.
-- Status: migration applied; frontend publication and exact-deploy verification in progress.
+- Status: LIVE and verified September 15, 2026.
+- Feature commit: `c016cf8ed706717d4c1c559265dc2cc92ec7de78`, pushed to origin/main.
+- Production deployment: `6aa96fd3299c040008299945`, ready/published from that exact commit.
+- Live URL: https://rnsolutions.net/northgate/inventory?view=storage
+- Live HTML and all 14 assets match the tested fresh build by SHA-256/MIME; public configuration, retained workflows and deep links verified. silas-chat retained. Netlify scanned 590 files with no secret matches.
+- Final release-record commit uses [skip ci]; deployed frontend bytes are unchanged.
 - Applied migration: `20260915161130_inventory_storage_safe_delete`. Do not replay former local timestamp 20260915155751.
 - 82 Node tests, isolated SQL safety matrix, responsive browser regressions, actual-schema rollback smoke and fresh production-config build passed.
 - No real locations deleted. Concurrent user bay edits, counts and binding archives preserved. No permission defaults or grants to users changed.

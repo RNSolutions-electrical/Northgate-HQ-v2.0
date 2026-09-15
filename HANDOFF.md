@@ -21400,3 +21400,25 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   ac346f676c6e59a95f14263af365ff6fd699104efee3424dc4d6977e2827ace6.
 
 ---
+
+## Entry 259 — WILLOW storage safety production verification complete
+
+2026-09-15 · WILLOW-STORAGE-SAFETY-20260915-001.
+
+- Feature commit c016cf8ed706717d4c1c559265dc2cc92ec7de78 pushed to main.
+- Netlify production deployment 6aa96fd3299c040008299945 is ready/published
+  from that exact commit. Live route: /northgate/inventory?view=storage.
+- Live HTML and all 14 assets match the tested fresh build by SHA-256/MIME;
+  guarded deletion, duplicate discovery, retained workflows, public configuration
+  and deep links verified. silas-chat retained. Secret scan: 590 files, no matches.
+- Migration 20260915161130 is applied; do not replay. Actual-schema smoke was
+  rolled back, leaving no synthetic locations or deletion/backup audit records.
+  Existing user edits and private/untracked files remain preserved.
+- Final documentation-only release record uses [skip ci], leaving deployed bytes
+  unchanged. Other machines should pull main and verify this marker before work.
+- Signed-in production acceptance and independent-session concurrent stress are
+  follow-up checks. No real locations deleted; no AFC Phases 2–4 included.
+- Prior HANDOFF prefix SHA-256:
+  9515a0902aa94276f74768c9bcf66db1415ea8c8e2237861c62eb2a2a04ddfc9.
+
+---
