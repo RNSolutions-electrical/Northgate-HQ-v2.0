@@ -1,0 +1,9 @@
+.inventory-location-setup{max-width:900px;margin:24px auto;padding:24px}
+.inventory-location-setup p{margin:10px 0;color:var(--ng-muted)}
+.inventory-setup-grid{border:0;padding:0;margin:20px 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.inventory-setup-grid label{display:flex;flex-direction:column;gap:6px;min-width:0}
+.inventory-setup-grid input,.inventory-setup-grid select{width:100%;min-width:0;min-height:40px;padding:8px 10px;border:1px solid var(--ng-border);border-radius:var(--ng-radius-control);background:var(--ng-card-bg);color:inherit;font:inherit}
+.inventory-setup-wide{grid-column:1/-1}
+.inventory-setup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.inventory-location-setup .inventory-setup-error{color:var(--ng-err)}
+@media(max-width:650px){.inventory-location-setup{margin:12px;padding:16px}.inventory-setup-grid{grid-template-columns:1fr}.inventory-setup-actions>button{flex:1 1 180px}.inventory-setup-grid input,.inventory-setup-grid select{font-size:16px}}

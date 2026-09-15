@@ -4,6 +4,19 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Current durable sync marker
 
+- Marker: `OAK-INVENTORY-SETUP-20260915-001`
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Release: Material Inventory storage-location setup and granular count access.
+- Previous marker: `CEDAR-INSPECTIONS-20260914-001`; starting HEAD `9c010f5`.
+- Status: release authorized; database applied and rollback-tested; frontend publication pending verification.
+- Applied migration: `20260915113613_inventory_location_setup_permissions`.
+- Existing storage hierarchy, quantities and user permissions preserved by before/after hashes. No user grants or retirement-policy changes.
+- 74 Node tests, isolated database checks and responsive inventory/location/cart tests pass.
+- Other machines: pull main and verify this marker. Do not reapply the migration or overwrite local environment files/private imports/untracked dist-*.
+- Release notes: docs/reviews/INVENTORY_LOCATION_SETUP.md; HANDOFF Entry 248.
+
+## Previous release — CEDAR inspections
+
 - Marker: `CEDAR-INSPECTIONS-20260914-001`
 - Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
 - Release: Electrical Systems Health Inspection, branded PDF reports, job/service-call links and permit/jurisdiction inspection tracking.

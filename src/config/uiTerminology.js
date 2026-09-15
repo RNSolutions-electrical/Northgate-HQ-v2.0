@@ -16,6 +16,7 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'PAGE', name: 'Dashboard', location: '/dashboard', status: 'live' },
   { type: 'PAGE', name: 'Jobs', location: '/jobs', status: 'live' },
   { type: 'PAGE', name: 'Material Inventory', location: '/inventory', status: 'live' },
+  { type: 'FUNCTION', name: 'Add Storage Location', location: 'Material Inventory', status: 'ready for testing' },
   { type: 'PAGE', name: 'Tool Inventory', location: '/tools', status: 'live' },
   { type: 'PAGE', name: 'Developer', location: '/developer', status: 'live' },
   { type: 'MODULE', name: 'Developer Display Controls', location: 'Developer Page', status: 'live' },

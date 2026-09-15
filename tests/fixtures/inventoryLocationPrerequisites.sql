@@ -1,0 +1,20 @@
+-- Synthetic hierarchy/ledger schema. Never run this fixture on a real database.
+CREATE TABLE storage_units(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),unit_code text NOT NULL UNIQUE,name text,division text,created_at timestamptz DEFAULT now());
+CREATE TABLE shelves(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),unit_id uuid NOT NULL REFERENCES storage_units,shelf_code text NOT NULL,label text,position integer NOT NULL DEFAULT 0,created_at timestamptz DEFAULT now(),UNIQUE(unit_id,shelf_code));
+CREATE TABLE bays(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),shelf_id uuid NOT NULL REFERENCES shelves,bay_code text NOT NULL,label text,position integer NOT NULL DEFAULT 0,created_at timestamptz DEFAULT now(),UNIQUE(shelf_id,bay_code));
+CREATE TABLE bins(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),bay_id uuid NOT NULL REFERENCES bays,bin_code text NOT NULL,label text,position integer NOT NULL DEFAULT 0,qr_code text,created_at timestamptz DEFAULT now(),UNIQUE(bay_id,bin_code));
+CREATE TABLE items(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),material_code text,name text,price_per_unit numeric,default_cost_code_id uuid,is_active boolean DEFAULT true,is_archived boolean DEFAULT false);
+CREATE TABLE bin_items(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),bin_id uuid NOT NULL REFERENCES bins,item_id uuid NOT NULL REFERENCES items,min_quantity numeric,archived_at timestamptz,UNIQUE(bin_id,item_id));
+CREATE TABLE inventory_balances(bin_item_id uuid PRIMARY KEY REFERENCES bin_items,quantity numeric,last_rebuilt timestamptz);
+CREATE TABLE inventory_transactions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),transaction_type text,user_id text,performed_by_name text,source_vehicle_id uuid,notes text);
+CREATE TABLE transaction_items(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),transaction_id uuid REFERENCES inventory_transactions,bin_item_id uuid REFERENCES bin_items,item_id uuid REFERENCES items,quantity numeric,target_quantity numeric,unit_cost_at_time numeric,transaction_type text,destination_type text,destination_id uuid,cost_code_id uuid,status text,note text,occurred_at timestamptz,ledger_sequence bigint GENERATED ALWAYS AS IDENTITY);
+ALTER TABLE change_logs ADD CONSTRAINT change_logs_action_check CHECK(action IN('create','update','delete','restore','archive','import','permission_change','physical_count_correction','certify','deny'));
+ALTER TABLE storage_units ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shelves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bays ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bins ENABLE ROW LEVEL SECURITY;
+CREATE POLICY storage_units_select ON storage_units FOR SELECT TO authenticated USING(current_user_can_read_division(division,'can_manage_inventory'));
+CREATE POLICY shelves_select ON shelves FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM storage_units u WHERE u.id=unit_id AND current_user_can_read_division(u.division,'can_manage_inventory')));
+CREATE POLICY bays_select ON bays FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM shelves s JOIN storage_units u ON u.id=s.unit_id WHERE s.id=shelf_id AND current_user_can_read_division(u.division,'can_manage_inventory')));
+CREATE POLICY bins_select ON bins FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM bays b JOIN shelves s ON s.id=b.shelf_id JOIN storage_units u ON u.id=s.unit_id WHERE b.id=bay_id AND current_user_can_read_division(u.division,'can_manage_inventory')));
+GRANT SELECT,INSERT ON storage_units,shelves,bays,bins TO authenticated;

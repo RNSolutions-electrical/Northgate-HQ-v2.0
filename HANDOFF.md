@@ -21084,3 +21084,58 @@ Date: 2026-09-14. Mode: Production. Marker: CEDAR-INSPECTIONS-20260914-001.
 - HANDOFF prefix SHA-256 before append: 983a575b2781925b2b6b2bd2adfeace0c5d26ec89b91e173fbe5239563914bd2. All prior bytes preserved.
 
 ---
+
+## Entry 247 - Inventory storage setup and granular count permissions (local, unreleased)
+
+Date: 2026-09-15. Mode: Production. Ryan approved both location setup and correcting
+count-entry permissions. No commit/push/deployment was requested for this pass.
+
+- Added dedicated Add Storage Location workspace using existing storage_units →
+  shelves → bays → bins. Children inherit department; audited create RPC handles
+  duplicate codes and exact retries. Bin success opens material search/count intake.
+- Count entry/correction now use effective Manage Inventory plus the existing
+  department-write resolver, enforced by both UI and proposed SQL. Role defaults
+  and retirement authorization remain unchanged. Reads paginate beyond 1,000.
+- Prepared migration 20260915111238_inventory_location_setup_permissions.sql.
+  It has NOT been applied to production. No real locations, balances, permissions,
+  customer data or audit rows were changed.
+- Isolated Postgres permissions/ledger/audit/rollback tests pass. Browser fixtures
+  pass the complete hierarchy-to-intake path on desktop/tablet/phone plus Supervisor
+  scope, failed retry, >1,000 bins and retirement restriction. Existing inventory/
+  cart suite and five inventory/catalogue Node tests pass. Final Vite build passes
+  with existing large-chunk/XLSX warnings. True multi-session concurrency and live
+  authenticated acceptance are not claimed.
+- Full implementation, test commands, migration details and release order:
+  docs/reviews/INVENTORY_LOCATION_SETUP.md. Apply reviewed migration before frontend
+  publication once release is authorized; recheck live function drift first.
+- Current release marker remains CEDAR-INSPECTIONS-20260914-001, base 9c010f5.
+  All local changes are uncommitted; other machines do not yet have this work.
+  Do not overwrite private files or the existing untracked dist-* directories.
+- HANDOFF prefix SHA-256 before append:
+  af766a5fc6b83f590851244491a347001071f302eed5583e76df4ed8e5ead637.
+
+---
+
+## Entry 248 - OAK inventory release authorized and database verified
+
+2026-09-15 · Production Mode · OAK-INVENTORY-SETUP-20260915-001.
+
+- Ryan explicitly authorized commit, push and deploy. Fetched origin/main; base
+  9c010f5 remains current. Live count functions/resolver match the inspected source.
+- Applied 20260915113613_inventory_location_setup_permissions; aligned the local
+  filename to the recorded server version. No role default or user grant changes.
+- Real-schema rollback-only smoke passed Manager/Developer location hierarchy,
+  RLS visibility, exact replay, duplicate rejection, initial count, corrections,
+  zero count and actor audit checks. Missing actor and anonymous access rejected.
+- Before/after hashes confirm all existing hierarchy, bin/material links, balances
+  and user permissions unchanged. Test locations/transactions were rolled back.
+- 74 Node tests, isolated PostgreSQL checks and responsive browser suites pass.
+  Fresh build output: .temp/inventory-production-20260915-oak.
+- Next: push the feature commit, allow the existing Netlify Git build to publish,
+  verify live HTML/assets and record deployment ID. No manual customer entry or
+  physical material count has been performed.
+- Preserve all unrelated untracked dist-* and private files.
+- Prior HANDOFF prefix SHA-256:
+  afbf78d5757853d23e46b17c74c02fd0c4a76d781252b3ff3c4aa1ed8aa418f7.
+
+---

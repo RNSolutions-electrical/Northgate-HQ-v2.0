@@ -5,6 +5,17 @@ import { createSupabaseClient } from '../services/supabaseClient.js';
 const EMPTY_ROWS = Object.freeze([]);
 const EMPTY_COLLECTION = Object.freeze([]);
 
+// Keep newly-created locations/count links reachable beyond PostgREST's page cap.
+async function readAll(query) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const result = await query.range(from, from + 999);
+    if (result.error) return result;
+    rows.push(...(result.data ?? []));
+    if ((result.data ?? []).length < 1000) return { data: rows, error: null };
+  }
+}
+
 export function useInventoryCountSheet({ enabled }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -52,40 +63,40 @@ export function useInventoryCountSheet({ enabled }) {
           shelvesResult,
           storageUnitsResult,
         ] = await Promise.all([
-          client
+          readAll(client
             .from('inventory_cart_candidates_view')
             .select(
               'bin_item_id,item_id,bin_id,bin_code,bin_label,material_code,item_name,unit_of_measure,division,price_per_unit,quantity_on_hand,min_quantity',
             )
             .order('bin_code', { ascending: true })
             .order('material_code', { ascending: true })
-            .limit(1000),
-          client
+            .order('bin_item_id', { ascending: true })),
+          readAll(client
             .from('items')
             .select('*')
             .eq('is_active', true)
             .eq('is_archived', false)
             .order('material_code', { ascending: true })
-            .limit(1000),
-          client
+            .order('id', { ascending: true })),
+          readAll(client
             .from('bins')
             .select('id,bin_code,label,bay_id,position')
             .order('position', { ascending: true })
-            .order('bin_code', { ascending: true }),
-          client
+            .order('bin_code', { ascending: true }).order('id', { ascending: true })),
+          readAll(client
             .from('bays')
             .select('id,bay_code,label,shelf_id,position')
             .order('position', { ascending: true })
-            .order('bay_code', { ascending: true }),
-          client
+            .order('bay_code', { ascending: true }).order('id', { ascending: true })),
+          readAll(client
             .from('shelves')
             .select('id,shelf_code,label,unit_id,position')
             .order('position', { ascending: true })
-            .order('shelf_code', { ascending: true }),
-          client
+            .order('shelf_code', { ascending: true }).order('id', { ascending: true })),
+          readAll(client
             .from('storage_units')
             .select('id,unit_code,name,division')
-            .order('unit_code', { ascending: true }),
+            .order('unit_code', { ascending: true }).order('id', { ascending: true })),
         ]);
 
         if (
