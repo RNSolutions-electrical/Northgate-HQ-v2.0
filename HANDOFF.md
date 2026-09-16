@@ -21811,3 +21811,61 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   d7726637d7ee519d4f27006a497aae48b72f5a6d9e354743b4b9836bee0dc314.
 
 ---
+
+## Entry 275 — Approved estimating exploration integrated locally
+
+**Date:** 2026-09-16
+**Updated by:** Codex
+**Phase:** Estimating workspace integration — local release preparation
+**Session type:** implementation
+
+### Context
+
+Ryan approved implementing the new build after the three estimating exploration
+feedback passes. Production Mode resumed. No migration/deployment authorization
+was inferred from that approval; production and the existing sync marker remain unchanged.
+
+### What Was Completed
+
+- Integrated Overview, grouped components, catalogue promotion/review highlights,
+  persistent library views, takeoff/RFQ controls, layered reports, proposal actions,
+  checklist management and quote/package archive/unaward into the existing editor.
+- Retained existing document saves, permissions, approved snapshots, revision
+  lineage and Job/CO/Service Call handoff. No second estimator or live data rewrite.
+- Passed 124 unit tests, isolated Postgres integration tests, actual-editor browser
+  tests with synthetic callbacks and a compile-only build. Rendered/visually checked
+  all 13 pages across five synthetic PDF outputs. Production auth not exercised.
+
+### Schema Changes
+
+Prepared, NOT applied: `20260916173238_estimating_workspace_integration.sql`.
+Adds group metadata and catalogue review flag; extends existing save/approval/handoff
+functions; adds permission-scoped catalogue/checklist RPCs with atomic audits.
+
+### Code / File Changes
+
+Workbench source, migration, three verification scripts, browser fixtures and
+unit tests. Full details: `docs/reviews/ESTIMATING_WORKSPACE_INTEGRATION.md`.
+Untracked prototype and unrelated historical build folders preserved.
+
+### What Codex Needs to Know
+
+No commit/push/live migration/deploy this session. `.temp/estimates-integration-build`
+uses nonproduction placeholders and MUST NOT be deployed. Keep the JUNIPER marker
+until a real release is performed. Do not treat mocked browser saves as live tests.
+
+### Next Steps (in order)
+
+1. Obtain release authorization; reconcile remote main/live function definitions.
+2. Apply/verify migration, then build with verified target environment configuration.
+3. Commit/push/deploy scoped work, verify signed-in acceptance, publish new sync marker.
+
+### Open Questions / Concerns
+
+Company exclusions/legal terms templates await Ryan; blank sections are omitted.
+Exports support CSV (Excel-compatible), not native XLSX. Existing live checklist
+semantics can require a draft refresh after adding a shared definition.
+Prior HANDOFF prefix: 1,069,551 bytes; SHA-256
+3a6ee8e61629a39dd6f69c5bc380b4a8a8b75e1cf5c3c020799229d54e3e1368.
+
+---

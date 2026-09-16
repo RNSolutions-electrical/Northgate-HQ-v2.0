@@ -3,8 +3,9 @@ export const round=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
 export const defaults=data=>({material:Number(data.materialMarkup??30),fee:Number(data.feePercent??data.overallMarkup??30)});
 export const hasOverride=item=>item.materialMarkupOverride!=null;
 export function itemPricing(item,data){
- const base=totals(item,data.rate);const quote=item.quoteId?(data.quotes||[]).find(q=>q.id===item.quoteId):null;
- const material=round(quote?quote.materialAmount:base.material),labor=round(quote?0:base.hours*data.rate),other=round(quote?quote.otherAmount:0);
+ const rate=item.laborRateOverride??data.rate;
+ const base=totals(item,rate);const quote=item.quoteId?(data.quotes||[]).find(q=>q.id===item.quoteId):null;
+ const material=round(quote?quote.materialAmount:base.material),labor=round(quote?0:base.hours*rate),other=round(quote?quote.otherAmount:0);
  const materialRate=Number(item.materialMarkupOverride??defaults(data).material);
  const cost=round(material+labor+other),materialMarkup=round(material*materialRate/100);
  const price=round(cost+materialMarkup);

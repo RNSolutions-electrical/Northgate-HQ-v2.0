@@ -5,7 +5,7 @@ function syncEntry(data,pkg){
  let entry=data.entries.find(e=>e.packageId===pkg.id);
  if(!entry){entry={id:id(),number:Math.max(0,...data.entries.map(e=>e.number))+1,packageId:pkg.id,location:'Project-wide',drawing:'',items:[]};data.entries.push(entry);}
  entry.name=pkg.name;entry.section=pkg.section;entry.status=pkg.awardedQuoteId?'Complete':'Not started';
- const quote=data.quotes.find(q=>q.id===pkg.awardedQuoteId&&q.packageId===pkg.id);
+ const quote=!pkg.archivedAt&&data.quotes.find(q=>q.id===pkg.awardedQuoteId&&q.packageId===pkg.id&&!q.archivedAt);
  entry.items=quote?[{id:entry.items[0]?.id||id(),number:1,quoteId:quote.id,name:quote.vendor+' / '+quote.name,kind:'Awarded quote',qty:1,status:'Complete',materialMarkupOverride:quote.materialMarkupOverride??null,lines:[],notes:''}]:[];
 }
 export function normalizePackages(input){
@@ -34,7 +34,7 @@ export function savePackage(data,fields){
 export function saveQuote(data,quote){
  writable(data);
  const pkg=data.packages.find(p=>p.id===quote.packageId);
- if(!pkg)throw new Error('Select a package.');
+ if(!pkg||pkg.archivedAt)throw new Error('Select an active package.');
  const existing=data.quotes.find(q=>q.id===quote.id);
  if(existing&&existing.packageId!==quote.packageId)throw new Error('Quotes cannot move between packages.');
  if(!quote.vendor?.trim())throw new Error('Vendor is required.');
@@ -44,11 +44,22 @@ export function saveQuote(data,quote){
 }
 export function awardQuote(data,packageId,quoteId){
  writable(data);const pkg=data.packages.find(p=>p.id===packageId);
- if(!pkg)throw new Error('Package not found.');
- if(quoteId&&!data.quotes.some(q=>q.id===quoteId&&q.packageId===packageId))throw new Error('Quote does not belong to this package.');
+ if(!pkg||pkg.archivedAt)throw new Error('Active package not found.');
+ if(quoteId&&!data.quotes.some(q=>q.id===quoteId&&q.packageId===packageId&&!q.archivedAt))throw new Error('Quote does not belong to this active package.');
  pkg.awardedQuoteId=quoteId||null;syncEntry(data,pkg);return data;
 }
 export function approveEstimate(data){
  writable(data);
  data.approvedAt=new Date().toISOString();return data;
+}
+export function archivePricingRecord(data,kind,recordId,reason){
+ writable(data);
+ if(!reason?.trim())throw new Error('Archive reason required.');
+ const record=(kind==='quote'?data.quotes:data.packages).find(r=>r.id===recordId);
+ if(!record||record.archivedAt)throw new Error('Active pricing record not found.');
+ const pkg=kind==='quote'?data.packages.find(p=>p.id===record.packageId):record;
+ if(kind==='package'||pkg.awardedQuoteId===record.id)pkg.awardedQuoteId=null;
+ record.archivedAt=new Date().toISOString();record.archiveReason=reason.trim();
+ syncEntry(data,pkg);
+ return data;
 }

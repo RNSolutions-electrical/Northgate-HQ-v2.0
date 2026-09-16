@@ -7,9 +7,11 @@ import {usePermissions} from '../../../hooks/usePermissions.js';
 import {createSupabaseClient} from '../../../services/supabaseClient.js';
 import WorkbenchEditor from './app.jsx';
 import {seed,sections,setCatalogue} from './model.mjs';
-import {loadCatalogue,loadAssemblyLibrary} from './catalogueService.js';
+import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial} from './catalogueService.js';
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
-import css from './style.css?inline';
+import baseCSS from './style.css?inline';
+import workspaceCSS from './workspace.css?inline';
+const css=baseCSS+'\n'+workspaceCSS;
 import {handoffDestinationState} from './handoff.mjs';
 
 function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onCreateRevision,version,onOpenOriginal,...handoffProps}){
@@ -29,6 +31,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const dirty=useRef(false),active=useRef(null),saving=useRef(false);
  const library=useRef([]);
  const [handoffs,setHandoffs]=useState({});
+ const [associatedJob,setAssociatedJob]=useState(null);
  const [checklistConfig,setChecklistConfig]=useState(null);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
  const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
@@ -88,6 +91,29 @@ export default function WorkbenchRoute({libraryOnly=false}){
    return data;
   }finally{saving.current=false;}
  }
+ async function saveChecklistDefinition(values){
+  const db=await client(),response=await db.rpc('manage_estimate_checklist',{p_key:values.key,p_label:values.label||null,p_description:values.description||'',p_retire:!!values.retire,p_reason:values.reason||null});
+  if(response.error)throw response.error;
+  await reloadChecklist();
+ }
+ useEffect(()=>{
+  let valid=true;setAssociatedJob(null);
+  const jobId=selected&&handoffs[selected.estimate_id]?.job_id;
+  if(jobId)client().then(db=>db.from('jobs').select('id,name,job_number,address_line1,address_line2,city,state,postal_code').eq('id',jobId).single()).then(r=>{
+   if(valid&&r.data)setAssociatedJob({...r.data,number:r.data.job_number,address:[r.data.address_line1,r.data.address_line2,r.data.city,r.data.state,r.data.postal_code].filter(Boolean).join(', ')});
+  }).catch(()=>{});
+  return()=>{valid=false;};
+ },[selected?.estimate_id,handoffs,client]);
+ async function catalogueSave(line,material,values){
+  const db=await client();
+  const response=await db.rpc('save_estimating_catalogue_material',{
+   p_item_id:material?.id||line.catalogueCandidateId||null,
+   p_division:division,p_values:values,p_expected_updated_at:material?.updated_at||null});
+  if(response.error)throw response.error;
+  const saved=catalogueMaterial(response.data);
+  try{setCatalogue(await loadCatalogue(db));}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
+  return saved;
+ }
  async function archiveAssembly(item,reason){
   const db=await client();const {error}=await db.rpc('archive_assembly_library',{p_assembly_id:item.libraryId,p_expected_updated_at:item.updatedAt,p_reason:reason});
   if(error)throw error;library.current=library.current.filter(a=>a.id!==item.id);
@@ -144,11 +170,11 @@ export default function WorkbenchRoute({libraryOnly=false}){
  }
  if(permissions.isLoading||loading)return <p>Loading estimator and material catalogue...</p>;
  if(!permissions.canEstimate&&!permissions.canApproveEstimates)return <p>Estimate access is required.</p>;
- if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...seed('Assembly library'),library:structuredClone(library.current)}} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} libraryOnly onArchiveAssembly={archiveAssembly}/></>;
+ if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...seed('Assembly library'),library:structuredClone(library.current)}} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
  if(selected){
   const approvedSnapshot=selected.snapshot||null;
   const document={...selected.document,approvedAt:approvedSnapshot?.approved_at||null,library:structuredClone(library.current)};
-  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onArchiveAssembly={archiveAssembly} onCreateRevision={createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={client} onHandoff={submitHandoff} onOpenHandoff={openHandoff} existingHandoff={handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist}/></>;
+  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly} onCreateRevision={createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={client} onHandoff={submitHandoff} onOpenHandoff={openHandoff} existingHandoff={handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={saveChecklistDefinition} associatedJob={associatedJob} onOpenJob={()=>openHandoff(handoffs[selected.estimate_id])}/></>;
  }
  return <section className="workspace-stack">
   <WorkspaceHeader eyebrow="Workspace" title={division+' Estimates'} description="Build pricing, prepare a client proposal, and retain approved versions." descriptionIsDiagnostic={false} actions={<><button className="secondary-button" type="button" onClick={()=>navigate('/estimates/assemblies')}>Assembly library</button><button className="secondary-button" type="button" onClick={reload}><RefreshCw size={16}/> Refresh catalogue</button></>}/>

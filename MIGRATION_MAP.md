@@ -155,3 +155,11 @@ production migration names and definitions before any CLI history repair.
 Preflight compared targeted live RPC definitions with reviewed fixtures; no
 conflicting changes found. No CASCADE, data deletion, stock rewrite or backfill.
 Live tests ran in transactions and rolled back all synthetic rows and audits.
+
+## September 16, 2026 — SAPPHIRE-ESTIMATING-WORKSPACE-20260916-001
+
+`20260916173238_estimating_workspace_integration.sql` applied through the Supabase
+migration API as version `20260916180034`, name `estimating_workspace_integration`.
+Do not replay the local timestamp. Live function preflight matched the implementation
+baseline; additive columns and scoped RPCs verified. Both estimating-workspace and
+existing checklist/handoff rollback smoke suites passed without retaining fixtures.

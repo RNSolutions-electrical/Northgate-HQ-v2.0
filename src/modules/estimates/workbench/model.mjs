@@ -26,7 +26,7 @@ export function totals(item,rate=75){
 export function entryTotal(entry,rate){return entry.items.reduce((sum,item)=>sum+totals(item,rate).total,0);}
 export function freshItem(template){return {...clone(template),id:id(),status:'Not started',notes:'',lines:template.lines.map(l=>({...clone(l),id:id()}))};}
 export function seed(name='New estimate',customer='',template='Commercial'){
- return {name,customer,template,rate:75,materialMarkup:30,feePercent:30,quotes:[],packages:[],priceAlerts:false,sections:clone(sections[template]||[]),library:[],templates:[],entries:[]};
+ return {name,customer,template,proposal:{introduction:'Thank you for the opportunity to provide this proposal. Northgate proposes to furnish the labor and materials described below.'},rate:75,materialMarkup:30,feePercent:30,quotes:[],packages:[],priceAlerts:false,sections:clone(sections[template]||[]),library:[],templates:[],entries:[]};
 }
 export function refreshed(item){
  const next=freshItem(item);

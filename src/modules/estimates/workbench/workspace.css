@@ -1,0 +1,28 @@
+/* Approved estimating flow; scoped inside the existing Workbench iframe. */
+.resource-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;border:0;padding:0;min-width:0}
+.resource-fields .wide{grid-column:1/-1}.resource-fields select{width:100%}
+.component-group{margin:18px 0;border:1px solid var(--border);border-radius:6px;background:#fff;padding:16px}
+.component-group>summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;min-height:40px}
+.component-group>summary span{font-size:12px;color:var(--muted)}.component-body{padding-top:18px}
+.component-resource{padding:16px;margin:16px 0;border:1px solid var(--border);border-radius:5px;background:#fff}
+.incomplete,.resource-missing{border-left:3px solid #bd7715!important}.resource-missing{background:#fff9ec}
+input[aria-invalid=true]{border-color:#bd7715;background:#fff9ec}
+.overview-fields{padding:0;border:0;min-width:0}.overview-fields .resource-fields{grid-template-columns:1fr 1fr}
+.readiness-link{display:block;width:100%;text-align:left;justify-content:flex-start}
+.checklist-banner{display:flex;justify-content:space-between;width:100%;text-align:left;margin:16px 0;padding:14px}
+.checklist-banner.needs-review{border-left:3px solid #bd7715}.checklist-banner.ready{border-left:3px solid #247653}
+.cost-summary>.primary{margin-top:18px}.workspace-sections{margin:24px 0;border:1px solid var(--border);padding:18px;background:white}
+.workspace-sections>summary{font-weight:bold;cursor:pointer}.sections-list .has-value{color:var(--red);background:#fff3f3;padding-inline:10px}
+.takeoff-toolbar{display:flex;align-items:flex-end;flex-wrap:wrap;gap:12px;margin:20px 0}.takeoff-toolbar>label{flex:1 1 190px}.takeoff-toolbar select{width:100%}.takeoff-toolbar>button{min-height:40px;margin:0}
+.workspace-table{border-collapse:collapse;width:100%;background:white}.workspace-table th,.workspace-table td{padding:12px;text-align:left;border-bottom:1px solid var(--border);overflow-wrap:anywhere}.workspace-table th{font-size:11px;background:#eef1f3}.table-scroll{overflow-x:auto}
+.inline-check{display:flex;flex-direction:row;align-items:center;gap:8px}
+.pricing-tree{min-width:0;max-width:100%;background:white;padding:10px;border:1px solid var(--border);border-radius:5px}.pricing-tree summary{cursor:pointer}.pricing-tree>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.library-view-toggle button[aria-pressed=true]{background:#f9e8e9;border-color:var(--red);color:var(--red)}
+.library-list>div{flex-wrap:wrap}.library-list .library-detail{flex:1 1 100%;width:100%;min-width:0}
+.library-detail{padding:16px}.library-detail h3{margin:12px 0}.library-resource{display:flex;gap:14px;padding:10px;border-bottom:1px solid var(--border);flex-wrap:wrap}.library-resource strong{flex:1}.library-resource span{font-size:12px}
+dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:94vh}
+.report-toolbar{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:16px}.report-toolbar label{flex:1}.report-description{margin:14px 0}.report-preview iframe{width:100%;height:60vh;min-height:300px;border:1px solid var(--border);background:white}.report-preview>.muted{margin-bottom:14px}
+.finalization-checklist .checklist-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,300px);gap:12px 24px}.finalization-checklist .checklist-item>label{grid-column:2;grid-row:1}.finalization-checklist .checklist-numbers,.finalization-checklist .checklist-warning{grid-column:1/-1}
+.catalogue-incomplete{border-left:3px solid #bd7715!important;background:#fff9ec!important}
+@media(max-width:800px){.resource-fields{grid-template-columns:1fr 1fr}.component-group>summary{flex-wrap:wrap}.workspace-table{min-width:650px}.overview-grid{gap:24px}.finalization-checklist .checklist-item{display:block}.finalization-checklist .checklist-item>label{margin-top:12px}}
+@media(max-width:500px){.resource-fields,.overview-fields .resource-fields{grid-template-columns:1fr}.component-resource,.component-group{padding:12px}.takeoff-toolbar>label{flex-basis:100%}.takeoff-toolbar>button{flex:1}.report-toolbar{align-items:stretch}.report-toolbar>label{flex-basis:100%}.report-toolbar .actions{margin:0}.checklist-banner{flex-wrap:wrap}.library-resource strong{flex-basis:100%}.component-resource .section-heading{align-items:start}}

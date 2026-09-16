@@ -7,6 +7,7 @@ export function assemblyLibrarySave(item, {editingLibrary=false, name=item.name}
   updatedAt:editingLibrary?item.updatedAt||null:null,
   name:name.trim(),notes:editingLibrary?item.notes||'':'',
   categories:normalizeCategories(item.categories||[]),
+  components:item.components||null,
   lines:item.lines.map(line=>{
    if (!line.name.trim()) throw new Error('Enter a description for each component.');
    return {...line,libraryLineId:editingLibrary?line.libraryLineId||null:null,
