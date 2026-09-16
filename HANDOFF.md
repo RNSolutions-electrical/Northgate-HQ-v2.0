@@ -21618,3 +21618,18 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
 - Prior HANDOFF prefix SHA-256: 4d59eb48880d920efc0d40f8078a0e1471ff5009437dab01e171326773a18cc9.
 
 ---
+
+
+## Entry 269 — SEQUOIA verified production release
+
+2026-09-16 · SEQUOIA-HQ-WORKFLOWS-20260916-001 · LIVE.
+
+- Feature commit 7a934cad0d04f075b8ee88c050563bd5c9c5c9a2 pushed to main; Git integration published production deployment 6aaa72ae1676460008695216 from the exact commit. Existing site and integrations reused.
+- HTML/all 15 assets match the final tested build by SHA-256/MIME; production configuration, checklist/AFC/Documents feature markers, deep links and anonymous RPC denial passed. northgate-read returns disabled 503; existing Silas returns expected unauthenticated 401. Netlify secret scan: 666 files, no matches.
+- Four migrations and afc-release v1 were applied/deployed before frontend publication; real-schema rollback suites passed with no synthetic records, objects, audits or temporary grants retained. Durable sync record lists actual migration versions.
+- AFC reviewer authority remains default-denied; historical document classifications unchanged. External MCP/OAuth remains unconfigured/unrouted and internal read endpoint disabled. Signed-in browser, real authorized Edge upload, physical printer and independent-session stress remain follow-up checks.
+- 113 Node tests and 40 isolated database checks pass; final local build .temp/inspection-production-check-1789555292954. Existing build/dependency/advisor findings are documented. Final release verifier corrected to check generic checklist code because consideration keys load from the database.
+- SYNC_STATUS.md, architecture and implementation reviews now record release evidence and other-machine instructions. This documentation/test-verifier-only commit uses [skip ci]; no deployed code changes. Historical local dist directories preserved.
+- Prior HANDOFF prefix SHA-256: 68e86434bb88991c3fd2dff28766c6c35156bd674a40ad3d171aa83d244ffad8.
+
+---

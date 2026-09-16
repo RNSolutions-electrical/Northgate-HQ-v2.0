@@ -17,7 +17,8 @@ const mainPath=local.toString().match(/src="([^"]+\.js)"/)[1];const main=await r
 assert.ok(main.includes('https://keogysnoukbendfkfjcn.supabase.co'));assert.match(main,/pk_live_/);assert.ok(!main.includes('fixture.invalid'));
 for(const value of ['can_review_afc_studies','afc-release','afc_save','Available Fault Current','set_document_section','Construction Documents','Electrical Documents','General Documents'])assert.ok(main.includes(value),value);
 const workbench=await readFile(path.join(dir,'assets',assets.find(n=>n.startsWith('WorkbenchRoute-')&&n.endsWith('.js'))),'utf8');
-for(const value of ['Finalization checklist','Submit for review','Review & approve','estimating_labor'])assert.ok(workbench.includes(value),value);
+// Consideration keys/labels are loaded from the database, not hard-coded in the bundle.
+for(const value of ['Finalization checklist','Submit for review','Review & approve','finalizationChecklist'])assert.ok(workbench.includes(value),value);
 for(const route of ['jobs','estimates','documents','afc','electrical-inspections','inventory?view=storage']){const response=await fetch(base+'/northgate/'+route);assert.equal(response.status,200,route);assert.equal(hash(Buffer.from(await response.arrayBuffer())),hash(local),route);}
 const key=main.match(/sb_publishable_[A-Za-z0-9_-]+/)?.[0]||(main.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g)||[]).find(v=>{try{const p=JSON.parse(Buffer.from(v.split('.')[1],'base64url'));return p.role==='anon'&&p.ref==='keogysnoukbendfkfjcn';}catch{return false;}});assert.ok(key);
 for(const name of ['afc_read','northgate_read_context']){const denial=await fetch('https://keogysnoukbendfkfjcn.supabase.co/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:'{}'});assert.ok([401,403].includes(denial.status),name+' anonymous access');}

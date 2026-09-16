@@ -1,5 +1,16 @@
 # Phases 2–4: AFC, Documents and Northgate read tools
 
+## Verified production release — 2026-09-16
+
+**LIVE — SEQUOIA-HQ-WORKFLOWS-20260916-001.** Feature commit [7a934ca](https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/commit/7a934cad0d04f075b8ee88c050563bd5c9c5c9a2) is on main. Netlify production deploy [6aaa72ae1676460008695216](https://app.netlify.com/projects/northgate-hq-v2/deploys/6aaa72ae1676460008695216) published that exact commit. The checklist, AFC workspace, document sections and disabled internal read-tool foundation are deployed at [Northgate HQ](https://rnsolutions.net/northgate/).
+
+All four migrations are applied. AFC Edge Function afc-release v1 is ACTIVE. Production HTML and all 15 assets match the tested local build by SHA-256 and MIME; feature markers, deep links, anonymous RPC denial, disabled northgate-read response and retained Silas authentication response pass. Netlify scanned 666 files and found no secret matches. Final local build: .temp/inspection-production-check-1789555292954, index-VgyQ6dT-.js / WorkbenchRoute-CuTYhN8m.js.
+
+No AFC reviewer grants or historical document reclassification were made. The external MCP/OAuth connection remains unconfigured and unrouted; the internal read endpoint is disabled. Signed-in browser acceptance, real authorized Edge uploads, physical label output and independent-session stress remain follow-up checks. Existing xlsx/bundle-size and dependency-security findings are unchanged. The final documentation/test-verifier commit uses [skip ci] and changes no deployed application bytes.
+
+Other machines: preserve local work, pull main with a fast-forward and verify this marker. Leave production credentials/integrations intact and do not replay the applied migrations under the former local timestamps. SYNC_STATUS.md and HANDOFF Entries 268–269 are the release handoff.
+
+
 ## Release authorization and database verification — 2026-09-16
 
 Ryan explicitly requested commit and deployment. All four migrations are applied; filenames were aligned to Supabase's recorded versions: checklist 20260916103538, AFC 20260916103702, sections 20260916103706, read audit 20260916103711. An initial AFC attempt rolled back because it rebuilt the override allowlist from role defaults and omitted the separately granted Developer correction capability. The corrected migration extends the existing constraint, preserves that grant, and passes a new regression (40 isolated database checks total).

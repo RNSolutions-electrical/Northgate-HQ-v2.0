@@ -2,7 +2,25 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current durable sync marker — Estimate workflow handoff
+## Current durable sync marker — Checklist, AFC and Documents
+
+- Marker: `SEQUOIA-HQ-WORKFLOWS-20260916-001`. Ryan explicitly authorized commit and deployment.
+- Status: LIVE and verified September 16, 2026.
+- Repository: `RNSolutions-electrical/Northgate-HQ-v2.0`; branch: `main`.
+- Feature commit: `7a934cad0d04f075b8ee88c050563bd5c9c5c9a2`, pushed to origin/main.
+- Production deployment: `6aaa72ae1676460008695216`, ready/published from that exact commit.
+- Live URL: https://rnsolutions.net/northgate/estimates ; AFC: https://rnsolutions.net/northgate/afc ; Documents: https://rnsolutions.net/northgate/documents .
+- Applied migrations: `20260916103538_estimate_finalization_checklist`, `20260916103702_afc_shared_studies`, `20260916103706_document_sections`, `20260916103711_northgate_read_tools_audit`. Local filenames match the recorded versions; do not replay former timestamps 20260915233355 / 20260915235701 / 20260916000558 / 20260916000942.
+- Supabase AFC Edge Function: `afc-release` version 1, ACTIVE; custom Clerk/PostgREST authorization, server recalculation and service-only immutable finalization. Missing/forged-token denial and browser preflight verified.
+- Checklist requires answers at both existing finalization actions; zero/excluded/N/A permitted and existing pricing retained. AFC shared studies/reports/labels and Documents sections preserve source/history/permissions.
+- 113 unit tests, 40 isolated AFC/Document/read-audit checks, checklist SQL and real-schema rollback-only smoke suites passed. No synthetic records or temporary reviewer grants retained. Existing Developer correction permission preserved after fixing the migration's additive allowlist.
+- Production HTML and all 15 assets match the tested build by SHA-256/MIME. Deep links and anonymous RPC denial passed. Netlify secret scan: 666 files, no matches. Existing silas-chat retained; northgate-read deployed but disabled.
+- No permanent AFC reviewer grants or historical document reclassification. External MCP/OAuth connection is unconfigured and has no public route. Signed-in browser/upload/device acceptance and independent-session concurrency tests are not claimed.
+- Read docs/reviews/ESTIMATE_FINALIZATION_CHECKLIST.md, docs/reviews/PHASES_2_4_AFC_DOCUMENTS_READ_TOOLS.md and HANDOFF Entries 268–269. Existing advisor/dependency findings remain documented; no frontend package versions changed.
+- Other machines: preserve local changes, pull main with a fast-forward and verify this marker. Keep private files, credentials/integrations and historical untracked dist-* directories. No migration replay or local environment change is required.
+- Final release-record commit uses [skip ci]; deployed application bytes are unchanged.
+
+## Previous release — Estimate workflow handoff
 
 - Marker: `CEDAR-ESTIMATE-HANDOFF-20260915-001`. Ryan approved migration, live verification, commit, push and deployment.
 - Status: LIVE and verified September 15, 2026.
