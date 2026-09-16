@@ -6,6 +6,13 @@ after document tags 20260916132523. Live rollback-only storage/move/quantity,
 compatibility, routine-audit, replay, document and permission checks pass.
 Publication is tracked in SYNC_STATUS.md; earlier local-only notes are historical.
 
+Production: source 829b94a0c85c8285a99b712ca00fd3c5892baf3a, Netlify
+6aaa9b15689e8b0008b7c9f5, published September 16 at 13:35:44 UTC. Live HTML
+and all 15 assets match the tested build. Existing security-advisor findings
+remain outside this release; only the intended tags RPC adds an authenticated
+security-definer entry (storage creation's signature is replaced, not duplicated).
+Real-account acceptance is still required; no signed-in user workflow claimed.
+
 ## Storage workflow
 
 - Add Storage Location now exposes type, parent/department, code, name, sort

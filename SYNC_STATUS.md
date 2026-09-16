@@ -8,8 +8,16 @@ This file is the repository-visible source of truth for Codex handoffs between m
   parent physical-location inheritance and reviewed routine automatic audits.
 - All three migrations are applied and rollback-only live tests pass. See
   MIGRATION_MAP.md for local-to-production version mapping and HANDOFF Entry 273.
-- Frontend commit/publication verification is in progress; final deployment
-  evidence will be recorded here after Netlify reports ready.
+- Source commit: `829b94a0c85c8285a99b712ca00fd3c5892baf3a`, pushed to origin/main.
+- Production deploy: `6aaa9b15689e8b0008b7c9f5`, ready/published at
+  2026-09-16 13:35:44 UTC from that commit via the existing Git build.
+- Live: https://rnsolutions.net/northgate/. HTML and all 15 assets match the
+  tested build by SHA-256 and MIME. Production config/deep links/anonymous RPC
+  denial pass; northgate-read remains disabled and Silas remains deployed.
+- Pull main on other machines and verify this marker before continuing.
+- Final documentation/test-only follow-up is marked [skip ci]; the deployed source
+  commit above remains authoritative. Startup redirects to Clerk without uncaught
+  errors; hosted sign-in rendering/signed-in acceptance are not claimed (Entry 274).
 - The local/unapplied checkpoints below are historical, superseded by this release.
 - Backups remain backlog. Financial, technical, identity/access and permanent-delete
   protections remain; no permission bypass or inventory quantity rewrite.

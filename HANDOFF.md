@@ -21779,3 +21779,35 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   aad412791aa5b4d9a6870b793b79e40b1514b309a4544123246a371b008e62b1.
 
 ---
+
+## Entry 274 — 2026-09-16 — JUNIPER pushed and production verified
+
+- Source commit 829b94a0c85c8285a99b712ca00fd3c5892baf3a pushed to main.
+  Existing Git integration published Netlify deploy 6aaa9b15689e8b0008b7c9f5
+  at 13:35:44 UTC; ready, production, matching commit, no deployment error.
+  Both northgate-read and silas-chat functions retained.
+- https://rnsolutions.net/northgate/ serves byte-identical tested HTML and all
+  15 assets (SHA-256 and correct MIME), production Clerk/Supabase configuration,
+  new document/storage features and working deep-link responses. Anonymous RPC
+  denial passes; internal read endpoint remains disabled and Silas returns its
+  expected unauthenticated denial. No account/configuration changes for release.
+- Updated the release verification script's obsolete set_document_section
+  bundle assertion: JUNIPER uses set_document_tags; legacy release checks remain.
+  This is test-only and does not alter the already verified application build.
+- Desktop/mobile tag browser regression passed again. Production browser startup
+  redirects to configured Clerk sign-in without uncaught JavaScript errors.
+  Waiting for hosted sign-in rendering/network-idle timed out; the final startup
+  assertion explicitly verifies the redirect only, not the external hosted page
+  or authenticated user workflows. Ryan still needs signed-in acceptance testing.
+- All three database migrations are live, with no retained synthetic test data.
+  New advisor entries are the intended tags RPC and replaced storage signature;
+  net authenticated callable count +1. All unrelated prior findings remain.
+- Marker: JUNIPER-INVENTORY-AUDIT-20260916-001. Final documentation/test-only
+  follow-up uses [skip ci] to retain the verified production deployment. Other
+  machines must pull main and check SYNC_STATUS.md before editing. No claim that
+  their local checkouts have automatically updated. Historical build folders and
+  all preceding handoff bytes preserved. Backups remain backlog, not activated.
+- Prior HANDOFF prefix: 1,067,404 bytes; SHA-256
+  d7726637d7ee519d4f27006a497aae48b72f5a6d9e354743b4b9836bee0dc314.
+
+---

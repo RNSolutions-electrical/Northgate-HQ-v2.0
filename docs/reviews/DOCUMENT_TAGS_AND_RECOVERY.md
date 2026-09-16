@@ -5,6 +5,11 @@ Release: JUNIPER-INVENTORY-AUDIT-20260916-001. Migration applied as
 metadata/archive/restore and anonymous-denial checks pass. Publication is tracked
 in SYNC_STATUS.md. Earlier pending-status notes below describe the local checkpoint.
 
+Production: source 829b94a0c85c8285a99b712ca00fd3c5892baf3a, Netlify
+6aaa9b15689e8b0008b7c9f5, published September 16 at 13:35:44 UTC. Desktop/mobile
+tag regressions pass again during release. Live HTML/all 15 assets match the
+tested build; real-account acceptance remains Ryan's next step.
+
 ## Workflow
 
 - Documents retains its existing document type and original stored file. Select a

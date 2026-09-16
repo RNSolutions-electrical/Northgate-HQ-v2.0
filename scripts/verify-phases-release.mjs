@@ -15,7 +15,8 @@ for(const file of assets){const result=await fetch(base+'/northgate/assets/'+fil
 }
 const mainPath=local.toString().match(/src="([^"]+\.js)"/)[1];const main=await readFile(path.join(dir,mainPath.replace('/northgate/','')),'utf8');
 assert.ok(main.includes('https://keogysnoukbendfkfjcn.supabase.co'));assert.match(main,/pk_live_/);assert.ok(!main.includes('fixture.invalid'));
-for(const value of ['can_review_afc_studies','afc-release','afc_save','Available Fault Current','set_document_section','Construction Documents','Electrical Documents','General Documents'])assert.ok(main.includes(value),value);
+for(const value of ['can_review_afc_studies','afc-release','afc_save','Available Fault Current','Construction Documents','Electrical Documents','General Documents'])assert.ok(main.includes(value),value);
+if(!marker.startsWith('JUNIPER-'))assert.ok(main.includes('set_document_section'));
 if(marker.startsWith('JUNIPER-'))for(const value of ['set_document_tags','Use parent physical location','materials_summary'])assert.ok(main.includes(value),value);
 const workbench=await readFile(path.join(dir,'assets',assets.find(n=>n.startsWith('WorkbenchRoute-')&&n.endsWith('.js'))),'utf8');
 // Consideration keys/labels are loaded from the database, not hard-coded in the bundle.
