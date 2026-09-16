@@ -198,7 +198,7 @@ export function UserPermissionTemplateEditor({ user, service, options, onSaved }
       </label>
       <span className="permission-template-scope">{template?.name || 'Role / department default'}</span>
     </div>
-    {isDeveloper ? <p>Developer access is controlled by the user profile. Inspection reviewer permission can be assigned separately.</p> : null}
+    {isDeveloper ? <p>Developer access is controlled by the user profile. Inspection and AFC reviewer permissions can be assigned separately.</p> : null}
     <button className="secondary-button" type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
       {open ? 'Close Permissions' : 'Open Permissions'}
     </button>
@@ -213,7 +213,7 @@ export function UserPermissionTemplateEditor({ user, service, options, onSaved }
           <td data-label="Permission"><strong>{option.label}</strong><small className="permission-template-area">{option.group}</small></td>
           {['default', 'grant', 'deny'].map((value) => <td className="data-table__cell--center" data-label={value === 'default' ? 'Template' : value} key={value}>
             <input type="radio" name={`${user.user_id}:${option.flag}`} aria-label={`${option.label} ${value}`} checked={state === value}
-              disabled={saving || (isDeveloper && option.flag !== 'can_review_electrical_inspections') || service.isLoading || !!service.error} onChange={() => {
+              disabled={saving || (isDeveloper && !['can_review_electrical_inspections','can_review_afc_studies'].includes(option.flag)) || service.isLoading || !!service.error} onChange={() => {
                 const overrides = { ...draft.overrides };
                 if (value === 'default') delete overrides[option.flag]; else overrides[option.flag] = value === 'grant';
                 update({ overrides });

@@ -13,7 +13,7 @@ export function DocumentEditControl({ document: row, ownerType, ownerId, onChang
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (row.change_order_id || row.document_type === 'service_inspections' || row.owner_type !== ownerType) return null;
+  if (row.change_order_id || ['service_inspections','afc_calculations','afc_labels'].includes(row.document_type) || row.owner_type !== ownerType) return null;
 
   async function save(reason) {
     setBusy(true); setError('');

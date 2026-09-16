@@ -41,6 +41,7 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  {key:'afc',path:'/afc',label:'Available Fault Current',icon:Calculator,requiresAddon:'available_fault_current',status:'live',description:'Shared fault-current studies, reviewed reports and equipment labels.'},
   {key:'electrical-inspections',path:'/electrical-inspections',label:'Electrical Systems Health Inspection',icon:PanelTop,requiresAddon:'electrical_inspection',status:'live',description:'Equipment observations, findings and issued inspection reports.'},
   {key:'add-on-tools',path:'/add-on-tools',label:'Add-On Tools',icon:Puzzle,status:'live'},
   {
@@ -187,7 +188,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'reports', moduleKey: 'reports' },
   { key: 'accounting', moduleKey: 'accounting' },
   { key: 'silas', moduleKey: 'silas' },
-  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections'] },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 

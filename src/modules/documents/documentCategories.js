@@ -1,4 +1,6 @@
 export const JOB_DOCUMENT_CATEGORIES = Object.freeze([
+  {key:'afc_calculations',label:'AFC Studies',description:'Reviewed available fault current studies.',optional:true},
+  {key:'afc_labels',label:'AFC Labels',description:'Immutable fault-current labels.',optional:true},
   {key:'service_inspections',label:'Service Inspections',description:'Issued electrical health inspection reports.',optional:true},
   { key: 'contracts', label: 'Contracts', description: 'Executed agreements, contract exhibits, and award documents.' },
   { key: 'plans', label: 'Plans', description: 'Plan sets, drawings, sketches, and drawing revisions.' },

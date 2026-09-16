@@ -1,0 +1,37 @@
+import {createRequire} from 'node:module';
+import {createServer} from 'vite';
+import path from 'node:path';
+import {tmpdir} from 'node:os';
+import {mkdir} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const mocks=path.resolve('tests/fixtures/document-sections-mocks.js');
+const server=await createServer({cacheDir:path.join(tmpdir(),'document-sections-check'),plugins:[{name:'document-fixture',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||id.endsWith('/services/supabaseClient.js'))return mocks;}}],server:{host:'127.0.0.1',port:5200,strictPort:true}});
+await server.listen();const browser=await chromium.launch({headless:true,channel:'msedge'});
+try{
+ await mkdir('.temp/document-sections',{recursive:true});
+ for(const width of [1440,390]){
+  const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:5200/northgate/tests/fixtures/document-sections.html');
+  await page.getByRole('button',{name:'Electrical Documents (1)',exact:true}).click();
+  assert.equal(await page.getByRole('row').filter({hasText:'AFC-report.pdf'}).count(),1);
+  assert.equal(await page.getByRole('row').filter({hasText:'plans.pdf'}).count(),0);
+  await page.getByRole('button',{name:'All documents (3)',exact:true}).click();
+  await page.getByRole('searchbox',{name:'Search documents'}).fill('SC-001');
+  assert.equal(await page.getByRole('row').filter({hasText:'AFC-report.pdf'}).count(),1);
+  await page.getByRole('searchbox',{name:'Search documents'}).fill('J-001');
+  assert.equal(await page.getByRole('row').filter({hasText:'change-order.pdf'}).count(),1);
+  await page.getByRole('button',{name:'Clear',exact:true}).click();
+  await page.getByRole('row').filter({hasText:'plans.pdf'}).click();
+  await page.getByLabel('Section for plans.pdf',{exact:true}).selectOption('construction');
+  await page.getByRole('button',{name:'Construction Documents (1)',exact:true}).waitFor();
+  await page.getByLabel('Document date from',{exact:true}).fill('2026-09-14');
+  assert.equal(await page.getByRole('row').filter({hasText:'plans.pdf'}).count(),0);
+  await page.getByRole('button',{name:'Clear',exact:true}).click();
+  assert.equal(await page.locator('body').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true);
+  const safe=await page.evaluate(()=>{window.previewAttack=false;const el=window.safeHtmlPreview('<p onclick="window.previewAttack=true">Safe text</p><script>window.previewAttack=true</script><img src="https://invalid.test/beacon" onerror="window.previewAttack=true"><iframe srcdoc="<script>alert(1)</script>"></iframe><a href="javascript:alert(1)">Readable link</a><table><tr><td colspan="2">Cell</td></tr></table>');document.body.append(el);return {text:el.textContent,unsafe:el.querySelectorAll('script,img,iframe,[onclick],[onerror],[href]').length,executed:window.previewAttack};});
+  assert.equal(safe.unsafe,0);assert.equal(safe.executed,false);assert.match(safe.text,/Safe text/);
+  await page.screenshot({path:'.temp/document-sections/index-'+width+'.png',fullPage:true});assert.deepEqual(errors,[]);await page.close();
+ }
+ console.log('PASS: desktop/mobile document sections, count/filter/search, service-call and change-order references, classification, dates, inert HTML preview and no overflow/errors. Mocked transport.');
+}finally{await browser.close();await server.close();}

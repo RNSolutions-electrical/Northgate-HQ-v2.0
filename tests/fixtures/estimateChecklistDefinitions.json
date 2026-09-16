@@ -1,0 +1,338 @@
+[
+  {
+    "key": "available_fault_current",
+    "label": "Available Fault Current Evaluation",
+    "description": "Choose the status that fits this project. AFC work is not universally required.",
+    "sort_order": 10,
+    "enabled": true,
+    "version": 1,
+    "options": [
+      {
+        "value": "completed",
+        "label": "Required — calculation completed"
+      },
+      {
+        "value": "included",
+        "label": "Required — included in estimate for completion"
+      },
+      {
+        "value": "verified",
+        "label": "Existing AFC documentation verified"
+      },
+      {
+        "value": "by_others",
+        "label": "AFC calculation/design by others"
+      },
+      {
+        "value": "not_applicable",
+        "label": "Not applicable"
+      }
+    ],
+    "parent_key": null,
+    "parent_statuses": [],
+    "numeric_fields": []
+  },
+  {
+    "key": "afc_first_disconnect",
+    "label": "AFC at first point of disconnect evaluated",
+    "description": "",
+    "sort_order": 11,
+    "enabled": true,
+    "version": 1,
+    "options": [
+      {
+        "value": "included",
+        "label": "Included"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included / Adjusted"
+      },
+      {
+        "value": "verified",
+        "label": "Existing / Verified"
+      },
+      {
+        "value": "by_others",
+        "label": "By Others"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and Excluded"
+      },
+      {
+        "value": "not_applicable",
+        "label": "Not Applicable"
+      }
+    ],
+    "parent_key": "available_fault_current",
+    "parent_statuses": [
+      "completed",
+      "included",
+      "verified",
+      "by_others"
+    ],
+    "numeric_fields": []
+  },
+  {
+    "key": "afc_existing_ratings",
+    "label": "Existing equipment ratings checked against calculated AFC",
+    "description": "",
+    "sort_order": 12,
+    "enabled": true,
+    "version": 1,
+    "options": [
+      {
+        "value": "included",
+        "label": "Included"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included / Adjusted"
+      },
+      {
+        "value": "verified",
+        "label": "Existing / Verified"
+      },
+      {
+        "value": "by_others",
+        "label": "By Others"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and Excluded"
+      },
+      {
+        "value": "not_applicable",
+        "label": "Not Applicable"
+      }
+    ],
+    "parent_key": "available_fault_current",
+    "parent_statuses": [
+      "completed",
+      "included",
+      "verified",
+      "by_others"
+    ],
+    "numeric_fields": []
+  },
+  {
+    "key": "afc_proposed_ratings",
+    "label": "Proposed equipment interrupting/SCCR ratings verified",
+    "description": "",
+    "sort_order": 13,
+    "enabled": true,
+    "version": 1,
+    "options": [
+      {
+        "value": "included",
+        "label": "Included"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included / Adjusted"
+      },
+      {
+        "value": "verified",
+        "label": "Existing / Verified"
+      },
+      {
+        "value": "by_others",
+        "label": "By Others"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and Excluded"
+      },
+      {
+        "value": "not_applicable",
+        "label": "Not Applicable"
+      }
+    ],
+    "parent_key": "available_fault_current",
+    "parent_statuses": [
+      "completed",
+      "included",
+      "verified",
+      "by_others"
+    ],
+    "numeric_fields": []
+  },
+  {
+    "key": "afc_field_marking",
+    "label": "Required AFC field marking/labels included",
+    "description": "",
+    "sort_order": 14,
+    "enabled": true,
+    "version": 1,
+    "options": [
+      {
+        "value": "included",
+        "label": "Included"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included / Adjusted"
+      },
+      {
+        "value": "verified",
+        "label": "Existing / Verified"
+      },
+      {
+        "value": "by_others",
+        "label": "By Others"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and Excluded"
+      },
+      {
+        "value": "not_applicable",
+        "label": "Not Applicable"
+      }
+    ],
+    "parent_key": "available_fault_current",
+    "parent_statuses": [
+      "completed",
+      "included",
+      "verified",
+      "by_others"
+    ],
+    "numeric_fields": []
+  },
+  {
+    "key": "afc_downstream",
+    "label": "Downstream AFC calculations and labeling considered",
+    "description": "",
+    "sort_order": 15,
+    "enabled": true,
+    "version": 1,
+    "options": [
+      {
+        "value": "included",
+        "label": "Included"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included / Adjusted"
+      },
+      {
+        "value": "verified",
+        "label": "Existing / Verified"
+      },
+      {
+        "value": "by_others",
+        "label": "By Others"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and Excluded"
+      },
+      {
+        "value": "not_applicable",
+        "label": "Not Applicable"
+      }
+    ],
+    "parent_key": "available_fault_current",
+    "parent_statuses": [
+      "completed",
+      "included",
+      "verified",
+      "by_others"
+    ],
+    "numeric_fields": []
+  },
+  {
+    "key": "estimating_labor",
+    "label": "Has estimating/preconstruction labor been accounted for?",
+    "description": "Record the hours considered. Include any chosen cost through the existing pricing work items.",
+    "sort_order": 20,
+    "enabled": true,
+    "version": 1,
+    "parent_key": null,
+    "parent_statuses": [],
+    "options": [
+      {
+        "value": "included",
+        "label": "Included"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included at adjusted amount"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and intentionally excluded"
+      }
+    ],
+    "numeric_fields": [
+      {
+        "key": "hours",
+        "label": "Estimating/preconstruction hours",
+        "unit": "hours",
+        "statuses": [
+          "included",
+          "adjusted"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "supervision_labor",
+    "label": "Has supervision/project-management labor been accounted for?",
+    "description": "Start with approximately 5% of projected field man-hours. Adjust for the project. This records consideration; pricing stays in the existing work items.",
+    "sort_order": 30,
+    "enabled": true,
+    "version": 1,
+    "parent_key": null,
+    "parent_statuses": [],
+    "options": [
+      {
+        "value": "suggested",
+        "label": "Included at suggested allowance"
+      },
+      {
+        "value": "adjusted",
+        "label": "Included at adjusted allowance"
+      },
+      {
+        "value": "excluded",
+        "label": "Considered and intentionally excluded"
+      }
+    ],
+    "numeric_fields": [
+      {
+        "key": "fieldHours",
+        "label": "Projected field man-hours",
+        "unit": "hours",
+        "statuses": [
+          "suggested",
+          "adjusted"
+        ],
+        "suggestion": "priced_labor_hours"
+      },
+      {
+        "key": "percent",
+        "label": "Supervision allowance percentage",
+        "unit": "%",
+        "statuses": [
+          "suggested",
+          "adjusted"
+        ],
+        "default": 5
+      },
+      {
+        "key": "hours",
+        "label": "Supervision/project-management hours",
+        "unit": "hours",
+        "statuses": [
+          "suggested",
+          "adjusted"
+        ],
+        "suggestion": "percentage_of_field_hours",
+        "suggested_status": "suggested",
+        "adjusted_status": "adjusted"
+      }
+    ]
+  }
+]

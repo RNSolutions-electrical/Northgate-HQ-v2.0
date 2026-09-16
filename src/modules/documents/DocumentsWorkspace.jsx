@@ -1,3 +1,6 @@
+import {DocumentSections,DocumentSectionControl} from './DocumentSections.jsx';
+import {DocumentFileActions} from './DocumentFileActions.jsx';
+import {filterDocuments,sectionLabel} from './documentSections.js';
 import { useAuth } from '@clerk/clerk-react';
 import {
   Archive,
@@ -33,6 +36,8 @@ const DOCUMENT_SELECT_FIELDS = [
   'owner_id',
   'file_name',
   'document_type',
+  'document_section',
+  'change_order_id',
   'description',
   'file_size_bytes',
   'mime_type',
@@ -42,6 +47,7 @@ const DOCUMENT_SELECT_FIELDS = [
 const JOB_SELECT_FIELDS = [
   'id',
   'job_number',
+  'service_call_number',
   'name',
   'division',
 ].join(', ');
@@ -239,6 +245,7 @@ function useDocumentIndex({ enabled }) {
     error: null,
     documents: EMPTY_DOCUMENTS,
     jobs: EMPTY_JOBS,
+    changeOrders: [],
   });
 
   useEffect(() => {
@@ -255,21 +262,10 @@ function useDocumentIndex({ enabled }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const [documentsResult, jobsResult] = await Promise.all([
-          client
-            .from('documents')
-            .select(DOCUMENT_SELECT_FIELDS)
-            .eq('owner_type', 'job')
-            .is('archived_at', null)
-            .order('updated_at', { ascending: false })
-            .limit(1000),
-          client
-            .from('jobs')
-            .select(JOB_SELECT_FIELDS)
-            .is('archived_at', null)
-            .limit(1000),
+        const allRows=async(table,fields,configure=q=>q)=>{const rows=[];for(let offset=0;;offset+=1000){const {data,error}=await configure(client.from(table).select(fields)).is('archived_at',null).order('id').range(offset,offset+999);if(error)throw error;rows.push(...data);if(data.length<1000)return {data:rows};}};
+        const [documentsResult,jobsResult,changeOrdersResult]=await Promise.all([
+          allRows('documents',DOCUMENT_SELECT_FIELDS),allRows('jobs',JOB_SELECT_FIELDS),allRows('change_orders','id,job_id'),
         ]);
-
         if (documentsResult.error) throw documentsResult.error;
         if (jobsResult.error) throw jobsResult.error;
 
@@ -279,6 +275,7 @@ function useDocumentIndex({ enabled }) {
             error: null,
             documents: documentsResult.data ?? EMPTY_DOCUMENTS,
             jobs: jobsResult.data ?? EMPTY_JOBS,
+            changeOrders: changeOrdersResult.data,
           });
         }
       } catch (error) {
@@ -313,29 +310,28 @@ export function DocumentsWorkspace({ permissions }) {
   const [activeSection, setActiveSection] = useState('index');
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
   const [search, setSearch] = useState('');
+  const [filters,setFilters]=useState({section:'',type:'',job:'',from:'',to:''});
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
   const jobMap = useMemo(() => {
     const next = new Map();
     documentIndex.jobs.forEach((job) => {
-      next.set(job.id, [job.job_number, job.name].filter(Boolean).join(' - ') || shortId(job.id));
+      next.set(job.id, [job.service_call_number||job.job_number, job.name].filter(Boolean).join(' - ') || shortId(job.id));
     });
     return next;
   }, [documentIndex.jobs]);
 
+  const changeOrderJobs=useMemo(()=>new Map(documentIndex.changeOrders.map(c=>[c.id,c.job_id])),[documentIndex.changeOrders]);
   const documents = useMemo(() =>
     documentIndex.documents.map((document) => ({
       ...document,
-      job_label: jobMap.get(document.owner_id) || shortId(document.owner_id),
+      job_id:document.owner_type==='change_order'?changeOrderJobs.get(document.owner_id):document.owner_type==='job'?document.owner_id:null,
+      job_label: jobMap.get(document.owner_type==='change_order'?changeOrderJobs.get(document.owner_id):document.owner_id) || shortId(document.owner_id),
     })),
-  [documentIndex.documents, jobMap]);
+  [documentIndex.documents, jobMap,changeOrderJobs]);
 
-  const filteredDocuments = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) return documents;
-    return documents.filter((document) => documentSearchText(document).includes(normalizedSearch));
-  }, [documents, search]);
+  const filteredDocuments=useMemo(()=>filterDocuments(documents,{...filters,query:search}),[documents,filters,search]);
 
   const selectedDocument = filteredDocuments.find((document) => document.id === selectedDocumentId)
     ?? documents.find((document) => document.id === selectedDocumentId)
@@ -366,7 +362,7 @@ export function DocumentsWorkspace({ permissions }) {
       <WorkspaceHeader
         eyebrow="Workspace"
         title="Documents"
-        description="Read-only index for visible job-owned documents. Upload, download, archive, and storage mutations remain inside the selected Job workflow."
+        description="Find, open, download, and organize documents within your existing access."
         status={<span className="status-pill status-pill--good">{documents.length} visible file{documents.length === 1 ? '' : 's'}</span>}
         actions={(
           <>
@@ -413,7 +409,7 @@ export function DocumentsWorkspace({ permissions }) {
               <article className="card workspace-card">
                 <Toolbar descriptionIsDiagnostic
                   eyebrow="Index"
-                  title="Visible job documents"
+                  title="Visible documents"
                   description="Rows come from public.documents and follow the existing job document RLS policies."
                   search={(
                     <label>
@@ -427,13 +423,15 @@ export function DocumentsWorkspace({ permissions }) {
                     </label>
                   )}
                   actions={(
-                    <button type="button" className="secondary-button" onClick={() => setSearch('')} disabled={!search}>
+                    <button type="button" className="secondary-button" onClick={() => {setSearch('');setFilters({section:'',type:'',job:'',from:'',to:''});}}>
                       Clear
                     </button>
                   )}
                 />
+                <DocumentSections documents={documents} value={filters.section} onChange={section=>setFilters(f=>({...f,section}))}/>
+                <div className="document-index-filters"><label>Job / service call<select aria-label="Document job filter" value={filters.job} onChange={e=>setFilters(f=>({...f,job:e.target.value}))}><option value="">All records</option>{documentIndex.jobs.map(j=><option key={j.id} value={j.id}>{jobMap.get(j.id)}</option>)}</select></label><label>Document type<select aria-label="Document type filter" value={filters.type} onChange={e=>setFilters(f=>({...f,type:e.target.value}))}><option value="">All types</option>{[...new Set(documents.map(d=>d.document_type).filter(Boolean))].sort().map(t=><option key={t} value={t}>{documentCategoryLabel(t)}</option>)}</select></label><label>From<input aria-label="Document date from" type="date" value={filters.from} onChange={e=>setFilters(f=>({...f,from:e.target.value}))}/></label><label>Through<input aria-label="Document date through" type="date" value={filters.to} onChange={e=>setFilters(f=>({...f,to:e.target.value}))}/></label></div>
                 <DataTable
-                  columns={DOCUMENT_COLUMNS}
+                  columns={[...DOCUMENT_COLUMNS,{key:'section',header:'Section',render:sectionLabel},{key:'actions',header:'File actions',render:row=><DocumentFileActions document={row}/>}]}
                   rows={filteredDocuments}
                   getRowKey={(row) => row.id}
                   permissions={permissions}
@@ -456,13 +454,15 @@ export function DocumentsWorkspace({ permissions }) {
                     <RecordHeader
                       eyebrow="Selected Document"
                       title={selectedDocument.file_name}
-                      description={selectedDocument.description || 'Read-only document metadata. File actions remain in the owner workflow.'}
+                      description={selectedDocument.description || 'Original document details.'}
                       meta={[
                         { label: 'Job', value: selectedDocument.job_label },
                         { label: 'Category', value: documentCategoryLabel(selectedDocument.document_type) },
                         { label: 'Department', value: selectedDocument.division },
                       ]}
                     />
+                    <DocumentFileActions document={selectedDocument}/>
+                    {canManageJobDocuments&&selectedDocument.owner_type==='job'&&<DocumentSectionControl document={selectedDocument} onChanged={documentIndex.reload}/>}
                     <div className="module-fact-grid documents-fact-grid">
                       <SummaryCard detailIsDiagnostic label="Size" value={formatBytes(selectedDocument.file_size_bytes)} detail="Stored metadata" />
                       <SummaryCard detailIsDiagnostic label="MIME" value={selectedDocument.mime_type || '-'} detail="Stored metadata" />
@@ -473,7 +473,7 @@ export function DocumentsWorkspace({ permissions }) {
                   <StatePanel
                     eyebrow="No Selection"
                     title="Select a document to view metadata"
-                    description="The detail panel shows job, category, size, MIME type, and notes without creating a new download or archive path."
+                    description="The detail panel shows job, category, size, MIME type, and notes with authorized file actions."
                     tone="neutral"
                   />
                 )}
@@ -517,7 +517,7 @@ export function DocumentsWorkspace({ permissions }) {
               <StatePanel
                 tone="neutral"
                 eyebrow="Boundary"
-                title="Only job owner policies are live today"
+                title="Each source workflow controls access"
                 description="Other owner types remain reserved until their source module and RLS/read behavior are explicitly implemented."
                 compact
               />
@@ -550,7 +550,7 @@ export function DocumentsWorkspace({ permissions }) {
                 <StatePanel
                   eyebrow="Open / Download"
                   title="Signed file access remains owner-scoped"
-                  description="Open/download behavior stays with the selected owner workflow so signed URLs are generated with row context."
+                  description="File access rechecks the current user’s document and storage permissions."
                   compact
                   actions={<Download aria-hidden="true" />}
                 />

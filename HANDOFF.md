@@ -21569,3 +21569,52 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
   3379d82da0c16821ee24a3f013c21d7994eeac212db935207db4db57f542eced.
 
 ---
+
+## Entry 266 — Estimate Finalization Checklist (LOCAL, migration unapplied)
+
+2026-09-15 · Production Mode · User-requested implementation complete locally.
+
+- Ryan selected both Submit for review and Review & approve as enforcement points and chose recorded labor allowances with existing pricing retained. Required consideration, not required inclusion; zero/excluded/N/A are valid explicit answers, and drafts may remain incomplete.
+- Added configurable versioned definitions for AFC plus five conditional follow-ups, estimating/preconstruction labor, and editable supervision/PM labor starting at 5% of priced field-hours basis. No mandatory adjustment/exclusion reason or extra approval step.
+- Reused existing Workbench document/save/audit/revision permissions. Existing locked approval/handoff transactions validate answers and freeze labels/rules/time in existing immutable source records. Old approvals/handoffs remain intact; revisions use current definitions.
+- Editor status/page and attached job/service-call/CO review summaries expose the appropriate draft or frozen answers. Recorded allowances never add price. Existing customer exports and permissions preserved.
+- CLI-created migration 20260915233355_estimate_finalization_checklist.sql is unapplied. No live writes, grants, commit, push or deployment for this feature. Durable CEDAR sync marker unchanged.
+- Validation: 94 Node tests; isolated checklist and existing handoff SQL suites; desktop/phone checklist and frozen review UI; existing estimate editing/proposal/PDF/approval/revision/delete retry, handoff, service-call and deductive CO browser regressions. Tablet navigation wrap corrected. Screenshots visually checked.
+- Final production-configured local build passed at .temp/inspection-production-check-1789515960826. Existing xlsx/chunk warnings remain. Mocked browser transport and isolated SQL; real-schema/signed-in/concurrent-session release checks remain.
+- Architecture v2.33 Section 53 and docs/reviews/ESTIMATE_FINALIZATION_CHECKLIST.md record configuration, security, validation and rollout. No dependency changes.
+- Prior HANDOFF prefix SHA-256: 77bfb31c230b6a0e7e45b82b65e5bccd403e28cd80e21c9de0c77230e20d4efa.
+
+---
+## Entry 267 — Phases 2–4 local release candidate
+
+2026-09-15 · Production Mode · AFC, Documents and read-tool foundation; UNRELEASED.
+
+- Ryan requested phases 2–4 after the Estimate Finalization Checklist. Recovered the existing four-phase plan from the 9/15/26 NGG HQ update task; phase 1 remains live. No unrelated integration replacement or customer source execution.
+- Phase 2: shared AFC studies, radial branches/feeders/transformers, generator/motor/L–N/external cases, canonical job/service-call links and server-recalculated immutable reports/individual and batch labels. Original imports and historical destinations preserved. Explicit default-denied reviewer capability; no account grants.
+- Phase 3: Construction/Electrical/General/Unclassified sections in Documents and shared job/call views, destination/type/date/search filters, audited classification and original-file open/download/print. Historical files/paths/access preserved; legacy HTML previews are inert.
+- Phase 4: five bounded caller-scoped operational read tools, mandatory audit/rate limits, existing material resolver and unknown-stock handling. Internal Netlify endpoint defaults disabled. Tested MCP transport factory has no public route; external OAuth adapter/connection remains unconfigured.
+- CLI-created migrations 20260915235701_afc_shared_studies.sql, 20260916000558_document_sections.sql and 20260916000942_northgate_read_tools_audit.sql are unapplied, as is the checklist migration from Entry 266. No commit, push, deployment, live schema/data write or reviewer grant for this candidate. CEDAR-ESTIMATE-HANDOFF-20260915-001 unchanged.
+- Pending user choices: AFC reviewer recipients/authority and ambiguous historical-document classification. Current local defaults deny review and leave old sections unclassified. Real-schema/auth/storage/concurrency/device acceptance and external MCP OAuth setup remain rollout work.
+- Validation: 113 Node tests; 39 isolated AFC/Documents/read-audit SQL checks; checklist SQL regression; desktop/phone AFC and Documents browser suites; existing document audit/edit/restore/archive/upload regressions at desktop/tablet/phone. Edge type check passed. Synthetic PDFs/labels and UI screenshots visually reviewed. Browser transport mocked; no real-installation engineering acceptance claimed.
+- All 84 conductor presets checked against Eaton Table 4 and independent published examples checked within rounded tolerance. Scalar radial/model limitations remain explicit. Source ZIP hash and primary references are recorded in the review document.
+- Final production-configured local build .temp/inspection-production-check-1789518619958 passed: index-VgyQ6dT-.js and WorkbenchRoute-CuTYhN8m.js. Existing xlsx/chunk warnings remain. No frontend dependency changes; Edge dependencies pinned separately.
+- Architecture v2.34 Section 54 and docs/reviews/PHASES_2_4_AFC_DOCUMENTS_READ_TOOLS.md record security, sources, rollout and limits, including possible private orphan uploads after failed release and pending maximum-size runtime validation. Historical local dist directories remain untouched.
+- Prior HANDOFF prefix SHA-256: 805a30f76ea9d599c2d3bd4b1ab96495401ba8b67a475931537ef8bc93a8bcb1.
+
+---
+
+
+## Entry 268 — SEQUOIA authorized release, database and service verified
+
+2026-09-16 · SEQUOIA-HQ-WORKFLOWS-20260916-001 · Production Mode.
+
+- Ryan explicitly requested commit and deployment of the checklist and phases 2–4 candidate. Origin/main equals starting HEAD ab0e953. Historical local dist directories are preserved.
+- Applied four migrations; local filenames aligned to recorded versions 20260916103538 / 20260916103702 / 20260916103706 / 20260916103711. First AFC attempt rolled back without schema/data changes; corrected additive permission constraint preserves the existing explicit Developer correction grant outside role defaults.
+- 113 Node tests and checklist SQL pass; AFC SQL now has 40 passing checks including existing override preservation. Actual-schema rollback-only checklist/handoff and phases 2–4 suites pass. No synthetic jobs/studies/revisions/documents/storage metadata/read audits or temporary reviewer grants remain; historical classification unchanged.
+- Deployed afc-release v1; preflight/missing/forged-token checks pass. Shared server engine recalculates authoritative data; finalizer remains service-only. Bundle hash and service ID in review notes. Authenticated browser release and device/printer acceptance not claimed.
+- Security advisor delta is four expected private RLS/no-policy tables and eight guarded authenticated definer endpoints; no new anonymous function, mutable search path or insecure view findings. Existing broader findings remain separate.
+- No permanent AFC reviewers assigned. Internal read endpoint remains disabled, external MCP transport unrouted/OAuth unconfigured. Earlier inspection grants do not authorize AFC grants.
+- Release notes and Architecture Section 53–54 update record these facts. Next: commit/push exact source, verify Git-triggered frontend/functions deployment, publish durable sync record.
+- Prior HANDOFF prefix SHA-256: 4d59eb48880d920efc0d40f8078a0e1471ff5009437dab01e171326773a18cc9.
+
+---

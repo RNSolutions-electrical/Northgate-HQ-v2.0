@@ -1,4 +1,6 @@
 # Northgate HQ v2 — Architecture Lock Document
+### Version 2.34 — AFC shared studies and immutable server releases, Documents sections and bounded Northgate read-tool foundation implemented locally (Section 54, Entry 267). Existing jobs, Documents/storage, resolver and caller permissions remain authoritative. Reviewer recipients, historical classification and external OAuth connection remain pending; migrations are applied with actual-schema rollback verification; frontend publication is in progress.
+### Version 2.33 — Estimate Finalization Checklist implemented locally (Section 53, Entry 266). Configurable considerations reuse Workbench drafts, immutable approval/handoff copies, existing estimating/reviewer permissions and both finalization actions. Allowances are recorded without changing pricing. Migration applied with actual-schema rollback verification; frontend publication is in progress.
 ### Version 2.32 — Electrical Systems Health Inspection and shared job permit register implemented as a local release candidate (Section 52, Entry 242). Atomic multi-equipment drafts, explicit reviewer authority, immutable evidence/reports, canonical job/service-call integration, and independent permit attempts. Production migration and account grants remain pending.
 ### Version 2.31 — Codex owns architecture review and authorized implementation; mandatory Claude routing, two-model cross-clearance, and Claude verdict footers retired by Ryan (2026-09-14, Entry 241). Section 51 is the current review policy and supersedes conflicting review-routing text throughout this document. Existing technical safeguards and business-scope authority remain.
 
@@ -4413,3 +4415,38 @@ plan's proposed split equipment/findings tables and duplicate health-reference
 rows are superseded by the atomic aggregate and derived-reference design above.
 
 ---
+
+## 53. Estimate Finalization Checklist (v2.33 — Entry 266)
+
+1. Required consideration, not required inclusion. Enabled applicable questions must be answered at both Submit for review and Review & approve. Draft saves remain available. Zero is valid; blanks are unanswered. No added approval stage or required exclusion/adjustment reason.
+2. Configurable estimate_checklist_definitions stores versioned status choices, optional numeric fields and one-level conditional follow-ups. Initial scope is AFC with five subordinate considerations, estimating labor and supervision/management labor.
+3. Answers use existing estimate_workbenches.document and its save revision/audit protections. Existing approval and handoff transactions validate current definitions inside their existing row locks and freeze server-produced definitions/answers/completion time in their immutable source documents. Definition changes serialize with finalization.
+4. Supervision suggests 5% of an editable field-hours basis; hours and percentage remain editable. Labor allowances record consideration only. Work-item pricing, customer exports, budgets, costs and invoices are unchanged.
+5. Existing can_estimate/can_approve_estimates and destination financial permissions remain authoritative. Definition client access is read-only; validation helpers are private. No new roles or grants to users.
+6. Historical approvals and handoffs retain their original record. New revisions use current configuration. Changed definition versions require explicit reconfirmation; additional enabled rows require answers. Current Workbench routes are covered; legacy editor-version-1 workflow is unchanged.
+7. Read-only checklist answers are visible in the approved Workbench and existing attached-estimate review views. Customer-facing proposal exports exclude internal consideration records.
+
+Implementation, configuration contract, verification and rollout: [Estimate Finalization Checklist](reviews/ESTIMATE_FINALIZATION_CHECKLIST.md). Migration 20260916103538_estimate_finalization_checklist.sql is local and unapplied.
+
+---
+
+## 54. AFC, Documents sections and Northgate read tools (v2.34 — Entry 267)
+
+1. Phase 2 reuses Add-On Tools, canonical jobs (including service calls), Clerk subjects, active-account/effective permissions, canonical Documents and private storage. One atomic versioned study document holds radial topology and optional cases. Original imports and immutable released revisions remain preserved. No second job, file or inventory source of truth is introduced.
+2. AFC review uses explicit default-denied can_review_afc_studies plus add-on and destination scope. No account grants are implicit. The existing permission editor's Developer review exception is narrowly extended; unrelated overrides/template assignments remain protected. Draft save/relink and release recheck actor, scope, management authority, version and replay on the server.
+3. Browser and Edge Function share one versioned engine. The trusted release function reloads authoritative inputs, recalculates, renders all PDFs/labels/source snapshots, uploads unique private objects and verifies stored hashes. A service-only finalizer locks and rechecks current authority/version/reviewer/destination before committing the immutable revision, canonical file metadata and audit. Browser results are never trusted for reviewed release.
+4. Released files and captured destination/identity are immutable, including through generic document maintenance. Reserved storage denies authenticated upload/replace/delete; reads require committed file references and authorized scope. Failed attempts can retain private unreferenced objects without publishing them. No automatic history deletion or offline synchronization is introduced.
+5. AFC is a scalar 1–600 V radial model. Generator cases are independent open-transfer sources; motor contributions are bounded screening inputs. L–N needs explicit source/neutral information. L–G and other unmodeled cases require referenced external results. Highest entered/modeled envelope and numerical nameplate comparison are distinct from equipment suitability or a governing fault determination.
+6. Phase 3 adds optional organizational document_section metadata (Construction/Electrical/General; NULL is Unclassified). Section never changes permission, department, owner, path or bytes. Classification uses an expected-version audited RPC and existing owner authority; source-owned/signed/released records remain protected. Future electrical output defaults are explicit; historical classifications are unchanged pending Ryan's choice.
+7. Documents and shared Job/Service Call views reuse original-file actions, destination references and paginated visible data. Legacy HTML preview is inert/allowlisted; downloading preserves original bytes. Existing file edit/archive audit behavior remains authoritative.
+8. Phase 4 exposes five fixed read-tool schemas through caller-scoped reads and the canonical material resolver. Unknown quantities and ambiguous material matches remain explicit. No dynamic SQL, price/financial projection, business writes, model-provider change or service credential is exposed. Operational auditing is mandatory and bounded per actor.
+9. The internal Netlify read endpoint defaults disabled. The tested MCP transport is a factory without a public route. External clients require a verified OAuth resource adapter and separately scoped user database access; an ordinary database token is not a substitute. ChatGPT/Codex connectivity is not implemented until that configuration and acceptance are complete.
+10. These contracts are local and unreleased. Migrations 20260916103702, 20260916103706 and 20260916103711 are unapplied. Reviewer/classification choices, real-schema/auth/storage/device/concurrency acceptance and external OAuth configuration remain rollout work. Existing integrations and durable live sync marker remain unchanged.
+
+Detailed implementation, sources, test evidence and rollout: [Phases 2–4 implementation record](reviews/PHASES_2_4_AFC_DOCUMENTS_READ_TOOLS.md).
+
+---
+
+### Section 53–54 release update — 2026-09-16, Entry 268
+
+Ryan authorized commit/deployment. All four migrations are applied at the recorded versions above. Actual-schema rollback-only checklist/AFC/Documents/read-audit suites pass with no test data or grants retained. AFC service version 1 is deployed and denies unauthenticated/forged-token requests. The AFC migration now extends the existing override constraint, preserving capabilities outside role defaults. No AFC reviewer grants or historical reclassification; external OAuth/MCP and internal read enablement remain pending. Earlier local/unapplied status describes the prior checkpoint. Detailed release evidence is recorded at the top of both implementation reviews.

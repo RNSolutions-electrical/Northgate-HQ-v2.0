@@ -1,0 +1,10 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {BrowserRouter} from 'react-router-dom';
+import {DocumentsWorkspace} from '../../src/modules/documents/DocumentsWorkspace.jsx';
+import {safeHtmlPreview} from '../../src/modules/documents/safeHtmlPreview.js';
+import '../../src/styles/tokens.css';
+import '../../src/styles/base.css';
+import '../../src/styles/primitives.css';
+window.safeHtmlPreview=safeHtmlPreview;
+createRoot(document.getElementById('root')).render(<BrowserRouter><DocumentsWorkspace permissions={{permissionSource:'server',canManageJobs:true,canViewAllDivisions:true,department:'Electrical',role:'Manager'}}/></BrowserRouter>);

@@ -79,7 +79,7 @@ const NOTE_TYPE_OPTIONS = ['feature', 'bug', 'idea', 'question', 'other'];
 const NOTE_PRIORITY_OPTIONS = ['low', 'normal', 'high'];
 
 const PERMISSION_GROUPS = [
-  ['Electrical inspections', ['canReviewElectricalInspections']],
+  ['Electrical tools', ['canReviewElectricalInspections','canReviewAfcStudies']],
   ['Developer', ['canAccessDeveloper', 'canManageUsers', 'canViewReports']],
   ['Inventory', ['canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
   ['Jobs', ['canCreateJobs', 'canManageJobs', 'canApproveBudget', 'canManageChangeOrders']],

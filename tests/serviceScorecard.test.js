@@ -31,6 +31,6 @@ test('retired scorecard is absent even with developer add-on access; Panel Direc
  assert.ok(RETIRED_ADDON_KEYS.includes('service_performance'));
  assert.ok(!MODULES.some(m=>m.key==='service-performance'));
  const groups=permittedNavigationGroups({canAccessAddon:()=>true,department:'Electrical'});
- assert.deepEqual(groups.find(g=>g.key==='add-on-tools').items.map(i=>i.key),['panel-directory','electrical-inspections']);
+ assert.deepEqual(groups.find(g=>g.key==='add-on-tools').items.map(i=>i.key),['panel-directory','electrical-inspections','afc']);
  assert.ok(groups.find(g=>g.key==='jobs').items.some(i=>i.navigationState.directoryType==='service_calls'));
 });

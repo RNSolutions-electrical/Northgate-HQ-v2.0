@@ -1,0 +1,3 @@
+[functions.afc-release]
+# Clerk JWT is verified by the user-scoped PostgREST authorization RPC.
+verify_jwt = false

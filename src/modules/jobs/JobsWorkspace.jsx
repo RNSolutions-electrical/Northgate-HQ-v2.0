@@ -1,3 +1,6 @@
+import {DocumentSections,DocumentSectionControl} from '../documents/DocumentSections.jsx';
+import {DocumentFileActions} from '../documents/DocumentFileActions.jsx';
+import {documentSection} from '../documents/documentSections.js';
 import {JobPermitRegister} from '../electrical-inspections/JobPermitRegister.jsx';
 import {AttachedEstimates} from '../estimates/AttachedEstimates.jsx';
 import { useAuth, useUser } from '@clerk/clerk-react';
@@ -14,7 +17,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
@@ -41,6 +44,7 @@ const DOCUMENT_BUCKET = 'northgate-files';
 const DEFAULT_DOCUMENT_CATEGORY = 'contracts';
 const DEFAULT_UPLOAD_STATE = Object.freeze({
   category: DEFAULT_DOCUMENT_CATEGORY,
+  section: '',
   description: '',
   file: null,
   isUploading: false,
@@ -250,6 +254,7 @@ const JOB_DOCUMENT_SELECT_FIELDS = [
   'division',
   'storage_path',
   'document_type',
+  'document_section',
   'file_name',
   'description',
   'file_size_bytes',
@@ -2167,6 +2172,7 @@ export function JobsWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const { user } = useUser();
   const location = useLocation();
+  const navigate=useNavigate();
   const directory = useJobsDirectory({ enabled: permissions.permissionSource === 'server' });
   const [activeView, setActiveView] = useState('active');
   const [directoryType, setDirectoryType] = useState('jobs');
@@ -2181,6 +2187,7 @@ export function JobsWorkspace({ permissions }) {
   const [jobAction, setJobAction] = useState({ action: '', error: null, success: '' });
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState('');
+  const [documentSectionFilter,setDocumentSectionFilter]=useState('');
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutWorkspaceMode, setBuyoutWorkspaceMode] = useState('');
@@ -2724,6 +2731,7 @@ export function JobsWorkspace({ permissions }) {
         storage_path: storagePath,
         file_name: file.name,
         document_type: category,
+        document_section: uploadState.section||null,
         description: uploadState.description.trim() || null,
         file_size_bytes: file.size,
         mime_type: file.type || null,
@@ -4184,9 +4192,7 @@ export function JobsWorkspace({ permissions }) {
         ...category,
         status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
       }));
-      const filteredDocuments = documentCategoryFilter
-        ? jobDocuments.documents.filter((document) => document.document_type === documentCategoryFilter)
-        : jobDocuments.documents;
+      const filteredDocuments=jobDocuments.documents.filter(d=>(!documentCategoryFilter||d.document_type===documentCategoryFilter)&&(!documentSectionFilter||documentSection(d)===documentSectionFilter));
       const documentColumns = [
         ...JOB_DOCUMENT_COLUMNS,
         {
@@ -4196,16 +4202,12 @@ export function JobsWorkspace({ permissions }) {
             const isBusy = documentAction.id === row.id;
             return (
               <div className="job-document-actions">
-                <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'open')} disabled={isBusy}>
-                  {isBusy && documentAction.action === 'open' ? 'Opening...' : 'Open'}
-                </button>
-                <button type="button" className="secondary-button" onClick={() => handleDocumentLink(row, 'download')} disabled={isBusy}>
-                  {isBusy && documentAction.action === 'download' ? 'Downloading...' : 'Download'}
-                </button>
-                {canManageSelectedJob && row.document_type !== 'service_inspections' ? (
+                <DocumentFileActions document={row}/>
+                {canManageSelectedJob&&<DocumentSectionControl document={row} onChanged={()=>{jobDocuments.reload();jobHistory.reload();}}/>}
+                {canManageSelectedJob && !['service_inspections','afc_calculations','afc_labels'].includes(row.document_type) ? (
                   <DocumentEditControl key={row.id} document={row} ownerType="job" ownerId={selectedJob.id} disabled={isBusy} onChanged={() => { jobDocuments.reload(); jobHistory.reload(); }} />
                 ) : null}
-                {canManageSelectedJob && row.document_type !== 'service_inspections' ? (
+                {canManageSelectedJob && !['service_inspections','afc_calculations','afc_labels'].includes(row.document_type) ? (
                   <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleDocumentArchive(row)} disabled={isBusy}>
                     {isBusy && documentAction.action === 'archive' ? 'Archiving...' : 'Archive'}
                   </button>
@@ -4218,6 +4220,8 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
+          <DocumentSections documents={jobDocuments.documents} value={documentSectionFilter} onChange={setDocumentSectionFilter}/>
+          {permissions.canAccessAddon?.('available_fault_current')&&<button className="secondary-button" onClick={()=>navigate('/afc',{state:{jobId:selectedJob.id}})}>Open linked AFC studies</button>}
           <section className="job-document-checklist" aria-label="Job document checklist">
             {checklistRows.map((category) => (
               <button
@@ -4278,6 +4282,7 @@ export function JobsWorkspace({ permissions }) {
                 description="Choose a category and upload a file."
               />
               <div className="job-document-upload__grid">
+                <label><span>Document section</span><select aria-label="Upload document section" value={uploadState.section} disabled={uploadState.isUploading} onChange={e=>setUploadState(s=>({...s,section:e.target.value}))}><option value="">Unclassified</option><option value="construction">Construction Documents</option><option value="electrical">Electrical Documents</option><option value="general">General Documents</option></select></label>
                 <label>
                   <span>Category</span>
                   <select

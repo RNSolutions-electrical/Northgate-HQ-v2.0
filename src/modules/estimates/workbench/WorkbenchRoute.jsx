@@ -29,8 +29,14 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const dirty=useRef(false),active=useRef(null),saving=useRef(false);
  const library=useRef([]);
  const [handoffs,setHandoffs]=useState({});
+ const [checklistConfig,setChecklistConfig]=useState(null);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
  const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
+ const reloadChecklist=useCallback(async()=>{
+  try{const db=await client(),result=await db.from('estimate_checklist_definitions').select('*').order('sort_order');if(result.error)throw result.error;setChecklistConfig(result.data);}
+  catch{setChecklistConfig(null);}
+ },[client]);
+ useEffect(()=>{if(!libraryOnly&&!permissions.isLoading&&(permissions.canEstimate||permissions.canApproveEstimates))reloadChecklist();},[libraryOnly,permissions.isLoading,permissions.canEstimate,permissions.canApproveEstimates,reloadChecklist]);
  const reload=useCallback(async()=>{
   setLoading(true);setError('');
   try{
@@ -142,7 +148,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  if(selected){
   const approvedSnapshot=selected.snapshot||null;
   const document={...selected.document,approvedAt:approvedSnapshot?.approved_at||null,library:structuredClone(library.current)};
-  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onArchiveAssembly={archiveAssembly} onCreateRevision={createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={client} onHandoff={submitHandoff} onOpenHandoff={openHandoff} existingHandoff={handoffs[selected.estimate_id]}/></>;
+  return <>{error&&<p role="alert">{error}</p>}<EditorFrame key={selected.estimate_id} document={document} onSave={save} onApprove={approve} approvedSnapshot={approvedSnapshot} onArchiveAssembly={archiveAssembly} onCreateRevision={createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={permissions} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={client} onHandoff={submitHandoff} onOpenHandoff={openHandoff} existingHandoff={handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist}/></>;
  }
  return <section className="workspace-stack">
   <WorkspaceHeader eyebrow="Workspace" title={division+' Estimates'} description="Build pricing, prepare a client proposal, and retain approved versions." descriptionIsDiagnostic={false} actions={<><button className="secondary-button" type="button" onClick={()=>navigate('/estimates/assemblies')}>Assembly library</button><button className="secondary-button" type="button" onClick={reload}><RefreshCw size={16}/> Refresh catalogue</button></>}/>
