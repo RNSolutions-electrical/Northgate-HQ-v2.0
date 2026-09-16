@@ -30,6 +30,7 @@ import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx
 import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
 import { StorageLocationSetup } from './StorageLocationSetup.jsx';
 import { StorageWorkspace } from './StorageWorkspace.jsx';
+import { resolveStorageLocations } from './storageHierarchy.js';
 import { MaterialAliases } from './MaterialAliases.jsx';
 import { searchMaterials, resolveMaterials } from '../../lib/materialResolver.js';
 import { canManageInventoryDepartment } from './inventoryAccess.js';
@@ -295,7 +296,7 @@ function buildLocationRecords(locationSheet) {
     };
   });
 
-  return [...unitRecords, ...shelfRecords, ...bayRecords, ...binRecords];
+  return resolveStorageLocations([...unitRecords, ...shelfRecords, ...bayRecords, ...binRecords]);
 }
 
 function getLocationDisplay(record) {
@@ -931,18 +932,12 @@ export function InventoryWorkspace({ permissions }) {
 
         return (
           <div className="inventory-count-retire-cell inventory-count-retire-cell--active">
-            <input
-              type="text"
-              value={retirementDraft.reason}
-              disabled={retirement.isRetiring}
-              placeholder="Required retirement reason"
-              onChange={(event) => setRetirementDraft((current) => ({ ...current, reason: event.target.value }))}
-            />
+            <span>Retire this zero-balance assignment? History is preserved.</span>
             <div className="inventory-count-retire-actions">
               <button
                 type="button"
                 className="primary-button"
-                disabled={retirement.isRetiring || !retirementDraft.reason.trim()}
+                disabled={retirement.isRetiring}
                 onClick={() => confirmRetirement(row)}
               >
                 {retirement.isRetiring ? 'Retiring...' : 'Confirm'}
@@ -1472,15 +1467,14 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   async function confirmRetirement(row) {
-    const reason = retirementDraft.reason.trim();
-    if (!canRetireBinItems || retirementDraft.binItemId !== row.bin_item_id || !reason) {
-      setCountMessage(`retire:${row.bin_item_id}`, 'error', 'Retirement reason required.');
+    if (!canRetireBinItems || retirementDraft.binItemId !== row.bin_item_id) {
+      setCountMessage(`retire:${row.bin_item_id}`, 'error', 'Confirm the selected assignment and your permissions.');
       return;
     }
 
     const result = await retirement.retireBinItem({
       binItemId: row.bin_item_id,
-      reason,
+      reason: null,
     });
 
     if (!result) {
@@ -2068,7 +2062,7 @@ export function InventoryWorkspace({ permissions }) {
                   placeholder="Enter a count (zero is valid)"
                 />
               </label>}
-              <label>
+              {!mapOnly && <label>
                 <span>Reason</span>
                 <select
                   value={countIntakeDraft.reason}
@@ -2079,8 +2073,8 @@ export function InventoryWorkspace({ permissions }) {
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
-              </label>
-              {countIntakeDraft.reason === 'custom' ? (
+              </label>}
+              {!mapOnly && countIntakeDraft.reason === 'custom' ? (
                 <label>
                   <span>Custom Note</span>
                   <input

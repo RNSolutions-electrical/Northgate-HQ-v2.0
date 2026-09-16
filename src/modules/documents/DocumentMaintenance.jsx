@@ -33,10 +33,10 @@ export function DocumentEditControl({ document: row, ownerType, ownerId, onChang
   return <>
     <button type="button" className="secondary-button" title="Edit document details" aria-label={`Edit document ${row.file_name}`} disabled={disabled}
       onClick={() => { setDraft({ changes: { file_name: row.file_name, document_type: row.document_type, description: row.description || '' }, updatedAt: row.updated_at }); setError(''); setStage('edit'); }}><Pencil size={16} /></button>
-    <ConfirmDialog open={stage !== null} title={stage === 'reason' ? 'Save document changes' : 'Edit document details'}
-      confirmLabel={stage === 'reason' ? 'Save document' : 'Save changes'} cancelLabel={stage === 'reason' ? 'Back' : 'Cancel'}
-      requireReason={stage === 'reason'} isSubmitting={busy} onCancel={() => setStage(stage === 'reason' ? 'edit' : null)}
-      onConfirm={(reason) => { if (stage === 'reason') { save(reason); return; } if (!draft.changes.file_name.trim()) { setError('Enter a filename.'); return; } setError(''); setStage('reason'); }}>
+    <ConfirmDialog open={stage !== null} title="Edit document details"
+      confirmLabel="Save changes" cancelLabel="Cancel"
+      isSubmitting={busy} onCancel={() => setStage(null)}
+      onConfirm={() => { if (!draft.changes.file_name.trim()) { setError('Enter a filename.'); return; } save(null); }}>
       {draft && stage === 'edit' ? <div className="document-maintenance-fields">
         <label>Filename<input type="text" maxLength={255} value={draft.changes.file_name} onChange={(e) => setDraft({ ...draft, changes: { ...draft.changes, file_name: e.target.value } })} /></label>
         <label htmlFor={`${fieldId}-category`}>Category</label><select id={`${fieldId}-category`} value={draft.changes.document_type} onChange={(e) => setDraft({ ...draft, changes: { ...draft.changes, document_type: e.target.value } })}>
@@ -106,7 +106,7 @@ export function ArchivedDocuments({ ownerType, ownerId, refreshKey, onChanged })
         <button type="button" className="secondary-button" title="Next archived documents" aria-label="Next archived documents" disabled={loading || rows.length < 50} onClick={() => setOffset(offset + 50)}><ChevronRight size={16} /></button>
       </div>
     </> : null}
-    <ConfirmDialog open={Boolean(target)} title={`Restore ${target?.file_name || 'document'}`} confirmLabel="Restore document" requireReason isSubmitting={busy} onCancel={() => setTarget(null)} onConfirm={restore}>
+    <ConfirmDialog open={Boolean(target)} title={`Restore ${target?.file_name || 'document'}`} confirmLabel="Restore document" isSubmitting={busy} onCancel={() => setTarget(null)} onConfirm={() => restore(null)}>
       {saveError ? <p role="alert">{saveError}</p> : null}
     </ConfirmDialog>
   </section>;

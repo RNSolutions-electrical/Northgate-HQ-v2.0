@@ -1,5 +1,12 @@
 export const storageLevels=['unit','shelf','bay','bin'];
 export const storageNames={unit:'Storage unit',shelf:'Shelf',bay:'Bay',bin:'Bin'};
+// Blank is inherited, not a copied value. An explicit child location wins.
+export function inheritedPhysicalLocation(records,id){
+ return [...locationTrail(records,id)].reverse().map(row=>Object.hasOwn(row,'own_physical_location')?row.own_physical_location:row.physical_location).find(value=>String(value||'').trim())||'';
+}
+export function resolveStorageLocations(records){
+ return records.map(row=>({...row,own_physical_location:Object.hasOwn(row,'own_physical_location')?row.own_physical_location:row.physical_location,physical_location:inheritedPhysicalLocation(records,row.id)}));
+}
 export function findStorageCodeConflict(records,kind,parentId,code){
  const normalized=String(code||'').trim().toUpperCase();
  if(!normalized)return null;

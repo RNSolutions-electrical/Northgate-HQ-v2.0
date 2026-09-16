@@ -19,3 +19,5 @@
 .inventory-retired-assignment p{margin:4px 0}.inventory-retired-assignment button{flex-shrink:0}
 .inventory-correction-reason{display:grid;gap:6px;margin-top:12px}.inventory-correction-reason input{width:100%}
 @media(max-width:600px){.inventory-retired-assignment{align-items:stretch;flex-direction:column}}
+.inventory-setup-grid .inventory-setup-checkbox{display:flex;flex-direction:row;align-items:center;gap:8px}
+.inventory-setup-grid .inventory-setup-checkbox input{width:auto;min-height:0}

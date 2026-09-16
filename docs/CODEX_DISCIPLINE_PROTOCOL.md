@@ -58,3 +58,23 @@ Production Mode asks: **What must we finish?**
 Exploration Mode asks: **What happens if we try this?**
 
 The protocol reduces friction; it is not bureaucracy. In Production Mode, protect execution. In Exploration Mode, protect curiosity.
+
+## Audit reasons and usability — Ryan's policy, September 16, 2026
+
+Automatic audit history is the default for routine creates, saves, edits, organization
+changes and recoverable archives. Record the actor, timestamp, record, action and
+before/after values; do not demand prose merely because data changed.
+
+Require a meaningful reason for destructive or irreversible actions and controlled
+corrections to protected/finalized records where recovery, financial integrity or
+application integrity is at risk. Keep authorization, confirmations, validation,
+immutable history and atomic audit writes. Backups are not permission to weaken
+these safeguards or overwrite finalized history.
+
+Apply this policy when implementing or reviewing each workflow. Do not remove all
+existing server reason gates in bulk. The September 16 local follow-up pairs reviewed
+routine UI changes with server automatic notes, preserving authorization, audit
+transactions, stale checks and protected corrections. See
+reviews/INVENTORY_DETAILS_AND_AUDIT_POLICY.md for the exact scope, retained risk
+gates and deployment order. Additional workflows must use the same risk-based
+policy rather than assuming that every archive or edit needs a typed reason.

@@ -50,10 +50,8 @@ BEGIN
   PERFORM public.edit_inventory_location('bin',n,'E','Duplicate',0,3,'Rollback duplicate',NULL,c);
   RAISE EXCEPTION 'Duplicate code accepted';
  EXCEPTION WHEN unique_violation THEN NULL; END;
- BEGIN
-  PERFORM public.edit_inventory_location('bin',n,'N','No reason',0,3,'',NULL,c);
-  RAISE EXCEPTION 'Blank reason accepted';
- EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ result:=public.edit_inventory_location('bin',n,'N','No reason',0,3,'',NULL,c);
+ IF result->>'name'<>'No reason' THEN RAISE EXCEPTION 'Routine edit failed'; END IF;
  BEGIN
   PERFORM public.set_inventory_location_archived('bin',n,true,'Rollback active-link blocker');
   RAISE EXCEPTION 'Mapped bin archived';
@@ -67,4 +65,4 @@ BEGIN
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 ROLLBACK;
-SELECT 'PASS: actual authenticated/RLS hierarchy create, map, count, shelf/bay/bin moves, stable descendants/quantity, details, old-client preservation, stale/type/collision/reason/actor rejections and archive/restore; all synthetic data rolled back' AS storage_release_smoke;
+SELECT 'PASS: actual authenticated/RLS hierarchy create, map, count, shelf/bay/bin moves, stable descendants/quantity, details, old-client preservation, reason-free edit, stale/type/collision/actor rejections and archive/restore; all synthetic data rolled back' AS storage_release_smoke;

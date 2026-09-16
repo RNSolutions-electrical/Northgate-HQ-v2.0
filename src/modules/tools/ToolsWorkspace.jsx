@@ -454,10 +454,6 @@ export function ToolsWorkspace({ permissions }) {
       return;
     }
 
-    if ((toolForm.id || toolForm.status === 'retired') && !reason.trim()) {
-      setToolConfirmation({ action: 'save' });
-      return;
-    }
     setToolForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
@@ -489,7 +485,7 @@ export function ToolsWorkspace({ permissions }) {
     }
   }
 
-  async function handleToolArchive(tool, reason = '') {
+  async function handleToolArchive(tool, confirmed = false) {
     if (!canManageToolCatalogue || toolForm.isSaving) return;
 
     if (!canManageToolDivision(permissions, tool.division)) {
@@ -498,7 +494,7 @@ export function ToolsWorkspace({ permissions }) {
     }
 
     const isArchived = Boolean(tool.archived_at);
-    if (!reason.trim()) {
+    if (!confirmed) {
       setToolForm((current) => ({ ...current, error: null }));
       setToolConfirmation({ action: isArchived ? 'restore' : 'archive', tool });
       return;
@@ -513,7 +509,7 @@ export function ToolsWorkspace({ permissions }) {
         p_division: tool.division,
         p_changes: {},
         p_action: isArchived ? 'restore' : 'archive',
-        p_reason: reason.trim(),
+        p_reason: null,
         p_expected_updated_at: toolForm.id === tool.id ? toolForm.expected_updated_at : tool.updated_at,
       });
 
@@ -751,11 +747,10 @@ export function ToolsWorkspace({ permissions }) {
     open={Boolean(toolConfirmation)}
     title={toolConfirmation?.action === 'save' ? 'Save catalogue changes' : toolConfirmation?.action === 'archive' ? 'Archive tool' : 'Restore tool'}
     confirmLabel={toolConfirmation?.action === 'save' ? 'Save changes' : toolConfirmation?.action === 'archive' ? 'Archive tool' : 'Restore tool'}
-    requireReason
     isSubmitting={toolForm.isSaving}
     onCancel={() => setToolConfirmation(null)}
-    onConfirm={(reason) => toolConfirmation?.action === 'save'
-      ? handleToolSave(null, reason) : handleToolArchive(toolConfirmation.tool, reason)}
+    onConfirm={() => toolConfirmation?.action === 'save'
+      ? handleToolSave(null) : handleToolArchive(toolConfirmation.tool, true)}
   >{toolForm.error ? <p role="alert">{toolForm.error.message}</p> : null}</ConfirmDialog>;
 
   if (isToolFormOpen && canManageToolCatalogue) {

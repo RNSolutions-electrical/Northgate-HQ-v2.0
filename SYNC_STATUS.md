@@ -2,7 +2,57 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current durable sync marker — Checklist, AFC and Documents
+## Current release — JUNIPER-INVENTORY-AUDIT-20260916-001
+
+- September 16: authorized release of document tags, complete storage creation,
+  parent physical-location inheritance and reviewed routine automatic audits.
+- All three migrations are applied and rollback-only live tests pass. See
+  MIGRATION_MAP.md for local-to-production version mapping and HANDOFF Entry 273.
+- Frontend commit/publication verification is in progress; final deployment
+  evidence will be recorded here after Netlify reports ready.
+- The local/unapplied checkpoints below are historical, superseded by this release.
+- Backups remain backlog. Financial, technical, identity/access and permanent-delete
+  protections remain; no permission bypass or inventory quantity rewrite.
+
+## Pending local Inventory / audit-policy follow-up — September 16, 2026
+
+- Storage creation includes physical location and materials/purpose; children
+  inherit the nearest parent's location unless explicitly overridden. Ordinary
+  storage lifecycle and reviewed routine operations use automatic server audit
+  notes instead of mandatory prose. Financial/technical/access safeguards remain.
+- Added unapplied migrations 20260916125643_inventory_creation_details.sql and
+  20260916125644_routine_audit_notes.sql. Apply after the pending document-tags
+  migration and before publishing this frontend. Recheck live functions first.
+- No commit/push/deploy or live migration in this pass. Release marker remains
+  SEQUOIA-HQ-WORKFLOWS-20260916-001; other machines do NOT yet have these files.
+- Backups explicitly deferred to backlog. See HANDOFF Entry 272 and
+  docs/reviews/INVENTORY_DETAILS_AND_AUDIT_POLICY.md for tests, scope and risks.
+- The prior local checkpoint below is historical; its “only tagging changed”
+  statement is superseded by this reviewed routine-audit follow-up.
+
+## Pending local document-tag work — September 16, 2026
+
+- Multi-department/custom tags, signed CO organization and Jobs-only filter choices
+  implemented locally. Existing source files, approval/financial history and RLS
+  retained. Service-call documents remain searchable.
+- Migration 20260916112115_document_organization_tags.sql is NOT applied. Apply and
+  verify it before deploying the new frontend. No new commit, push or deploy.
+- Tests: 117 unit, 40 existing isolated database checks plus 33 tag assertions;
+  mocked desktop/mobile tag UI and desktop/tablet/mobile document regressions;
+  production-configured local build. See HANDOFF Entry 271 and the review document.
+- Reason-prompt policy recorded; only tagging changed in this pass. Offsite backup
+  policy proposed; nothing scheduled/exported/purchased. Existing provider coverage
+  and destination/retention still need verification/approval.
+- Released sync marker is still SEQUOIA-HQ-WORKFLOWS-20260916-001. This work and
+  Entry 270's account-update notes remain local/uncommitted.
+
+## Post-release account update — 2026-09-16 (local note)
+
+- Owner-approved AFC reviewer grants are live for both Ryan Noel accounts. AFC add-on access is also enabled for the work account; both effective access checks pass. Other roles, permissions and assignments preserved.
+- Ryan reports printing looks good. Real-input end-to-end acceptance remains pending. Historical documents remain Unclassified; no bulk classification performed.
+- See HANDOFF Entry 270, including the existing batch-permission-editor allowlist limitation. These notes are not yet committed/pushed. No application deployment was needed; release marker remains SEQUOIA below.
+
+## Previous durable sync marker — Checklist, AFC and Documents
 
 - Marker: `SEQUOIA-HQ-WORKFLOWS-20260916-001`. Ryan explicitly authorized commit and deployment.
 - Status: LIVE and verified September 16, 2026.

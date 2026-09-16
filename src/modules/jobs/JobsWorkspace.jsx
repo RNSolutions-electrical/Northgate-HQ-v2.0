@@ -1,6 +1,6 @@
-import {DocumentSections,DocumentSectionControl} from '../documents/DocumentSections.jsx';
+import {DocumentSections,DocumentSectionControl,DocumentTagFilter} from '../documents/DocumentSections.jsx';
 import {DocumentFileActions} from '../documents/DocumentFileActions.jsx';
-import {documentSection} from '../documents/documentSections.js';
+import {filterDocuments,documentTagsLabel} from '../documents/documentSections.js';
 import {JobPermitRegister} from '../electrical-inspections/JobPermitRegister.jsx';
 import {AttachedEstimates} from '../estimates/AttachedEstimates.jsx';
 import { useAuth, useUser } from '@clerk/clerk-react';
@@ -255,6 +255,9 @@ const JOB_DOCUMENT_SELECT_FIELDS = [
   'storage_path',
   'document_type',
   'document_section',
+  'department_tags',
+  'custom_tags',
+  'organization_version',
   'file_name',
   'description',
   'file_size_bytes',
@@ -2188,6 +2191,7 @@ export function JobsWorkspace({ permissions }) {
   const [uploadState, setUploadState] = useState(DEFAULT_UPLOAD_STATE);
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState('');
   const [documentSectionFilter,setDocumentSectionFilter]=useState('');
+  const [documentTagFilter,setDocumentTagFilter]=useState('');
   const [documentAction, setDocumentAction] = useState({ id: '', action: '', error: null });
   const [buyoutForm, setBuyoutForm] = useState(DEFAULT_BUYOUT_FORM);
   const [buyoutWorkspaceMode, setBuyoutWorkspaceMode] = useState('');
@@ -2438,6 +2442,8 @@ export function JobsWorkspace({ permissions }) {
     setJobAction({ action: '', error: null, success: '' });
     setUploadState(DEFAULT_UPLOAD_STATE);
     setDocumentCategoryFilter('');
+    setDocumentSectionFilter('');
+    setDocumentTagFilter('');
     setBuyoutForm(DEFAULT_BUYOUT_FORM);
     setBuyoutWorkspaceMode('');
     setBuyoutQuoteUpload(DEFAULT_BUYOUT_QUOTE_UPLOAD);
@@ -2469,6 +2475,8 @@ export function JobsWorkspace({ permissions }) {
     setIsAddingScheduleItem(false);
     setBuyoutWorkspaceMode('');
     setDocumentCategoryFilter('');
+    setDocumentSectionFilter('');
+    setDocumentTagFilter('');
   }
 
   function returnToBuyoutList() {
@@ -2664,9 +2672,9 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleJobArchive(reason) {
+  async function handleJobArchive(reason, confirmed = false) {
     if (!selectedJob || !canManageSelectedJob || jobAction.action) return;
-    if (!reason?.trim()) {
+    if (!confirmed) {
       setJobConfirmation({ kind: 'job-archive', label: jobLabel(selectedJob) });
       return;
     }
@@ -2678,7 +2686,7 @@ export function JobsWorkspace({ permissions }) {
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_job', {
         p_job_id: selectedJob.id,
-        p_reason: reason.trim(),
+        p_reason: reason?.trim() || null,
       });
 
       if (error) throw error;
@@ -2813,9 +2821,9 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleDocumentArchive(document, reason) {
+  async function handleDocumentArchive(document, reason, confirmed = false) {
     if (!document?.id || !selectedJob?.id || !canManageSelectedJob || documentAction.id) return;
-    if (!reason?.trim()) {
+    if (!confirmed) {
       setJobConfirmation({ kind: 'document-archive', record: document, label: document.file_name || 'this document' });
       return;
     }
@@ -2830,7 +2838,7 @@ export function JobsWorkspace({ permissions }) {
         : 'archive_job_document';
       const { error } = await client.rpc(archiveRpc, {
         p_document_id: document.id,
-        p_reason: reason.trim(),
+        p_reason: reason?.trim() || null,
       });
 
       if (error) throw error;
@@ -3977,9 +3985,9 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleScheduleArchive(row, reason) {
+  async function handleScheduleArchive(row, reason, confirmed = false) {
     if (!row?.id || !selectedJob?.id || !canManageSelectedJob || scheduleAction.id) return;
-    if (!reason?.trim()) {
+    if (!confirmed) {
       setJobConfirmation({ kind: 'schedule-archive', record: row, label: row.title || 'this schedule item' });
       return;
     }
@@ -3991,7 +3999,7 @@ export function JobsWorkspace({ permissions }) {
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_job_schedule_item', {
         p_schedule_item_id: row.id,
-        p_reason: reason.trim(),
+        p_reason: reason?.trim() || null,
       });
 
       if (error) throw error;
@@ -4049,10 +4057,10 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
-  async function handleJobAssignment(row, reason) {
+  async function handleJobAssignment(row, reason, confirmed = false) {
     if (!selectedJob || !row?.user_id || !canManageSelectedJob || jobAssignmentAction.userId) return;
     const isAssigned = Boolean(row.assignment_id);
-    if (!reason?.trim()) {
+    if (!confirmed) {
       setJobConfirmation({ kind: 'assignment', record: row, label: row.display_name || row.email || row.user_id, isAssigned });
       return;
     }
@@ -4064,7 +4072,7 @@ export function JobsWorkspace({ permissions }) {
         p_job_id: selectedJob.id,
         p_user_id: row.user_id,
         p_is_assigned: !isAssigned,
-        p_reason: reason.trim(),
+        p_reason: reason?.trim() || null,
       });
       if (error) throw error;
       setJobAssignmentAction({ userId: '', error: null });
@@ -4083,17 +4091,17 @@ export function JobsWorkspace({ permissions }) {
     const confirmation = jobConfirmation;
     if (!confirmation) return;
     if (confirmation.kind === 'document-archive') {
-      await handleDocumentArchive(confirmation.record, reason);
+      await handleDocumentArchive(confirmation.record, reason, true);
       return;
     }
     setJobConfirmation(null);
 
     switch (confirmation.kind) {
       case 'job-archive':
-        await handleJobArchive(reason);
+        await handleJobArchive(reason, true);
         break;
       case 'document-archive':
-        await handleDocumentArchive(confirmation.record, reason);
+        await handleDocumentArchive(confirmation.record, reason, true);
         break;
       case 'buyout-archive':
         await handleBuyoutArchive(confirmation.record, reason);
@@ -4108,10 +4116,10 @@ export function JobsWorkspace({ permissions }) {
         await handleRevenueArchive(confirmation.record, reason);
         break;
       case 'schedule-archive':
-        await handleScheduleArchive(confirmation.record, reason);
+        await handleScheduleArchive(confirmation.record, reason, true);
         break;
       case 'assignment':
-        await handleJobAssignment(confirmation.record, reason);
+        await handleJobAssignment(confirmation.record, reason, true);
         break;
       default:
         break;
@@ -4192,9 +4200,10 @@ export function JobsWorkspace({ permissions }) {
         ...category,
         status: uploadedCategoryKeys.has(category.key) ? 'uploaded' : 'missing',
       }));
-      const filteredDocuments=jobDocuments.documents.filter(d=>(!documentCategoryFilter||d.document_type===documentCategoryFilter)&&(!documentSectionFilter||documentSection(d)===documentSectionFilter));
+      const filteredDocuments=filterDocuments(jobDocuments.documents,{section:documentSectionFilter,tag:documentTagFilter,type:documentCategoryFilter});
       const documentColumns = [
         ...JOB_DOCUMENT_COLUMNS,
+        {key:'organization',header:'Tags',render:documentTagsLabel},
         {
           key: 'actions',
           header: 'Actions',
@@ -4221,6 +4230,7 @@ export function JobsWorkspace({ permissions }) {
       return (
         <>
           <DocumentSections documents={jobDocuments.documents} value={documentSectionFilter} onChange={setDocumentSectionFilter}/>
+          <DocumentTagFilter documents={jobDocuments.documents} value={documentTagFilter} onChange={setDocumentTagFilter}/>
           {permissions.canAccessAddon?.('available_fault_current')&&<button className="secondary-button" onClick={()=>navigate('/afc',{state:{jobId:selectedJob.id}})}>Open linked AFC studies</button>}
           <section className="job-document-checklist" aria-label="Job document checklist">
             {checklistRows.map((category) => (
@@ -6209,7 +6219,7 @@ export function JobsWorkspace({ permissions }) {
           description={confirmationCopy()?.description}
           confirmLabel={confirmationCopy()?.confirmLabel}
           tone={confirmationCopy()?.tone}
-          requireReason
+          requireReason={!['job-archive', 'schedule-archive', 'assignment'].includes(jobConfirmation.kind) && !(jobConfirmation.kind === 'document-archive' && jobConfirmation.record?.owner_type !== 'change_order')}
           isSubmitting={jobConfirmation.kind === 'document-archive' && Boolean(documentAction.id)}
           reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : jobConfirmation.kind === 'buyout-award' ? 'Award reason' : 'Archive reason'}
           reasonHint="This reason is recorded in the job audit history."

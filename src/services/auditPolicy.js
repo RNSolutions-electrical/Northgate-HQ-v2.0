@@ -4,10 +4,19 @@ const ROUTINE_WORKFLOWS = new Set([
   'employee.self-profile', 'vehicle.create', 'vehicle.assign', 'vehicle.release',
   'tool.create', 'tool.checkout', 'tool.return', 'schedule.progress',
   'estimate.pricing', 'document.upload', 'change-order.draft',
+  'storage.location', 'material.alias', 'material.mapping', 'tool.catalogue',
+  'document.metadata', 'document.archive', 'job.archive', 'schedule.archive',
+  'estimate.archive', 'service-call.archive', 'employee.pending-archive',
+  'job.assignment', 'service-stage.metadata', 'permit.register',
 ]);
 
 export function requiresAuditReason({ action, workflow, protectedChange = false }) {
-  if (protectedChange || ['archive', 'delete', 'retire', 'permission_change'].includes(action)) return true;
+  if (protectedChange || ['delete', 'permission_change'].includes(action)) return true;
+  if (['archive', 'retire'].includes(action) && ![
+    'storage.location', 'material.alias', 'material.mapping', 'tool.catalogue',
+    'document.archive', 'job.archive', 'schedule.archive', 'estimate.archive',
+    'service-call.archive', 'employee.pending-archive', 'permit.register',
+  ].includes(workflow)) return true;
   if (ROUTINE_WORKFLOWS.has(workflow)) return false;
   return action !== 'create';
 }

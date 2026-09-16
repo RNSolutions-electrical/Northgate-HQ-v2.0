@@ -4445,6 +4445,40 @@ Implementation, configuration contract, verification and rollout: [Estimate Fina
 
 Detailed implementation, sources, test evidence and rollout: [Phases 2–4 implementation record](reviews/PHASES_2_4_AFC_DOCUMENTS_READ_TOOLS.md).
 
+### Document organization extension — September 16, 2026 (local, Entry 271)
+
+Follow-up Entry 272 extends the routine-audit policy beyond tagging and adds
+storage-creation details and inherited physical locations. The existing columns,
+hierarchy, permission helpers, audit transactions and RPCs are reused. Blank child
+physical_location inherits at display/QR resolution time; explicit values remain
+authoritative. No stock or historical rows are rewritten. See
+[Inventory and audit policy](reviews/INVENTORY_DETAILS_AND_AUDIT_POLICY.md).
+Both this follow-up and the document-tag extension remain local/unapplied.
+Backup planning is now deferred to backlog by the owner.
+
+Release update (Entry 273): Ryan subsequently authorized migration/commit/push/
+deployment under JUNIPER-INVENTORY-AUDIT-20260916-001. All three migrations are
+applied (mapping in MIGRATION_MAP.md); live rollback-only storage and document
+checks pass. The local/unapplied notes here are historical. See SYNC_STATUS.md
+for final publication evidence. Reviewed routine actions now use server-generated
+audit notes; protected/financial/access safeguards are not removed.
+
+Ryan approved multiple department/custom tags and organization of signed Change
+Order documents without modifying protected contents. This supersedes Section
+54.6's blanket exclusion of signed CO organization, not its file/history protection.
+The existing documents row, owner authority, classify guard and audit mechanism
+are extended; tags never grant visibility. Released technical evidence remains
+source-controlled. Existing sections are inherited without rewriting historical
+rows. Service calls remain searchable but are omitted from the Job filter options.
+See [Document tags and recovery](reviews/DOCUMENT_TAGS_AND_RECOVERY.md) for the
+pending additive migration, exact permissions, compatibility and test evidence.
+No live migration or deployment has occurred for this extension.
+
+Ryan's audit-usability policy is recorded in CODEX_DISCIPLINE_PROTOCOL.md: automatic
+audit for routine changes; reasons for destructive/irreversible actions and
+protected corrections. This is applied to tags, not a bulk removal of current
+server gates. Weekly offsite recovery is proposed, not activated or purchased.
+
 ---
 
 ### Section 53–54 release update — 2026-09-16, Entry 268

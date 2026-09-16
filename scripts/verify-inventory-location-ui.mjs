@@ -20,12 +20,18 @@ try{
   await page.setViewportSize({width,height});await page.goto(url+'?locations');
   await page.getByRole('button',{name:'Add Storage Location',exact:true}).click();
   await page.getByLabel('Location code').fill('NEW-SHOP');await page.getByLabel('Location name').fill('New electrical shop');
+  await page.getByLabel('Physical location',{exact:true}).fill('Shop north wall');
+  await page.getByLabel('Materials stored / purpose').fill('Electrical supplies');
+  assert.equal(await page.getByLabel('Setup reason').count(),0);
   await page.screenshot({path:`.temp/inventory-locations/screenshots/${label}-setup.png`,fullPage:true});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.getByRole('button',{name:'Save location',exact:true}).click();
   await page.getByRole('heading',{name:'Storage unit saved',exact:true}).waitFor();
   for(const [kind,code,name] of [['shelf','S1','Shelf one'],['bay','A','Bay one'],['bin','01','Fittings']]){
    await page.getByRole('button',{name:`Add ${kind} here`,exact:true}).click();
+   assert.equal(await page.getByLabel('Use parent physical location').isChecked(),true);
+   assert.equal(await page.getByLabel('Physical location',{exact:true}).inputValue(),'Shop north wall');
+   assert.equal(await page.getByLabel('Physical location',{exact:true}).isDisabled(),true);
    await page.getByLabel('Location code').fill(code);await page.getByLabel('Location name').fill(name);
    await page.getByRole('button',{name:'Save location',exact:true}).click();
    await page.getByRole('heading',{name:`${kind[0].toUpperCase()+kind.slice(1)} saved`,exact:true}).waitFor();

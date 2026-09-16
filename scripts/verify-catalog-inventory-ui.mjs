@@ -20,7 +20,7 @@ try{
   await page.getByRole('searchbox',{name:'Search materials',exact:true}).fill('Greenfield');
   const material=page.locator('details.inventory-material').filter({hasText:'EMT connector'});
   await material.locator('summary').click();await material.getByRole('button',{name:'Material aliases',exact:true}).click();
-  await page.getByLabel('New alias',{exact:true}).fill('flex');await page.getByLabel('Reason for alias change').fill('Common field terminology');
+  await page.getByLabel('New alias',{exact:true}).fill('flex');
   await page.getByRole('button',{name:'Add alias',exact:true}).click();await page.getByText('Alias saved.',{exact:true}).waitFor();
   await page.screenshot({path:`.temp/catalog-inventory-ui/${device}-aliases.png`,fullPage:true});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -38,16 +38,17 @@ try{
   assert.equal(await row.getByText('Not counted',{exact:true}).count(),0);
   // Create an empty bin, then edit/archive/restore it without modifying inventory.
   await page.getByRole('button',{name:'Add Storage Location',exact:true}).click();await page.getByLabel('Location type').selectOption('bin');await page.getByLabel('Parent bay').selectOption('a1');await page.getByLabel('Location code').fill('EMPTY');await page.getByLabel('Location name').fill('Empty test bin');await page.getByRole('button',{name:'Save location',exact:true}).click();await page.getByRole('heading',{name:'Bin saved',exact:true}).waitFor();await page.getByRole('button',{name:'Done',exact:true}).click();
-  await page.getByText('Location details & administration',{exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).click();await page.getByLabel('Location code').fill('EDITED');await page.getByLabel('Location name').fill('Edited bin');await page.getByLabel('Sort position').fill('3');await page.getByLabel('Reason for editing location').fill('Correct bin label');
+  await page.getByText('Location details & administration',{exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).click();await page.getByLabel('Location code').fill('EDITED');await page.getByLabel('Location name').fill('Edited bin');await page.getByLabel('Sort position').fill('3');
   await page.screenshot({path:`.temp/catalog-inventory-ui/${device}-edit.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.getByRole('button',{name:'Save location changes',exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
   const edit=await page.evaluate(()=>window.inventoryFixture.calls.find(c=>c.name==='edit_inventory_location'));
   assert.equal(edit.args.p_code,'EDITED');assert.equal(edit.args.p_expected_revision,1);assert.equal(edit.args.p_position,3);
-  assert.equal(await page.getByRole('button',{name:'Archive location',exact:true}).isDisabled(),true);
-  await page.getByLabel('Reason for archiving location').fill('No longer in use');await page.getByRole('button',{name:'Archive location',exact:true}).click();await page.getByRole('heading',{name:'Archived location',exact:true}).waitFor();
+  assert.equal(edit.args.p_reason,null);
+  assert.equal(await page.getByRole('button',{name:'Archive location',exact:true}).isDisabled(),false);
+  await page.getByRole('button',{name:'Archive location',exact:true}).click();await page.getByRole('heading',{name:'Archived location',exact:true}).waitFor();
   await page.screenshot({path:`.temp/catalog-inventory-ui/${device}-archived.png`,fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-  await page.getByLabel('Reason for restoring location').fill('Return to active service');await page.getByRole('button',{name:'Restore location',exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Restore location',exact:true}).click();await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
  }
  await page.goto(url+'&role=Supervisor');await page.getByRole('button',{name:'Full Catalogue',exact:true}).click();await page.getByRole('searchbox',{name:'Search materials',exact:true}).fill('Greenfield');await page.locator('details.inventory-material summary').click();await page.getByRole('button',{name:'Material aliases',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Add alias',exact:true}).count(),0);
- assert.deepEqual(errors,[]);console.log('PASS: desktop/tablet/phone real workspace; aliases search/save; explicit mapping without quantity; count unknown→zero; location editing, revision payload, reason gates, archive/restore; stable record IDs; permission UI; no horizontal overflow or browser exceptions. Transport is mocked; SQL independently tested.');
+ assert.deepEqual(errors,[]);console.log('PASS: desktop/tablet/phone real workspace; aliases search/save; explicit mapping without quantity; count unknown→zero; location editing, revision payload, automatic audits, archive/restore; stable record IDs; permission UI; no horizontal overflow or browser exceptions. Transport is mocked; SQL independently tested.');
 }finally{await browser?.close();await server.close();}

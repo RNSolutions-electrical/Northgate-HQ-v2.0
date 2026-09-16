@@ -57,7 +57,7 @@ export function createSupabaseClient() { return {
       unit:['storage_units',null,'unit_code','name'],shelf:['shelves','unit_id','shelf_code','label'],bay:['bays','shelf_id','bay_code','label'],bin:['bins','bay_id','bin_code','label'],
      }[args.p_kind];
      if(hierarchy[table].some(row=>row[code]===args.p_code&&(!parent||row[parent]===args.p_parent_id)))return {error:{message:'That location code already exists under this parent.'}};
-     hierarchy[table].push({id:args.p_request_id,[code]:args.p_code,[label]:args.p_label,...(parent?{[parent]:args.p_parent_id}:{division:args.p_division}),position:args.p_position,revision:1,archived_at:null});
+     hierarchy[table].push({id:args.p_request_id,[code]:args.p_code,[label]:args.p_label,...(parent?{[parent]:args.p_parent_id}:{division:args.p_division}),position:args.p_position,...args.p_details,revision:1,archived_at:null});
      return {data:{id:args.p_request_id,kind:args.p_kind,code:args.p_code,label:args.p_label,division:args.p_division}};
     }
     if(name==='prepare_storage_location_deletion'){

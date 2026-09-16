@@ -1,6 +1,6 @@
-import {DocumentSections,DocumentSectionControl} from './DocumentSections.jsx';
+import {DocumentSections,DocumentSectionControl,DocumentTagFilter} from './DocumentSections.jsx';
 import {DocumentFileActions} from './DocumentFileActions.jsx';
-import {filterDocuments,sectionLabel} from './documentSections.js';
+import {filterDocuments,documentTagsLabel,documentJobChoices} from './documentSections.js';
 import { useAuth } from '@clerk/clerk-react';
 import {
   Archive,
@@ -34,9 +34,13 @@ const DOCUMENT_SELECT_FIELDS = [
   'updated_at',
   'owner_type',
   'owner_id',
+  'storage_path',
   'file_name',
   'document_type',
   'document_section',
+  'department_tags',
+  'custom_tags',
+  'organization_version',
   'change_order_id',
   'description',
   'file_size_bytes',
@@ -48,6 +52,7 @@ const JOB_SELECT_FIELDS = [
   'id',
   'job_number',
   'service_call_number',
+  'job_type',
   'name',
   'division',
 ].join(', ');
@@ -286,6 +291,7 @@ function useDocumentIndex({ enabled }) {
             error,
             documents: EMPTY_DOCUMENTS,
             jobs: EMPTY_JOBS,
+            changeOrders: [],
           });
         }
       }
@@ -310,7 +316,7 @@ export function DocumentsWorkspace({ permissions }) {
   const [activeSection, setActiveSection] = useState('index');
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
   const [search, setSearch] = useState('');
-  const [filters,setFilters]=useState({section:'',type:'',job:'',from:'',to:''});
+  const [filters,setFilters]=useState({section:'',tag:'',type:'',job:'',from:'',to:''});
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
 
@@ -423,15 +429,15 @@ export function DocumentsWorkspace({ permissions }) {
                     </label>
                   )}
                   actions={(
-                    <button type="button" className="secondary-button" onClick={() => {setSearch('');setFilters({section:'',type:'',job:'',from:'',to:''});}}>
+                    <button type="button" className="secondary-button" onClick={() => {setSearch('');setFilters({section:'',tag:'',type:'',job:'',from:'',to:''});}}>
                       Clear
                     </button>
                   )}
                 />
                 <DocumentSections documents={documents} value={filters.section} onChange={section=>setFilters(f=>({...f,section}))}/>
-                <div className="document-index-filters"><label>Job / service call<select aria-label="Document job filter" value={filters.job} onChange={e=>setFilters(f=>({...f,job:e.target.value}))}><option value="">All records</option>{documentIndex.jobs.map(j=><option key={j.id} value={j.id}>{jobMap.get(j.id)}</option>)}</select></label><label>Document type<select aria-label="Document type filter" value={filters.type} onChange={e=>setFilters(f=>({...f,type:e.target.value}))}><option value="">All types</option>{[...new Set(documents.map(d=>d.document_type).filter(Boolean))].sort().map(t=><option key={t} value={t}>{documentCategoryLabel(t)}</option>)}</select></label><label>From<input aria-label="Document date from" type="date" value={filters.from} onChange={e=>setFilters(f=>({...f,from:e.target.value}))}/></label><label>Through<input aria-label="Document date through" type="date" value={filters.to} onChange={e=>setFilters(f=>({...f,to:e.target.value}))}/></label></div>
+                <div className="document-index-filters"><label>Job<select aria-label="Document job filter" value={filters.job} onChange={e=>setFilters(f=>({...f,job:e.target.value}))}><option value="">All jobs</option>{documentJobChoices(documentIndex.jobs).map(j=><option key={j.id} value={j.id}>{jobMap.get(j.id)}</option>)}</select></label><label>Document type<select aria-label="Document type filter" value={filters.type} onChange={e=>setFilters(f=>({...f,type:e.target.value}))}><option value="">All types</option>{[...new Set(documents.map(d=>d.document_type).filter(Boolean))].sort().map(t=><option key={t} value={t}>{documentCategoryLabel(t)}</option>)}</select></label><DocumentTagFilter documents={documents} value={filters.tag} onChange={tag=>setFilters(f=>({...f,tag}))}/><label>From<input aria-label="Document date from" type="date" value={filters.from} onChange={e=>setFilters(f=>({...f,from:e.target.value}))}/></label><label>Through<input aria-label="Document date through" type="date" value={filters.to} onChange={e=>setFilters(f=>({...f,to:e.target.value}))}/></label></div>
                 <DataTable
-                  columns={[...DOCUMENT_COLUMNS,{key:'section',header:'Section',render:sectionLabel},{key:'actions',header:'File actions',render:row=><DocumentFileActions document={row}/>}]}
+                  columns={[...DOCUMENT_COLUMNS,{key:'section',header:'Tags',render:documentTagsLabel},{key:'actions',header:'File actions',render:row=><DocumentFileActions document={row}/>}]}
                   rows={filteredDocuments}
                   getRowKey={(row) => row.id}
                   permissions={permissions}
@@ -462,7 +468,7 @@ export function DocumentsWorkspace({ permissions }) {
                       ]}
                     />
                     <DocumentFileActions document={selectedDocument}/>
-                    {canManageJobDocuments&&selectedDocument.owner_type==='job'&&<DocumentSectionControl document={selectedDocument} onChanged={documentIndex.reload}/>}
+                    {((canManageJobDocuments&&['job','change_order'].includes(selectedDocument.owner_type))||(permissions.canManageChangeOrders&&selectedDocument.owner_type==='change_order')||(permissions.canEstimate&&selectedDocument.owner_type==='estimate'))&&<DocumentSectionControl key={selectedDocument.id} document={selectedDocument} onChanged={documentIndex.reload}/>}
                     <div className="module-fact-grid documents-fact-grid">
                       <SummaryCard detailIsDiagnostic label="Size" value={formatBytes(selectedDocument.file_size_bytes)} detail="Stored metadata" />
                       <SummaryCard detailIsDiagnostic label="MIME" value={selectedDocument.mime_type || '-'} detail="Stored metadata" />

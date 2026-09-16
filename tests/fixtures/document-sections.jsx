@@ -7,4 +7,4 @@ import '../../src/styles/tokens.css';
 import '../../src/styles/base.css';
 import '../../src/styles/primitives.css';
 window.safeHtmlPreview=safeHtmlPreview;
-createRoot(document.getElementById('root')).render(<BrowserRouter><DocumentsWorkspace permissions={{permissionSource:'server',canManageJobs:true,canViewAllDivisions:true,department:'Electrical',role:'Manager'}}/></BrowserRouter>);
+createRoot(document.getElementById('root')).render(<BrowserRouter><DocumentsWorkspace permissions={{permissionSource:'server',canManageJobs:!location.search.includes('readonly'),canViewAllDivisions:true,department:'Electrical',role:'Manager'}}/></BrowserRouter>);

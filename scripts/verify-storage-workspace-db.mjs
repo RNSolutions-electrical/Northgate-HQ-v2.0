@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {checkStorageDeletion} from './check-storage-deletion-db.mjs';
 import {checkDataCorrection} from './check-data-correction-db.mjs';
+import {checkRoutineStorage} from './check-routine-storage-db.mjs';
 const db=new PGlite();
 const query=(sql,args=[])=>db.query(sql,args);
 const one=async(sql,args=[])=>Object.values((await query(sql,args)).rows[0])[0];
@@ -118,5 +119,6 @@ try{
 
  await checkStorageDeletion(db);
  await checkDataCorrection(db);
+ await checkRoutineStorage(db);
  console.log('True simultaneous database sessions and live production deployment not tested by this isolated runner.');
 }catch(e){console.error({message:e.message,query:e.query,where:e.where,stack:e.stack?.split('\n').slice(0,3)});process.exitCode=1;}finally{await db.close();}

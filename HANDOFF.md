@@ -21633,3 +21633,149 @@ count-entry permissions. No commit/push/deployment was requested for this pass.
 - Prior HANDOFF prefix SHA-256: 68e86434bb88991c3fd2dff28766c6c35156bd674a40ad3d171aa83d244ffad8.
 
 ---
+
+## Entry 270 — AFC reviewer access and acceptance update
+
+2026-09-16 · Production Mode · Live account configuration, no application release.
+
+- Ryan explicitly approved AFC reviewer permission for both Ryan Noel accounts.
+  Granted can_review_afc_studies to crncmk@gmail.com (Developer) and
+  ryan@thenorthgategroup.com (Manager), with reason/actor/time and before/after
+  permission audit. Roles, templates and every unrelated override were preserved.
+- The work account also needed the available_fault_current add-on enabled;
+  used the existing audited set_user_addon_access RPC for only that account/tool.
+  Both accounts now pass effective reviewer and AFC add-on access checks.
+- Existing batch permission editor rejects capabilities absent from role defaults,
+  including the Developer's separately granted can_developer_data_correction.
+  No function/allowlist changes made here. Targeted audited grant preserved that
+  existing correction grant. Follow-up: reconcile the editor's allowed keys without
+  broadening who can edit Developer permissions.
+- Ryan confirmed printing looks good. End-to-end acceptance remains pending real,
+  representative inputs; synthetic verification is not a substitute for that test.
+- Historical documents remain Unclassified, unchanged. For eligible job documents,
+  select a row on Documents and use Document section in the details panel; section
+  filtering becomes meaningful once known files are classified. Source-owned or
+  signed/released files retain their restrictions. No bulk reclassification authorized.
+- Local handoff note only; no commit/push/deploy requested for this account update.
+  Production application marker remains SEQUOIA-HQ-WORKFLOWS-20260916-001.
+- Prior HANDOFF prefix SHA-256:
+  2940d11287e3b62eeda00a171a84181bb500cb5a81b86324a0ad7c0150952a44.
+
+---
+
+## Entry 271 — Document tags, filter cleanup and audit usability
+
+2026-09-16 · Production Mode · Local implementation only; no deployment.
+
+- Ryan approved multi-department/custom tags and organizing signed CO documents,
+  requested service calls omitted from the Job filter, and set a future policy
+  favoring automatic audits over routine mandatory reasons. Backup question was
+  evaluated as planning, not authorization to export, schedule or buy services.
+- Existing document controls/queries now support multi-department and custom tags
+  in Documents and Job/Service Call Documents. Type remains separate. All-selected
+  department filtering combines with type/custom-tag/date/search; service-call files
+  remain searchable while dropdown choices contain jobs only.
+- Additive migration 20260916112115_document_organization_tags.sql is pending:
+  department_tags/custom_tags/organization_version on documents; existing sections
+  inherited without mass historical updates; atomic scoped version-checked tag RPC;
+  narrow classify guard extension; legacy single-section adapter that cannot erase
+  multiple departments. No table/Storage RLS, financial, approval, file or role
+  changes. Released technical evidence retains source-only classification.
+- Signed and CO-owned document tagging is audited without a typed reason. Existing
+  non-tagging edit/archive/restore gates are unchanged. Usability policy added to
+  CODEX_DISCIPLINE_PROTOCOL; follow-up gate review documented, not broadly applied.
+- Verification: 117 unit tests, existing 40 isolated database checks, 33 additional
+  tag assertions, desktop/phone tag UI and desktop/tablet/phone existing document
+  regression tests passed. Screenshots inspected. Production-configured local
+  build .temp/inspection-production-check-1789558282432 passed (existing chunk/XLSX
+  warnings). Mocked transport and isolated Postgres are not live-user acceptance.
+- Weekly encrypted offsite DB+Storage recommendation recorded; database backups
+  exclude uploaded bytes. Current provider plan/backup success not verified,
+  offsite destination/retention/cost and restore objectives still require choices.
+  No automation, export, restore or paid change performed.
+- See docs/reviews/DOCUMENT_TAGS_AND_RECOVERY.md. Release order is migration,
+  verification, frontend, real-account acceptance, then durable release record.
+  No commit/push/deploy requested here. Preserve previous local account notes and
+  all historical untracked build directories. Production remains SEQUOIA.
+- Prior HANDOFF prefix SHA-256:
+  584eaa69535d00d2f25d290acedc9b745e3c3b973f7c55904a8dc310961691a4.
+
+---
+
+## Entry 272 — 2026-09-16 — Storage creation details and routine audit usability (local only)
+
+- Production Mode. Ryan requested more local UI work before applying migrations,
+  committing/pushing or deploying, and explicitly deferred backups to backlog.
+- Preserved Entry 270 account notes and Entry 271 document-tag changes. No live
+  data writes, migration application, commit, push, deploy or backup operation.
+- Storage creation now exposes physical location/materials purpose with existing
+  identity/parent/sort fields. Child locations inherit nearest-parent physical
+  location by default; explicit overrides persist. Inheritance follows moves and
+  parent edits without descendant copying or financial/quantity changes.
+- Existing RPC creation gains a default details argument and atomic audit/details
+  write. Reviewed routine gates are paired with automatic server audit notes.
+  Ordinary document/tool metadata, recoverable archives, storage lifecycle,
+  aliases/mapping, job assignment, permit metadata and selected inspection links
+  no longer require prose. Employee contact/default-User setup is routine;
+  identity/elevated-role/department changes retain server-enforced reasons.
+- Financial posting/correction, inventory correction, Developer data correction,
+  permanent deletion, permissions and protected/issued evidence safeguards remain.
+  No global ConfirmDialog relaxation, RLS bypass or role-default change.
+- Pending migration order: document tags 20260916112115, inventory creation
+  details 20260916125643, routine audit notes 20260916125644. Re-inspect live
+  definitions for other-machine changes, migrate and verify before frontend
+  deployment. Do not deploy the reason-free UI against old RPC validation.
+- Verification: 119 unit tests; existing and extended isolated inventory SQL
+  checks including replay, stale/scoped denial, atomic rollback and unchanged
+  protected RPCs; 20 reviewed RPC definition transformations preserve security
+  and grants in the fixture; employee identity/access cases executed; 58
+  inspection checks; existing 40 AFC plus 33 document-tag checks. Browser
+  creation/inheritance, storage lifecycle, document and tool workflows pass at
+  desktop/tablet/phone sizes with mocked transport. Screenshots inspected.
+- Local production-configured build passed at
+  .temp/inspection-production-check-1789564506378. Existing large bundle/XLSX
+  warnings remain. No live-user acceptance or simultaneous DB-session race test.
+- Scope, retained gates and deployment notes:
+  docs/reviews/INVENTORY_DETAILS_AND_AUDIT_POLICY.md.
+  Backups recorded in docs/ROADMAP.md, not activated.
+- Production/sync marker remains SEQUOIA-HQ-WORKFLOWS-20260916-001.
+  These local changes are not yet available on the other machines.
+- Prior HANDOFF prefix: 1,062,135 bytes; SHA-256
+  86ee8518f71d3a137ab70c8b22a383d720fff88219aa63ba8cf7f71c0ef6dd80.
+
+---
+
+## Entry 273 — 2026-09-16 — JUNIPER inventory/audit release, database verified
+
+- Ryan explicitly authorized migrate, commit, push and deploy in Production Mode.
+  Fetched origin/main; HEAD matched 93530521b7ebc684108f4a6ea0d072cebd8161c2.
+  Preserved prior account notes, document work and unrelated historical dist folders.
+- Release marker: JUNIPER-INVENTORY-AUDIT-20260916-001. Scope is Entries 270–272;
+  backups remain backlog. No additional role-default changes or permission bypass.
+- All 20 targeted live routine RPC definitions matched the reviewed fixture;
+  storage creation matched its inspected source with no dependent objects.
+  Applied document tags, creation details, routine notes in that order, with
+  transaction-local lock/statement limits. Actual production versions are
+  20260916132523, 20260916132528, 20260916132537 (MIGRATION_MAP.md).
+- Reran 119 unit tests, routine audit SQL suite (20 definition/security checks
+  plus employee identity/access cases), storage SQL regressions, 40 AFC checks
+  and 33 document-tag assertions. All pass. Prior desktop/tablet/mobile UI
+  tests and 58 inspection checks are documented in Entry 272.
+- Actual-schema authenticated rollback-only tests pass: hierarchy creation,
+  mappings/counts/moves with stable stock, old-client compatibility, reason-free
+  edits, stale/type/collision/actor rejection, archive/restore, details/replay,
+  document tag normalization/stale guard/identity-preserving lifecycle and audits.
+  All synthetic rows rolled back; zero test jobs remain. Anonymous execution of
+  the new tags/create RPCs is denied. No persistent acceptance data was changed.
+- Security advisors retain existing view/search-path/execute warnings. Authenticated
+  security-definer callable count increases by one for the permission-checked tags
+  RPC. This release does not claim unrelated legacy advisories are resolved.
+- Production-configured local build passed:
+  .temp/inspection-production-check-1789565232153 (index-DyIS2TKM.js).
+  Existing large-bundle/XLSX warnings remain. Real-account acceptance remains Ryan's
+  next step; no claim of live signed-in browser acceptance or concurrent DB-session test.
+- Frontend publication and final hashes will be recorded in Entry 274.
+- Prior HANDOFF prefix: 1,065,030 bytes; SHA-256
+  aad412791aa5b4d9a6870b793b79e40b1514b309a4544123246a371b008e62b1.
+
+---

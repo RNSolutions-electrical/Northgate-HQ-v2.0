@@ -483,6 +483,7 @@ export function EmployeesWorkspace({ permissions }) {
     setEmployeeForm({
       ...DEFAULT_EMPLOYEE_FORM,
       id: profile.id,
+      originalAccess: {email: profile.email || '', role: profile.role || 'User', division: profile.division || ''},
       displayName: profile.display_name || '',
       email: profile.email || '',
       role: profile.role || 'User',
@@ -497,13 +498,12 @@ export function EmployeesWorkspace({ permissions }) {
 
   async function archivePendingProfile(profile) {
     if (!profile?.id || pendingProfileAction.id) return;
-    const reason = window.prompt(`Archive the pending profile for ${profile.display_name || profile.email}? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!window.confirm(`Archive the pending profile for ${profile.display_name || profile.email}? History will be preserved.`)) return;
     setPendingProfileAction({ id: profile.id, error: null });
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client.rpc('archive_pending_employee_profile', { p_profile_id: profile.id, p_reason: reason.trim() });
+      const { error } = await client.rpc('archive_pending_employee_profile', { p_profile_id: profile.id, p_reason: null });
       if (error) throw error;
       if (employeeForm.id === profile.id) {
         setEmployeeForm(DEFAULT_EMPLOYEE_FORM);
@@ -544,6 +544,12 @@ export function EmployeesWorkspace({ permissions }) {
     }
   }
 
+  const employeeAccessReasonRequired = employeeForm.id
+    ? employeeForm.role !== employeeForm.originalAccess?.role
+      || employeeForm.division !== employeeForm.originalAccess?.division
+      || employeeForm.email.trim().toLowerCase() !== employeeForm.originalAccess?.email.trim().toLowerCase()
+    : employeeForm.role !== 'User';
+
   const pendingProfileColumns = [
     ...PENDING_PROFILE_BASE_COLUMNS,
     {
@@ -582,7 +588,7 @@ export function EmployeesWorkspace({ permissions }) {
       {isCreateOpen && canReadEmployees ? (
         <form className="card workspace-card employee-profile-form" onSubmit={saveEmployee}>
           <Toolbar descriptionIsDiagnostic eyebrow="Employee Setup" title={employeeForm.id ? 'Edit pending employee profile' : 'Create employee profile'} description="Set up the internal profile first. It will connect to Clerk automatically when the employee signs in with this exact email address." />
-          <p className="employee-profile-form__hint"><strong>Required fields</strong> are marked with an asterisk. The reason is saved to the audit log.</p>
+          <p className="employee-profile-form__hint"><strong>Required fields</strong> are marked with an asterisk. Changes are audited automatically. Identity and access changes require a reason.</p>
           <div className="employee-profile-form__grid">
             <label><span>Full name <b aria-hidden="true">*</b></span><input value={employeeForm.displayName} onChange={(event) => setEmployeeField('displayName', event.target.value)} disabled={employeeForm.isSaving} autoComplete="name" required /></label>
             <label><span>Work email <b aria-hidden="true">*</b></span><input type="email" value={employeeForm.email} onChange={(event) => setEmployeeField('email', event.target.value)} disabled={employeeForm.isSaving} autoComplete="email" required /></label>
@@ -590,7 +596,7 @@ export function EmployeesWorkspace({ permissions }) {
             <label><span>Primary department</span><select value={employeeForm.division} onChange={(event) => setEmployeeField('division', event.target.value)} disabled={employeeForm.isSaving}><option value="">Unassigned</option><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
             <label><span>Job title</span><input value={employeeForm.jobTitle} onChange={(event) => setEmployeeField('jobTitle', event.target.value)} disabled={employeeForm.isSaving} /></label>
             <label><span>Phone</span><input type="tel" value={employeeForm.phone} onChange={(event) => setEmployeeField('phone', event.target.value)} disabled={employeeForm.isSaving} autoComplete="tel" /></label>
-            <label className="employee-profile-form__wide"><span>{employeeForm.id ? 'Reason for editing this profile' : 'Reason for creating this profile'} <b aria-hidden="true">*</b></span><input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} placeholder={employeeForm.id ? 'e.g., Corrected division assignment' : 'e.g., New electrical field employee'} required /></label>
+            <label className="employee-profile-form__wide"><span>{employeeAccessReasonRequired ? 'Reason for identity / access change *' : 'Note (optional)'}</span><input value={employeeForm.reason} onChange={(event) => setEmployeeField('reason', event.target.value)} disabled={employeeForm.isSaving} placeholder={employeeAccessReasonRequired ? 'Why is this account access changing?' : 'Optional context'} required={employeeAccessReasonRequired} /></label>
             <label className="employee-profile-form__wide"><span>Notes</span><textarea value={employeeForm.notes} onChange={(event) => setEmployeeField('notes', event.target.value)} disabled={employeeForm.isSaving} rows="3" /></label>
           </div>
           <div className="record-actions"><button type="submit" className="primary-button" disabled={employeeForm.isSaving}>{employeeForm.isSaving ? 'Saving…' : 'Save employee profile'}</button><button type="button" className="secondary-button" onClick={() => { setIsCreateOpen(false); setEmployeeForm(DEFAULT_EMPLOYEE_FORM); }} disabled={employeeForm.isSaving}>Cancel</button></div>

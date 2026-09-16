@@ -139,3 +139,19 @@ before the presentation.** Revisit after.
 
 Note that none of these live in the code being replaced. That is precisely why
 this rebuild is low-risk.
+
+## September 16, 2026 — JUNIPER-INVENTORY-AUDIT-20260916-001
+
+Applied through the Supabase migration API, which assigned production timestamps:
+
+| Local migration | Applied production version | Purpose |
+| --- | --- | --- |
+| 20260916112115_document_organization_tags.sql | 20260916132523 | Multi-department/custom tags; signed CO organization; audited scoped RPC |
+| 20260916125643_inventory_creation_details.sql | 20260916132528 | Atomic location details at creation; compatible default ninth argument |
+| 20260916125644_routine_audit_notes.sql | 20260916132537 | Reviewed routine automatic notes; retain protected action gates |
+
+Do not replay these migrations because their timestamps differ. Confirm the
+production migration names and definitions before any CLI history repair.
+Preflight compared targeted live RPC definitions with reviewed fixtures; no
+conflicting changes found. No CASCADE, data deletion, stock rewrite or backfill.
+Live tests ran in transactions and rolled back all synthetic rows and audits.

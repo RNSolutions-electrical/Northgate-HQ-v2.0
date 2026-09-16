@@ -2,11 +2,11 @@ import {readFile,readdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-const dir=process.argv[2],base=process.argv[3]||'https://rnsolutions.net';
+const dir=process.argv[2],base=process.argv[3]||'https://rnsolutions.net',marker=process.argv[4]||'SEQUOIA-HQ-WORKFLOWS-20260916-001';
 assert.ok(dir,'Pass the tested production build directory');
 const hash=v=>createHash('sha256').update(v).digest('hex');
 const local=await readFile(path.join(dir,'index.html'));
-const r=await fetch(base+'/northgate/?release=SEQUOIA-HQ-WORKFLOWS-20260916-001',{headers:{'Cache-Control':'no-cache'}});
+const r=await fetch(base+'/northgate/?release='+encodeURIComponent(marker),{headers:{'Cache-Control':'no-cache'}});
 assert.equal(r.status,200);assert.equal(hash(Buffer.from(await r.arrayBuffer())),hash(local),'HTML differs from tested build');
 const assets=await readdir(path.join(dir,'assets'));
 for(const file of assets){const result=await fetch(base+'/northgate/assets/'+file);assert.equal(result.status,200,file);const mime=result.headers.get('content-type');
@@ -16,6 +16,7 @@ for(const file of assets){const result=await fetch(base+'/northgate/assets/'+fil
 const mainPath=local.toString().match(/src="([^"]+\.js)"/)[1];const main=await readFile(path.join(dir,mainPath.replace('/northgate/','')),'utf8');
 assert.ok(main.includes('https://keogysnoukbendfkfjcn.supabase.co'));assert.match(main,/pk_live_/);assert.ok(!main.includes('fixture.invalid'));
 for(const value of ['can_review_afc_studies','afc-release','afc_save','Available Fault Current','set_document_section','Construction Documents','Electrical Documents','General Documents'])assert.ok(main.includes(value),value);
+if(marker.startsWith('JUNIPER-'))for(const value of ['set_document_tags','Use parent physical location','materials_summary'])assert.ok(main.includes(value),value);
 const workbench=await readFile(path.join(dir,'assets',assets.find(n=>n.startsWith('WorkbenchRoute-')&&n.endsWith('.js'))),'utf8');
 // Consideration keys/labels are loaded from the database, not hard-coded in the bundle.
 for(const value of ['Finalization checklist','Submit for review','Review & approve','finalizationChecklist'])assert.ok(workbench.includes(value),value);

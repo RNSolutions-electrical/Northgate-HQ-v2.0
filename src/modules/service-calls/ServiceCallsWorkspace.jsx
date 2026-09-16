@@ -372,8 +372,8 @@ export function ServiceCallsWorkspace({ permissions, initialJobId = null, onJobs
     <ConfirmDialog open={!!leaveAction} title="Discard unsaved changes?" description="These edits have not been saved." confirmLabel="Discard changes" cancelLabel="Keep editing"
       onCancel={()=>setLeaveAction(null)} onConfirm={()=>{const action=leaveAction;setLeaveAction(null);setDirty(false);action?.();}} />
     <ConfirmDialog open={confirm === 'archive'} title="Archive service call?" description="Linked calls, invoice allocations, payments and history will be preserved. The call moves to the Archived directory."
-      requireReason confirmLabel="Archive" tone="danger" isSubmitting={busy} onCancel={() => setConfirm(null)}
-      onConfirm={(reason) => write('svc_archive_call',{p_job_id:call.id,p_reason:reason,p_expected_updated_at:call.updated_at},'Service call archived.')} />
+      confirmLabel="Archive" tone="danger" isSubmitting={busy} onCancel={() => setConfirm(null)}
+      onConfirm={() => write('svc_archive_call',{p_job_id:call.id,p_reason:null,p_expected_updated_at:call.updated_at},'Service call archived.')} />
     <ConfirmDialog open={confirm === 'invoice'} title="Record the allocated invoice?" description="I confirm the invoice and each call’s allocated amount are correct. This records billing; it does not send an invoice."
       confirmLabel="Confirm & record" isSubmitting={busy} onCancel={() => setConfirm(null)}
       onConfirm={() => {if(!charges)return;const {requestId,...data}=invoice;write('svc_post_invoice',{p_request_id:requestId,p_data:{...data,sales_tax_percent:Number(data.sales_tax_percent),credit_card_percent:Number(data.credit_card_percent),sales_tax:charges.salesTax,credit_card_fee:charges.creditCardFee}},'Invoice recorded with reconciled call allocations.');}} >

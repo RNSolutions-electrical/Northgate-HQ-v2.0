@@ -28,3 +28,12 @@ test('required changes accept shared, individual, or both reasons without losing
   assert.equal(hasReasonCoverage([{ requiresReason: true, reason: ' ' }], '\t'), false);
   assert.equal(combineAuditReasons(' batch ', ' line '), 'Batch: batch\nLine: line');
 });
+
+test('reviewed recoverable workflows do not require prose; protected and unknown actions do',()=>{
+ for(const workflow of ['storage.location','material.alias','material.mapping','tool.catalogue','document.archive','job.archive','schedule.archive','estimate.archive','service-call.archive','employee.pending-archive','permit.register']){
+  assert.equal(requiresAuditReason({action:'archive',workflow}),false);
+  assert.equal(requiresAuditReason({action:'archive',workflow,protectedChange:true}),true);
+  assert.equal(requiresAuditReason({action:'delete',workflow}),true);
+ }
+ assert.equal(requiresAuditReason({action:'archive',workflow:'unknown'}),true);
+});

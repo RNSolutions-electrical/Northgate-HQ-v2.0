@@ -1,2 +1,18 @@
 .document-sections{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.document-sections button[aria-pressed=true]{border-color:#9f2432;background:#fff0f1;color:#81202b}.document-section-control{display:flex;flex-direction:column;gap:5px;max-width:300px;margin:8px 0;font-size:12px}.document-section-control select,.document-index-filters input,.document-index-filters select{padding:8px;border:1px solid #c5cbd4;border-radius:5px;min-width:0;width:100%;box-sizing:border-box;background:var(--surface,#fff);color:inherit}.document-index-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}.document-index-filters label{font-size:12px;display:flex;flex-direction:column;gap:5px}.document-file-actions small{display:block;font-size:11px;max-width:230px;line-height:1.4;padding-top:5px}
 @media(max-width:700px){.document-index-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.document-sections button{flex:1 1 auto}.document-file-actions .job-document-actions{flex-wrap:wrap}}
+.document-section-control{display:block;width:100%;max-width:420px;min-width:0}
+.document-section-control summary{cursor:pointer;font-weight:600}
+.document-section-control summary small{display:block;font-weight:400;color:var(--ng-muted);overflow-wrap:anywhere}
+.document-section-control fieldset{display:grid;gap:10px;min-width:0;margin:10px 0 0;padding:12px;border:1px solid var(--ng-border);border-radius:var(--ng-radius-control)}
+.document-section-control legend{font-weight:600}
+.document-section-control label,.document-tag-filter{display:flex;flex-direction:column;gap:5px;font-size:12px}
+.document-section-control input:not([type=checkbox]),.document-tag-filter select{box-sizing:border-box;width:100%;min-width:0;padding:8px;border:1px solid var(--ng-border);border-radius:var(--ng-radius-control);background:var(--ng-card-bg);color:var(--ng-text)}
+.document-tag-choices,.document-tag-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.document-tag-choices label{flex-direction:row;align-items:center;gap:5px}
+.document-tag-choices input[type=checkbox]{width:auto;margin:0}
+.document-tag-choices button{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+.document-tag-filter{max-width:420px;margin:8px 0}
+.document-index-filters{grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))}
+.document-index-filters .document-tag-filter{margin:0}
+.document-section-control p[role=alert]{color:var(--ng-err)}
+.document-section-control p[role=status]{color:var(--ng-ok)}

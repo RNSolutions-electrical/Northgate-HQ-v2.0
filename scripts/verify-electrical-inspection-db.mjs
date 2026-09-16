@@ -17,6 +17,11 @@ try{
  await db.exec(await readFile('tests/fixtures/inspectionPermissionManagement.sql','utf8'));
  await db.exec(await readFile('supabase/migrations/20260915000120_inspection_reviewer_permission_management.sql','utf8'));
  await db.exec(await readFile('supabase/migrations/20260915000719_inspection_list_alias.sql','utf8'));
+ const routineSql=await readFile('supabase/migrations/20260916125644_routine_audit_notes.sql','utf8');
+ await db.exec(routineSql.match(/DO \$inspection\$[\s\S]*?END \$inspection\$;/)[0]);
+ let registerSql=routineSql.split('-- Linking/assigning')[0];
+ registerSql=registerSql.replace(/  \('([^']+)'[^\n]+\n/g,(line,name)=>name==='hi_job_register_save'?line:'').replace(/,\s*\) AS functions/,'\n ) AS functions');
+ await db.exec(registerSql);
  await db.exec("insert into user_permissions(clerk_user_id,role,division,display_name)values('tech','User','Electrical','Test Technician'),('other','User','Electrical','Other Technician'),('reviewer','Manager','Electrical','Test Reviewer'),('outside','User','Construction','Outside User'),('inactive','Developer','Electrical','Inactive');update user_permissions set is_active=false where clerk_user_id='inactive';insert into tool_addon_access values('electrical_inspection','tech',true),('electrical_inspection','other',true),('electrical_inspection','reviewer',true),('electrical_inspection','outside',true);insert into user_permission_overrides(user_id,permission_flag,granted)values('reviewer','can_review_electrical_inspections',true);");
  await verifyReviewerManagement({db,query,one,actor,denied,assert});
  const job=await one("insert into jobs(name,job_number,division)values('Test Job','TEST-001','Electrical')returning id"),outsideJob=await one("insert into jobs(name,job_number,division)values('Outside','OTHER-001','Construction')returning id");
@@ -35,7 +40,7 @@ try{
  await denied(()=>query('update health_inspections set division=$1 where id=$2',['Construction',id]),/permission denied/);
  const action=(type,data={},reason='Test reason',request=crypto.randomUUID())=>one('select hi_action($1,$2,$3,$4,$5,$6)',[request,id,saved.version,type,data,reason]);
  await actor('other');await denied(()=>one('select hi_read($1)',[id]),/unavailable/);await actor('outside');await denied(()=>one('select hi_read($1)',[id]),/unavailable/);await actor('inactive');await denied(()=>save(),/Active sign-in/);await actor('');await denied(()=>save(),/Active sign-in/);
- await actor('tech');await denied(()=>action('link',{job_id:outsideJob,confirmed_snapshot:true}),/outside authorized/);saved=await action('link',{job_id:job,confirmed_snapshot:true});checks++;
+ await actor('tech');await denied(()=>action('link',{job_id:outsideJob,confirmed_snapshot:true}),/outside authorized/);saved=await action('link',{job_id:job,confirmed_snapshot:true},null);checks++;
  const reading=blankReading('voltage');reading.value='0';reading.state='measured';doc.equipment[0].readings=[reading];saved=await save(id,saved.version);saved=await action('submit',{},'');await denied(()=>save(id,saved.version),/not editable/);await denied(()=>action('issue',{assessment:doc.assessment,reviewSummary:doc.reviewSummary}),/Reviewer/);
  await actor('reviewer');await denied(()=>action('issue',{assessment:doc.assessment,reviewSummary:doc.reviewSummary}),/conductor pair/);saved=await action('return');doc.equipment[0].readings[0].conductor='A-N';saved=await save(id,saved.version);
  // Evidence reservation survives retries and cannot be finalized without a real object.
@@ -53,7 +58,7 @@ try{
  const reportId=crypto.randomUUID(),report=await one('select hi_file_reserve($1,$2,$3,$4)',[reportId,id,saved.version,{kind:'report',revision_id:revision,file_name:'issued.pdf',mime_type:'application/pdf',file_size_bytes:50,sha256:'b'.repeat(64)}]);await query('insert into storage.objects(bucket_id,name,metadata)values($1,$2,$3)',['northgate-files',report.storage_path,{size:50,mimetype:'application/pdf'}]);await one('select hi_file_finish($1,$2)',[reportId,'b'.repeat(64)]);await denied(()=>one('select hi_file_archive($1,$2)',[reportId,'Cannot cancel published bytes']),/pending report/);
  await actor('other');assert.equal((await query('select id from documents where id=$1',[reportId])).rows.length,1);assert.equal((await query('select id from documents where id=$1',[fileId])).rows.length,0);checks++;
  await actor('reviewer');await denied(async()=>one('select maintain_owner_document($1,$2,$3,$4,$5,$6,$7)',[reportId,'job',job,'edit',{file_name:'changed.pdf',document_type:'misc'},'Try generic maintenance',await one('select updated_at from documents where id=$1',[reportId])]),/immutable/);
- await actor('reviewer');const register=(type,row=null,data={},action='save',requestId=crypto.randomUUID())=>one('select hi_job_register_save($1,$2,$3,$4,$5,$6,$7,$8)',[requestId,job,type,row?.id||null,row?.version||null,data,action,'Test register change']);
+ await actor('reviewer');const register=(type,row=null,data={},action='save',requestId=crypto.randomUUID())=>one('select hi_job_register_save($1,$2,$3,$4,$5,$6,$7,$8)',[requestId,job,type,row?.id||null,row?.version||null,data,action,null]);
  let permit=await register('permit',null,{permit_number:'ELEC-001',portal_url:'https://example.com/permit'});await denied(()=>register('permit',permit,{permit_number:'BAD',portal_url:'javascript:alert(1)'}),/check constraint/);
  let attempt=await register('inspection',null,{name:'Rough inspection',permit_id:permit.id,status:'Completed',completed_date:'2026-09-14',result:'Failed'});let recheck=await register('inspection',null,{name:'Reinspection',permit_id:permit.id,previous_attempt_id:attempt.id});assert.equal(recheck.previous_attempt_id,attempt.id);checks++;
  await denied(()=>register('inspection',recheck,{name:'Invalid',permit_id:permit.id,previous_attempt_id:recheck.id}),/prior failed|preserve/);await denied(()=>register('permit',{...permit,version:0},{permit_number:'STALE'}),/changed/);
@@ -62,8 +67,8 @@ try{
  await db.exec("reset role;create function fail_hi_audit()returns trigger language plpgsql as $$begin raise exception 'Forced audit failure';end$$;create trigger fail_hi_audit before insert on change_logs for each row execute function fail_hi_audit();set role authenticated");
  await denied(()=>action('create_call',{call:{division:'Electrical',name:'Rollback call',service_call_number:'TEST-ROLLBACK'}}),/Forced audit/);
  await db.exec('reset role');assert.equal(await one("select count(*)::int from jobs where service_call_number='TEST-ROLLBACK'"),0);await db.exec('drop trigger fail_hi_audit on change_logs;set role authenticated');checks++;
- const requestId=crypto.randomUUID();const oldVersion=saved.version;saved=await action('create_call',{call:{division:'Electrical',name:'Follow-up',service_call_number:'TEST-FOLLOWUP'}},'Create call',requestId);
- const replayCall=await one('select hi_action($1,$2,$3,$4,$5,$6)',[requestId,id,oldVersion,'create_call',{call:{division:'Electrical',name:'Follow-up',service_call_number:'TEST-FOLLOWUP'}},'Create call']);assert.deepEqual(replayCall,saved);checks++;
+ const requestId=crypto.randomUUID();const oldVersion=saved.version;saved=await action('create_call',{call:{division:'Electrical',name:'Follow-up',service_call_number:'TEST-FOLLOWUP'}},null,requestId);
+ const replayCall=await one('select hi_action($1,$2,$3,$4,$5,$6)',[requestId,id,oldVersion,'create_call',{call:{division:'Electrical',name:'Follow-up',service_call_number:'TEST-FOLLOWUP'}},null]);assert.deepEqual(replayCall,saved);checks++;
  await actor('tech');await denied(()=>register('permit',null,{permit_number:'DENIED'}),/edit authority/);
  const imported={source:{format:'synthetic source'},filename:'fixture.json',sourceHash:'c'.repeat(64),fileHash:'d'.repeat(64)},importRequest=crypto.randomUUID();
  const importedRow=await save(null,null,doc,importRequest,imported);assert.deepEqual(await save(null,null,doc,importRequest,imported),importedRow);checks++;

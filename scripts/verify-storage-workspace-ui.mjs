@@ -17,9 +17,9 @@ try{
   await page.getByRole('button',{name:'Open S1',exact:true}).click();
   await page.getByText('Location details & administration',{exact:true}).click();
   await page.getByRole('button',{name:'Edit location',exact:true}).click();
+  await page.getByLabel('Use parent physical location').uncheck();
   await page.getByLabel('Physical location',{exact:true}).fill('North wall, aisle 2');
   await page.getByLabel('Materials stored / purpose').fill('Electrical fittings');
-  await page.getByLabel('Reason for editing location').fill('Identify shelf contents');
   await page.getByRole('button',{name:'Save location changes'}).click();
   await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
   assert.ok((await page.evaluate(()=>window.inventoryFixture.calls.find(c=>c.name==='edit_inventory_location'))).args.p_details.physical_location);
@@ -42,12 +42,11 @@ try{
   await page.getByText('Location details & administration',{exact:true}).click();
   await page.getByRole('button',{name:'Edit location',exact:true}).click();
   await page.getByLabel('Parent location',{exact:true}).selectOption('a2');
-  await page.getByLabel('Reason for editing location').fill('Move empty bin to Construction storage');
   await page.getByRole('button',{name:'Save location changes'}).click();
   await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
   assert.ok((await page.evaluate(()=>window.inventoryFixture.calls.filter(c=>c.name==='edit_inventory_location').at(-1))).args.p_parent_id==='a2');
-  await page.getByLabel('Reason for archiving location').fill('No longer needed');await page.getByRole('button',{name:'Archive location',exact:true}).click();
-  await page.getByLabel('Reason for restoring location').fill('Restore for test');await page.getByRole('button',{name:'Restore location',exact:true}).click();
+  await page.getByRole('button',{name:'Archive location',exact:true}).click();
+  await page.getByRole('button',{name:'Restore location',exact:true}).click();
   await page.getByRole('button',{name:'Edit location',exact:true}).waitFor();
   assert.deepEqual(errors,[]);await page.close();
  }

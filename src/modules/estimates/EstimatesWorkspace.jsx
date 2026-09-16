@@ -1937,8 +1937,7 @@ export function EstimatesWorkspace({ permissions }) {
       return;
     }
 
-    const reason = window.prompt(`Archive "${estimateLabel(selectedEstimate)}"? Enter a reason.`);
-    if (!reason?.trim()) return;
+    if (!window.confirm(`Archive "${estimateLabel(selectedEstimate)}"? History will be preserved.`)) return;
 
     setEstimateAction({ action: 'archive', error: null, success: '' });
 
@@ -1946,7 +1945,7 @@ export function EstimatesWorkspace({ permissions }) {
       const client = await getEstimateClient();
       const { error } = await client.rpc('archive_estimate', {
         p_estimate_id: selectedEstimate.id,
-        p_reason: reason.trim(),
+        p_reason: null,
       });
 
       if (error) throw error;
@@ -2629,10 +2628,10 @@ export function EstimatesWorkspace({ permissions }) {
     }
   }
 
-  async function handleDocumentArchive(document, reason = '') {
+  async function handleDocumentArchive(document, confirmed = false) {
     if (!document?.id || !selectedEstimate?.id || !canEditSelectedEstimate || documentAction.id) return;
 
-    if (!reason?.trim()) {
+    if (!confirmed) {
       setDocumentAction({ id: '', action: '', error: null });
       setDocumentArchiveTarget(document);
       return;
@@ -2644,7 +2643,7 @@ export function EstimatesWorkspace({ permissions }) {
       const client = await getEstimateClient();
       const { error } = await client.rpc('archive_estimate_document', {
         p_document_id: document.id,
-        p_reason: reason.trim(),
+        p_reason: null,
       });
 
       if (error) throw error;
@@ -3012,9 +3011,9 @@ export function EstimatesWorkspace({ permissions }) {
   return (
     <>
       <ConfirmDialog open={Boolean(documentArchiveTarget)} title={`Archive ${documentArchiveTarget?.file_name || 'document'}`}
-        confirmLabel="Archive document" requireReason isSubmitting={Boolean(documentAction.id)}
+        confirmLabel="Archive document" isSubmitting={Boolean(documentAction.id)}
         onCancel={() => setDocumentArchiveTarget(null)}
-        onConfirm={(reason) => handleDocumentArchive(documentArchiveTarget, reason)}>
+        onConfirm={() => handleDocumentArchive(documentArchiveTarget, true)}>
         {documentAction.error ? <p role="alert">{documentAction.error.message}</p> : null}
       </ConfirmDialog>
       <WorkspaceHeader

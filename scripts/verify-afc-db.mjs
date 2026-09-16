@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {demo} from '../src/modules/afc/engine.mjs';
 import {importStudy,studyResults} from '../src/modules/afc/model.mjs';
+import {verifyDocumentTags} from './check-document-tags-db.mjs';
 const db=new PGlite();let checks=0;
 const query=(sql,args=[])=>db.query(sql,args),one=async(sql,args=[])=>Object.values((await query(sql,args)).rows[0])[0];
 const actor=async name=>{await db.exec('reset role');await query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:name,role:'authenticated'})]);await db.exec('set role authenticated');};
@@ -72,4 +73,5 @@ try{
  await denied(()=>one('select save_user_permission_template($1,NULL,$2,$3,$4)',['developer',{can_review_afc_studies:true,can_manage_jobs:false},{template_id:null,overrides:{can_review_afc_studies:true}},'Unrelated override']),/Only inspection and AFC/);
  const invalid=structuredClone(document);invalid.nodes[0].name={invalid:true};await denied(()=>one('select afc_save($1,NULL,NULL,$2) ',[crypto.randomUUID(),invalid]),/equipment text/);
  console.log('PASS: '+checks+' AFC database authorization, shared drafts, stale saves, replay, release rollback, file protection and historical attachment checks.');
+ await verifyDocumentTags(db);
 }catch(e){console.error('AFC DB check failed:',e.message,e.detail||'',e.where||'',e.position||'',e.query?.slice(Math.max(0,Number(e.position)-160),Number(e.position)+120)||'');process.exitCode=1;}finally{await db.close();}
