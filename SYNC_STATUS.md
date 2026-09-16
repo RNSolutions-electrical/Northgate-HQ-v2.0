@@ -2,7 +2,32 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — JUNIPER-INVENTORY-AUDIT-20260916-001
+## Current release — SAPPHIRE-ESTIMATING-WORKSPACE-20260916-001
+
+- Status: LIVE, verified September 16, 2026; approved estimating workspace integrated.
+- Feature commit: `d3fd73c23b889b26c857a03347dc58618d36a390`, pushed to origin/main.
+- Production deployment: `6aaada89430eb80009564f8b`, ready/published at
+  2026-09-16 18:06:26 UTC from that exact commit through existing Git deployment.
+- Live: https://rnsolutions.net/northgate/estimates
+- Migration `estimating_workspace_integration` applied as `20260916180034`.
+  Local filename `20260916173238_estimating_workspace_integration.sql`; see
+  MIGRATION_MAP.md. Do not replay it because its timestamp differs.
+- 124 unit tests, isolated database tests and browser fixtures passed. Both live
+  rollback-only SQL suites passed; zero synthetic rows retained. HTML/all 15 assets
+  match tested production build by SHA-256/MIME; deep links/configuration verified.
+- Startup redirects to configured Clerk sign-in without uncaught JavaScript errors.
+  Signed-in user acceptance and physical printing are not claimed; Ryan tests next.
+- Netlify secret scan: 700 files, no matches. Existing Silas and disabled read
+  endpoint retained. No environment, role-default or permission-bypass changes.
+- Two new security advisor notices are the deliberately authenticated guarded
+  catalogue/checklist RPCs; existing findings unchanged. See the release review.
+- Read HANDOFF Entry 276 and docs/reviews/ESTIMATING_WORKSPACE_INTEGRATION.md.
+- Final sync commit is documentation-only [skip ci], retaining verified deploy.
+  Other machines must preserve local work, pull main and confirm this marker.
+- Unrelated historical dist-* folders and the Old/New exploration prototype remain
+  preserved locally, not included in the release. Company legal templates pending.
+
+## Previous release — JUNIPER-INVENTORY-AUDIT-20260916-001
 
 - September 16: authorized release of document tags, complete storage creation,
   parent physical-location inheritance and reviewed routine automatic audits.

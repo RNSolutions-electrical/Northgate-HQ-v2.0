@@ -122,3 +122,14 @@ checks, not claims of completion from the isolated tests.
   and checklist management. Neither is executable by anon. See the
   [Supabase authenticated-definer guidance](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
 - Signed-in user browser acceptance and physical-printer tests remain Ryan's checks.
+
+### Published release
+
+Feature commit `d3fd73c23b889b26c857a03347dc58618d36a390` is pushed to main.
+Netlify production deploy `6aaada89430eb80009564f8b` published that exact commit
+at 18:06:26 UTC on September 16. `verify-estimating-release.mjs` passed: HTML and
+all 15 assets match by SHA-256/MIME, production public settings and new features
+present, deep links resolve, anonymous RPCs denied, existing functions retained.
+Unauthenticated browser startup reached configured Clerk sign-in without uncaught
+JavaScript errors. Netlify scanned 700 files with zero secret matches.
+Sync marker: `SAPPHIRE-ESTIMATING-WORKSPACE-20260916-001`.

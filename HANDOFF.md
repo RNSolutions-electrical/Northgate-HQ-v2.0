@@ -21869,3 +21869,63 @@ Prior HANDOFF prefix: 1,069,551 bytes; SHA-256
 3a6ee8e61629a39dd6f69c5bc380b4a8a8b75e1cf5c3c020799229d54e3e1368.
 
 ---
+
+## Entry 276 — SAPPHIRE estimating workspace released and verified
+
+**Date:** 2026-09-16
+**Updated by:** Codex
+**Phase:** Production migration, commit, push and deployment
+**Session type:** implementation
+
+### Context
+
+Ryan explicitly authorized migration, commit, push and deployment of Entry 275.
+Remote main matched local HEAD, and four targeted live functions matched the
+reviewed implementation baseline before replacement. Other-machine work preserved.
+
+### What Was Completed
+
+- Applied additive migration as production version 20260916180034. Verified columns,
+  grants, authenticated draft/approval/grouped-library/catalogue/checklist operations
+  and existing Job/CO/Service Call handoff with rollback-only live smoke suites.
+  Fixed a test-script-only ambiguous variable; no application correction required.
+  Follow-up queries confirm zero synthetic estimate/material/assembly/checklist rows.
+- 124 unit tests, isolated DB tests, actual-editor synthetic browser checks rerun.
+  Real production-configured build passed, distinct from prior placeholder output.
+- Feature commit d3fd73c23b889b26c857a03347dc58618d36a390 pushed to origin/main.
+  Netlify published deploy 6aaada89430eb80009564f8b from that exact commit at
+  2026-09-16 18:06:26 UTC. HTML/all 15 assets match tested bytes and MIME.
+- Production config, new Workbench features, deep links, anonymous RPC denial,
+  disabled northgate-read and existing Silas verified. Unauthenticated browser
+  redirected to Clerk without uncaught errors. Secret scan: 700 files, no matches.
+- Advisors unchanged except two expected guarded authenticated catalogue/checklist
+  transaction RPC notices; anon denied and server permission checks retained.
+
+### Schema Changes
+
+Local 20260916173238_estimating_workspace_integration.sql maps to production
+20260916180034. No replay, destructive cleanup, stock mutation or snapshot rewrite.
+
+### Code / File Changes
+
+Release verification scripts, MIGRATION_MAP, SYNC_STATUS and integration review
+updated. Final documentation-only marker commit uses [skip ci] to preserve deploy.
+
+### What Codex Needs to Know
+
+Sync marker: SAPPHIRE-ESTIMATING-WORKSPACE-20260916-001.
+Live: https://rnsolutions.net/northgate/estimates . Pull main on other machines;
+do not assume their working trees updated automatically. Historical dist folders
+and untracked exploration prototype preserved locally, excluded from deployment.
+
+### Next Steps (in order)
+
+1. Ryan performs signed-in acceptance on existing draft/approved estimates.
+2. Supply company exclusions/legal terms when ready. Do not invent these templates.
+
+### Open Questions / Concerns
+
+Signed-in user browser acceptance, independent-session concurrency and physical
+printer testing are not claimed. Existing dependency/security findings remain.
+
+---
