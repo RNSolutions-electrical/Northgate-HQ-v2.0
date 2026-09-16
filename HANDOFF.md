@@ -21981,3 +21981,46 @@ next action. Bare node --test discovers an existing server helper and conflicts
 with occupied port 5320; explicit unit-test selection passes all 124 tests.
 
 ---
+
+## Entry 278 — TOPAZ deployment verified
+
+**Date:** 2026-09-16
+**Updated by:** Codex
+**Phase:** Estimate decimal correction release
+**Session type:** implementation
+
+### Context
+
+Complete the deployment and cross-machine checkpoint for Entry 277.
+
+### What Was Completed
+
+Correction commit 3907bf0ae899e7b132312a2b571267f4c13cd5be pushed to main.
+Netlify production deploy 6aaaf898ab7e5300072c815c ready and published from that
+exact commit at 20:14:32 UTC. HTML/all 15 assets match the tested build by SHA-256
+and MIME; production config, deep links and anonymous RPC denial pass. Existing
+Silas and disabled read endpoint retained. Secret scan: 703 files, no matches.
+Database correction already live; rollback fixtures absent, advisors unchanged.
+
+### Code / File Changes
+
+SYNC_STATUS and correction review updated. Documentation-only final marker
+commit uses [skip ci] to retain the verified production deployment.
+
+### What Codex Needs to Know
+
+Sync marker TOPAZ-ESTIMATE-DECIMALS-20260916-001.
+Other machines must preserve local work and pull main; they are not auto-updated.
+The actual Carolina Retina estimate remains approved and unchanged, not submitted.
+
+### Next Steps (in order)
+
+1. Ryan retries Submit for review on Carolina Retina #11 Version 2.
+2. Review the resulting draft Change Order through the normal Jobs workflow.
+
+### Open Questions / Concerns
+
+Signed-in actual-user submission is not claimed; automated database workflow and
+production asset checks passed. Prior dependency/build warnings remain unchanged.
+
+---

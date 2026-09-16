@@ -35,3 +35,14 @@ direct callers; existing RPC permission boundaries remain authoritative.
 The user's actual estimate was not submitted, revised, edited or reapproved.
 Ryan should retry Submit for review and follow the ordinary draft CO workflow.
 Signed-in browser acceptance of that actual submission is not claimed.
+
+## Release
+
+Correction commit 3907bf0ae899e7b132312a2b571267f4c13cd5be pushed to main.
+Production deploy 6aaaf898ab7e5300072c815c published September 16 at 20:14:32 UTC
+from that exact commit. HTML/all 15 assets match the tested production build by
+SHA-256/MIME; production configuration, deep links and anonymous RPC denial pass.
+Netlify secret scan checked 703 files with no matches. Rollback fixture absence
+confirmed. Final documentation-only sync commit uses [skip ci].
+
+Sync marker: TOPAZ-ESTIMATE-DECIMALS-20260916-001.

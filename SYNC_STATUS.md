@@ -2,7 +2,28 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — SAPPHIRE-ESTIMATING-WORKSPACE-20260916-001
+## Current release — TOPAZ-ESTIMATE-DECIMALS-20260916-001
+
+- LIVE: September 16, 2026. Submission now accepts leading/trailing decimals
+  consistently with estimate approval; blank/negative/invalid values still fail.
+- Correction commit: `3907bf0ae899e7b132312a2b571267f4c13cd5be`, pushed to origin/main.
+- Netlify production deploy: `6aaaf898ab7e5300072c815c`, ready/published at
+  2026-09-16 20:14:32 UTC from that exact commit.
+- Migration `20260916200942_workbench_decimal_validation.sql` applied as
+  `20260916201141`. See MIGRATION_MAP; do not replay the different local timestamp.
+- 124 scoped unit tests, isolated PostgreSQL regression, production build and
+  live rollback-only approved-estimate-to-draft-CO regression passed.
+- Actual Carolina Retina #11 Version 2 read-only total = approved $2,527.71;
+  document and snapshot hashes unchanged. Ryan must retry Submit for review.
+- Live HTML/all 15 assets match tested build by SHA-256/MIME; configuration,
+  deep links and anonymous RPC denial verified. Security advisors unchanged.
+- No frontend, role, permission, formula or saved-estimate changes. Netlify
+  secret scan: 703 files, no matches. No synthetic fixture rows remain.
+- See HANDOFF Entries 277–278 and docs/reviews/ESTIMATE_DECIMAL_VALIDATION.md.
+- Final marker commit is documentation-only [skip ci]. Other machines must
+  preserve their local work, pull main and confirm this marker.
+
+## Previous release — SAPPHIRE-ESTIMATING-WORKSPACE-20260916-001
 
 - Status: LIVE, verified September 16, 2026; approved estimating workspace integrated.
 - Feature commit: `d3fd73c23b889b26c857a03347dc58618d36a390`, pushed to origin/main.
