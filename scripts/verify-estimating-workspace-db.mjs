@@ -58,6 +58,16 @@ try{
  for(const name of ['20260914002830_workbench_assembly_library.sql','20260914004020_fix_assembly_audit_actions.sql','20260914010605_standalone_assembly_library.sql','20260914012059_assembly_categories.sql'])await db.exec(await read('supabase/migrations/'+name));
  await db.exec(catalogue.slice(catalogue.indexOf('CREATE FUNCTION public.audit_material_values'),catalogue.indexOf('CREATE FUNCTION public.audit_estimate_workbench')));
  await db.exec(await read('supabase/migrations/20260916173238_estimating_workspace_integration.sql'));
+ await db.exec(await read('supabase/migrations/20260916200942_workbench_decimal_validation.sql'));
+ // Approval and handoff must accept the same ordinary non-negative decimal syntax.
+ for(const [input,expected] of [['.20',0.2],['.04',0.04],['7.',7],['0',0],['0.00',0],['7.80',7.8],['1000000000',1000000000]]){
+  assert.equal(Number(await one("select workbench_handoff_number($1,'material price')",[input])),expected);
+ }
+ for(const input of [null,'',' ','-1','-.2','.','1.2.3','NaN','Infinity','1e2',' 1','1 ','+1','1000000000.01']){
+  await assert.rejects(()=>one("select workbench_handoff_number($1,'material price')",[input]),e=>e.code==='22023');
+ }
+ assert.equal(await one("select has_function_privilege('anon','workbench_handoff_number(text,text)','EXECUTE')"),false);
+ assert.equal(await one("select has_function_privilege('authenticated','workbench_handoff_number(text,text)','EXECUTE')"),false);
  await actor('developer');
  const doc=completed(),item=doc.entries[0].items[0];item.name='Grouped work';item.laborRateOverride='95';
  item.components=[{id:'group-one',name:'Conduit run'}];
@@ -68,6 +78,17 @@ try{
  const snapshotId=await approve(row.estimate_id),snapshot=(await q('select * from estimate_snapshots where id=$1',[snapshotId])).rows[0];
  assert.equal(Number(snapshot.pricing_total),expected,'approved server total matches browser and handoff');
  assert.deepEqual(snapshot.workbench_document.entries[0].items[0].components,item.components);
+ // Reproduce the real failure: approval first, then submit the unchanged snapshot
+ // containing a leading-decimal material price and labor-hours string.
+ const decimals=structuredClone(doc);
+ decimals.entries[0].items[0].lines[0].price='.20';
+ decimals.entries[0].items[0].lines[0].hours='.04';
+ const decimalRow=await save(decimals),decimalSnapshotId=await approve(decimalRow.estimate_id);
+ const decimalSnapshot=await one('select row_to_json(s) from estimate_snapshots s where id=$1',[decimalSnapshotId]);
+ const decimalHandoff=await send(decimalRow.estimate_id);
+ assert.equal(Number(decimalHandoff.pricing.total),handoffPreview(decimals).total);
+ assert.equal(Number(decimalHandoff.pricing.total),Number(decimalSnapshot.pricing_total));
+ assert.deepEqual(await one('select row_to_json(s) from estimate_snapshots s where id=$1',[decimalSnapshotId]),decimalSnapshot);
  await assert.rejects(()=>save(doc,row.estimate_id,row.revision),/draft|permission/);
  assert.deepEqual(await one('select workbench_document from estimate_snapshots where id=$1',[historicalSnapshot]),originalHistory);
  // Drafts retain blank inputs; finalization blocks missing groups and values.

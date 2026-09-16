@@ -163,3 +163,11 @@ migration API as version `20260916180034`, name `estimating_workspace_integratio
 Do not replay the local timestamp. Live function preflight matched the implementation
 baseline; additive columns and scoped RPCs verified. Both estimating-workspace and
 existing checklist/handoff rollback smoke suites passed without retaining fixtures.
+
+## September 16, 2026 — TOPAZ-ESTIMATE-DECIMALS-20260916-001
+
+Local `20260916200942_workbench_decimal_validation.sql` applied as production
+`20260916201141`, name `workbench_decimal_validation`. Do not replay based on
+timestamp differences. Changes only the internal handoff decimal validator to
+match approval syntax; original helper ACL, search path and numeric limit retained.
+No record backfill or approved snapshot rewrite.

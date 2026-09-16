@@ -21929,3 +21929,55 @@ Signed-in user browser acceptance, independent-session concurrency and physical
 printer testing are not claimed. Existing dependency/security findings remain.
 
 ---
+
+## Entry 277 — Decimal validation correction
+
+**Date:** 2026-09-16
+**Updated by:** Codex
+**Phase:** Estimate submission production correction
+**Session type:** implementation
+
+### Context
+
+User approved fixing and deploying the submission error for valid leading decimals.
+Approved Carolina Retina Change Order #11 Version 2 had .20 material price and
+.04 labor hours; approval accepted them while the handoff helper rejected them.
+
+### What Was Completed
+
+Aligned the handoff helper regex with existing approval. Retained blank/negative/
+malformed rejection, numeric limit, ACL, pricing, snapshots and normal workflow.
+124 scoped unit tests, isolated database regressions and production build passed.
+Live authenticated rollback-only approved-estimate-to-draft-CO test passed,
+including retry, exact pricing, unchanged snapshot and no budget posting.
+Actual Version 2 read-only pricing is $2,527.71, equal to its approved snapshot;
+before/after document and snapshot hashes match. Security advisors unchanged.
+
+### Schema Changes
+
+Only workbench_handoff_number(text,text). Local migration 20260916200942 maps to
+production 20260916201141; do not replay. No data migration or permission changes.
+
+### Code / File Changes
+
+Migration, isolated regression additions, live rollback SQL, migration map and
+docs/reviews/ESTIMATE_DECIMAL_VALIDATION.md. No frontend source changes.
+
+### What Codex Needs to Know
+
+Target sync marker TOPAZ-ESTIMATE-DECIMALS-20260916-001. Database fix is live.
+Commit/push and deployment verification follow; see SYNC_STATUS for final result.
+Unrelated untracked dist folders and prototype are preserved and excluded.
+
+### Next Steps (in order)
+
+1. Complete release verification and sync checkpoint.
+2. Ryan retries Submit for review on the approved Version 2 estimate.
+
+### Open Questions / Concerns
+
+Actual user estimate was not submitted by Codex. Signed-in acceptance is Ryan's
+next action. Bare node --test discovers an existing server helper and conflicts
+with occupied port 5320; explicit unit-test selection passes all 124 tests.
+
+---
