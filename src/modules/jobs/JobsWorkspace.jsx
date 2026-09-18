@@ -33,6 +33,8 @@ import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/doc
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
 import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
+import { FinancialExportDialog } from './FinancialExportDialog.jsx';
+import { SovBuilder } from './SovBuilder.jsx';
 import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
 import { effectiveCurrentBudget, hasCurrentBudgetOverride } from './currentBudget.js';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
@@ -2222,6 +2224,7 @@ export function JobsWorkspace({ permissions }) {
   const [scheduleAction, setScheduleAction] = useState({ id: '', action: '', error: null });
   const [schedulePrintMode, setSchedulePrintMode] = useState('');
   const [jobConfirmation, setJobConfirmation] = useState(null);
+  const [financialExportOpen, setFinancialExportOpen] = useState(false);
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const previousSelectedJobIdRef = useRef('');
@@ -3312,6 +3315,32 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function handleEmptyFinancialDelete(kind, row, confirmed = false) {
+    if (!row?.id || !selectedJob?.id || !canApproveSelectedBudget) return;
+    if (!confirmed) {
+      setJobConfirmation({ kind, record: row, label: row.description || (kind === 'budget-delete' ? 'this financial line' : 'this SOV line') });
+      return;
+    }
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc(kind === 'budget-delete' ? 'delete_empty_job_budget_line' : 'delete_empty_job_sov_line', {
+        [kind === 'budget-delete' ? 'p_budget_line_id' : 'p_revenue_line_id']: row.id,
+      });
+      if (error) throw error;
+      if (kind === 'budget-delete') {
+        if (budgetForm.id === row.id) resetBudgetForm();
+        jobBudget.reload();
+      } else {
+        if (revenueForm.id === row.id) resetRevenueForm();
+        jobRevenue.reload();
+      }
+    } catch (error) {
+      if (kind === 'budget-delete') setBudgetForm((current) => ({ ...current, error, success: '' }));
+      else setRevenueForm((current) => ({ ...current, error, success: '' }));
+    }
+  }
+
   function buildRevenuePayload() {
     return {
       sov_line: revenueForm.sov_line.trim() || null,
@@ -4115,6 +4144,10 @@ export function JobsWorkspace({ permissions }) {
       case 'revenue-archive':
         await handleRevenueArchive(confirmation.record, reason);
         break;
+      case 'budget-delete':
+      case 'revenue-delete':
+        await handleEmptyFinancialDelete(confirmation.kind, confirmation.record, true);
+        break;
       case 'schedule-archive':
         await handleScheduleArchive(confirmation.record, reason, true);
         break;
@@ -4142,6 +4175,14 @@ export function JobsWorkspace({ permissions }) {
         description: `Award this vendor quote and set its buyout item to Ordered. The vendor amount and lead times will become the item's awarded values.`,
         confirmLabel: 'Award quote',
         tone: 'default',
+      };
+    }
+    if (['budget-delete', 'revenue-delete'].includes(jobConfirmation.kind)) {
+      return {
+        title: `Delete ${jobConfirmation.label}`,
+        description: 'Permanently remove this unused line. The server will allow deletion only when every financial value is zero and no Change Order, Pay App, or billing history references it.',
+        confirmLabel: 'Delete unused line',
+        tone: 'danger',
       };
     }
     return {
@@ -4791,6 +4832,7 @@ export function JobsWorkspace({ permissions }) {
       const approvedChangeOrderTotal = [...approvedChangeOrderCostByBudgetLineId.values()]
         .reduce((total, amount) => total + amount, 0);
       const changeTotal = manualChangeTotal + approvedChangeOrderTotal;
+      const originalFinancialTotal = sumField(jobBudget.lines, 'budget_amount');
       const financialRevisedTotal = jobBudget.lines.reduce((total, line) => total + budgetLineRevisedBudget(line), 0);
       const budgetOverrideCount = jobBudget.lines.filter(hasCurrentBudgetOverride).length;
       const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
@@ -4808,6 +4850,14 @@ export function JobsWorkspace({ permissions }) {
       const projectedMargin = revisedRevenueTotal ? projectedGrossProfit / revisedRevenueTotal : null;
       const budgetLineRemaining = (row) => budgetLineRevisedBudget(row) - (Number(row.actual_cost_amount) || 0);
       const budgetLineForecastedRemaining = (row) => budgetLineRevisedBudget(row) - forecastFinal(row);
+      const budgetLineCanDelete = (row) => [
+        row.budget_amount, row.current_budget_override_amount, row.budget_change_amount,
+        row.actual_cost_amount, row.committed_cost_amount, row.forecast_to_complete_amount,
+        row.forecast_final_amount, row.schedule_of_values_amount,
+      ].every((value) => Number(value || 0) === 0);
+      const revenueLineCanDelete = (row) => [
+        row.scheduled_value_amount, row.approved_change_amount, row.billed_to_date_amount,
+      ].every((value) => Number(value || 0) === 0);
       const updateInlineBudgetField = (field, value) => {
         setBudgetForm((current) => {
           const next = {
@@ -4968,6 +5018,7 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBudgetArchive(row)} disabled={budgetForm.isSaving}>
                   Archive
                 </button>
+                {budgetLineCanDelete(row) ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleEmptyFinancialDelete('budget-delete', row)} disabled={budgetForm.isSaving}>Delete</button> : null}
               </div>
             );
           },
@@ -5019,6 +5070,7 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleRevenueArchive(row)} disabled={revenueForm.isSaving}>
                   Archive
                 </button>
+                {revenueLineCanDelete(row) ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleEmptyFinancialDelete('revenue-delete', row)} disabled={revenueForm.isSaving}>Delete</button> : null}
               </div>
             );
           },
@@ -5042,6 +5094,7 @@ export function JobsWorkspace({ permissions }) {
                 description={`${formatMoney(scheduledRevenueTotal)} scheduled value across ${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}.`}
                 actions={null}
               />
+              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} canManage={canApproveSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
               <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} onComplete={jobRevenue.reload} />
               <DataTable
                 columns={revenueColumns}
@@ -5083,7 +5136,9 @@ export function JobsWorkspace({ permissions }) {
             eyebrow="Cost Control"
             title="Budget and cost forecast"
             description="Manage the job budget, costs, and forecasts by cost code."
+            actions={<button type="button" className="secondary-button" onClick={() => setFinancialExportOpen(true)}>Export Financials</button>}
           />
+          <FinancialExportDialog open={financialExportOpen} onClose={() => setFinancialExportOpen(false)} job={selectedJob} lines={jobBudget.lines} changeOrderByLineId={approvedChangeOrderCostByBudgetLineId} />
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
@@ -6219,7 +6274,7 @@ export function JobsWorkspace({ permissions }) {
           description={confirmationCopy()?.description}
           confirmLabel={confirmationCopy()?.confirmLabel}
           tone={confirmationCopy()?.tone}
-          requireReason={!['job-archive', 'schedule-archive', 'assignment'].includes(jobConfirmation.kind) && !(jobConfirmation.kind === 'document-archive' && jobConfirmation.record?.owner_type !== 'change_order')}
+          requireReason={!['job-archive', 'schedule-archive', 'assignment', 'budget-delete', 'revenue-delete'].includes(jobConfirmation.kind) && !(jobConfirmation.kind === 'document-archive' && jobConfirmation.record?.owner_type !== 'change_order')}
           isSubmitting={jobConfirmation.kind === 'document-archive' && Boolean(documentAction.id)}
           reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : jobConfirmation.kind === 'buyout-award' ? 'Award reason' : 'Archive reason'}
           reasonHint="This reason is recorded in the job audit history."

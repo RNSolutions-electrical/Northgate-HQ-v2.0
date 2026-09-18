@@ -58,6 +58,7 @@ try{
  for(const name of ['20260914002830_workbench_assembly_library.sql','20260914004020_fix_assembly_audit_actions.sql','20260914010605_standalone_assembly_library.sql','20260914012059_assembly_categories.sql'])await db.exec(await read('supabase/migrations/'+name));
  await db.exec(catalogue.slice(catalogue.indexOf('CREATE FUNCTION public.audit_material_values'),catalogue.indexOf('CREATE FUNCTION public.audit_estimate_workbench')));
  await db.exec(await read('supabase/migrations/20260916173238_estimating_workspace_integration.sql'));
+ await db.exec(await read('supabase/migrations/20260918173055_job_financial_exports_deletion_sov_templates.sql'));
  await db.exec(await read('supabase/migrations/20260916200942_workbench_decimal_validation.sql'));
  // Approval and handoff must accept the same ordinary non-negative decimal syntax.
  for(const [input,expected] of [['.20',0.2],['.04',0.04],['7.',7],['0',0],['0.00',0],['7.80',7.8],['1000000000',1000000000]]){
@@ -131,6 +132,40 @@ try{
  await assert.rejects(()=>q("select manage_estimate_checklist('custom_user','Denied','',false,null)"),/permission/);
  await assert.rejects(()=>q("select manage_estimate_checklist('custom_safety',null,'',true,'No authority')"),/Developer/);
  await assert.rejects(()=>libSave(assembly),/permission/);
+ // Financial cleanup is deletion-only for zero-value, unreferenced lines.
+ await db.exec('reset role');
+ const emptyBudget=await one("insert into job_budget_lines(job_id,division,description,category,created_by) values($1,'Electrical','Unused line','other','developer') returning id",[job]);
+ await actor('developer');
+ assert.equal((await one('select delete_empty_job_budget_line($1)',[emptyBudget])).deleted,true);
+ await db.exec('reset role');
+ const valuedBudget=await one("insert into job_budget_lines(job_id,division,description,category,budget_amount,created_by) values($1,'Electrical','Valued line','other',1,'developer') returning id",[job]);
+ await actor('developer');
+ await assert.rejects(()=>one('select delete_empty_job_budget_line($1)',[valuedBudget]),/no values/);
+ await db.exec('reset role');
+ const emptySov=await one("insert into job_revenue_lines(job_id,division,description,created_by) values($1,'Electrical','Unused SOV','developer') returning id",[job]);
+ await actor('developer');
+ assert.equal((await one('select delete_empty_job_sov_line($1)',[emptySov])).deleted,true);
+ // Templates preserve structure as percentages and reconcile the applied target to the cent.
+ await db.exec('reset role');
+ await q("insert into job_revenue_lines(job_id,division,sov_line,description,scheduled_value_amount,created_by) values($1,'Electrical','A','One',1,'developer'),($1,'Electrical','B','Two',2,'developer')",[job]);
+ await actor('developer');
+ const templateId=await one("select save_job_sov_template($1,'Fixture template')",[job]);
+ await db.exec('reset role');
+ const secondJob=await one("insert into jobs(name,division,job_type) values('Template destination','Electrical','job') returning id");
+ await actor('developer');
+ const applied=await one('select apply_job_sov_template($1,$2,100)',[secondJob,templateId]);
+ assert.equal(applied.lines_created,2);
+ await db.exec('reset role');
+ assert.equal(Number(await one('select sum(scheduled_value_amount) from job_revenue_lines where job_id=$1',[secondJob])),100);
+ assert.deepEqual((await q('select scheduled_value_amount from job_revenue_lines where job_id=$1 order by sov_line',[secondJob])).rows.map(row=>Number(row.scheduled_value_amount)),[33.33,66.67]);
+ await actor('developer');
+ await assert.rejects(()=>one('select apply_job_sov_template($1,$2,100)',[secondJob,templateId]),/no active SOV lines/);
+ await db.exec('reset role');
+ const unauthorizedBudget=await one("insert into job_budget_lines(job_id,division,description,category,created_by) values($1,'Electrical','Unauthorized delete','other','developer') returning id",[job]);
+ await actor('user');
+ await assert.rejects(()=>one('select delete_empty_job_budget_line($1)',[unauthorizedBudget]),/permission/);
+ await assert.rejects(()=>one('select save_job_sov_template($1,$2)',[job,'Unauthorized template']),/permission/);
+ assert.equal(Number(await one('select count(*) from job_sov_templates')),0,'Unauthorized user could read templates');
  await actor('inactive');await assert.rejects(()=>catalog(values,crypto.randomUUID()),/permission/);
  await db.exec('reset role');
  assert.equal(await one("select has_function_privilege('anon','save_estimating_catalogue_material(uuid,text,jsonb,timestamptz)','EXECUTE')"),false);

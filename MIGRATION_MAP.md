@@ -171,3 +171,11 @@ Local `20260916200942_workbench_decimal_validation.sql` applied as production
 timestamp differences. Changes only the internal handoff decimal validator to
 match approval syntax; original helper ACL, search path and numeric limit retained.
 No record backfill or approved snapshot rewrite.
+
+## September 18, 2026 — Jobs Financial Export and SOV Builder
+
+`20260918173055_job_financial_exports_deletion_sov_templates.sql` is applied in
+production under the same version and name. It adds Department-scoped reusable
+SOV templates and four guarded authenticated RPCs for template save/apply and
+deleting unused zero-value Financial/SOV lines. RLS is enabled on both new tables;
+anonymous RPC execution is denied. No records were backfilled or deleted.
