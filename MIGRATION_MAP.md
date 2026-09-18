@@ -179,3 +179,9 @@ production under the same version and name. It adds Department-scoped reusable
 SOV templates and four guarded authenticated RPCs for template save/apply and
 deleting unused zero-value Financial/SOV lines. RLS is enabled on both new tables;
 anonymous RPC execution is denied. No records were backfilled or deleted.
+
+Hotfix `20260918180036_fix_job_revenue_line_save_rls.sql` is applied under the
+same production version. It routes create/update SOV line saves through one
+job-aware, budget-permission-checked RPC with an atomic audit entry. Direct table
+RLS remains enabled and unchanged; anonymous execution is denied. No existing
+SOV, billing or financial records were rewritten.

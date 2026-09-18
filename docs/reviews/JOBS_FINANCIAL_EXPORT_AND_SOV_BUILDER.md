@@ -62,3 +62,12 @@ function performs its own Clerk actor and granular job permission checks.
   anonymous RPC denial, and zero template rows before release.
 - Frontend publication is recorded separately in `SYNC_STATUS.md` after the
   production deployment is verified.
+
+## Revenue save hotfix
+
+Migration `20260918180036_fix_job_revenue_line_save_rls.sql` replaces the legacy
+browser-direct SOV create/update path with `save_job_revenue_line`. The function
+uses the existing job-aware `can_approve_budget` check, preserves protected-line
+validation, saves and audits atomically, denies anonymous execution, and does not
+weaken table RLS. Isolated tests cover create, update, two audit records, denied
+unauthorized creation, and rollback of the denied write.

@@ -3383,47 +3383,26 @@ export function JobsWorkspace({ permissions }) {
       return;
     }
 
-    const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
     const payload = buildRevenuePayload();
-    const existingRow = revenueForm.id
-      ? jobRevenue.lines.find((line) => line.id === revenueForm.id)
-      : null;
-
     setRevenueForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const query = revenueForm.id
-        ? client
-          .from('job_revenue_lines')
-          .update(payload)
-          .eq('id', revenueForm.id)
-          .eq('job_id', selectedJob.id)
-          .select(JOB_REVENUE_SELECT_FIELDS)
-          .single()
-        : client
-          .from('job_revenue_lines')
-          .insert({
-            ...payload,
-            job_id: selectedJob.id,
-            division: selectedJob.division,
-            created_by: createdBy,
-          })
-          .select(JOB_REVENUE_SELECT_FIELDS)
-          .single();
-      const { data, error } = await query;
+      const { data, error } = await client.rpc('save_job_revenue_line', {
+        p_job_id: selectedJob.id,
+        p_revenue_line_id: revenueForm.id || null,
+        p_sov_line: payload.sov_line,
+        p_description: payload.description,
+        p_scheduled_value_amount: payload.scheduled_value_amount,
+        p_approved_change_amount: payload.approved_change_amount,
+        p_billed_to_date_amount: payload.billed_to_date_amount,
+        p_note: payload.note,
+        p_is_protected_financial: payload.is_protected_financial,
+        p_change_reason: revenueForm.change_reason.trim() || null,
+      });
 
       if (error) throw error;
-
-      await writeJobChangeLog(client, {
-        action: revenueForm.id ? 'update' : 'create',
-        recordId: data?.id || revenueForm.id,
-        beforeData: revenueAuditSnapshot(existingRow),
-        afterData: revenueAuditSnapshot(data),
-        note: revenueForm.change_reason.trim()
-          || `Revenue line ${data?.description || payload.description} ${revenueForm.id ? 'updated' : 'created'}.`,
-      });
 
       setRevenueForm({
         ...DEFAULT_REVENUE_FORM,

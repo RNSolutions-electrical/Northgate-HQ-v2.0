@@ -59,6 +59,7 @@ try{
  await db.exec(catalogue.slice(catalogue.indexOf('CREATE FUNCTION public.audit_material_values'),catalogue.indexOf('CREATE FUNCTION public.audit_estimate_workbench')));
  await db.exec(await read('supabase/migrations/20260916173238_estimating_workspace_integration.sql'));
  await db.exec(await read('supabase/migrations/20260918173055_job_financial_exports_deletion_sov_templates.sql'));
+ await db.exec(await read('supabase/migrations/20260918180036_fix_job_revenue_line_save_rls.sql'));
  await db.exec(await read('supabase/migrations/20260916200942_workbench_decimal_validation.sql'));
  // Approval and handoff must accept the same ordinary non-negative decimal syntax.
  for(const [input,expected] of [['.20',0.2],['.04',0.04],['7.',7],['0',0],['0.00',0],['7.80',7.8],['1000000000',1000000000]]){
@@ -132,6 +133,21 @@ try{
  await assert.rejects(()=>q("select manage_estimate_checklist('custom_user','Denied','',false,null)"),/permission/);
  await assert.rejects(()=>q("select manage_estimate_checklist('custom_safety',null,'',true,'No authority')"),/Developer/);
  await assert.rejects(()=>libSave(assembly),/permission/);
+ // SOV saves use the job-aware RPC, audit atomically, and remain permission gated.
+ await db.exec('reset role');
+ const saveJob=await one("insert into jobs(name,division,job_type) values('SOV save fixture','Electrical','job') returning id");
+ await actor('developer');
+ const savedRevenue=await one("select save_job_revenue_line($1,null,'01','Scratch SOV',25,0,0,'Created in fixture',false,null)",[saveJob]);
+ assert.equal(savedRevenue.description,'Scratch SOV');
+ const savedRevenueId=savedRevenue.id;
+ const updatedRevenue=await one("select save_job_revenue_line($1,$2,'01.1','Updated SOV',30,0,0,null,false,'Fixture correction')",[saveJob,savedRevenueId]);
+ assert.equal(Number(updatedRevenue.scheduled_value_amount),30);
+ await db.exec('reset role');
+ assert.equal(Number(await one("select count(*) from change_logs where table_name='job_revenue_lines' and record_id=$1",[savedRevenueId])),2);
+ await actor('user');
+ await assert.rejects(()=>one("select save_job_revenue_line($1,null,'02','Denied SOV',1,0,0,null,false,null)",[saveJob]),/permission/);
+ await db.exec('reset role');
+ assert.equal(Number(await one("select count(*) from job_revenue_lines where job_id=$1 and description='Denied SOV'",[saveJob])),0);
  // Financial cleanup is deletion-only for zero-value, unreferenced lines.
  await db.exec('reset role');
  const emptyBudget=await one("insert into job_budget_lines(job_id,division,description,category,created_by) values($1,'Electrical','Unused line','other','developer') returning id",[job]);
