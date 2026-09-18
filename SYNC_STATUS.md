@@ -2,7 +2,25 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — GARNET-JOBS-FINANCIALS-20260918-001
+## Current release — RUBY-SOV-SAVE-20260918-001
+
+- LIVE: September 18, 2026. New and edited Job Billing SOV lines now save through
+  the job-aware `save_job_revenue_line` RPC instead of a legacy direct table write.
+- The RPC requires existing `can_approve_budget` access, preserves protected-line
+  validation, validates amounts, and saves the line plus its audit entry atomically.
+  Table RLS remains enabled and unchanged; anonymous execution is denied.
+- Hotfix commit: `bacec69`, pushed to `origin/main`.
+- Migration `20260918180036_fix_job_revenue_line_save_rls.sql` is applied under
+  the matching production version and its ACL/search-path configuration is verified.
+- Netlify production deploy: `6aad7ca5563b513c69213f24`, published at
+  `https://rnsolutions.net/northgate/`.
+- Isolated PostgreSQL create/update/audit/denial tests and the production build
+  pass. Live HTML, Jobs route and JavaScript MIME pass; the hosted JavaScript
+  SHA-256 exactly matches the tested artifact and contains the RPC save path.
+- No existing SOV, billing, Pay App, Change Order or financial records were changed.
+  Other machines must preserve local work, pull `main`, and confirm this marker.
+
+## Previous release — GARNET-JOBS-FINANCIALS-20260918-001
 
 - LIVE: September 18, 2026. Job Financials now exports selectable Budget, Costs
   to Date, Change Orders, Monthly Forecast, Completion Forecast and Notes to PDF
