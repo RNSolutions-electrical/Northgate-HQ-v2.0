@@ -2400,6 +2400,11 @@ textarea {
 .pay-app-line-error { color: var(--ng-err); }
 .pay-app-workflow-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; border-top: 1px solid var(--ng-divider); padding-top: 1rem; }
 .pay-app-workflow-actions--prominent { align-items: center; border: 1px solid var(--ng-brand-red); background: var(--ng-brand-red-soft); padding: 0.75rem; }
+.pay-app-workflow-reason { flex: 1 1 260px; }
+.pay-app-workflow-reason input { width: 100%; }
+.pay-app-correction-tools { display: flex; flex: 1 1 100%; align-items: end; gap: 0.6rem; padding-top: 0.7rem; border-top: 1px solid color-mix(in srgb, var(--ng-brand-red) 28%, transparent); }
+.pay-app-correction-tools label { flex: 0 1 220px; }
+.pay-app-correction-tools input { width: 100%; }
 .pay-app-next-step { flex: 1 1 240px; font-size: 0.78rem; font-weight: 700; }
 .pay-app-audit { margin: 0; border: 1px solid var(--ng-divider); }
 .pay-app-audit > dl > div { padding: 0.75rem; border-right: 1px solid var(--ng-divider); }
@@ -2417,6 +2422,8 @@ textarea {
   .pay-app-totals > div { border-bottom: 1px solid var(--ng-divider); }
   .pay-app-audit > dl { grid-template-columns: 1fr; }
   .pay-app-audit > dl > div { border-right: 0; border-bottom: 1px solid var(--ng-divider); }
+  .pay-app-correction-tools { align-items: stretch; flex-direction: column; }
+  .pay-app-correction-tools label { flex-basis: auto; }
 }
 
 .jobs-directory-tabs {

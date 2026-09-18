@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-react';
-import { Check, FilePlus2, RefreshCw, RotateCcw, Save, ShieldCheck, Undo2, XCircle } from 'lucide-react';
+import { CalendarCheck2, Check, FilePlus2, RefreshCw, RotateCcw, Save, ShieldCheck, Trash2, Undo2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
@@ -60,17 +60,19 @@ function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttemp
   </tr>;
 }
 
-function PayAppWorkflowActions({ selected, canManage, reason, setReason, working, call }) {
+function PayAppWorkflowActions({ selected, canManage, canCorrect, reason, setReason, working, call, historicalDate, setHistoricalDate, onHistorical, onDelete }) {
   if (!canManage) return null;
   return <div className="pay-app-workflow-actions pay-app-workflow-actions--prominent" aria-label="Pay App workflow actions">
-    {(selected.status === 'draft' || selected.status === 'approved') ? <label className="pay-app-workflow-reason"><span>Approval / workflow reason</span><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Required to approve, bill, return, or void" /></label> : null}
-    {selected.status === 'draft' ? <><span className="pay-app-next-step">Next: review saved line amounts, then approve this Draft. {reason.trim().length < 3 ? 'Enter an audit reason above to enable approval.' : 'Audit reason ready.'}</span><button type="button" className="primary-button" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('set_job_pay_application_status', { p_pay_app_id: selected.id, p_status: 'approved', p_note: reason.trim() }, 'Pay App approved and locked for billing.', false, true)}><ShieldCheck aria-hidden="true" /> Approve Pay App</button><button type="button" className="secondary-button secondary-button--danger" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('void_job_pay_application', { p_pay_app_id: selected.id, p_reason: reason.trim() }, 'Draft Pay App voided.', false, true)}><XCircle aria-hidden="true" /> Void Draft</button></> : null}
-    {selected.status === 'approved' ? <><span className="pay-app-next-step">Next: final review, then permanently record this application as billed.</span><button type="button" className="primary-button" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('finalize_job_pay_application', { p_pay_app_id: selected.id, p_finalization_key: crypto.randomUUID(), p_note: reason.trim() }, 'Pay App finalized as Billed.')}><Check aria-hidden="true" /> Mark Billed</button><button type="button" className="secondary-button" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('set_job_pay_application_status', { p_pay_app_id: selected.id, p_status: 'draft', p_note: reason.trim() }, 'Pay App returned to Draft.')}><Undo2 aria-hidden="true" /> Return to Draft</button><button type="button" className="secondary-button secondary-button--danger" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('void_job_pay_application', { p_pay_app_id: selected.id, p_reason: reason.trim() }, 'Approved Pay App voided.')}><XCircle aria-hidden="true" /> Void</button></> : null}
-    {selected.status === 'billed' ? <><span className="pay-app-next-step">Billed Pay Apps are immutable. Use a correction or reversal for changes.</span><button type="button" className="secondary-button" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('create_job_pay_application_correction', { p_source_pay_app_id: selected.id, p_kind: 'correction', p_reason: reason.trim() }, 'Correction Pay App created.', true)}><RotateCcw aria-hidden="true" /> Create Correction</button><button type="button" className="secondary-button secondary-button--danger" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('create_job_pay_application_correction', { p_source_pay_app_id: selected.id, p_kind: 'reversal', p_reason: reason.trim() }, 'Reversal Pay App created.', true)}><Undo2 aria-hidden="true" /> Create Reversal</button></> : null}
+    {selected.status !== 'voided' ? <label className="pay-app-workflow-reason"><span>{selected.status === 'billed' ? 'Correction reason' : 'Workflow note'}</span><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder={selected.status === 'billed' ? 'Required for a correction or reversal' : 'Optional unless voiding an approved record or entering history'} /></label> : null}
+    {selected.status === 'draft' ? <><span className="pay-app-next-step">Next: review saved line amounts, then approve this Draft. Approval and routine draft disposal are automatically audited.</span><button type="button" className="primary-button" disabled={Boolean(working)} onClick={() => call('set_job_pay_application_status', { p_pay_app_id: selected.id, p_status: 'approved', p_note: reason.trim() || null }, 'Pay App approved and locked for billing.', false, true)}><ShieldCheck aria-hidden="true" /> Approve Pay App</button><button type="button" className="secondary-button" disabled={Boolean(working)} onClick={() => call('void_job_pay_application', { p_pay_app_id: selected.id, p_reason: reason.trim() || null }, 'Draft Pay App discarded.', false, true)}><XCircle aria-hidden="true" /> Discard Draft</button></> : null}
+    {selected.status === 'approved' ? <><span className="pay-app-next-step">Next: final review, then permanently record this application as billed.</span><button type="button" className="primary-button" disabled={Boolean(working)} onClick={() => call('finalize_job_pay_application', { p_pay_app_id: selected.id, p_finalization_key: crypto.randomUUID(), p_note: reason.trim() || null }, 'Pay App finalized as Billed.')}><Check aria-hidden="true" /> Mark Billed</button><button type="button" className="secondary-button" disabled={Boolean(working)} onClick={() => call('set_job_pay_application_status', { p_pay_app_id: selected.id, p_status: 'draft', p_note: reason.trim() || null }, 'Pay App returned to Draft.', false, true)}><Undo2 aria-hidden="true" /> Return to Draft</button><button type="button" className="secondary-button secondary-button--danger" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('void_job_pay_application', { p_pay_app_id: selected.id, p_reason: reason.trim() }, 'Approved Pay App voided.', false, true)}><XCircle aria-hidden="true" /> Void Approved</button></> : null}
+    {selected.status === 'billed' ? <><span className="pay-app-next-step">Billed history stays immutable. A Correction records an incremental adjustment; a Reversal records the full opposite of this Pay App.</span><button type="button" className="secondary-button" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('create_job_pay_application_correction', { p_source_pay_app_id: selected.id, p_kind: 'correction', p_reason: reason.trim() }, 'Correction Pay App created.', true)}><RotateCcw aria-hidden="true" /> Create Correction</button><button type="button" className="secondary-button secondary-button--danger" disabled={reason.trim().length < 3 || Boolean(working)} onClick={() => call('create_job_pay_application_correction', { p_source_pay_app_id: selected.id, p_kind: 'reversal', p_reason: reason.trim() }, 'Reversal Pay App created.', true)}><Undo2 aria-hidden="true" /> Create Reversal</button></> : null}
+    {canCorrect && selected.status === 'draft' ? <div className="pay-app-correction-tools"><label><span>Actual billed date</span><input type="date" max={today()} value={historicalDate} onChange={(event) => setHistoricalDate(event.target.value)} /></label><button type="button" className="secondary-button" disabled={!historicalDate || reason.trim().length < 3 || Boolean(working)} onClick={onHistorical}><CalendarCheck2 aria-hidden="true" /> Record Historical Billed</button></div> : null}
+    {canCorrect && ['draft','approved','voided'].includes(selected.status) ? <button type="button" className="secondary-button secondary-button--danger" disabled={Boolean(working)} onClick={onDelete}><Trash2 aria-hidden="true" /> Delete Unbilled Record</button> : null}
   </div>;
 }
 
-export function BillingActions({ jobId, canManage, onComplete }) {
+export function BillingActions({ jobId, canManage, canCorrect = false, onComplete }) {
   const { getToken } = useAuth();
   const [apps, setApps] = useState([]);
   const [selectedId, setSelectedId] = useState('');
@@ -83,6 +85,9 @@ export function BillingActions({ jobId, canManage, onComplete }) {
   const [showEmptyLines, setShowEmptyLines] = useState(false);
   const [fullyBilledLine, setFullyBilledLine] = useState(null);
   const [isSaveAllOpen, setIsSaveAllOpen] = useState(false);
+  const [historicalDate, setHistoricalDate] = useState(today());
+  const [historicalConfirm, setHistoricalConfirm] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
 
   const load = useCallback(async () => {
@@ -141,6 +146,20 @@ export function BillingActions({ jobId, canManage, onComplete }) {
     finally { setWorking(''); }
   }
 
+  async function recordHistorical(certification) {
+    if (certification.trim().toLowerCase() !== 'i certify this matches the historical billing record') {
+      setMessage({ tone: 'danger', text: 'Type the historical billing certification exactly.' });
+      return;
+    }
+    setHistoricalConfirm(null);
+    await call('finalize_historical_job_pay_application', { p_pay_app_id: selected.id, p_billed_date: historicalDate, p_reason: reason.trim(), p_certification: certification.trim() }, 'Historical Pay App recorded as Billed.', false, true);
+  }
+
+  async function deleteUnbilled(deleteReason) {
+    setDeleteConfirm(null);
+    await call('delete_unbilled_job_pay_application', { p_pay_app_id: selected.id, p_reason: deleteReason }, 'Unbilled Pay App deleted with a complete audit snapshot.', false, true);
+  }
+
   return <section className="pay-app-workspace" aria-label="Pay Applications">
     <div className="pay-app-command-bar"><div><span className="eyebrow">Pay Applications</span><h3>Progress billing</h3><p>Create, review, approve, bill, and correct immutable applications.</p></div><button type="button" className="secondary-button" onClick={load} disabled={loading}><RefreshCw aria-hidden="true" /> Refresh</button></div>
     {canManage ? <div className="pay-app-create-row">
@@ -158,7 +177,7 @@ export function BillingActions({ jobId, canManage, onComplete }) {
       {!selected ? <StatePanel tone="neutral" title="No Pay App selected" description="Create a Draft Pay App after the SOV is reconciled." compact /> : <>
         <header className="pay-app-detail-header"><div><span className="eyebrow">{title(selected.pay_app_kind)}</span><h3>Pay App #{selected.pay_app_number}</h3><p>{getPayAppTemplate(selected.template_key).label} · Period ending {date(selected.billing_period_end)}</p></div><StatusBadge tone={tone(selected.status)}>{title(selected.status)}</StatusBadge></header>
         <div className="pay-app-totals"><div><span>Contract</span><strong>{money(selected.current_contract_value)}</strong></div><div><span>Previous</span><strong>{money(selected.total_previous_billed)}</strong></div><div><span>This application</span><strong>{money(amount)}</strong></div><div><span>Retainage</span><strong>{money(selected.status === 'billed' ? selected.retainage_amount : amount * Number(selected.retainage_percent || 0) / 100)}</strong></div><div><span>Remaining</span><strong>{money(selected.status === 'billed' ? selected.remaining_contract_value : Number(selected.current_contract_value) - Number(selected.total_previous_billed || 0) - amount)}</strong></div></div>
-        <PayAppWorkflowActions selected={selected} canManage={canManage} reason={reason} setReason={setReason} working={working} call={call} />
+        <PayAppWorkflowActions selected={selected} canManage={canManage} canCorrect={canCorrect} reason={reason} setReason={setReason} working={working} call={call} historicalDate={historicalDate} setHistoricalDate={setHistoricalDate} onHistorical={() => setHistoricalConfirm(selected)} onDelete={() => setDeleteConfirm(selected)} />
         {editable ? <div className="pay-app-edit-controls"><label><input type="checkbox" checked={showEmptyLines} onChange={(event) => setShowEmptyLines(event.target.checked)} /> Show zero-value lines</label><button type="button" className="secondary-button" disabled={Boolean(working)} onClick={() => setIsSaveAllOpen(true)}><Save aria-hidden="true" /> Save All</button></div> : null}
         {editable ? <form className="pay-app-settings" onSubmit={saveHeader}><label><span>Period start</span><input name="period_start" type="date" defaultValue={selected.billing_period_start || ''} /></label><label><span>Period end</span><input name="period_end" type="date" defaultValue={String(selected.billing_period_end).slice(0, 10)} required /></label><label><span>Retainage %</span><input name="retainage_percent" type="number" min="0" max="100" step="0.01" defaultValue={selected.retainage_percent || 0} /></label><label><span>Form framework</span><select name="template_key" defaultValue={selected.template_key}>{PAY_APP_TEMPLATE_OPTIONS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label><button className="secondary-button" type="submit" disabled={Boolean(working)}><Save aria-hidden="true" /> Save settings</button></form> : null}
         <PayTable titleText="Original contract SOV" note={`${selected.lines?.length || 0} immutable source snapshots`} rows={selected.lines || []} kind="sov" editable={editable} correction={selected.pay_app_kind === 'correction'} load={load} showEmptyLines={showEmptyLines} onFullyBilledAttempt={setFullyBilledLine} />
@@ -168,6 +187,8 @@ export function BillingActions({ jobId, canManage, onComplete }) {
     </div></div>
     <ConfirmDialog open={Boolean(fullyBilledLine)} onCancel={() => setFullyBilledLine(null)} onConfirm={() => setFullyBilledLine(null)} title="This line is already fully billed" description={`No further billing can be entered for ${fullyBilledLine?.description || 'this line'}. Use a controlled correction or reversal if a billed value needs adjustment.`} confirmLabel="I understand" />
     <ConfirmDialog open={isSaveAllOpen} onCancel={() => setIsSaveAllOpen(false)} onConfirm={saveAll} title="Certify and save all entered values" description="Each entered Draft value will be saved and server-validated. This does not approve or bill the Pay App." confirmLabel="Save all values" requireReason reasonLabel="Certification" reasonHint="Type exactly: I certify that all values are correct." reasonPlaceholder="I certify that all values are correct" />
+    <ConfirmDialog open={Boolean(historicalConfirm)} onCancel={() => setHistoricalConfirm(null)} onConfirm={recordHistorical} title={`Record Pay App #${historicalConfirm?.pay_app_number || ''} as historical billing`} description={`This will atomically approve and finalize the Draft using ${date(historicalDate)} as its historical billed date. Billed history remains immutable afterward.`} confirmLabel="Record historical Pay App" requireReason reasonLabel="Certification" reasonHint="Type exactly: I certify this matches the historical billing record" reasonPlaceholder="I certify this matches the historical billing record" isSubmitting={working === 'finalize_historical_job_pay_application'} />
+    <ConfirmDialog open={Boolean(deleteConfirm)} onCancel={() => setDeleteConfirm(null)} onConfirm={deleteUnbilled} title={`Delete unbilled Pay App #${deleteConfirm?.pay_app_number || ''}`} description="Developer Data Correction can permanently remove only an unbilled Draft, Approved, or Voided record. A complete JSON snapshot is retained in the audit log. Billed Pay Apps cannot be deleted." confirmLabel="Delete unbilled record" tone="danger" requireReason reasonLabel="Deletion reason" reasonHint="Explain why this unbilled Pay App should be removed." isSubmitting={working === 'delete_unbilled_job_pay_application'} />
   </section>;
 }
 

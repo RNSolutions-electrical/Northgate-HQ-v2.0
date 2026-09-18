@@ -5074,7 +5074,7 @@ export function JobsWorkspace({ permissions }) {
                 actions={null}
               />
               <SovBuilder jobId={selectedJob.id} department={selectedJob.division} canManage={canApproveSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
-              <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} onComplete={jobRevenue.reload} />
+              <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} canCorrect={permissions.canDeveloperDataCorrection === true} onComplete={jobRevenue.reload} />
               <DataTable
                 columns={revenueColumns}
                 rows={revenueRows}
