@@ -2,7 +2,31 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — TOPAZ-ESTIMATE-DECIMALS-20260916-001
+## Current release — GARNET-JOBS-FINANCIALS-20260918-001
+
+- LIVE: September 18, 2026. Job Financials now exports selectable Budget, Costs
+  to Date, Change Orders, Monthly Forecast, Completion Forecast and Notes to PDF
+  or CSV; Cost Code and Description are always included.
+- Billing now supports scratch-built SOV lines plus Department-scoped reusable
+  SOV templates. Template values are stored as percentages and applied with
+  deterministic cent reconciliation without rewriting Job Financials.
+- Unused zero-value Financial and SOV lines can be permanently deleted only when
+  the server confirms no Change Order, Billing or Pay App history references them.
+- Feature commit: `7bf835b`, pushed to `origin/main`.
+- Netlify production deploy: `6aad76643a94578c98dd3cf7`, published at
+  `https://rnsolutions.net/northgate/` from the exact feature commit artifact.
+- Migration `20260918173055_job_financial_exports_deletion_sov_templates.sql`
+  is applied under the matching production version. Live verification confirms
+  both tables, RLS, two policies, authenticated grants and anonymous RPC denial.
+- 127 unit tests, isolated PostgreSQL migration/RLS/RPC tests and the production
+  build pass. Live HTML, Jobs deep link and JavaScript MIME pass; the live main
+  JavaScript SHA-256 exactly matches the tested artifact and contains both features.
+- Existing advisor and dependency findings are unchanged; no dependency versions,
+  production records, role defaults or existing financial values were altered.
+- Other machines must preserve local work, pull `main`, and confirm this marker
+  and its sync-marker commit before beginning work.
+
+## Previous release — TOPAZ-ESTIMATE-DECIMALS-20260916-001
 
 - LIVE: September 16, 2026. Submission now accepts leading/trailing decimals
   consistently with estimate approval; blank/negative/invalid values still fail.
