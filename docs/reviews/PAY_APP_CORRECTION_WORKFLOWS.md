@@ -16,12 +16,12 @@ Northgate HQ keeps Billed Pay Apps immutable while making ordinary mistakes and 
 The existing `can_developer_data_correction` override exposes two additional tools to an authorized Developer who can manage the selected Job:
 
 - **Record Historical Pay App** approves and bills a standard Draft atomically using the entered historical billed date. The user supplies a correction reason and an exact certification. Historical applications must be entered in billing order.
-- **Delete Unbilled Record** permanently removes only a Draft, Approved, or Voided Pay App. It requires a reason, retains a complete JSON audit snapshot, refuses records with correction children, and requires newer unbilled records to be removed first so numbering remains sequential.
+- **Delete Pay App (Developer)** temporarily permits removal of Draft, Approved, Voided, or Billed Pay Apps during development. It requires a reason, retains a complete JSON audit snapshot, refuses records with correction children, requires newest-first deletion, and atomically recalculates SOV billed-to-date from the remaining finalized history.
 
-The permission does not allow Billed Pay Apps to be overwritten or hard deleted. Corrections and reversals remain the required path for finalized history.
+Normal billing users cannot overwrite or hard-delete Billed Pay Apps. Corrections and reversals remain the required production workflow. Finalized deletion is explicitly documented as a temporary development override and should be removed or narrowed before rollout.
 
 ## Audit and security
 
 All transitions are performed by `SECURITY DEFINER` RPCs that validate the authenticated Clerk identity and Job permissions. Status changes, historical finalization, and deletions write to `change_logs` in the same database transaction. Failed validation rolls back the entire action.
 
-Migration: `supabase/migrations/20260918184924_pay_app_correction_workflows.sql`
+Migrations: `supabase/migrations/20260918184924_pay_app_correction_workflows.sql` and `supabase/migrations/20260918192615_developer_delete_finalized_pay_apps.sql`

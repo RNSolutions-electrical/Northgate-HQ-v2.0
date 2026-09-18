@@ -51,7 +51,7 @@ export const UI_TERMINOLOGY = Object.freeze([
   { type: 'MODULE', name: 'Schedule of Values Builder', location: 'Jobs › Billing', status: 'live' },
   { type: 'FUNCTION', name: 'Correct Billed Pay App', location: 'Jobs › Billing', status: 'ready for testing' },
   { type: 'FUNCTION', name: 'Record Historical Pay App', location: 'Jobs › Billing', status: 'ready for testing' },
-  { type: 'FUNCTION', name: 'Delete Unbilled Pay App', location: 'Jobs › Billing', status: 'ready for testing' },
+  { type: 'FUNCTION', name: 'Delete Pay App (Developer)', location: 'Jobs › Billing', status: 'development override' },
   { type: 'FUNCTION', name: 'Delete Unused Financial Line', location: 'Jobs › Financials / Billing', status: 'live' },
   { type: 'FUNCTION', name: 'Add Change Order', location: 'Jobs › Change Orders', status: 'live' },
   { type: 'FUNCTION', name: 'Save Panel Directory', location: 'Panel Directory', status: 'live' },

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const migration = readFileSync(new URL('../supabase/migrations/20260918184924_pay_app_correction_workflows.sql', import.meta.url), 'utf8');
+const developerDeletionMigration = readFileSync(new URL('../supabase/migrations/20260918192615_developer_delete_finalized_pay_apps.sql', import.meta.url), 'utf8');
 const billingUi = readFileSync(new URL('../src/modules/jobs/BillingActions.jsx', import.meta.url), 'utf8');
 
 test('historical Pay App finalization is gated by Developer Data Correction and certification', () => {
@@ -27,5 +28,13 @@ test('normal workflow exposes correction actions and the required correction rea
   assert.match(billingUi, /Create Correction/);
   assert.match(billingUi, /Create Reversal/);
   assert.match(billingUi, /Record Historical Billed/);
-  assert.match(billingUi, /Delete Unbilled Record/);
+  assert.match(billingUi, /Delete Pay App \(Developer\)/);
+});
+
+test('developer deletion supports finalized Pay Apps with latest-first reconciliation', () => {
+  assert.match(developerDeletionMigration, /current_user_can_correct_job_billing_data\(app\.job_id\)/);
+  assert.match(developerDeletionMigration, /Delete newer Pay Apps first/);
+  assert.match(developerDeletionMigration, /sum\(line\.final_current_amount\).*pay_app\.status='billed'/s);
+  assert.match(developerDeletionMigration, /'job_revenue_lines_before',revenue_before/);
+  assert.match(developerDeletionMigration, /'job_revenue_lines_after',revenue_after/);
 });
