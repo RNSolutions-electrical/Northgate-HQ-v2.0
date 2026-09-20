@@ -74,7 +74,7 @@ export const MODULES = [
     path: '/estimates',
     label: 'Estimates',
     icon: Calculator,
-    requiresAny: ['canEstimate', 'canApproveEstimates'],
+    requiresAny: ['canEstimate', 'canApproveEstimates', 'canSavePersonalWork'],
     status: 'live',
     description: 'Proposals, revisions, and approval snapshots.',
   },

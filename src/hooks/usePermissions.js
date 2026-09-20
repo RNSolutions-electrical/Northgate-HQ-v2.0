@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
 
 const DENY_ALL = Object.freeze({
+  can_save_personal_work: false,
+  can_manage_developers: false,
   can_review_afc_studies: false,
   can_developer_data_correction: false,
   can_review_electrical_inspections: false,
@@ -40,6 +42,8 @@ const DENY_ALL = Object.freeze({
 
 function camel(flags) {
   return {
+    canSavePersonalWork: flags.can_save_personal_work,
+    canManageDevelopers: flags.can_manage_developers,
     canReviewAfcStudies: flags.can_review_afc_studies,
     canDeveloperDataCorrection: flags.can_developer_data_correction,
     canReviewElectricalInspections: flags.can_review_electrical_inspections,

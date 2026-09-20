@@ -27,6 +27,7 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
 import {DeveloperDataCorrectionControl} from './DeveloperDataCorrectionControl.jsx';
+import { DeveloperAssignmentControl } from './DeveloperAssignmentControl.jsx';
 import { FinancialLineCatalogueConsole } from './FinancialLineCatalogueConsole.jsx';
 import { ServiceStageConsole } from './ServiceStageConsole.jsx';
 import { PermissionTemplateEditor, UserPermissionTemplateEditor, usePermissionTemplates } from './PermissionTemplates.jsx';
@@ -79,6 +80,7 @@ const NOTE_TYPE_OPTIONS = ['feature', 'bug', 'idea', 'question', 'other'];
 const NOTE_PRIORITY_OPTIONS = ['low', 'normal', 'high'];
 
 const PERMISSION_GROUPS = [
+  ['Primary administration', ['canManageDevelopers']],
   ['Electrical tools', ['canReviewElectricalInspections','canReviewAfcStudies']],
   ['Developer', ['canAccessDeveloper', 'canManageUsers', 'canViewReports']],
   ['Inventory', ['canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
@@ -102,7 +104,7 @@ const PERMISSION_FLAG_OPTIONS = PERMISSION_GROUPS.flatMap(([group, keys]) => key
     group,
     label: labelForPermission(key),
   })))
-  .filter((option) => option.flag !== 'can_access_developer');
+  .filter((option) => !['can_access_developer', 'can_manage_developers'].includes(option.flag));
 
 const PERMISSION_LEVEL_OPTIONS = ['User', 'Supervisor', 'Manager', 'Director', 'Developer'];
 const DEPARTMENT_OPTIONS = ['Electrical', 'Construction', 'Admin'];
@@ -1027,6 +1029,7 @@ export function DeveloperWorkspace({ permissions }) {
             ) : null}
 
             <DeveloperDataCorrectionControl key={'correction:'+selectedPermissionUser.user_id} user={selectedPermissionUser} permissions={permissions} onSaved={permissionConsole.reload}/>
+            <DeveloperAssignmentControl key={'developer-assignment:'+selectedPermissionUser.user_id} user={selectedPermissionUser} permissions={permissions} service={templateService} onSaved={permissionConsole.reload} />
             <UserPermissionTemplateEditor key={selectedPermissionUser.user_id} user={selectedPermissionUser}
               service={templateService} options={PERMISSION_FLAG_OPTIONS} onSaved={permissionConsole.reload} />
 
