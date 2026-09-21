@@ -9,7 +9,7 @@ function Numeric({label,value,onChange,disabled}){
  return <label>{label}<input inputMode="decimal" aria-invalid={invalid(value)} value={value??''} disabled={disabled} onChange={e=>onChange(e.target.value===''?null:e.target.value)}/></label>;
 }
 function priceSourceLabel(source){return ({inventory_explicit:'Inventory override',estimating_master:'Estimating master',estimate_override:'Estimate override',legacy_snapshot:'Legacy snapshot'})[source]||'Unverified price';}
-function Group({group,prefix,editable,onEdit,onCatalogue,canEditCatalog,focus}){
+function Group({group,prefix,editable,onEdit,onCatalogue,canEditCatalog,focus,onCopy}){
  const missing=!group.name?.trim()||!group.lines.length||group.lines.some(l=>!l.name?.trim()||['qty','price','hours'].some(k=>invalid(l[k])));
  const [open,setOpen]=useState(missing||focus);
  const change=(id,patch)=>onEdit(i=>Object.assign(i.lines.find(l=>l.id===id),patch));
@@ -38,11 +38,11 @@ function Group({group,prefix,editable,onEdit,onCatalogue,canEditCatalog,focus}){
     </section>;
    })}
    <p className="muted">Enter 0 when no material cost or labor is needed. A blank is incomplete. Catalogue selections copy values; later catalogue edits do not change this estimate.</p>
-   <div className="actions"><button type="button" disabled={!editable} onClick={()=>onEdit(i=>addComponentLine(i,group.id))}>Add material</button><button type="button" disabled={!editable} onClick={()=>onEdit(i=>addComponentLine(i,group.id,null,true))}>Add labor</button><button type="button" disabled={!editable} onClick={()=>onEdit(i=>{ensureComponents(i);i.components=i.components.filter(c=>c.id!==group.id);i.lines=i.lines.filter(l=>l.componentId!==group.id);})}>Remove component</button></div>
+   <div className="actions"><button type="button" disabled={!onCopy} onClick={()=>onCopy?.(group)}>Copy component</button><button type="button" disabled={!editable} onClick={()=>onEdit(i=>addComponentLine(i,group.id))}>Add material</button><button type="button" disabled={!editable} onClick={()=>onEdit(i=>addComponentLine(i,group.id,null,true))}>Add labor</button><button type="button" disabled={!editable} onClick={()=>onEdit(i=>{ensureComponents(i);i.components=i.components.filter(c=>c.id!==group.id);i.lines=i.lines.filter(l=>l.componentId!==group.id);})}>Remove component</button></div>
   </div>
  </details>;
 }
-export default function ComponentEditor({item,prefix,editable,onEdit,onCatalogue,canEditCatalog,focusLine}){
+export default function ComponentEditor({item,prefix,editable,onEdit,onCatalogue,canEditCatalog,focusLine,onCopyComponent}){
  const [focus,setFocus]=useState(focusLine||null);
- return <><h3>Components</h3><p className="muted">Entry → Work item → Component → Material / labor rows</p>{componentGroups(item).map(group=><Group key={group.id} group={group} prefix={prefix} editable={editable} onEdit={onEdit} onCatalogue={onCatalogue} canEditCatalog={canEditCatalog} focus={group.id===focus}/>)}<button type="button" disabled={!editable} onClick={()=>{const id=crypto.randomUUID();setFocus(id);onEdit(i=>{ensureComponents(i);i.components.push({id,name:'New component'});});}}>Add component</button></>;
+ return <><h3>Components</h3><p className="muted">Entry → Work item → Component → Material / labor rows</p>{componentGroups(item).map(group=><Group key={group.id} group={group} prefix={prefix} editable={editable} onEdit={onEdit} onCatalogue={onCatalogue} canEditCatalog={canEditCatalog} focus={group.id===focus} onCopy={onCopyComponent}/>)}<button type="button" disabled={!editable} onClick={()=>{const id=crypto.randomUUID();setFocus(id);onEdit(i=>{ensureComponents(i);i.components.push({id,name:'New component'});});}}>Add component</button></>;
 }

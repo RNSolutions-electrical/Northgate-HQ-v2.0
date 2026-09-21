@@ -33,9 +33,22 @@ function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttemp
   const preview = override === '' ? targetBilled - previousBilled : Number(override || 0);
   const remainingPreview = scheduled - previousBilled - preview;
   const fullyBilled = Math.abs(Number(row.previous_billed_amount || row.billed_to_date_amount || 0)) >= Math.abs(scheduled) && Math.abs(scheduled) > 0;
-  const rowState = fullyBilled ? 'is-complete' : Math.abs(preview) > 0.005 ? 'is-in-progress' : hasPayValue(row, kind) ? 'is-unbilled' : 'is-empty';
+  const isCredit = override !== '' && Number(override) < -0.005;
+  const rowState = isCredit || Math.abs(preview) > 0.005 ? 'is-in-progress' : fullyBilled ? 'is-complete' : hasPayValue(row, kind) ? 'is-unbilled' : 'is-empty';
 
   async function save() {
+    if (override !== '' && !Number.isFinite(Number(override))) {
+      setState({ working: false, error: 'Enter a valid billing amount.' });
+      return;
+    }
+    if (isCredit && previousBilled + Number(override) < -0.005) {
+      setState({ working: false, error: `The credit cannot exceed the ${money(previousBilled)} previously billed on this line.` });
+      return;
+    }
+    if (override !== '' && !reason.trim()) {
+      setState({ working: false, error: 'Enter a reason for this billing override or customer credit.' });
+      return;
+    }
     setState({ working: true, error: '' });
     try {
       const fn = kind === 'co' ? 'save_job_pay_application_change_order' : 'save_job_pay_application_line';
@@ -51,11 +64,11 @@ function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttemp
     <td><strong>{kind === 'co' ? row.co_number : row.cost_code || '—'}</strong><span className="pay-app-line-description">{row.description}</span></td>
     <td className="numeric-cell">{money(scheduled)}</td><td className="numeric-cell">{money(row.previous_billed_amount)}</td>
     <td className="pay-app-table__compact">{editable ? <input data-pay-field="percent" aria-label={`Percentage complete for ${row.description}`} type="number" min="0" max="100" step="0.01" value={percent} onClick={() => fullyBilled && onFullyBilledAttempt?.(row)} onChange={(event) => { if (!fullyBilled) setPercent(event.target.value); }} readOnly={fullyBilled} aria-disabled={fullyBilled} /> : `${Number((row.resulting_percent ?? row.additional_percent) || 0).toFixed(2)}%`}</td>
-    <td className="pay-app-table__compact">{editable ? <input data-pay-field="override" aria-label={`Override amount for ${row.description}`} type="number" step="0.01" value={override} onClick={() => fullyBilled && onFullyBilledAttempt?.(row)} onChange={(event) => { if (!fullyBilled) setOverride(event.target.value); }} readOnly={fullyBilled} aria-disabled={fullyBilled} placeholder={money(targetBilled - previousBilled)} /> : money(row.final_current_amount)}</td>
+    <td className="pay-app-table__compact">{editable ? <input data-pay-field="override" aria-label={`Override or credit amount for ${row.description}`} title={fullyBilled ? 'Enter a negative amount to apply a customer credit.' : 'Negative amounts apply a customer credit.'} type="number" step="0.01" value={override} onChange={(event) => setOverride(event.target.value)} placeholder={fullyBilled ? 'Enter negative credit' : money(targetBilled - previousBilled)} /> : money(row.final_current_amount)}</td>
     <td className="numeric-cell">{money(editable ? preview : row.final_current_amount)}</td>
     <td className="numeric-cell">{money(editable ? remainingPreview : row.remaining_amount)}</td>
     <td>{editable ? <input data-pay-field="reason" aria-label={`Reason for ${row.description}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder={correction || override !== '' ? 'Required reason' : 'Only for overrides'} /> : row.override_reason || '—'}</td>
-    <td>{editable ? (fullyBilled ? <button type="button" className="secondary-button" onClick={() => onFullyBilledAttempt?.(row)}>Fully billed</button> : <button type="button" className="secondary-button" onClick={save} disabled={state.working}><Save aria-hidden="true" /> {state.working ? 'Saving' : 'Save'}</button>) : money(row.billed_to_date_amount)}</td>
+    <td>{editable ? (fullyBilled && !isCredit ? <button type="button" className="secondary-button" onClick={() => onFullyBilledAttempt?.(row)}>Fully billed</button> : <button type="button" className="secondary-button" onClick={save} disabled={state.working}><Save aria-hidden="true" /> {state.working ? 'Saving' : isCredit ? 'Save Credit' : 'Save'}</button>) : money(row.billed_to_date_amount)}</td>
     {state.error ? <td className="pay-app-line-error">{state.error}</td> : null}
   </tr>;
 }
@@ -185,7 +198,7 @@ export function BillingActions({ jobId, canManage, canCorrect = false, onComplet
         <details className="pay-app-audit"><summary>Workflow record and audit history</summary><dl><div><dt>Approval</dt><dd>{selected.approved_by || '—'} · {selected.approved_at ? new Date(selected.approved_at).toLocaleString() : '—'}<br />{selected.approval_note || '—'}</dd></div><div><dt>Billing</dt><dd>{selected.billed_by || '—'} · {selected.billed_at ? new Date(selected.billed_at).toLocaleString() : '—'}<br />{selected.billed_note || '—'}</dd></div><div><dt>Void</dt><dd>{selected.voided_by || '—'} · {selected.voided_at ? new Date(selected.voided_at).toLocaleString() : '—'}<br />{selected.void_reason || '—'}</dd></div></dl></details>
       </>}
     </div></div>
-    <ConfirmDialog open={Boolean(fullyBilledLine)} onCancel={() => setFullyBilledLine(null)} onConfirm={() => setFullyBilledLine(null)} title="This line is already fully billed" description={`No further billing can be entered for ${fullyBilledLine?.description || 'this line'}. Use a controlled correction or reversal if a billed value needs adjustment.`} confirmLabel="I understand" />
+    <ConfirmDialog open={Boolean(fullyBilledLine)} onCancel={() => setFullyBilledLine(null)} onConfirm={() => setFullyBilledLine(null)} title="This line is already fully billed" description={`No additional positive billing can be entered for ${fullyBilledLine?.description || 'this line'}. To apply a customer credit, enter a negative amount in Override and provide a reason.`} confirmLabel="I understand" />
     <ConfirmDialog open={isSaveAllOpen} onCancel={() => setIsSaveAllOpen(false)} onConfirm={saveAll} title="Certify and save all entered values" description="Each entered Draft value will be saved and server-validated. This does not approve or bill the Pay App." confirmLabel="Save all values" requireReason reasonLabel="Certification" reasonHint="Type exactly: I certify that all values are correct." reasonPlaceholder="I certify that all values are correct" />
     <ConfirmDialog open={Boolean(historicalConfirm)} onCancel={() => setHistoricalConfirm(null)} onConfirm={recordHistorical} title={`Record Pay App #${historicalConfirm?.pay_app_number || ''} as historical billing`} description={`This will atomically approve and finalize the Draft using ${date(historicalDate)} as its historical billed date. Billed history remains immutable afterward.`} confirmLabel="Record historical Pay App" requireReason reasonLabel="Certification" reasonHint="Type exactly: I certify this matches the historical billing record" reasonPlaceholder="I certify this matches the historical billing record" isSubmitting={working === 'finalize_historical_job_pay_application'} />
     <ConfirmDialog open={Boolean(deleteConfirm)} onCancel={() => setDeleteConfirm(null)} onConfirm={deletePayApp} title={`Delete Pay App #${deleteConfirm?.pay_app_number || ''}`} description={`Developer Data Correction will permanently remove this ${title(deleteConfirm?.status)} Pay App. A complete JSON snapshot will remain in the audit log, and SOV billed-to-date will be recalculated from the remaining finalized history. Pay Apps must be deleted newest first.`} confirmLabel="Delete Pay App" tone="danger" requireReason reasonLabel="Deletion reason" reasonHint="Explain why this Pay App must be removed during development." isSubmitting={working === 'developer_delete_job_pay_application'} />

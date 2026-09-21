@@ -34,3 +34,11 @@ test('SOV and Pay App interfaces group lines into collapsible project divisions'
   assert.match(billing, /Division \$\{code\}/);
   assert.match(billing, /Collapse All/);
 });
+
+test('billing overrides accept auditable customer credits on fully billed lines', () => {
+  assert.match(billing, /Override or credit amount/);
+  assert.match(billing, /Negative amounts apply a customer credit/);
+  assert.match(billing, /previousBilled \+ Number\(override\) < -0\.005/);
+  assert.match(billing, /Save Credit/);
+  assert.doesNotMatch(billing, /data-pay-field="override"[^>]+readOnly=\{fullyBilled\}/);
+});
