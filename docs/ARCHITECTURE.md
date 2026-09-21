@@ -4486,3 +4486,28 @@ server gates. Weekly offsite recovery is proposed, not activated or purchased.
 Ryan authorized commit/deployment. All four migrations are applied at the recorded versions above. Actual-schema rollback-only checklist/AFC/Documents/read-audit suites pass with no test data or grants retained. AFC service version 1 is deployed and denies unauthenticated/forged-token requests. The AFC migration now extends the existing override constraint, preserving capabilities outside role defaults. No AFC reviewer grants or historical reclassification; external OAuth/MCP and internal read enablement remain pending. Earlier local/unapplied status describes the prior checkpoint. Detailed release evidence is recorded at the top of both implementation reviews.
 
 Production publication completed under Entry 269: feature commit 7a934cad0d04f075b8ee88c050563bd5c9c5c9a2, Netlify deployment 6aaa72ae1676460008695216, afc-release v1. HTML and all 15 assets match the tested build; internal read tools remain disabled and external MCP/OAuth unconfigured.
+
+---
+
+## 55. Full material catalogue and v5 stock observations — local, Entry 280
+
+The canonical `items` catalogue retains vendor quote inputs, their normalized
+estimating-master average, original labor basis/conversion inputs, and notes.
+Aliases stay in `item_aliases`. Existing explicit Inventory price precedence and
+historical price/labor snapshots remain authoritative.
+
+Optional stock hints create an exact-payload v5 `catalogue_stock` destination;
+location text and suggested quantity never mutate on-hand inventory. The scoped
+Inventory Manager/Inventory Administrator additional permissions, or the existing
+Developer assignment, authorize a separate review with an actual bin and confirmed
+total quantity. Ryan permits authorized submitters to review their own requests.
+Approval writes the existing physical-count ledger contract and completes v5 in
+one transaction. Stale balance/version/hash checks, audit, default denial, Primary
+protection, and preservation of original history remain required.
+
+The two new additional permissions use the existing template/override store and
+are default denied. Their mapping in this slice covers catalogue-stock review;
+other v5 Inventory assignment powers still require their own module reconciliation.
+This implementation is local/unapplied. See
+[Full material catalogue and stock review](reviews/FULL_MATERIAL_CATALOGUE_STOCK_REVIEW.md)
+for the calculation contract, verification evidence and controlled rollout.

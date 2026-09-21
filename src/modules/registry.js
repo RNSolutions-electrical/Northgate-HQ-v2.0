@@ -57,7 +57,7 @@ export const MODULES = [
     path: '/inventory',
     label: 'Inventory',
     icon: Boxes,
-    requiresAny: ['canInventoryTransactions', 'canManageInventory'],
+    requiresAny: ['canInventoryTransactions', 'canManageInventory', 'canInventoryManager', 'canInventoryAdministrator', 'canEditCatalog', 'canAccessDeveloper'],
     status: 'live',
     description: 'Catalogue, storage, cart, checkout, counts, and the ledger.',
   },

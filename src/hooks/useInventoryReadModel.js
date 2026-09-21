@@ -77,7 +77,7 @@ async function getTrackedStock(client) {
   }
 }
 
-export function useInventoryReadModel({ enabled }) {
+export function useInventoryReadModel({ enabled, catalogueOnly = false }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
   const [state, setState] = useState({
@@ -104,6 +104,13 @@ export function useInventoryReadModel({ enabled }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
+
+        if (catalogueOnly) {
+          const result = await getActiveCatalog(client);
+          if (result.error) throw result.error;
+          if (isMounted) setState({isLoading:false,error:null,model:{...EMPTY_MODEL,counts:{...EMPTY_MODEL.counts,activeItems:result.data.length},catalogPreview:result.data},lastLoadedAt:new Date().toISOString()});
+          return;
+        }
 
         const [
           activeItems,
@@ -221,7 +228,7 @@ export function useInventoryReadModel({ enabled }) {
     return () => {
       isMounted = false;
     };
-  }, [enabled, getToken, refreshKey]);
+  }, [enabled, catalogueOnly, getToken, refreshKey]);
 
   return {
     ...state,

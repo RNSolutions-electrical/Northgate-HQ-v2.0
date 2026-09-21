@@ -62,7 +62,7 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
           </summary>
           <div className="inventory-material-detail">
             <p>Unit cost: <strong>{money(item.price_per_unit)}</strong></p>
-            <div className="inventory-material-actions">{onAliases&&<button className="secondary-button" onClick={()=>onAliases(item)}>Material aliases</button>}{onManagePrice&&<button className="secondary-button" onClick={()=>onManagePrice(item)}>Manage Price</button>}</div>
+            <div className="inventory-material-actions">{onAliases&&<button className="secondary-button" onClick={()=>onAliases(item)}>Material details</button>}{onManagePrice&&<button className="secondary-button" onClick={()=>onManagePrice(item)}>Manage Price</button>}</div>
             {item.locations.map(row => <div className="inventory-stock-location" key={row.bin_item_id}>
               <span><strong>{row.bin_code}</strong><small>{row.bin_label}</small></span>
               <span>{row.quantity_recorded===false?'Not counted':`${quantity(row.quantity_on_hand)} ${row.unit_of_measure||''} on hand`}</span>

@@ -86,3 +86,18 @@ Legacy `Developer` profiles receive `Director` as their initial business rank wh
 - Every controlled mutation is authorized server-side and audited atomically.
 - New public-schema tables have explicit grants and RLS; private authorization tables are not exposed to clients.
 - Production migration and deployment remain blocked pending Ryan's separate approval.
+
+## September 21 extension: full material catalogue and stock review (local)
+
+Ryan requested aliases, vendor-derived average prices/links, source labor inputs
+with unit conversion, notes, and optional stock/location observations. Implemented
+locally under `20260921221242_full_material_catalogue_stock_review.sql`, using the
+existing catalogue and v5 change sets. Suggested quantity is optional; reviewer
+confirmation is required. Ryan explicitly permits a qualified submitter to perform
+the separate review step on their own request.
+
+Default-denied Inventory Manager/Inventory Administrator flags are exposed through
+the existing templates/overrides. This slice maps them to Department-scoped stock
+review, with the existing Developer assignment also authorized. Other Inventory
+powers are not implicitly broadened. No production migration, grants or deployment
+have occurred. See [implementation and rollout](FULL_MATERIAL_CATALOGUE_STOCK_REVIEW.md).

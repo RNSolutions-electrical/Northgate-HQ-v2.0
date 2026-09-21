@@ -22081,3 +22081,68 @@ failures caused by unavailable `pdf-lib` and sandbox port binding. Existing Supa
 advisor findings remain backlog items. Signed-in browser acceptance is not claimed.
 
 ---
+
+## Entry 280 — Full material catalogue and v5 stock review (local)
+
+**Date:** 2026-09-21
+**Updated by:** Codex
+**Phase:** V5 catalogue and Inventory reconciliation
+**Session type:** implementation
+
+### Context
+
+Fetched and fast-forwarded this checkout to main at 84440ec. Ryan requested full
+catalogue editing, vendor averages/links, labor unit normalization, notes and
+optional stock/location details routed to Inventory review. Suggested quantity is
+optional and the reviewer confirms the actual count. Ryan explicitly allows an
+authorized submitter to complete the separate review step on their own request.
+
+### What Was Completed
+
+Shared editor in Inventory Full Catalogue and Estimating; vendor-per-unit average,
+source labor basis/conversion, aliases and notes; atomic catalogue save and separate
+v5 stock destination; stock review/history and dashboard/bell routing; confirmed
+count application through the existing ledger, with version/hash/balance guards,
+retry protection and scoped authorization. Existing historical prices are preserved.
+191 unit tests, isolated database workflow/security checks and production build pass.
+Local browser example confirms per-M labor conversion and quantity-optional request.
+
+### Schema Changes
+
+New local migration 20260921221242_full_material_catalogue_stock_review.sql.
+Additive item metadata and private retry records; two default-denied additional
+Inventory review flags in existing permission controls; CAT-STOCK-REVIEW action and
+constrained v5 adapters. No production application or account grants.
+
+### Code / File Changes
+
+Catalogue editor and calculations, Inventory review UI, catalogue-only read mode,
+permission visibility, existing Workbench and inbox integration, regression tests
+and scripts/verify-material-catalogue-review.mjs.
+
+### Lock Document Changes
+
+Architecture Section 55 and the v5 mapping document record this local extension.
+Detailed scope/validation: docs/reviews/FULL_MATERIAL_CATALOGUE_STOCK_REVIEW.md.
+
+### What Codex Needs to Know
+
+Untracked output/ is preserved. Changes are local and uncommitted. Do not claim this
+feature is live or replay prior v5 migrations. The two additional permissions map
+to this stock-review action; other Inventory powers need separate reconciliation.
+
+### Next Steps (in order)
+
+1. Obtain separate production migration/deployment approval per existing v5 policy.
+2. Rehearse against actual schema, apply migration, verify ACLs/RLS/advisors, deploy
+   matching frontend with production configuration, and record release evidence.
+3. Assign Inventory review permissions to Ryan-selected users and complete real
+   signed-in acceptance. Authorized submitters can review in a separate step.
+
+### Open Questions / Concerns
+
+Validation uses isolated schema/auth fixtures and a browser with example data;
+live multi-user acceptance and independent concurrent sessions are not claimed.
+Existing build chunk-size/XLSX warnings remain. No production records or grants changed.
+
+---

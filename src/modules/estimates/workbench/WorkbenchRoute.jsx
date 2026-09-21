@@ -11,7 +11,8 @@ import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial} from './catalogueSe
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
 import baseCSS from './style.css?inline';
 import workspaceCSS from './workspace.css?inline';
-const css=baseCSS+'\n'+workspaceCSS;
+import catalogueCSS from '../../inventory/materialCatalogue.css?inline';
+const css=baseCSS+'\n'+workspaceCSS+'\n'+catalogueCSS;
 import {handoffDestinationState} from './handoff.mjs';
 
 function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,...handoffProps}){
@@ -150,13 +151,15 @@ export default function WorkbenchRoute({libraryOnly=false}){
   }).catch(()=>{});
   return()=>{valid=false;};
  },[selected?.estimate_id,handoffs,client]);
+ const catalogueRequest=useRef(null);
  async function catalogueSave(line,material,values){
   const db=await client();
-  const response=await db.rpc('save_estimating_catalogue_material',{
-   p_item_id:material?.id||line.catalogueCandidateId||null,
-   p_division:division,p_values:values,p_expected_updated_at:material?.updated_at||null});
+  const input={p_item_id:material?.id||line.catalogueCandidateId||null,p_division:division,p_values:values,p_expected_updated_at:material?.updated_at||null};
+  const key=JSON.stringify(input);if(catalogueRequest.current?.key!==key)catalogueRequest.current={key,id:crypto.randomUUID()};
+  const response=await db.rpc('save_full_material_catalogue',{...input,p_request_id:catalogueRequest.current.id});
   if(response.error)throw response.error;
-  const saved=catalogueMaterial(response.data);
+  const saved=catalogueMaterial(response.data.item);
+  catalogueRequest.current=null;
   try{setCatalogue(await loadCatalogue(db));}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
   return saved;
  }

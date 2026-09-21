@@ -617,7 +617,7 @@ export function DashboardWorkspace({ permissions }) {
 
       {!reviewTasks.isLoading&&reviewTasks.items.length?<article className="card workspace-card module-directory-panel dashboard-review-tasks">
         <Toolbar eyebrow="Needs Attention" title="Assigned reviews" description="Open approval and review work, grouped by task type." actions={<button type="button" className="secondary-button" onClick={reviewTasks.reload}>Refresh</button>}/>
-        {reviewTaskGroups.map(([type,items])=><section key={type}><h3>{type}</h3>{items.map(item=><button type="button" className="secondary-button dashboard-review-task" key={item.destination_id} onClick={()=>navigate(reviewTaskPath(item),{state:{reviewDestinationId:item.destination_id,reviewMode:true}})}><strong>{item.title}</strong><span>{item.submitted_by_name}</span><span>Open review</span></button>)}</section>)}
+        {reviewTaskGroups.map(([type,items])=><section key={type}><h3>{type}</h3>{items.map(item=><button type="button" className="secondary-button dashboard-review-task" key={item.destination_id} onClick={()=>navigate(reviewTaskPath(item),{state:{reviewDestinationId:item.destination_id,reviewDestinationKey:item.destination_key,reviewMode:true}})}><strong>{item.title}</strong><span>{item.submitted_by_name}</span><span>Open review</span></button>)}</section>)}
       </article>:null}
 
       <div className="summary-grid">

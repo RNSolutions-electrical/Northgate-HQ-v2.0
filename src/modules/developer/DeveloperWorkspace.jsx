@@ -83,7 +83,7 @@ const PERMISSION_GROUPS = [
   ['Primary administration', ['canManageDevelopers']],
   ['Electrical tools', ['canReviewElectricalInspections','canReviewAfcStudies']],
   ['Developer', ['canAccessDeveloper', 'canManageUsers', 'canViewReports']],
-  ['Inventory', ['canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
+  ['Inventory', ['canInventoryManager', 'canInventoryAdministrator', 'canManageInventory', 'canInventoryTransactions', 'canViewAllDivisions', 'canEditCatalog']],
   ['Jobs', ['canCreateJobs', 'canManageJobs', 'canApproveBudget', 'canManageChangeOrders']],
   ['Change Orders', ['canCreateChangeOrders', 'canSubmitChangeOrders', 'canVerifyChangeOrders', 'canApproveChangeOrders', 'canReviseChangeOrders']],
   ['People and assets', ['canManageEmployees', 'canManageVehicles', 'canManageTools']],
@@ -92,6 +92,8 @@ const PERMISSION_GROUPS = [
 ];
 
 function labelForPermission(key) {
+  if(key === 'canInventoryManager') return 'Inventory Manager — stock reviews';
+  if(key === 'canInventoryAdministrator') return 'Inventory Administrator — stock reviews';
   return key
     .replace(/^can/, '')
     .replace(/([A-Z])/g, ' $1')

@@ -31,7 +31,8 @@ import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
 import { StorageLocationSetup } from './StorageLocationSetup.jsx';
 import { StorageWorkspace } from './StorageWorkspace.jsx';
 import { resolveStorageLocations } from './storageHierarchy.js';
-import { MaterialAliases } from './MaterialAliases.jsx';
+import { MaterialCatalogueWorkspace } from './MaterialCatalogueWorkspace.jsx';
+import { MaterialStockReviews } from './MaterialStockReviews.jsx';
 import { InventoryPriceWorkspace } from './InventoryPriceWorkspace.jsx';
 import { searchMaterials, resolveMaterials } from '../../lib/materialResolver.js';
 import { canManageInventoryDepartment } from './inventoryAccess.js';
@@ -47,6 +48,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
 const INVENTORY_VIEWS = [
+  { key: 'stock_reviews', label: 'Stock Reviews', icon: ClipboardList },
   { key: 'stock', label: 'Inventory', icon: PackageSearch },
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Live stock summary and valuation export preview.' },
   { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
@@ -513,6 +515,7 @@ export function InventoryWorkspace({ permissions }) {
   const streamRef = useRef(null);
   const frameRef = useRef(null);
   const requestedView = searchParams.get('view') === 'locations' ? 'storage' : searchParams.get('view') ?? '';
+  useEffect(()=>{if(location.state?.reviewMode && location.state?.reviewDestinationKey==='catalogue_stock')setActiveView('stock_reviews');},[location.state]);
   const scanBinId = searchParams.get('scanBinId') ?? '';
   const scanBinCode = searchParams.get('scanBinCode') ?? '';
   const scanContext = scanBinId ? { binId: scanBinId, binCode: scanBinCode } : null;
@@ -529,10 +532,10 @@ export function InventoryWorkspace({ permissions }) {
   const [mapOnly, setMapOnly] = useState(true);
   const [aliasItem, setAliasItem] = useState(null);
   const [priceItem,setPriceItem]=useState(null);
-  const readModel = useInventoryReadModel({ enabled: canLoadInventory });
+  const readModel = useInventoryReadModel({ enabled: canLoadInventory, catalogueOnly: !canManageInventory && !canTransact });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState(
-    INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : 'stock',
+    INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : !canManageInventory && !canTransact ? (permissions.canEditCatalog ? 'catalog' : 'stock_reviews') : 'stock',
   );
   const [search, setSearch] = useState('');
   const [catalogCategory, setCatalogCategory] = useState('');
@@ -1495,6 +1498,7 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function renderActiveView() {
+    if (activeView === 'stock_reviews') return <MaterialStockReviews destinationId={location.state?.reviewDestinationId} onSaved={readModel.reload}/>;
     if (activeView === 'stock' || activeView === 'catalog') {
       return <>
         {cartState.error ? <StatePanel title="Cart action failed" description={cartState.error.message} tone="danger" /> : null}
@@ -2214,7 +2218,7 @@ export function InventoryWorkspace({ permissions }) {
     );
   }
 
-  if (aliasItem) return <MaterialAliases item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
+  if (aliasItem) return <MaterialCatalogueWorkspace item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
   if (priceItem) return <InventoryPriceWorkspace item={priceItem} onClose={()=>setPriceItem(null)} onSaved={readModel.reload}/>;
   if (creatingLocation && canReadCounts) return <StorageLocationSetup initialParent={locationSetupContext} permissions={permissions} locations={locationRecords}
     isLoading={countSheet.isLoading} error={countSheet.error} onReload={countSheet.reload}
@@ -2232,6 +2236,7 @@ export function InventoryWorkspace({ permissions }) {
         status={<span className="status-pill">{counts.activeItems} active item{counts.activeItems === 1 ? '' : 's'}</span>}
         actions={(
           <>
+            {permissions.canEditCatalog ? <button className="secondary-button" onClick={()=>setAliasItem({division:permissions.division})}>Add Catalogue Material</button> : null}
             {canReadCounts ? <><button type="button" className="primary-button" onClick={()=>{setLocationSetupContext(null);setCreatingLocation(true);}}><Plus aria-hidden="true"/> Add Storage Location</button><button type="button" className="secondary-button" onClick={()=>updateInventoryView('count')}>Add materials / Count</button></> : null}
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Page Menu
@@ -2276,7 +2281,7 @@ export function InventoryWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
-          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart', 'storage'].includes(activeView) ? (
+          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart', 'storage', 'stock_reviews'].includes(activeView) ? (
             <article className="card workspace-card">
               <Toolbar descriptionIsDiagnostic
                 eyebrow="Filter"

@@ -142,7 +142,7 @@ export function AppLayout() {
           </button>
           {notificationsOpen?<div className="ng-shell__notification-menu" role="dialog" aria-label="Review notifications">
             <div><strong>Needs review</strong><button type="button" onClick={reviewTasks.reload}>Refresh</button></div>
-            {reviewTasks.items.map(task=><button type="button" key={task.destination_id} onClick={()=>{setNotificationsOpen(false);navigate(reviewTaskPath(task),{state:{reviewDestinationId:task.destination_id,reviewMode:true}});}}><strong>{task.task_type}</strong><span>{task.title}</span><small>{task.submitted_by_name} · {task.scope_label||'Company'}</small></button>)}
+            {reviewTasks.items.map(task=><button type="button" key={task.destination_id} onClick={()=>{setNotificationsOpen(false);navigate(reviewTaskPath(task),{state:{reviewDestinationId:task.destination_id,reviewDestinationKey:task.destination_key,reviewMode:true}});}}><strong>{task.task_type}</strong><span>{task.title}</span><small>{task.submitted_by_name} · {task.scope_label||'Company'}</small></button>)}
             {!reviewTasks.isLoading&&!reviewTasks.items.length?<p>No pending review tasks.</p>:null}
             {reviewTasks.error?<p role="alert">Notifications could not be loaded.</p>:null}
           </div>:null}

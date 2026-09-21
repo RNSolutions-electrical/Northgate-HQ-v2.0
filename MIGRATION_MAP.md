@@ -185,3 +185,11 @@ same production version. It routes create/update SOV line saves through one
 job-aware, budget-permission-checked RPC with an atomic audit entry. Direct table
 RLS remains enabled and unchanged; anonymous execution is denied. No existing
 SOV, billing or financial records were rewritten.
+
+## September 21, 2026 — Full material catalogue and stock review
+
+Local `20260921221242_full_material_catalogue_stock_review.sql` was applied to
+production project `keogysnoukbendfkfjcn` as `20260921224510`, name
+`full_material_catalogue_stock_review`. Do not replay the local timestamp.
+Live-schema rollback rehearsal, normalized price/labor checks, authenticated RPC
+ACLs, private request-table RLS and default-denied new permission flags verified.
