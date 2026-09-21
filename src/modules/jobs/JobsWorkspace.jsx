@@ -1391,7 +1391,7 @@ function useJobAssignmentDirectory({ enabled, jobId }) {
       try {
         const token = await getToken({ template: 'supabase' });
         const client = createSupabaseClient(token);
-        const { data, error } = await client.rpc('read_job_assignment_directory', { p_job_id: jobId });
+        const { data, error } = await client.rpc('read_job_assignment_directory_v5', { p_job_id: jobId });
         if (error) throw error;
         if (isMounted) setState({ isLoading: false, error: null, rows: data ?? [] });
       } catch (error) {
@@ -4076,10 +4076,36 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { error } = await client.rpc('set_job_user_assignment', {
+      const { error } = await client.rpc('set_job_user_assignment_v5', {
         p_job_id: selectedJob.id,
         p_user_id: row.user_id,
         p_is_assigned: !isAssigned,
+        p_assignment_role: row.assignment_role || 'member',
+        p_reason: reason?.trim() || null,
+      });
+      if (error) throw error;
+      setJobAssignmentAction({ userId: '', error: null });
+      jobAssignments.reload();
+    } catch (error) {
+      setJobAssignmentAction({ userId: '', error });
+    }
+  }
+
+  async function handleJobAssignmentRole(row, assignmentRole, reason, confirmed = false) {
+    if (!selectedJob || !row?.assignment_id || !canManageSelectedJob || jobAssignmentAction.userId) return;
+    if (!confirmed) {
+      setJobConfirmation({ kind: 'assignment-role', record: row, assignmentRole, label: row.display_name || row.email || row.user_id });
+      return;
+    }
+    setJobAssignmentAction({ userId: row.user_id, error: null });
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const client = createSupabaseClient(token);
+      const { error } = await client.rpc('set_job_user_assignment_v5', {
+        p_job_id: selectedJob.id,
+        p_user_id: row.user_id,
+        p_is_assigned: true,
+        p_assignment_role: assignmentRole,
         p_reason: reason?.trim() || null,
       });
       if (error) throw error;
@@ -4133,6 +4159,9 @@ export function JobsWorkspace({ permissions }) {
       case 'assignment':
         await handleJobAssignment(confirmation.record, reason, true);
         break;
+      case 'assignment-role':
+        await handleJobAssignmentRole(confirmation.record, confirmation.assignmentRole, reason, true);
+        break;
       default:
         break;
     }
@@ -4146,6 +4175,15 @@ export function JobsWorkspace({ permissions }) {
         description: `${jobConfirmation.isAssigned ? 'Remove' : 'Assign'} ${jobConfirmation.label} ${jobConfirmation.isAssigned ? 'from' : 'to'} ${jobLabel(selectedJob)}.`,
         confirmLabel: jobConfirmation.isAssigned ? 'Remove from job' : 'Assign to job',
         tone: jobConfirmation.isAssigned ? 'danger' : 'default',
+      };
+    }
+    if (jobConfirmation.kind === 'assignment-role') {
+      const roleLabel = formatStatus(jobConfirmation.assignmentRole);
+      return {
+        title: `Change assignment role to ${roleLabel}`,
+        description: `${jobConfirmation.label} will be assigned as ${roleLabel} on ${jobLabel(selectedJob)}. Project Manager authority can affect financial approval scope.`,
+        confirmLabel: 'Change assignment role',
+        tone: 'default',
       };
     }
     if (jobConfirmation.kind === 'buyout-award') {
@@ -4178,8 +4216,9 @@ export function JobsWorkspace({ permissions }) {
       const columns = [
         { key: 'display_name', header: 'User', render: (row) => <strong>{row.display_name || row.email || row.user_id}</strong> },
         { key: 'email', header: 'Email', fallback: '-' },
-        { key: 'role', header: 'Role', fallback: 'User' },
-        { key: 'division', header: 'Division', fallback: '-' },
+        { key: 'business_role', header: 'Business role', fallback: 'User' },
+        { key: 'division', header: 'Department', fallback: '-' },
+        { key: 'assignment_role', header: 'Project role', render: (row) => row.assignment_id && canManageSelectedJob ? <select aria-label={`Project role for ${row.display_name || row.email || row.user_id}`} value={row.assignment_role || 'member'} onChange={(event) => handleJobAssignmentRole(row, event.target.value)} disabled={jobAssignmentAction.userId === row.user_id}><option value="member">Member</option><option value="lead">Lead</option><option value="superintendent">Superintendent</option><option value="project_manager" disabled={!['Manager', 'Director'].includes(row.business_role)}>Project Manager</option></select> : row.assignment_id ? formatStatus(row.assignment_role || 'member') : '-' },
         { key: 'assigned_at', header: 'Assigned', render: (row) => row.assigned_at ? formatDateTime(row.assigned_at) : '-' },
         { key: 'actions', header: 'Actions', render: (row) => canManageSelectedJob ? <button type="button" className={row.assignment_id ? 'secondary-button secondary-button--danger' : 'secondary-button'} onClick={() => handleJobAssignment(row)} disabled={jobAssignmentAction.userId === row.user_id}>{jobAssignmentAction.userId === row.user_id ? 'Saving...' : row.assignment_id ? 'Remove' : 'Assign'}</button> : 'Read only' },
       ];
@@ -6255,9 +6294,9 @@ export function JobsWorkspace({ permissions }) {
           tone={confirmationCopy()?.tone}
           requireReason={!['job-archive', 'schedule-archive', 'assignment', 'budget-delete', 'revenue-delete'].includes(jobConfirmation.kind) && !(jobConfirmation.kind === 'document-archive' && jobConfirmation.record?.owner_type !== 'change_order')}
           isSubmitting={jobConfirmation.kind === 'document-archive' && Boolean(documentAction.id)}
-          reasonLabel={jobConfirmation.kind === 'assignment' ? 'Assignment reason' : jobConfirmation.kind === 'buyout-award' ? 'Award reason' : 'Archive reason'}
+          reasonLabel={['assignment', 'assignment-role'].includes(jobConfirmation.kind) ? 'Assignment reason' : jobConfirmation.kind === 'buyout-award' ? 'Award reason' : 'Archive reason'}
           reasonHint="This reason is recorded in the job audit history."
-          reasonPlaceholder={jobConfirmation.kind === 'assignment' ? 'Why should this person be assigned or removed?' : jobConfirmation.kind === 'buyout-award' ? 'Why is this vendor being awarded?' : 'Why should this record be archived?'}
+          reasonPlaceholder={jobConfirmation.kind === 'assignment-role' ? 'Why should this project role change?' : jobConfirmation.kind === 'assignment' ? 'Why should this person be assigned or removed?' : jobConfirmation.kind === 'buyout-award' ? 'Why is this vendor being awarded?' : 'Why should this record be archived?'}
         >{jobConfirmation.kind === 'document-archive' && documentAction.error ? <p role="alert">{documentAction.error.message}</p> : null}</ConfirmDialog>
       ) : null}
     </>

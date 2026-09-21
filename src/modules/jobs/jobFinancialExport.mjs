@@ -53,12 +53,34 @@ export function buildFinancialExportRows(lines, changeOrderByLineId = new Map())
     costCode: line.cost_code || '',
     description: line.description || '',
     budget: amount(line.current_budget_override_amount ?? (amount(line.budget_amount) + amount(line.budget_change_amount) + amount(changeOrderByLineId.get(line.id)))),
+    manualBudgetChange: amount(line.budget_change_amount),
+    hasCurrentBudgetOverride: line.current_budget_override_amount !== null && line.current_budget_override_amount !== undefined,
     costs: amount(line.actual_cost_amount),
+    committedCosts: amount(line.committed_cost_amount),
     changeOrders: amount(changeOrderByLineId.get(line.id)),
     monthlyForecast: amount(line.forecast_to_complete_amount),
     completionForecast: amount(line.forecast_final_amount),
+    category: line.category || '',
     notes: line.note || '',
   }));
+}
+
+export function financialExportSummary(rows) {
+  const currentBudget = rows.reduce((sum, row) => sum + amount(row.budget), 0);
+  const completionForecast = rows.reduce((sum, row) => sum + amount(row.completionForecast), 0);
+  const projectedGrossProfit = currentBudget - completionForecast;
+  return {
+    currentBudget,
+    actualCosts: rows.reduce((sum, row) => sum + amount(row.costs), 0),
+    committedCosts: rows.reduce((sum, row) => sum + amount(row.committedCosts), 0),
+    completionForecast,
+    forecastedRemainingBudget: projectedGrossProfit,
+    estimatedProfit: rows.filter((row) => row.category === 'ohp_fee').reduce((sum, row) => sum + amount(row.budget), 0),
+    projectedGrossProfit,
+    projectedMargin: currentBudget ? projectedGrossProfit / currentBudget : null,
+    changeTotal: rows.reduce((sum, row) => sum + amount(row.manualBudgetChange) + amount(row.changeOrders), 0),
+    overrideCount: rows.filter((row) => row.hasCurrentBudgetOverride).length,
+  };
 }
 
 export function financialExportDivisions(rows) {
@@ -101,35 +123,73 @@ export async function financialExportPdf({ job, rows, selected }) {
   const pageSize = [792,612];
   const margin = 30;
   const usable = pageSize[0] - margin * 2;
-  const descriptionWidth = selected.notes ? 145 : 190;
-  const notesWidth = selected.notes ? 135 : 0;
+  const descriptionWidth = selected.notes ? 135 : 190;
+  const notesWidth = selected.notes ? 170 : 0;
   const fixed = 76 + descriptionWidth + notesWidth;
   const numericCount = columns.filter((column) => moneyKeys.has(column.key)).length;
   const numericWidth = numericCount ? Math.max(70,(usable-fixed)/numericCount) : 0;
   const widths = columns.map((column) => column.key === 'costCode' ? 76 : column.key === 'description' ? descriptionWidth : column.key === 'notes' ? notesWidth : numericWidth);
   const currency = new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
+  const percent = new Intl.NumberFormat('en-US',{style:'percent',minimumFractionDigits:1,maximumFractionDigits:1});
+  const summary = financialExportSummary(rows);
+  const divisionLabels = [...new Set(rows.map((row) => row.projectDivisionLabel).filter(Boolean))];
+  const scopeLabel = divisionLabels.length === 1
+    ? divisionLabels[0].replaceAll('—', '-')
+    : `${divisionLabels.length} selected project divisions`;
   let page, y;
   const text = (value,x,top,size=7,font=normal,color=rgb(0.08,0.1,0.12)) => page.drawText(String(value ?? ''),{x,y:top,size,font,color});
-  const truncate=(value,width,size=7)=>{const raw=String(value??'');let out=raw;while(out.length&&normal.widthOfTextAtSize(out,size)>width-6)out=out.slice(0,-1);return out===raw?raw:`${out.slice(0,-1)}…`;};
-  const header=()=>{
-    page=pdf.addPage(pageSize);y=pageSize[1]-margin;
-    text('NORTHGATE HQ',margin,y,9,bold,rgb(.74,.08,.1));y-=16;
-    text(`Job Financial Report · ${job.job_number || ''} ${job.name || ''}`.trim(),margin,y,14,bold);y-=14;
-    text(`Generated ${new Date().toLocaleString()}`,margin,y,7,normal,rgb(.35,.39,.43));y-=18;
+  const wrap=(value,width,size=6.5,font=normal)=>{
+    const max=Math.max(8,width-6);const lines=[];
+    for(const paragraph of String(value??'').split(/\r?\n/)){
+      const words=paragraph.split(/\s+/).filter(Boolean);let line='';
+      if(!words.length){lines.push('');continue;}
+      for(let word of words){
+        while(font.widthOfTextAtSize(word,size)>max){let cut=word.length;while(cut>1&&font.widthOfTextAtSize(word.slice(0,cut),size)>max)cut-=1;const part=word.slice(0,cut);if(line){lines.push(line);line='';}lines.push(part);word=word.slice(cut);}
+        const candidate=line?`${line} ${word}`:word;
+        if(line&&font.widthOfTextAtSize(candidate,size)>max){lines.push(line);line=word;}else line=candidate;
+      }
+      if(line)lines.push(line);
+    }
+    return lines.length?lines:[''];
+  };
+  const drawSummary=()=>{
+    const cards=[
+      ['CURRENT BUDGET',currency.format(summary.currentBudget),`${currency.format(summary.changeTotal)} in changes; ${summary.overrideCount} manual override${summary.overrideCount===1?'':'s'}`],
+      ['ACTUAL COSTS',currency.format(summary.actualCosts),'Costs posted to date'],
+      ['COMMITTED COSTS',currency.format(summary.committedCosts),'Buyout or committed exposure'],
+      ['COMPLETION FORECAST',currency.format(summary.completionForecast),'Expected total cost at completion'],
+      ['FORECASTED REMAINING BUDGET',currency.format(summary.forecastedRemainingBudget),'Current budget minus completion forecast'],
+      ['ESTIMATED PROFIT',currency.format(summary.estimatedProfit),'OH&P / Fee financial lines'],
+      ['PROJECTED GROSS PROFIT',currency.format(summary.projectedGrossProfit),summary.projectedMargin===null?'No selected budget':`${percent.format(summary.projectedMargin)} projected margin`],
+    ];
+    const gap=7;const cardWidth=(usable-gap*3)/4;const cardHeight=48;
+    cards.forEach((card,index)=>{const column=index%4;const row=Math.floor(index/4);const x=margin+column*(cardWidth+gap);const top=y-row*(cardHeight+gap);page.drawRectangle({x,y:top-cardHeight,width:cardWidth,height:cardHeight,borderWidth:.6,borderColor:rgb(.79,.82,.84),color:rgb(.985,.988,.99)});text(card[0],x+7,top-12,5.7,bold,rgb(.36,.4,.44));text(card[1],x+7,top-27,10,bold,card[1].startsWith('-')?rgb(.68,.17,.12):rgb(.05,.14,.2));wrap(card[2],cardWidth-14,5.3).slice(0,2).forEach((line,lineIndex)=>text(line,x+7,top-39-lineIndex*6,5.3,normal,rgb(.35,.39,.43)));});
+    y-=cardHeight*2+gap+14;
+  };
+  const tableHeader=()=>{
     page.drawRectangle({x:margin,y:y-14,width:usable,height:18,color:rgb(.94,.95,.96)});
     let x=margin;columns.forEach((column,index)=>{text(column.label,x+3,y-9,6.5,bold);x+=widths[index];});y-=20;
   };
-  header();
+  const header=(includeSummary=false)=>{
+    page=pdf.addPage(pageSize);y=pageSize[1]-margin;
+    text('NORTHGATE HQ',margin,y,9,bold,rgb(.74,.08,.1));y-=16;
+    text(`Job Financial Report - ${job.job_number || ''} ${job.name || ''}`.trim(),margin,y,14,bold);y-=14;
+    text(`Generated ${new Date().toLocaleString()} | Report scope: ${scopeLabel}`,margin,y,7,normal,rgb(.35,.39,.43));y-=18;
+    if(includeSummary)drawSummary();
+    tableHeader();
+  };
+  header(true);
   for(const row of rows){
-    if(y<55) header();
+    const lineSets=columns.map((column,index)=>moneyKeys.has(column.key)?[currency.format(amount(row[column.key]))]:wrap(row[column.key],widths[index]));
+    const rowHeight=Math.max(17,Math.max(...lineSets.map((lines)=>lines.length))*8+6);
+    if(y-rowHeight<38) header(false);
     let x=margin;
     columns.forEach((column,index)=>{
-      const value=moneyKeys.has(column.key)?currency.format(amount(row[column.key])):truncate(row[column.key],widths[index]);
-      text(value,x+3,y-9,6.5,column.key==='costCode'?bold:normal);x+=widths[index];
+      lineSets[index].forEach((line,lineIndex)=>text(line,x+3,y-9-lineIndex*8,6.5,column.key==='costCode'?bold:normal));x+=widths[index];
     });
-    page.drawLine({start:{x:margin,y:y-13},end:{x:margin+usable,y:y-13},thickness:.35,color:rgb(.82,.84,.86)});y-=17;
+    page.drawLine({start:{x:margin,y:y-rowHeight+3},end:{x:margin+usable,y:y-rowHeight+3},thickness:.35,color:rgb(.82,.84,.86)});y-=rowHeight;
   }
-  if(y<60) header();
+  if(y<60) header(false);
   let x=margin;
   columns.forEach((column,index)=>{
     const value=column.key==='costCode'?'TOTAL':moneyKeys.has(column.key)?currency.format(rows.reduce((sum,row)=>sum+amount(row[column.key]),0)):'';
