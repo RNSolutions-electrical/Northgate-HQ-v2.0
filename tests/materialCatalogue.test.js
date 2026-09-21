@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalogueMaterial,catalogueChanges,loadCatalogue} from '../src/modules/estimates/workbench/catalogueService.js';
+import {catalogueMaterial,catalogueChanges,cataloguePriceSnapshot,loadCatalogue} from '../src/modules/estimates/workbench/catalogueService.js';
 test('missing values are not confirmed zeroes',()=>{
  assert.equal(catalogueMaterial({price_per_unit:0,labor_rate_hrs:null}).price,null);
  assert.equal(catalogueMaterial({price_per_unit:0,price_confirmed:true,labor_rate_hrs:0}).price,0);
  assert.equal(catalogueMaterial({price_per_unit:1,labor_rate_hrs:null}).hours,null);
+});
+test('catalogue material exposes effective source and immutable snapshot metadata',()=>{
+ const material=catalogueMaterial({price_per_unit:7.8,price_confirmed:true,effective_price_source:'inventory_explicit',inventory_price_updated_at:'2026-09-21T10:00:00Z'});
+ assert.equal(material.price,7.8);
+ assert.equal(material.priceSource,'inventory_explicit');
+ assert.deepEqual(cataloguePriceSnapshot(material,'2026-09-21T11:00:00Z'),{
+  priceSource:'inventory_explicit',priceSourceUpdatedAt:'2026-09-21T10:00:00Z',priceSnapshotAt:'2026-09-21T11:00:00Z'
+ });
 });
 test('catalogue patches contain only edited nonblank fields and reject conflicting duplicates',()=>{
  const materials=[{id:'a',unit:'EA',updated_at:null}];
