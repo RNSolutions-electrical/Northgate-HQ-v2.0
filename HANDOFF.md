@@ -22146,3 +22146,26 @@ live multi-user acceptance and independent concurrent sessions are not claimed.
 Existing build chunk-size/XLSX warnings remain. No production records or grants changed.
 
 ---
+
+## Entry 281 — Full material catalogue production rollout
+
+**Date:** September 21, 2026. **Mode:** Production Mode.
+Ryan explicitly authorized applying the migration and deploying Entry 280.
+
+- Full live-schema rehearsal rolled back successfully; applied migration
+  `full_material_catalogue_stock_review` as `20260921224510` to
+  `keogysnoukbendfkfjcn`. MIGRATION_MAP preserves local timestamp mapping.
+- Feature commit `fd21c6ddc78b063b1881b491538038ae6ad5979e` pushed to main.
+- Netlify deploy `6ab1b3ac08065a0008197723` ready and published from the exact
+  commit at 22:46:23 UTC. Secret scanning found no matches in 757 files.
+- Production HTML and referenced JS/CSS match immutable release; Inventory/Estimate
+  routes and live configuration verified. Four workflow RPCs deny anonymous calls;
+  retry table RLS/no client grants, internal function ACLs, default-denied reviewer
+  flags and missing-identity denial verified. No additional permissions assigned.
+- Advisor delta is the intentional private table without client policies and five
+  scoped authenticated SECURITY DEFINER helpers/adapters; no new anonymous endpoint
+  or search-path findings. Existing advisor backlog unchanged.
+- Browser reaches configured Clerk sign-in; signed-in user acceptance remains.
+  No real material records or inventory counts were changed by rollout.
+- Durable sync marker: OPAL-CATALOGUE-20260921-001. Documentation checkpoint uses
+  [skip ci] to retain this verified production deployment. Untracked output/ retained.

@@ -1,6 +1,6 @@
 # Full material catalogue and v5 stock review
 
-**Mode:** Production Mode. **Status:** Production rollout authorized September 21; migration applied, frontend deployment in progress.
+**Mode:** Production Mode. **Status:** LIVE — migration applied and frontend published September 21, 2026.
 **Baseline:** `84440ec` from `origin/main` (September 21, 2026).
 **Migration:** `20260921221242_full_material_catalogue_stock_review.sql`.
 
@@ -122,7 +122,7 @@ PGLITE_MODULE=/path/to/pglite/dist/index.js node scripts/verify-material-catalog
    conversion, optional stock hints/quantity, pending inbox, return/decline, self-review,
    confirmed count, stale-count reload, and no duplicate posting.
 
-No production database, user permissions, or deployed site were changed in this session.
+The initial implementation phase made no production changes. The subsequently authorized rollout is recorded below.
 
 ## Authorized production rollout — September 21, 2026
 
@@ -135,3 +135,13 @@ New security-advisor notices are expected for the private RPC-only table (RLS
 without policies) and authenticated guarded SECURITY DEFINER adapters; no new
 anonymous endpoint or mutable-search-path finding was introduced.
 See [Supabase advisor guidance](https://supabase.com/docs/guides/database/database-linter).
+
+Feature commit `fd21c6ddc78b063b1881b491538038ae6ad5979e` was pushed to `origin/main`.
+Netlify deploy `6ab1b3ac08065a0008197723` is ready and published from that exact
+commit at 2026-09-21 22:46:23 UTC. Secret scanning found no matches in 757 files.
+Production HTML and referenced JS/CSS match the immutable deploy. Inventory and
+Estimate deep links, production Clerk/Supabase configuration, all four anonymous
+RPC denials, default-false reviewer flags, and unauthenticated identity denial pass.
+Main JS SHA-256: `426539ea9e94a1b0d3150c71cedede21f14df7721fa190211adbad7cdec6cfeb`.
+Browser startup reaches the configured Clerk sign-in page. Signed-in multi-user
+acceptance is not claimed; no real materials, counts or user grants were altered.

@@ -2,7 +2,25 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — EMERALD-V5-FOUNDATION-20260921-001
+## Current release — OPAL-CATALOGUE-20260921-001
+
+- LIVE September 21, 2026: full material catalogue editing, vendor average pricing,
+  NECA source-unit conversion, notes, optional stock hints/quantity, and separate
+  v5 stock review with confirmed counts and authorized self-review.
+- Feature commit: `fd21c6ddc78b063b1881b491538038ae6ad5979e`, pushed to `origin/main`.
+- Netlify production deploy: `6ab1b3ac08065a0008197723`, ready/published from that
+  exact commit at 22:46:23 UTC; secret scan 757 files, no matches.
+- Supabase migration applied as `20260921224510`; local filename starts
+  `20260921221242`. See MIGRATION_MAP; do not replay because timestamps differ.
+- 191 local tests, isolated workflow database tests, production build, live-schema
+  rollback rehearsal, endpoint ACL/RLS/default permissions, live routes/assets and
+  anonymous RPC denial pass. Browser reaches configured sign-in; signed-in user
+  acceptance remains. No actual stock, material records, or user grants changed.
+- Follow HANDOFF Entry 281 and docs/reviews/FULL_MATERIAL_CATALOGUE_STOCK_REVIEW.md.
+  Preserve local work, fetch/fast-forward main, and confirm this marker. Final
+  documentation-only checkpoint uses [skip ci] to retain the verified deployment.
+
+## Previous release — EMERALD-V5-FOUNDATION-20260921-001
 
 - LIVE and reverified September 21, 2026. The v5 permission foundation, protected
   Primary identity, canonical 179-action catalogue, scoped evaluator, durable
