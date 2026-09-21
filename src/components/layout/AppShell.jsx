@@ -18,6 +18,7 @@ export function AppShell({
   feedbackControl,
   developerToggle,
   profileControl,
+  notificationControl,
   children,
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -70,9 +71,7 @@ export function AppShell({
                 <span>{identitySummary.division}</span>
               </div>
             ) : null}
-            <button type="button" className="ng-shell__notice-button" aria-label="Notifications">
-              <Bell aria-hidden="true" />
-            </button>
+            {notificationControl || <button type="button" className="ng-shell__notice-button" aria-label="Notifications"><Bell aria-hidden="true" /></button>}
             {developerToggle}
             <div className="ng-shell__profile">{profileControl}</div>
           </div>

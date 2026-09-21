@@ -18,6 +18,7 @@ import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
 
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
 const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
@@ -545,6 +546,8 @@ export function DashboardWorkspace({ permissions }) {
   const activeDashboardTools = dashboardTools.tools.filter((tool) => tool.status === 'active');
   const dashboardTodoReminders = useDashboardTodoReminders({ enabled: permissions.permissionSource === 'server' });
   const overdueTodoCount = dashboardTodoReminders.items.filter((item) => item.reminder_status === 'overdue').length;
+  const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
+  const reviewTaskGroups=useMemo(()=>Object.entries(reviewTasks.items.reduce((groups,item)=>{(groups[item.task_type]??=[]).push(item);return groups;},{})),[reviewTasks.items]);
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
@@ -607,10 +610,15 @@ export function DashboardWorkspace({ permissions }) {
         </div>
         <div className="dashboard-hero__panel">
           <span>Needs attention</span>
-          <strong>{jobAttention.isLoading ? 'Loading' : jobAttention.items.length}</strong>
-          <p>{jobAttention.error ? 'Job attention could not load.' : 'Open buyout items, over-budget buyouts, and lead-time exceptions.'}</p>
+          <strong>{jobAttention.isLoading||reviewTasks.isLoading ? 'Loading' : jobAttention.items.length+reviewTasks.items.length}</strong>
+          <p>{jobAttention.error||reviewTasks.error ? 'Some attention items could not load.' : 'Operational exceptions and assigned review tasks.'}</p>
         </div>
       </section>
+
+      {!reviewTasks.isLoading&&reviewTasks.items.length?<article className="card workspace-card module-directory-panel dashboard-review-tasks">
+        <Toolbar eyebrow="Needs Attention" title="Assigned reviews" description="Open approval and review work, grouped by task type." actions={<button type="button" className="secondary-button" onClick={reviewTasks.reload}>Refresh</button>}/>
+        {reviewTaskGroups.map(([type,items])=><section key={type}><h3>{type}</h3>{items.map(item=><button type="button" className="secondary-button dashboard-review-task" key={item.destination_id} onClick={()=>navigate(reviewTaskPath(item),{state:{reviewDestinationId:item.destination_id,reviewMode:true}})}><strong>{item.title}</strong><span>{item.submitted_by_name}</span><span>Open review</span></button>)}</section>)}
+      </article>:null}
 
       <div className="summary-grid">
         <SummaryCard detailIsDiagnostic label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} developmentOnly />
@@ -846,7 +854,7 @@ export function DashboardWorkspace({ permissions }) {
                     eyebrow="Approval Queue"
                     title="Submitted estimates"
                     description="Visible submitted estimates awaiting approval review."
-                    actions={<button type="button" className="secondary-button" onClick={() => openModule('/estimates/legacy')}>Review in Estimates</button>}
+                    actions={<button type="button" className="secondary-button" onClick={() => navigate('/estimates',{state:{reviewMode:true}})}>Review in Estimates</button>}
                   />
                   <DataTable
                     columns={DASHBOARD_ESTIMATE_COLUMNS}

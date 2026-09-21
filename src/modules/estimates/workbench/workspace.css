@@ -26,3 +26,4 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 .catalogue-incomplete{border-left:3px solid #bd7715!important;background:#fff9ec!important}
 @media(max-width:800px){.resource-fields{grid-template-columns:1fr 1fr}.component-group>summary{flex-wrap:wrap}.workspace-table{min-width:650px}.overview-grid{gap:24px}.finalization-checklist .checklist-item{display:block}.finalization-checklist .checklist-item>label{margin-top:12px}}
 @media(max-width:500px){.resource-fields,.overview-fields .resource-fields{grid-template-columns:1fr}.component-resource,.component-group{padding:12px}.takeoff-toolbar>label{flex-basis:100%}.takeoff-toolbar>button{flex:1}.report-toolbar{align-items:stretch}.report-toolbar>label{flex-basis:100%}.report-toolbar .actions{margin:0}.checklist-banner{flex-wrap:wrap}.library-resource strong{flex-basis:100%}.component-resource .section-heading{align-items:start}}
+.view-all-sections{white-space:nowrap;font-weight:700}

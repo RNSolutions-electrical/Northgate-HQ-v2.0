@@ -14,12 +14,12 @@ import workspaceCSS from './workspace.css?inline';
 const css=baseCSS+'\n'+workspaceCSS;
 import {handoffDestinationState} from './handoff.mjs';
 
-function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onCreateRevision,version,onOpenOriginal,...handoffProps}){
+function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,...handoffProps}){
  const ref=useRef(),[target,setTarget]=useState(null);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{width:'100%',height:'calc(100dvh - 130px)',minHeight:620,border:0}}
- >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>,target)}</iframe>;
+ >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
@@ -41,6 +41,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const [checklistConfig,setChecklistConfig]=useState(null);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
  const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
+ useEffect(()=>{if(location.state?.reviewMode)setView('review');},[location.state?.reviewMode]);
  const reloadChecklist=useCallback(async()=>{
   try{const db=await client(),result=await db.from('estimate_checklist_definitions').select('*').order('sort_order');if(result.error)throw result.error;setChecklistConfig(result.data);}
   catch{setChecklistConfig(null);}
@@ -51,15 +52,16 @@ export default function WorkbenchRoute({libraryOnly=false}){
   try{
    const db=await client();
    if(reviewMode){
-    const response=await db.rpc('read_v5_estimate_review_queue',{p_limit:200});
+    const response=await db.rpc('read_v5_estimate_task_queue',{p_limit:200});
     if(response.error)throw response.error;
     setReviewRows(response.data||[]);setRows([]);setHandoffs({});
     return;
    }
    if(personalMode){
+    const [materials,assemblies]=await Promise.all([loadCatalogue(db),loadAssemblyLibrary(db)]);
     const response=await db.rpc('read_my_v5_working_copies',{p_module_key:'estimating',p_limit:200});
     if(response.error)throw response.error;
-    library.current=[];setCatalogue([]);
+    library.current=assemblies;setCatalogue(materials);
     setRows((response.data||[]).filter(row=>row.work_type==='estimate').map(row=>({
      personal_id:row.id,revision:row.version,document:row.payload,updated_at:row.updated_at,
      estimates:{division:row.scope_context?.division||division,status:row.status,version_number:row.version},
@@ -83,6 +85,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
    setCatalogue(materials);setRows(workbenches.map(row=>({...row,snapshot:snapshotsByEstimate.get(row.estimate_id)||null})));
   }catch(e){setError(e.message);}finally{setLoading(false);}
  },[client,division,libraryOnly,personalMode,reviewMode]);
+ useEffect(()=>{if(reviewMode&&location.state?.reviewDestinationId&&reviewRows.length){const row=reviewRows.find(item=>item.destination_id===location.state.reviewDestinationId);if(row)setSelectedReview(row);}},[reviewMode,reviewRows,location.state?.reviewDestinationId]);
  useEffect(()=>{if(!permissions.isLoading&&(permissions.canEstimate||permissions.canApproveEstimates||permissions.canSavePersonalWork))reload();else if(!permissions.isLoading)setLoading(false);},[permissions.isLoading,permissions.canEstimate,permissions.canApproveEstimates,permissions.canSavePersonalWork,reload]);
  useEffect(()=>{const warn=e=>{if(dirty.current){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[]);
  useEffect(()=>{
@@ -103,18 +106,21 @@ export default function WorkbenchRoute({libraryOnly=false}){
   try{
    const db=await client();
    if(personalMode){
-    if(assembly||updates.length)throw new Error('Shared library and catalogue changes must be submitted as separate review destinations.');
+    const priorProposals=document.reviewProposals||{};
+    const savedDocument={...document,reviewProposals:{...priorProposals,
+      ...(assembly?{assembly}:{...(('assembly' in priorProposals)?{assembly:priorProposals.assembly}:{})}),
+      ...(updates.length?{catalogueUpdates:updates}:{...(('catalogueUpdates' in priorProposals)?{catalogueUpdates:priorProposals.catalogueUpdates}:{})})}};
     const {data,error}=await db.rpc('save_v5_working_copy',{
      p_request_id:crypto.randomUUID(),p_working_copy_id:active.current?.personal_id||null,
      p_expected_version:active.current?.revision||null,p_module_key:'estimating',p_work_type:'estimate',
-     p_scope_context:{division},p_payload:document,p_source_table:null,p_source_record_id:null,p_source_version:null
+     p_scope_context:{division},p_payload:savedDocument,p_source_table:null,p_source_record_id:null,p_source_version:null
     });
     if(error)throw error;
     const row={personal_id:data.id,revision:data.version,document:data.payload,updated_at:data.updated_at,
      estimates:{division,status:data.status,version_number:data.version},snapshot:null};
     active.current=row;dirty.current=false;
     setRows(current=>[row,...current.filter(item=>item.personal_id!==row.personal_id)]);
-    return row;
+    return {...row,document:savedDocument};
    }
    const {data,error}=await db.rpc(assembly?'save_workbench_assembly':'save_estimate_workbench',{
     p_estimate_id:active.current?.estimate_id||null,p_division:division,
@@ -157,6 +163,13 @@ export default function WorkbenchRoute({libraryOnly=false}){
  async function archiveAssembly(item,reason){
   const db=await client();const {error}=await db.rpc('archive_assembly_library',{p_assembly_id:item.libraryId,p_expected_updated_at:item.updatedAt,p_reason:reason});
   if(error)throw error;library.current=library.current.filter(a=>a.id!==item.id);
+ }
+ async function archiveEstimate(reason){
+  if(!active.current?.estimate_id)throw new Error('Save the estimate before archiving it.');
+  const db=await client(),estimateId=active.current.estimate_id;
+  const {error}=await db.rpc('archive_estimate',{p_estimate_id:estimateId,p_reason:reason});
+  if(error)throw error;
+  setRows(current=>current.filter(row=>row.estimate_id!==estimateId));dirty.current=false;active.current=null;setSelected(null);
  }
  async function submitHandoff(values){
   if(saving.current)throw new Error('Wait for the current save to finish.');
@@ -230,7 +243,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   setWorkflow(current=>({...current,busy:true,error:'',success:''}));
   try{
    const db=await client();
-   const response=decision==='apply'?await db.rpc('apply_v5_estimate_promotion',{p_destination_id:selectedReview.destination_id,p_expected_version:selectedReview.destination_version,p_expected_payload_hash:selectedReview.payload_hash,p_note:note}):await db.rpc('review_v5_change_destination',{p_destination_id:selectedReview.destination_id,p_expected_version:selectedReview.destination_version,p_expected_payload_hash:selectedReview.payload_hash,p_decision:decision,p_note:note});
+   const response=decision==='apply'?(selectedReview.destination_key==='official_estimate'?await db.rpc('apply_v5_estimate_promotion',{p_destination_id:selectedReview.destination_id,p_expected_version:selectedReview.destination_version,p_expected_payload_hash:selectedReview.payload_hash,p_note:note}):await db.rpc('apply_v5_estimate_linked_destination',{p_destination_id:selectedReview.destination_id,p_expected_version:selectedReview.destination_version,p_expected_payload_hash:selectedReview.payload_hash,p_note:note})):await db.rpc('review_v5_change_destination',{p_destination_id:selectedReview.destination_id,p_expected_version:selectedReview.destination_version,p_expected_payload_hash:selectedReview.payload_hash,p_decision:decision,p_note:note});
    if(response.error)throw response.error;
    setReviewRows(current=>current.filter(row=>row.destination_id!==selectedReview.destination_id));setSelectedReview(null);
    setWorkflow({reason:'',busy:false,error:'',success:decision==='apply'?'Promoted to an official draft.':decision==='return'?'Returned to the author.':'Declined and retained in the author history.'});
@@ -241,6 +254,10 @@ export default function WorkbenchRoute({libraryOnly=false}){
  if(libraryOnly&&personalOnly)return <p>Shared assembly access requires estimating authority. Personal assemblies remain inside My Estimates.</p>;
  if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...seed('Assembly library'),library:structuredClone(library.current)}} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
  if(selectedReview){
+  if(selectedReview.destination_key!=='official_estimate')return <section className="workspace-stack">
+   <WorkspaceHeader eyebrow={selectedReview.task_type} title={selectedReview.estimate_name||'Shared estimating change'} description={`Submitted by ${selectedReview.submitted_by_name} for ${selectedReview.target_division||'company review'}.`} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
+   <div className="job-financials-form"><h2>Proposed shared change</h2><p><strong>Submission reason:</strong> {selectedReview.shared_reason}</p><pre className="estimate-review-payload">{JSON.stringify(selectedReview.proposed_payload,null,2)}</pre><label>Review note<textarea value={workflow.reason} onChange={event=>setWorkflow(current=>({...current,reason:event.target.value,error:'',success:''}))} required rows={3}/></label>{workflow.error&&<p role="alert">{workflow.error}</p>}<div className="job-financials-form__actions"><button className="primary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('apply')}>Approve and Apply</button><button className="secondary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('return')}>Return for Changes</button><button className="secondary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('decline')}>Decline</button></div></div>
+  </section>;
   const reviewDocument={...selectedReview.proposed_payload,library:[]};
   return <section className="workspace-stack">
    <WorkspaceHeader eyebrow="Estimate review" title={reviewDocument.name||'Submitted estimate'} description={'Submitted by '+selectedReview.submitted_by_name+' for '+selectedReview.target_division+'.'} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
@@ -273,7 +290,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
     {workflow.success&&<p role="status">{workflow.success}</p>}
     <div className="job-financials-form__actions"><button className="primary-button" disabled={personalLocked||workflow.busy||!workflow.reason.trim()}>{workflow.busy?'Submitting...':'Submit for Review'}</button></div>
    </form>}
-   <EditorFrame key={selected.estimate_id||selected.personal_id} document={document} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked}} onDirty={markDirty} onExit={exit} onReloadLibrary={personalMode?async()=>[]:async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
+   <EditorFrame key={selected.estimate_id||selected.personal_id} document={document} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
   </section>;
  }
  return <section className="workspace-stack">
@@ -288,7 +305,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
    </div><div className="job-financials-form__actions"><button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button></div>
   </form>}
   <h2>{reviewMode?'Pending submissions':personalMode?'My Estimates':'Workbench estimates'}</h2>
-  {reviewMode?reviewRows.map(row=><button className="secondary-button" key={row.destination_id} onClick={()=>{setWorkflow({reason:'',busy:false,error:'',success:''});setSelectedReview(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.estimate_name||'Untitled estimate'}</strong><span>{row.customer_name||'No customer'}</span><span>{row.submitted_by_name}</span><span>{row.target_division}</span></button>):rows.map(row=><button className="secondary-button" key={row.estimate_id||row.personal_id} onClick={()=>{active.current=row;setSelected(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.document.name}</strong><span>{row.document.customer}</span><span>Version {row.estimates?.version_number||1}{row.estimates?.revision_of?' · Revised':''}</span><span>{row.estimates?.status === 'approved' ? 'Approved' : row.estimates?.status === 'submitted'?'Submitted':row.estimates?.status === 'promoted'?'Promoted':row.estimates?.status === 'returned'?'Returned':row.estimates?.status === 'declined'?'Declined':'Draft'}</span></button>)}
+  {reviewMode?reviewRows.map(row=><button className="secondary-button" key={row.destination_id} onClick={()=>{setWorkflow({reason:'',busy:false,error:'',success:''});setSelectedReview(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.estimate_name||'Untitled change'}</strong><span>{row.task_type}</span><span>{row.submitted_by_name}</span><span>{row.target_division}</span></button>):rows.map(row=><button className="secondary-button" key={row.estimate_id||row.personal_id} onClick={()=>{active.current=row;setSelected(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.document.name}</strong><span>{row.document.customer}</span><span>Version {row.estimates?.version_number||1}{row.estimates?.revision_of?' · Revised':''}</span><span>{row.estimates?.status === 'approved' ? 'Approved' : row.estimates?.status === 'submitted'?'Submitted':row.estimates?.status === 'promoted'?'Promoted':row.estimates?.status === 'returned'?'Returned':row.estimates?.status === 'declined'?'Declined':'Draft'}</span></button>)}
   {reviewMode&&!reviewRows.length&&<p>No estimates are awaiting review.</p>}
   {!reviewMode&&!rows.length&&<p>No estimates yet.</p>}
  </section>;

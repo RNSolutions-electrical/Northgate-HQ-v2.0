@@ -25,11 +25,18 @@ test('My Estimates uses the RPC-only durable working-copy store', () => {
   assert.match(route, /crypto\.randomUUID\(\)/);
 });
 
-test('personal estimates cannot use official approval, handoff, or shared catalogue writes', () => {
+test('personal estimates cannot directly approve, hand off, or mutate shared catalogue records', () => {
   assert.match(route, /onApprove=\{personalMode\?undefined:approve\}/);
   assert.match(route, /onHandoff=\{personalMode\?undefined:submitHandoff\}/);
   assert.match(route, /onCatalogueMaterial=\{!personalMode&&permissions\.canEditCatalog\?catalogueSave:undefined\}/);
-  assert.match(route, /Shared library and catalogue changes must be submitted as separate review destinations/);
+  assert.match(route, /reviewProposals/);
+  assert.match(route, /submit_v5_estimate_for_review/);
+  assert.doesNotMatch(route, /Shared library and catalogue changes must be submitted as separate review destinations/);
+});
+
+test('personal estimate search uses the readable shared catalogue and assembly library',()=>{
+  assert.match(route,/Promise\.all\(\[loadCatalogue\(db\),loadAssemblyLibrary\(db\)\]\)/);
+  assert.doesNotMatch(route,/library\.current=\[\];setCatalogue\(\[\]\)/);
 });
 
 test('authorized estimators can switch between official and personal views', () => {

@@ -1,5 +1,5 @@
 import { UserButton, useClerk } from '@clerk/clerk-react';
-import { MessageSquarePlus } from 'lucide-react';
+import { Bell, MessageSquarePlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FeedbackDrawer } from '../feedback/FeedbackDrawer.jsx';
@@ -10,6 +10,7 @@ import { AppShell } from './AppShell.jsx';
 import { StatePanel } from '../ui/StatePanel.jsx';
 import {canCorrectInventoryData} from '../../modules/inventory/dataCorrectionAccess.js';
 import { DiagnosticsProvider } from '../ui/Diagnostics.jsx';
+import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -26,6 +27,8 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [notificationsOpen,setNotificationsOpen]=useState(false);
+  const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
 
   useEffect(() => {
     document.documentElement.classList.toggle('ng-highlight-incomplete', permissions.canAccessDeveloper === true && highlightIncomplete);
@@ -131,6 +134,19 @@ export function AppLayout() {
           </button>
           <UserButton afterSignOutUrl="/" />
         </>
+      )}
+      notificationControl={(
+        <div className="ng-shell__notification-control">
+          <button type="button" className="ng-shell__notice-button" aria-label={`${reviewTasks.items.length} review notifications`} aria-expanded={notificationsOpen} onClick={()=>setNotificationsOpen(value=>!value)}>
+            <Bell aria-hidden="true" />{reviewTasks.items.length?<span className="ng-shell__notification-count">{reviewTasks.items.length}</span>:null}
+          </button>
+          {notificationsOpen?<div className="ng-shell__notification-menu" role="dialog" aria-label="Review notifications">
+            <div><strong>Needs review</strong><button type="button" onClick={reviewTasks.reload}>Refresh</button></div>
+            {reviewTasks.items.map(task=><button type="button" key={task.destination_id} onClick={()=>{setNotificationsOpen(false);navigate(reviewTaskPath(task),{state:{reviewDestinationId:task.destination_id,reviewMode:true}});}}><strong>{task.task_type}</strong><span>{task.title}</span><small>{task.submitted_by_name} · {task.scope_label||'Company'}</small></button>)}
+            {!reviewTasks.isLoading&&!reviewTasks.items.length?<p>No pending review tasks.</p>:null}
+            {reviewTasks.error?<p role="alert">Notifications could not be loaded.</p>:null}
+          </div>:null}
+        </div>
       )}
       >
         {canCorrectInventoryData(permissions)&&<StatePanel tone="warning" compact title="Developer Data Correction enabled" description="Temporary audited inventory correction access. History and stock safeguards remain enforced. Revoke in Developer → Permissions before official rollout." />}

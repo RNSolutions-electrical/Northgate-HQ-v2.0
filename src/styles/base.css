@@ -291,6 +291,16 @@ svg { stroke-width: 1.8; }
 }
 .ng-shell__notice-button:hover { background: var(--ng-panel-bg-alt); }
 .ng-shell__notice-button svg { width: 17px; height: 17px; }
+.ng-shell__notification-control { position: relative; }
+.ng-shell__notification-count { position: absolute; top: -5px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 10px; background: var(--ng-brand-red); color: #fff; font-size: 10px; line-height: 17px; text-align: center; }
+.ng-shell__notification-menu { position: absolute; z-index: 120; right: 0; top: calc(100% + 10px); width: min(390px, calc(100vw - 24px)); max-height: 480px; overflow: auto; padding: 12px; border: 1px solid var(--ng-border); background: var(--ng-panel-bg); box-shadow: 0 18px 45px rgba(24,31,37,.18); }
+.ng-shell__notification-menu>div { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.ng-shell__notification-menu>button { display:grid; width:100%; gap:3px; padding:10px; margin-top:6px; text-align:left; border:1px solid var(--ng-border); background:var(--ng-panel-bg-alt); }
+.ng-shell__notification-menu>button span,.ng-shell__notification-menu>button small { display:block; }
+.dashboard-review-tasks>section+section { margin-top:18px; padding-top:14px; border-top:1px solid var(--ng-border); }
+.dashboard-review-task { display:grid; grid-template-columns:minmax(180px,1fr) minmax(130px,.5fr) auto; width:100%; gap:12px; align-items:center; text-align:left; margin-top:8px; }
+.estimate-review-payload { max-height:420px; overflow:auto; padding:12px; border:1px solid var(--ng-border); background:var(--ng-panel-bg-alt); white-space:pre-wrap; overflow-wrap:anywhere; }
+@media (max-width: 720px) { .dashboard-review-task { grid-template-columns:1fr; } }
 
 .ng-shell__feedback-button {
   display: inline-flex;
