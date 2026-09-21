@@ -15,6 +15,14 @@ export function handoffPreview(document){
  }));
  return {lines,total:total.price,fee:total.fee};
 }
+export function handoffFinancialBuckets(document){
+ const preview=handoffPreview(document),labels={material_amount:'Material',labor_amount:'Labor',other_amount:'Other / quoted cost',markup_amount:'Markup / OH&P'};
+ return preview.lines.flatMap(line=>Object.entries(labels).flatMap(([field,label])=>{
+  const amount=round(Number(line[field])||0);
+  return amount>0?[{key:`${line.key}:${field}`,lineKey:line.key,reference:line.reference,
+   description:line.description,section:line.section||'',kind:field,label,amount}]:[];
+ }));
+}
 export function handoffDestinationState(handoff){
  return {openJobId:handoff.job_id,openTab:handoff.destination==='change_order'?'change_orders':handoff.destination==='job'?'details':'overview',
   ...(handoff.destination==='service_call'?{serviceCallTab:'billing'}:{}),

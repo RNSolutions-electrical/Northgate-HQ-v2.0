@@ -174,9 +174,10 @@ export default function WorkbenchRoute({libraryOnly=false}){
  async function submitHandoff(values){
   if(saving.current)throw new Error('Wait for the current save to finish.');
   const current=active.current;if(!current?.estimate_id)throw new Error('Save the estimate first.');
-  const db=await client(),{data,error}=await db.rpc('submit_estimate_for_review',{
+  const db=await client(),{data,error}=await db.rpc('submit_estimate_for_review_v2',{
    p_estimate_id:current.estimate_id,p_expected_revision:current.revision,p_destination:values.destination,
-   p_job_id:values.jobId||null,p_new_job:values.newJob,p_co_number:values.coNumber||null,p_line_targets:values.targets});
+   p_job_id:values.jobId||null,p_new_job:values.newJob,p_co_number:values.coNumber||null,p_line_targets:values.targets,
+   p_financial_targets:values.financialTargets||{}});
   if(error)throw error;setHandoffs(h=>({...h,[current.estimate_id]:data}));return data;
  }
  function openHandoff(handoff){
