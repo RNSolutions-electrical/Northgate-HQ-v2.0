@@ -10,6 +10,20 @@ const OPTIONS = Object.freeze([
 export const FINANCIAL_EXPORT_OPTIONS = OPTIONS;
 
 const amount = (value) => Number(value) || 0;
+const divisionCodeFromLine = (line) => line?.project_division?.code
+  || String(line?.cost_code || '').match(/^\d{2}/)?.[0]
+  || '';
+const divisionNameFromLine = (line) => line?.project_division?.name || '';
+const divisionKeyFromLine = (line) => line?.project_division_id
+  || line?.project_division?.id
+  || (divisionCodeFromLine(line) ? `cost:${divisionCodeFromLine(line)}` : 'unassigned');
+const divisionLabelFromLine = (line) => {
+  const code = divisionCodeFromLine(line);
+  const name = divisionNameFromLine(line);
+  if (code && name) return `${code} — ${name}`;
+  if (code) return `Division ${code}`;
+  return 'Unassigned project division';
+};
 const csvCell = (value, protectFormula = true) => {
   const raw = String(value ?? '');
   const text = protectFormula && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
@@ -31,6 +45,11 @@ export function financialExportColumns(selected) {
 
 export function buildFinancialExportRows(lines, changeOrderByLineId = new Map()) {
   return lines.map((line) => ({
+    projectDivisionKey: divisionKeyFromLine(line),
+    projectDivisionCode: divisionCodeFromLine(line),
+    projectDivisionName: divisionNameFromLine(line),
+    projectDivisionLabel: divisionLabelFromLine(line),
+    projectDivisionSortOrder: line?.project_division?.sort_order ?? Number(divisionCodeFromLine(line) || 999),
     costCode: line.cost_code || '',
     description: line.description || '',
     budget: amount(line.current_budget_override_amount ?? (amount(line.budget_amount) + amount(line.budget_change_amount) + amount(changeOrderByLineId.get(line.id)))),
@@ -40,6 +59,26 @@ export function buildFinancialExportRows(lines, changeOrderByLineId = new Map())
     completionForecast: amount(line.forecast_final_amount),
     notes: line.note || '',
   }));
+}
+
+export function financialExportDivisions(rows) {
+  return [...rows.reduce((divisions, row) => {
+    if (!divisions.has(row.projectDivisionKey)) divisions.set(row.projectDivisionKey, {
+      key: row.projectDivisionKey,
+      code: row.projectDivisionCode,
+      name: row.projectDivisionName,
+      label: row.projectDivisionLabel,
+      sortOrder: row.projectDivisionSortOrder,
+      lineCount: 0,
+    });
+    divisions.get(row.projectDivisionKey).lineCount += 1;
+    return divisions;
+  }, new Map()).values()].sort((left, right) => left.sortOrder - right.sortOrder || left.label.localeCompare(right.label));
+}
+
+export function filterFinancialExportRows(rows, selectedDivisionKeys) {
+  const selected = selectedDivisionKeys instanceof Set ? selectedDivisionKeys : new Set(selectedDivisionKeys || []);
+  return rows.filter((row) => selected.has(row.projectDivisionKey));
 }
 
 export function financialExportCsv(rows, selected) {
