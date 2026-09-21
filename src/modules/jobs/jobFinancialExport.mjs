@@ -204,3 +204,15 @@ export function downloadFinancialFile(content, filename, type) {
   const anchor=document.createElement('a');anchor.href=url;anchor.download=filename;anchor.click();
   URL.revokeObjectURL(url);
 }
+
+export function openFinancialPrintPreview(content, previewWindow) {
+  if (!previewWindow) throw new Error('The print preview was blocked. Allow pop-ups for Northgate HQ and try again.');
+  const blob = new Blob([content], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  previewWindow.location.replace(url);
+  // Keep the object URL available while the browser's PDF viewer is open.
+  // It is only a temporary in-memory file and is released after a generous
+  // review window instead of being downloaded automatically.
+  setTimeout(() => URL.revokeObjectURL(url), 15 * 60 * 1000);
+  return url;
+}

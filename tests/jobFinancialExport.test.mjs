@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildFinancialExportRows, filterFinancialExportRows, financialExportColumns, financialExportCsv, financialExportDivisions, financialExportPdf, financialExportSummary } from '../src/modules/jobs/jobFinancialExport.mjs';
+import { buildFinancialExportRows, filterFinancialExportRows, financialExportColumns, financialExportCsv, financialExportDivisions, financialExportPdf, financialExportSummary, openFinancialPrintPreview } from '../src/modules/jobs/jobFinancialExport.mjs';
 
 test('financial export always includes cost code and description and only selected details',()=>{
  const selected={budget:true,costs:false,changeOrders:true,monthlyForecast:false,completionForecast:true,notes:false};
@@ -64,4 +64,26 @@ test('financial PDF accepts multiline notes and expands rows across pages',async
  const {PDFDocument}=await import('pdf-lib');
  const pdf=await PDFDocument.load(bytes);
  assert.ok(pdf.getPageCount()>1);
+});
+
+test('financial PDF opens a preview instead of forcing a download',()=>{
+ const originalCreate=URL.createObjectURL;
+ const originalRevoke=URL.revokeObjectURL;
+ const originalTimeout=globalThis.setTimeout;
+ let replaced='';
+ let revoked='';
+ URL.createObjectURL=()=> 'blob:financial-preview';
+ URL.revokeObjectURL=(url)=>{revoked=url;};
+ globalThis.setTimeout=(callback)=>{callback();return 1;};
+ try{
+  const url=openFinancialPrintPreview(new Uint8Array([1,2,3]),{location:{replace(value){replaced=value;}}});
+  assert.equal(url,'blob:financial-preview');
+  assert.equal(replaced,'blob:financial-preview');
+  assert.equal(revoked,'blob:financial-preview');
+  assert.throws(()=>openFinancialPrintPreview(new Uint8Array([1]),null),/Allow pop-ups/);
+ }finally{
+  URL.createObjectURL=originalCreate;
+  URL.revokeObjectURL=originalRevoke;
+  globalThis.setTimeout=originalTimeout;
+ }
 });
