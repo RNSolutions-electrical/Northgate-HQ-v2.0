@@ -15,3 +15,12 @@ export function buildStockMaterials(catalogue, stock, { search = '', location = 
   }).filter(item => (fullCatalogue && !location || item.locations.length > 0));
   return searchMaterials(materials,search);
 }
+
+// Explicit zero is supplied data; an unconfirmed legacy zero is a placeholder.
+// Stock quantities and location fields deliberately do not participate.
+export function missingMaterialInformation(item) {
+  const supplied = value => value != null && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+  const priced = supplied(item.inventory_price_per_unit) || supplied(item.estimating_price_per_unit)
+    || (supplied(item.price_per_unit) && (item.price_confirmed === true || Number(item.price_per_unit) > 0));
+  return [...(!priced ? ['pricing'] : []), ...(!supplied(item.labor_rate_hrs) ? ['labor'] : [])];
+}

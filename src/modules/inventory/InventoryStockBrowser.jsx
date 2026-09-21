@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
-import { buildStockMaterials } from './inventorySearch.js';
+import { buildStockMaterials, missingMaterialInformation } from './inventorySearch.js';
 
 const quantity = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const money = value => value == null || value === '' ? 'Not priced' : Number(value).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 
 export function InventoryStockBrowser({ model, loading, error, fullCatalogue, onScopeChange, canTransact,
-  busy, quantities, messages, onQuantityChange, onAdd, scanBinId = '', onClearScan, onAliases, onManagePrice }) {
-  const [search, setSearch] = useState('');
-  const [location, setLocation] = useState(scanBinId);
-  const [page, setPage] = useState(0);
-  const [category, setCategory] = useState('');
-  const [subcategory, setSubcategory] = useState('');
+  busy, quantities, messages, onQuantityChange, onAdd, scanBinId = '', onClearScan, onAliases, onManagePrice,
+  browserState, onBrowserStateChange }) {
+  const { search, location, page, category, subcategory, highlightMissing, categoriesOpen, expandedIds } = browserState;
+  const updateFilters = updates => onBrowserStateChange(current => ({ ...current, ...updates, page: 0 }));
+  const setSearch = search => updateFilters({ search });
+  const setLocation = location => updateFilters({ location });
+  const setCategory = category => updateFilters({ category, subcategory: '' });
+  const setSubcategory = subcategory => updateFilters({ subcategory });
+  const setPage = page => onBrowserStateChange(current => ({ ...current, page }));
+  const changeScope = full => { setPage(0); onScopeChange(full); };
   const stockRows = model.stockRows ?? model.cartCandidates;
-  useEffect(() => setLocation(scanBinId), [scanBinId]);
-  useEffect(() => setPage(0), [search, location, fullCatalogue, category, subcategory]);
   const categories = [...new Set(model.catalogPreview.map(row => row.broad_category).filter(Boolean))].sort();
   const subcategories = [...new Set(model.catalogPreview.filter(row => !category || row.broad_category === category).map(row => row.sub_category).filter(Boolean))].sort();
   const locations = useMemo(() => [...new Map(stockRows.map(row => [row.bin_id,
@@ -28,8 +30,8 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
   return <section className="inventory-stock-browser" aria-label="Material search">
     <div className="inventory-search-tools">
       <div className="inventory-search-scope" role="group" aria-label="Material scope">
-        <button type="button" aria-pressed={!fullCatalogue} onClick={() => onScopeChange(false)}>Inventory</button>
-        <button type="button" aria-pressed={fullCatalogue} onClick={() => onScopeChange(true)}>Full Catalogue</button>
+        <button type="button" aria-pressed={!fullCatalogue} onClick={() => changeScope(false)}>Inventory</button>
+        <button type="button" aria-pressed={fullCatalogue} onClick={() => changeScope(true)}>Full Catalogue</button>
       </div>
       <label className="inventory-search-input"><Search aria-hidden="true" />
         <span className="sr-only">Search materials</span>
@@ -43,7 +45,7 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
       <button type="button" className="icon-button" title="Clear search and location" aria-label="Clear search and location" disabled={!search && !location && !category && !subcategory}
         onClick={() => { setSearch(''); setLocation(''); setCategory(''); setSubcategory(''); if (scanBinId) onClearScan(); }}><X aria-hidden="true" /></button>
     </div>
-    {categories.length > 0 ? <details className="inventory-category-filters"><summary>Categories{category || subcategory ? ' (filtered)' : ''}</summary>
+    {categories.length > 0 ? <details className="inventory-category-filters" open={categoriesOpen} onToggle={event => { const open = event.currentTarget.open; onBrowserStateChange(current => current.categoriesOpen === open ? current : { ...current, categoriesOpen: open }); }}><summary>Categories{category || subcategory ? ' (filtered)' : ''}</summary>
       <select aria-label="Material category" value={category} onChange={event => { setCategory(event.target.value); setSubcategory(''); }}>
         <option value="">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}
       </select>
@@ -51,13 +53,26 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
         <option value="">All subcategories</option>{subcategories.map(value => <option key={value}>{value}</option>)}
       </select>
     </details> : null}
+    {fullCatalogue && <label className="inventory-completeness-toggle">
+      <input type="checkbox" checked={highlightMissing} onChange={event => onBrowserStateChange(current => ({ ...current, highlightMissing: event.target.checked }))} />
+      Highlight missing pricing or labor
+      <small>Location is not required.</small>
+    </label>}
     {loading ? <StatePanel title="Loading inventory..." compact /> : error ? <StatePanel title="Inventory could not be loaded" description={error.message} tone="danger" /> : <>
       <div className="inventory-search-count">{materials.length} material{materials.length === 1 ? '' : 's'}</div>
       {!materials.length ? <StatePanel title="No matching materials" description={fullCatalogue ? 'No catalogue materials match your filters.' : 'No tracked stock matches your filters.'}
-        actions={!fullCatalogue ? <button className="secondary-button" onClick={() => { setLocation(''); onScopeChange(true); }}>Search Full Catalogue</button> : null} /> : null}
+        actions={!fullCatalogue ? <button className="secondary-button" onClick={() => { setLocation(''); changeScope(true); }}>Search Full Catalogue</button> : null} /> : null}
       <div className="inventory-material-list">
-        {materials.slice(currentPage * 40, currentPage * 40 + 40).map(item => <details className="inventory-material" key={item.id}>
-          <summary><span className="inventory-material-name"><strong>{item.name}</strong><small>{[item.material_code, item.manufacturer, item.broad_category].filter(Boolean).join(' / ')}</small></span>
+        {materials.slice(currentPage * 40, currentPage * 40 + 40).map(item => {
+          const missing = fullCatalogue && highlightMissing ? missingMaterialInformation(item) : [];
+          return <details className={`inventory-material${missing.length ? ' inventory-material--incomplete' : ''}`} key={item.id}
+            open={expandedIds.includes(item.id)} onToggle={event => {
+              const open = event.currentTarget.open;
+              onBrowserStateChange(current => current.expandedIds.includes(item.id) === open ? current : {
+                ...current, expandedIds: open ? [...current.expandedIds, item.id] : current.expandedIds.filter(id => id !== item.id),
+              });
+            }}>
+          <summary><span className="inventory-material-name"><strong>{item.name}</strong><small>{[item.material_code, item.manufacturer, item.broad_category].filter(Boolean).join(' / ')}</small>{missing.length > 0 && <small className="inventory-missing-information">Missing {missing.join(' and ')}</small>}</span>
             <span className="inventory-material-quantity"><strong>{item.uncountedLocations===item.locations.length&&item.locations.length?'Not counted':`${quantity(item.quantity)} ${item.unit_of_measure||''}`}</strong><small>{item.locations.length ? `${item.locations.length} location${item.locations.length === 1 ? '' : 's'}${item.uncountedLocations?` · ${item.uncountedLocations} uncounted`:''}` : 'Not stocked'}</small></span>
           </summary>
           <div className="inventory-material-detail">
@@ -73,7 +88,7 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
               {messages[row.bin_item_id] ? <span role="status" className={`inventory-cart-row-message inventory-cart-row-message--${messages[row.bin_item_id].tone}`}>{messages[row.bin_item_id].text}</span> : null}
             </div>)}
           </div>
-        </details>)}
+        </details>; })}
       </div>
       {materials.length > 40 ? <nav className="inventory-search-pagination" aria-label="Material results pages">
         <button className="icon-button" aria-label="Previous materials" title="Previous materials" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}><ChevronLeft /></button>

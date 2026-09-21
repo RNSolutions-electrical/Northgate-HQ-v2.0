@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStockMaterials } from '../src/modules/inventory/inventorySearch.js';
+import { buildStockMaterials, missingMaterialInformation } from '../src/modules/inventory/inventorySearch.js';
 const catalogue = [{ id: '1', name: 'EMT connector', material_code: 'C-1', size: '3/4', manufacturer: 'Acme' }, { id: '2', name: 'Panel' }];
 const stock = [{ bin_item_id: 'a', item_id: '1', bin_id: 'bin1', bin_code: 'A1', quantity_on_hand: 3 }, { bin_item_id: 'b', item_id: '1', bin_id: 'bin2', bin_code: 'VAN1', quantity_on_hand: 0 }];
 test('stock groups materials and preserves tracked zero stock', () => {
@@ -14,4 +14,17 @@ test('multi-term search matches metadata and full catalogue is explicit', () => 
   assert.equal(buildStockMaterials(catalogue, stock, { search: 'Panel', fullCatalogue: true }).length, 1);
   assert.equal(buildStockMaterials(catalogue, stock, { fullCatalogue: true, location: 'bin1' }).length, 1);
   assert.equal(buildStockMaterials(catalogue, stock, { search: 'van1' }).length, 1);
+});
+
+test('catalogue completeness flags missing pricing or labor independently', () => {
+  assert.deepEqual(missingMaterialInformation({price_per_unit:0,price_confirmed:false,labor_rate_hrs:null}), ['pricing','labor']);
+  assert.deepEqual(missingMaterialInformation({estimating_price_per_unit:2,labor_rate_hrs:null}), ['labor']);
+  assert.deepEqual(missingMaterialInformation({labor_rate_hrs:0.5}), ['pricing']);
+});
+test('explicit zero price and labor are supplied values, and location is irrelevant', () => {
+  for (const pricing of [{estimating_price_per_unit:0},{inventory_price_per_unit:0},{price_per_unit:0,price_confirmed:true}]) {
+    assert.deepEqual(missingMaterialInformation({...pricing,labor_rate_hrs:0,locations:[]}), []);
+  }
+  assert.deepEqual(missingMaterialInformation({price_per_unit:3,labor_rate_hrs:0.5,locations:[]}), []);
+  assert.deepEqual(missingMaterialInformation({locations:[{bin_id:'stocked'}]}), ['pricing','labor']);
 });

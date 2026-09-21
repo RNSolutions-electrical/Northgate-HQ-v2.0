@@ -5170,3 +5170,10 @@ textarea {
 .current-budget-cell .icon-button svg { width: 16px; height: 16px; }
 .current-budget-cell small { font-size: 11px; color: #555; }
 .current-budget-cell .current-budget-cell__manual { color: #8a4b00; font-weight: 700; }
+
+.inventory-completeness-toggle { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; cursor: pointer; }
+.inventory-completeness-toggle input { width: auto; margin: 0; }
+.inventory-completeness-toggle small { color: #5a626b; }
+.inventory-material--incomplete { background: #fff8e7; border-left: 4px solid #b77914; }
+.inventory-material--incomplete summary:hover { background: #fff0cc; }
+.inventory-material small.inventory-missing-information { color: #805300; font-weight: 600; }

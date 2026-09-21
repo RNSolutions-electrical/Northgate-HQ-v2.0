@@ -530,6 +530,14 @@ export function InventoryWorkspace({ permissions }) {
   const [locationSetupContext,setLocationSetupContext] = useState(null);
   const [intakeSearch, setIntakeSearch] = useState('');
   const [mapOnly, setMapOnly] = useState(true);
+  // Keep browsing context here because the material editor unmounts the browser.
+  const [stockBrowserState, setStockBrowserState] = useState(() => ({
+    search: '', location: scanBinId, page: 0, category: '', subcategory: '',
+    highlightMissing: false, categoriesOpen: false, expandedIds: [],
+  }));
+  useEffect(() => {
+    setStockBrowserState(current => ({ ...current, location: scanBinId, page: 0 }));
+  }, [scanBinId]);
   const [aliasItem, setAliasItem] = useState(null);
   const [priceItem,setPriceItem]=useState(null);
   const readModel = useInventoryReadModel({ enabled: canLoadInventory, catalogueOnly: !canManageInventory && !canTransact });
@@ -1502,7 +1510,7 @@ export function InventoryWorkspace({ permissions }) {
     if (activeView === 'stock' || activeView === 'catalog') {
       return <>
         {cartState.error ? <StatePanel title="Cart action failed" description={cartState.error.message} tone="danger" /> : null}
-        <InventoryStockBrowser model={model} loading={readModel.isLoading} error={readModel.error}
+        <InventoryStockBrowser browserState={stockBrowserState} onBrowserStateChange={setStockBrowserState} model={model} loading={readModel.isLoading} error={readModel.error}
           onAliases={setAliasItem}
           onManagePrice={canManageInventory&&['Director','Developer'].includes(permissions.role)?setPriceItem:null}
           fullCatalogue={activeView === 'catalog'} onScopeChange={full => updateInventoryView(full ? 'catalog' : 'stock')}

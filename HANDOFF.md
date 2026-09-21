@@ -22169,3 +22169,27 @@ Ryan explicitly authorized applying the migration and deploying Entry 280.
   No real material records or inventory counts were changed by rollout.
 - Durable sync marker: OPAL-CATALOGUE-20260921-001. Documentation checkpoint uses
   [skip ci] to retain this verified production deployment. Untracked output/ retained.
+
+## Entry 282 — Catalogue completeness highlights and retained browsing context
+
+**Date:** September 21, 2026. **Mode:** Production Mode. **Status:** Local, tested; not deployed.
+
+Ryan requested a Full Catalogue toggle for missing pricing/labor, explicitly
+excluding locations, and preservation of filters on Back to inventory.
+
+- Added optional amber highlighting with explicit Missing pricing / Missing labor
+  labels. Either missing value triggers it; absent stock locations never do.
+  Confirmed zero prices and zero labor are supplied data; unconfirmed legacy zero
+  prices remain missing. Existing estimating/inventory price precedence is retained.
+- Inventory read query now includes price_confirmed and labor_rate_hrs. No schema
+  migration or authorization change is needed.
+- Moved browser state to InventoryWorkspace so material/price detail navigation
+  retains search, location, categories/subcategory, results page, highlight setting,
+  category expansion and expanded materials. Changed filters reset pagination;
+  a new scan updates location. Returning from details does not reset either.
+- All 193 tests and production validation build pass. Local real-component browser
+  fixture confirms search/location, page 2, highlight toggle and material expansion
+  survive unmount/remount via Back to inventory. Missing-location and explicit-zero
+  rules are covered by tests. Existing build warnings unchanged.
+- Production remains OPAL-CATALOGUE-20260921-001. This follow-up needs separate
+  deployment approval under the existing v5 rollout policy. Untracked output/ kept.
