@@ -30,7 +30,6 @@ only if it is genuinely empty.
 ### Open Questions / Concerns
 ### Architecture Drift Warnings
 
----
 ```
 
 ---
@@ -22022,5 +22021,63 @@ The actual Carolina Retina estimate remains approved and unchanged, not submitte
 
 Signed-in actual-user submission is not claimed; automated database workflow and
 production asset checks passed. Prior dependency/build warnings remain unchanged.
+
+---
+
+## Entry 279 — V5 permission and Estimate review production checkpoint
+
+**Date:** 2026-09-21
+**Updated by:** Codex
+**Phase:** V5 permission usability foundation
+**Session type:** implementation
+
+### Context
+
+Ryan approved the complete v5 package as design intent, retained the temporary
+Developer Pay App deletion exception, confirmed the protected Primary account by
+stable authenticated ID, and separately approved production migration and release.
+
+### What Was Completed
+
+Implemented and released the protected Primary binding, split business and technical
+authority, canonical action catalogue, scoped authorization decisions, owner-private
+working copies, immutable exact-payload change sets, My Estimates, constrained
+submission, Department-scoped review, return/decline, and atomic promotion to an
+Official Estimate draft. Production was reverified on September 21, 2026.
+
+### Schema Changes
+
+Six repository migrations are live under production versions `20260920214920`,
+`20260920214926`, `20260920214931`, `20260920215027`, `20260920215033`, and
+`20260920215037`. Another machine must not replay them. Live checks confirm one
+protected Primary binding, 179 active actions, the three Estimate workflow RPCs,
+and anonymous denial for Estimate submission.
+
+### Code / File Changes
+
+Feature commit `8201263c45e823230c136b7e153c0f042ee8ab09` is on `origin/main`.
+Netlify production deploy `6ab0557698aae3000877f871` is ready and published from
+that exact commit at `https://rnsolutions.net`. The durable implementation map is
+`docs/reviews/V5_PERMISSION_USABILITY_REPOSITORY_MAPPING.md`.
+
+### What Codex Needs to Know
+
+Sync marker `EMERALD-V5-FOUNDATION-20260921-001`. Fetch and fast-forward `main`,
+then verify both this marker commit and feature commit before editing. Preserve any
+unrelated local work and never reset or force-push to synchronize. Production schema
+is already current. The temporary Developer Pay App deletion exception remains.
+
+### Next Steps (in order)
+
+1. Ryan performs signed-in acceptance of My Estimates submission and each review outcome.
+2. Continue the controlled v5 sequence with module reconciliation; begin with the
+   estimating/inventory price-precedence and immutable price-source snapshot contract.
+3. Request separate production approval for every future migration or deployment.
+
+### Open Questions / Concerns
+
+Focused v5 tests pass 29/29. Full local tests pass 146 with five environment-only
+failures caused by unavailable `pdf-lib` and sandbox port binding. Existing Supabase
+advisor findings remain backlog items. Signed-in browser acceptance is not claimed.
 
 ---

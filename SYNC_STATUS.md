@@ -2,7 +2,35 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — RUBY-SOV-SAVE-20260918-001
+## Current release — EMERALD-V5-FOUNDATION-20260921-001
+
+- LIVE and reverified September 21, 2026. The v5 permission foundation, protected
+  Primary identity, canonical 179-action catalogue, scoped evaluator, durable
+  personal working copies, exact-payload change sets, My Estimates submission,
+  Department-scoped review queue, and atomic Official Estimate promotion are live.
+- Feature commit: `8201263c45e823230c136b7e153c0f042ee8ab09`, pushed to
+  `origin/main` with subject `Implement v5 permission and estimate review foundation`.
+- Netlify production deploy: `6ab0557698aae3000877f871`, ready and published from
+  the exact feature commit at `https://rnsolutions.net` on September 20, 2026.
+  Netlify secret scanning reported no matches.
+- Production Supabase migrations are applied under versions `20260920214920`,
+  `20260920214926`, `20260920214931`, `20260920215027`, `20260920215033`, and
+  `20260920215037`. Do not replay the repository timestamps on another machine.
+- Live verification confirms exactly one protected Primary binding, 179 active v5
+  actions, all three Estimate submission/review/promotion RPCs, authenticated-only
+  submission execution, and no existing personal working-copy rows at rollout.
+- Focused v5 validation passes 29/29. The full local suite passes 146 tests; five
+  environment-only failures remain from unavailable `pdf-lib` and sandbox port
+  binding. Existing Supabase advisor findings remain backlog items and were not
+  introduced as direct anonymous access to the v5 workflow tables.
+- This release preserves the explicitly approved temporary Developer Pay App
+  deletion exception. Signed-in browser acceptance remains Ryan's next action.
+- Other machines must preserve local work, fetch and fast-forward `main`, verify
+  this marker's sync commit and feature commit, and must not reapply the six live
+  migrations. Continue from HANDOFF Entry 279 and the controlled sequence in
+  `docs/reviews/V5_PERMISSION_USABILITY_REPOSITORY_MAPPING.md`.
+
+## Previous release — RUBY-SOV-SAVE-20260918-001
 
 - LIVE: September 18, 2026. New and edited Job Billing SOV lines now save through
   the job-aware `save_job_revenue_line` RPC instead of a legacy direct table write.
