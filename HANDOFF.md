@@ -22193,3 +22193,20 @@ excluding locations, and preservation of filters on Back to inventory.
   rules are covered by tests. Existing build warnings unchanged.
 - Production remains OPAL-CATALOGUE-20260921-001. This follow-up needs separate
   deployment approval under the existing v5 rollout policy. Untracked output/ kept.
+
+## Entry 283 — Catalogue completeness and filter retention deployed
+
+**Date:** September 21, 2026. **Mode:** Production Mode. **Status:** LIVE.
+Ryan explicitly authorized deploying Entry 282. No migration needed.
+
+- Feature commit `ad78b2c81815535fac0cb6334849b9f28c9534ef` pushed to main;
+  Netlify deploy `6ab1b8d82f5df200080320ef` ready/published at 23:08:25 UTC.
+- Secret scan: 757 files, no matches. Production HTML and referenced JS/CSS match
+  the exact release. Highlight controls, preserved-state code, production config
+  and Inventory/Estimate routes pass. Main JS SHA-256:
+  `d41023e9390e507a35ca8f4c26178f3fddc3f2137e4490ae6bd0b62c161bf783`.
+- 193 tests/build and local browser interaction checks passed before release.
+  Signed-in production interactions not claimed. Existing database, permissions
+  and stored inventory counts unchanged.
+- Sync marker AMBER-CATALOGUE-FILTERS-20260921-001. Documentation-only checkpoint
+  uses [skip ci]; unrelated untracked output/ remains preserved.

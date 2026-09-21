@@ -2,7 +2,21 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — OPAL-CATALOGUE-20260921-001
+## Current release — AMBER-CATALOGUE-FILTERS-20260921-001
+
+- LIVE September 21, 2026: Full Catalogue highlights missing pricing or labor on
+  demand, excluding locations; Back to inventory retains browser filters and page.
+- Feature commit `ad78b2c81815535fac0cb6334849b9f28c9534ef`, pushed to main.
+- Netlify deploy `6ab1b8d82f5df200080320ef` ready and published at 23:08:25 UTC
+  from that exact commit. Secret scan: 757 files, no matches.
+- 193 tests, validation build, and local browser round-trip checks pass. Live HTML
+  and referenced JS/CSS match the immutable deployment; feature/state code, live
+  configuration, and Inventory/Estimate routes verified. Signed-in production
+  interaction is not claimed. No migration or permission changes in this release.
+- Read HANDOFF Entries 282–283. Preserve local work, fetch/fast-forward main and
+  verify this marker. Documentation checkpoint uses [skip ci].
+
+## Previous release — OPAL-CATALOGUE-20260921-001
 
 - LIVE September 21, 2026: full material catalogue editing, vendor average pricing,
   NECA source-unit conversion, notes, optional stock hints/quantity, and separate
