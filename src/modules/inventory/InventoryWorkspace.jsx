@@ -32,6 +32,7 @@ import { StorageLocationSetup } from './StorageLocationSetup.jsx';
 import { StorageWorkspace } from './StorageWorkspace.jsx';
 import { resolveStorageLocations } from './storageHierarchy.js';
 import { MaterialAliases } from './MaterialAliases.jsx';
+import { InventoryPriceWorkspace } from './InventoryPriceWorkspace.jsx';
 import { searchMaterials, resolveMaterials } from '../../lib/materialResolver.js';
 import { canManageInventoryDepartment } from './inventoryAccess.js';
 import { hasCheckoutNoteCoverage } from './checkoutNotes.js';
@@ -527,6 +528,7 @@ export function InventoryWorkspace({ permissions }) {
   const [intakeSearch, setIntakeSearch] = useState('');
   const [mapOnly, setMapOnly] = useState(true);
   const [aliasItem, setAliasItem] = useState(null);
+  const [priceItem,setPriceItem]=useState(null);
   const readModel = useInventoryReadModel({ enabled: canLoadInventory });
   const cartState = useInventoryCart();
   const [activeView, setActiveView] = useState(
@@ -1498,6 +1500,7 @@ export function InventoryWorkspace({ permissions }) {
         {cartState.error ? <StatePanel title="Cart action failed" description={cartState.error.message} tone="danger" /> : null}
         <InventoryStockBrowser model={model} loading={readModel.isLoading} error={readModel.error}
           onAliases={setAliasItem}
+          onManagePrice={canManageInventory&&['Director','Developer'].includes(permissions.role)?setPriceItem:null}
           fullCatalogue={activeView === 'catalog'} onScopeChange={full => updateInventoryView(full ? 'catalog' : 'stock')}
           canTransact={canTransact} busy={cartActionInProgress} quantities={candidateQuantities} messages={candidateMessages}
           onQuantityChange={updateCandidateQuantity} onAdd={handleAddCandidate} scanBinId={scanBinId}
@@ -2212,6 +2215,7 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   if (aliasItem) return <MaterialAliases item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
+  if (priceItem) return <InventoryPriceWorkspace item={priceItem} onClose={()=>setPriceItem(null)} onSaved={readModel.reload}/>;
   if (creatingLocation && canReadCounts) return <StorageLocationSetup initialParent={locationSetupContext} permissions={permissions} locations={locationRecords}
     isLoading={countSheet.isLoading} error={countSheet.error} onReload={countSheet.reload}
     onClose={saved=>{setCreatingLocation(false);if(saved?.id){navigate(`/inventory?view=storage&locationId=${saved.id}`);setActiveView('storage');}else updateInventoryView('storage');}}

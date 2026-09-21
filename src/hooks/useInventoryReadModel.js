@@ -47,7 +47,7 @@ async function getActiveCatalog(client) {
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await client
       .from('items')
-      .select('id, material_code, name, description, broad_category, sub_category, sub_category_2, sub_category_3, size, length, manufacturer, unit_of_measure, division, price_per_unit, item_aliases(id,alias,archived_at)')
+      .select('id, material_code, name, description, broad_category, sub_category, sub_category_2, sub_category_3, size, length, manufacturer, unit_of_measure, division, price_per_unit, estimating_price_per_unit, inventory_price_per_unit, effective_price_source, estimating_price_updated_at, inventory_price_updated_at, updated_at, item_aliases(id,alias,archived_at)')
       .eq('is_active', true)
       .eq('is_archived', false)
       .order('name', { ascending: true })
