@@ -230,6 +230,7 @@ const JOB_SELECT_FIELDS = [
   'job_number',
   'name',
   'status',
+  'billing_fee_presentation',
   'description',
   'notes',
   'address_line1',
@@ -334,6 +335,10 @@ const JOB_REVENUE_SELECT_FIELDS = [
   'scheduled_value_amount',
   'approved_change_amount',
   'billed_to_date_amount',
+  'source_original_budget_amount',
+  'allocated_fee_amount',
+  'source_project_division_id',
+  'source_project_division:job_budget_divisions!job_revenue_lines_source_project_division_id_fkey(id, code, name, sort_order)',
   'note',
   'created_by',
 ].join(', ');
@@ -1102,6 +1107,18 @@ function projectDivisionKey(row) {
   if (row?.project_division_id || row?.project_division?.id) return `project:${row.project_division_id || row.project_division.id}`;
   const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
   return costCodeDivision ? `cost:${costCodeDivision}` : 'unassigned';
+}
+
+function revenueDivisionLabel(row) {
+  const division = row?.source_project_division;
+  if (division?.id) return division.code ? `Division ${division.code} — ${division.name || 'Unnamed'}` : division.name || 'Unnamed project division';
+  const code = String(row?.sov_line || '').match(/^\d{2}/)?.[0];
+  return code ? `Division ${code} — ${PROJECT_DIVISION_NAMES[code] || 'Unnamed'}` : 'Unassigned project division';
+}
+
+function revenueDivisionSortOrder(row) {
+  const code = String(row?.sov_line || '').match(/^\d{2}/)?.[0];
+  return row?.source_project_division?.sort_order ?? Number(code || 999);
 }
 
 function budgetLineLabel(row) {
@@ -2210,6 +2227,7 @@ export function JobsWorkspace({ permissions }) {
   const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
+  const [collapsedRevenueDivisions, setCollapsedRevenueDivisions] = useState({});
   const [changeOrderWorkspaceOrder, setChangeOrderWorkspaceOrder] = useState(undefined);
   const [changeOrderSort, setChangeOrderSort] = useState({ key: '', direction: 'asc' });
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
@@ -4901,6 +4919,13 @@ export function JobsWorkspace({ permissions }) {
       const revenueRows = isAddingRevenueLine
         ? [...jobRevenue.lines, { ...DEFAULT_REVENUE_FORM, id: '__new_revenue_line__' }]
         : jobRevenue.lines;
+      const revenueGroups = [...revenueRows.reduce((groups, row) => {
+        const division = revenueDivisionLabel(row);
+        const group = groups.get(division) || { rows: [], sortOrder: revenueDivisionSortOrder(row) };
+        group.rows.push(row);
+        groups.set(division, group);
+        return groups;
+      }, new Map()).entries()].sort(([, left], [, right]) => left.sortOrder - right.sortOrder);
       const budgetGroups = [...budgetRows.reduce((groups, row) => {
         const division = projectDivisionLabel(row);
         const group = groups.get(division) || { rows: [], sortOrder: projectDivisionSortOrder(row), projectDivisionId: row.project_division_id || row.project_division?.id || null };
@@ -5054,6 +5079,7 @@ export function JobsWorkspace({ permissions }) {
           render: (row) => isEditingRevenueRow(row) ? <input aria-label="Revenue line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={revenueForm.description} onChange={(event) => updateInlineRevenueField('description', event.target.value)} disabled={revenueForm.isSaving} autoFocus={revenueEditFocusField === 'description'} /> : editableRevenueValue(row, 'description', <strong>{row.description || 'Untitled revenue line'}</strong>, 'description'),
         },
         { key: 'scheduled_value_amount', header: 'Scheduled Value', render: (row) => inlineRevenueInput(row, 'scheduled_value_amount', 'Scheduled value') || editableRevenueValue(row, 'scheduled_value_amount', formatMoney(row.scheduled_value_amount), 'scheduled value'), align: 'right' },
+        { key: 'fee_treatment', header: 'Fee Treatment', render: (row) => row.note?.startsWith('Internal OH&P / Fee source') ? <StatusBadge tone="neutral">Distributed source · {formatMoney(row.source_original_budget_amount)}</StatusBadge> : Number(row.allocated_fee_amount || 0) !== 0 ? <StatusBadge tone="warn">Includes {formatMoney(row.allocated_fee_amount)} fee</StatusBadge> : 'Separate / none' },
         { key: 'approved_change_amount', header: 'Approved Changes', render: (row) => inlineRevenueInput(row, 'approved_change_amount', 'Approved changes') || editableRevenueValue(row, 'approved_change_amount', formatMoney(row.approved_change_amount), 'approved changes'), align: 'right' },
         { key: 'revised_contract_value', header: 'Revised Contract Value', render: (row) => formatMoney(revisedRevenue(row)), align: 'right' },
         { key: 'billed_to_date_amount', header: 'Billed to Date', render: (row) => inlineRevenueInput(row, 'billed_to_date_amount', 'Billed to date') || editableRevenueValue(row, 'billed_to_date_amount', formatMoney(row.billed_to_date_amount), 'billed to date'), align: 'right' },
@@ -5112,20 +5138,17 @@ export function JobsWorkspace({ permissions }) {
                 description={`${formatMoney(scheduledRevenueTotal)} scheduled value across ${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}.`}
                 actions={null}
               />
-              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} canManage={canApproveSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
+              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} feePresentationMode={selectedJob.billing_fee_presentation || 'distributed'} canManage={canApproveSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
               <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} canCorrect={permissions.canDeveloperDataCorrection === true} onComplete={jobRevenue.reload} />
-              <DataTable
-                columns={revenueColumns}
-                rows={revenueRows}
-                getRowKey={(row) => row.id}
-                permissions={permissions}
-                isLoading={jobRevenue.isLoading}
-                error={jobRevenue.error}
-                dense
-                minWidth="1500px"
-                emptyTitle="No SOV revenue lines"
-                emptyDescription="Add SOV lines to track scheduled value, billed revenue, remaining billing, and projected margin."
-              />
+              {revenueGroups.length > 1 ? <div className="job-financials-quick-actions"><button type="button" className="secondary-button" onClick={() => setCollapsedRevenueDivisions(Object.fromEntries(revenueGroups.map(([key]) => [key, false])))}>Expand All</button><button type="button" className="secondary-button" onClick={() => setCollapsedRevenueDivisions(Object.fromEntries(revenueGroups.map(([key]) => [key, true])))}>Collapse All</button></div> : null}
+              {revenueGroups.map(([division, group]) => {
+                const isCollapsed = collapsedRevenueDivisions[division] !== false;
+                const divisionScheduled = sumField(group.rows, 'scheduled_value_amount');
+                const divisionBilled = sumField(group.rows, 'billed_to_date_amount');
+                const divisionRemaining = group.rows.reduce((sum, row) => sum + remainingToBill(row), 0);
+                return <section className="job-budget-division" key={division}><div className="job-budget-division__header"><button type="button" className="job-budget-division__toggle" onClick={() => setCollapsedRevenueDivisions((current) => ({ ...current, [division]: !isCollapsed }))}><span className="job-budget-division__title"><span>{isCollapsed ? '▸' : '▾'} {division}</span><small>{group.rows.length} SOV line{group.rows.length === 1 ? '' : 's'}</small></span><span className="job-budget-division__metrics job-budget-division__metrics--billing"><span><small>Scheduled</small><strong>{formatMoney(divisionScheduled)}</strong></span><span><small>Billed</small><strong>{formatMoney(divisionBilled)}</strong></span><span className={divisionRemaining < 0 ? 'is-negative' : 'is-positive'}><small>Remaining</small><strong>{formatMoney(divisionRemaining)}</strong></span></span></button></div>{!isCollapsed ? <DataTable columns={revenueColumns} rows={group.rows} getRowKey={(row) => row.id} permissions={permissions} isLoading={jobRevenue.isLoading} error={jobRevenue.error} dense minWidth="1500px" emptyTitle="No SOV lines for this division" emptyDescription="Add an SOV line to begin billing this division." /> : null}</section>;
+              })}
+              {!jobRevenue.isLoading && !jobRevenue.error && !revenueGroups.length ? <StatePanel tone="neutral" title="No SOV revenue lines" description="Add SOV lines to track scheduled value, billed revenue, remaining billing, and projected margin." compact /> : null}
               {revenueForm.error ? (
                 <StatePanel tone="danger" eyebrow="Revenue Save Failed" title="Revenue line was not saved" description={revenueForm.error.message || 'Unexpected revenue error.'} compact />
               ) : null}

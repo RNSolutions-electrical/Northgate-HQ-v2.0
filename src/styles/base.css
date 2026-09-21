@@ -3919,11 +3919,18 @@ textarea {
 .sov-builder__group label { display: grid; gap: 0.3rem; font-weight: 700; font-size: var(--table-font-size); }
 .sov-builder__group input, .sov-builder__group select { width: 100%; }
 .sov-builder__group small { color: var(--ng-muted); }
+.sov-fee-presentation { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 320px) auto; align-items: end; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--ng-border); border-radius: var(--ng-radius-card); background: var(--ng-surface-muted); }
+.sov-fee-presentation > div, .sov-fee-presentation label { display: grid; gap: 0.3rem; }
+.sov-fee-presentation small { color: var(--ng-muted); max-width: 72ch; }
+.job-budget-division__metrics--billing { grid-template-columns: repeat(3, minmax(92px, auto)); }
+.pay-app-section-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+.pay-app-division { display: grid; gap: 0.5rem; margin-top: 0.7rem; }
 
 @media (max-width: 768px) {
   .financial-export-options, .financial-export-divisions, .sov-builder__panel { grid-template-columns: 1fr; }
   .financial-export-section__heading { align-items: flex-start; flex-direction: column; }
   .sov-builder__bar { align-items: stretch; flex-direction: column; }
+  .sov-fee-presentation { grid-template-columns: 1fr; align-items: stretch; }
 }
 
 .job-sub-division-options {
