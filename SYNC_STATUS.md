@@ -2,7 +2,20 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — SAPPHIRE-NOTE-PERFORMANCE-20260922-001
+## Current release — EMERALD-NATIVE-NOTES-20260922-001
+
+- LIVE September 22, 2026: inline Work Item notes use browser-native uncontrolled
+  buffering, eliminating React state updates and parent rendering from the
+  per-character path while retaining blur/save/copy/open flushing.
+- Feature commit `db627bf4fb6e882af38c808c7c8c481bca0254c6`, pushed to main.
+- Netlify production deploy `6ab29c530df2240008c2d6ed` ready/published from that
+  exact commit at 2026-09-22 15:19:12 UTC with no deployment error.
+- Live Workbench JavaScript returns 200 with correct MIME and contains the native
+  input implementation. 196 scoped tests and production build pass. No migration.
+- Read HANDOFF Entries 292–293. Preserve local work, fetch/fast-forward main and
+  verify this marker. Final documentation checkpoint uses `[skip ci]`.
+
+## Previous release — SAPPHIRE-NOTE-PERFORMANCE-20260922-001
 
 - LIVE September 22, 2026: inline Work Item note typing uses isolated row-local
   state, committing on blur and merging pending text into Save Draft, Copy or Open
