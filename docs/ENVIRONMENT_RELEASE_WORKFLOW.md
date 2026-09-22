@@ -1,6 +1,6 @@
 # Environment and release workflow — implementation draft
 
-**Status:** Preparatory documentation on the local `development` branch. Branches are not yet published or connected to staging. Do not interpret this document as evidence that staging is live.
+**Status:** Preparatory implementation on `development`. That branch is published to GitHub; `staging` exists only locally and neither branch is connected to an approved staging environment. Do not interpret this document as evidence that staging is live.
 
 ## Vocabulary
 
@@ -19,7 +19,7 @@ Historical `V1`–`V5`, the repository name, and `package.json` `3.0.0` are deve
 | `staging` | Accepted integration candidate; locally created from production baseline | **Not connected yet**; target `staging.rnsolutions.net` | Must be isolated before any staging deployment |
 | `development` | Active feature work; locally created from production baseline | No production deployment | Must not default to production for test writes |
 
-All three branches were initialized locally from production commit `0340cdf8cc4a93f41cce8ed5a40553161e86314f` on 2026-09-22. `main` remains unchanged. Do **not** push `development` or `staging` until production Netlify branch-deploy behavior has been verified and a safe non-production data endpoint is ready. Keep legacy recovery/backup branches and untracked local output intact.
+All three branches were initialized locally from production commit `0340cdf8cc4a93f41cce8ed5a40553161e86314f` on 2026-09-22. `development` was published only after adding a build/runtime guard that rejects non-production builds configured for the Production Supabase project; `main` remains unchanged. Do **not** push `staging` or enable a staging deploy until a safe non-production data endpoint and access boundary are ready. Keep legacy recovery/backup branches and untracked local output intact.
 
 ## Promotion contract (target, not yet active)
 
@@ -42,6 +42,8 @@ The repository does not yet have a verified GitHub Release archive or branch pro
 - Staging-specific Clerk settings/origin and any function secrets. Validate JWT issuer/audience and RLS/RPC behavior on the staging database.
 - Migration replay, RLS/policy checks, Storage bucket/policy setup, Edge Function deployment and sanitized fixture data. A staging write test must be followed by a read-only assertion that the Production record was not changed.
 - A read-only confirmation of the current Netlify primary domain and `/northgate` proxy arrangement before altering DNS or site settings.
+
+The preparatory `development` commit already provides an environment-derived banner/title and fails builds or local development that identify as Staging/Development while targeting the known Production Supabase project. This is an additional guard, **not** a replacement for isolated infrastructure, server-side authorization or deployment settings. The existing production build remains unmodified until a deliberate promotion.
 
 ## Reversal and incident handling
 
