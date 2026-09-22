@@ -826,7 +826,7 @@ export function DeveloperWorkspace({ permissions }) {
           <div className={openFeedbackCount ? 'is-warning' : ''}><dt>User feedback</dt><dd>{openFeedbackCount}<small>active reports</small></dd></div>
           <div className={reviewDueCount ? 'is-warning' : ''}><dt>Reviews due</dt><dd>{reviewDueCount}<small>permission reviews</small></dd></div>
           <div className={urgentNotes ? 'is-warning' : ''}><dt>Open backlog</dt><dd>{openNotes.length}<small>{urgentNotes} high priority</small></dd></div>
-          <div><dt>Environment</dt><dd>{import.meta.env.MODE}<small>application mode</small></dd></div>
+          <div><dt>Environment</dt><dd>{import.meta.env.VITE_APP_ENV || 'production'}<small>deployment environment</small></dd></div>
         </dl>
       </div>
 
@@ -850,11 +850,11 @@ export function DeveloperWorkspace({ permissions }) {
             </div>
             <div className="profile-field">
               <span>Mode</span>
-              <strong>{import.meta.env.MODE}</strong>
+              <strong>{import.meta.env.VITE_APP_ENV || 'production'}</strong>
             </div>
             <div className="profile-field">
               <span>Build</span>
-              <strong>Northgate HQ v3.0</strong>
+              <strong>{import.meta.env.VITE_APP_VERSION || 'Pre-1.0 · version pending'}</strong>
             </div>
           </div>
 

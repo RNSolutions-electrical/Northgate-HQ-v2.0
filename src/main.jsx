@@ -3,11 +3,16 @@ import ReactDOM from 'react-dom/client';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
+import { validateRuntimeEnvironment } from './lib/environmentContract.mjs';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/primitives.css';
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const appEnvironment = validateRuntimeEnvironment(import.meta.env, import.meta.env.DEV);
+
+if (appEnvironment === 'staging') document.title = '[STAGING] Northgate HQ';
+if (appEnvironment === 'development') document.title = '[DEVELOPMENT] Northgate HQ';
 
 if (!clerkPublishableKey) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');

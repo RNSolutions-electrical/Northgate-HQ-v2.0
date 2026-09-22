@@ -191,6 +191,30 @@ svg { stroke-width: 1.8; }
   padding: 0 10px 0 0;
 }
 
+.ng-environment-banner {
+  position: sticky;
+  top: var(--app-header-height);
+  z-index: 39;
+  padding: 7px 14px;
+  background: #ffe5a3;
+  border-bottom: 2px solid #a65d00;
+  color: #563000;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.ng-environment-banner--development {
+  background: #dce7f4;
+  border-bottom-color: #31537b;
+  color: #203b5a;
+}
+
+@media print {
+  .ng-environment-banner { display: none !important; }
+}
+
 .ng-shell__brand {
   display: flex;
   align-items: center;

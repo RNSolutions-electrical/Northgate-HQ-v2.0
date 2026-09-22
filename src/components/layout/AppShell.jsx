@@ -2,6 +2,8 @@ import { ArrowLeft, Bell, House, LayoutDashboard, Menu, Search, Sparkles } from 
 import { useEffect, useState } from 'react';
 import { TopNavigation } from './TopNavigation.jsx';
 
+const appEnvironment = import.meta.env.VITE_APP_ENV || 'production';
+
 export function AppShell({
   eyebrow,
   title,
@@ -77,6 +79,12 @@ export function AppShell({
           </div>
         </div>
       </header>
+
+      {appEnvironment === 'staging' ? (
+        <div className="ng-environment-banner" role="status">STAGING ENVIRONMENT · Test data only · Not Production</div>
+      ) : appEnvironment === 'development' ? (
+        <div className="ng-environment-banner ng-environment-banner--development" role="status">DEVELOPMENT ENVIRONMENT · Unfinished work</div>
+      ) : null}
 
       <div className="ng-shell__body">
         <aside className="ng-shell__rail" aria-label="Workspace context">
