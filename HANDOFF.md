@@ -22260,3 +22260,21 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   Signed-in production interaction remains user acceptance; no cleanup performed.
 - Sync marker JADE-ESTIMATE-ARCHIVE-20260921-001. Final documentation-only commit
   uses [skip ci]. Untracked output/ remains untouched.
+## Entry 286 — Estimate hierarchy and internal notes formatting
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** Ready for release.
+
+- Estimate Entry workspaces now provide estimator-only internal notes. Work Item
+  notes are explicitly labeled internal; both remain outside customer proposals.
+- All Entries and Entry-detail rows reserve dedicated space for price and action
+  controls so Copy, Open and Delete no longer cover the displayed value.
+- Work Item verification is visually separated from component detail. Components
+  receive a stronger heading, individual bordered containers and larger canonical
+  hierarchy identifiers for faster review.
+- The responsive layout retains stacked actions at narrow widths. No schema,
+  permission, financial calculation or workflow-state behavior changed.
+- 196 project tests pass, including the new Estimate layout regression. The broad
+  `npm test` command also discovers a local browser helper and recovery copy of
+  dependencies; the scoped project test run excludes those non-test artifacts.
+- Candidate sync marker: `BRONZE-ESTIMATE-LAYOUT-20260922-001`. Record LIVE status
+  only after the exact feature commit is built and published by Netlify.
