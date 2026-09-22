@@ -22415,3 +22415,28 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   migration or data backfill was required.
 - Durable sync marker: `TOPAZ-COMPONENT-INPUTS-20260922-001`. This final
   documentation-only checkpoint uses `[skip ci]` to retain the verified deploy.
+
+## Entry 296 — V5 Job Financials proposal foundation
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** Migration applied and verified; frontend release pending.
+
+- Adds non-destructive, RPC-only Job Financials baseline metadata and backfills
+  existing official Jobs without copying or modifying financial amounts.
+- Adds a constrained contributor proposal flow and an assigned-scope review queue
+  with Apply, Return and Decline. Authorized budget approvers retain the current
+  direct official workflow for compatibility.
+- Every authoritative budget/SOV mutation advances the baseline concurrency token.
+  Exact version/hash and working-copy checks prevent stale or forged application;
+  reviewed application is atomic and idempotent.
+- Generic v5 destinations cannot impersonate the reserved Job Financials review
+  path. Protected line reads remain enforced by existing server filters.
+- Isolated Postgres verification passes, 127 scoped project tests pass, and the
+  validation build passes. The broad test discovery produced 212 passes and one
+  environment-only failure because the existing estimating helper found port 5320
+  occupied by the running local prototype.
+- Production migration verification found exactly 9 expected Jobs and 9 baseline
+  rows, all four constrained RPCs, and all three internal triggers. New trigger
+  helpers have no client grant and new client endpoints are authenticated-only.
+- Candidate sync marker: `AMBER-LEDGER-20260922-001`. Record LIVE status only after
+  the migration is applied, the feature commit is pushed, and Netlify publishes
+  the exact commit.

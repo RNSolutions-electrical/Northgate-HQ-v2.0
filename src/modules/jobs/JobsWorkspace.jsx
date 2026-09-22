@@ -34,6 +34,7 @@ import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
 import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
+import { JobFinancialProposalQueue } from './JobFinancialProposalQueue.jsx';
 import { SovBuilder } from './SovBuilder.jsx';
 import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
 import { effectiveCurrentBudget, hasCurrentBudgetOverride } from './currentBudget.js';
@@ -2292,6 +2293,7 @@ export function JobsWorkspace({ permissions }) {
   const canManageSelectedJob = canEditJobWithPermission(permissions, selectedJob, 'canManageJobs');
   const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
+  const canProposeSelectedBudget = canViewFinancials && permissions.permissionSource === 'server';
   useEffect(() => {
     let active = true;
     async function loadFinancialCatalogue() {
@@ -3228,14 +3230,14 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function startBudgetEdit(row, focusField = '') {
-    if (!row?.id || !canApproveSelectedBudget) return;
+    if (!row?.id || !canProposeSelectedBudget) return;
     setIsAddingBudgetLine(false);
     setBudgetEditFocusField(focusField);
     setBudgetForm(budgetToForm(row));
   }
 
   function startBudgetAdd(projectDivision, divisionLabel) {
-    if (!canApproveSelectedBudget || !projectDivision?.id) return;
+    if (!canProposeSelectedBudget || !projectDivision?.id) return;
     setBudgetEditFocusField('');
     setBudgetForm({
       ...DEFAULT_BUDGET_FORM,
@@ -3257,7 +3259,7 @@ export function JobsWorkspace({ permissions }) {
   async function handleBudgetSave(event, confirmedReason = '') {
     event?.preventDefault?.();
 
-    if (!selectedJob || !canApproveSelectedBudget || budgetForm.isSaving) return;
+    if (!selectedJob || !canProposeSelectedBudget || budgetForm.isSaving) return;
 
     if (!budgetForm.description.trim()) {
       setBudgetForm((current) => ({ ...current, error: new Error('Enter a budget description before saving.') }));
@@ -3285,18 +3287,38 @@ export function JobsWorkspace({ permissions }) {
         throw new Error('Choose a project division by using its Add line button.');
       }
       const payload = { ...basePayload, project_division_id: projectDivisionId };
-      const { error } = await client.rpc('save_job_financial_batch', {
-        p_job_id: selectedJob.id,
-        p_lines: [{ ...payload, id: budgetForm.id || null,
-          ...(existingRow ? { expected_updated_at: budgetForm.expected_updated_at } : {}) }],
-        p_reason: reason || null,
-      });
-
-      if (error) throw error;
+      const line = { ...payload, id: budgetForm.id || null,
+        ...(existingRow ? { expected_updated_at: budgetForm.expected_updated_at } : {}) };
+      if (canApproveSelectedBudget) {
+        const { error } = await client.rpc('save_job_financial_batch', {
+          p_job_id: selectedJob.id,
+          p_lines: [line],
+          p_reason: reason || null,
+        });
+        if (error) throw error;
+      } else {
+        const { data: savedCopy, error: saveError } = await client.rpc('save_v5_job_financial_proposal', {
+          p_request_id: crypto.randomUUID(),
+          p_working_copy_id: null,
+          p_expected_version: null,
+          p_job_id: selectedJob.id,
+          p_lines: [line],
+        });
+        if (saveError) throw saveError;
+        const { error: submitError } = await client.rpc('submit_v5_job_financial_proposal', {
+          p_request_id: crypto.randomUUID(),
+          p_working_copy_id: savedCopy.id,
+          p_expected_version: savedCopy.version,
+          p_reason: reason || null,
+        });
+        if (submitError) throw submitError;
+      }
 
       setBudgetForm({
         ...DEFAULT_BUDGET_FORM,
-        success: `${payload.description} ${budgetForm.id ? 'updated' : 'added'} in Financials.`,
+        success: canApproveSelectedBudget
+          ? `${payload.description} ${budgetForm.id ? 'updated' : 'added'} in Financials.`
+          : `${payload.description} was submitted for financial review.`,
       });
       setIsAddingBudgetLine(false);
       setBudgetReasonOpen(false);
@@ -4949,7 +4971,7 @@ export function JobsWorkspace({ permissions }) {
         ) : null
       );
       const financialValue = (value) => <span className={Number(value || 0) !== 0 ? 'job-financials-value--populated' : ''}>{formatMoney(value)}</span>;
-      const editableBudgetValue = (row, field, content, label) => canApproveSelectedBudget ? (
+      const editableBudgetValue = (row, field, content, label) => canProposeSelectedBudget ? (
         <button type="button" className="job-financials-value-button" onClick={() => startBudgetEdit(row, field)} aria-label={`Edit ${label} for ${row.description || 'financial line'}`}>
           {content}
         </button>
@@ -5019,7 +5041,7 @@ export function JobsWorkspace({ permissions }) {
         { key: 'revised_budget', header: 'Current Budget', width: '140px', render: (row) => <CurrentBudgetCell
           line={isEditingBudgetRow(row) ? { ...row, ...buildBudgetPayload() } : row} changeOrders={budgetLineChangeOrderAmount(row)} editing={isEditingBudgetRow(row)}
           value={budgetForm.current_budget_override_amount} onChange={(value) => updateInlineBudgetField('current_budget_override_amount', value)}
-          onEdit={canApproveSelectedBudget ? () => startBudgetEdit(row, 'current_budget_override_amount') : undefined}
+          onEdit={canProposeSelectedBudget ? () => startBudgetEdit(row, 'current_budget_override_amount') : undefined}
           disabled={budgetForm.isSaving} />, align: 'right' },
         { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || editableBudgetValue(row, 'actual_cost_amount', financialValue(row.actual_cost_amount), 'actual costs'), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || editableBudgetValue(row, 'committed_cost_amount', financialValue(row.committed_cost_amount), 'committed costs'), align: 'right' },
@@ -5041,7 +5063,7 @@ export function JobsWorkspace({ permissions }) {
           key: 'actions',
           header: 'Actions',
           render: (row) => {
-            if (!canApproveSelectedBudget) return 'Read only';
+            if (!canProposeSelectedBudget) return 'Read only';
             if (isEditingBudgetRow(row)) {
               return (
                 <div className="job-buyout-actions job-financials-table-actions">
@@ -5058,10 +5080,10 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button" onClick={() => startBudgetEdit(row)} disabled={budgetForm.isSaving}>
                   Edit
                 </button>
-                <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBudgetArchive(row)} disabled={budgetForm.isSaving}>
+                {canApproveSelectedBudget ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleBudgetArchive(row)} disabled={budgetForm.isSaving}>
                   Archive
-                </button>
-                {budgetLineCanDelete(row) ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleEmptyFinancialDelete('budget-delete', row)} disabled={budgetForm.isSaving}>Delete</button> : null}
+                </button> : null}
+                {canApproveSelectedBudget && budgetLineCanDelete(row) ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleEmptyFinancialDelete('budget-delete', row)} disabled={budgetForm.isSaving}>Delete</button> : null}
               </div>
             );
           },
@@ -5180,6 +5202,7 @@ export function JobsWorkspace({ permissions }) {
             actions={<button type="button" className="secondary-button" onClick={() => setFinancialExportOpen(true)}>Export Financials</button>}
           />
           <FinancialExportDialog open={financialExportOpen} onClose={() => setFinancialExportOpen(false)} job={selectedJob} lines={jobBudget.lines} changeOrderByLineId={approvedChangeOrderCostByBudgetLineId} />
+          <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={jobBudget.reload} />
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
@@ -5274,7 +5297,7 @@ export function JobsWorkspace({ permissions }) {
                     </span>
                   </span>
                   </button>
-                  {canApproveSelectedBudget && group.projectDivisionId ? (
+                  {canProposeSelectedBudget && group.projectDivisionId ? (
                     <button
                       type="button"
                       className="secondary-button job-budget-division__add-line"
@@ -5301,9 +5324,9 @@ export function JobsWorkspace({ permissions }) {
             );
           })}
 
-          {canApproveSelectedBudget ? (
+          {canProposeSelectedBudget ? (
             <>
-              {financialCatalogue.length ? (
+              {canApproveSelectedBudget && financialCatalogue.length ? (
                 <section className="job-financials-form" aria-label="Financial line catalogue">
                   <Toolbar eyebrow="Templates" title="Add financial lines" description="Search the shared catalogue, select one line or an entire project Division, then add them without changing existing financial amounts." />
                   <div className="job-financials-form__grid">
@@ -5323,7 +5346,7 @@ export function JobsWorkspace({ permissions }) {
                 </section>
               ) : null}
 
-              {isBudgetBulkInputOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetBulkInput}>
+              {canApproveSelectedBudget && isBudgetBulkInputOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetBulkInput}>
                 <Toolbar
                   eyebrow="Setup"
                   title="Bulk financial input"
