@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
 
-export function SovBuilder({ jobId, department, feePresentationMode = 'distributed', canManage, activeLines, defaultContractAmount, onAddLine, onComplete }) {
+export function SovBuilder({ jobId, department, feePresentationMode = 'distributed', canManage, canAddLine = canManage, activeLines, defaultContractAmount, onAddLine, onComplete }) {
  const { getToken } = useAuth();
  const [templates,setTemplates]=useState([]);
  const [selectedId,setSelectedId]=useState('');
@@ -28,7 +28,7 @@ export function SovBuilder({ jobId, department, feePresentationMode = 'distribut
  useEffect(()=>{load();},[load]);
  useEffect(()=>{setFeeMode(feePresentationMode);setSavedFeeMode(feePresentationMode);},[feePresentationMode,jobId]);
  useEffect(()=>{if(!open)setContractAmount(String(Math.max(0,Number(defaultContractAmount)||0)));},[defaultContractAmount,open]);
- if(!canManage)return null;
+ if(!canManage)return canAddLine ? <section className="sov-builder" aria-label="Schedule of Values builder"><div className="sov-builder__bar"><div><span className="eyebrow">SOV Setup</span><strong>Submit an SOV line for review</strong></div><div className="sov-builder__actions"><button type="button" className="secondary-button" onClick={onAddLine}><FilePlus2/> Add SOV Line</button></div></div></section> : null;
  async function call(name,args,success){
   setWorking(name);setMessage({tone:'',text:''});
   try{

@@ -20,6 +20,10 @@ function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,
  const [open,setOpen]=useState(missing||focus);
  const change=(id,patch)=>onEdit(i=>Object.assign(i.lines.find(l=>l.id===id),patch));
  const stageLine=(id,field,value,extra={})=>onStage(`line:${id}:${field}`,i=>Object.assign(i.lines.find(l=>l.id===id),{[field]:value,...extra}));
+ const selectMaterial=(line,material)=>{
+  for(const field of ['name','unit','price','hours'])onStage(`line:${line.id}:${field}`,null);
+  change(line.id,{catalogueId:material.id,name:material.name,unit:material.unit,price:material.price,hours:material.hours,priceOverride:false,laborOverride:false,...cataloguePriceSnapshot(material)});
+ };
  const stageComponentName=value=>onStage(`component:${group.id}:name`,i=>{ensureComponents(i);i.components.find(c=>c.id===group.id).name=value;});
  return <details className={'component-group '+(missing?'incomplete':'')} open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
   <summary><strong>{prefix}.{group.number} · {group.name||'Unnamed component'}</strong><span>{missing?'Missing information':group.lines.length+' material / labor rows'}</span></summary>
@@ -31,7 +35,7 @@ function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,
     return <section className={'component-resource '+(bad?'resource-missing':'')} key={line.id} data-line-id={line.id}>
      <div className="section-heading"><strong>{prefix}.{group.number}.{index+1} · {labor?'Labor':'Material + labor'}</strong><button type="button" disabled={!editable} onClick={()=>onEdit(i=>{i.lines=i.lines.filter(l=>l.id!==line.id);})}>Remove row</button></div>
      <div className="resource-fields">
-      <div className="wide">{labor?<BufferedInput label="Labor description" disabled={!editable} value={line.name} onDraft={value=>stageLine(line.id,'name',value)} onCommit={value=>change(line.id,{name:value})}/>:<MaterialPicker line={line} onDraft={name=>stageLine(line.id,'name',name,{catalogueId:'',priceOverride:true,laborOverride:true,priceSource:'estimate_override',priceSourceUpdatedAt:null,priceSnapshotAt:new Date().toISOString()})} onType={name=>change(line.id,{name,catalogueId:'',priceOverride:true,laborOverride:true,priceSource:'estimate_override',priceSourceUpdatedAt:null,priceSnapshotAt:new Date().toISOString()})} onSelect={m=>change(line.id,{catalogueId:m.id,name:m.name,unit:m.unit,price:m.price,hours:m.hours,priceOverride:false,laborOverride:false,...cataloguePriceSnapshot(m)})}/>}</div>
+      <div className="wide">{labor?<BufferedInput label="Labor description" disabled={!editable} value={line.name} onDraft={value=>stageLine(line.id,'name',value)} onCommit={value=>change(line.id,{name:value})}/>:<MaterialPicker line={line} onDraft={name=>stageLine(line.id,'name',name,{catalogueId:'',priceOverride:true,laborOverride:true,priceSource:'estimate_override',priceSourceUpdatedAt:null,priceSnapshotAt:new Date().toISOString()})} onType={name=>change(line.id,{name,catalogueId:'',priceOverride:true,laborOverride:true,priceSource:'estimate_override',priceSourceUpdatedAt:null,priceSnapshotAt:new Date().toISOString()})} onSelect={m=>selectMaterial(line,m)}/>}</div>
       <Numeric label="Quantity" value={line.qty} disabled={!editable} onDraft={qty=>stageLine(line.id,'qty',qty)} onChange={qty=>change(line.id,{qty})}/>
       <BufferedInput label="Unit" disabled={!editable||labor} value={line.unit} onDraft={value=>stageLine(line.id,'unit',value,{catalogueId:''})} onCommit={value=>change(line.id,{unit:value,catalogueId:''})}/>
       <Numeric label="Unit cost" value={line.price} disabled={!editable||labor} onDraft={price=>stageLine(line.id,'price',price,{priceOverride:true,priceSource:'estimate_override',priceSourceUpdatedAt:null,priceSnapshotAt:new Date().toISOString()})} onChange={price=>change(line.id,{price,priceOverride:true,priceSource:'estimate_override',priceSourceUpdatedAt:null,priceSnapshotAt:new Date().toISOString()})}/>

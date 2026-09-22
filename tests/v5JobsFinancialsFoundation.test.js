@@ -98,7 +98,7 @@ test('Job Financials preserves direct approver writes and routes contributors th
   assert.match(jobsWorkspace, /save_v5_job_financial_proposal/);
   assert.match(jobsWorkspace, /submit_v5_job_financial_proposal/);
   assert.match(jobsWorkspace, /was submitted for financial review/);
-  assert.match(jobsWorkspace, /<JobFinancialProposalQueue[\s\S]*?onApplied=\{jobBudget\.reload\}/);
+  assert.match(jobsWorkspace, /<JobFinancialProposalQueue[\s\S]*?jobBudget\.reload\(\); jobRevenue\.reload\(\)/);
 });
 
 test('review UI binds every decision to the exact server version and payload hash', () => {

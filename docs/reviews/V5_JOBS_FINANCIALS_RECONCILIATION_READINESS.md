@@ -2,7 +2,29 @@
 
 **Mode:** Production Mode
 **Prepared:** 2026-09-22
-**Status:** Budget proposal/baseline foundation implemented, verified, migrated, and deployed
+**Status:** Budget proposal/baseline foundation deployed; SOV proposal and atomic archive migration applied 2026-09-22; frontend release in progress
+
+## SOV reconciliation candidate — 2026-09-22
+
+The next controlled slice is implemented locally in
+`20260922165714_v5_job_sov_proposals_and_atomic_archive.sql`:
+
+- one official, stale-safe SOV upsert/archive transaction replaces the prior split
+  browser update plus separate audit write;
+- contributors with project-financial visibility submit SOV additions, edits, and
+  archive requests without changing official Billing totals;
+- `AUD-046` reviewers see SOV changes in the existing Job Financials review queue;
+- exact version, payload hash, financial-baseline version, and source timestamps are
+  rechecked before application;
+- billed-to-date remains Pay App controlled, revised value cannot fall below billed
+  history, and referenced SOV lines cannot be archived; and
+- protected financial lines remain server-filtered and permission checked.
+
+Local verification: 135 focused `.test.js` checks pass, including 6 new SOV tests,
+and the production Vite build passes with validation environment values. The
+migration was applied to project `keogysnoukbendfkfjcn` on 2026-09-22; all five
+new SOV RPCs were confirmed present. Frontend commit and deployment are tracked
+separately below.
 
 ## Implemented in this slice
 
@@ -56,9 +78,8 @@
   actions. The later failed manual CLI deploy was local-only and did not replace
   the successful Git-triggered production release.
 
-## Still deferred
+## Still deferred after the SOV candidate
 
-- SOV proposal/revision and atomic archive adapters.
 - Bulk input, import, and catalogue operations as consolidated proposal batches
   for contributors; these retained setup tools remain approver-only in this slice.
 - Monthly Forecast cycles and removal of the Change Order compatibility hold.

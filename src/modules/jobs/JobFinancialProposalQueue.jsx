@@ -9,6 +9,22 @@ function lineLabel(line) {
   return [line?.cost_code, line?.description].filter(Boolean).join(' — ') || 'Untitled financial line';
 }
 
+function proposalDetails(item) {
+  if (item.proposal_type === 'sov') {
+    const line = item.proposed_payload?.line || {};
+    return [{
+      ...line,
+      _label: [line.sov_line, line.description].filter(Boolean).join(' — ') || 'Untitled SOV line',
+      _detail: `${item.proposed_payload?.operation === 'archive' ? 'Archive' : line.id ? 'Edit' : 'New line'} · Scheduled ${money(line.scheduled_value_amount)} · Approved changes ${money(line.approved_change_amount)} · Billed ${money(line.billed_to_date_amount)}`,
+    }];
+  }
+  return (Array.isArray(item.proposed_payload?.lines) ? item.proposed_payload.lines : []).map((line) => ({
+    ...line,
+    _label: lineLabel(line),
+    _detail: `${line.id ? 'Existing line' : 'New line'} · Original ${money(line.budget_amount)} · Changes ${money(line.budget_change_amount)} · Actual ${money(line.actual_cost_amount)} · Forecast ${money(line.forecast_final_amount)}`,
+  }));
+}
+
 function money(value) {
   const number = Number(value || 0);
   return Number.isFinite(number) ? number.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : 'Invalid amount';
@@ -32,9 +48,16 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { data, error: loadError } = await client.rpc('read_v5_job_financial_review_queue', { p_limit: 100 });
-      if (loadError) throw loadError;
-      setQueue((data || []).filter((item) => item.job_id === jobId));
+      const [budgetResult, sovResult] = await Promise.all([
+        client.rpc('read_v5_job_financial_review_queue', { p_limit: 100 }),
+        client.rpc('read_v5_job_sov_review_queue', { p_limit: 100 }),
+      ]);
+      if (budgetResult.error) throw budgetResult.error;
+      if (sovResult.error) throw sovResult.error;
+      setQueue([
+        ...(budgetResult.data || []).map((item) => ({ ...item, proposal_type: 'budget' })),
+        ...(sovResult.data || []).map((item) => ({ ...item, proposal_type: 'sov' })),
+      ].filter((item) => item.job_id === jobId).sort((left, right) => new Date(left.submitted_at) - new Date(right.submitted_at)));
     } catch (loadError) {
       setError(loadError);
     } finally {
@@ -56,7 +79,7 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
       const request = decision === 'apply'
-        ? client.rpc('apply_v5_job_financial_proposal', {
+        ? client.rpc(item.proposal_type === 'sov' ? 'apply_v5_job_sov_proposal' : 'apply_v5_job_financial_proposal', {
           p_destination_id: item.destination_id,
           p_expected_version: item.destination_version,
           p_expected_payload_hash: item.payload_hash,
@@ -95,14 +118,14 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
       {error ? <StatePanel tone="danger" title="Financial proposal action failed" description={error.message} compact /> : null}
       {isLoading ? <p className="muted-copy">Loading proposed financial changes…</p> : null}
       {queue.map((item) => {
-        const lines = Array.isArray(item.proposed_payload?.lines) ? item.proposed_payload.lines : [];
+        const lines = proposalDetails(item);
         const busy = activeId === item.destination_id;
         return (
           <article className="job-financial-proposal" key={item.destination_id}>
             <div className="job-financial-proposal__heading">
               <div>
                 <strong>{item.submitted_by_name || 'Northgate user'}</strong>
-                <small>{new Date(item.submitted_at).toLocaleString()} · {lines.length} line{lines.length === 1 ? '' : 's'}</small>
+                <small>{new Date(item.submitted_at).toLocaleString()} · {item.proposal_type === 'sov' ? 'SOV / Billing' : 'Job Financials'} · {lines.length} line{lines.length === 1 ? '' : 's'}</small>
               </div>
               <StatusBadge label="Pending review" tone="warn" />
             </div>
@@ -110,8 +133,8 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
             <div className="job-financial-proposal__lines">
               {lines.map((line, index) => (
                 <div key={`${line.id || 'new'}-${index}`}>
-                  <strong>{lineLabel(line)}</strong>
-                  <span>{line.id ? 'Existing line' : 'New line'} · Original {money(line.budget_amount)} · Changes {money(line.budget_change_amount)} · Actual {money(line.actual_cost_amount)} · Forecast {money(line.forecast_final_amount)}</span>
+                  <strong>{line._label}</strong>
+                  <span>{line._detail}</span>
                   {line.is_protected_financial ? <small>Protected project financial</small> : null}
                 </div>
               ))}
@@ -126,7 +149,7 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
               />
             </label>
             <div className="job-financial-proposal__actions">
-              <button type="button" className="primary-button" onClick={() => decide(item, 'apply')} disabled={busy}>{busy ? 'Working…' : 'Apply to Financials'}</button>
+              <button type="button" className="primary-button" onClick={() => decide(item, 'apply')} disabled={busy}>{busy ? 'Working…' : item.proposal_type === 'sov' ? 'Apply to Billing' : 'Apply to Financials'}</button>
               <button type="button" className="secondary-button" onClick={() => decide(item, 'return')} disabled={busy}>Return for edits</button>
               <button type="button" className="secondary-button secondary-button--danger" onClick={() => decide(item, 'decline')} disabled={busy}>Decline</button>
             </div>

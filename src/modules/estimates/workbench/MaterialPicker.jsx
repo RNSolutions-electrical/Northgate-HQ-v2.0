@@ -8,12 +8,16 @@ export function MaterialPicker({line,onType,onDraft=()=>{},onSelect}) {
   const [open,setOpen]=useState(false);
   const [active,setActive]=useState(-1);
   const [query,setQuery]=useState(line.name||'');
-  const focused=useRef(false),deferredQuery=useDeferredValue(query);
+  const focused=useRef(false),selected=useRef(false),deferredQuery=useDeferredValue(query);
   useEffect(()=>{if(!focused.current)setQuery(line.name||'');},[line.name]);
   const allMatches=searchMaterials(catalogue,deferredQuery);const matches=allMatches.slice(0,60);
-  function select(material){setQuery(material.name);onSelect(material);setOpen(false);setActive(-1);}
+  function select(material){selected.current=true;setQuery(material.name);onSelect(material);setOpen(false);setActive(-1);}
   return <div className="material-picker" onBlur={event=>{
-    if(!event.currentTarget.contains(event.relatedTarget)){focused.current=false;onType(query);setOpen(false);setActive(-1);}
+    if(!event.currentTarget.contains(event.relatedTarget)){
+      focused.current=false;
+      if(!selected.current)onType(query);
+      setOpen(false);setActive(-1);
+    }
   }}>
     <label htmlFor={`${listId}-input`}>Material / labor description</label>
     <input id={`${listId}-input`} required role="combobox" aria-autocomplete="list"
@@ -21,7 +25,7 @@ export function MaterialPicker({line,onType,onDraft=()=>{},onSelect}) {
       aria-activedescendant={open&&matches[active]?`${listId}-${active}`:undefined}
       autoComplete="off" value={query}
       onFocus={()=>{focused.current=true;setOpen(true);setActive(-1);}}
-      onChange={event=>{setQuery(event.target.value);onDraft(event.target.value);setOpen(true);setActive(-1);}}
+      onChange={event=>{selected.current=false;setQuery(event.target.value);onDraft(event.target.value);setOpen(true);setActive(-1);}}
       onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();setOpen(false);setActive(-1);}
         if(event.key==='ArrowDown'||event.key==='ArrowUp'){

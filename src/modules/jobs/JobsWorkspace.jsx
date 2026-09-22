@@ -185,6 +185,7 @@ const DEFAULT_BUDGET_BULK_INPUT = Object.freeze({
 });
 const DEFAULT_REVENUE_FORM = Object.freeze({
   id: '',
+  expected_updated_at: '',
   sov_line: '',
   is_protected_financial: false,
   description: '',
@@ -2119,31 +2120,14 @@ function revenueToForm(row) {
   return {
     ...DEFAULT_REVENUE_FORM,
     id: row.id || '',
+    expected_updated_at: row.updated_at || '',
     sov_line: row.sov_line || '',
+    is_protected_financial: row.is_protected_financial === true,
     description: row.description || '',
     scheduled_value_amount: row.scheduled_value_amount == null ? '' : String(row.scheduled_value_amount),
     approved_change_amount: row.approved_change_amount == null ? '' : String(row.approved_change_amount),
     billed_to_date_amount: row.billed_to_date_amount == null ? '' : String(row.billed_to_date_amount),
     note: row.note || '',
-  };
-}
-
-function revenueAuditSnapshot(row) {
-  if (!row) return null;
-
-  return {
-    id: row.id,
-    job_id: row.job_id,
-    division: row.division,
-    sov_line: row.sov_line,
-    description: row.description,
-    scheduled_value_amount: row.scheduled_value_amount,
-    approved_change_amount: row.approved_change_amount,
-    billed_to_date_amount: row.billed_to_date_amount,
-    note: row.note,
-    archived_at: row.archived_at,
-    archived_by: row.archived_by,
-    archive_reason: row.archive_reason,
   };
 }
 
@@ -3394,14 +3378,14 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function startRevenueEdit(row, focusField = '') {
-    if (!row?.id || !canApproveSelectedBudget) return;
+    if (!row?.id || !canProposeSelectedBudget) return;
     setIsAddingRevenueLine(false);
     setRevenueEditFocusField(focusField);
     setRevenueForm(revenueToForm(row));
   }
 
   function startRevenueAdd() {
-    if (!canApproveSelectedBudget) return;
+    if (!canProposeSelectedBudget) return;
     setRevenueEditFocusField('');
     setRevenueForm(DEFAULT_REVENUE_FORM);
     setIsAddingRevenueLine(true);
@@ -3416,7 +3400,7 @@ export function JobsWorkspace({ permissions }) {
   async function handleRevenueSave(event) {
     event?.preventDefault?.();
 
-    if (!selectedJob || !canApproveSelectedBudget || revenueForm.isSaving) return;
+    if (!selectedJob || !canProposeSelectedBudget || revenueForm.isSaving) return;
 
     if (!revenueForm.description.trim()) {
       setRevenueForm((current) => ({ ...current, error: new Error('Enter an SOV description before saving.') }));
@@ -3429,24 +3413,43 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const { data, error } = await client.rpc('save_job_revenue_line', {
-        p_job_id: selectedJob.id,
-        p_revenue_line_id: revenueForm.id || null,
-        p_sov_line: payload.sov_line,
-        p_description: payload.description,
-        p_scheduled_value_amount: payload.scheduled_value_amount,
-        p_approved_change_amount: payload.approved_change_amount,
-        p_billed_to_date_amount: payload.billed_to_date_amount,
-        p_note: payload.note,
-        p_is_protected_financial: payload.is_protected_financial,
-        p_change_reason: revenueForm.change_reason.trim() || null,
-      });
-
-      if (error) throw error;
+      const line = {
+        ...payload,
+        id: revenueForm.id || null,
+        ...(revenueForm.id ? { expected_updated_at: revenueForm.expected_updated_at } : {}),
+      };
+      if (canApproveSelectedBudget) {
+        const { error } = await client.rpc('apply_job_sov_line_change', {
+          p_job_id: selectedJob.id,
+          p_line: line,
+          p_operation: 'upsert',
+          p_reason: revenueForm.change_reason.trim() || null,
+        });
+        if (error) throw error;
+      } else {
+        const { data: savedCopy, error: saveError } = await client.rpc('save_v5_job_sov_proposal', {
+          p_request_id: crypto.randomUUID(),
+          p_working_copy_id: null,
+          p_expected_version: null,
+          p_job_id: selectedJob.id,
+          p_operation: 'upsert',
+          p_line: line,
+        });
+        if (saveError) throw saveError;
+        const { error: submitError } = await client.rpc('submit_v5_job_sov_proposal', {
+          p_request_id: crypto.randomUUID(),
+          p_working_copy_id: savedCopy.id,
+          p_expected_version: savedCopy.version,
+          p_reason: revenueForm.change_reason.trim() || null,
+        });
+        if (submitError) throw submitError;
+      }
 
       setRevenueForm({
         ...DEFAULT_REVENUE_FORM,
-        success: `${payload.description} ${revenueForm.id ? 'updated' : 'added'} in Revenue.`,
+        success: canApproveSelectedBudget
+          ? `${payload.description} ${revenueForm.id ? 'updated' : 'added'} in Billing.`
+          : `${payload.description} was submitted for Billing review.`,
       });
       setIsAddingRevenueLine(false);
       setRevenueEditFocusField('');
@@ -3458,7 +3461,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   async function handleRevenueArchive(row, reason) {
-    if (!row?.id || !selectedJob?.id || !canApproveSelectedBudget) return;
+    if (!row?.id || !selectedJob?.id || !canProposeSelectedBudget) return;
     if (!reason?.trim()) {
       setJobConfirmation({ kind: 'revenue-archive', record: row, label: row.description || 'this revenue line' });
       return;
@@ -3467,28 +3470,34 @@ export function JobsWorkspace({ permissions }) {
     try {
       const token = await getToken({ template: 'supabase' });
       const client = createSupabaseClient(token);
-      const archivedBy = user?.id || user?.primaryEmailAddress?.emailAddress || 'Unknown User';
-      const { data, error } = await client
-        .from('job_revenue_lines')
-        .update({
-          archived_at: new Date().toISOString(),
-          archived_by: archivedBy,
-          archive_reason: reason.trim(),
-        })
-        .eq('id', row.id)
-        .eq('job_id', selectedJob.id)
-        .select(JOB_REVENUE_SELECT_FIELDS)
-        .single();
-
-      if (error) throw error;
-
-      await writeJobChangeLog(client, {
-        action: 'update',
-        recordId: row.id,
-        beforeData: revenueAuditSnapshot(row),
-        afterData: revenueAuditSnapshot(data),
-        note: reason.trim(),
-      });
+      const line = {
+        id: row.id,
+        expected_updated_at: row.updated_at,
+        sov_line: row.sov_line,
+        description: row.description,
+        scheduled_value_amount: row.scheduled_value_amount,
+        approved_change_amount: row.approved_change_amount,
+        billed_to_date_amount: row.billed_to_date_amount,
+        note: row.note,
+        is_protected_financial: row.is_protected_financial === true,
+      };
+      if (canApproveSelectedBudget) {
+        const { error } = await client.rpc('apply_job_sov_line_change', {
+          p_job_id: selectedJob.id, p_line: line, p_operation: 'archive', p_reason: reason.trim(),
+        });
+        if (error) throw error;
+      } else {
+        const { data: savedCopy, error: saveError } = await client.rpc('save_v5_job_sov_proposal', {
+          p_request_id: crypto.randomUUID(), p_working_copy_id: null, p_expected_version: null,
+          p_job_id: selectedJob.id, p_operation: 'archive', p_line: line,
+        });
+        if (saveError) throw saveError;
+        const { error: submitError } = await client.rpc('submit_v5_job_sov_proposal', {
+          p_request_id: crypto.randomUUID(), p_working_copy_id: savedCopy.id,
+          p_expected_version: savedCopy.version, p_reason: reason.trim(),
+        });
+        if (submitError) throw submitError;
+      }
 
       if (revenueForm.id === row.id) resetRevenueForm();
       jobRevenue.reload();
@@ -4996,7 +5005,7 @@ export function JobsWorkspace({ permissions }) {
           />
         ) : null
       );
-      const editableRevenueValue = (row, field, content, label) => canApproveSelectedBudget ? (
+      const editableRevenueValue = (row, field, content, label) => canProposeSelectedBudget ? (
         <button type="button" className="job-financials-value-button" onClick={() => startRevenueEdit(row, field)} aria-label={`Edit ${label} for ${row.description || 'revenue line'}`}>
           {content}
         </button>
@@ -5116,7 +5125,7 @@ export function JobsWorkspace({ permissions }) {
           key: 'actions',
           header: 'Actions',
           render: (row) => {
-            if (!canApproveSelectedBudget) return 'Read only';
+            if (!canProposeSelectedBudget) return 'Read only';
             if (isEditingRevenueRow(row)) {
               return (
                 <div className="job-buyout-actions job-financials-table-actions">
@@ -5136,7 +5145,7 @@ export function JobsWorkspace({ permissions }) {
                 <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleRevenueArchive(row)} disabled={revenueForm.isSaving}>
                   Archive
                 </button>
-                {revenueLineCanDelete(row) ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleEmptyFinancialDelete('revenue-delete', row)} disabled={revenueForm.isSaving}>Delete</button> : null}
+                {canApproveSelectedBudget && revenueLineCanDelete(row) ? <button type="button" className="secondary-button secondary-button--danger" onClick={() => handleEmptyFinancialDelete('revenue-delete', row)} disabled={revenueForm.isSaving}>Delete</button> : null}
               </div>
             );
           },
@@ -5153,6 +5162,7 @@ export function JobsWorkspace({ permissions }) {
               <SummaryCard label="Remaining to Bill" value={formatMoney(remainingBillingTotal)} detail="Revised contract less billed revenue" tone={remainingBillingTotal < 0 ? 'warn' : 'good'} />
               {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
             </div>
+            <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={() => { jobBudget.reload(); jobRevenue.reload(); }} />
             <section className="job-financials-section" aria-label="Schedule of values revenue">
               <Toolbar
                 eyebrow="Billing"
@@ -5160,7 +5170,7 @@ export function JobsWorkspace({ permissions }) {
                 description={`${formatMoney(scheduledRevenueTotal)} scheduled value across ${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}.`}
                 actions={null}
               />
-              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} feePresentationMode={selectedJob.billing_fee_presentation || 'distributed'} canManage={canApproveSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
+              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} feePresentationMode={selectedJob.billing_fee_presentation || 'distributed'} canManage={canApproveSelectedBudget} canAddLine={canProposeSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
               <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} canCorrect={permissions.canDeveloperDataCorrection === true} onComplete={jobRevenue.reload} />
               {revenueGroups.length > 1 ? <div className="job-financials-quick-actions"><button type="button" className="secondary-button" onClick={() => setCollapsedRevenueDivisions(Object.fromEntries(revenueGroups.map(([key]) => [key, false])))}>Expand All</button><button type="button" className="secondary-button" onClick={() => setCollapsedRevenueDivisions(Object.fromEntries(revenueGroups.map(([key]) => [key, true])))}>Collapse All</button></div> : null}
               {revenueGroups.map(([division, group]) => {
@@ -5202,7 +5212,7 @@ export function JobsWorkspace({ permissions }) {
             actions={<button type="button" className="secondary-button" onClick={() => setFinancialExportOpen(true)}>Export Financials</button>}
           />
           <FinancialExportDialog open={financialExportOpen} onClose={() => setFinancialExportOpen(false)} job={selectedJob} lines={jobBudget.lines} changeOrderByLineId={approvedChangeOrderCostByBudgetLineId} />
-          <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={jobBudget.reload} />
+          <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={() => { jobBudget.reload(); jobRevenue.reload(); }} />
           {canApproveSelectedBudget ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
