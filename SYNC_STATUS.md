@@ -2,7 +2,20 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — BRONZE-ESTIMATE-LAYOUT-20260922-001
+## Current release — RUBY-INLINE-NOTES-20260922-001
+
+- LIVE September 22, 2026: editable internal Work Item notes appear directly in
+  each All Entries/Entry workspace row between the description and workflow
+  controls, persist through Save Draft and remain out of customer proposals.
+- Feature commit `f6e0154b8b6e0b6344e95e56c6d9617d5be083b9`, pushed to main.
+- Netlify production deploy `6ab26ff04caa6500086dfce1` ready/published from that
+  exact commit at 2026-09-22 12:09:37 UTC with no deployment error.
+- Live Workbench JavaScript returns 200 with correct MIME and contains the inline
+  note control. 196 scoped project tests pass. No migration required.
+- Read HANDOFF Entries 288–289. Preserve local work, fetch/fast-forward main and
+  verify this marker. Final documentation checkpoint uses `[skip ci]`.
+
+## Previous release — BRONZE-ESTIMATE-LAYOUT-20260922-001
 
 - LIVE September 22, 2026: Estimate Entry and Work Item internal notes, reserved
   value/action spacing, bordered Work Item verification, stronger Components

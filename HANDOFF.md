@@ -22309,3 +22309,17 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   document behavior changed.
 - Candidate sync marker: `RUBY-INLINE-NOTES-20260922-001`. Record LIVE status only
   after Netlify publishes the exact feature commit.
+
+## Entry 289 — Inline Work Item notes released
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** LIVE.
+
+- Feature commit `f6e0154b8b6e0b6344e95e56c6d9617d5be083b9` is pushed to
+  `origin/main` and published by Netlify production deploy
+  `6ab26ff04caa6500086dfce1` at 2026-09-22 12:09:37 UTC.
+- Netlify reported the exact commit ready with no deployment error. The live
+  Workbench bundle returns 200 with JavaScript MIME and contains the inline note
+  control and its review-specific placeholder.
+- 196 scoped project tests pass. No database migration or data backfill was needed.
+- Durable sync marker: `RUBY-INLINE-NOTES-20260922-001`. This documentation-only
+  checkpoint uses `[skip ci]` to retain the verified feature deployment.
