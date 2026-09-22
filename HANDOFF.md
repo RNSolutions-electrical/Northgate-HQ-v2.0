@@ -22278,3 +22278,19 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   dependencies; the scoped project test run excludes those non-test artifacts.
 - Candidate sync marker: `BRONZE-ESTIMATE-LAYOUT-20260922-001`. Record LIVE status
   only after the exact feature commit is built and published by Netlify.
+
+## Entry 287 — Estimate hierarchy formatting released
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** LIVE.
+
+- Feature commit `59cb1d50f02604871daaab47b892ec71cf8dc898` is pushed to
+  `origin/main` and was published by Netlify production deploy
+  `6ab26c5accdc5c0008346c1f` at 2026-09-22 11:54:23 UTC.
+- Netlify reported the exact commit ready with no deployment error. Live Northgate
+  HTML and code-split Workbench JavaScript return 200 with JavaScript MIME and
+  contain the new internal-note and review-hierarchy implementation.
+- 196 scoped project tests pass. No migration, permission, financial calculation,
+  stored estimate or customer-facing proposal data changed.
+- Durable sync marker: `BRONZE-ESTIMATE-LAYOUT-20260922-001`. This final
+  documentation-only checkpoint uses `[skip ci]` to retain the verified production
+  deployment from the feature commit.

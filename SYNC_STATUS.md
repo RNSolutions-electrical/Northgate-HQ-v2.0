@@ -2,7 +2,20 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — JADE-ESTIMATE-ARCHIVE-20260921-001
+## Current release — BRONZE-ESTIMATE-LAYOUT-20260922-001
+
+- LIVE September 22, 2026: Estimate Entry and Work Item internal notes, reserved
+  value/action spacing, bordered Work Item verification, stronger Components
+  heading, bordered components and larger canonical hierarchy identifiers.
+- Feature commit `59cb1d50f02604871daaab47b892ec71cf8dc898`, pushed to main.
+- Netlify production deploy `6ab26c5accdc5c0008346c1f` ready/published from that
+  exact commit at 2026-09-22 11:54:23 UTC with no deployment error.
+- Live Northgate Workbench assets return 200 with JavaScript MIME and contain the
+  release implementation. 196 scoped project tests pass. No migration required.
+- Read HANDOFF Entries 286–287. Preserve local work, fetch/fast-forward main and
+  verify this marker. Final documentation checkpoint uses `[skip ci]`.
+
+## Previous release — JADE-ESTIMATE-ARCHIVE-20260921-001
 
 - LIVE September 21, 2026 (September 22 UTC): Workbench estimate archive fix and
   aligned Estimates directory/create form.
