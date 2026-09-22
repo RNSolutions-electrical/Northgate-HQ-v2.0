@@ -2,7 +2,21 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — EMERALD-NATIVE-NOTES-20260922-001
+## Current release — TOPAZ-COMPONENT-INPUTS-20260922-001
+
+- LIVE September 22, 2026: Estimate Component names, descriptions, quantities,
+  units, costs, labor hours, stages and resource notes use native buffers; pending
+  values flush into Save Changes, Copy and catalogue actions. Catalogue search uses
+  isolated deferred query state.
+- Feature commit `779a9960c1b7cb5e11f9c8a109f40d2fa74e8a60`, pushed to main.
+- Netlify production deploy `6ab29ef5e2faa700086aa55f` ready/published from that
+  exact commit at 2026-09-22 15:30:17 UTC with no deployment error.
+- Live Workbench JavaScript returns 200 with correct MIME and contains the buffered
+  Component implementation. 197 tests and production build pass. No migration.
+- Read HANDOFF Entries 294–295. Preserve local work, fetch/fast-forward main and
+  verify this marker. Final documentation checkpoint uses `[skip ci]`.
+
+## Previous release — EMERALD-NATIVE-NOTES-20260922-001
 
 - LIVE September 22, 2026: inline Work Item notes use browser-native uncontrolled
   buffering, eliminating React state updates and parent rendering from the

@@ -22400,3 +22400,18 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   or data backfill is required.
 - Candidate sync marker: `TOPAZ-COMPONENT-INPUTS-20260922-001`. Record LIVE status
   only after Netlify publishes the exact feature commit.
+
+## Entry 295 — Buffered Estimate component inputs released
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** LIVE.
+
+- Feature commit `779a9960c1b7cb5e11f9c8a109f40d2fa74e8a60` is pushed to
+  `origin/main` and published by Netlify production deploy
+  `6ab29ef5e2faa700086aa55f` at 2026-09-22 15:30:17 UTC.
+- Netlify reported the exact commit ready with no deployment error. The live
+  Workbench bundle returns 200 with JavaScript MIME and contains the buffered
+  Component name/resource fields and native default-value implementation.
+- 197 scoped project tests and the production validation build pass. No database
+  migration or data backfill was required.
+- Durable sync marker: `TOPAZ-COMPONENT-INPUTS-20260922-001`. This final
+  documentation-only checkpoint uses `[skip ci]` to retain the verified deploy.
