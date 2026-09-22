@@ -6,6 +6,8 @@ import {Plus,ArrowLeft,RefreshCw} from 'lucide-react';
 import {usePermissions} from '../../../hooks/usePermissions.js';
 import {createSupabaseClient} from '../../../services/supabaseClient.js';
 import WorkbenchEditor from './app.jsx';
+import { EstimateDirectory } from './EstimateDirectory.jsx';
+import './estimateDirectory.css';
 import {seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial} from './catalogueService.js';
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
@@ -302,15 +304,17 @@ export default function WorkbenchRoute({libraryOnly=false}){
   {error&&<p role="alert">{error}</p>}
   {workflow.error&&<p role="alert">{workflow.error}</p>}
   {workflow.success&&<p role="status">{workflow.success}</p>}
-  {!reviewMode&&(permissions.canEstimate||personalMode)&&<form className="job-financials-form" onSubmit={create}>
-   <h2>Create estimate</h2><div className="job-financials-form__grid">
+  {!reviewMode&&(permissions.canEstimate||personalMode)&&<form className="job-financials-form estimate-create-form" onSubmit={create}>
+   <h2>Create estimate</h2><div className="estimate-create-grid">
     <label>Project name<input type="text" name="name" required/></label><label>Customer<input type="text" name="customer"/></label>
     <label>Template<select name="template">{Object.keys(sections).map(s=><option key={s}>{s}</option>)}</select></label>
-   </div><div className="job-financials-form__actions"><button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button></div>
+   <button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button></div>
   </form>}
-  <h2>{reviewMode?'Pending submissions':personalMode?'My Estimates':'Workbench estimates'}</h2>
-  {reviewMode?reviewRows.map(row=><button className="secondary-button" key={row.destination_id} onClick={()=>{setWorkflow({reason:'',busy:false,error:'',success:''});setSelectedReview(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.estimate_name||'Untitled change'}</strong><span>{row.task_type}</span><span>{row.submitted_by_name}</span><span>{row.target_division}</span></button>):rows.map(row=><button className="secondary-button" key={row.estimate_id||row.personal_id} onClick={()=>{active.current=row;setSelected(row);}} style={{display:'flex',width:'100%',justifyContent:'space-between',marginBottom:8}}><strong>{row.document.name}</strong><span>{row.document.customer}</span><span>Version {row.estimates?.version_number||1}{row.estimates?.revision_of?' · Revised':''}</span><span>{row.estimates?.status === 'approved' ? 'Approved' : row.estimates?.status === 'submitted'?'Submitted':row.estimates?.status === 'promoted'?'Promoted':row.estimates?.status === 'returned'?'Returned':row.estimates?.status === 'declined'?'Declined':'Draft'}</span></button>)}
-  {reviewMode&&!reviewRows.length&&<p>No estimates are awaiting review.</p>}
-  {!reviewMode&&!rows.length&&<p>No estimates yet.</p>}
+  <EstimateDirectory rows={reviewMode ? reviewRows : rows} reviewMode={reviewMode} personalMode={personalMode}
+    onOpen={row => {
+      if (reviewMode) { setWorkflow({reason:'',busy:false,error:'',success:''}); setSelectedReview(row); }
+      else { active.current=row; setSelected(row); }
+    }}/>
+
  </section>;
 }

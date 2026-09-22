@@ -22210,3 +22210,31 @@ Ryan explicitly authorized deploying Entry 282. No migration needed.
   and stored inventory counts unchanged.
 - Sync marker AMBER-CATALOGUE-FILTERS-20260921-001. Documentation-only checkpoint
   uses [skip ci]; unrelated untracked output/ remains preserved.
+
+## Entry 284 — Workbench estimate archive fix and directory alignment
+
+**Date:** September 21, 2026. **Mode:** Production Mode. **Status:** Local; not deployed.
+
+Ryan requested the archive failure be fixed and the Estimates page aligned.
+Confirmed live archive_estimate enforces auth/scope/archive permission, but the
+Workbench header guard rejects its update because it recognizes only save/approval.
+
+- Migration `20260921235409_workbench_estimate_archive_guard.sql` adds a dedicated
+  item-specific transaction-local archive context in the existing archive RPC.
+  The guard permits only archive metadata/status/updated_at changes, requiring an
+  active-to-archived transition attributed to the authenticated actor. Contents,
+  pricing, approval metadata and revision links cannot change through that context.
+- Existing edit-scope/archive permission checks, row lock and atomic audit remain.
+  Automatic routine audit reasons are retained. Draft, approved and legacy estimate
+  archive is supported; no snapshots, Workbench documents, revisions or links removed.
+- Estimates list uses shared aligned Project/Customer/Version/Status columns, wrapped
+  names and status badges. Review submissions use matching grid alignment. Create
+  fields/button align on desktop and stack at narrow widths. Keyboard row access
+  and meaningful mobile labels retained.
+- Isolated PGlite regression validates draft/approved/legacy archive, denied actors,
+  blocked content/approval changes, preserved documents/snapshots/totals, duplicate
+  rejection, atomic rollback on audit failure, context cleanup and endpoint ACLs.
+  Run scripts/verify-workbench-archive-db.mjs with PGLITE_MODULE configured.
+- All 193 unit tests and production validation build pass; desktop fixture rendering
+  visually checked. No live estimates archived. Production migration/deployment
+  requires separate approval under the existing v5 rollout policy.

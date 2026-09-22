@@ -193,3 +193,13 @@ production project `keogysnoukbendfkfjcn` as `20260921224510`, name
 `full_material_catalogue_stock_review`. Do not replay the local timestamp.
 Live-schema rollback rehearsal, normalized price/labor checks, authenticated RPC
 ACLs, private request-table RLS and default-denied new permission flags verified.
+
+## September 21, 2026 — Workbench archive fix
+
+Local `20260921235409_workbench_estimate_archive_guard.sql` applied as
+`20260922000116` (UTC September 22), name `workbench_estimate_archive_guard`,
+to project `keogysnoukbendfkfjcn`. Do not replay the local timestamp.
+Draft and approved archive tested against live schema in a rolled-back transaction;
+documents, snapshots and protected header values preserved, audit written atomically.
+Archive RPC authenticated-only; internal guard unavailable to client roles.
+No new security advisor findings. No estimates left archived by verification.

@@ -1,0 +1,31 @@
+.estimate-create-form, .estimate-directory { padding: 20px; border: 1px solid #dce1e6; border-radius: 10px; background: #fff; }
+.estimate-create-form h2, .estimate-directory h2 { margin: 0 0 16px; }
+.estimate-create-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(150px, .8fr) auto; gap: 16px; align-items: end; }
+.estimate-create-grid label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.estimate-create-grid input, .estimate-create-grid select { width: 100%; min-width: 0; min-height: 40px; box-sizing: border-box; }
+.estimate-create-grid > button { min-height: 40px; white-space: nowrap; }
+.estimate-directory-columns, .estimate-directory-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr) minmax(120px, .8fr) minmax(95px, .6fr); gap: 20px; align-items: center; }
+.estimate-directory-columns { padding: 10px 14px; color: #59636e; font-size: 12px; font-weight: 600; border-bottom: 1px solid #dce1e6; }
+.estimate-directory-list { list-style: none; margin: 0; padding: 0; }
+.estimate-directory-list li + li { border-top: 1px solid #e7eaee; }
+.estimate-directory-row { width: 100%; padding: 15px 14px; border: 0; border-radius: 0; background: transparent; text-align: left; font: inherit; font-size: 13px; color: inherit; cursor: pointer; }
+.estimate-directory-row:hover { background: #f4f6f8; }
+.estimate-directory-row:focus-visible { outline: 2px solid #b7212b; outline-offset: -2px; }
+.estimate-directory-cell { min-width: 0; overflow-wrap: anywhere; }
+.estimate-directory-project { font-weight: 600; }
+.estimate-directory-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.estimate-directory-status { display: inline-block; padding: 4px 9px; border-radius: 12px; background: #eef1f4; color: #44505c; font-size: 12px; font-weight: 600; }
+.estimate-directory-status--approved, .estimate-directory-status--promoted { background: #e5f2e9; color: #235b37; }
+.estimate-directory-status--submitted { background: #e8effc; color: #294d88; }
+.estimate-directory-status--returned, .estimate-directory-status--declined { background: #fff0d9; color: #805000; }
+.estimate-directory-empty { color: #59636e; margin: 0; }
+@media (max-width: 1000px) { .estimate-create-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) {
+ .estimate-create-form, .estimate-directory { padding: 16px; }
+ .estimate-create-grid { grid-template-columns: minmax(0, 1fr); }
+ .estimate-directory-columns { display: none; }
+ .estimate-directory-row { grid-template-columns: minmax(0, 1fr) minmax(95px, .7fr); gap: 12px; padding: 16px 4px; }
+ .estimate-directory-project { grid-column: 1 / -1; font-size: 14px; }
+ .estimate-directory-label { position: static; display: block; width: auto; height: auto; clip-path: none; margin-bottom: 4px; font-size: 11px; font-weight: 500; color: #59636e; }
+ .estimate-directory-project .estimate-directory-label { display: none; }
+}
