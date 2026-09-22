@@ -22383,3 +22383,20 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   migration or data backfill was required.
 - Durable sync marker: `EMERALD-NATIVE-NOTES-20260922-001`. This final
   documentation-only checkpoint uses `[skip ci]` to retain the verified deploy.
+## Entry 294 — Buffered Estimate component inputs
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** Ready for release.
+
+- Component name, labor/material descriptions, quantity, unit, unit cost, labor
+  hours, stage and resource notes now use native buffered inputs. Keystrokes no
+  longer clone the Work Item or rerender the full Workbench.
+- Component values commit on blur and remain in a pending edit map. Save Changes
+  merges all pending edits before validation, catalogue updates, assembly saves or
+  project persistence. Copy component and catalogue review also resolve the current
+  buffered values before acting.
+- Material catalogue search uses isolated local query state plus React deferred
+  matching, avoiding full Workbench renders while retaining live suggestions.
+- 197 scoped project tests and the production validation build pass. No migration
+  or data backfill is required.
+- Candidate sync marker: `TOPAZ-COMPONENT-INPUTS-20260922-001`. Record LIVE status
+  only after Netlify publishes the exact feature commit.

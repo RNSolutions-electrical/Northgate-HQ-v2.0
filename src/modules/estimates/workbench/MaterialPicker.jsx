@@ -1,24 +1,27 @@
-import React, {useId, useState} from 'react';
+import React, {useDeferredValue, useEffect, useId, useRef, useState} from 'react';
 import {catalogue, money, searchMaterials} from './model.mjs';
 import {catalogueMissing} from './workspaceModel.mjs';
 import {resolveMaterials} from '../../../lib/materialResolver.js';
 
-export function MaterialPicker({line,onType,onSelect}) {
+export function MaterialPicker({line,onType,onDraft=()=>{},onSelect}) {
   const listId=useId();
   const [open,setOpen]=useState(false);
   const [active,setActive]=useState(-1);
-  const allMatches=searchMaterials(catalogue,line.name);const matches=allMatches.slice(0,60);
-  function select(material){onSelect(material);setOpen(false);setActive(-1);}
+  const [query,setQuery]=useState(line.name||'');
+  const focused=useRef(false),deferredQuery=useDeferredValue(query);
+  useEffect(()=>{if(!focused.current)setQuery(line.name||'');},[line.name]);
+  const allMatches=searchMaterials(catalogue,deferredQuery);const matches=allMatches.slice(0,60);
+  function select(material){setQuery(material.name);onSelect(material);setOpen(false);setActive(-1);}
   return <div className="material-picker" onBlur={event=>{
-    if(!event.currentTarget.contains(event.relatedTarget)){setOpen(false);setActive(-1);}
+    if(!event.currentTarget.contains(event.relatedTarget)){focused.current=false;onType(query);setOpen(false);setActive(-1);}
   }}>
     <label htmlFor={`${listId}-input`}>Material / labor description</label>
     <input id={`${listId}-input`} required role="combobox" aria-autocomplete="list"
       aria-expanded={open} aria-controls={open?listId:undefined}
       aria-activedescendant={open&&matches[active]?`${listId}-${active}`:undefined}
-      autoComplete="off" value={line.name}
-      onFocus={()=>{setOpen(true);setActive(-1);}}
-      onChange={event=>{onType(event.target.value);setOpen(true);setActive(-1);}}
+      autoComplete="off" value={query}
+      onFocus={()=>{focused.current=true;setOpen(true);setActive(-1);}}
+      onChange={event=>{setQuery(event.target.value);onDraft(event.target.value);setOpen(true);setActive(-1);}}
       onKeyDown={event=>{
         if(event.key==='Escape'){event.preventDefault();setOpen(false);setActive(-1);}
         if(event.key==='ArrowDown'||event.key==='ArrowUp'){

@@ -76,6 +76,7 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  const [expandedItems,setExpandedItems]=useState(new Set());
  const [clipboard,setClipboard]=useState([]);
  const pendingInlineNotes=useRef(new Map());
+ const pendingComponentEdits=useRef(new Map());
  const toggleItem=(item,parent)=>setExpandedItems(current=>{const next=new Set(current),key=parent.id+':'+item.id;next.has(key)?next.delete(key):next.add(key);return next;});
  useEffect(()=>{const clean=JSON.stringify(data)===baseline.current&&!edit;setSaved(clean);onDirty(!clean);},[data,edit,onDirty]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),3500);return ()=>clearTimeout(timer);},[notice]);
@@ -102,11 +103,12 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  const navigate=(next)=>{setPage(next);setSelected(null);setEdit(null);window.scrollTo(0,0);};
  const openEntry=e=>{listScroll.current=window.scrollY;setSelected(e.id);window.scrollTo(0,0);};
  const backEntries=()=>{setSelected(null);requestAnimationFrame(()=>window.scrollTo(0,listScroll.current));};
- const openItem=(item,parent,focusLine=null)=>{if(data.approvedAt){setNotice("Approved estimate: changes are locked.");return;}if(item.quoteId){setModal({type:'quote',quote:(data.quotes||[]).find(q=>q.id===item.quoteId)});return;}detailScroll.current=window.scrollY;setEdit({item:clone(item),parentId:parent.id,isNew:false,library:false,focusLine});window.scrollTo(0,0);};
- const openLibrary=(item)=>{setSaveError('');setEdit({item:item?clone(item):{id:id(),name:'',qty:1,kind:'Assembly',status:'Not started',notes:'',lines:[]},libraryMode:true,isNew:!item,library:false});window.scrollTo(0,0);};
- const backItem=()=>{setEdit(null);requestAnimationFrame(()=>window.scrollTo(0,detailScroll.current));};
+ const openItem=(item,parent,focusLine=null)=>{if(data.approvedAt){setNotice("Approved estimate: changes are locked.");return;}if(item.quoteId){setModal({type:'quote',quote:(data.quotes||[]).find(q=>q.id===item.quoteId)});return;}pendingComponentEdits.current.clear();detailScroll.current=window.scrollY;setEdit({item:clone(item),parentId:parent.id,isNew:false,library:false,focusLine});window.scrollTo(0,0);};
+ const openLibrary=(item)=>{pendingComponentEdits.current.clear();setSaveError('');setEdit({item:item?clone(item):{id:id(),name:'',qty:1,kind:'Assembly',status:'Not started',notes:'',lines:[]},libraryMode:true,isNew:!item,library:false});window.scrollTo(0,0);};
+ const backItem=()=>{pendingComponentEdits.current.clear();setEdit(null);requestAnimationFrame(()=>window.scrollTo(0,detailScroll.current));};
  const filterLink=(kind,value)=>{setSelected(null);setPage('Pricing');kind==='location'?(setLocation(value),setSection('')):(setSection(value),setLocation(''));setQuery('');setStatus('');window.scrollTo(0,0);};
  function addItem(template,kind='Assembly'){
+  pendingComponentEdits.current.clear();
   const item=template?copyWorkItem(template):{id:id(),name:'',qty:1,kind,status:'Not started',notes:'',lines:[]};
   if(template){item.notes=template.notes||'';item.lines=item.lines.map((l,index)=>({...l,notes:template.lines[index].notes||''}));}
   item.number=Math.max(0,...entry.items.map(i=>i.number))+1;
@@ -146,13 +148,14 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  }
  async function saveItem(event){
   event.preventDefault();if(busy||readOnly)return;
-  if(!edit.item.lines.length){setSaveError('Add at least one material or labor line.');return;}
+  const bufferedItem=clone(edit.item);for(const apply of pendingComponentEdits.current.values())apply(bufferedItem);
+  if(!bufferedItem.lines.length){setSaveError('Add at least one material or labor line.');return;}
   try{
-   const updates=edit.saveCatalogue?catalogueChanges(edit.item.lines,catalogue):[];
+   const updates=edit.saveCatalogue?catalogueChanges(bufferedItem.lines,catalogue):[];
    const next=clone(data),parent=next.entries.find(e=>e.id===edit.parentId);
-   if(!edit.libraryMode){if(edit.isNew)parent.items.push(clone(edit.item));else parent.items=parent.items.map(i=>i.id===edit.item.id?clone(edit.item):i);}
-   const assembly=edit.libraryMode||edit.library?assemblyLibrarySave(edit.item,{editingLibrary:edit.libraryMode,name:edit.libraryMode?edit.item.name:edit.libraryName}):null;
-   if(await persist(next,updates,assembly))backItem();
+   if(!edit.libraryMode){if(edit.isNew)parent.items.push(clone(bufferedItem));else parent.items=parent.items.map(i=>i.id===bufferedItem.id?clone(bufferedItem):i);}
+   const assembly=edit.libraryMode||edit.library?assemblyLibrarySave(bufferedItem,{editingLibrary:edit.libraryMode,name:edit.libraryMode?bufferedItem.name:edit.libraryName}):null;
+   if(await persist(next,updates,assembly)){pendingComponentEdits.current.clear();backItem();}
   }catch(error){setSaveError(error.message);}
  }
  const editField=(field,value)=>setEdit(e=>({...e,item:{...e.item,[field]:value}}));
@@ -199,7 +202,7 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
     <div className="metrics"><span>Material <strong>{money(editorTotals.material)}</strong></span><span>Labor <strong>{editorTotals.hours.toFixed(2)} hours × {money(edit.item.laborRateOverride??data.rate)}</strong></span><span>Labor cost <strong>{money(editorTotals.hours*(edit.item.laborRateOverride??data.rate))}</strong></span></div>
     {!edit.libraryMode&&<MarkupControls item={edit.item} data={data} onChange={editField}/>}
     {!edit.libraryMode&&<label>Labor rate override / hour <span className="muted">Blank uses estimate rate</span><input type="number" min="0" step="any" value={edit.item.laborRateOverride??''} onChange={e=>editField('laborRateOverride',e.target.value===''?null:e.target.value)}/></label>}
-    <ComponentEditor focusLine={edit.focusLine} item={edit.item} prefix={edit.libraryMode?'Library':workItemReference(data.entries.find(e=>e.id===edit.parentId),edit.item)} editable={!readOnly&&!busy} canEditCatalog={canEditCatalog} onCopyComponent={group=>copyToClipboard('component',{component:{id:group.id,name:group.name},lines:group.lines},`${workItemReference(data.entries.find(e=>e.id===edit.parentId),edit.item)}.${group.number} · ${group.name}`)} onCatalogue={onCatalogueMaterial?(line,material)=>{setCatalogueError('');const candidateId=line.catalogueCandidateId||crypto.randomUUID();editLine(line.id,{catalogueCandidateId:candidateId});setModal({type:'catalogueMaterial',line:{...line,catalogueCandidateId:candidateId},material});}:undefined} onEdit={fn=>setEdit(current=>{const item=clone(current.item);fn(item);return {...current,item};})}/>
+    <ComponentEditor focusLine={edit.focusLine} item={edit.item} prefix={edit.libraryMode?'Library':workItemReference(data.entries.find(e=>e.id===edit.parentId),edit.item)} editable={!readOnly&&!busy} canEditCatalog={canEditCatalog} onStage={(key,apply)=>pendingComponentEdits.current.set(key,apply)} onCopyComponent={group=>{const current=clone(edit.item);for(const apply of pendingComponentEdits.current.values())apply(current);const resolved=componentGroups(current).find(row=>row.id===group.id)||group;copyToClipboard('component',{component:{id:resolved.id,name:resolved.name},lines:resolved.lines},`${workItemReference(data.entries.find(e=>e.id===edit.parentId),current)}.${resolved.number} · ${resolved.name}`);}} onCatalogue={onCatalogueMaterial?(line,material)=>{const current=clone(edit.item);for(const apply of pendingComponentEdits.current.values())apply(current);const resolved=current.lines.find(row=>row.id===line.id)||line;setCatalogueError('');const candidateId=resolved.catalogueCandidateId||crypto.randomUUID();editLine(resolved.id,{catalogueCandidateId:candidateId});setModal({type:'catalogueMaterial',line:{...resolved,catalogueCandidateId:candidateId},material});}:undefined} onEdit={fn=>setEdit(current=>{const item=clone(current.item);fn(item);return {...current,item};})}/>
     <label className="notes">Internal work item notes<textarea aria-label="Internal work item notes" value={edit.item.notes||''} onChange={e=>editField('notes',e.target.value)} rows={3} placeholder="Estimator-only notes; excluded from customer proposals"/></label>
     <div className="save-bar">{!edit.libraryMode&&<label className="check"><input type="checkbox" checked={edit.library} onChange={e=>setEdit({...edit,library:e.target.checked,libraryName:edit.libraryName||edit.item.name})}/> Save a copy to assembly library</label>}{edit.library&&!edit.libraryMode&&<label>Library assembly name<input required value={edit.libraryName||''} onChange={e=>setEdit({...edit,libraryName:e.target.value})}/></label>}<div><button type="button" onClick={backItem}>Cancel</button><label>Save destination<select aria-label="Save destination" value={edit.saveCatalogue?'both':'project'} onChange={e=>setEdit({...edit,saveCatalogue:e.target.value==='both'})}><option value="project">{edit.libraryMode?'Assembly library':'Project only'}</option><option value="both" disabled={edit.libraryMode||!canEditCatalog||!edit.item.lines.some(l=>l.catalogueId)}>{edit.libraryMode?'Library + catalogue':'Project + catalogue'}</option></select></label><button className="primary" type="submit"><Save size={16}/> Save changes</button></div></div></fieldset>
    </form>:page==='Pricing'?<>

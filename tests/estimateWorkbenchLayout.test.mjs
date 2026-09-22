@@ -5,6 +5,8 @@ import {readFileSync} from 'node:fs';
 const app=readFileSync(new URL('../src/modules/estimates/workbench/app.jsx',import.meta.url),'utf8');
 const review=readFileSync(new URL('../src/modules/estimates/workbench/WorkItemReview.jsx',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/modules/estimates/workbench/style.css',import.meta.url),'utf8');
+const components=readFileSync(new URL('../src/modules/estimates/workbench/ComponentEditor.jsx',import.meta.url),'utf8');
+const picker=readFileSync(new URL('../src/modules/estimates/workbench/MaterialPicker.jsx',import.meta.url),'utf8');
 
 test('estimate entries and work items provide internal note fields',()=>{
  assert.match(app,/Internal entry notes/);
@@ -39,4 +41,15 @@ test('estimate rows reserve dedicated space for values and actions',()=>{
  assert.match(styles,/\.item-row\{grid-template-columns:[^}]*minmax\(240px,.9fr\)[^}]*124px/);
  assert.match(styles,/\.item-actions\{min-width:124px\}/);
  assert.match(styles,/\.inline-work-item-note textarea\{[^}]*min-height:64px/);
+});
+
+test('component inputs buffer keystrokes outside the Workbench render path',()=>{
+ assert.match(components,/const BufferedInput=memo/);
+ assert.match(components,/defaultValue=\{value\?\?''\}/);
+ assert.match(components,/onInput=\{event=>onDraft\(event\.currentTarget\.value\)\}/);
+ assert.match(components,/onBlur=\{event=>\{focused\.current=false;onCommit\(event\.currentTarget\.value\);\}\}/);
+ assert.match(app,/pendingComponentEdits=useRef\(new Map\(\)\)/);
+ assert.match(app,/for\(const apply of pendingComponentEdits\.current\.values\(\)\)apply\(bufferedItem\)/);
+ assert.match(picker,/useDeferredValue\(query\)/);
+ assert.match(picker,/onDraft\(event\.target\.value\)/);
 });
