@@ -2,7 +2,20 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — RUBY-INLINE-NOTES-20260922-001
+## Current release — SAPPHIRE-NOTE-PERFORMANCE-20260922-001
+
+- LIVE September 22, 2026: inline Work Item note typing uses isolated row-local
+  state, committing on blur and merging pending text into Save Draft, Copy or Open
+  without cloning and recalculating the full Estimate per keystroke.
+- Feature commit `59fee551d2f15a486aecd92f36a4aa397d54ac12`, pushed to main.
+- Netlify production deploy `6ab29a8c5821f4000898296a` ready/published from that
+  exact commit at 2026-09-22 15:11:27 UTC with no deployment error.
+- Live Workbench JavaScript returns 200 with correct MIME and contains the optimized
+  local-state editor. 196 scoped tests and production build pass. No migration.
+- Read HANDOFF Entries 290–291. Preserve local work, fetch/fast-forward main and
+  verify this marker. Final documentation checkpoint uses `[skip ci]`.
+
+## Previous release — RUBY-INLINE-NOTES-20260922-001
 
 - LIVE September 22, 2026: editable internal Work Item notes appear directly in
   each All Entries/Entry workspace row between the description and workflow
