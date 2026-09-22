@@ -22353,3 +22353,18 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   migration or data backfill was required.
 - Durable sync marker: `SAPPHIRE-NOTE-PERFORMANCE-20260922-001`. This final
   documentation-only checkpoint uses `[skip ci]` to retain the verified deploy.
+## Entry 292 — Native-buffered inline Estimate notes
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** Ready for release.
+
+- Replaces the controlled inline Work Item note textarea with a browser-native
+  uncontrolled buffer. Keystrokes no longer trigger React state updates or parent
+  rendering; only the first actual edit marks the Estimate dirty.
+- The pending-note map still tracks current text for immediate Save Draft, Copy and
+  Open actions. Blur commits once to the Estimate document. External saved values
+  resynchronize the DOM field whenever it is not focused.
+- Approved/read-only locks and customer-proposal exclusion remain unchanged.
+- 196 scoped project tests and the production validation build pass. No migration
+  or data backfill is required.
+- Candidate sync marker: `EMERALD-NATIVE-NOTES-20260922-001`. Record LIVE status
+  only after Netlify publishes the exact feature commit.

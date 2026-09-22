@@ -13,8 +13,10 @@ test('estimate entries and work items provide internal note fields',()=>{
  assert.match(app,/className="inline-work-item-note"/);
  assert.match(app,/What is this item, or what needs review\?/);
  assert.match(app,/const InlineWorkItemNote=memo/);
- assert.match(app,/onChange=\{event=>\{const next=event\.target\.value;setDraft\(next\);onDraft\(next\);\}\}/);
- assert.match(app,/onBlur=\{\(\)=>\{focused\.current=false;onCommit\(draft\);\}\}/);
+ assert.match(app,/defaultValue=\{value\|\|''\}/);
+ assert.match(app,/onInput=\{event=>\{if\(!changed\.current\)/);
+ assert.doesNotMatch(app,/const \[draft,setDraft\]=useState/);
+ assert.match(app,/onBlur=\{event=>\{focused\.current=false;if\(changed\.current\)onCommit\(event\.currentTarget\.value\)/);
  assert.match(app,/pendingInlineNotes=useRef\(new Map\(\)\)/);
  assert.match(app,/next=applyPendingInlineNotes\(next\);pendingInlineNotes\.current\.clear\(\)/);
  assert.match(app,/const openInlineItem=.*pendingInlineNotes\.current\.delete/);
