@@ -22440,3 +22440,21 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Candidate sync marker: `AMBER-LEDGER-20260922-001`. Record LIVE status only after
   the migration is applied, the feature commit is pushed, and Netlify publishes
   the exact commit.
+
+## Entry 297 — V5 Job Financials proposal foundation released
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** LIVE.
+
+- Migration `20260922162009_v5_jobs_financials_foundation.sql` is applied to the
+  production Supabase project. Verification found exactly 9 expected baseline
+  rows, four constrained RPCs, and three concurrency/security triggers.
+- Feature commit `6144dcf3f1bdeed0493918c6da34ad42042040d8` is pushed to
+  `origin/main` and published by Netlify production deploy
+  `6ab2b127ae14530008a3e0f1` at 2026-09-22 16:47:52 UTC.
+- The live route and JavaScript bundle return HTTP 200 with the correct MIME type;
+  the bundle contains the Job Financials proposal and review actions.
+- A later manual CLI deploy failed locally before upload because Windows held a
+  Rolldown binary open during `npm ci`. It did not affect the already successful
+  Git-triggered production deployment.
+- Durable sync marker: `AMBER-LEDGER-20260922-001`. This final documentation-only
+  checkpoint uses `[skip ci]` to retain the verified feature deployment.

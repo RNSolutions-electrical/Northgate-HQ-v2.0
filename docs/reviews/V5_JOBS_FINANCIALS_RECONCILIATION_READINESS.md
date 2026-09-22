@@ -2,7 +2,7 @@
 
 **Mode:** Production Mode
 **Prepared:** 2026-09-22
-**Status:** Budget proposal/baseline foundation implemented, verified, and migrated; frontend deployment pending
+**Status:** Budget proposal/baseline foundation implemented, verified, migrated, and deployed
 
 ## Implemented in this slice
 
@@ -45,6 +45,16 @@
   anti-forgery triggers are present.
 - Trigger helpers are executable only by database/service roles. Constrained user
   endpoints are authenticated-only; no new anonymous function grant was created.
+
+## Production release verification
+
+- Feature commit `6144dcf3f1bdeed0493918c6da34ad42042040d8` was published
+  by Netlify production deploy `6ab2b127ae14530008a3e0f1`.
+- The live `/northgate/` route returned HTTP 200 and served bundle
+  `assets/index-D3wY-T6r.js` as JavaScript.
+- The deployed bundle contains the constrained proposal save and Financials review
+  actions. The later failed manual CLI deploy was local-only and did not replace
+  the successful Git-triggered production release.
 
 ## Still deferred
 
