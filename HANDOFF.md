@@ -22294,3 +22294,18 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Durable sync marker: `BRONZE-ESTIMATE-LAYOUT-20260922-001`. This final
   documentation-only checkpoint uses `[skip ci]` to retain the verified production
   deployment from the feature commit.
+## Entry 288 — Inline Work Item notes correction
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** Ready for release.
+
+- Corrects Entry 286 placement by adding an editable internal-note textarea directly
+  to every Work Item row on All Entries and the Entry workspace, between the item
+  description and workflow status/value controls.
+- Notes update the existing Work Item `notes` value, participate in the normal
+  unsaved-change/Save Draft workflow and remain excluded from customer proposals.
+- Locked and approved estimates display the note read-only. Narrow screens stack the
+  note across the row instead of introducing horizontal scrolling.
+- 196 scoped project tests pass. No migration, permission, calculation or customer
+  document behavior changed.
+- Candidate sync marker: `RUBY-INLINE-NOTES-20260922-001`. Record LIVE status only
+  after Netlify publishes the exact feature commit.

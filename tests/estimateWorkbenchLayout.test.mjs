@@ -10,6 +10,8 @@ test('estimate entries and work items provide internal note fields',()=>{
  assert.match(app,/Internal entry notes/);
  assert.match(app,/entry\.internalNotes/);
  assert.match(app,/Internal work item notes/);
+ assert.match(app,/className="inline-work-item-note"/);
+ assert.match(app,/What is this item, or what needs review\?/);
  assert.match(app,/excluded from customer proposals/);
 });
 
@@ -25,6 +27,7 @@ test('work item review separates verification facts from components',()=>{
 
 test('estimate rows reserve dedicated space for values and actions',()=>{
  assert.match(styles,/\.toc-head,\.entry-row\{grid-template-columns:[^}]*148px/);
- assert.match(styles,/\.item-row\{grid-template-columns:[^}]*124px/);
+ assert.match(styles,/\.item-row\{grid-template-columns:[^}]*minmax\(240px,.9fr\)[^}]*124px/);
  assert.match(styles,/\.item-actions\{min-width:124px\}/);
+ assert.match(styles,/\.inline-work-item-note textarea\{[^}]*min-height:64px/);
 });
