@@ -22238,3 +22238,25 @@ Workbench header guard rejects its update because it recognizes only save/approv
 - All 193 unit tests and production validation build pass; desktop fixture rendering
   visually checked. No live estimates archived. Production migration/deployment
   requires separate approval under the existing v5 rollout policy.
+
+## Entry 285 — Workbench archive and estimate formatting released
+
+**Date:** September 21, 2026 (September 22 UTC). **Mode:** Production Mode. **Status:** LIVE.
+Ryan explicitly authorized migration and deployment of Entry 284.
+
+- Migration `workbench_estimate_archive_guard` applied as `20260922000116` to
+  `keogysnoukbendfkfjcn`; local timestamp mapping recorded in MIGRATION_MAP.
+- Before apply, the full migration plus draft/approved archive calls passed against
+  the live schema inside a transaction then rolled back. Snapshot/document hashes,
+  protected header values, archive audit and context cleanup verified. No test
+  archive persisted. Existing auth/scope/archive permissions remain enforced.
+- Live authenticated archive grant, anonymous denial and private trigger ACL pass;
+  security advisor delta is empty.
+- Feature commit `77c54889839c7af16708c28c3e9ba54f706dca13` pushed to main. Netlify
+  deploy `6ab1c56c50d3b3000824d07d` ready/published at 00:02:07 UTC, exact commit.
+  Secret scan: 761 files, no matches.
+- Live /estimates and /northgate/estimates, HTML, referenced assets and Workbench
+  chunk match immutable release. Directory grid/create form/archive code verified.
+  Signed-in production interaction remains user acceptance; no cleanup performed.
+- Sync marker JADE-ESTIMATE-ARCHIVE-20260921-001. Final documentation-only commit
+  uses [skip ci]. Untracked output/ remains untouched.

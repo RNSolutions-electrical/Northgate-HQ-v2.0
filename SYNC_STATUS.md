@@ -2,7 +2,24 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — AMBER-CATALOGUE-FILTERS-20260921-001
+## Current release — JADE-ESTIMATE-ARCHIVE-20260921-001
+
+- LIVE September 21, 2026 (September 22 UTC): Workbench estimate archive fix and
+  aligned Estimates directory/create form.
+- Feature commit `77c54889839c7af16708c28c3e9ba54f706dca13`, pushed to main.
+- Netlify deploy `6ab1c56c50d3b3000824d07d` ready/published from that exact commit
+  at 2026-09-22 00:02:07 UTC. Secret scan: 761 files, no matches.
+- Migration applied as `20260922000116`; local file starts `20260921235409`.
+  See MIGRATION_MAP; do not replay because timestamps differ.
+- Live-schema draft/approved archive rehearsal passed and rolled back, preserving
+  snapshots, documents and protected values. No estimates left archived by tests.
+  Endpoint ACLs verified; security advisors unchanged. 193 tests, isolated archive
+  regression, build and desktop fixture checks passed. Live Estimates routes and
+  assets match exact release; authenticated browser acceptance not claimed.
+- Follow HANDOFF Entries 284–285. Preserve local work, pull main and verify this
+  marker. Final documentation checkpoint uses [skip ci].
+
+## Previous release — AMBER-CATALOGUE-FILTERS-20260921-001
 
 - LIVE September 21, 2026: Full Catalogue highlights missing pricing or labor on
   demand, excluding locations; Back to inventory retains browser filters and page.
