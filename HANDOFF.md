@@ -22323,3 +22323,18 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - 196 scoped project tests pass. No database migration or data backfill was needed.
 - Durable sync marker: `RUBY-INLINE-NOTES-20260922-001`. This documentation-only
   checkpoint uses `[skip ci]` to retain the verified feature deployment.
+## Entry 290 — Inline Work Item note performance correction
+
+**Date:** September 22, 2026. **Mode:** Production Mode. **Status:** Ready for release.
+
+- Inline Work Item note keystrokes now remain in memoized row-local state instead
+  of cloning, pricing, checking and serializing the full Estimate on every character.
+- Blur commits the note to the Estimate once. A pending-note map guarantees Save
+  Draft, Copy and Open receive the latest text even when invoked immediately after
+  typing; opening consumes the staged value so later editor changes are not replaced.
+- Existing dirty-state warnings, Supabase Save Draft behavior, approved/read-only
+  locks and proposal privacy remain intact.
+- 196 scoped project tests and the production validation build pass. No migration
+  or data backfill is required.
+- Candidate sync marker: `SAPPHIRE-NOTE-PERFORMANCE-20260922-001`. Record LIVE
+  status only after Netlify publishes the exact feature commit.

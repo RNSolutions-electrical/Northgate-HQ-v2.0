@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {memo, useEffect, useRef, useState} from 'react';
 import ChecklistManagement from './ChecklistManagement.jsx';
 import CatalogueMaterialForm from './CatalogueMaterialForm.jsx';
 import ComponentEditor from './ComponentEditor.jsx';
@@ -55,6 +55,12 @@ function LineDetails({line,summary,children}){
  useEffect(()=>{if(!line.name||line.name==='Additional labor')ref.current.open=true;},[]);
  return <details ref={ref} className="component"><summary>{summary}</summary><div className="component-editor">{children}</div></details>;
 }
+const InlineWorkItemNote=memo(function InlineWorkItemNote({value,disabled,onDraft,onCommit}){
+ const [draft,setDraft]=useState(value||'');
+ const focused=useRef(false);
+ useEffect(()=>{if(!focused.current)setDraft(value||'');},[value]);
+ return <label className="inline-work-item-note"><span>Internal note</span><textarea rows="2" value={draft} disabled={disabled} placeholder="What is this item, or what needs review?" onFocus={()=>{focused.current=true;}} onChange={event=>{const next=event.target.value;setDraft(next);onDraft(next);}} onBlur={()=>{focused.current=false;onCommit(draft);}}/></label>;
+});
 export default function WorkbenchEditor({initialDocument,onSave,onApprove,approvedSnapshot,canEditCatalog,canApprove=false,readOnly=false,frameWindow,onDirty,onExit,onReloadLibrary,libraryOnly=false,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version=1,onOpenOriginal,handoffClient,onHandoff,onOpenHandoff,existingHandoff,checklistConfig=null,onReloadChecklist,onCatalogueMaterial,canManageChecklist=false,isDeveloper=false,onChecklistDefinition,associatedJob,onOpenJob}){
  const window=frameWindow||globalThis.window;
  const [libraryView,setLibraryView]=useLibraryView(window);
@@ -68,10 +74,17 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  const [expanded,setExpanded]=useState(new Set());const [notice,setNotice]=useState('');const listScroll=useRef(0);const detailScroll=useRef(0);
  const [expandedItems,setExpandedItems]=useState(new Set());
  const [clipboard,setClipboard]=useState([]);
+ const pendingInlineNotes=useRef(new Map());
  const toggleItem=(item,parent)=>setExpandedItems(current=>{const next=new Set(current),key=parent.id+':'+item.id;next.has(key)?next.delete(key):next.add(key);return next;});
  useEffect(()=>{const clean=JSON.stringify(data)===baseline.current&&!edit;setSaved(clean);onDirty(!clean);},[data,edit,onDirty]);
  useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),3500);return ()=>clearTimeout(timer);},[notice]);
  const update=fn=>{if(busy||readOnly)return;if(data.approvedAt){setNotice('Approved estimate: changes are locked.');return;}try{setData(fn(clone(data)));}catch(error){setNotice(error.message);}};
+ const noteKey=(entryId,itemId)=>entryId+':'+itemId;
+ const stageInlineNote=(entryId,itemId,value)=>{pendingInlineNotes.current.set(noteKey(entryId,itemId),{entryId,itemId,value});if(saved)setSaved(false);onDirty(true);};
+ const applyPendingInlineNotes=source=>{if(!pendingInlineNotes.current.size)return source;const next=clone(source);for(const {entryId,itemId,value} of pendingInlineNotes.current.values()){const item=next.entries.find(row=>row.id===entryId)?.items.find(row=>row.id===itemId);if(item)item.notes=value;}return next;};
+ const commitInlineNote=(entryId,itemId,value)=>setData(current=>{const currentItem=current.entries.find(row=>row.id===entryId)?.items.find(row=>row.id===itemId);if(!currentItem||currentItem.notes===value)return current;const next=clone(current);next.entries.find(row=>row.id===entryId).items.find(row=>row.id===itemId).notes=value;return next;});
+ const itemWithPendingNote=(entryId,item)=>{const pending=pendingInlineNotes.current.get(noteKey(entryId,item.id));return pending?{...item,notes:pending.value}:item;};
+ const openInlineItem=(item,parent)=>{const resolved=itemWithPendingNote(parent.id,item);pendingInlineNotes.current.delete(noteKey(parent.id,item.id));commitInlineNote(parent.id,item.id,resolved.notes||'');openItem(resolved,parent);};
  const packageView=packageId=><PackagesView data={data} locked={readOnly||busy||!!data.approvedAt} onArchive={(kind,record)=>setModal({type:'archiveQuote',kind,record})} onlyPackage={packageId} onPackage={pkg=>setModal({type:'package',pkg})} onQuote={(quote,packageId)=>setModal({type:'quote',quote,packageId})} onAward={(pid,qid)=>setModal({type:'award',packageId:pid,quoteId:qid})}/>;
  const entry=data.entries.find(e=>e.id===selected);
  const locations=[...new Set(data.entries.map(e=>e.location))];
@@ -100,6 +113,7 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
   setModal(null);detailScroll.current=window.scrollY;setEdit({item,parentId:entry.id,isNew:true,library:false});window.scrollTo(0,0);
  }
  async function persist(next,updates=[],assembly=null){
+  next=applyPendingInlineNotes(next);pendingInlineNotes.current.clear();
   if(!libraryOnly)next=proposalWithJob(next,associatedJob);
   setBusy(true);setSaveError('');
   try{const result=await onSave(next,updates,assembly);next=result?.document||next;baseline.current=JSON.stringify(next);setData(next);setSaved(true);setNotice('Saved to Supabase');return true;}
@@ -159,9 +173,9 @@ export default function WorkbenchEditor({initialDocument,onSave,onApprove,approv
  }
  function renderItem(item,parent){const v=itemPricing(item,data),isExpanded=expandedItems.has(parent.id+':'+item.id);return <section className={'work-item-group '+(issues(item).length?'incomplete':'')} aria-label={`Work item ${workItemReference(parent,item)} ${item.name}`} key={item.id}><div className="item-row">
   <button className="item-open" aria-expanded={isExpanded} aria-label={`${isExpanded?'Collapse':'Expand'} work item ${item.name}`} onClick={()=>toggleItem(item,parent)}>{isExpanded?<ChevronDown size={16}/>:<ChevronRight size={16}/>}<span className="identifier">{workItemReference(parent,item)}</span><span className="item-summary"><strong>{item.name}</strong><small>{item.kind} · {item.qty} {item.qty===1?'unit':'units'} · {item.lines?.length||0} components</small><small className="item-detail-hint">{isExpanded?'Hide details':'Show details'}</small></span></button>
-  <label className="inline-work-item-note"><span>Internal note</span><textarea rows="2" value={item.notes||''} disabled={readOnly||!!data.approvedAt||busy} placeholder="What is this item, or what needs review?" onChange={event=>update(d=>{d.entries.find(e=>e.id===parent.id).items.find(i=>i.id===item.id).notes=event.target.value;return d;})}/></label>
+  <InlineWorkItemNote value={item.notes} disabled={readOnly||!!data.approvedAt||busy} onDraft={value=>stageInlineNote(parent.id,item.id,value)} onCommit={value=>commitInlineNote(parent.id,item.id,value)}/>
   <select disabled={readOnly||!!data.approvedAt||busy} aria-label={`Status for ${item.name}`} value={item.status} onChange={ev=>update(d=>{d.entries.find(e=>e.id===parent.id).items.find(i=>i.id===item.id).status=ev.target.value;return d;})}>{statuses.map(s=><option key={s}>{s}</option>)}</select>
-  <strong className="amount">{money(v.price)}{hasOverride(item)&&<small className="manual">Markup override</small>}</strong><div className="item-actions"><IconButton icon={Copy} label={`Copy work item ${item.name}`} onClick={()=>copyToClipboard('workItem',item,`${workItemReference(parent,item)} · ${item.name}`)}/>{!readOnly&&!data.approvedAt&&<><IconButton icon={ChevronRight} label={`Open ${item.name}`} onClick={()=>openItem(item,parent)}/><IconButton icon={Trash2} label={`Delete work item ${item.name}`} disabled={busy} onClick={()=>setModal({type:'delete',entry:parent,item})}/></>}</div>
+  <strong className="amount">{money(v.price)}{hasOverride(item)&&<small className="manual">Markup override</small>}</strong><div className="item-actions"><IconButton icon={Copy} label={`Copy work item ${item.name}`} onClick={()=>copyToClipboard('workItem',itemWithPendingNote(parent.id,item),`${workItemReference(parent,item)} · ${item.name}`)}/>{!readOnly&&!data.approvedAt&&<><IconButton icon={ChevronRight} label={`Open ${item.name}`} onClick={()=>openInlineItem(item,parent)}/><IconButton icon={Trash2} label={`Delete work item ${item.name}`} disabled={busy} onClick={()=>setModal({type:'delete',entry:parent,item})}/></>}</div>
  </div>{isExpanded&&<WorkItemReview item={item} parent={parent} data={data}/>}</section>;}
  const libraryRows=filterAssemblies(data.library,libraryFilters);
  const editorTotals=edit?totals(edit.item,edit.item.laborRateOverride??data.rate):null;

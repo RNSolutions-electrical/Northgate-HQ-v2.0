@@ -12,6 +12,13 @@ test('estimate entries and work items provide internal note fields',()=>{
  assert.match(app,/Internal work item notes/);
  assert.match(app,/className="inline-work-item-note"/);
  assert.match(app,/What is this item, or what needs review\?/);
+ assert.match(app,/const InlineWorkItemNote=memo/);
+ assert.match(app,/onChange=\{event=>\{const next=event\.target\.value;setDraft\(next\);onDraft\(next\);\}\}/);
+ assert.match(app,/onBlur=\{\(\)=>\{focused\.current=false;onCommit\(draft\);\}\}/);
+ assert.match(app,/pendingInlineNotes=useRef\(new Map\(\)\)/);
+ assert.match(app,/next=applyPendingInlineNotes\(next\);pendingInlineNotes\.current\.clear\(\)/);
+ assert.match(app,/const openInlineItem=.*pendingInlineNotes\.current\.delete/);
+ assert.match(app,/onClick=\{\(\)=>openInlineItem\(item,parent\)\}/);
  assert.match(app,/excluded from customer proposals/);
 });
 
