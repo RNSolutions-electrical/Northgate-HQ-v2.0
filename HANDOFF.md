@@ -22502,3 +22502,23 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 1. Complete owner acceptance smoke tests of staging navigation/deep links and representative workflows.
 2. Audit the Silas/Change Order implementation and present the guided-builder plan; develop and test only on Development/Staging.
 3. Keep Production unchanged until a separately approved, versioned promotion.
+
+## Entry 300 — Staging smoke test and Change Order draft gap
+
+**Date:** 2026-09-23 15:10 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Staging readiness
+**Session type:** review
+
+### Review Findings
+
+- Ryan opened `/jobs` in a new staging tab, reselected the test job, and passed that navigation check. Jobs currently keep selected-record state inside the `/jobs` page; there is no individual URL to copy, so the originally suggested deep-link check was invalid.
+- The invited ordinary-User account is not assigned to the test job and did not see its Financials. A signed-out staging link went to sign-in. Together with prior HTTPS, invited-user and uninvited-user checks, the access/routing smoke test passes.
+- A Change Order draft with a populated breakdown line could not be saved on the zero-financial-line test job. The editor requires a financial line on every populated breakdown line. This conflicts with the agreed incomplete-draft/submission-gate behavior and is tracked as a Development/Staging workflow gap, not a staging infrastructure failure.
+- The shared queue was updated at roadmap commit `a7c61c1b1198e967d85a164d2668335c61e0b4fc`, marker `SYNC-LANTERN-20260923` on `development`. Documentation-only `[skip ci]`; no database migration or app deploy.
+
+### Next Steps (in order)
+
+1. Verify whether a header-only Change Order draft saves, then correct populated-line draft validation while keeping submission gated.
+2. Audit/plan the deterministic Silas Change Order builder against the same draft model; develop and test only on Development/Staging.
+3. Do not promote either change to Production without separate acceptance and release approval.
