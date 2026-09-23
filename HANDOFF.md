@@ -22483,3 +22483,22 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 
 - Staging custom-domain HTTPS remains pending, so the new Silas workflow has not begun.
 - The v5 review documents predate some deployed work. Reconcile each proposed slice against current `main` before implementing it.
+
+## Entry 299 — Staging HTTPS and account-access smoke checks
+
+**Date:** 2026-09-23 14:39 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Staging readiness
+**Session type:** review
+
+### Review Findings
+
+- A normal certificate-validating request to `https://staging.rnsolutions.net/` returned HTTP 200. The domain still resolves to the dedicated staging Netlify hostname. This supersedes the earlier certificate-name mismatch; no certificate warning was bypassed.
+- Ryan reports `ryan@thenorthgategroup.com` can sign in and sees standard-User content only. Ryan reports uninvited `Ryan@rnguns.com` could not sign in. The Developer CRNCMK staging isolation/write check was already recorded. These account observations are owner UI tests, not a comprehensive security audit.
+- Status was updated in `docs/ROADMAP.md` and `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` at roadmap commit `7f997eb472e711b4360a55135a40a6459971897c`, marker `SYNC-BIRCH-20260923` on `development`. Documentation-only `[skip ci]`; no migration or application deploy.
+
+### Next Steps (in order)
+
+1. Complete owner acceptance smoke tests of staging navigation/deep links and representative workflows.
+2. Audit the Silas/Change Order implementation and present the guided-builder plan; develop and test only on Development/Staging.
+3. Keep Production unchanged until a separately approved, versioned promotion.
