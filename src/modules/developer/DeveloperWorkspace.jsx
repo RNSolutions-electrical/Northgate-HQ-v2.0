@@ -24,6 +24,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
+import { useSilas } from '../../hooks/useSilas.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { DeveloperFeedbackQueue } from './DeveloperFeedbackQueue.jsx';
 import { DeveloperAddonsConsole } from './DeveloperAddonsConsole.jsx';
@@ -503,6 +504,7 @@ function DeveloperHelpfulLinks() {
 
 export function DeveloperWorkspace({ permissions }) {
   const { getToken } = useAuth();
+  const silas = useSilas({ permissions });
   const { user } = useUser();
   const [highlightIncomplete, setHighlightIncomplete] = useIncompleteHighlightPreference();
   const {
@@ -939,6 +941,17 @@ export function DeveloperWorkspace({ permissions }) {
             developmentOnly={false}
             incomplete={false}
           />
+        </article>
+
+        <article className="developer-console-section developer-toggle-card">
+          <Toolbar eyebrow="Silas" title="AI assistance" description="Controls AI chat only. Deterministic guided workflows remain available when AI is off." />
+          <label className="developer-highlight-toggle">
+            <input type="checkbox" checked={silas.silasEnabled} disabled={silas.settingsLoading || silas.isUpdatingSettings || Boolean(silas.settingsError)} onChange={(event) => void silas.toggleSilasEnabled(event.target.checked)} />
+            <span><strong>AI assistance enabled</strong><small>The existing Silas setting is reused; no external AI call is made by guided workflows.</small></span>
+          </label>
+          {silas.settingsError ? <p className="alert">AI setting could not be loaded.</p> : null}
+          {silas.chatError ? <p className="alert">{silas.chatError}</p> : null}
+          {silas.statusMessage ? <p role="status">{silas.statusMessage}</p> : null}
         </article>
 
         <article className="developer-console-section">

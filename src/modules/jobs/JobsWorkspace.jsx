@@ -33,6 +33,7 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
 import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
+import { GuidedChangeOrder } from '../silas/GuidedChangeOrder.jsx';
 import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
@@ -361,6 +362,7 @@ const JOB_CHANGE_ORDER_SELECT_FIELDS = [
   'description',
   'change_order_date',
   'internal_notes',
+  'guided_state',
   'price_amount',
   'cost_amount',
   'project_division_id',
@@ -2223,6 +2225,7 @@ export function JobsWorkspace({ permissions }) {
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [collapsedRevenueDivisions, setCollapsedRevenueDivisions] = useState({});
   const [changeOrderWorkspaceOrder, setChangeOrderWorkspaceOrder] = useState(undefined);
+  const [guidedChangeOrder, setGuidedChangeOrder] = useState(undefined);
   const [changeOrderSort, setChangeOrderSort] = useState({ key: '', direction: 'asc' });
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
@@ -2455,6 +2458,7 @@ export function JobsWorkspace({ permissions }) {
   }, [schedulePrintMode]);
 
   function selectJob(job) {
+    setGuidedChangeOrder(undefined);
     setSelectedJobId(job.id);
     setActiveTab('overview');
     setMode('browse');
@@ -2483,6 +2487,7 @@ export function JobsWorkspace({ permissions }) {
     if(confirmed!==true&&activeTab==='permits'&&(permitPanelState.dirty||permitPanelState.busy)){guardPermit(()=>returnToJobList(true));return;}
     setPermitPanelState({dirty:false,busy:false});
     setSelectedJobId('');
+    setGuidedChangeOrder(undefined);
     setActiveTab('overview');
     setMode('browse');
     setJobForm(DEFAULT_JOB_FORM);
@@ -4884,13 +4889,14 @@ export function JobsWorkspace({ permissions }) {
         { key: 'status', header: 'Status', sortable: true, render: (row) => <StatusBadge status={row.status} /> },
         { key: 'price_amount', header: 'Total', sortable: true, align: 'right', render: (row) => formatMoney(row.price_amount) },
         { key: 'decision_at', header: 'Decision', sortable: true, render: (row) => row.approved_at ? `Approved ${formatDateTime(row.approved_at)}` : row.denied_at ? `Denied ${formatDateTime(row.denied_at)}` : '-' },
-        { key: 'actions', header: 'Actions', render: (row) => <button type="button" className="secondary-button" onClick={() => setChangeOrderWorkspaceOrder(row)}>{row.status === 'draft' && permissions?.canCreateChangeOrders ? 'Edit Draft' : row.status === 'submitted' && permissions?.canSubmitChangeOrders ? 'Review / Edit' : row.status === 'approved' && permissions?.canReviseChangeOrders ? 'Review / Revise / Void' : row.status === 'voided' ? 'View Voided' : row.status === 'denied' ? 'View Denied' : 'View'}</button> },
+        { key: 'actions', header: 'Actions', render: (row) => <div className="guided-co__actions"><button type="button" className="secondary-button" onClick={() => setChangeOrderWorkspaceOrder(row)}>{row.status === 'draft' && permissions?.canCreateChangeOrders ? 'Edit Draft' : row.status === 'submitted' && permissions?.canSubmitChangeOrders ? 'Review / Edit' : row.status === 'approved' && permissions?.canReviseChangeOrders ? 'Review / Revise / Void' : row.status === 'voided' ? 'View Voided' : row.status === 'denied' ? 'View Denied' : 'View'}</button>{row.status === 'draft' && row.guided_state?.workflow === 'change_order' && permissions?.canCreateChangeOrders ? <button type="button" className="secondary-button" onClick={() => setGuidedChangeOrder(row)}>Resume with Silas</button> : null}</div> },
       ];
       return (
         <>
           {permissions?.canCreateChangeOrders ? (
             <div className="job-financials-quick-actions">
-            <button type="button" className="primary-button" onClick={() => setChangeOrderWorkspaceOrder(null)} {...uiElementAttributes('FUNCTION', 'Add Change Order')}><Plus aria-hidden="true" /> Add Change Order</button>
+            <button type="button" className="primary-button" onClick={() => setChangeOrderWorkspaceOrder(null)} {...uiElementAttributes('FUNCTION', 'Add Change Order')}><Plus aria-hidden="true" /> Create Manually</button>
+            <button type="button" className="secondary-button" onClick={() => setGuidedChangeOrder(null)}>Help Me Build It</button>
             </div>
           ) : null}
           <DataTable
@@ -5954,6 +5960,19 @@ export function JobsWorkspace({ permissions }) {
         </StatePanel>
       </section>
     );
+  }
+
+  if (guidedChangeOrder !== undefined && selectedJob) {
+    return <GuidedChangeOrder
+      key={guidedChangeOrder?.id || selectedJob.id}
+      job={selectedJob}
+      initialOrder={guidedChangeOrder}
+      budgetLines={jobBudget.lines}
+      permissions={permissions}
+      onClose={() => setGuidedChangeOrder(undefined)}
+      onChanged={() => jobChangeOrders.reload()}
+      onOpenDraft={(draft) => { setGuidedChangeOrder(undefined); setChangeOrderWorkspaceOrder(draft); jobChangeOrders.reload(); }}
+    />;
   }
 
   if (changeOrderWorkspaceOrder !== undefined && selectedJob) {

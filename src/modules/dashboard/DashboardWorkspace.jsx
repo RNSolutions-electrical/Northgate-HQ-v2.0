@@ -605,7 +605,7 @@ export function DashboardWorkspace({ permissions }) {
           <div className="dashboard-hero__actions">
             <button type="button" className="primary-button" onClick={() => openModule('/jobs')}>Open jobs</button>
             <button type="button" className="secondary-button secondary-button--inverse" onClick={() => openModule('/silas')}>
-              <Sparkles aria-hidden="true" /> Ask HQ
+              <Sparkles aria-hidden="true" /> Ask Silas
             </button>
           </div>
         </div>

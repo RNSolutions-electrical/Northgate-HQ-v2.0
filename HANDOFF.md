@@ -22569,3 +22569,15 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Applied Staging-only migration `20260923201445_change_order_uncoded_drafts.sql`. It permits a null `change_order_lines.job_budget_line_id` in drafts, preserves the existing permission/audit checks in the draft-save RPC, and adds database triggers that prohibit uncoded lines on submitted and later Change Orders.
 - Transactional Staging checks passed and were rolled back: header-only draft, uncoded populated draft, denied uncoded submission, coded submission, and ordinary-User create denial. No test Change Orders were retained. Vite build passed and 226 focused repository tests passed. A broad `npm test` attempt traversed unrelated backup `node_modules` and encountered an already-in-use test port; the focused test command excludes those untracked folders.
 - Owner acceptance remains: use the Staging test job to create a populated draft without a financial line, save/reopen it, verify Submit is blocked, assign a valid line, then submit. Cost Report source-file verification waits until the owner has a changed report Friday. Production promotion remains separate.
+
+## Entry 305 — Silas guided Change Order Staging candidate
+
+**Date:** 2026-09-23 17:05 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Development → Staging; Production unchanged
+**Sync marker:** `SYNC-COPPER-20260923-1705`
+
+- Implemented the same deterministic, draft-only guided Change Order interface from Dashboard → Ask Silas and Job → Change Orders → Help Me Build It. Existing Create Manually, AI chat, Change Order record/RPC, permissions, and audit path are retained. The existing Silas setting now controls AI assistance only; deterministic guidance remains available when AI is off.
+- Guidance captures overall scope, multiple line items, materials/labor/equipment and other costs, schedule/access, clarifications, internal working notes, and incomplete/ready review status. Navigation is non-linear; autosave and explicit Save & exit persist a real Change Order draft that can reopen in the ordinary editor. Ready for Review does not submit or approve.
+- Applied only to isolated Staging: `20260923205626_guided_change_order_drafts.sql` (resume state and gated save RPC) and `20260923210036_guided_change_order_stale_guard.sql` (rejects silent overwrite after manual/concurrent draft edits). Transactional Staging create/resume/permission/stale-conflict tests rolled back their test records. The full owner UI acceptance path remains pending.
+- Architecture/risk review: `docs/reviews/SILAS_GUIDED_CHANGE_ORDER_STAGING_20260923.md`. Do not grant field users Change Order draft rights implicitly or promote to Production without a separate decision. Friday's changed Cost Report document verification remains open.

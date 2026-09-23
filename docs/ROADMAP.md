@@ -1,6 +1,6 @@
 # Northgate HQ — shared work queue
 
-**Updated:** 2026-09-23 16:20 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
+**Updated:** 2026-09-23 17:05 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 
 ## Cross-machine sync convention
@@ -27,14 +27,13 @@ The marker proves a specific Git checkpoint, **not** that another machine has fe
 - Add safe environment/version/build/database-environment visibility to the Developer Console, as proposed in the environment restructure. Do not expose secrets.
 - Source: `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` and `docs/reviews/ENVIRONMENT_RELEASE_PHASE1_CURRENT_STATE_20260922.md`.
 
-## 3. Silas guided Change Order builder — design, then Development/Staging
+## 3. Silas guided Change Order builder — Staging owner acceptance pending
 
 - Source: Ryan's 2026-09-23 pasted proposal, *Northgate HQ — Silas Guided Workflows, Priority 2*. **Not implemented or approved for Production.** Its prerequisite is operational, isolated staging.
-- First audit existing Silas, Dashboard “Ask HQ,” Change Order draft RPC/UI, estimating, permissions, audit, and project routing. Present the short implementation plan and flag any core-workflow risks before coding.
-- Build one deterministic, resumable, **draft-only** guided workflow for both Dashboard → Ask Silas and Project → Change Order → Help Me Build It. Keep Create Manually first-class; reuse the existing Change Order record and calculation paths. No AI call for deterministic steps and no Silas privilege elevation.
-- Capture scope and one/multiple line items with applicable labor, material, equipment, other costs, schedule/access, clarifications, and concise teaching. Support save/exit/resume, missing-information guidance, review, and handoff to the real editable draft. “Ready for Review” must not submit or approve.
-- Separate the Developer Console AI-availability control from deterministic Silas availability. Optional AI actions and future provider work follow only after the reliable guided happy path; do not build other guided workflows in this slice.
-- Demonstrate/test both entry points, autosave/resume, permissions, AI-off operation, and manual-flow regression on Staging before any promotion decision.
+- The audit and additive implementation plan are recorded in `docs/reviews/SILAS_GUIDED_CHANGE_ORDER_STAGING_20260923.md`. The guided UI and two Staging migrations are implemented; owner acceptance is pending before any Production decision.
+- The implementation reuses one Change Order draft and pricing path from both Dashboard → Ask Silas and Project → Change Orders → Help Me Build It. Create Manually remains first-class. Scope, multiple line items, costs, schedule/access, clarifications, teaching, save/exit/resume, checklist, and ordinary editable-draft handoff are in the Staging candidate. “Ready for Review” is a guidance flag, not submission.
+- The existing Developer Silas setting is now presented as AI assistance availability. Guided steps remain available when AI is off and make no AI call. Optional AI actions and future provider work are later slices.
+- **Owner acceptance remaining:** demonstrate both entry points, autosave/resume, permissions, AI-off operation, manual-flow regression, stale-edit protection, and responsive layout on Staging before any Production decision.
 
 ## 4. V5 reconciliation — tracked remaining slices
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
 
 export const SILAS_EMPTY_HELPER_COPY = 'Silas can answer questions about anything you have access to and can help with tasks like logging receipts. Silas never makes changes without your approval, and can only do what you\'re already permitted to do.';
-export const SILAS_DISABLED_HELPER_COPY = 'Silas is currently unavailable. Contact a Developer if you believe this is unexpected.';
+export const SILAS_DISABLED_HELPER_COPY = 'AI assistance is off. Guided Silas workflows remain available.';
 
 function normalizeConversation(row) {
   return {
@@ -316,11 +316,11 @@ export function useSilas({ permissions }) {
       if (error) throw error;
       setSettings(data);
       if (!data.silas_enabled) {
-        setStatusMessage('Silas disabled.');
+        setStatusMessage('AI assistance disabled. Guided workflows remain available.');
         setMessages([]);
         setActiveConversationId(null);
       } else {
-        setStatusMessage('Silas enabled.');
+        setStatusMessage('AI assistance enabled.');
         await loadConversations({ preserveSelection: false });
       }
     } catch (error) {
