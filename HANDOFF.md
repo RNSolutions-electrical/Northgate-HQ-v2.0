@@ -22458,3 +22458,28 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   Git-triggered production deployment.
 - Durable sync marker: `AMBER-LEDGER-20260922-001`. This final documentation-only
   checkpoint uses `[skip ci]` to retain the verified feature deployment.
+
+## Entry 298 — Consolidated cross-machine roadmap and sync metadata
+
+**Date:** 2026-09-23 14:29:33 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Development/Staging planning
+**Session type:** alignment
+
+### What Was Completed
+
+- Consolidated the active staging gates, release controls, Silas guided Change Order proposal, remaining v5 slices, and deferred database/Storage recovery into `docs/ROADMAP.md`.
+- Established the future cross-machine checkpoint convention: unique marker, local timestamp with UTC offset, actual hostname, branch, commit SHA, and separate deployment/migration status.
+- Roadmap commit: `013b4aa87a423ff799e7f5d17f2dcaba8738d38f` on `development`; marker `SYNC-MAPLE-20260923`. Documentation-only `[skip ci]` checkpoint; no application deployment or database migration.
+
+### Next Steps (in order)
+
+1. Verify the staging custom-domain certificate with normal TLS validation; do not bypass warnings.
+2. Test ordinary-User and uninvited access on staging, then complete owner acceptance smoke testing.
+3. Audit and plan the deterministic Silas Change Order builder before implementation on Development/Staging.
+4. Use the consolidated roadmap to choose the next v5 slice; decide database and Storage recovery before broader beta reliance.
+
+### Open Questions / Concerns
+
+- Staging custom-domain HTTPS remains pending, so the new Silas workflow has not begun.
+- The v5 review documents predate some deployed work. Reconcile each proposed slice against current `main` before implementing it.
