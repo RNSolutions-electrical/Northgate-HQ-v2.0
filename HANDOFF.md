@@ -22458,3 +22458,54 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   Git-triggered production deployment.
 - Durable sync marker: `AMBER-LEDGER-20260922-001`. This final documentation-only
   checkpoint uses `[skip ci]` to retain the verified feature deployment.
+
+## Entry 298 — Isolated Production demo patch candidate
+
+**Date:** 2026-09-23 19:56 EDT
+**Updated by:** Codex on Ryan_Northgate
+**Phase:** Production demo patch candidate; not promoted
+**Session type:** implementation and review
+
+### Context
+- Work started from `origin/main` at `0340cdf` in separate branch/worktree
+  `codex/production-demo-patch`; Development and Staging branches were not merged.
+- Sync marker: `PINE-FOUNDRY-20260923-001` (candidate, not a live marker).
+
+### What Was Completed
+- Added presentation-only budget-health states and row badges to Job Financials.
+- Added four informational project-responsibility slots, separate from project-team
+  assignments that affect visibility. Server requires Manager-level business role
+  plus existing job-management permission; changes have before/after audit records.
+- Added percentage input for individual draft Change Order lines. Legacy records
+  retain dollar markup; the existing total pipeline remains dollar-based.
+- Production schema was inspected read-only. No Production migration or deployment
+  occurred. Isolated Staging database accepted the three additive migrations.
+- A too-broad first responsibility read policy was rejected by safety review;
+  the final migration uses RPC-only reads and writes. Staging confirms no direct
+  authenticated/anonymous table read grant and no anonymous RPC execute grant.
+- App build passed with build-only placeholder environment values. 218 selected
+  automated tests passed. Broad `npm test` had 218 passes and one unrelated local
+  helper failure because port 5320 was already occupied.
+
+### Schema Changes
+- `20260923120000_job_responsibilities_demo.sql`: new table, primary key per
+  job/slot, employee foreign key, index, RLS deny-by-default, scoped read/write
+  RPCs, audit entry.
+- `20260923121000_change_order_line_markup_rates_demo.sql`: nullable rate on
+  existing Change Order lines and atomic draft-save wrapper; historical rates null.
+- `20260923121500_job_responsibility_serialization_demo.sql`: serializes same-job
+  responsibility edits before capturing audit before/after values.
+
+### Open Questions / Concerns
+- Production Change Orders have no overall markup field or calculation order.
+  Overall percentage markup is intentionally not implemented. Owner must define
+  whether it applies to raw line subtotals or line totals after individual markup.
+- No Staging web preview or authenticated end-to-end UI test has been completed.
+  Do not promote to Production solely on the build/unit tests.
+- Staging schema is additive; Production schema and live app remain unchanged.
+
+### Next Steps (in order)
+1. Decide overall Change Order markup base/order; implement and test separately.
+2. Validate the candidate with authenticated Staging UI workflows and role checks.
+3. Review exact release diff, recovery point, migrations and deployment path before
+   any Production promotion. Do not merge unrelated Development/Staging features.
