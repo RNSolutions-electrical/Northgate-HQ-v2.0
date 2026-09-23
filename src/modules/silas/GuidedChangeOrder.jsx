@@ -111,6 +111,10 @@ export function GuidedChangeOrder({ job, initialOrder = null, budgetLines = EMPT
         setSaveStatus('Draft saved');
         return orderId.current;
       } catch (saveError) {
+        if (current.current.readyForReview) {
+          current.current = { ...current.current, readyForReview: false };
+          setState(current.current);
+        }
         setError(saveError.message || 'Draft could not be saved.');
         setSaveStatus('Save failed');
         return null;

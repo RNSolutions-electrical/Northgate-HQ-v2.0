@@ -22581,3 +22581,12 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Guidance captures overall scope, multiple line items, materials/labor/equipment and other costs, schedule/access, clarifications, internal working notes, and incomplete/ready review status. Navigation is non-linear; autosave and explicit Save & exit persist a real Change Order draft that can reopen in the ordinary editor. Ready for Review does not submit or approve.
 - Applied only to isolated Staging: `20260923205626_guided_change_order_drafts.sql` (resume state and gated save RPC) and `20260923210036_guided_change_order_stale_guard.sql` (rejects silent overwrite after manual/concurrent draft edits). Transactional Staging create/resume/permission/stale-conflict tests rolled back their test records. The full owner UI acceptance path remains pending.
 - Architecture/risk review: `docs/reviews/SILAS_GUIDED_CHANGE_ORDER_STAGING_20260923.md`. Do not grant field users Change Order draft rights implicitly or promote to Production without a separate decision. Friday's changed Cost Report document verification remains open.
+
+## Entry 306 — Guided draft save-failure state correction
+
+**Date:** 2026-09-23 17:06 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Development → Staging; Production unchanged
+**Sync marker:** `SYNC-WILLOW-20260923-1706`
+
+- When a guided autosave or Ready for Review save fails, the interface clears its unsaved ready indicator and keeps the error visible. This avoids presenting an unsaved review decision as persisted. The user can retry or explicitly exit without overwriting a newer draft.
