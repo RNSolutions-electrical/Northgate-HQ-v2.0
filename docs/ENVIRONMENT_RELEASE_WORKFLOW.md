@@ -1,22 +1,30 @@
 # Environment and release workflow — implementation draft
 
-**Status (2026-09-23):** Preparatory implementation on `development`. The independent Netlify staging project and a persistent, data-less Supabase branch exist, but no application has been deployed to staging. Schema replay and structural parity are verified. The separate invite-only Clerk staging instance has verified DNS and issued SSL certificates. Netlify verified the staging domain DNS, but its site certificate has not yet been observed as issued. The staging Netlify project has no environment variables. Developer-only access, authentication against the staging database, and end-to-end isolation are not yet verified. Staging is **not** ready for testers.
+**Status (2026-09-23):** Independent staging is deployed from `staging` commit `58ea95e2834588679da02d4eb44a21b653ebe711` (Netlify deploy `6ab410cc3fab6c5ff1b8eccd`). Both invited Clerk accounts accepted; CRNCMK signed in as Developer and created a staging-only test job. A Production query confirmed the job is absent there. **Do not begin normal staging testing yet:** Netlify still reports the custom-domain certificate pending, and an independent HTTPS check reported a certificate-name mismatch. The ordinary-User login and uninvited-access denial remain to be tested. Production code and database were not changed.
 
 ## Vocabulary
 
 - **Production:** the live Northgate HQ application at `rnsolutions.net/northgate`, regardless of version number.
-- **Staging:** completed development awaiting owner/developer acceptance at `staging.rnsolutions.net`. Infrastructure is being provisioned; the app is not deployed there.
+- **Staging:** completed development awaiting owner/developer acceptance at `staging.rnsolutions.net`; independently deployed, with custom-domain TLS verification pending.
 - **Development:** active work, including incomplete features. Not user-facing by default.
 - **Release:** a known code commit, database migration set and deployment record carrying an immutable `v0.x.y` tag and corresponding GitHub Release. `1.0.0` is reserved for the first company-wide release.
 
 Historical `V1`–`V5`, the repository name, and `package.json` `3.0.0` are development-generation labels, **not** official SemVer releases. No formal baseline version has been assigned yet.
+
+## Current staging handoff — 2026-09-23
+
+The separate Netlify site `431ce717-1a06-45a0-9d7a-8acd06a67dde` is Git-connected to `staging`, not `main`. Its first ready deploy is `6ab410cc3fab6c5ff1b8eccd` at commit `58ea95e2834588679da02d4eb44a21b653ebe711`. Its Netlify “production” deploy context means the primary deploy of the **staging site**, not Northgate Production. Staging-only Vite, Clerk, Supabase, and function variables are configured in that site's settings; read tools remain disabled. The app showed the persistent STAGING banner and `[STAGING]` title. `staging.rnsolutions.net` resolves to the staging Netlify site, but HTTPS must not yet be treated as ready: Netlify still says its certificate is pending and an independent request detected a certificate-name mismatch. Never bypass a browser certificate warning.
+
+Both invite-only Clerk users accepted. In **staging Supabase only**, `crncmk@gmail.com` (`user_3JjrKX3mwAtnlrT2oONmKo6QX4x`) is Primary/Developer with a technical Developer assignment; `ryan@thenorthgategroup.com` (`user_3JjqnWuXGQHjmoLKEBMSEStbRiN`) is an ordinary Electrical User. This replaced a stale staging primary binding to a Production Clerk identity. CRNCMK's signed-in staging session read the empty Jobs directory and created `STAGING Smoke Test 2026-09-23` (`STG-20260923-001`). A read-only staging query found one matching job; the same query against Production Supabase `keogysnoukbendfkfjcn` found zero. The fixture remains in staging. Ordinary-User and uninvited-user behavior have not been smoke-tested. No Production schema, data, code, or deploy was changed.
+
+The historical readiness notes below describe the sequence before deployment; where they say “undeployed,” “pending invitations,” or “no environment variables,” this handoff section supersedes them. Next gates: verify the custom-domain certificate with normal TLS validation, test the Ryan User session and an uninvited access denial, then complete owner acceptance testing. Keep database backup/recovery on the roadmap; it has not been implemented.
 
 ## Branch and environment map
 
 | Branch | Purpose | Deployment | Database |
 | --- | --- | --- | --- |
 | `main` | Production source; currently deployed automatically by the existing Netlify site | `rnsolutions.net/northgate` | Existing production Supabase `keogysnoukbendfkfjcn` |
-| `staging` | Accepted integration candidate; locally created from production baseline | Dedicated Netlify site `northgate-hq-staging`, not yet deployed | Persistent data-less Supabase branch `fazfwzbuesvzhgodckiw`; structural schema parity verified |
+| `staging` | Integration/acceptance candidate; published at `58ea95e` | Dedicated Netlify site `northgate-hq-staging`, deployed from this branch | Persistent, initially data-less Supabase branch `fazfwzbuesvzhgodckiw`; now holds staging identities and one labeled smoke-test job |
 | `development` | Active feature work; locally created from production baseline | No production deployment | Must not default to production for test writes |
 
 All three branches were initialized locally from production commit `0340cdf8cc4a93f41cce8ed5a40553161e86314f` on 2026-09-22. `development` was published only after adding a build/runtime guard that rejects non-production builds configured for the Production Supabase project; `main` remains unchanged. The separate Netlify site ID is `431ce717-1a06-45a0-9d7a-8acd06a67dde`; Wix DNS `staging` is a verified CNAME to `northgate-hq-staging.netlify.app`. The staging Supabase branch ID is `aa1505f5-2c98-4a4c-b66c-1d60a2f8723f`, project ref `fazfwzbuesvzhgodckiw`, with `persistent=true` and `with_data=false`. **Do not deploy the app yet:** an access boundary and isolated build/function configuration are still missing. Do **not** push `staging` or enable a staging deploy until those gates and an end-to-end isolation test pass. Keep legacy recovery/backup branches and untracked local output intact.
