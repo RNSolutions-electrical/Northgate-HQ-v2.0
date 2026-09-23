@@ -22534,3 +22534,14 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Cost Report Import moves into an overlay with a file preview, exact-match selection, select-all, division selection, top-level/all-code detail, and separate estimate/actual/revenue choices. Estimated and actual values use the existing audited `save_job_financial_batch` RPC. Revenue is displayed in preview only until its Billing/SOV destination is explicitly confirmed. Unmatched/ambiguous rows cannot be written.
 - Staging's shared financial-line catalogue was empty, preventing template use. Read-only Production catalogue definitions (codes/descriptions/division/category/protection/sort metadata only, no job or financial amounts) were copied into the isolated Staging catalogue: 177 active lines. No schema migration was needed or applied; no Production writes occurred.
 - Test before Production promotion: create a few template lines in the staging test job, edit a manual line, and preview/import a cost report with division and amount choices. Owner should decide whether report Revenue is intended to populate Billing/SOV, and what mapping/reconciliation controls it requires. Production promotion remains a separate release decision.
+
+## Entry 302 — Staging template re-run and permission repair
+
+**Date:** 2026-09-23 15:50 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Staging repair; Production unchanged
+**Sync marker:** `SYNC-MAPLE-20260923-1550`
+
+- The template did not fail on the first run: its audit entry shows 12 project divisions and 165 new financial lines, with 12 existing Change Order lines aligned. The test job now has 177 active financial lines. The later 0/0/0 result was an idempotent re-run; the UI now describes it as "already present and aligned" instead of implying a fresh application.
+- The independent page-refresh error was a Staging grant gap: `authenticated` lacked table-level `SELECT` on `user_permissions` even though self-only RLS existed. Applied Staging migration `20260923194702_staging_user_permissions_self_read.sql`, granting only `SELECT` to authenticated. Verified anon remains denied, the self-only policy is unchanged, and an authenticated session without a JWT subject sees zero rows.
+- Continue owner testing on Staging; do not treat this as Production acceptance or deploy to Production without a separate decision.

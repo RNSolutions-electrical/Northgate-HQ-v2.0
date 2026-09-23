@@ -3632,7 +3632,12 @@ export function JobsWorkspace({ permissions }) {
         p_reason: reason?.trim() || null,
       });
       if (error) throw error;
-      setBudgetTemplateAction({ key: '', error: null, success: `${data?.divisions_added || 0} project division(s) added, ${data?.lines_added || 0} financial line(s) added, and ${data?.lines_aligned || 0} existing line(s) aligned. Financial values were preserved.` });
+      const addedDivisions = Number(data?.divisions_added || 0);
+      const addedLines = Number(data?.lines_added || 0);
+      const alignedLines = Number(data?.lines_aligned || 0);
+      setBudgetTemplateAction({ key: '', error: null, success: addedDivisions + addedLines + alignedLines === 0
+        ? 'All selected template lines are already present and aligned. No financial values were changed.'
+        : `${addedDivisions} project division(s) added, ${addedLines} financial line(s) added, and ${alignedLines} existing line(s) aligned. Financial values were preserved.` });
       setCatalogueSelectedIds([]);
       setIsBudgetTemplateOpen(false);
       jobBudget.reload();
