@@ -12,6 +12,7 @@ export const JOB_DOCUMENT_CATEGORIES = Object.freeze([
   { key: 'closeout', label: 'Closeout Docs', description: 'As-builts, O&M manuals, warranties, lien waivers, and turnover records.' },
   { key: 'invoices', label: 'Invoices', description: 'Vendor, subcontractor, and project invoice documents.' },
   { key: 'quotes', label: 'Quotes', description: 'Vendor, subcontractor, and supplier quotes used for pricing or backup.' },
+  { key: 'cost_reports', label: 'Cost Reports', description: 'Source reports uploaded while updating Job Financials.' },
   { key: 'misc', label: 'Misc', description: 'Project documents that do not fit another required category.' },
   { key: 'pay_apps', label: 'Pay Apps', description: 'Applications for payment, draw backup, and billing packages.' },
 ]);

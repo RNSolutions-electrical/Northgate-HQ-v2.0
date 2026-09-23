@@ -176,6 +176,7 @@ const DEFAULT_BUDGET_IMPORT = Object.freeze({
   selectedCodes: [],
   granularity: 'all',
   fields: { estimate: false, actual: true, revenue: false },
+  uploadedDocument: null,
   reason: '',
   isParsing: false,
   isImporting: false,
@@ -3833,7 +3834,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   async function previewBudgetImport(file) {
-    setBudgetImport((current) => ({ ...current, file, preview: null, selectedCodes: [], isParsing: Boolean(file), error: null, success: '' }));
+    setBudgetImport((current) => ({ ...current, file, preview: null, selectedCodes: [], uploadedDocument: null, isParsing: Boolean(file), error: null, success: '' }));
     if (!file) return;
     try {
       const text = await extractImportTextFromFile(file);
@@ -3881,19 +3882,58 @@ export function JobsWorkspace({ permissions }) {
     }
     if (!window.confirm(`Import ${changes.length} changed financial line${changes.length === 1 ? '' : 's'} from ${budgetImport.file.name}? Review the selected divisions and values before continuing.`)) return;
     setBudgetImport((current) => ({ ...current, isImporting: true, error: null, success: '' }));
+    let uploadedDocument = budgetImport.uploadedDocument?.file === budgetImport.file
+      && budgetImport.uploadedDocument?.jobId === selectedJob.id
+      ? budgetImport.uploadedDocument : null;
     try {
       const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
+      if (!uploadedDocument) {
+        const documentId = crypto.randomUUID();
+        const storagePath = `documents/job/${selectedJob.id}/cost-reports/${documentId}/${sanitizeDocumentFileName(budgetImport.file.name)}`;
+        const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
+        const { error: insertError } = await client.from('documents').insert({
+          id: documentId,
+          division: selectedJob.division,
+          owner_type: 'job',
+          owner_id: selectedJob.id,
+          storage_path: storagePath,
+          file_name: budgetImport.file.name,
+          document_type: 'cost_reports',
+          description: 'Source cost report submitted from Job Financials. Uploading the file does not by itself confirm that financial values were applied.',
+          file_size_bytes: budgetImport.file.size,
+          mime_type: budgetImport.file.type || null,
+          created_by: createdBy,
+        });
+        if (insertError) throw insertError;
+        const { error: uploadError } = await client.storage.from(DOCUMENT_BUCKET).upload(storagePath, budgetImport.file, {
+          contentType: budgetImport.file.type || 'application/octet-stream',
+          upsert: false,
+        });
+        if (uploadError) {
+          await archiveFailedDocument(client, documentId, `Cost report upload failed: ${uploadError.message}`);
+          throw uploadError;
+        }
+        uploadedDocument = { id: documentId, storagePath, file: budgetImport.file, jobId: selectedJob.id };
+        setBudgetImport((current) => current.file === budgetImport.file ? { ...current, uploadedDocument } : current);
+        jobDocuments.reload();
+      }
+      const documentedChanges = changes.map((change) => ({
+        ...change,
+        source: { ...change.source, document_id: uploadedDocument.id, storage_path: uploadedDocument.storagePath },
+      }));
       const { error } = await client.rpc('save_job_financial_batch', {
-        p_job_id: selectedJob.id, p_lines: changes,
+        p_job_id: selectedJob.id, p_lines: documentedChanges,
         p_reason: changes.some((change) => 'budget_amount' in change) ? budgetImport.reason.trim() : null,
       });
       if (error) throw error;
-      setBudgetImport((current) => ({ ...current, isImporting: false, success: `${changes.length} financial line${changes.length === 1 ? '' : 's'} updated. Revenue was not changed.`, error: null }));
+      setBudgetImport((current) => ({ ...current, isImporting: false, success: `${changes.length} financial line${changes.length === 1 ? '' : 's'} updated. The source report is in Documents; revenue was not changed.`, error: null }));
       jobBudget.reload();
     } catch (error) {
       console.error('Job budget import failed', error);
-      setBudgetImport((current) => ({ ...current, isImporting: false, error, success: '' }));
+      setBudgetImport((current) => ({ ...current, isImporting: false, error: uploadedDocument
+        ? new Error(`${error.message} The source report remains in Documents; no financial values were changed by the failed batch. Correct the issue, then retry without re-uploading.`)
+        : error, success: '' }));
     }
   }
 
@@ -5233,7 +5273,7 @@ export function JobsWorkspace({ permissions }) {
                 return <label key={division}><input type="checkbox" disabled={!rows.length} checked={Boolean(rows.length) && rows.every((row) => budgetImport.selectedCodes.includes(row.code))} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...new Set([...current.selectedCodes, ...rows.map((row) => row.code)])] : current.selectedCodes.filter((code) => !rows.some((row) => row.code === code)) }))} /><span><strong>Division {division}</strong><small>{rows.length} matching lines</small></span></label>;
               })}</div><div className="financial-setup-lines">{importVisibleRows.map((row) => <label key={row.code}><input type="checkbox" disabled={row.matches.length !== 1} checked={budgetImport.selectedCodes.includes(row.code)} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...current.selectedCodes, row.code] : current.selectedCodes.filter((code) => code !== row.code) }))} /><span><strong>{row.rawCode}</strong> · {row.matches.length === 1 ? row.matches[0].description : row.matches.length ? 'Ambiguous match — review manually' : 'No matching job line'}<small>Estimate {row.estimate == null ? '—' : formatMoney(row.estimate)} · Actual {row.actual == null ? '—' : formatMoney(row.actual)} · Revenue {row.revenue == null ? '—' : formatMoney(row.revenue)}</small></span></label>)}</div></div>
               <div className="financial-export-section"><strong>Values to import</strong><div className="financial-export-options">{[['estimate', 'Estimated Costs / Original Budget'], ['actual', 'Actual Costs'], ['revenue', 'Revenue (preview only)']].map(([field, label]) => <label key={field}><input type="checkbox" checked={budgetImport.fields[field]} onChange={(event) => setBudgetImport((current) => ({ ...current, fields: { ...current.fields, [field]: event.target.checked } }))} />{label}</label>)}</div>{budgetImport.fields.revenue ? <p className="muted-copy">Revenue is displayed for review but will not write to Billing/SOV in this import.</p> : null}{budgetImport.fields.estimate ? <label><span>Reason for Original Budget updates</span><input value={budgetImport.reason} onChange={(event) => setBudgetImport((current) => ({ ...current, reason: event.target.value }))} placeholder="Required when importing estimates" /></label> : null}</div>
-              <p className="muted-copy">{budgetImport.selectedCodes.filter((code) => importVisibleRows.some((row) => row.code === code && row.matches.length === 1)).length} matched lines selected. Unmatched and ambiguous lines are never changed.</p>
+              <p className="muted-copy">{budgetImport.selectedCodes.filter((code) => importVisibleRows.some((row) => row.code === code && row.matches.length === 1)).length} matched lines selected. Unmatched and ambiguous lines are never changed. The original report will be saved in Job Documents under Cost Reports before the financial batch is applied.</p>
             </> : null}
             {budgetImport.error ? <StatePanel tone="danger" title="Import not ready" description={budgetImport.error.message} compact /> : null}
             {budgetImport.success ? <StatePanel tone="success" title="Financial values updated" description={budgetImport.success} compact /> : null}

@@ -22545,3 +22545,15 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - The template did not fail on the first run: its audit entry shows 12 project divisions and 165 new financial lines, with 12 existing Change Order lines aligned. The test job now has 177 active financial lines. The later 0/0/0 result was an idempotent re-run; the UI now describes it as "already present and aligned" instead of implying a fresh application.
 - The independent page-refresh error was a Staging grant gap: `authenticated` lacked table-level `SELECT` on `user_permissions` even though self-only RLS existed. Applied Staging migration `20260923194702_staging_user_permissions_self_read.sql`, granting only `SELECT` to authenticated. Verified anon remains denied, the self-only policy is unchanged, and an authenticated session without a JWT subject sees zero rows.
 - Continue owner testing on Staging; do not treat this as Production acceptance or deploy to Production without a separate decision.
+
+## Entry 303 — Financial import source reports in Job Documents
+
+**Date:** 2026-09-23 16:00 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Development → Staging; Production unchanged
+**Sync marker:** `SYNC-ASH-20260923-1600`
+
+- A successful cost-report import now creates a Job Document in the new Cost Reports category and uploads the original file before applying the audited `save_job_financial_batch` transaction. The financial audit source includes the document ID and path. Retrying the same in-session file after a batch failure reuses its document instead of uploading it again.
+- If the file upload fails, the existing failed-upload cleanup RPC archives its metadata. If the later financial batch fails, the source document remains visible to authorized financial users, while the UI states that no values were applied. This is deliberate non-atomic file/database behavior, not a claim that an uploaded report was successfully imported.
+- Staging migration `20260923195722_job_cost_report_documents.sql` adds narrow insert/read policies on `documents` and `storage.objects` and extends failed-upload cleanup only for authorized Job Financials cost reports. Raw reports require protected project financial read access; budget approval authority permits the import upload. No parallel storage/table was added.
+- The owner confirmed the Financials tab and report import work on Staging. Next acceptance check: import a changed report, open Job → Documents → Cost Reports, and open/download the original; verify a user lacking protected project financial access cannot retrieve the file. Production promotion requires separate approval.
