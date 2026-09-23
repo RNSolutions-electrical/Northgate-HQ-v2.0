@@ -169,8 +169,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       setAction({ name: '', error: new Error('Breakdown amounts must be valid numbers.'), success: '' });
       return null;
     }
-    if (meaningfulLines.some((line) => !line.job_budget_line_id || !line.description.trim())) {
-      setAction({ name: '', error: new Error('Every breakdown line needs a financial line and description.'), success: '' });
+    if (meaningfulLines.some((line) => !line.description.trim())) {
+      setAction({ name: '', error: new Error('Every saved breakdown line needs a description. A financial line can be assigned before submission.'), success: '' });
       return null;
     }
     setAction({ name: 'save', error: null, success: '' });
@@ -203,6 +203,11 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
 
   async function submitOrder() {
     if (!canSubmit || action.name) return;
+    const uncodedLines = lines.filter((line) => (line.description.trim() || MONEY_FIELDS.some((field) => Number(line[field] || 0) !== 0)) && !line.job_budget_line_id);
+    if (uncodedLines.length) {
+      setAction({ name: '', error: new Error(`Assign a financial line to ${uncodedLines.length} breakdown line${uncodedLines.length === 1 ? '' : 's'} before submitting. You can save this as a draft now.`), success: '' });
+      return;
+    }
     let target = order;
     if (canEditDraft) target = await saveDraft();
     if (!target) return;
@@ -460,13 +465,13 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       </div>
 
       <div className="change-order-workspace__panel">
-        <Toolbar eyebrow="Pricing" title="Division / cost breakdown" description="Each line maps to an existing project financial line. Client PDF shows only its description and total; internal component costs remain private." actions={isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => setLines((current) => [...current, blankLine(defaultBudgetLine, current.length)])}><Plus aria-hidden="true" /> Add Line</button> : null} />
+        <Toolbar eyebrow="Pricing" title="Division / cost breakdown" description="You can save a draft before coding each line. Assign an existing project financial line before submission; the client PDF shows only its description and total." actions={isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => setLines((current) => [...current, blankLine(defaultBudgetLine, current.length)])}><Plus aria-hidden="true" /> Add Line</button> : null} />
         <div className="change-order-lines">
           {lines.map((line, index) => (
             <article className="change-order-line" key={line.key}>
               <div className="change-order-line__heading"><strong>Line {index + 1}</strong><span>{money(lineTotal(line))}</span></div>
               <div className="change-order-line__grid">
-                <label><span>Financial line / cost code</span><select value={line.job_budget_line_id} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
+                <label><span>Financial line / cost code <small>{!line.job_budget_line_id ? 'Required to submit' : ''}</small></span><select value={line.job_budget_line_id || ''} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Save draft without coding</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
                 <label><span>Vendor / subcontractor</span><input value={line.vendor_name || ''} onChange={(e) => updateLine(line.key, 'vendor_name', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 <label className="change-order-line__wide"><span>Description / scope</span><input value={line.description || ''} onChange={(e) => updateLine(line.key, 'description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 {MONEY_FIELDS.map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}

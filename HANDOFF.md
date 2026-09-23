@@ -22557,3 +22557,15 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - If the file upload fails, the existing failed-upload cleanup RPC archives its metadata. If the later financial batch fails, the source document remains visible to authorized financial users, while the UI states that no values were applied. This is deliberate non-atomic file/database behavior, not a claim that an uploaded report was successfully imported.
 - Staging migration `20260923195722_job_cost_report_documents.sql` adds narrow insert/read policies on `documents` and `storage.objects` and extends failed-upload cleanup only for authorized Job Financials cost reports. Raw reports require protected project financial read access; budget approval authority permits the import upload. No parallel storage/table was added.
 - The owner confirmed the Financials tab and report import work on Staging. Next acceptance check: import a changed report, open Job → Documents → Cost Reports, and open/download the original; verify a user lacking protected project financial access cannot retrieve the file. Production promotion requires separate approval.
+
+## Entry 304 — Staging Change Order drafts without financial coding
+
+**Date:** 2026-09-23 16:20 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Development → Staging; Production unchanged
+**Sync marker:** `SYNC-SPRUCE-20260923-1620`
+
+- The Change Order workspace now saves populated draft lines with descriptions and amounts before a financial line is assigned. The financial-line selector explicitly marks coding as required for submission, and the submission action identifies uncoded lines.
+- Applied Staging-only migration `20260923201445_change_order_uncoded_drafts.sql`. It permits a null `change_order_lines.job_budget_line_id` in drafts, preserves the existing permission/audit checks in the draft-save RPC, and adds database triggers that prohibit uncoded lines on submitted and later Change Orders.
+- Transactional Staging checks passed and were rolled back: header-only draft, uncoded populated draft, denied uncoded submission, coded submission, and ordinary-User create denial. No test Change Orders were retained. Vite build passed and 226 focused repository tests passed. A broad `npm test` attempt traversed unrelated backup `node_modules` and encountered an already-in-use test port; the focused test command excludes those untracked folders.
+- Owner acceptance remains: use the Staging test job to create a populated draft without a financial line, save/reopen it, verify Submit is blocked, assign a valid line, then submit. Cost Report source-file verification waits until the owner has a changed report Friday. Production promotion remains separate.

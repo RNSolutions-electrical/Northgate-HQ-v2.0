@@ -1,6 +1,6 @@
 # Northgate HQ — shared work queue
 
-**Updated:** 2026-09-23 15:10 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
+**Updated:** 2026-09-23 16:20 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 
 ## Cross-machine sync convention
@@ -11,13 +11,13 @@ For each new work checkpoint, record a unique sync marker in the commit message 
 
 The marker proves a specific Git checkpoint, **not** that another machine has fetched it, a migration was applied, or a site deployed. Verify branch/SHA and deployment separately. Never reuse a marker. For changes not yet committed, record `uncommitted` and do not call them synchronized. A documentation-only commit with `[skip ci]` need not redeploy the app. Do not embed secrets or machine-local paths in the sync entry.
 
-## 1. Staging readiness — access/routing smoke test passed; workflow gap open
+## 1. Staging readiness — access/routing smoke test passed; Change Order draft fix awaiting owner acceptance
 
 - The independent `staging` branch/site and isolated staging Supabase exist. First app deploy: `58ea95e`, Netlify deploy `6ab410cc3fab6c5ff1b8eccd`. Both designated Clerk invitations were accepted. A Developer signed in and created a labeled job that was confirmed absent from Production.
 - **Verified 2026-09-23:** A normal certificate-validating HTTPS request to `https://staging.rnsolutions.net/` returned HTTP 200, and the CNAME still pointed at the dedicated staging Netlify site. This supersedes the earlier certificate-mismatch observation.
 - **Owner-tested 2026-09-23:** Invited `ryan@thenorthgategroup.com` signed in and saw only standard-User content; uninvited `Ryan@rnguns.com` could not sign in. These are reported UI results, not an exhaustive server-side permission audit.
 - **Owner-tested 2026-09-23:** Opening `/jobs` in a new tab loaded the directory and allowed reselection of the test job. Job selection is page state, **not** an individual shareable URL; the former “copy job deep link” test was corrected accordingly. The ordinary-User account is not assigned to that test job and could not see its Financials. Opening a staging link while signed out navigated to sign-in. These results pass the access/routing smoke test.
-- **Open application workflow gap:** In the staging test job with no Financials lines, Ryan could not build the intended Change Order draft. The current editor rejects any populated breakdown line lacking a financial line, despite the earlier design that drafts may be incomplete while submission remains gated. Verify header-only draft behavior and correct the draft validation in Development/Staging; do not add artificial financial lines solely to hide this gap.
+- **Change Order draft correction on Staging:** Populated breakdowns can now save without financial coding; submission still requires every line to be coded, enforced in the UI and database. Header-only drafts were verified. Migration `20260923201445_change_order_uncoded_drafts.sql` was applied only to Staging. Owner acceptance in the app remains pending; do not add artificial financial lines solely to hide a draft gap.
 - Staging infrastructure is usable for Development/Staging feature work. The above smoke test does **not** certify every workflow or grant permission for Production promotion.
 
 ## 2. Release and environment control — after staging gate
