@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { buildFinancialImportPreview } from './jobFinancialImport.mjs';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
@@ -171,8 +172,12 @@ const DEFAULT_BUDGET_FORM = Object.freeze({
 });
 const DEFAULT_BUDGET_IMPORT = Object.freeze({
   file: null,
-  mode: 'actual',
-  includedDivisions: [],
+  preview: null,
+  selectedCodes: [],
+  granularity: 'all',
+  fields: { estimate: false, actual: true, revenue: false },
+  reason: '',
+  isParsing: false,
   isImporting: false,
   error: null,
   success: '',
@@ -996,6 +1001,7 @@ function estimatedCostsByCostCodeFromReport(text) {
   if (!values.size) throw new Error('The cost report needs cost-code rows with Est. Cost values.');
   return values;
 }
+
 
 function normalizeBudgetCategoryInput(value) {
   const normalized = String(value || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -2211,6 +2217,7 @@ export function JobsWorkspace({ permissions }) {
   const [isAddingRevenueLine, setIsAddingRevenueLine] = useState(false);
   const [revenueEditFocusField, setRevenueEditFocusField] = useState('');
   const [isBudgetImportOpen, setIsBudgetImportOpen] = useState(false);
+  const [isBudgetTemplateOpen, setIsBudgetTemplateOpen] = useState(false);
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [collapsedRevenueDivisions, setCollapsedRevenueDivisions] = useState({});
@@ -2275,6 +2282,10 @@ export function JobsWorkspace({ permissions }) {
     const needle = catalogueSearch.trim().toLowerCase();
     return financialCatalogue.filter((line) => !needle || [line.division_code, line.division_name, line.subdivision_name, line.cost_code, line.description].join(' ').toLowerCase().includes(needle));
   }, [catalogueSearch, financialCatalogue]);
+  const catalogueDivisions = useMemo(() => [...new Map(financialCatalogue.map((line) => [line.division_code, { code: line.division_code, name: line.division_name }])).values()]
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })), [financialCatalogue]);
+  const importVisibleRows = useMemo(() => (budgetImport.preview || []).filter((row) => budgetImport.granularity === 'all' || !row.rawCode.includes('.')), [budgetImport.preview, budgetImport.granularity]);
+  const importDivisions = useMemo(() => [...new Set(importVisibleRows.map((row) => row.division).filter(Boolean))].sort(), [importVisibleRows]);
   const canManageSelectedJob = canEditJobWithPermission(permissions, selectedJob, 'canManageJobs');
   const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
@@ -3623,6 +3634,7 @@ export function JobsWorkspace({ permissions }) {
       if (error) throw error;
       setBudgetTemplateAction({ key: '', error: null, success: `${data?.divisions_added || 0} project division(s) added, ${data?.lines_added || 0} financial line(s) added, and ${data?.lines_aligned || 0} existing line(s) aligned. Financial values were preserved.` });
       setCatalogueSelectedIds([]);
+      setIsBudgetTemplateOpen(false);
       jobBudget.reload();
     } catch (error) {
       setBudgetTemplateAction({ key: '', error, success: '' });
@@ -3815,96 +3827,64 @@ export function JobsWorkspace({ permissions }) {
     }
   }
 
+  async function previewBudgetImport(file) {
+    setBudgetImport((current) => ({ ...current, file, preview: null, selectedCodes: [], isParsing: Boolean(file), error: null, success: '' }));
+    if (!file) return;
+    try {
+      const text = await extractImportTextFromFile(file);
+      const rows = buildFinancialImportPreview({ sourceRows: parseDelimitedText(text), text, financialLines: jobBudget.lines });
+      setBudgetImport((current) => current.file !== file ? current : ({ ...current, preview: rows, selectedCodes: rows.filter((row) => row.matches.length === 1).map((row) => row.code), isParsing: false }));
+    } catch (error) {
+      setBudgetImport((current) => current.file !== file ? current : ({ ...current, isParsing: false, error }));
+    }
+  }
+
   async function handleBudgetImport(event) {
     event.preventDefault();
-
-    if (!selectedJob || !canApproveSelectedBudget || budgetImport.isImporting) return;
-
-    if (!budgetImport.file) {
-      setBudgetImport((current) => ({ ...current, error: new Error('Choose a cost report file before importing.'), success: '' }));
+    if (!selectedJob || !canApproveSelectedBudget || budgetImport.isImporting || !budgetImport.preview) return;
+    const chosenRows = budgetImport.preview.filter((row) => budgetImport.selectedCodes.includes(row.code)
+      && (budgetImport.granularity === 'all' || !row.rawCode.includes('.')));
+    if (!chosenRows.length) {
+      setBudgetImport((current) => ({ ...current, error: new Error('Select at least one matching report line to import.') }));
       return;
     }
-
+    if (!budgetImport.fields.estimate && !budgetImport.fields.actual) {
+      setBudgetImport((current) => ({ ...current, error: new Error('Choose Estimated Costs or Actual Costs to import. Revenue is preview-only until its Billing/SOV destination is confirmed.') }));
+      return;
+    }
+    const changes = chosenRows.flatMap((row) => {
+      if (row.matches.length !== 1) return [];
+      const line = row.matches[0];
+      const change = { id: line.id, expected_updated_at: line.updated_at,
+        source: { kind: 'cost-report-import', file_name: budgetImport.file.name, cost_code: row.rawCode } };
+      if (budgetImport.fields.estimate && row.estimate !== null && Number(line.budget_amount || 0).toFixed(2) !== Number(row.estimate).toFixed(2)) {
+        change.budget_amount = row.estimate;
+        if (Number(line.forecast_final_amount || 0) === Number(line.budget_amount || 0)) change.forecast_final_amount = row.estimate;
+      }
+      if (budgetImport.fields.actual && row.actual !== null && Number(line.actual_cost_amount || 0).toFixed(2) !== Number(row.actual).toFixed(2)) {
+        change.actual_cost_amount = row.actual;
+      }
+      return 'budget_amount' in change || 'actual_cost_amount' in change ? [change] : [];
+    });
+    if (!changes.length) {
+      setBudgetImport((current) => ({ ...current, success: 'The selected matched amounts already agree with this job; nothing was changed.', error: null }));
+      return;
+    }
+    if (changes.some((change) => 'budget_amount' in change) && !budgetImport.reason.trim()) {
+      setBudgetImport((current) => ({ ...current, error: new Error('Enter a reason for changes to Original Budget.') }));
+      return;
+    }
+    if (!window.confirm(`Import ${changes.length} changed financial line${changes.length === 1 ? '' : 's'} from ${budgetImport.file.name}? Review the selected divisions and values before continuing.`)) return;
     setBudgetImport((current) => ({ ...current, isImporting: true, error: null, success: '' }));
-
     try {
-      const reportText = await extractImportTextFromFile(budgetImport.file);
-      const actualsByCode = budgetImport.mode === 'estimate'
-        ? estimatedCostsByCostCodeFromReport(reportText)
-        : actualsByCostCodeFromReport(reportText);
-      const linesByCostCode = jobBudget.lines.reduce((map, line) => {
-        const code = normalizeCostCode(line.cost_code);
-        if (!code) return map;
-        const lines = map.get(code) || [];
-        lines.push(line);
-        map.set(code, lines);
-        return map;
-      }, new Map());
-      const updates = [];
-      let matchedCount = 0;
-
-      actualsByCode.forEach((actualCostAmount, costCode) => {
-        const divisionCode = String(costCode).match(/^\d{2}/)?.[0];
-        if (budgetImport.mode === 'estimate' && budgetImport.includedDivisions.length && !budgetImport.includedDivisions.includes(divisionCode)) return;
-        const matchingLines = (linesByCostCode.get(costCode) || []).filter((line) => !String(line.cost_code || '').endsWith('.CO'));
-        if (!matchingLines.length) return;
-        matchedCount += matchingLines.length;
-        matchingLines.forEach((line) => {
-          const currentValue = budgetImport.mode === 'estimate' ? line.budget_amount : line.actual_cost_amount;
-          if (Number(currentValue || 0).toFixed(2) !== Number(actualCostAmount || 0).toFixed(2)) {
-            updates.push({ line, actualCostAmount });
-          }
-        });
-      });
-
-      if (!matchedCount) {
-        const reportCodes = new Set([...actualsByCode.keys()].map(normalizeCostCode));
-        const suggestedCatalogueIds = financialCatalogue
-          .filter((line) => reportCodes.has(normalizeCostCode(line.cost_code)))
-          .map((line) => line.id);
-        if (suggestedCatalogueIds.length) {
-          setCatalogueSelectedIds(suggestedCatalogueIds);
-          throw new Error(`${suggestedCatalogueIds.length} exact cost-code match${suggestedCatalogueIds.length === 1 ? '' : 'es'} were selected in Add financial lines. Add them first, then import this report again; no financial amount has been changed.`);
-        }
-        throw new Error('No report cost codes matched this job or the shared financial-line catalogue. Add a manual line or update the catalogue before importing.');
-      }
-
-      if (!updates.length) {
-        setBudgetImport({
-          ...DEFAULT_BUDGET_IMPORT,
-          success: `${matchedCount} financial line${matchedCount === 1 ? '' : 's'} matched; no Actual values changed.`,
-        });
-        return;
-      }
-
       const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
-
-      const isOriginalImport = budgetImport.mode === 'estimate';
-      const reason = isOriginalImport ? window.prompt('Why are you updating the Original Budget? This reason covers the entire import.') : null;
-      if (isOriginalImport && !reason?.trim()) {
-        setBudgetImport((current) => ({ ...current, isImporting: false }));
-        return;
-      }
-      const changes = updates.map(({ line, actualCostAmount }) => ({
-        id: line.id, expected_updated_at: line.updated_at,
-        ...(isOriginalImport ? {
-          budget_amount: actualCostAmount,
-          ...(Number(line.forecast_final_amount || 0) === Number(line.budget_amount || 0)
-            ? { forecast_final_amount: actualCostAmount } : {}),
-        } : { actual_cost_amount: actualCostAmount }),
-        source: { kind: isOriginalImport ? 'original-budget-import' : 'actual-cost-import', file_name: budgetImport.file.name },
-      }));
       const { error } = await client.rpc('save_job_financial_batch', {
         p_job_id: selectedJob.id, p_lines: changes,
-        p_reason: isOriginalImport ? reason.trim() : null,
+        p_reason: changes.some((change) => 'budget_amount' in change) ? budgetImport.reason.trim() : null,
       });
       if (error) throw error;
-
-      setBudgetImport({
-        ...DEFAULT_BUDGET_IMPORT,
-        success: `${updates.length} financial line${updates.length === 1 ? '' : 's'} updated from ${budgetImport.file.name}.`,
-      });
+      setBudgetImport((current) => ({ ...current, isImporting: false, success: `${changes.length} financial line${changes.length === 1 ? '' : 's'} updated. Revenue was not changed.`, error: null }));
       jobBudget.reload();
     } catch (error) {
       console.error('Job budget import failed', error);
@@ -5214,48 +5194,46 @@ export function JobsWorkspace({ permissions }) {
           />
           <FinancialExportDialog open={financialExportOpen} onClose={() => setFinancialExportOpen(false)} job={selectedJob} lines={jobBudget.lines} changeOrderByLineId={approvedChangeOrderCostByBudgetLineId} />
           <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={() => { jobBudget.reload(); jobRevenue.reload(); }} />
-          {canApproveSelectedBudget ? (
+          {canProposeSelectedBudget ? (
             <div className="job-financials-quick-actions">
-              <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>
-                {isBudgetBulkInputOpen ? 'Close Bulk Input' : 'Bulk Input'}
-              </button>
-              <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen((current) => !current)} {...uiElementAttributes('FUNCTION', 'Import Cost Report')}>
-                {isBudgetImportOpen ? 'Close Import' : 'Import'}
-              </button>
+              {canApproveSelectedBudget ? <button type="button" className="primary-button" onClick={() => setIsBudgetTemplateOpen(true)}>Build from Template</button> : null}
+              <button type="button" className="secondary-button" onClick={() => document.getElementById('job-financial-line-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Add Financial Line</button>
+              {canApproveSelectedBudget ? <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>{isBudgetBulkInputOpen ? 'Close Bulk Input' : 'Bulk Input'}</button> : null}
+              {canApproveSelectedBudget ? <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen(true)} {...uiElementAttributes('FUNCTION', 'Import Cost Report')}>Import Cost Report</button> : null}
             </div>
           ) : null}
-          {isBudgetImportOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetImport}>
-            <Toolbar
-              eyebrow="Import"
-              title="Cost report import"
-              description="Matches report cost codes to this job and updates the selected financial values."
-            />
-            <div className="job-financials-form__grid">
-              <label><span>Import type</span><select value={budgetImport.mode} onChange={(event) => setBudgetImport((current) => ({ ...current, mode: event.target.value }))}><option value="actual">Actual Cost</option><option value="estimate">Estimated Cost</option></select></label>
-              <label className="job-financials-form__wide">
-                <span>Cost report</span>
-                <input
-                  key={budgetImport.success || 'ready'}
-                  type="file"
-                  accept=".csv,.tsv,.txt,.pdf,application/pdf"
-                  onChange={(event) => setBudgetImport((current) => ({ ...current, file: event.target.files?.[0] ?? null, error: null, success: '' }))}
-                  disabled={budgetImport.isImporting}
-                />
-              </label>
-              {budgetImport.mode === 'estimate' ? <label className="job-financials-form__wide"><span>Project divisions (leave blank for all)</span><input placeholder="e.g. 01, 06, 16" onChange={(event) => setBudgetImport((current) => ({ ...current, includedDivisions: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) }))} /></label> : null}
-            </div>
-            {budgetImport.error ? (
-              <StatePanel tone="danger" eyebrow="Import Failed" title="Cost report was not imported" description={budgetImport.error.message || 'Unexpected financial import error.'} compact />
-            ) : null}
-            {budgetImport.success ? (
-              <StatePanel tone="success" eyebrow="Imported" title="Financial values updated" description={budgetImport.success} compact />
-            ) : null}
-            <div className="job-financials-form__actions">
-              <button type="submit" className="secondary-button" disabled={budgetImport.isImporting || !budgetImport.file || jobBudget.isLoading}>
-                {budgetImport.isImporting ? 'Importing...' : budgetImport.mode === 'estimate' ? 'Update Estimated Costs' : 'Update Actuals'}
-              </button>
-            </div>
-          </form> : null}
+          {budgetTemplateAction.success ? <StatePanel tone="success" title="Financial template applied" description={budgetTemplateAction.success} compact /> : null}
+          {isBudgetTemplateOpen ? <div className="ng-dialog-root"><div className="ng-dialog-scrim is-open" /><section className="ng-dialog financial-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="budget-template-title">
+            <header className="ng-dialog__header"><div><span className="eyebrow">Financial setup</span><h3 id="budget-template-title">Build budget from template</h3><p className="ng-dialog__description">Select the project Divisions you need. This adds their cost-code lines with zero amounts; it does not change an existing budget.</p></div><button type="button" className="icon-button" onClick={() => setIsBudgetTemplateOpen(false)} aria-label="Close budget template">×</button></header>
+            {financialCatalogue.length ? <>
+              <div className="financial-export-section__heading"><strong>Project Divisions</strong><div className="financial-export-quick-actions"><button type="button" className="text-button" onClick={() => setCatalogueSelectedIds(financialCatalogue.map((line) => line.id))}>Select all</button><button type="button" className="text-button" onClick={() => setCatalogueSelectedIds([])}>Clear</button></div></div>
+              <div className="financial-export-divisions">{catalogueDivisions.map((division) => {
+                const members = financialCatalogue.filter((line) => line.division_code === division.code);
+                const selected = members.filter((line) => catalogueSelectedIds.includes(line.id)).length;
+                return <label key={division.code}><input type="checkbox" checked={selected === members.length} onChange={(event) => setCatalogueSelectedIds((current) => event.target.checked ? [...new Set([...current, ...members.map((line) => line.id)])] : current.filter((id) => !members.some((line) => line.id === id)))} /><span><strong>Division {division.code} — {division.name}</strong><small>{selected} of {members.length} cost-code lines selected</small></span></label>;
+              })}</div>
+              <div className="financial-export-section"><label><span>Find individual cost codes</span><input value={catalogueSearch} onChange={(event) => setCatalogueSearch(event.target.value)} placeholder="Search code or description" /></label><div className="financial-setup-lines">{visibleCatalogueLines.map((line) => <label key={line.id}><input type="checkbox" checked={catalogueSelectedIds.includes(line.id)} onChange={(event) => setCatalogueSelectedIds((current) => event.target.checked ? [...current, line.id] : current.filter((id) => id !== line.id))} /><span>{line.cost_code} — {line.description}</span></label>)}</div></div>
+              <p className="muted-copy">{catalogueSelectedIds.length} lines selected. Existing matching financial amounts will be preserved.</p>
+            </> : <StatePanel tone="warn" title="No template lines loaded" description="The shared financial-line catalogue is empty in this environment. You can add a line manually; the template catalogue must be seeded before division selection is available." compact />}
+            {budgetTemplateAction.error ? <StatePanel tone="danger" title="Template could not be applied" description={budgetTemplateAction.error.message} compact /> : null}
+            <footer className="ng-dialog__actions"><button type="button" className="ng-dialog__button" onClick={() => setIsBudgetTemplateOpen(false)}>Cancel</button><button type="button" className="ng-dialog__button ng-dialog__button--primary" onClick={applySelectedCatalogueLines} disabled={!catalogueSelectedIds.length || Boolean(budgetTemplateAction.key)}>{budgetTemplateAction.key ? 'Adding…' : 'Add selected lines'}</button></footer>
+          </section></div> : null}
+          {isBudgetImportOpen ? <div className="ng-dialog-root"><div className="ng-dialog-scrim is-open" /><form className="ng-dialog financial-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="budget-import-title" onSubmit={handleBudgetImport}>
+            <header className="ng-dialog__header"><div><span className="eyebrow">Financials</span><h3 id="budget-import-title">Import cost report</h3><p className="ng-dialog__description">Choose a file, preview its matches, then select the Divisions and values to update.</p></div><button type="button" className="icon-button" onClick={() => setIsBudgetImportOpen(false)} aria-label="Close cost report import">×</button></header>
+            <div className="financial-export-section"><label><span>Cost report (CSV, TSV, text, or PDF)</span><input type="file" accept=".csv,.tsv,.txt,.pdf,application/pdf" onChange={(event) => previewBudgetImport(event.target.files?.[0] || null)} disabled={budgetImport.isImporting || budgetImport.isParsing} /></label>{budgetImport.isParsing ? <p className="muted-copy">Reading the report…</p> : null}</div>
+            {budgetImport.preview ? <>
+              <div className="financial-export-section"><div className="financial-export-section__heading"><strong>Report detail</strong></div><div className="financial-export-options"><label><input type="radio" name="import-granularity" checked={budgetImport.granularity === 'top'} onChange={() => setBudgetImport((current) => ({ ...current, granularity: 'top' }))} /> Top-level Divisions only</label><label><input type="radio" name="import-granularity" checked={budgetImport.granularity === 'all'} onChange={() => setBudgetImport((current) => ({ ...current, granularity: 'all' }))} /> Divisions and sub-divisions</label></div></div>
+              <div className="financial-export-section"><div className="financial-export-section__heading"><strong>Select Divisions and lines</strong><div className="financial-export-quick-actions"><button type="button" className="text-button" onClick={() => setBudgetImport((current) => ({ ...current, selectedCodes: importVisibleRows.filter((row) => row.matches.length === 1).map((row) => row.code) }))}>Select all matches</button><button type="button" className="text-button" onClick={() => setBudgetImport((current) => ({ ...current, selectedCodes: [] }))}>Clear</button></div></div><div className="financial-export-divisions">{importDivisions.map((division) => {
+                const rows = importVisibleRows.filter((row) => row.division === division && row.matches.length === 1);
+                return <label key={division}><input type="checkbox" disabled={!rows.length} checked={Boolean(rows.length) && rows.every((row) => budgetImport.selectedCodes.includes(row.code))} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...new Set([...current.selectedCodes, ...rows.map((row) => row.code)])] : current.selectedCodes.filter((code) => !rows.some((row) => row.code === code)) }))} /><span><strong>Division {division}</strong><small>{rows.length} matching lines</small></span></label>;
+              })}</div><div className="financial-setup-lines">{importVisibleRows.map((row) => <label key={row.code}><input type="checkbox" disabled={row.matches.length !== 1} checked={budgetImport.selectedCodes.includes(row.code)} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...current.selectedCodes, row.code] : current.selectedCodes.filter((code) => code !== row.code) }))} /><span><strong>{row.rawCode}</strong> · {row.matches.length === 1 ? row.matches[0].description : row.matches.length ? 'Ambiguous match — review manually' : 'No matching job line'}<small>Estimate {row.estimate == null ? '—' : formatMoney(row.estimate)} · Actual {row.actual == null ? '—' : formatMoney(row.actual)} · Revenue {row.revenue == null ? '—' : formatMoney(row.revenue)}</small></span></label>)}</div></div>
+              <div className="financial-export-section"><strong>Values to import</strong><div className="financial-export-options">{[['estimate', 'Estimated Costs / Original Budget'], ['actual', 'Actual Costs'], ['revenue', 'Revenue (preview only)']].map(([field, label]) => <label key={field}><input type="checkbox" checked={budgetImport.fields[field]} onChange={(event) => setBudgetImport((current) => ({ ...current, fields: { ...current.fields, [field]: event.target.checked } }))} />{label}</label>)}</div>{budgetImport.fields.revenue ? <p className="muted-copy">Revenue is displayed for review but will not write to Billing/SOV in this import.</p> : null}{budgetImport.fields.estimate ? <label><span>Reason for Original Budget updates</span><input value={budgetImport.reason} onChange={(event) => setBudgetImport((current) => ({ ...current, reason: event.target.value }))} placeholder="Required when importing estimates" /></label> : null}</div>
+              <p className="muted-copy">{budgetImport.selectedCodes.filter((code) => importVisibleRows.some((row) => row.code === code && row.matches.length === 1)).length} matched lines selected. Unmatched and ambiguous lines are never changed.</p>
+            </> : null}
+            {budgetImport.error ? <StatePanel tone="danger" title="Import not ready" description={budgetImport.error.message} compact /> : null}
+            {budgetImport.success ? <StatePanel tone="success" title="Financial values updated" description={budgetImport.success} compact /> : null}
+            <footer className="ng-dialog__actions"><button type="button" className="ng-dialog__button" onClick={() => setIsBudgetImportOpen(false)} disabled={budgetImport.isImporting}>Close</button><button type="submit" className="ng-dialog__button ng-dialog__button--primary" disabled={!budgetImport.preview || budgetImport.isImporting || budgetImport.isParsing || !budgetImport.selectedCodes.length}>{budgetImport.isImporting ? 'Importing…' : 'Import selected values'}</button></footer>
+          </form></div> : null}
           {budgetGroups.length > 1 ? (
             <div className="job-financials-quick-actions">
               <button type="button" className="secondary-button" onClick={() => setCollapsedBudgetDivisions(Object.fromEntries(budgetGroups.map(([key]) => [key, false])))}>Expand All</button>
@@ -5337,25 +5315,6 @@ export function JobsWorkspace({ permissions }) {
 
           {canProposeSelectedBudget ? (
             <>
-              {canApproveSelectedBudget && financialCatalogue.length ? (
-                <section className="job-financials-form" aria-label="Financial line catalogue">
-                  <Toolbar eyebrow="Templates" title="Add financial lines" description="Search the shared catalogue, select one line or an entire project Division, then add them without changing existing financial amounts." />
-                  <div className="job-financials-form__grid">
-                    <label className="job-financials-form__wide"><span>Search cost codes or descriptions</span><input value={catalogueSearch} onChange={(event) => setCatalogueSearch(event.target.value)} placeholder="e.g. 16, electrical labor, fixtures" /></label>
-                    <label className="job-financials-form__full"><span>Financial-line catalogue</span><select multiple size="10" value={catalogueSelectedIds} onChange={(event) => setCatalogueSelectedIds(Array.from(event.target.selectedOptions, (option) => option.value))}>{visibleCatalogueLines.map((line) => <option key={line.id} value={line.id}>{line.cost_code} — {line.division_name} — {line.description}</option>)}</select></label>
-                  </div>
-                  <div className="job-financials-form__actions">
-                    <button type="button" className="secondary-button" onClick={() => setCatalogueSelectedIds(visibleCatalogueLines.map((line) => line.id))}>Select visible</button>
-                    <button type="button" className="primary-button" onClick={applySelectedCatalogueLines} disabled={Boolean(budgetTemplateAction.key) || !catalogueSelectedIds.length || jobBudget.isLoading}>{budgetTemplateAction.key === 'catalogue' ? 'Adding...' : `Add ${catalogueSelectedIds.length || ''} selected line${catalogueSelectedIds.length === 1 ? '' : 's'}`}</button>
-                  </div>
-                  {budgetTemplateAction.error ? (
-                    <StatePanel tone="danger" eyebrow="Template Failed" title="Financial template was not applied" description={budgetTemplateAction.error.message || 'Unexpected template error.'} compact />
-                  ) : null}
-                  {budgetTemplateAction.success ? (
-                    <StatePanel tone="success" eyebrow="Template Applied" title="Financial lines added" description={budgetTemplateAction.success} compact />
-                  ) : null}
-                </section>
-              ) : null}
 
               {canApproveSelectedBudget && isBudgetBulkInputOpen ? <form className="job-financials-compact-form" onSubmit={handleBudgetBulkInput}>
                 <Toolbar
@@ -5398,7 +5357,7 @@ export function JobsWorkspace({ permissions }) {
                 </div>
               </form> : null}
 
-              <form className="job-financials-form job-financials-form--legacy" onSubmit={handleBudgetSave}>
+              <form id="job-financial-line-form" className="job-financials-form job-financials-form--legacy" onSubmit={handleBudgetSave}>
                 <Toolbar
                   eyebrow={budgetForm.id ? 'Edit' : 'Add'}
                   title={budgetForm.id ? 'Edit financial line' : 'Add financial line'}

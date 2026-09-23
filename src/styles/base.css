@@ -3961,6 +3961,18 @@ textarea {
 }
 
 .financial-export-dialog { width: min(620px, 100%); }
+.financial-setup-dialog { width: min(820px, 100%); max-height: min(90vh, 900px); overflow-y: auto; }
+.financial-setup-dialog .ng-dialog__header { justify-content: space-between; }
+.financial-setup-dialog > .financial-export-section > label,
+.financial-setup-dialog .financial-export-section > label { display: grid; gap: 0.35rem; font-weight: 700; }
+.financial-setup-dialog input[type="file"],
+.financial-setup-dialog input[type="text"] { width: 100%; }
+.financial-setup-lines { display: grid; gap: 0.4rem; max-height: 220px; overflow: auto; margin-top: 0.7rem; }
+.financial-setup-lines label { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.45rem 0.6rem; border: 1px solid var(--ng-border); border-radius: var(--ng-radius-control); }
+.financial-setup-lines label:has(input:disabled) { opacity: 0.65; }
+.financial-setup-lines input { flex: 0 0 auto; margin-top: 0.15rem; }
+.financial-setup-lines small { display: block; margin-top: 0.2rem; color: var(--ng-muted); }
+@media (max-width: 640px) { .financial-setup-dialog .financial-export-divisions, .financial-setup-dialog .financial-export-options { grid-template-columns: 1fr; } }
 .financial-export-dialog .ng-dialog__header { justify-content: space-between; }
 .financial-export-section { padding: 1rem 0; border-top: 1px solid var(--border, #d9dee2); }
 .financial-export-section__heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }

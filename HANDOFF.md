@@ -22522,3 +22522,15 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 1. Verify whether a header-only Change Order draft saves, then correct populated-line draft validation while keeping submission gated.
 2. Audit/plan the deterministic Silas Change Order builder against the same draft model; develop and test only on Development/Staging.
 3. Do not promote either change to Production without separate acceptance and release approval.
+
+## Entry 301 — Staging budget setup and import preview
+
+**Date:** 2026-09-23 15:30 EDT (UTC-04:00)
+**Updated by:** Codex on machine `Ryan_Northgate`
+**Phase:** Development → Staging; Production unchanged
+**Sync marker:** `SYNC-CEDAR-20260923-1530`
+
+- Financials now exposes Build from Template and Add Financial Line prominently. The existing template RPC and manual-line editor remain authoritative; the template picker supports division and individual-line checkboxes.
+- Cost Report Import moves into an overlay with a file preview, exact-match selection, select-all, division selection, top-level/all-code detail, and separate estimate/actual/revenue choices. Estimated and actual values use the existing audited `save_job_financial_batch` RPC. Revenue is displayed in preview only until its Billing/SOV destination is explicitly confirmed. Unmatched/ambiguous rows cannot be written.
+- Staging's shared financial-line catalogue was empty, preventing template use. Read-only Production catalogue definitions (codes/descriptions/division/category/protection/sort metadata only, no job or financial amounts) were copied into the isolated Staging catalogue: 177 active lines. No schema migration was needed or applied; no Production writes occurred.
+- Test before Production promotion: create a few template lines in the staging test job, edit a manual line, and preview/import a cost report with division and amount choices. Owner should decide whether report Revenue is intended to populate Billing/SOV, and what mapping/reconciliation controls it requires. Production promotion remains a separate release decision.

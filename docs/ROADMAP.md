@@ -38,6 +38,8 @@ The marker proves a specific Git checkpoint, **not** that another machine has fe
 
 ## 4. V5 reconciliation — tracked remaining slices
 
+- **Staging financial setup trial (September 23):** Budget template selection, manual-line access, and the cost-report import preview/selection overlay are being promoted to Staging for owner testing. The report preview can display revenue, but revenue writes remain deferred until their Billing/SOV destination is confirmed. No Production promotion is implied.
+
 - **Jobs Financials:** Consolidated contributor proposals for bulk input, imports, and catalogue operations remain deferred; current direct setup tools remain approver-only. Complete test/review of the deployed budget and SOV proposal foundations. Source: `docs/reviews/V5_JOBS_FINANCIALS_RECONCILIATION_READINESS.md`.
 - **Change Orders:** Resolve the compatibility hold before enabling stricter Project Manager approval/posting gates. Assign actual Project Managers through the existing authorized workflow, test Manager/Director behavior, then separately review `CFG-009`/`AUD-016`. Do not invent assignments or silently remove the current path. Source: `docs/reviews/V5_CHANGE_ORDER_RECONCILIATION_READINESS.md`.
 - **Service calls:** Build the previewed, idempotent cost-report import with mapping, duplicate detection, and reconciliation. Existing service-call directory, billing, invoices, payments, and stages remain authoritative. Source: `docs/reviews/V5_PERMISSION_USABILITY_REPOSITORY_MAPPING.md`.
