@@ -8,6 +8,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { lineSubtotal, withUpdatedLineMarkup } from './changeOrderMarkup.js';
 
 const DOCUMENT_BUCKET = 'northgate-files';
 const MONEY_FIELDS = ['material_amount', 'labor_amount', 'equipment_amount', 'subcontract_amount', 'other_amount', 'markup_amount'];
@@ -24,6 +25,8 @@ function blankLine(budgetLine = null, sortOrder = 0) {
     subcontract_amount: '',
     other_amount: '',
     markup_amount: '',
+    markup_mode: 'percent',
+    markup_percent: '',
     sort_order: sortOrder,
   };
 }
@@ -131,7 +134,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('change_order_lines').select('*').eq('change_order_id', initialOrder.id).order('sort_order');
         if (error) throw error;
-        if (mounted) setLines((data || []).map((line) => ({ ...line, key: line.id })));
+        // Existing dollar markup remains authoritative; never infer a historical rate.
+        if (mounted) setLines((data || []).map((line) => ({ ...line, key: line.id, markup_mode: line.markup_percent === null ? 'legacy' : 'percent', markup_percent: line.markup_percent ?? '' })));
       } catch (error) {
         if (mounted) setAction({ name: '', error, success: '' });
       }
@@ -146,7 +150,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
   }
 
   function updateLine(key, field, value) {
-    setLines((current) => current.map((line) => line.key === key ? { ...line, [field]: value } : line));
+    setLines((current) => current.map((line) => line.key === key ? withUpdatedLineMarkup(line, { [field]: value, ...(field === 'markup_percent' ? { markup_requires_input: false } : {}) }) : line));
   }
 
   function duplicateLine(line) {
@@ -165,6 +169,14 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       return null;
     }
     const meaningfulLines = lines.filter((line) => line.job_budget_line_id || line.description.trim() || MONEY_FIELDS.some((field) => Number(line[field] || 0) !== 0));
+    if (meaningfulLines.some((line) => line.markup_requires_input)) {
+      setAction({ name: '', error: new Error('Enter the new line markup percentage before replacing legacy dollar markup.'), success: '' });
+      return null;
+    }
+    if (meaningfulLines.some((line) => line.markup_mode === 'percent' && (Number(line.markup_percent || 0) < 0 || !Number.isFinite(Number(line.markup_percent || 0))))) {
+      setAction({ name: '', error: new Error('Line markup percentage must be a valid non-negative number.'), success: '' });
+      return null;
+    }
     if (meaningfulLines.some((line) => MONEY_FIELDS.some((field) => !Number.isFinite(Number(line[field] || 0))))) {
       setAction({ name: '', error: new Error('Breakdown amounts must be valid numbers.'), success: '' });
       return null;
@@ -176,7 +188,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     setAction({ name: 'save', error: null, success: '' });
     try {
       const db = await client();
-      const { data, error } = await db.rpc('save_job_change_order_draft', {
+      const { data, error } = await db.rpc('save_job_change_order_draft_with_rates', {
         p_change_order_id: order?.id || null,
         p_job_id: job.id,
         p_division: job.division,
@@ -185,7 +197,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         p_description: form.description.trim() || null,
         p_change_order_date: form.change_order_date,
         p_internal_notes: form.internal_notes.trim() || null,
-        p_lines: meaningfulLines.map((line, index) => ({ ...line, sort_order: index, key: undefined, id: undefined })),
+        p_lines: meaningfulLines.map(({ key, id, markup_mode, markup_percent, markup_requires_input, ...line }, index) => ({ ...line, ...(markup_mode === 'percent' ? { markup_percent: markup_percent === '' ? 0 : markup_percent } : {}), sort_order: index })),
         p_reason: form.reason.trim(),
       });
       if (error) throw error;
@@ -474,7 +486,8 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
                 <label><span>Financial line / cost code <small>{!line.job_budget_line_id ? 'Required to submit' : ''}</small></span><select value={line.job_budget_line_id || ''} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Save draft without coding</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
                 <label><span>Vendor / subcontractor</span><input value={line.vendor_name || ''} onChange={(e) => updateLine(line.key, 'vendor_name', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 <label className="change-order-line__wide"><span>Description / scope</span><input value={line.description || ''} onChange={(e) => updateLine(line.key, 'description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-                {MONEY_FIELDS.map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
+                {MONEY_FIELDS.filter((field) => field !== 'markup_amount').map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
+                {line.markup_mode === 'legacy' ? <label><span>Legacy markup amount</span><input type="number" step="0.01" value={line.markup_amount ?? ''} onChange={(e) => updateLine(line.key, 'markup_amount', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} />{isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => { if (window.confirm('Replace this legacy dollar markup with a new percentage? Enter a percentage before saving.')) setLines((current) => current.map((item) => item.key === line.key ? { ...item, markup_mode: 'percent', markup_percent: '', markup_requires_input: true, markup_amount: '' } : item)); }}>Use percentage</button> : null}</label> : <label><span>Line markup %</span><input type="number" min="0" step="any" value={line.markup_percent ?? ''} onChange={(e) => updateLine(line.key, 'markup_percent', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /><small>Calculated markup: {money(line.markup_amount)} on {money(lineSubtotal(line))}</small></label>}
               </div>
               {isDraft && canEditDraft ? <div className="change-order-line__actions"><button type="button" className="secondary-button" onClick={() => duplicateLine(line)}><Copy aria-hidden="true" /> Duplicate</button><button type="button" className="secondary-button secondary-button--danger" onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))} disabled={lines.length === 1}><Trash2 aria-hidden="true" /> Remove</button></div> : null}
             </article>

@@ -40,7 +40,9 @@ import { FinancialExportDialog } from './FinancialExportDialog.jsx';
 import { JobFinancialProposalQueue } from './JobFinancialProposalQueue.jsx';
 import { SovBuilder } from './SovBuilder.jsx';
 import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
+import { JobResponsibilities } from './JobResponsibilities.jsx';
 import { effectiveCurrentBudget, hasCurrentBudgetOverride } from './currentBudget.js';
+import { classifyBudgetHealth } from './budgetHealth.js';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
@@ -5086,7 +5088,10 @@ export function JobsWorkspace({ permissions }) {
           disabled={budgetForm.isSaving} />, align: 'right' },
         { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || editableBudgetValue(row, 'actual_cost_amount', financialValue(row.actual_cost_amount), 'actual costs'), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || editableBudgetValue(row, 'committed_cost_amount', financialValue(row.committed_cost_amount), 'committed costs'), align: 'right' },
-        { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => formatMoney(budgetLineRemaining(row)), align: 'right' },
+        { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => {
+          const health = classifyBudgetHealth(budgetLineRevisedBudget(row), row.actual_cost_amount);
+          return <span className="job-budget-health-cell"><strong>{formatMoney(budgetLineRemaining(row))}</strong><span className={`job-budget-health-badge job-budget-health-badge--${health.state}`}>{health.label}{health.remainingPercent === null ? '' : ` · ${Math.max(0, health.remainingPercent).toFixed(1)}% left`}</span></span>;
+        }, align: 'right' },
         { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || editableBudgetValue(row, 'forecast_to_complete_amount', financialValue(row.forecast_to_complete_amount), 'monthly forecast'), align: 'right' },
         {
           key: 'forecast_final',
@@ -5355,6 +5360,7 @@ export function JobsWorkspace({ permissions }) {
                   permissions={permissions}
                   isLoading={jobBudget.isLoading}
                   error={jobBudget.error}
+                  rowClassName={(row) => `job-budget-health-row--${classifyBudgetHealth(budgetLineRevisedBudget(row), row.actual_cost_amount).state}`}
                   dense
                   minWidth="1920px"
                   emptyTitle="No financial lines for this division"
@@ -6351,6 +6357,7 @@ export function JobsWorkspace({ permissions }) {
                   onChange={next=>guardPermit(()=>{setPermitPanelState({dirty:false,busy:false});setActiveTab(next);})}
                   ariaLabel="Job detail sections"
                 />
+                {selectedJob && activeTab === 'overview' ? <JobResponsibilities jobId={selectedJob.id} canManage={canManageSelectedJob && ['Manager', 'Director', 'Developer'].includes(permissions.role)} /> : null}
                 {renderActiveTab()}
               </>
             )}
