@@ -1,6 +1,6 @@
 # Environment and release workflow — implementation draft
 
-**Status (2026-09-23):** Independent staging is deployed from `staging` commit `58ea95e2834588679da02d4eb44a21b653ebe711` (Netlify deploy `6ab410cc3fab6c5ff1b8eccd`). Both invited Clerk accounts accepted; CRNCMK signed in as Developer and created a staging-only test job. A Production query confirmed the job is absent there. **Do not begin normal staging testing yet:** Netlify still reports the custom-domain certificate pending, and an independent HTTPS check reported a certificate-name mismatch. The ordinary-User login and uninvited-access denial remain to be tested. Production code and database were not changed.
+**Status (2026-09-23 14:38 EDT):** Independent staging is deployed from `staging` app commit `58ea95e2834588679da02d4eb44a21b653ebe711` (Netlify deploy `6ab410cc3fab6c5ff1b8eccd`). A later normal certificate-validating HTTPS request to `staging.rnsolutions.net` returned HTTP 200, superseding the earlier mismatch. Both invited accounts signed in; the owner reports the ordinary User sees only standard-User content and an uninvited address could not sign in. CRNCMK created a staging-only test job, confirmed absent from Production. Owner acceptance of broader navigation/workflows remains open. Production code and database were not changed.
 
 ## Vocabulary
 
@@ -17,7 +17,7 @@ The separate Netlify site `431ce717-1a06-45a0-9d7a-8acd06a67dde` is Git-connecte
 
 Both invite-only Clerk users accepted. In **staging Supabase only**, `crncmk@gmail.com` (`user_3JjrKX3mwAtnlrT2oONmKo6QX4x`) is Primary/Developer with a technical Developer assignment; `ryan@thenorthgategroup.com` (`user_3JjqnWuXGQHjmoLKEBMSEStbRiN`) is an ordinary Electrical User. This replaced a stale staging primary binding to a Production Clerk identity. CRNCMK's signed-in staging session read the empty Jobs directory and created `STAGING Smoke Test 2026-09-23` (`STG-20260923-001`). A read-only staging query found one matching job; the same query against Production Supabase `keogysnoukbendfkfjcn` found zero. The fixture remains in staging. Ordinary-User and uninvited-user behavior have not been smoke-tested. No Production schema, data, code, or deploy was changed.
 
-The historical readiness notes below describe the sequence before deployment; where they say “undeployed,” “pending invitations,” or “no environment variables,” this handoff section supersedes them. Next gates: verify the custom-domain certificate with normal TLS validation, test the Ryan User session and an uninvited access denial, then complete owner acceptance testing. Keep database backup/recovery on the roadmap; it has not been implemented.
+The historical readiness notes below describe the sequence before deployment; where they say “undeployed,” “pending invitations,” “no environment variables,” or “certificate pending,” the updated status above supersedes them. The owner-reported sign-in/access checks and independent TLS request pass; broader owner acceptance testing and database/Storage recovery planning remain open. Keep backup/recovery on the roadmap; it has not been implemented.
 
 ## Branch and environment map
 

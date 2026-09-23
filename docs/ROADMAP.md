@@ -1,6 +1,6 @@
 # Northgate HQ — shared work queue
 
-**Updated:** 2026-09-23 14:27 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
+**Updated:** 2026-09-23 14:38 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 
 ## Cross-machine sync convention
@@ -11,11 +11,11 @@ For each new work checkpoint, record a unique sync marker in the commit message 
 
 The marker proves a specific Git checkpoint, **not** that another machine has fetched it, a migration was applied, or a site deployed. Verify branch/SHA and deployment separately. Never reuse a marker. For changes not yet committed, record `uncommitted` and do not call them synchronized. A documentation-only commit with `[skip ci]` need not redeploy the app. Do not embed secrets or machine-local paths in the sync entry.
 
-## 1. Staging readiness — active gate
+## 1. Staging readiness — access checks passed; acceptance pending
 
 - The independent `staging` branch/site and isolated staging Supabase exist. First app deploy: `58ea95e`, Netlify deploy `6ab410cc3fab6c5ff1b8eccd`. Both designated Clerk invitations were accepted. A Developer signed in and created a labeled job that was confirmed absent from Production.
-- **Open:** Netlify custom-domain certificate is still pending; an independent HTTPS check reported a certificate-name mismatch. Do not bypass a browser warning or declare staging ready until normal TLS validation passes.
-- **Open:** Verify ordinary-User behavior with `ryan@thenorthgategroup.com` and denial for an uninvited identity. Record findings without copying Production data or changing Production access.
+- **Verified 2026-09-23:** A normal certificate-validating HTTPS request to `https://staging.rnsolutions.net/` returned HTTP 200, and the CNAME still pointed at the dedicated staging Netlify site. This supersedes the earlier certificate-mismatch observation.
+- **Owner-tested 2026-09-23:** Invited `ryan@thenorthgategroup.com` signed in and saw only standard-User content; uninvited `Ryan@rnguns.com` could not sign in. These are reported UI results, not an exhaustive server-side permission audit.
 - **Open:** Owner acceptance smoke test of staging navigation, deep links, and relevant write paths before using it for feature acceptance.
 
 ## 2. Release and environment control — after staging gate
