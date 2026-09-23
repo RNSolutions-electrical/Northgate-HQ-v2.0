@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { CheckCircle2, Lightbulb, MessageCircleQuestion, TriangleAlert, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -35,7 +36,7 @@ export function FeedbackDrawer({ open, onClose, pagePath }) {
     setState({ isSaving: true, error: null, success: false });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.from('app_feedback').insert({
         submitted_by: user.id,

@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import {useAuth} from '@clerk/clerk-react';
 import {useEffect,useState} from 'react';
 import {createSupabaseClient} from '../services/supabaseClient.js';
@@ -20,7 +21,7 @@ export function useReviewTasks(enabled=true){
    if(!enabled){setState({isLoading:false,error:null,items:EMPTY});return;}
    setState(current=>({...current,isLoading:true,error:null}));
    try{
-    const client=createSupabaseClient(await getToken({template:'supabase'}));
+    const client=createSupabaseClient(await getSupabaseAccessToken(getToken));
     const {data,error}=await client.rpc('read_my_review_task_inbox',{p_limit:200});
     if(error)throw error;
     if(mounted)setState({isLoading:false,error:null,items:data||EMPTY});

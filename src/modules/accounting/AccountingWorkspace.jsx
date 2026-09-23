@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import {
   BarChart3,
@@ -104,7 +105,7 @@ function useAccountingBudgetLines({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
 
         const { data, error } = await client

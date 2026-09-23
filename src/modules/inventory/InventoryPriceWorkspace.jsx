@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useAuth} from '@clerk/clerk-react';
 import {ArrowLeft,RefreshCw} from 'lucide-react';
 import {useCallback,useEffect,useState} from 'react';
@@ -13,7 +14,7 @@ export function InventoryPriceWorkspace({item,onClose,onSaved}){
  const {getToken}=useAuth();
  const [current,setCurrent]=useState(item),[history,setHistory]=useState([]),[price,setPrice]=useState(item.inventory_price_per_unit??item.price_per_unit??''),[reason,setReason]=useState('');
  const [state,setState]=useState({loading:false,error:null,success:''});
- const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
+ const client=useCallback(async()=>createSupabaseClient(await getSupabaseAccessToken(getToken)),[getToken]);
  const reload=useCallback(async()=>{
   setState(s=>({...s,loading:true,error:null}));
   try{const db=await client();const [rowResult,historyResult]=await Promise.all([

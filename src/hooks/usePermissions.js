@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
@@ -138,7 +139,7 @@ export function usePermissions() {
       }
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const displayName = user.fullName || user.primaryEmailAddress?.emailAddress || user.id;
 

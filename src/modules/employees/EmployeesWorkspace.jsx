@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Archive, Pencil, Plus, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -99,7 +100,7 @@ function useEmployeeReferences({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const [peopleResult, assignmentsResult, pendingProfilesResult] = await Promise.all([
           client
@@ -165,7 +166,7 @@ function useCurrentEmployeeProfile({ enabled }) {
       if (!enabled) return;
       setState({ isLoading: true, error: null, profile: null });
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_current_employee_profile');
         if (error) throw error;
@@ -192,7 +193,7 @@ function useCurrentEmployeeAssignments({ enabled }) {
       if (!enabled) return;
       setState({ isLoading: true, error: null, rows: EMPTY_ASSIGNMENTS });
       try {
-        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
         const { data, error } = await client.rpc('read_current_employee_vehicle_assignments', { p_limit: 100 });
         if (error) throw error;
         if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_ASSIGNMENTS });
@@ -216,7 +217,7 @@ function useCurrentEmployeeProfileNotes({ enabled }) {
       if (!enabled) return;
       setState({ isLoading: true, error: null, rows: EMPTY_PERSONAL_NOTES });
       try {
-        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
         const { data, error } = await client.rpc('read_current_employee_profile_notes', { p_limit: 200 });
         if (error) throw error;
         if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_PERSONAL_NOTES });
@@ -241,7 +242,7 @@ function useCurrentEmployeeProfileTodos({ enabled }) {
       if (!enabled) return;
       setState({ isLoading: true, error: null, rows: EMPTY_PERSONAL_TODOS });
       try {
-        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
         const { data, error } = await client.rpc('read_current_employee_profile_todos', { p_include_completed: true, p_limit: 200 });
         if (error) throw error;
         if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_PERSONAL_TODOS });
@@ -381,7 +382,7 @@ export function EmployeesWorkspace({ permissions }) {
     if (profileEdit.isSaving) return;
     setProfileEdit((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error } = await client.rpc('update_current_employee_profile', { p_display_name: profileEdit.displayName, p_phone: profileEdit.phone || null, p_reason: profileEdit.reason });
       if (error) throw error;
       setProfileEdit((current) => ({ ...current, open: false, isSaving: false, error: null, success: 'Your profile was updated and recorded in the audit log.' }));
@@ -400,7 +401,7 @@ export function EmployeesWorkspace({ permissions }) {
     if (noteDraft.isSaving || !noteDraft.body.trim()) return;
     setNoteDraft((current) => ({ ...current, isSaving: true, error: null }));
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error } = await client.rpc('save_current_employee_profile_note', {
         p_note_id: noteDraft.id || null,
         p_body: noteDraft.body,
@@ -417,7 +418,7 @@ export function EmployeesWorkspace({ permissions }) {
     if (!noteId || noteDraft.isSaving) return;
     setNoteDraft((current) => ({ ...current, isSaving: true, error: null }));
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error } = await client.rpc('archive_current_employee_profile_note', { p_note_id: noteId });
       if (error) throw error;
       setNoteDraft((current) => current.id === noteId ? { id: '', body: '', isSaving: false, error: null } : { ...current, isSaving: false });
@@ -436,7 +437,7 @@ export function EmployeesWorkspace({ permissions }) {
     if (todoDraft.isSaving || !todoDraft.title.trim()) return;
     setTodoDraft((current) => ({ ...current, isSaving: true, error: null }));
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error } = await client.rpc('save_current_employee_profile_todo', {
         p_todo_id: todoDraft.id || null,
         p_title: todoDraft.title,
@@ -454,7 +455,7 @@ export function EmployeesWorkspace({ permissions }) {
   async function setPersonalTodoCompleted(todo, completed) {
     setTodoAction({ id: todo.id, error: null });
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error } = await client.rpc('set_current_employee_profile_todo_complete', { p_todo_id: todo.id, p_completed: completed });
       if (error) throw error;
       myTodos.reload();
@@ -467,7 +468,7 @@ export function EmployeesWorkspace({ permissions }) {
   async function archivePersonalTodo(todoId) {
     setTodoAction({ id: todoId, error: null });
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error } = await client.rpc('archive_current_employee_profile_todo', { p_todo_id: todoId });
       if (error) throw error;
       if (todoDraft.id === todoId) setTodoDraft({ id: '', title: '', details: '', dueDate: '', isSaving: false, error: null });
@@ -501,7 +502,7 @@ export function EmployeesWorkspace({ permissions }) {
     if (!window.confirm(`Archive the pending profile for ${profile.display_name || profile.email}? History will be preserved.`)) return;
     setPendingProfileAction({ id: profile.id, error: null });
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_pending_employee_profile', { p_profile_id: profile.id, p_reason: null });
       if (error) throw error;
@@ -522,7 +523,7 @@ export function EmployeesWorkspace({ permissions }) {
     if (employeeForm.isSaving) return;
     setEmployeeForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const payload = {
         p_email: employeeForm.email, p_display_name: employeeForm.displayName,

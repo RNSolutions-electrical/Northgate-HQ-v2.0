@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useCallback, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
@@ -16,7 +17,7 @@ export function useInventoryCart() {
   const [error, setError] = useState(null);
 
   const getClient = useCallback(async () => {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return createSupabaseClient(token);
   }, [getToken]);
 

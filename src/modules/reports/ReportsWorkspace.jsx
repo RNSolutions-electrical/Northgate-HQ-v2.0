@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import {
   BarChart3,
@@ -343,7 +344,7 @@ function useReportData({ permissions }) {
       setState((current) => ({ ...current, isLoading: true, errors: {} }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const canInventory = permissions.canManageInventory || permissions.canInventoryTransactions;
         const canEstimate = permissions.canEstimate || permissions.canApproveEstimates;

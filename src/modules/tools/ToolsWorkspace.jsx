@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { ChevronDown, Archive, ClipboardList, History, MapPin, Plus, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -241,7 +242,7 @@ function useToolCatalogue({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('tools')
@@ -304,7 +305,7 @@ function useToolHistory({ enabled, toolId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_tool_change_history', {
           p_tool_id: toolId,
@@ -430,7 +431,7 @@ export function ToolsWorkspace({ permissions }) {
   }
 
   async function getToolClient() {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return createSupabaseClient(token);
   }
 

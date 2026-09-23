@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useRef,useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -13,7 +14,7 @@ export function StorageLocationDelete({location,permissions,onDeleted}){
   if(lock.current||!reason.trim()||!validInitials)return;
   lock.current=true;setBusy(true);setError('');setBackup(null);setConfirmed(false);
   try{
-   const db=createSupabaseClient(await getToken({template:'supabase'}));
+   const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
    const {data,error:rpcError}=await db.rpc('prepare_storage_location_deletion',{p_kind:location.type,p_id:location.id,p_reason:reason.trim(),p_initials:initials.trim()});
    if(rpcError)throw rpcError;
    if(!data?.backup_id||data.record?.id!==location.id)throw new Error('The server did not confirm this location backup. Retry before deleting.');
@@ -29,7 +30,7 @@ export function StorageLocationDelete({location,permissions,onDeleted}){
   if(!window.confirm(`Permanently delete ${location.path}? This removes the location and its QR destination. The backup and audit history remain; recovery requires controlled Developer assistance.`))return;
   lock.current=true;setBusy(true);setError('');
   try{
-   const db=createSupabaseClient(await getToken({template:'supabase'}));
+   const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
    const {data,error:rpcError}=await db.rpc('permanently_delete_storage_location',{p_backup_id:backup.backup_id,p_confirmation_code:code.trim(),p_download_confirmed:confirmed});
    if(rpcError)throw rpcError;
    if(data?.deleted!==true||data.id!==location.id)throw new Error('Deletion was not confirmed. Retry to verify the result.');

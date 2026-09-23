@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   FileText,
@@ -179,7 +180,7 @@ function useJobAttention({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const [jobsResult, buyoutResult] = await Promise.all([
           client
@@ -264,7 +265,7 @@ function useDashboardEstimates({ enabled, userId, canApproveEstimates }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('estimates')
@@ -344,7 +345,7 @@ function useDashboardVehicles({ enabled, userId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_my_vehicle_assignments', {
           p_limit: 25,
@@ -407,7 +408,7 @@ function useDashboardJobAssignments({ enabled, userId }) {
       }
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_user_assignments')
@@ -451,7 +452,7 @@ function useDashboardTools({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('tools')
@@ -504,7 +505,7 @@ function useDashboardTodoReminders({ enabled }) {
       }
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
         const { data, error } = await client.rpc('read_current_employee_dashboard_todo_reminders');
         if (error) throw error;
         if (isMounted) setState({ isLoading: false, error: null, items: data ?? EMPTY_DASHBOARD_TODO_REMINDERS });

@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { Briefcase, MapPin, Plus, Truck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -109,7 +110,7 @@ function useVehicleReferences({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const [vehiclesResult, assignmentsResult, employeesResult] = await Promise.all([
           client
@@ -267,7 +268,7 @@ export function VehiclesWorkspace({ permissions }) {
     if (vehicleForm.isSaving) return;
     setVehicleForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('create_vehicle', {
         p_vehicle_number: vehicleForm.vehicleNumber,
@@ -295,7 +296,7 @@ export function VehiclesWorkspace({ permissions }) {
     setAssignmentForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('assign_vehicle_to_user', {
         p_vehicle_id: selectedVehicle.id,
@@ -318,7 +319,7 @@ export function VehiclesWorkspace({ permissions }) {
     setAssignmentForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('release_vehicle_assignment', {
         p_assignment_id: selectedVehicle.current_assignment.assignment_id,

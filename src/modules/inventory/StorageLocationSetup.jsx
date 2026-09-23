@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useRef, useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {ArrowLeft, Plus, Save} from 'lucide-react';
@@ -35,7 +36,7 @@ export function StorageLocationSetup({initialParent,permissions,locations,isLoad
   if(request.current?.fingerprint!==fingerprint)request.current={id:crypto.randomUUID(),fingerprint};
   lock.current=true;setBusy(true);setError('');
   try {
-   const db=createSupabaseClient(await getToken({template:'supabase'}));
+   const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
    const {data,error:rpcError}=await db.rpc('create_inventory_location',{p_request_id:request.current.id,...payload});
    if(rpcError)throw rpcError;
    if(!data?.id)throw new Error('The server did not confirm the saved location. Retry to verify it.');

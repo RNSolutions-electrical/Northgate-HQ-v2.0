@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useRef, useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -11,7 +12,7 @@ export function RetiredBinAssignments({location, permissions, onRestored}) {
   const [busy,setBusy] = useState(false), [error,setError] = useState(''), [success,setSuccess] = useState('');
   if (!canCorrectInventoryData(permissions)) return null;
   async function rpc(name, args) {
-    const db = createSupabaseClient(await getToken({template:'supabase'}));
+    const db = createSupabaseClient(await getSupabaseAccessToken(getToken));
     const {data,error} = await db.rpc(name,args);
     if (error) throw error;
     return data;

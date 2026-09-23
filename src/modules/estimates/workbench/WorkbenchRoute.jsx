@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../../services/clerkToken.js';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {useAuth} from '@clerk/clerk-react';
@@ -43,7 +44,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const [associatedJob,setAssociatedJob]=useState(null);
  const [checklistConfig,setChecklistConfig]=useState(null);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
- const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
+ const client=useCallback(async()=>createSupabaseClient(await getSupabaseAccessToken(getToken)),[getToken]);
  useEffect(()=>{if(location.state?.reviewMode)setView('review');},[location.state?.reviewMode]);
  const reloadChecklist=useCallback(async()=>{
   try{const db=await client(),result=await db.from('estimate_checklist_definitions').select('*').order('sort_order');if(result.error)throw result.error;setChecklistConfig(result.data);}

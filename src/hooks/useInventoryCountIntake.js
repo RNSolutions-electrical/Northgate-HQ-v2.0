@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { useCallback, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
@@ -14,7 +15,7 @@ export function useInventoryCountIntake() {
     setResult(null);
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { data, error: rpcError } = await client.rpc(mapOnly ? 'map_material_to_inventory_bin' : 'intake_inventory_count', {
         p_bin_id: binId,

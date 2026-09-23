@@ -2,9 +2,6 @@
   command = "npm ci && npm run build"
   publish = "dist"
 
-[build.environment]
-  VITE_BASE_PATH = "/northgate"
-
 [[headers]]
   for = "/*"
   [headers.values]

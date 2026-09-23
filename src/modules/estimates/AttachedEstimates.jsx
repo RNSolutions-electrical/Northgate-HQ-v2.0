@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {EstimateChecklistSummary} from './EstimateChecklistSummary.jsx';
 import {useEffect,useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
@@ -7,7 +8,7 @@ export function AttachedEstimates({jobId,changeOrderId,permissions,onUseQuote}){
  const {getToken}=useAuth(),[rows,setRows]=useState([]),[error,setError]=useState('');
  const allowed=(permissions?.canViewProjectFinancials||permissions?.can_view_project_financials)&&(permissions?.canViewProtectedProjectFinancials||permissions?.can_view_protected_project_financials);
  useEffect(()=>{let active=true;setRows([]);setError('');if(!allowed||!jobId)return;
- (async()=>{try{const db=createSupabaseClient(await getToken({template:'supabase'}));let query=db.from('estimate_workflow_handoffs').select('id,estimate_id,source_version,source_revision,destination,change_order_id,pricing,created_at,checklist:source_document->finalizationChecklist').eq('job_id',jobId).order('created_at',{ascending:false});
+ (async()=>{try{const db=createSupabaseClient(await getSupabaseAccessToken(getToken));let query=db.from('estimate_workflow_handoffs').select('id,estimate_id,source_version,source_revision,destination,change_order_id,pricing,created_at,checklist:source_document->finalizationChecklist').eq('job_id',jobId).order('created_at',{ascending:false});
  query=changeOrderId?query.eq('change_order_id',changeOrderId):query.is('change_order_id',null);
  const result=await query;if(result.error)throw result.error;if(active)setRows(result.data||[]);
  }catch(e){if(active)setError(e.message);}})();return()=>{active=false;};},[getToken,jobId,changeOrderId,allowed]);

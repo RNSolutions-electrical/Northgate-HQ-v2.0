@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {DocumentSections,DocumentSectionControl,DocumentTagFilter} from './DocumentSections.jsx';
 import {DocumentFileActions} from './DocumentFileActions.jsx';
 import {filterDocuments,documentTagsLabel,documentJobChoices} from './documentSections.js';
@@ -265,7 +266,7 @@ function useDocumentIndex({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const allRows=async(table,fields,configure=q=>q)=>{const rows=[];for(let offset=0;;offset+=1000){const {data,error}=await configure(client.from(table).select(fields)).is('archived_at',null).order('id').range(offset,offset+999);if(error)throw error;rows.push(...data);if(data.length<1000)return {data:rows};}};
         const [documentsResult,jobsResult,changeOrdersResult]=await Promise.all([

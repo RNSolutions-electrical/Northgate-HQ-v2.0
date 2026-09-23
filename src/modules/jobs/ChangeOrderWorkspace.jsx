@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {AttachedEstimates} from '../estimates/AttachedEstimates.jsx';
 import { Archive, ArrowLeft, Ban, Copy, Download, FileCheck2, Plus, Save, Send, ShieldCheck, Trash2 } from 'lucide-react';
@@ -126,7 +127,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     async function load() {
       if (!initialOrder?.id) return;
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('change_order_lines').select('*').eq('change_order_id', initialOrder.id).order('sort_order');
         if (error) throw error;
@@ -153,7 +154,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
   }
 
   async function client() {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return createSupabaseClient(token);
   }
 

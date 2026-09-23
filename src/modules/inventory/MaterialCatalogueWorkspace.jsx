@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useAuth} from '@clerk/clerk-react';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -11,7 +12,7 @@ export function MaterialCatalogueWorkspace({item,permissions,onClose,onSaved}) {
  const [material,setMaterial]=useState(null),[loading,setLoading]=useState(Boolean(item.id)),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [department,setDepartment]=useState(item.division||permissions.division||'');
  const [candidateId]=useState(()=>item.id||crypto.randomUUID());
- const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
+ const client=useCallback(async()=>createSupabaseClient(await getSupabaseAccessToken(getToken)),[getToken]);
  useEffect(()=>{let active=true;if(!item.id)return;client().then(db=>db.from('items').select('*,item_aliases(id,alias,archived_at)').eq('id',item.id).single()).then(result=>{if(!active)return;if(result.error)throw result.error;setMaterial(result.data);setLoading(false);}).catch(e=>{if(active){setError(e.message);setLoading(false);}});return()=>{active=false;};},[item.id,client]);
  async function save(values){
   if(lock.current)return;lock.current=true;setBusy(true);setError('');setMessage('');

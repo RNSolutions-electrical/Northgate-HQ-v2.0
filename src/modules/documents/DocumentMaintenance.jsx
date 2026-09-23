@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useId, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pencil, RotateCcw } from 'lucide-react';
@@ -18,7 +19,7 @@ export function DocumentEditControl({ document: row, ownerType, ownerId, onChang
   async function save(reason) {
     setBusy(true); setError('');
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error: failure } = await client.rpc('maintain_owner_document', {
         p_document_id: row.id, p_owner_type: ownerType, p_owner_id: ownerId,
         p_action: 'edit', p_changes: draft.changes, p_reason: reason,
@@ -66,7 +67,7 @@ export function ArchivedDocuments({ ownerType, ownerId, refreshKey, onChanged })
     setLoading(true); setError(''); setRows([]);
     (async () => {
       try {
-        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
         const { data, error: failure } = await client.rpc('read_archived_owner_documents', { p_owner_type: ownerType, p_owner_id: ownerId, p_offset: offset });
         if (failure) throw failure;
         if (active) setRows(data || []);
@@ -79,7 +80,7 @@ export function ArchivedDocuments({ ownerType, ownerId, refreshKey, onChanged })
   async function restore(reason) {
     setBusy(true); setSaveError('');
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error: failure } = await client.rpc('maintain_owner_document', {
         p_document_id: target.id, p_owner_type: ownerType, p_owner_id: ownerId, p_action: 'restore',
         p_changes: {}, p_reason: reason, p_expected_updated_at: target.updated_at,

@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import * as XLSX from 'xlsx';
 import { useEffect, useState } from 'react';
@@ -29,7 +30,7 @@ export function FinancialLineCatalogueConsole() {
   const [rows, setRows] = useState([]);
   const [reason, setReason] = useState('');
   const [action, setAction] = useState({ loading: false, error: null, success: '' });
-  async function client() { return createSupabaseClient(await getToken({ template: 'supabase' })); }
+  async function client() { return createSupabaseClient(await getSupabaseAccessToken(getToken)); }
   async function reload() {
     try { const db = await client(); const { data, error } = await db.from('financial_line_catalogue').select('id,division_code,division_name,cost_code,description,is_active,sort_order').eq('is_active', true).order('sort_order'); if (error) throw error; setRows(data || []); } catch (error) { setAction({ loading: false, error, success: '' }); }
   }

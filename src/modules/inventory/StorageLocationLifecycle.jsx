@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useRef,useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -22,7 +23,7 @@ export function StorageLocationLifecycle({location,locations=[],permissions,onSa
   if(!window.confirm(`${location.archived_at?'Restore':'Archive'} ${location.path}? History will be preserved.`))return;
   lock.current=true;setBusy(true);setError('');
   try{
-   const db=createSupabaseClient(await getToken({template:'supabase'}));
+   const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
    const {error:rpcError}=await db.rpc('set_inventory_location_archived',{p_kind:location.type,p_id:location.id,p_archived:!location.archived_at,p_reason:null});
    if(rpcError)throw rpcError;onSaved();
   }catch(e){setError(e.message);}finally{lock.current=false;setBusy(false);}
@@ -32,7 +33,7 @@ export function StorageLocationLifecycle({location,locations=[],permissions,onSa
   if(parent!==location.parentId&&location.type!=='unit'&&!window.confirm('Move this location and everything beneath it? IDs, QR links and quantities stay unchanged. The location path and inherited department may change.'))return;
   lock.current=true;setBusy(true);setError('');
   try{
-   const db=createSupabaseClient(await getToken({template:'supabase'}));
+   const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
    const {error:rpcError}=await db.rpc('edit_inventory_location',{p_kind:location.type,p_id:location.id,p_code:code.trim(),p_label:label.trim(),p_position:Number(position),p_expected_revision:location.revision,p_reason:null,p_details:{physical_location:location.type!=='unit'&&inherit?null:physical,materials_summary:summary},p_parent_id:location.type==='unit'?null:parent});
    if(rpcError)throw rpcError;setEditing(false);onSaved();
   }catch(e){setError(e.message);}finally{lock.current=false;setBusy(false);}

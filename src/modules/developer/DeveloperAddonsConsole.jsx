@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { Puzzle, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,7 +21,7 @@ export function DeveloperAddonsConsole() {
     async function load() {
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_developer_addon_console');
         if (error) throw error;
@@ -48,7 +49,7 @@ export function DeveloperAddonsConsole() {
     if (!selected || RETIRED_ADDON_KEYS.includes(addon.addon_key) || saveState.isSaving || reason.trim().length < 3) return;
     setSaveState({ isSaving: true, error: null, success: '' });
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('set_user_addon_access', { p_user_id: selected.user_id, p_addon_key: addon.addon_key, p_enabled: enabled, p_reason: reason.trim() });
       if (error) throw error;

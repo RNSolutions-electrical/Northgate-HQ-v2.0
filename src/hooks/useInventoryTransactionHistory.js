@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { useCallback, useEffect, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
@@ -33,7 +34,7 @@ export function useInventoryTransactionHistory({
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error: rpcError } = await client.rpc('read_inventory_transaction_history', {
           p_limit: limit,

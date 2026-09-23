@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { Copy, Plus, Save, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -10,7 +11,7 @@ export function usePermissionTemplates(enabled) {
   const { getToken } = useAuth();
   const [state, setState] = useState({ templates: [], assignments: {}, isLoading: true, error: null });
   const rpc = useCallback(async (name, params) => {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     const { data, error } = await createSupabaseClient(token).rpc(name, params);
     if (error) throw error;
     return data;

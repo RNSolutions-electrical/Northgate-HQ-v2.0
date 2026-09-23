@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -38,7 +39,7 @@ export function DeveloperFeedbackQueue({ permissions, onCountChange }) {
     async function load() {
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('app_feedback').select('*').order('created_at', { ascending: false });
         if (error) throw error;
@@ -73,7 +74,7 @@ export function DeveloperFeedbackQueue({ permissions, onCountChange }) {
     if (!selected || review.isSaving) return;
     setReview((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.from('app_feedback').update({
         status: review.status,

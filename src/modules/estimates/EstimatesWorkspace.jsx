@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {searchMaterials} from '../../lib/materialResolver.js';
 import { archiveFailedDocument } from '../documents/documentUploadCleanup.js';
@@ -955,7 +956,7 @@ function useEstimateDirectory({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('estimates')
@@ -1019,7 +1020,7 @@ function useEstimateHistory({ enabled, estimateId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_estimate_change_history', {
           p_estimate_id: estimateId,
@@ -1081,7 +1082,7 @@ function useEstimatePricing({ enabled, estimateId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('estimate_pricing_lines')
@@ -1146,7 +1147,7 @@ function useEstimateSnapshots({ enabled, estimateId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('estimate_snapshots')
@@ -1210,7 +1211,7 @@ function useEstimateDocuments({ enabled, estimateId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('documents')
@@ -1275,7 +1276,7 @@ function useEstimateQuotePackages({ enabled, estimateId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('estimate_quote_packages')
@@ -1341,7 +1342,7 @@ function useEstimateTakeoffReadModel({ enabled, estimateId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const [takeoffsResult, linesResult] = await Promise.all([
           client
@@ -1418,7 +1419,7 @@ function useAssemblyLibrary({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('assemblies')
@@ -1481,7 +1482,7 @@ function useAssemblyItems({ enabled, assemblyId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('assembly_items')
@@ -1546,7 +1547,7 @@ function useCatalogItems({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const pageSize = 1000;
         const loadedItems = [];
@@ -1838,7 +1839,7 @@ export function EstimatesWorkspace({ permissions }) {
   }
 
   async function getEstimateClient() {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return createSupabaseClient(token);
   }
 

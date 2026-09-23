@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
@@ -52,7 +53,7 @@ export function useInventoryCountSheet({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
 
         const [

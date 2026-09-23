@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useRef,useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -13,7 +14,7 @@ export function DeveloperDataCorrectionControl({user,permissions,onSaved}) {
     if(!window.confirm(`${enabled?'Revoke':'Grant'} Developer Data Correction for ${user.email||user.display_name}? This is scoped inventory correction, not a permission bypass.`))return;
     lock.current=true;setBusy(true);setError('');setSuccess('');
     try {
-      const db=createSupabaseClient(await getToken({template:'supabase'}));
+      const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
       const {data,error}=await db.rpc('set_developer_data_correction',{p_user_id:user.user_id,p_enabled:!enabled,p_expected_enabled:enabled,p_reason:reason.trim()});
       if(error)throw error;
       if(data?.enabled!==!enabled)throw new Error('Permission change was not confirmed. Refresh permissions.');

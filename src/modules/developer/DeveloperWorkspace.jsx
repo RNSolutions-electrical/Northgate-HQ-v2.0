@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
   Activity,
@@ -261,7 +262,7 @@ function useDeveloperNotes({ enabled, permissions }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('developer_notes')
@@ -298,7 +299,7 @@ function useDeveloperNotes({ enabled, permissions }) {
   }, [enabled, getToken, refreshKey]);
 
   async function getClient() {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return createSupabaseClient(token);
   }
 
@@ -352,7 +353,7 @@ function useDeveloperPermissionConsole({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_developer_permission_console');
 
@@ -385,7 +386,7 @@ function useDeveloperPermissionConsole({ enabled }) {
   }, [enabled, getToken, refreshKey]);
 
   async function getClient() {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return createSupabaseClient(token);
   }
 
@@ -537,7 +538,7 @@ export function DeveloperWorkspace({ permissions }) {
     async function loadFeedbackCount() {
       if (permissions.permissionSource !== 'server' || permissions.canAccessDeveloper !== true) return;
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('app_feedback').select('status');
         if (error) throw error;
@@ -688,7 +689,7 @@ export function DeveloperWorkspace({ permissions }) {
 
     setAuditExport((current) => ({ ...current, isExporting: true, error: null, success: '' }));
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const rows = [];
       const pageSize = 1000;

@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
@@ -46,7 +47,7 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
     setIsLoading(true);
     setError(null);
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const [budgetResult, sovResult] = await Promise.all([
         client.rpc('read_v5_job_financial_review_queue', { p_limit: 100 }),
@@ -76,7 +77,7 @@ export function JobFinancialProposalQueue({ jobId, enabled, onApplied }) {
     setActiveId(item.destination_id);
     setError(null);
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const request = decision === 'apply'
         ? client.rpc(item.proposal_type === 'sov' ? 'apply_v5_job_sov_proposal' : 'apply_v5_job_financial_proposal', {

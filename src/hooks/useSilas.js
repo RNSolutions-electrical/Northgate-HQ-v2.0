@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createSupabaseClient } from '../services/supabaseClient.js';
@@ -70,7 +71,7 @@ export function useSilas({ permissions }) {
   const canUseSilas = isSignedIn && silasEnabled;
 
   async function createAuthedClient() {
-    const token = await getToken({ template: 'supabase' });
+    const token = await getSupabaseAccessToken(getToken);
     return {
       token,
       client: createSupabaseClient(token),

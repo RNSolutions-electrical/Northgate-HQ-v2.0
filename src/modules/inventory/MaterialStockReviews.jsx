@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useAuth} from '@clerk/clerk-react';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -8,7 +9,7 @@ export function MaterialStockReviews({destinationId,onSaved}) {
  const [rows,setRows]=useState([]),[selected,setSelected]=useState(null),[bins,setBins]=useState([]),[binId,setBinId]=useState('');
  const [quantity,setQuantity]=useState(''),[confirmed,setConfirmed]=useState(false),[note,setNote]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
- const client=useCallback(async()=>createSupabaseClient(await getToken({template:'supabase'})),[getToken]);
+ const client=useCallback(async()=>createSupabaseClient(await getSupabaseAccessToken(getToken)),[getToken]);
  const reload=useCallback(async()=>{setLoading(true);setError('');try{const db=await client(),r=await db.rpc('read_catalogue_stock_reviews');if(r.error)throw r.error;setRows(r.data||[]);}catch(e){setError(e.message);}finally{setLoading(false);}},[client]);
  useEffect(()=>{reload();},[reload]);
  useEffect(()=>{if(destinationId)setSelected(rows.find(row=>row.id===destinationId)||null);},[destinationId,rows]);

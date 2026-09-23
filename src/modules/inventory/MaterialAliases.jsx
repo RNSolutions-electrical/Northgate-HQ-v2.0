@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {useRef,useState} from 'react';
 import {useAuth} from '@clerk/clerk-react';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
@@ -15,7 +16,7 @@ export function MaterialAliases({item,permissions,onClose,onSaved}) {
   if(!value.trim()){setError('Enter an alias.');return;}
   lock.current=true;setBusy(true);setError('');setMessage('');
   try{
-   const db=createSupabaseClient(await getToken({template:'supabase'}));
+   const db=createSupabaseClient(await getSupabaseAccessToken(getToken));
    const {data,error:rpcError}=await db.rpc('save_material_alias',{p_item_id:item.id,p_alias:value.trim(),p_archived:archived,p_reason:null});
    if(rpcError)throw rpcError;if(!data?.id)throw new Error('No saved alias was returned. Refresh before retrying.');
    setAliases(rows=>[...rows.filter(row=>row.id!==data.id),data]);setAlias('');setMessage(archived?'Alias archived.':'Alias saved.');onSaved();

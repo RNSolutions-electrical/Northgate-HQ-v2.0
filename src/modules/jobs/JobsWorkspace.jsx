@@ -1,3 +1,4 @@
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {DocumentSections,DocumentSectionControl,DocumentTagFilter} from '../documents/DocumentSections.jsx';
 import {DocumentFileActions} from '../documents/DocumentFileActions.jsx';
 import {filterDocuments,documentTagsLabel} from '../documents/documentSections.js';
@@ -1264,7 +1265,7 @@ function useJobsDirectory({ enabled }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('jobs')
@@ -1327,7 +1328,7 @@ function useJobDocuments({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data: jobDocumentsData, error: jobDocumentsError } = await client
           .from('documents')
@@ -1408,7 +1409,7 @@ function useJobAssignmentDirectory({ enabled, jobId }) {
       if (!enabled || !jobId) { setState({ isLoading: false, error: null, rows: [] }); return; }
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_job_assignment_directory_v5', { p_job_id: jobId });
         if (error) throw error;
@@ -1444,7 +1445,7 @@ function useJobBuyoutLines({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_buyout_lines')
@@ -1509,7 +1510,7 @@ function useJobBuyoutVendorQuotes({ enabled, buyoutLineIds }) {
 
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_buyout_vendor_quotes')
@@ -1552,7 +1553,7 @@ function useJobBudgetLines({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_budget_lines')
@@ -1617,7 +1618,7 @@ function useJobRevenueLines({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_revenue_lines')
@@ -1675,7 +1676,7 @@ function useJobChangeOrders({ enabled, jobId }) {
       }
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('change_orders')
@@ -1710,7 +1711,7 @@ function useJobChangeOrderPostings({ enabled, jobId }) {
       }
       setState((current) => ({ ...current, isLoading: true, error: null }));
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('change_order_financial_postings').select('*').eq('job_id', jobId);
         if (error) throw error;
@@ -1747,7 +1748,7 @@ function useJobScheduleItems({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_schedule_items')
@@ -1813,7 +1814,7 @@ function useJobTransactions({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client
           .from('job_transaction_log')
@@ -1877,7 +1878,7 @@ function useJobChangeHistory({ enabled, jobId }) {
       setState((current) => ({ ...current, isLoading: true, error: null }));
 
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_job_change_history', {
           p_job_id: jobId,
@@ -2283,7 +2284,7 @@ export function JobsWorkspace({ permissions }) {
     async function loadFinancialCatalogue() {
       if (!selectedJob?.id || !canApproveSelectedBudget || permissions.permissionSource !== 'server') return;
       try {
-        const token = await getToken({ template: 'supabase' });
+        const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('financial_line_catalogue').select('id,division_code,division_name,subdivision_name,cost_code,description,category,is_protected_financial,sort_order').eq('is_active', true).order('sort_order');
         if (error) throw error;
@@ -2573,7 +2574,7 @@ export function JobsWorkspace({ permissions }) {
     setJobForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
       const payload = {
@@ -2638,7 +2639,7 @@ export function JobsWorkspace({ permissions }) {
     setJobForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { data, error } = await client
         .from('jobs')
@@ -2689,7 +2690,7 @@ export function JobsWorkspace({ permissions }) {
     setJobAction({ action: 'archive', error: null, success: '' });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_job', {
         p_job_id: selectedJob.id,
@@ -2736,7 +2737,7 @@ export function JobsWorkspace({ permissions }) {
     setUploadState((current) => ({ ...current, isUploading: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const insertPayload = {
         id: documentId,
@@ -2795,7 +2796,7 @@ export function JobsWorkspace({ permissions }) {
     setDocumentAction({ id: document.id, action, error: null });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { data, error } = await client.storage
         .from(DOCUMENT_BUCKET)
@@ -2838,7 +2839,7 @@ export function JobsWorkspace({ permissions }) {
     setDocumentAction({ id: document.id, action: 'archive', error: null });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const archiveRpc = document.owner_type === 'change_order'
         ? 'archive_change_order_document'
@@ -2921,7 +2922,7 @@ export function JobsWorkspace({ permissions }) {
     setBuyoutQuoteUpload((current) => ({ ...current, isUploading: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error: insertError } = await client
         .from('documents')
@@ -2980,7 +2981,7 @@ export function JobsWorkspace({ permissions }) {
     setBuyoutForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const query = buyoutForm.id
         ? client
@@ -3030,7 +3031,7 @@ export function JobsWorkspace({ permissions }) {
     setBuyoutAction({ id: row.id, action: status, error: null });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client
         .from('job_buyout_lines')
@@ -3066,7 +3067,7 @@ export function JobsWorkspace({ permissions }) {
     setBuyoutAction({ id: row.id, action: 'archive', error: null });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_job_buyout_line', {
         p_buyout_line_id: row.id,
@@ -3136,7 +3137,7 @@ export function JobsWorkspace({ permissions }) {
     const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
     setVendorQuoteForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const query = vendorQuoteForm.id
         ? client.from('job_buyout_vendor_quotes').update(payload).eq('id', vendorQuoteForm.id).select('*').single()
@@ -3174,7 +3175,7 @@ export function JobsWorkspace({ permissions }) {
       return;
     }
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('award_job_buyout_quote', {
         p_quote_id: row.id,
@@ -3264,7 +3265,7 @@ export function JobsWorkspace({ permissions }) {
     setBudgetForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const projectDivisionId = existingRow?.project_division_id || budgetForm.project_division_id || null;
       if (!budgetForm.id && !projectDivisionId) {
@@ -3322,7 +3323,7 @@ export function JobsWorkspace({ permissions }) {
     }
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_job_budget_line', {
         p_budget_line_id: row.id,
@@ -3346,7 +3347,7 @@ export function JobsWorkspace({ permissions }) {
       return;
     }
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc(kind === 'budget-delete' ? 'delete_empty_job_budget_line' : 'delete_empty_job_sov_line', {
         [kind === 'budget-delete' ? 'p_budget_line_id' : 'p_revenue_line_id']: row.id,
@@ -3411,7 +3412,7 @@ export function JobsWorkspace({ permissions }) {
     setRevenueForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const line = {
         ...payload,
@@ -3468,7 +3469,7 @@ export function JobsWorkspace({ permissions }) {
     }
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const line = {
         id: row.id,
@@ -3512,7 +3513,7 @@ export function JobsWorkspace({ permissions }) {
 
     setBudgetTemplateAction({ key: template.key, error: null, success: '' });
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
       const { data: existingDivisions, error: divisionLoadError } = await client
@@ -3605,7 +3606,7 @@ export function JobsWorkspace({ permissions }) {
     if (!window.confirm(`Add or align ${catalogueSelectedIds.length} selected catalogue line${catalogueSelectedIds.length === 1 ? '' : 's'}? Existing financial amounts will not be changed.`)) return;
     setBudgetTemplateAction({ key: 'catalogue', error: null, success: '' });
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const needsAlignmentReason = financialCatalogue.filter((line) => catalogueSelectedIds.includes(line.id))
         .some((line) => jobBudget.lines.some((existing) => normalizeCostCode(existing.cost_code) === normalizeCostCode(line.cost_code)));
@@ -3649,7 +3650,7 @@ export function JobsWorkspace({ permissions }) {
     setBudgetBulkInput((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const existingByKey = new Map(jobBudget.lines.map((line) => [budgetLineMatchKey(line), line]));
       const keys = rows.map(budgetLineMatchKey);
@@ -3688,7 +3689,7 @@ export function JobsWorkspace({ permissions }) {
     if (!selectedJob || !permissions?.canManageChangeOrders || !changeOrderForm.co_number.trim() || !changeOrderForm.title.trim() || !changeOrderForm.reason.trim()) return;
     try {
       setChangeOrderForm((current) => ({ ...current, isSaving: true }));
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const createdBy = user?.fullName || user?.primaryEmailAddress?.emailAddress || user?.id || 'Unknown User';
       const allocations = [];
@@ -3803,7 +3804,7 @@ export function JobsWorkspace({ permissions }) {
     }
     setSovAllocationForm((current) => ({ ...current, isSaving: true, error: null }));
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('save_change_order_sov_allocations', { p_change_order_id: changeOrder.id, p_allocations: payload, p_reason: reason.trim() });
       if (error) throw error;
@@ -3876,7 +3877,7 @@ export function JobsWorkspace({ permissions }) {
         return;
       }
 
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
 
       const isOriginalImport = budgetImport.mode === 'estimate';
@@ -4000,7 +4001,7 @@ export function JobsWorkspace({ permissions }) {
     setScheduleForm((current) => ({ ...current, isSaving: true, error: null, success: '' }));
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const existingRow = scheduleForm.id
         ? jobSchedule.items.find((item) => item.id === scheduleForm.id)
@@ -4052,7 +4053,7 @@ export function JobsWorkspace({ permissions }) {
     setScheduleAction({ id: row.id, action: 'archive', error: null });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('archive_job_schedule_item', {
         p_schedule_item_id: row.id,
@@ -4081,7 +4082,7 @@ export function JobsWorkspace({ permissions }) {
     setScheduleAction({ id: row.id, action: direction, error: null });
 
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const reorderedItems = [...jobSchedule.items];
       [reorderedItems[currentIndex], reorderedItems[nextIndex]] = [reorderedItems[nextIndex], reorderedItems[currentIndex]];
@@ -4123,7 +4124,7 @@ export function JobsWorkspace({ permissions }) {
     }
     setJobAssignmentAction({ userId: row.user_id, error: null });
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('set_job_user_assignment_v5', {
         p_job_id: selectedJob.id,
@@ -4148,7 +4149,7 @@ export function JobsWorkspace({ permissions }) {
     }
     setJobAssignmentAction({ userId: row.user_id, error: null });
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('set_job_user_assignment_v5', {
         p_job_id: selectedJob.id,

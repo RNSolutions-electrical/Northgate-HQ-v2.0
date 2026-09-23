@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAccessToken } from './clerkToken.js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -54,10 +55,7 @@ export async function withSupabaseTokenRetry(getToken, operation) {
     if (delays[attempt]) await pause(delays[attempt]);
 
     try {
-      const token = await getToken({
-        template: 'supabase',
-        ...(attempt > 0 ? { skipCache: true } : {}),
-      });
+      const token = await getSupabaseAccessToken(getToken, attempt > 0 ? { skipCache: true } : {});
       return await operation(createSupabaseClient(token));
     } catch (error) {
       lastError = error;
