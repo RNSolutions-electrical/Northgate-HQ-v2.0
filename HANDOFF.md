@@ -22693,3 +22693,27 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   Staging as updated, verify the Netlify deployment is READY at the integrated
   commit and the live asset includes budget-health styling. Production must
   remain unchanged until separate acceptance and release approval.
+
+## Entry 310 — Demo patch published to Staging only
+
+**Date:** 2026-09-23 21:08 EDT
+**Updated by:** Codex on RYAN_NORTHGATE
+**Phase:** Staging acceptance; Production unchanged
+**Sync marker:** `GLASS-ANCHOR-20260923-001` (documentation checkpoint)
+
+- Fast-forwarded only `origin/staging` from `32c3a98` to integrated code commit
+  `bb1fd9ec98a670af112ecf8072952f1fcf445c46`. Netlify Staging deployment
+  `6ab477dbf30f9f00084219f6` is READY and published at 2026-09-24 01:07:56
+  UTC with that exact commit.
+- Normal TLS requests to the Staging Jobs route and its JavaScript bundle both
+  returned HTTP 200. The served bundle contains the budget-health row styling,
+  OVER BUDGET text, and overall Change Order markup UI.
+- The Staging test job's Electrical Labor line has a $63,100 budget and
+  $56,560.61 actual costs, leaving $6,539.39 (10.36%). It should now show the
+  yellow Warning state after a refresh. This is a calculated expectation, not
+  yet an authenticated browser visual confirmation.
+- Production Netlify deployment remains `6ab2d90c269cd800087bc95c`, ready;
+  no Production database migration or Production code deployment occurred.
+- This documentation-only commit uses `[skip ci]` so it does not replace the
+  verified Staging asset. Owner acceptance of visual formatting, assignments,
+  and both markup layers remains open before any Production promotion.
