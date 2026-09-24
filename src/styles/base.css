@@ -650,8 +650,8 @@ svg { stroke-width: 1.8; }
 .data-table tbody tr.job-budget-health-row--over-budget td:first-child { box-shadow: inset 3px 0 #bd2832; }
 .data-table tbody tr.job-budget-health-row--danger td,
 .data-table tbody tr.job-budget-health-row--over-budget td { background: #fff8f8; }
-.job-budget-health-cell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: .2rem; white-space: nowrap; }
-.job-budget-health-badge { border-radius: 999px; padding: .1rem .45rem; font-size: .67rem; font-weight: 700; }
+.job-budget-health-cell { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-end; gap: .2rem; }
+.job-budget-health-badge { max-width: 100%; border-radius: 999px; padding: .1rem .45rem; font-size: .67rem; font-weight: 700; text-align: right; white-space: normal; overflow-wrap: anywhere; }
 .job-budget-health-badge--healthy { color: #176447; background: #e7f5ed; }
 .job-budget-health-badge--warning { color: #79520b; background: #fff3d3; }
 .job-budget-health-badge--danger,
