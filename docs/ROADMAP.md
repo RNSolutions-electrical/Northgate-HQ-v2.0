@@ -1,6 +1,6 @@
 # Northgate HQ — shared work queue
 
-**Updated:** 2026-09-23 17:05 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
+**Updated:** 2026-09-23 21:36 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 
 ## Cross-machine sync convention
@@ -42,6 +42,7 @@ The marker proves a specific Git checkpoint, **not** that another machine has fe
 - **Cost-report source retention:** Financial import now links the original uploaded file to Job Documents → Cost Reports and the financial audit source, with protected-financial read gating. Staging migration `20260923195722_job_cost_report_documents.sql` adds the required metadata/storage policies. Owner file-open and unauthorized-user acceptance tests remain pending before Production promotion.
 
 - **Jobs Financials:** Consolidated contributor proposals for bulk input, imports, and catalogue operations remain deferred; current direct setup tools remain approver-only. Complete test/review of the deployed budget and SOV proposal foundations. Source: `docs/reviews/V5_JOBS_FINANCIALS_RECONCILIATION_READINESS.md`.
+- **Assigned Jobs in Dashboard → My Work:** After the four informational Job responsibility slots are accepted, show each signed-in employee the Jobs assigned to them in those slots, with direct navigation and a clear role label. Reuse the authoritative responsibility records; do not infer assignment from global role or introduce assignment-driven financial permissions in this slice. Build and verify on Staging before a separate Production promotion. Owner accepted the current assignment UI on 2026-09-23; Dashboard linkage is a later feature, not part of the narrow demo release.
 - **Change Orders:** Resolve the compatibility hold before enabling stricter Project Manager approval/posting gates. Assign actual Project Managers through the existing authorized workflow, test Manager/Director behavior, then separately review `CFG-009`/`AUD-016`. Do not invent assignments or silently remove the current path. Source: `docs/reviews/V5_CHANGE_ORDER_RECONCILIATION_READINESS.md`.
 - **Service calls:** Build the previewed, idempotent cost-report import with mapping, duplicate detection, and reconciliation. Existing service-call directory, billing, invoices, payments, and stages remain authoritative. Source: `docs/reviews/V5_PERMISSION_USABILITY_REPOSITORY_MAPPING.md`.
 - **Forecasting:** Define and implement the period/deadline-driven Project Manager forecast cycle and revisions without replacing Job Financials as the source of truth. Same source.
