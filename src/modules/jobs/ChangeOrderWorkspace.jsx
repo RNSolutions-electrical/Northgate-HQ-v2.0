@@ -7,7 +7,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
-import { lineSubtotal, withUpdatedLineMarkup } from './changeOrderMarkup.js';
+import { editableChangeOrderLines, lineSubtotal, percentMarkupAmount, withUpdatedLineMarkup } from './changeOrderMarkup.js';
 
 const DOCUMENT_BUCKET = 'northgate-files';
 const MONEY_FIELDS = ['material_amount', 'labor_amount', 'equipment_amount', 'subcontract_amount', 'other_amount', 'markup_amount'];
@@ -71,10 +71,11 @@ function htmlMultiline(value, fallback = '') {
   return htmlEscape(value || fallback).replace(/\n/g, '<br>');
 }
 
-function clientChangeOrderHtml({ order, job, form, lines, total, logoUrl }) {
+function clientChangeOrderHtml({ order, job, form, lines, overallMarkupAmount, total, logoUrl }) {
   const projectAddress = [job.address_line1, job.address_line2, [job.city, job.state, job.postal_code].filter(Boolean).join(', ')]
     .filter(Boolean).join('<br>');
-  const rows = lines.map((line, index) => `<tr><td>${index + 1}</td><td>${htmlMultiline(line.description, 'Change Order item')}</td><td>${money(lineTotal(line))}</td></tr>`).join('');
+  const rows = lines.map((line, index) => `<tr><td>${index + 1}</td><td>${htmlMultiline(line.description, 'Change Order item')}</td><td>${money(lineTotal(line))}</td></tr>`).join('')
+    + (overallMarkupAmount ? `<tr><td>${lines.length + 1}</td><td>Overall Change Order Markup</td><td>${money(overallMarkupAmount)}</td></tr>` : '');
   const issuedDate = form.change_order_date ? new Date(`${form.change_order_date}T12:00:00`).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
   return `<!doctype html><html><head><meta charset="utf-8"><title>${htmlEscape(order.co_number)} Change Order</title><style>
     @page{size:letter;margin:.4in}*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#17202a;font-size:9.75pt;line-height:1.32;background:#fff}.sheet{max-width:7.7in;margin:0 auto}.brand{display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:5px solid #c9202f;padding:0 0 8px}.brand__identity{width:330px}.brand__logo{width:310px;height:76px;display:flex;align-items:center}.brand__logo img{display:block;width:100%;height:100%;object-fit:contain;object-position:left center}.document-title{text-align:right}.document-title strong{display:block;font-size:18pt;text-transform:uppercase}.document-title span{color:#c9202f;font-size:11.5pt;font-weight:700}.meta{display:grid;grid-template-columns:1.25fr .75fr;margin:13px 0;border:1px solid #cbd2d8}.meta__project,.meta__order{padding:10px 12px}.meta__order{border-left:1px solid #cbd2d8}.label{display:block;color:#65717a;font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}.value{font-weight:700}.meta dl{display:grid;grid-template-columns:1fr 1fr;gap:7px 15px;margin:0}.meta dt,.meta dd{margin:0}.section{margin:12px 0}.section h2{margin:0 0 6px;padding-bottom:4px;border-bottom:2px solid #27333d;font-size:11pt;text-transform:uppercase;letter-spacing:.06em}.scope{min-height:42px}.scope p:last-child{margin-bottom:0}.subject{font-size:12pt;font-weight:700;margin:0 0 5px}table{width:100%;border-collapse:collapse;margin-top:7px}th{background:#27333d;color:#fff;font-size:8pt;text-transform:uppercase;letter-spacing:.06em}th,td{padding:6px 8px;border:1px solid #cbd2d8;text-align:left;vertical-align:top}th:first-child,td:first-child{width:42px;text-align:center}th:last-child,td:last-child{width:116px;text-align:right;white-space:nowrap}.total{display:flex;justify-content:flex-end;margin-top:8px}.total div{min-width:320px;border:2px solid #27333d;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:28px;font-size:12.5pt;font-weight:800}.total span{white-space:nowrap}.authorization{background:#f4f6f7;border-left:5px solid #c9202f;padding:9px 12px}.authorization p{margin:0 0 5px}.authorization p:last-child{margin-bottom:0}.signature-section{break-inside:avoid;page-break-inside:avoid;padding-top:3px;min-height:184px}.signature-intro{margin:10px 0 0}.signature-grid{display:grid;grid-template-columns:1.35fr .65fr;gap:25px 36px;margin-top:31px}.signature-line{border-top:1px solid #17202a;padding-top:5px;min-height:35px}.signature-grid .wide{grid-column:1/-1}.footer{display:flex;justify-content:space-between;gap:20px;margin-top:14px;padding-top:7px;border-top:1px solid #cbd2d8;color:#6a747c;font-size:7.5pt}.no-print{margin:0 auto 18px;display:block;padding:9px 16px;border:0;background:#c9202f;color:#fff;font-weight:700;cursor:pointer}@media print{.no-print{display:none}.sheet{max-width:none}.section,table,.authorization,.signature-section{break-inside:avoid;page-break-inside:avoid}}@media screen{body{padding:24px;background:#e9edf0}.sheet{background:#fff;padding:.4in;box-shadow:0 3px 18px #0002}}
@@ -109,14 +110,21 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     description: initialOrder?.description || '',
     change_order_date: initialOrder?.change_order_date || new Date().toISOString().slice(0, 10),
     internal_notes: initialOrder?.internal_notes || '',
+    overall_markup_percent: initialOrder?.overall_markup_percent ?? '',
+    overall_markup_budget_line_id: '',
     reason: '',
   });
+  const [savedOverallMarkupAmount, setSavedOverallMarkupAmount] = useState(0);
   const [verification, setVerification] = useState({ file: null, name: '', certified: false });
   const [decision, setDecision] = useState({ name: '', certified: false });
   const [action, setAction] = useState({ name: '', error: null, success: '' });
 
   const isDraft = !order || order.status === 'draft';
-  const total = useMemo(() => lines.reduce((sum, line) => sum + lineTotal(line), 0), [lines]);
+  const lineItemsTotal = useMemo(() => editableChangeOrderLines(lines).reduce((sum, line) => sum + lineTotal(line), 0), [lines]);
+  const overallMarkupAmount = isDraft
+    ? percentMarkupAmount(lineItemsTotal, form.overall_markup_percent) ?? 0
+    : savedOverallMarkupAmount;
+  const total = isDraft ? lineItemsTotal + overallMarkupAmount : Number(order?.price_amount) || lineItemsTotal + overallMarkupAmount;
   const canCreate = permissions?.canCreateChangeOrders === true;
   const canSubmit = permissions?.canSubmitChangeOrders === true;
   const canVerify = permissions?.canVerifyChangeOrders === true;
@@ -134,7 +142,12 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         const { data, error } = await client.from('change_order_lines').select('*').eq('change_order_id', initialOrder.id).order('sort_order');
         if (error) throw error;
         // Existing dollar markup remains authoritative; never infer a historical rate.
-        if (mounted) setLines((data || []).map((line) => ({ ...line, key: line.id, markup_mode: line.markup_percent === null ? 'legacy' : 'percent', markup_percent: line.markup_percent ?? '' })));
+        if (mounted) {
+          const overallLine = (data || []).find((line) => line.is_overall_markup);
+          setSavedOverallMarkupAmount(Number(overallLine?.markup_amount) || 0);
+          setForm((current) => ({ ...current, overall_markup_budget_line_id: overallLine?.job_budget_line_id || '' }));
+          setLines(editableChangeOrderLines(data).map((line) => ({ ...line, key: line.id, markup_mode: line.markup_percent === null ? 'legacy' : 'percent', markup_percent: line.markup_percent ?? '' })));
+        }
       } catch (error) {
         if (mounted) setAction({ name: '', error, success: '' });
       }
@@ -167,13 +180,18 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       setAction({ name: '', error: new Error('Change Order number and title are required.'), success: '' });
       return null;
     }
-    const meaningfulLines = lines.filter((line) => line.job_budget_line_id || line.description.trim() || MONEY_FIELDS.some((field) => Number(line[field] || 0) !== 0));
+    const meaningfulLines = editableChangeOrderLines(lines).filter((line) => line.job_budget_line_id || line.description.trim() || MONEY_FIELDS.some((field) => Number(line[field] || 0) !== 0));
     if (meaningfulLines.some((line) => line.markup_requires_input)) {
       setAction({ name: '', error: new Error('Enter the new line markup percentage before replacing legacy dollar markup.'), success: '' });
       return null;
     }
     if (meaningfulLines.some((line) => line.markup_mode === 'percent' && (Number(line.markup_percent || 0) < 0 || !Number.isFinite(Number(line.markup_percent || 0))))) {
       setAction({ name: '', error: new Error('Line markup percentage must be a valid non-negative number.'), success: '' });
+      return null;
+    }
+    const overallRate = Number(form.overall_markup_percent || 0);
+    if (!Number.isFinite(overallRate) || overallRate < 0 || (overallRate > 0 && !form.overall_markup_budget_line_id)) {
+      setAction({ name: '', error: new Error('Enter a valid overall markup percentage and select its financial line.'), success: '' });
       return null;
     }
     if (meaningfulLines.some((line) => MONEY_FIELDS.some((field) => !Number.isFinite(Number(line[field] || 0))))) {
@@ -187,7 +205,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
     setAction({ name: 'save', error: null, success: '' });
     try {
       const db = await client();
-      const { data, error } = await db.rpc('save_job_change_order_draft_with_rates', {
+      const { data, error } = await db.rpc('save_job_change_order_draft_with_all_markups', {
         p_change_order_id: order?.id || null,
         p_job_id: job.id,
         p_division: job.division,
@@ -196,11 +214,14 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
         p_description: form.description.trim() || null,
         p_change_order_date: form.change_order_date,
         p_internal_notes: form.internal_notes.trim() || null,
-        p_lines: meaningfulLines.map(({ key, id, markup_mode, markup_percent, markup_requires_input, ...line }, index) => ({ ...line, ...(markup_mode === 'percent' ? { markup_percent: markup_percent === '' ? 0 : markup_percent } : {}), sort_order: index })),
+        p_lines: meaningfulLines.map(({ key, id, markup_mode, markup_percent, markup_requires_input, is_overall_markup, ...line }, index) => ({ ...line, ...(markup_mode === 'percent' ? { markup_percent: markup_percent === '' ? 0 : markup_percent } : {}), sort_order: index })),
         p_reason: form.reason.trim(),
+        p_overall_markup_percent: overallRate,
+        p_overall_markup_budget_line_id: overallRate > 0 ? form.overall_markup_budget_line_id : null,
       });
       if (error) throw error;
       setOrder(data);
+      setSavedOverallMarkupAmount(overallRate > 0 ? percentMarkupAmount(lineItemsTotal, overallRate) ?? 0 : 0);
       // Keep the reopening reason through the next draft save so users do not
       // have to type the same explanation twice for one controlled edit.
       setAction({ name: '', error: null, success: 'Draft saved.' });
@@ -244,7 +265,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       if (error) throw error;
       popup.document.open();
       const logoUrl = new URL('/northgate-group-logo.jpg', window.location.origin).href;
-      popup.document.write(clientChangeOrderHtml({ order, job, form, lines, total, logoUrl }));
+      popup.document.write(clientChangeOrderHtml({ order, job, form, lines, overallMarkupAmount, total, logoUrl }));
       popup.document.close();
       popup.opener = null;
       setOrder((current) => ({ ...current, exported_at: new Date().toISOString(), exported_by: user?.id }));
@@ -481,11 +502,21 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
                 <label><span>Vendor / subcontractor</span><input value={line.vendor_name || ''} onChange={(e) => updateLine(line.key, 'vendor_name', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 <label className="change-order-line__wide"><span>Description / scope</span><input value={line.description || ''} onChange={(e) => updateLine(line.key, 'description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 {MONEY_FIELDS.filter((field) => field !== 'markup_amount').map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
-                {line.markup_mode === 'legacy' ? <label><span>Legacy markup amount</span><input type="number" step="0.01" value={line.markup_amount ?? ''} onChange={(e) => updateLine(line.key, 'markup_amount', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} />{isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => { if (window.confirm('Replace this legacy dollar markup with a new percentage? Enter a percentage before saving.')) setLines((current) => current.map((item) => item.key === line.key ? { ...item, markup_mode: 'percent', markup_percent: '', markup_requires_input: true, markup_amount: '' } : item)); }}>Use percentage</button> : null}</label> : <label><span>Line markup %</span><input type="number" min="0" step="any" value={line.markup_percent ?? ''} onChange={(e) => updateLine(line.key, 'markup_percent', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /><small>Calculated markup: {money(line.markup_amount)} on {money(lineSubtotal(line))}</small></label>}
+                {line.markup_mode === 'legacy' ? <label><span>Legacy markup amount</span><input type="number" step="0.01" value={line.markup_amount ?? ''} onChange={(e) => updateLine(line.key, 'markup_amount', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /><small>Applies only to this line.</small>{isDraft && canEditDraft ? <button type="button" className="secondary-button" onClick={() => { if (window.confirm('Replace this legacy dollar markup with a new percentage? Enter a percentage before saving.')) setLines((current) => current.map((item) => item.key === line.key ? { ...item, markup_mode: 'percent', markup_percent: '', markup_requires_input: true, markup_amount: '' } : item)); }}>Use percentage</button> : null}</label> : <label><span>Line markup %</span><input type="number" min="0" step="any" value={line.markup_percent ?? ''} onChange={(e) => updateLine(line.key, 'markup_percent', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /><small>Applies only to this line. Calculated markup: {money(line.markup_amount)} on {money(lineSubtotal(line))}</small></label>}
               </div>
               {isDraft && canEditDraft ? <div className="change-order-line__actions"><button type="button" className="secondary-button" onClick={() => duplicateLine(line)}><Copy aria-hidden="true" /> Duplicate</button><button type="button" className="secondary-button secondary-button--danger" onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))} disabled={lines.length === 1}><Trash2 aria-hidden="true" /> Remove</button></div> : null}
             </article>
           ))}
+        </div>
+        <div className="change-order-overall-markup">
+          <strong>Overall Change Order Markup</strong>
+          <p>Applied to the sum of line totals after each line’s own markup. This is separate from line markup.</p>
+          <div className="change-order-line__grid">
+            <label><span>Overall markup %</span><input type="number" min="0" step="any" value={form.overall_markup_percent} onChange={(event) => setField('overall_markup_percent', event.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
+            <label><span>Financial line for overall markup</span><select value={form.overall_markup_budget_line_id} onChange={(event) => setField('overall_markup_budget_line_id', event.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
+            <div><small>Calculated overall markup</small><strong>{money(overallMarkupAmount)}</strong></div>
+            <div><small>Final Change Order total</small><strong>{money(total)}</strong></div>
+          </div>
         </div>
       </div>
 
