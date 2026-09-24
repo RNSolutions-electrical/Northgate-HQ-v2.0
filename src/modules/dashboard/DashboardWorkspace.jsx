@@ -20,6 +20,7 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
+import { mergeDashboardJobAssignments } from './dashboardJobAssignments.js';
 
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
 const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
@@ -78,6 +79,7 @@ const DASHBOARD_VEHICLE_COLUMNS = [
 ];
 const DASHBOARD_JOB_COLUMNS = [
   { key: 'job_number', header: 'Job', render: (row) => <strong>{row.job_number ? `${row.job_number} - ${row.name}` : row.name}</strong> },
+  { key: 'role_labels', header: 'My role', fallback: '-' },
   { key: 'status', header: 'Status', render: (row) => <StatusBadge status={row.status}>{formatLabel(row.status)}</StatusBadge> },
   { key: 'division', header: 'Department', fallback: '-' },
   { key: 'assigned_at', header: 'Assigned', render: (row) => formatDateTime(row.assigned_at) },
@@ -410,14 +412,33 @@ function useDashboardJobAssignments({ enabled, userId }) {
       try {
         const token = await getSupabaseAccessToken(getToken);
         const client = createSupabaseClient(token);
-        const { data, error } = await client
-          .from('job_user_assignments')
-          .select('id, job_id, assigned_at, note, job:jobs(id, job_number, name, status, division)')
-          .eq('user_id', userId)
-          .is('unassigned_at', null)
-          .order('assigned_at', { ascending: false });
-        if (error) throw error;
-        const jobs = (data ?? []).map((assignment) => ({ ...assignment.job, assignment_id: assignment.id, assigned_at: assignment.assigned_at, note: assignment.note })).filter((job) => job?.id);
+        const [membershipResult, responsibilityResult] = await Promise.all([
+          client
+            .from('job_user_assignments')
+            .select('id, job_id, assigned_at, job:jobs(id, job_number, name, status, division)')
+            .eq('user_id', userId)
+            .is('unassigned_at', null)
+            .order('assigned_at', { ascending: false }),
+          client.rpc('read_my_job_responsibilities'),
+        ]);
+        if (membershipResult.error) throw membershipResult.error;
+        if (responsibilityResult.error) throw responsibilityResult.error;
+        const responsibilityJobIds = [...new Set((responsibilityResult.data ?? []).map((row) => row.job_id))];
+        let visibleResponsibilityJobs = [];
+        if (responsibilityJobIds.length) {
+          const visibleResult = await client
+            .from('jobs')
+            .select('id, job_number, name, status, division')
+            .in('id', responsibilityJobIds)
+            .is('archived_at', null);
+          if (visibleResult.error) throw visibleResult.error;
+          visibleResponsibilityJobs = visibleResult.data ?? [];
+        }
+        const jobs = mergeDashboardJobAssignments(
+          membershipResult.data ?? [],
+          responsibilityResult.data ?? [],
+          visibleResponsibilityJobs,
+        );
         if (isMounted) setState({ isLoading: false, error: null, jobs });
       } catch (error) {
         console.error('Dashboard job assignments failed to load', error);
@@ -552,7 +573,7 @@ export function DashboardWorkspace({ permissions }) {
 
   const sidebarItems = useMemo(() => [
     { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
-    { key: 'my-work', label: 'My Work', icon: HardHat, description: 'Jobs assigned to you.' },
+    { key: 'my-work', label: 'My Work', icon: HardHat, description: 'Jobs where you have a responsibility or project membership.' },
     { key: 'my-vehicles', label: 'My Vehicles', icon: Truck, description: 'Direct and team vehicle views.' },
     { key: 'my-tools', label: 'My Tools', icon: Wrench, description: 'Company tools plus deferred personal tools.' },
     ...(canSeeEstimates
@@ -711,20 +732,20 @@ export function DashboardWorkspace({ permissions }) {
                 <Toolbar
                   eyebrow="My Jobs"
                   title="Jobs assigned to you"
-                  description="Select a job to open it in Jobs."
+                  description="Your project responsibility and membership assignments. Select a job to open it in Jobs; assignment alone does not grant new access."
                   actions={<button type="button" className="secondary-button" onClick={dashboardJobs.reload} disabled={dashboardJobs.isLoading}>Refresh</button>}
                 />
                 <DataTable
                   columns={DASHBOARD_JOB_COLUMNS}
                   rows={dashboardJobs.jobs}
-                  getRowKey={(row) => row.assignment_id}
+                  getRowKey={(row) => row.id}
                   permissions={permissions}
                   isLoading={dashboardJobs.isLoading}
                   error={dashboardJobs.error}
                   dense
                   minWidth="760px"
                   emptyTitle="No jobs assigned to you"
-                  emptyDescription="Jobs assigned to you will appear here."
+                  emptyDescription="Jobs where you have a responsibility or project membership will appear here when you have access."
                   onRowClick={(row) => navigate('/jobs', { state: { openJobId: row.id } })}
                 />
               </article>
