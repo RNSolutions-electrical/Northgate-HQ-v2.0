@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 
 const SLOTS = [
@@ -21,7 +22,7 @@ export function JobResponsibilities({ jobId, canManage }) {
     let active = true;
     async function load() {
       try {
-        const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
         const { data, error: readError } = await client.rpc('read_job_responsibilities', { p_job_id: jobId });
         if (readError) throw readError;
         let directory = [];
@@ -41,7 +42,7 @@ export function JobResponsibilities({ jobId, canManage }) {
     setBusy(role);
     setError(null);
     try {
-      const client = createSupabaseClient(await getToken({ template: 'supabase' }));
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
       const { error: saveError } = await client.rpc('set_job_responsibility', {
         p_job_id: jobId, p_responsibility: role, p_user_id: userId || null,
       });
