@@ -22755,3 +22755,15 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Acknowledgement stores current budget/actual cents, actor and timestamp. It does not dismiss an unresolved alert; changed financial values invalidate the acknowledgement. The RPC checks active identity and existing line-level financial permission, while direct table writes and anonymous RPC execution are denied.
 - Verification: 238 repository tests passed and Staging-configured Vite build passed with build-only placeholders. Staging RLS/grants and an anonymous-subject denial were checked in a rollback-only transaction. Security advisor's new authenticated SECURITY DEFINER notice is expected for the restricted acknowledgement RPC; no anonymous execution is granted. Pre-existing advisor findings remain outside this slice.
 - Netlify reports the Staging deployment READY at the exact commit. The sandbox denied a direct HTTPS socket check, so authenticated browser acceptance remains: open Dashboard as a financial-authorized assigned user, observe a warning, acknowledge it, confirm it stays visible, refresh, then test an ordinary User without financial access. No Production promotion is implied.
+
+## Entry 314 — Project responsibility access-rule proposal
+
+**Date:** 2026-09-24 15:28 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `PINE-GATE-20260924-001`
+**Deployment/migration:** Documentation only; no application, database, Staging deployment or Production change.
+
+- Ryan reports both Dashboard budget-alert browser checks passed on Staging. This is acceptance of the Staging slice, not Production promotion.
+- `docs/reviews/PROJECT_RESPONSIBILITY_ACCESS_RULES_20260924.md` records a proposed capability-plus-scope model using the existing named responsibility slots, project-member assignments, effective permissions and action catalogue. It explicitly keeps assignment from silently granting financial read/write or Developer rights.
+- Two business decisions remain before implementing scoped enforcement: cross-department assignment visibility, and whether only the named PM slots satisfy future assigned-PM gates after the current generic `project_manager` records and Change Order compatibility hold are reconciled.
