@@ -21,6 +21,9 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
 import { mergeDashboardJobAssignments } from './dashboardJobAssignments.js';
+import { buildDashboardBudgetAlerts } from './dashboardBudgetAlerts.js';
+
+const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
 const EMPTY_ATTENTION_ITEMS = Object.freeze([]);
 const EMPTY_DASHBOARD_ESTIMATES = Object.freeze([]);
@@ -452,6 +455,64 @@ function useDashboardJobAssignments({ enabled, userId }) {
   return { ...state, reload: () => setRefreshKey((current) => current + 1) };
 }
 
+function useDashboardBudgetHealth({ enabled, jobs }) {
+  const { getToken } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [savingId, setSavingId] = useState(null);
+  const [state, setState] = useState({ isLoading: false, error: null, items: [] });
+  const jobIds = useMemo(() => jobs.map((job) => job.id), [jobs]);
+  const jobIdsKey = jobIds.join(',');
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      if (!enabled || !jobIds.length) {
+        setState({ isLoading: false, error: null, items: [] });
+        return;
+      }
+      setState((current) => ({ ...current, isLoading: true, error: null }));
+      try {
+        const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
+        const [lineResult, postingResult, acknowledgementResult] = await Promise.all([
+          client.from('job_budget_lines')
+            .select('id,job_id,cost_code,description,budget_amount,budget_change_amount,current_budget_override_amount,actual_cost_amount')
+            .in('job_id', jobIds).is('archived_at', null),
+          client.from('change_order_financial_postings')
+            .select('job_budget_line_id,amount_delta').in('job_id', jobIds),
+          client.from('job_budget_health_acknowledgements')
+            .select('job_budget_line_id,budget_cents,actual_cents,acknowledged_at').in('job_id', jobIds),
+        ]);
+        if (lineResult.error) throw lineResult.error;
+        if (postingResult.error) throw postingResult.error;
+        if (acknowledgementResult.error) throw acknowledgementResult.error;
+        if (active) setState({ isLoading: false, error: null, items: buildDashboardBudgetAlerts({
+          jobs, lines: lineResult.data ?? [], postings: postingResult.data ?? [],
+          acknowledgements: acknowledgementResult.data ?? [],
+        }) });
+      } catch (error) {
+        if (active) setState({ isLoading: false, error, items: [] });
+      }
+    }
+    load();
+    return () => { active = false; };
+  }, [enabled, getToken, jobIdsKey, refreshKey]);
+
+  async function acknowledge(id) {
+    setSavingId(id);
+    try {
+      const client = createSupabaseClient(await getSupabaseAccessToken(getToken));
+      const result = await client.rpc('acknowledge_job_budget_health', { p_budget_line_id: id });
+      if (result.error) throw result.error;
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      setState((current) => ({ ...current, error }));
+    } finally {
+      setSavingId(null);
+    }
+  }
+  return { ...state, savingId, acknowledge, reload: () => setRefreshKey((current) => current + 1) };
+}
+
 function useDashboardTools({ enabled }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -563,6 +624,11 @@ export function DashboardWorkspace({ permissions }) {
   });
   const activeVehicleAssignments = dashboardVehicles.assignments.filter((assignment) => assignment.is_active);
   const dashboardJobs = useDashboardJobAssignments({ enabled: permissions.permissionSource === 'server', userId: permissions.userId });
+  const budgetHealth = useDashboardBudgetHealth({
+    enabled: permissions.permissionSource === 'server' && !dashboardJobs.isLoading && !dashboardJobs.error,
+    jobs: dashboardJobs.jobs,
+  });
+  const openBudgetAlerts = budgetHealth.items.filter((item) => !item.acknowledged).length;
   const canSeeTools = permissions.permissionSource === 'server';
   const dashboardTools = useDashboardTools({ enabled: canSeeTools });
   const activeDashboardTools = dashboardTools.tools.filter((tool) => tool.status === 'active');
@@ -632,8 +698,8 @@ export function DashboardWorkspace({ permissions }) {
         </div>
         <div className="dashboard-hero__panel">
           <span>Needs attention</span>
-          <strong>{jobAttention.isLoading||reviewTasks.isLoading ? 'Loading' : jobAttention.items.length+reviewTasks.items.length}</strong>
-          <p>{jobAttention.error||reviewTasks.error ? 'Some attention items could not load.' : 'Operational exceptions and assigned review tasks.'}</p>
+          <strong>{jobAttention.isLoading||reviewTasks.isLoading||dashboardJobs.isLoading||budgetHealth.isLoading ? 'Loading' : jobAttention.items.length+reviewTasks.items.length+openBudgetAlerts}</strong>
+          <p>{jobAttention.error||reviewTasks.error||dashboardJobs.error||budgetHealth.error ? 'Some attention items could not load.' : 'Operational exceptions, budget warnings, and assigned review tasks.'}</p>
         </div>
       </section>
 
@@ -641,6 +707,28 @@ export function DashboardWorkspace({ permissions }) {
         <Toolbar eyebrow="Needs Attention" title="Assigned reviews" description="Open approval and review work, grouped by task type." actions={<button type="button" className="secondary-button" onClick={reviewTasks.reload}>Refresh</button>}/>
         {reviewTaskGroups.map(([type,items])=><section key={type}><h3>{type}</h3>{items.map(item=><button type="button" className="secondary-button dashboard-review-task" key={item.destination_id} onClick={()=>navigate(reviewTaskPath(item),{state:{reviewDestinationId:item.destination_id,reviewDestinationKey:item.destination_key,reviewMode:true}})}><strong>{item.title}</strong><span>{item.submitted_by_name}</span><span>Open review</span></button>)}</section>)}
       </article>:null}
+
+      <article className="card workspace-card module-directory-panel dashboard-budget-health">
+        <Toolbar eyebrow="Project Health" title="Budget health" description="Warning and danger lines on your assigned Jobs that you are permitted to view. Acknowledgement does not dismiss an unresolved issue." actions={<button type="button" className="secondary-button" onClick={budgetHealth.reload} disabled={budgetHealth.isLoading}>Refresh</button>}/>
+        {budgetHealth.error ? <StatePanel title="Budget alerts could not be loaded" description={budgetHealth.error.message} tone="danger" /> : null}
+        {!budgetHealth.error && (dashboardJobs.isLoading || budgetHealth.isLoading) ? <p>Loading budget health…</p> : null}
+        {!budgetHealth.error && !dashboardJobs.isLoading && !budgetHealth.isLoading && !budgetHealth.items.length ? <p>No budget warnings on your assigned Jobs are visible to you.</p> : null}
+        {!budgetHealth.error && !budgetHealth.isLoading ? budgetHealth.items.map((item) => (
+          <div className={`dashboard-budget-health__item ${item.acknowledged ? 'dashboard-budget-health__item--acknowledged' : ''}`} key={item.id}>
+            <div className="dashboard-budget-health__copy">
+              <StatusBadge label={item.label} tone={item.state === 'warning' ? 'warn' : 'danger'} />
+              <strong>{item.jobLabel}</strong>
+              <span>{item.lineLabel}</span>
+              <small>{item.remainingPercent.toFixed(1)}% remaining · Budget {formatCurrency(item.budget)} · Actual {formatCurrency(item.actual)} · Remaining {formatCurrency(item.remaining)}</small>
+              {item.acknowledged ? <small>Acknowledged {new Date(item.acknowledgedAt).toLocaleString()}; still unresolved.</small> : null}
+            </div>
+            <div className="dashboard-budget-health__actions">
+              <button type="button" className="secondary-button" onClick={() => navigate('/jobs', { state: { openJobId: item.jobId } })}>Open Job</button>
+              {!item.acknowledged ? <button type="button" className="secondary-button" onClick={() => budgetHealth.acknowledge(item.id)} disabled={budgetHealth.savingId === item.id}>{budgetHealth.savingId === item.id ? 'Saving…' : 'Acknowledge'}</button> : null}
+            </div>
+          </div>
+        )) : null}
+      </article>
 
       <div className="summary-grid">
         <SummaryCard detailIsDiagnostic label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} developmentOnly />

@@ -323,8 +323,14 @@ svg { stroke-width: 1.8; }
 .ng-shell__notification-menu>button span,.ng-shell__notification-menu>button small { display:block; }
 .dashboard-review-tasks>section+section { margin-top:18px; padding-top:14px; border-top:1px solid var(--ng-border); }
 .dashboard-review-task { display:grid; grid-template-columns:minmax(180px,1fr) minmax(130px,.5fr) auto; width:100%; gap:12px; align-items:center; text-align:left; margin-top:8px; }
+.dashboard-budget-health__item { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-top:1px solid var(--ng-border); }
+.dashboard-budget-health__item--acknowledged { opacity:.7; }
+.dashboard-budget-health__copy { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; min-width:0; }
+.dashboard-budget-health__copy strong,.dashboard-budget-health__copy span,.dashboard-budget-health__copy small { overflow-wrap:anywhere; }
+.dashboard-budget-health__copy small { flex-basis:100%; color:var(--ng-muted); }
+.dashboard-budget-health__actions { display:flex; flex-wrap:wrap; gap:7px; flex-shrink:0; }
 .estimate-review-payload { max-height:420px; overflow:auto; padding:12px; border:1px solid var(--ng-border); background:var(--ng-panel-bg-alt); white-space:pre-wrap; overflow-wrap:anywhere; }
-@media (max-width: 720px) { .dashboard-review-task { grid-template-columns:1fr; } }
+@media (max-width: 720px) { .dashboard-review-task { grid-template-columns:1fr; } .dashboard-budget-health__item { align-items:flex-start; flex-direction:column; } }
 
 .ng-shell__feedback-button {
   display: inline-flex;
