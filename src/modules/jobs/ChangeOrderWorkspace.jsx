@@ -186,12 +186,12 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
       setAction({ name: '', error: new Error('Enter the new line markup percentage before replacing legacy dollar markup.'), success: '' });
       return null;
     }
-    if (meaningfulLines.some((line) => line.markup_mode === 'percent' && (Number(line.markup_percent || 0) < 0 || !Number.isFinite(Number(line.markup_percent || 0))))) {
+    if (meaningfulLines.some((line) => line.markup_mode === 'percent' && percentMarkupAmount(lineSubtotal(line), line.markup_percent) === null)) {
       setAction({ name: '', error: new Error('Line markup percentage must be a valid non-negative number.'), success: '' });
       return null;
     }
     const overallRate = Number(form.overall_markup_percent || 0);
-    if (!Number.isFinite(overallRate) || overallRate < 0 || (overallRate > 0 && !form.overall_markup_budget_line_id)) {
+    if (percentMarkupAmount(lineItemsTotal, form.overall_markup_percent) === null || (overallRate > 0 && !form.overall_markup_budget_line_id)) {
       setAction({ name: '', error: new Error('Enter a valid overall markup percentage and select its financial line.'), success: '' });
       return null;
     }

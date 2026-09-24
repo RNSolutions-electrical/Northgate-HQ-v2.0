@@ -9,10 +9,18 @@ export function lineSubtotal(line) {
 }
 
 export function percentMarkupAmount(subtotal, percent) {
-  const rate = Number(percent || 0);
-  if (!Number.isFinite(rate) || rate < 0) return null;
-  const cents = (Number(subtotal) || 0) * rate;
-  return Math.sign(cents) * Math.round(Math.abs(cents) + Number.EPSILON) / 100;
+  const amount = Number(subtotal);
+  const rawRate = String(percent === '' || percent == null ? '0' : percent).trim();
+  const match = /^\+?(\d*)(?:\.(\d*))?$/.exec(rawRate);
+  if (!Number.isFinite(amount) || !match || !(match[1] || match[2])) return null;
+  const amountCents = Math.round(Math.abs(amount) * 100);
+  if (!Number.isSafeInteger(amountCents)) return null;
+  const decimals = match[2] || '';
+  const rateDigits = BigInt(`${match[1] || '0'}${decimals}`);
+  const denominator = 100n * (10n ** BigInt(decimals.length));
+  const roundedCents = (BigInt(amountCents) * rateDigits + denominator / 2n) / denominator;
+  if (roundedCents > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return Math.sign(amount) * Number(roundedCents) / 100;
 }
 
 export function withUpdatedLineMarkup(line, change) {
