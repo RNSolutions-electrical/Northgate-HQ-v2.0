@@ -71,6 +71,17 @@ Do not apply all `staging` migrations to Production. Staging contains five other
 - This proves the four SQL migrations run on a Production-backup clone and the sampled data paths reconcile. It does **not** prove every authenticated browser flow, full Production traffic compatibility, Storage-file recovery, or the inherited npm advisories. Production code, schema, and data remain unchanged.
 - After explicit action-time confirmation, permanently deleted **only** the temporary clone `ikwmjjceecrskygrvyxq`. Supabase showed a success notice and the RNSolutions project list no longer contained it. Production project `keogysnoukbendfkfjcn` and Staging were untouched. The cloned data and test schema are no longer recoverable through the project's normal flow; the original Production backup remains separate.
 
+## Owner browser acceptance and presentation follow-up (2026-09-24, RYAN_NORTHGATE)
+
+- Owner accepted the budget-health behavior but reported a status-badge overlap in the fixed-layout Financials table. The candidate CSS now constrains the badge to its own cell and allows wrapping; underlying classification and dollar calculations are unchanged. The owner has not yet visually retested this CSS adjustment on Staging.
+- Owner accepted the four informational responsibility slots. The component already renders `display_name` before email. A read-only Production check found all eight active `user_permissions` records have non-email display names; Staging's test-profile email fallback does not predict Production's labels. No Production user data was changed.
+- Owner verified line-specific and overall Change Order markup together and accepted the calculation.
+- Owner clarified the intended submitted-record workflow: Return to Draft may edit before approval; an approved order requires an editable revision (`CO-001-R1`) retaining the original. This matches the existing status/revision approach and is accepted.
+- Owner confirmed the authorization-document upload/view path with a disposable PDF. This is **not** equivalent to verifying every client-facing Change Order PDF amount; that separate amount/PDF check remains unproven in this browser pass.
+- After the CSS fix, 215 scoped tests passed and the Production-style Vite build passed. A blanket `npm test` run had one unrelated failure because the repository's `scripts/serve-estimating-test.mjs` attempted to bind already-occupied port 5320; it is a server helper discovered by Node's test runner, not a failing assertion. No tests or running service were deleted or stopped.
+
+The narrow release still requires final diff/advisory review, owner acceptance of the wrapped badge on Staging if desired, and explicit promotion approval. No Production deployment or database migration has occurred.
+
 ## Rollback / incident plan
 
 If a frontend regression occurs, redeploy the previously verified Production Netlify deploy without force-pushing or moving a tag. The four schema changes are additive and should normally remain in place during a code rollback; dropping columns, functions or tables after users create markup or responsibility data would destroy records. For a database/data incident, stop affected writes, preserve audit evidence, assess new records, and use a verified recovery point or controlled forward repair. A frontend rollback alone does not undo migrations or submitted Change Orders.
