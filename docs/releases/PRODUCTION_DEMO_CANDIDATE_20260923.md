@@ -95,7 +95,7 @@ The narrow release still requires final diff/advisory review, owner acceptance o
 
 - Owner confirmed the wrapped budget-health badge no longer overlaps on Staging and the generated Change Order PDF total matches the screen. The prior PDF-total gate is now passed.
 - Owner requested that the *client-facing PDF row* for overall markup read **General Contractor Fee**. The candidate and Staging PDF template use that wording. The internal control and persisted pricing-line description remain **Overall Change Order Markup** to preserve financial/audit terminology; no data migration or recalculation is involved.
-- After this wording-only change, 215 candidate tests and 231 Staging tests passed; both Vite builds passed. The wording awaits the next Staging deploy and optional final visual confirmation. Production remains unchanged pending explicit approval and a current pre-release recovery point.
+- After this wording-only change, 215 candidate tests and 231 Staging tests passed; both Vite builds passed. Staging commit `a01c09950b4cd196007f7e372453710a5704459a` deployed as ready Netlify deploy `6ab543e65f5046000874a496` at `https://staging.rnsolutions.net`. The new PDF label has not yet been visually rechecked by the owner. Production remains unchanged pending explicit approval and a current pre-release recovery point.
 
 ## Rollback / incident plan
 
