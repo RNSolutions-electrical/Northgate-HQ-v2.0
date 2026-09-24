@@ -22641,7 +22641,7 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 3. Review exact release diff, recovery point, migrations and deployment path before
    any Production promotion. Do not merge unrelated Development/Staging features.
 
-## Entry 299 — Two-layer Change Order markup candidate
+## Entry 308 — Two-layer Change Order markup candidate
 
 **Date:** 2026-09-23 20:26 EDT
 **Updated by:** Codex on RYAN_NORTHGATE
@@ -22650,7 +22650,7 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 
 - Owner clarified the calculation order: electrical markup applies only to its
   own line, then General Contracting overall markup applies to the sum of the
-  line totals after their individual markup. This supersedes Entry 298's open
+  line totals after their individual markup. This supersedes Entry 307's open
   markup question.
 - Draft UI now labels the line-only scope explicitly and provides a separate
   overall percentage, calculated dollar amount, and selectable financial line.
@@ -22671,3 +22671,25 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   role checks, full candidate review, and release/recovery preparation remain
   prerequisites for Production promotion. Do not publish this branch to the
   active beta site until those checks are complete.
+
+## Entry 309 — Staging integration of the Production demo candidate
+
+**Date:** 2026-09-23 21:05 EDT
+**Updated by:** Codex on RYAN_NORTHGATE
+**Phase:** Staging integration; Production unchanged
+**Sync marker:** `MARBLE-HARBOR-20260923-001`
+
+- Integrated the isolated demo candidate with current Staging commit `32c3a98`
+  on separate branch/worktree `codex/staging-demo-integration`. Existing guided
+  Change Order and uncoded-draft behavior was preserved; the only textual merge
+  conflict was the append-only handoff log, where both histories were retained.
+- The isolated Staging database already has the required responsibilities table,
+  rate and overall-markup columns, and the overall-markup RPC. No new Staging or
+  Production migration was applied in this integration step.
+- All 234 selected repository tests passed. Vite build passed with build-only
+  placeholder environment values. Dependency audit still reports four inherited
+  high-severity findings; no forced dependency update was made in this patch.
+- This entry records a candidate, not a completed deployment. Before treating
+  Staging as updated, verify the Netlify deployment is READY at the integrated
+  commit and the live asset includes budget-health styling. Production must
+  remain unchanged until separate acceptance and release approval.
