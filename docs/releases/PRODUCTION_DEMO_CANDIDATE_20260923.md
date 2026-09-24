@@ -45,6 +45,15 @@ Do not apply all `staging` migrations to Production. Staging contains five other
 5. Verify a recoverable pre-release Production database point and its restore path; record current Production Netlify deploy, migration ledger, and relevant Storage scope. Database backup status is not yet confirmed.
 6. Review exact final diff, security/RLS advisor results, dependency advisories, and known issues. Obtain explicit owner acceptance and promotion approval. Then choose an unused pre-1.0 version, tag the accepted commit, create a GitHub Release, and promote deliberately.
 
+## September 23 release-gate recheck (21:40 EDT, Ryan_Northgate)
+
+- Owner accepted the line and overall markup, assignment layout, and four informational assignment slots on Staging. The Staging-only assignment token fix deployed at `06bd838`; owner confirmed assignments work.
+- Re-ran the narrow candidate test suite: 218 passed, 0 failed. Existing Staging integration separately passed 234 tests and a Staging build. Production remains at its prior code and schema.
+- Supabase security advisor on Staging flags the new `job_responsibilities` table as RLS-enabled with no direct policy. This is intentional: direct access is revoked; authenticated, authorization-checked RPCs provide access. It also flags the authenticated SECURITY DEFINER RPCs, which are intentionally callable after in-function permission checks. Existing unrelated advisor findings remain and are not created by this patch.
+- Dependency audit found four inherited high-severity advisories in Clerk, React Router, and xlsx; the candidate does not change dependencies. These require security triage, not an automatic `npm audit fix --force`.
+- Owner approved a temporary $0.01344/hour schema-only Supabase rehearsal branch. Branch creation replayed historical migrations unsuccessfully (`MIGRATIONS_FAILED`); the first demo migration could not find `public.jobs`. The branch was deleted immediately and its absence verified. No Production data or schema was changed. Exact Production-schema migration rehearsal remains **unproven**; do not claim this gate passed. Existing Staging did apply all four demo migrations, but its schema has other Staging-only changes and is not an exact Production clone.
+- Production backup inventory/restore path remains unverified. Owner is checking the Production Database → Backups dashboard; do not start a restore. Do not promote until a current, usable recovery point and a safer equivalent migration rehearsal are identified.
+
 ## Rollback / incident plan
 
 If a frontend regression occurs, redeploy the previously verified Production Netlify deploy without force-pushing or moving a tag. The four schema changes are additive and should normally remain in place during a code rollback; dropping columns, functions or tables after users create markup or responsibility data would destroy records. For a database/data incident, stop affected writes, preserve audit evidence, assess new records, and use a verified recovery point or controlled forward repair. A frontend rollback alone does not undo migrations or submitted Change Orders.
