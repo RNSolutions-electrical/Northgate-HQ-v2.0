@@ -1,10 +1,10 @@
-# Northgate HQ Production demo release candidate — NOT APPROVED FOR PROMOTION
+# Northgate HQ Production demo release — approved for promotion
 
 **Prepared:** 2026-09-23 21:21 EDT, RYAN_NORTHGATE
 **Mode:** Production Mode
 **Candidate branch:** `release/production-demo-candidate-20260923`
 **Production base:** `0340cdf8cc4a93f41cce8ed5a40553161e86314f` (`origin/main`)
-**Release version/tag:** Not assigned. Do not tag or create a GitHub Release until owner acceptance.
+**Release version/tag:** `v0.5.0` (pre-1.0 demo patch).
 
 ## Scope boundary
 
@@ -108,4 +108,8 @@ The narrow release still requires final diff/advisory review, owner acceptance o
 
 If a frontend regression occurs, redeploy the previously verified Production Netlify deploy without force-pushing or moving a tag. The four schema changes are additive and should normally remain in place during a code rollback; dropping columns, functions or tables after users create markup or responsibility data would destroy records. For a database/data incident, stop affected writes, preserve audit evidence, assess new records, and use a verified recovery point or controlled forward repair. A frontend rollback alone does not undo migrations or submitted Change Orders.
 
-**Status:** release candidate preparation only. Production code, schema, data and deployment remain unchanged.
+## Owner promotion authorization (2026-09-24, RYAN_NORTHGATE)
+
+The owner explicitly approved promotion of this exact narrow demo patch to Production after accepting the September 24 07:55:06 UTC physical database backup as the recovery point. Point-in-time recovery is not enabled; a full restore could lose Production database changes after that backup, and Supabase Storage objects are not covered. The owner reported no major intervening Production work and accepted this limitation. The September 23 isolated-backup rehearsal and the final Staging browser checks above remain the release evidence. Historical hold statements above describe earlier gates and are superseded by this authorization. Do not expand this release beyond the three scoped features or four listed migrations.
+
+**Status:** approved for controlled migration, release tagging, GitHub Release creation, and Production promotion. Record final deployment and migration verification below once complete.
