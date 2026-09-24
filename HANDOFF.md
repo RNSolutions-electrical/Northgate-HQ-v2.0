@@ -22540,3 +22540,27 @@ Ryan explicitly authorized migration and deployment of Entry 284.
   role checks, full candidate review, and release/recovery preparation remain
   prerequisites for Production promotion. Do not publish this branch to the
   active beta site until those checks are complete.
+
+## Entry 311 — Narrow Production demo release candidate prepared
+
+**Date:** 2026-09-23 21:21 EDT
+**Updated by:** Codex on RYAN_NORTHGATE
+**Phase:** release preparation only; Production unchanged
+**Sync marker:** `RIVER-LANTERN-20260923-001`
+
+- Created `release/production-demo-candidate-20260923` from the isolated demo
+  patch, whose merge base is Production `0340cdf`. No Staging-only changes were
+  merged into the candidate.
+- Read-only Production schema audit confirmed the existing dependencies of the
+  four additive demo migrations and found none of the new responsibility or
+  markup objects installed there. Existing Change Orders were not modified.
+- Corrected a browser/Postgres cent-rounding mismatch for decimal percentages;
+  $6.25 at 20.24% now previews as $1.27. Focused tests and a wide integer-cent
+  sweep passed, along with 218 selected repository tests and a Production-style
+  build using build-only placeholder keys.
+- Release scope, migration order, remaining Staging acceptance, schema-rehearsal
+  and recovery gates are documented in
+  `docs/releases/PRODUCTION_DEMO_CANDIDATE_20260923.md`.
+- No Production migration, tag, GitHub Release, code deployment or data write was
+  performed. The rounding correction must also reach Staging before owner
+  acceptance of the candidate.
