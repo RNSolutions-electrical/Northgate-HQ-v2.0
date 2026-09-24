@@ -22742,3 +22742,16 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - `read_my_job_responsibilities()` returns only current-user assignments on Jobs already accessible through the existing Job-access predicate. The client fetches Job details through ordinary Jobs RLS. Direct responsibility-table SELECT and anonymous RPC execution remain denied.
 - Verification: 235 repository tests passed; Staging-configured Vite build passed using build-only placeholders in a temporary output directory. A normal build to `dist` could not clear Dropbox-locked generated assets; the alternate output build succeeded. Authenticated database checks returned two visible rows for an assigned user and zero for an unrelated active user. Security advisor flags authenticated SECURITY DEFINER execution as expected for this self-scoped RPC; verify its access predicates if changing it later.
 - Owner browser acceptance is still needed: with the Developer test account, open Dashboard → My Work and confirm the assigned Job and role labels; with the ordinary User test account, confirm no unauthorized Job appears. This is not a Production promotion request.
+
+## Entry 313 — Permission-scoped Dashboard budget health, Staging only
+
+**Date:** 2026-09-24 15:20 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `CEDAR-LANTERN-20260924-001` · app commit `dec350e8bd0c0f1902d122475331a7f1cbec630f`
+**Deployment/migration:** Staging Netlify deploy `6ab577b6632f860008eb2116` READY at the exact app commit; Staging Supabase migration `dashboard_budget_health_acknowledgements` ledger version `20260924191704` applied from repository file `20260924191152_dashboard_budget_health_acknowledgements.sql`. Production unchanged.
+
+- Dashboard now shows a permanent Project Health panel for warning/danger/over-budget lines on My Work Jobs, using the same budget-health thresholds and current-budget formula as Job Financials. Existing financial-line and approved-CO RLS restrict the input rows; assignment does not grant financial authority. No project aggregate is exposed.
+- Acknowledgement stores current budget/actual cents, actor and timestamp. It does not dismiss an unresolved alert; changed financial values invalidate the acknowledgement. The RPC checks active identity and existing line-level financial permission, while direct table writes and anonymous RPC execution are denied.
+- Verification: 238 repository tests passed and Staging-configured Vite build passed with build-only placeholders. Staging RLS/grants and an anonymous-subject denial were checked in a rollback-only transaction. Security advisor's new authenticated SECURITY DEFINER notice is expected for the restricted acknowledgement RPC; no anonymous execution is granted. Pre-existing advisor findings remain outside this slice.
+- Netlify reports the Staging deployment READY at the exact commit. The sandbox denied a direct HTTPS socket check, so authenticated browser acceptance remains: open Dashboard as a financial-authorized assigned user, observe a warning, acknowledge it, confirm it stays visible, refresh, then test an ordinary User without financial access. No Production promotion is implied.
