@@ -1,6 +1,6 @@
 # Northgate HQ — shared work queue
 
-**Updated:** 2026-09-23 21:36 EDT (UTC-04:00) · **Machine:** `Ryan_Northgate`
+**Updated:** 2026-09-24 12:20 EDT (UTC-04:00) · **Machine:** `RYAN_NORTHGATE`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 
 ## Cross-machine sync convention
@@ -54,6 +54,41 @@ The marker proves a specific Git checkpoint, **not** that another machine has fe
 Ryan reaffirmed on September 22, 2026 that backup options should be decided later but must not be forgotten. Before relying on the release flow for business-critical data, verify actual Supabase backup/PITR capabilities and cost, Storage-object recovery, offsite destination, approximately eight weekly recovery points, alerting, and an isolated restore drill. Create an additional recovery point before significant production migrations once the policy exists. See `docs/reviews/ENVIRONMENT_RELEASE_PHASE1_CURRENT_STATE_20260922.md`.
 
 This is a tracked decision gate, **not authorization** to purchase, schedule, export, restore, or modify Production backup settings now. Existing per-object permanent-deletion safeguards remain in place.
+
+## 6. Post-demo Staging development package — scoped roadmap, not a single release
+
+Source: Ryan's September 24 Staging-development package. The narrow Production demo patch is now `v0.5.0` at `810b3c9`; these follow-on features are **Staging-first** and independently promotable only after their own acceptance. This section records direction and sequencing, not approval to modify Production or to implement all priorities at once. Keep existing manual workflows and the risk-based audit-reason policy.
+
+### Dependency map and reusable foundations
+
+| Proposed slice | Existing foundation to reuse | Dependency / boundary |
+| --- | --- | --- |
+| Project-health alerts (Priority 1) | `classifyBudgetHealth`, Job Financials, Dashboard Needs Attention/Pulse, responsibility RPC, existing job-access and protected-financial permissions | First reconcile the four Production responsibility slots into Staging's assignment-aware read model. Alert computation and any aggregate must apply current per-user data scope server-side; acknowledgement changes presentation, never the underlying condition. Required alert area stays outside customizable widgets. |
+| Responsibility integration (Priority 2) | `job_responsibilities` informational slots, `job_user_assignments`, existing global/granular permissions | First add Assigned Jobs to My Work without changing authority. Separately design scoped Job authority; one named owner per controlled slot, unlimited other participation. No automatic financial-edit grant from assignment alone. |
+| Guided CO refinement (Priority 3) | Existing deterministic `GuidedChangeOrder`, one authoritative CO draft/pricing path, autosave/resume and manual alternative | Await Ryan's annotated screenshots for step boundaries. Preserve flexible navigation and one logical decision group per step; do not create another CO system. |
+| Custom dashboard (Priority 4) | Dashboard workspace, existing Cards/Pulse, Job and permission helpers | Implement saved working-layout session with Save/Discard, individual removal, four-column responsive grid, hierarchical searchable widget picker, optional checked deep links. Source queries reauthorize on every read; saved configuration never caches sensitive data. Repeating assigned-project templates are a later slice. |
+| Principal experience (Priority 5) | Role/default/override model and future widget framework | **Definition pending:** Principal is not yet a canonical role in the User → Supervisor → Manager → Director → Developer hierarchy. Decide placement, business authority, protected-financial defaults, and distinction from Director/Developer with ownership before schema/default changes. Do not hard-code executive widgets yet. |
+| Unit-based budgets (Priority 6) | Job budget lines, actual-cost and forecast calculations | Financial schema/calculation design and historical migration review required. Optional unit type, quantity, rate and source must not rewrite original or billed history. Specify rounding and which input is authoritative when amount, rate and units disagree. |
+| Classification and analytics (Priority 7) | Job Details, Reports workspace, existing financial/project metrics | Start with optional multi-select classifications and scoped read-only comparisons. Reference existing financial values rather than duplicate entry. Analytics must exclude data the viewer cannot access, including protected financials. |
+| Nested documents (Priority 8) | Job Documents, categories/tags, storage metadata, document audit/permissions | Distinguish virtual folder metadata from physical Storage paths; review move/rename/archived-document behavior and links before migration. Preserve current categories and existing files. |
+| Project backup (Priority 9) | Job Documents and Storage access; existing project metadata | First design a manual ZIP + manifest with category/folder organization and tested restore-by-hand. Dropbox one-way copy follows only after connector/auth, destination, integrity and access review. No automatic purge, offloading or two-way sync in this package. This is distinct from Production database backup/PITR policy in Section 5. |
+| Billing templates (Priority 10) | Job Billing/SOV/Pay App data and immutable history | Backlog/architecture only until real AIA, GMP, residential and commercial examples arrive. No universal template engine or client export guessed from incomplete samples. |
+
+### Recommended implementation order and release grouping
+
+1. **Acceptance/groundwork:** Finish the current Staging guided-CO acceptance and financial-import/document tests in Sections 1–4. Reconcile `v0.5.0` into Staging without losing Staging-only work. Establish permission-safe Job responsibility reads and an Assigned Jobs/My Work slice. Demo-ready with existing records; no assignment-driven permissions yet.
+2. **Project health:** Build a server-scoped budget-alert feed using the existing health thresholds; persistent non-removable dashboard area; per-user acknowledgement with actor/time. Test healthy/warning/danger/over-budget, zero or missing budgets, protected-financial exclusion, assignment changes, acknowledgement persistence and condition resolution. This can ship separately from customizable dashboards.
+3. **Low-risk independent metadata/UX:** Refine guided CO step layout after screenshots; optional Project classification fields and initial filterable Reports view; document folder design/prototype. Each can be accepted independently. Avoid broad schema migration until existing records and audit behavior are mapped.
+4. **Dashboard configuration:** Build the four-column session-based widget layout and picker after authorized read endpoints and alert-area separation are proven. Test Save/Discard, reorder/remove, mobile stacking, deep-link denial after access revocation, and no stale financial payload in configurations. Add repeating assigned-project layouts later.
+5. **Higher-risk financial/storage slices:** Unit-based budgets require cent/unit reconciliation, historical-data and SOV/forecast regression tests before any promotion. Nested folders and manual ZIP backup require Storage metadata and actual file integrity/recovery tests. Dropbox backup follows only after one-way destination/access design and external-service authorization.
+6. **Definition-gated:** Principal role/dashboard awaits owner requirements. Template-based billing export awaits representative documents. Do not block the independent slices above on these definitions.
+
+### Data and security review before coding each slice
+
+- Likely additive Staging schema: alert acknowledgement keyed to condition/user (with timestamps), dashboard layout/configuration, optional Project classification/tags, optional unit-basis fields, and document folder relationships. These are **candidates**, not approved migrations; first inspect equivalent tables, RLS, RPCs, indexes and audit structure. Assignments already have a table and should not be duplicated.
+- Alerts, widgets, analytics, exports, deep links and Silas must resolve live permissions and protected-financial scope at the data-access layer. No browser-only hiding. Authorization changes must invalidate visible sensitive data immediately.
+- High-risk areas: budget unit math and historical financials; assignment-derived edit authority; folder moves affecting document pointers; Dropbox data transmission; and recovery claims. Test migrations on isolated Staging, verify old records, rollback/forward-repair paths, RLS, concurrent edits and audit fidelity. Do not copy Production data into Staging just to make demos realistic.
+- The earliest plausible demos are Assigned Jobs/My Work, compact budget alerts, and screenshot-guided CO layout refinement. Principal, budget composition, Dropbox, and billing-template exports need additional definition or safety testing before promising a demo date.
 
 ## Promotion boundary
 
