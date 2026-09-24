@@ -22,7 +22,7 @@ The marker proves a specific Git checkpoint, **not** that another machine has fe
 
 ## 2. Release and environment control — after staging gate
 
-- Agree on the initial full pre-1.0 semantic version. Historical V1–V5 labels and `package.json` `3.0.0` are not official releases.
+- Initial full pre-1.0 Production release `v0.5.0` was tagged and published on September 24. Historical V1–V5 labels and `package.json` `3.0.0` are not official releases; reconcile app-visible version separately before a later release.
 - Verify GitHub Releases, branch protection, migration manifests, and deliberate Development → Staging → Production promotion/rollback checks. Production `main` must not receive unfinished work.
 - Add safe environment/version/build/database-environment visibility to the Developer Console, as proposed in the environment restructure. Do not expose secrets.
 - Source: `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` and `docs/reviews/ENVIRONMENT_RELEASE_PHASE1_CURRENT_STATE_20260922.md`.

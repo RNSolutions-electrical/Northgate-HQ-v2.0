@@ -22717,3 +22717,15 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - This documentation-only commit uses `[skip ci]` so it does not replace the
   verified Staging asset. Owner acceptance of visual formatting, assignments,
   and both markup layers remains open before any Production promotion.
+
+## Entry 311 — Post-demo Staging roadmap updated
+
+**Date:** 2026-09-24 12:21 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Branch:** `codex/staging-demo-integration` (tracking `origin/staging`)
+**Sync marker:** `MAPLE-CANAL-20260924-001` · roadmap commit `5959e9184263c3a9927e8ef6f941ac01bc54714a`
+**Deployment/migration:** Documentation only; no app build, Staging migration, or Production change.
+
+- `docs/ROADMAP.md` now maps Ryan's ten post-demo Staging priorities to existing foundations, dependencies, risk gates, test needs and independently promotable release groups. It explicitly keeps the Principal role and billing-template formats definition-gated, and separates Project document backup from Production database recovery.
+- The narrow Production demo patch was separately released as `v0.5.0` at `810b3c950cf488ae0574848029e5687229c60c62` and is live. This Staging queue does not authorize further Production changes.
+- Earlier handoff entries are historical checkpoints; their pending Production acceptance statements were resolved by the subsequent owner approval and release.
