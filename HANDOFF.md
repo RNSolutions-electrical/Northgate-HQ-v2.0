@@ -22729,3 +22729,16 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - `docs/ROADMAP.md` now maps Ryan's ten post-demo Staging priorities to existing foundations, dependencies, risk gates, test needs and independently promotable release groups. It explicitly keeps the Principal role and billing-template formats definition-gated, and separates Project document backup from Production database recovery.
 - The narrow Production demo patch was separately released as `v0.5.0` at `810b3c950cf488ae0574848029e5687229c60c62` and is live. This Staging queue does not authorize further Production changes.
 - Earlier handoff entries are historical checkpoints; their pending Production acceptance statements were resolved by the subsequent owner approval and release.
+
+## Entry 312 — Assigned Jobs in Dashboard My Work, Staging only
+
+**Date:** 2026-09-24 12:30 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `SILVER-PATH-20260924-001` · `b09aba3824870dcdf220e5db2fdd7938ef86088a`
+**Deployment/migration:** Staging Netlify deploy `6ab55002f730a00008b4677c` READY at the exact commit; Staging Supabase migration `dashboard_job_responsibilities` ledger version `20260924162755` applied. Production unchanged.
+
+- Dashboard → My Work now combines the existing project-member rows with the four controlled responsibility slots, deduplicates Jobs, labels each role, and retains the existing Job-open navigation. It does not derive assignments from global role or change Job/financial permissions.
+- `read_my_job_responsibilities()` returns only current-user assignments on Jobs already accessible through the existing Job-access predicate. The client fetches Job details through ordinary Jobs RLS. Direct responsibility-table SELECT and anonymous RPC execution remain denied.
+- Verification: 235 repository tests passed; Staging-configured Vite build passed using build-only placeholders in a temporary output directory. A normal build to `dist` could not clear Dropbox-locked generated assets; the alternate output build succeeded. Authenticated database checks returned two visible rows for an assigned user and zero for an unrelated active user. Security advisor flags authenticated SECURITY DEFINER execution as expected for this self-scoped RPC; verify its access predicates if changing it later.
+- Owner browser acceptance is still needed: with the Developer test account, open Dashboard → My Work and confirm the assigned Job and role labels; with the ordinary User test account, confirm no unauthorized Job appears. This is not a Production promotion request.
