@@ -22640,3 +22640,34 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 2. Validate the candidate with authenticated Staging UI workflows and role checks.
 3. Review exact release diff, recovery point, migrations and deployment path before
    any Production promotion. Do not merge unrelated Development/Staging features.
+
+## Entry 299 — Two-layer Change Order markup candidate
+
+**Date:** 2026-09-23 20:26 EDT
+**Updated by:** Codex on RYAN_NORTHGATE
+**Phase:** Production demo patch candidate; not promoted
+**Sync marker:** `CEDAR-COMPASS-20260923-001` (candidate, not live)
+
+- Owner clarified the calculation order: electrical markup applies only to its
+  own line, then General Contracting overall markup applies to the sum of the
+  line totals after their individual markup. This supersedes Entry 298's open
+  markup question.
+- Draft UI now labels the line-only scope explicitly and provides a separate
+  overall percentage, calculated dollar amount, and selectable financial line.
+  Existing submitted/approved dollar amounts remain authoritative. The client
+  form shows the overall markup as its own pricing line when present.
+- Additive migration `20260923123000_change_order_overall_markup_demo.sql` was
+  accepted and applied to **isolated Staging only**. It adds a nullable overall
+  rate, a tagged synthetic overall-markup line, a unique index, an atomic draft
+  save RPC, and revision copying of both markup layers. The existing submit and
+  approval pipeline continues to sum the financial lines. Production database
+  remains unchanged.
+- Staging rollback-only database tests confirmed $5,000 + 15% line markup =
+  $5,750; 10% overall = $575; total = $6,325. Repeated save did not compound
+  markup; setting overall rate to zero removed its line. Submission retained
+  the $6,325 price and $5,000 internal cost. Historical Staging orders retain
+  their original totals and null markup rates.
+- The app build and focused unit tests passed. Authenticated Staging UI review,
+  role checks, full candidate review, and release/recovery preparation remain
+  prerequisites for Production promotion. Do not publish this branch to the
+  active beta site until those checks are complete.

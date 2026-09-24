@@ -664,6 +664,11 @@ svg { stroke-width: 1.8; }
 .job-responsibilities__grid label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; font-size: .76rem; color: #586574; }
 .job-responsibilities__grid label strong { color: #17202a; font-size: .9rem; overflow-wrap: anywhere; }
 .job-responsibilities__grid select { width: 100%; }
+.change-order-overall-markup { margin-top: 1rem; border-top: 1px solid var(--ng-border, #d9e0e7); padding-top: 1rem; }
+.change-order-overall-markup > strong { display: block; font-size: 1rem; }
+.change-order-overall-markup > p { margin: .25rem 0 .75rem; color: #586574; }
+.change-order-overall-markup .change-order-line__grid > div { display: flex; flex-direction: column; justify-content: center; gap: .25rem; }
+.change-order-overall-markup .change-order-line__grid > div strong { font-size: 1rem; }
 @media (max-width: 900px) { .job-responsibilities__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) { .job-responsibilities__grid { grid-template-columns: 1fr; } }
 

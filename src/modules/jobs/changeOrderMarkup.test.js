@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lineSubtotal, percentMarkupAmount, withUpdatedLineMarkup } from './changeOrderMarkup.js';
+import { editableChangeOrderLines, lineSubtotal, percentMarkupAmount, withUpdatedLineMarkup } from './changeOrderMarkup.js';
 
 test('line percentages affect only their own subtotal and round to cents', () => {
   assert.equal(percentMarkupAmount(5000, 15), 750);
@@ -19,4 +19,7 @@ test('line percentages affect only their own subtotal and round to cents', () =>
   ];
   assert.deepEqual(lines.map((line) => Number(line.markup_amount)), [750, 300, 0]);
   assert.equal(lines.reduce((sum, line) => sum + lineSubtotal(line) + Number(line.markup_amount), 0), 11050);
+  const persisted = [...lines, { is_overall_markup: true, markup_amount: 1105 }];
+  assert.equal(editableChangeOrderLines(persisted).length, 3);
+  assert.equal(editableChangeOrderLines(editableChangeOrderLines(persisted)).length, 3);
 });
