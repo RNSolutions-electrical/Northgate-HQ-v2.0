@@ -1,0 +1,13 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter} from 'react-router-dom';
+import {ChangeOrderWorkspace} from '../../src/modules/jobs/ChangeOrderWorkspace.jsx';
+import {DiagnosticsProvider} from '../../src/components/ui/Diagnostics.jsx';
+import '../../src/styles/tokens.css';
+import '../../src/styles/base.css';
+import '../../src/styles/primitives.css';
+const state=new URLSearchParams(location.search).get('state');
+const supervisor=location.search.includes('supervisor');
+const permissions={canCreateChangeOrders:true,canSubmitChangeOrders:true,canVerifyChangeOrders:true,canApproveChangeOrders:!supervisor,canReviseChangeOrders:!supervisor};
+const initialOrder=state?{id:'order1',job_id:'job1',record_type:'change_order',co_number:'CO-001',title:'Existing work',status:state,price_amount:115,updated_at:'2026-09-25T12:00:00Z'}:null;
+createRoot(document.getElementById('root')).render(<MemoryRouter><DiagnosticsProvider permissions={permissions} enabled={false}><ChangeOrderWorkspace job={{id:'job1',name:'Adjustment fixture',division:'Electrical'}} initialOrder={initialOrder} budgetLines={[{id:'line1',description:'Electrical changes',cost_code:'16.CO'}]} permissions={permissions} onClose={()=>{}} onChanged={()=>{}} /></DiagnosticsProvider></MemoryRouter>);

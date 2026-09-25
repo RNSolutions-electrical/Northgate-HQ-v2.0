@@ -819,6 +819,13 @@ textarea {
 .change-order-line__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--ng-divider); }
 .change-order-line__heading strong { font-family: var(--ng-font-display); font-size: 1rem; }
 .change-order-line__heading span { color: var(--ng-brand-red); font-size: 1.05rem; font-weight: 800; }
+.change-order-line > summary { cursor: pointer; }
+.change-order-line:not([open]) > summary { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
+.change-order-line > summary strong { min-width: 0; overflow-wrap: anywhere; }
+.change-order-line > summary span { flex-shrink: 0; }
+.change-order-workspace__panel > summary { cursor: pointer; }
+.change-order-decision-note { display: grid; gap: 6px; margin: 12px 0; }
+.change-order-decision-note textarea { width: 100%; min-width: 0; }
 .change-order-line__grid,
 .change-order-verification { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .change-order-line__wide,

@@ -1,5 +1,16 @@
 # Northgate HQ — shared work queue
 
+## Priority checkpoint — contract-adjustment usability (2026-09-25)
+
+Staging acceptance release prepared on `Ryan_Northgate`, 2026-09-25 12:23 EDT.
+Staging migration `20260925161443` applied; historical financial fingerprints unchanged.
+See [the implementation and verification checkpoint](reviews/CONTRACT_ADJUSTMENT_STATE_MODEL_20260925.md).
+This takes priority over unrelated Staging features. Real role/explicit-deny and
+rollback-only posting tests passed. Next gates are Billing/concurrency integration
+verification and deployed owner acceptance; Production is
+unchanged. Approved-record archival remains isolated until Billing consumers can
+preserve its contract value. This does not discard the other roadmap items below.
+
 **Updated:** 2026-09-24 12:20 EDT (UTC-04:00) · **Machine:** `RYAN_NORTHGATE`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 

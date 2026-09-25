@@ -22767,3 +22767,71 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - Ryan reports both Dashboard budget-alert browser checks passed on Staging. This is acceptance of the Staging slice, not Production promotion.
 - `docs/reviews/PROJECT_RESPONSIBILITY_ACCESS_RULES_20260924.md` records a proposed capability-plus-scope model using the existing named responsibility slots, project-member assignments, effective permissions and action catalogue. It explicitly keeps assignment from silently granting financial read/write or Developer rights.
 - Two business decisions remain before implementing scoped enforcement: cross-department assignment visibility, and whether only the named PM slots satisfy future assigned-PM gates after the current generic `project_manager` records and Change Order compatibility hold are reconciled.
+
+## Entry 315 — Contract adjustment usability, local candidate
+
+**Date:** 2026-09-25 07:43 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Staging contract-adjustment state model
+**Session type:** implementation
+**Branch:** `codex/staging-demo-integration`
+**Checkpoint marker:** `MAPLE-STATE-20260925-001` — uncommitted, not synchronized
+**Base commit:** `400bbfc85b4615cd7442af8aae151e87a9af3366`
+**Deployment/migration:** None. Staging and Production unchanged by this candidate.
+
+### Context
+
+Ryan prioritized incomplete drafts, action-based authority, Manager approval
+without signed files, closeout documentation, standalone Credits, signed financial
+values and a shorter CO interface. Resumed after accidental interruptions.
+
+### What Was Completed
+
+Audited current Staging schema/functions/policies and existing UI. Built the local
+state-model/CO-CR candidate in the existing engine. Passed 246 repository tests,
+34 isolated PostgreSQL assertions and mock-backed desktop/phone browser checks.
+Local Vite build passed. Database fixture auth helpers are simulated; this is
+not evidence that deployed permissions or all Billing integrations pass.
+
+### Schema Changes
+
+Candidate `20260925112213_contract_adjustment_state_model.sql` is unapplied.
+See `docs/reviews/CONTRACT_ADJUSTMENT_STATE_MODEL_20260925.md` for schema scope,
+tests, limitations and recovery requirements. Do not deploy UI without schema.
+
+### Next Steps (in order)
+
+Review/apply only to Staging with recovery capture, verify real scoped permissions
+and historical preservation, exercise concurrent and Billing/revision/void/
+estimate/Silas consumers, then owner acceptance. Keep Production unchanged.
+Posted-record archival is intentionally withheld because current Billing reads
+exclude archived records. The wider dashboard/usability package remains queued.
+
+## Entry 316 — Contract adjustment Staging acceptance release
+
+**Date:** 2026-09-25 12:23 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `MAPLE-STATE-20260925-002` (resolve app commit by this marker)
+**Migration:** Staging only, ledger `20260925161443`, repository file
+`20260925112213_contract_adjustment_state_model.sql`.
+**Deployment:** Pending Git-triggered Staging release at this checkpoint; record
+the verified Netlify deployment in the next entry. Production remains unchanged.
+
+Ryan approved the local preview. Applied the migration after scoped recovery
+capture and dependency review. All existing CO header/line amounts, postings,
+budgets and Pay Apps have identical before/after fingerprints.
+
+Verification: 246 repository tests, 34 isolated PostgreSQL assertions, desktop/
+phone mock-backed browser checks, and Vite build passed. Real Staging rollback
+tests passed for incomplete drafts, positive/negative/zero and mixed adjustments,
+CO/CR numbering, direct approval without a signed file, idempotent posting,
+unchanged Original Budget, closeout blocking, audit, Supervisor/User denial and
+canonical Manager explicit denial. No fixture users or Jobs remain.
+
+Do not treat this as Production-ready: independent-session concurrency, complete
+Billing/SOV/Pay App/revision/void/estimate/Silas integrations, protected-line
+visibility and real Storage round trips remain gates. Approved archival stays
+withheld to protect Billing totals. Existing security advisor findings are
+documented in the review, including the older anonymous SOV-allocation RPC grant.
+No changes to Production or actual user permissions were made by the tests.
