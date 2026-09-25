@@ -22835,3 +22835,23 @@ visibility and real Storage round trips remain gates. Approved archival stays
 withheld to protect Billing totals. Existing security advisor findings are
 documented in the review, including the older anonymous SOV-allocation RPC grant.
 No changes to Production or actual user permissions were made by the tests.
+
+## Entry 317 — Staging deployment verified
+
+**Date:** 2026-09-25 12:24 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `MAPLE-STATE-20260925-003` — documentation-only `[skip ci]`
+**Application commit:** `96b5efdd2ed093c64b917aac8c9889f6650938c9`
+**Deployment:** Staging Netlify `6ab69fbe01e8390008d35d0f` READY at the exact app
+commit. HTTPS page and new JS asset returned 200. New adjustment RPC and Staging
+banner are in the served bundle. Its Supabase URL is
+`https://fazfwzbuesvzhgodckiw.supabase.co`; the Production reference also appears
+as a safety-guard/help-link constant, not the configured database URL.
+**Migration:** Staging `20260925161443` applied; no anonymous execution on any
+new adjustment/closeout RPC. No live test fixtures remain.
+**Production:** Unchanged deployment `6ab5472cb12e7cdb63937be9`.
+
+Next: owner testing on the real Staging site and the remaining integration gates
+in the review document. Do not promote to Production or claim independent-session
+concurrency / full Billing compatibility or actual Storage upload tests passed.

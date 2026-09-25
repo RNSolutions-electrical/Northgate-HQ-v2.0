@@ -2,7 +2,8 @@
 
 ## Priority checkpoint — contract-adjustment usability (2026-09-25)
 
-Staging acceptance release prepared on `Ryan_Northgate`, 2026-09-25 12:23 EDT.
+Staging acceptance release deployed on `Ryan_Northgate`, 2026-09-25 12:24 EDT.
+App commit `96b5efd`; Netlify deployment `6ab69fbe01e8390008d35d0f` READY.
 Staging migration `20260925161443` applied; historical financial fingerprints unchanged.
 See [the implementation and verification checkpoint](reviews/CONTRACT_ADJUSTMENT_STATE_MODEL_20260925.md).
 This takes priority over unrelated Staging features. Real role/explicit-deny and
