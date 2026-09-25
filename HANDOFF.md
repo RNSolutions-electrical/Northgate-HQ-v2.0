@@ -22883,3 +22883,21 @@ setup removed, finalization writes rolled back. No production changes.
 Remaining: true overlapping-session verification, correction/reversal/Developer
 deletion regression, actual Storage round trip, complete estimate/Silas handoff
 tests and owner Billing acceptance. Do not call the entire release Production-ready.
+
+## Entry 319 — Billing lineage Staging publication verified
+
+**Date:** 2026-09-25 12:45 EDT (UTC-04:00)
+**Machine:** `Ryan_Northgate`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `BIRCH-LINEAGE-20260925-002` — documentation-only `[skip ci]`
+**Application commit:** `d2e4f61153e6cfe871678a2f8c003266e4284458`
+**Staging deployment:** `6ab6a4cea66ec50008a4acdd` READY at this exact commit.
+Page and JS return HTTPS 200. Served bundle contains the continuing-adjustment
+wording and only the isolated Staging Supabase URL. Migration `20260925163928`
+applied; new internal helpers are not executable by authenticated/anonymous users.
+**Production:** Still `6ab5472cb12e7cdb63937be9`, unchanged.
+
+Owner next test: partially bill an approved CO, approve an increased revision,
+create the next Pay App and confirm Previous carries forward and only the
+difference remains; old Billed app must be unchanged. See Entry 318 for remaining
+gates. No Production promotion authorized or performed.

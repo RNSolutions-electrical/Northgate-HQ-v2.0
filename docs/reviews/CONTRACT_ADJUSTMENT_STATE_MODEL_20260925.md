@@ -1,9 +1,9 @@
 # Contract adjustment usability — Staging acceptance release
 
-Updated 2026-09-25 12:23 EDT (UTC-04:00), Ryan_Northgate.
+Updated 2026-09-25 12:45 EDT (UTC-04:00), Ryan_Northgate.
 Target: Staging only. Migration applied; frontend deployed for acceptance. Production unchanged.
-App commit `96b5efdd2ed093c64b917aac8c9889f6650938c9`; Netlify deployment
-`6ab69fbe01e8390008d35d0f` READY at that exact commit. HTTPS page and bundle return
+App commit `d2e4f61153e6cfe871678a2f8c003266e4284458`; Netlify deployment
+`6ab6a4cea66ec50008a4acdd` READY at that exact commit. HTTPS page and bundle return
 200; deployed Supabase URL is the isolated Staging project. Production deployment
 remains `6ab5472cb12e7cdb63937be9`.
 Base: `400bbfc85b4615cd7442af8aae151e87a9af3366`, branch `codex/staging-demo-integration`.
@@ -126,8 +126,6 @@ long-running synthetic editor server; that run was stopped, not counted as a pas
    in this slice. Existing Dashboard My Work/budget alerts are retained.
 6. Perform owner Staging acceptance before a separate Production decision. There
    is no authorization in this checkpoint to promote the package to Production.
-
-## Recovery
 
 ## September 25 follow-up — continuing adjustment billing
 
