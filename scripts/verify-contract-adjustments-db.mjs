@@ -126,6 +126,10 @@ try {
  check(await scalar('SELECT status FROM jobs WHERE id=$1',[job]),'complete','closeout succeeds after requirements');
  await fails(()=>state(rounded,'submitted'),/Reopen the job/);
  check(Number(await scalar("SELECT count(*) FROM change_logs WHERE table_name='change_orders' AND user_id='manager'"))>0,true,'actor audit retained');
- console.log('PASS '+assertions+' local PostgreSQL assertions. Real RLS, role defaults, concurrent sessions and Billing regression remain separate gates.');
+ if (process.env.TEST_BILLING_LINEAGE === '1') {
+  const { verifyBillingLineage } = await import('./verify-billing-lineage.mjs');
+  await verifyBillingLineage({db,read,q,scalar,check,fails});
+ }
+ console.log('PASS '+assertions+' local PostgreSQL assertions. Real RLS, role defaults and independent concurrent sessions remain separate gates.');
 } catch(error) { console.error({message:error.message, detail:error.detail, where:error.where, assertions}); process.exitCode=1; }
 finally { await db.close(); }

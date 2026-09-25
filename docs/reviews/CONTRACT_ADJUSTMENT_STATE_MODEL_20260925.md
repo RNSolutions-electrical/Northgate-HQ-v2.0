@@ -129,6 +129,54 @@ long-running synthetic editor server; that run was stopped, not counted as a pas
 
 ## Recovery
 
+## September 25 follow-up — continuing adjustment billing
+
+Ryan accepted the new flow and explicitly chose one continuing Change Order
+across revisions, carrying all previous billing forward with immutable older
+Pay Apps. Rollback-only integration exposed two old Billing defects: original
+and revision values were summed, and voided revisions remained in Draft rows.
+The -110 credit revised to -150 incorrectly made a 1000 contract worth 740,
+instead of 850. Financial delta postings themselves were correct.
+
+Staging migration `20260925163437_contract_adjustment_billing_lineage.sql`
+applied as ledger `20260925163928`. No tables/columns or existing records changed.
+Private `billing_contract_adjustments(uuid)` resolves revision families, latest
+approved versions and previous billed amounts across their members. It rejects
+ambiguous/orphaned families and mismatches with existing financial postings.
+Fully voided but previously billed families stay as zero-value targets for
+traceable credits. Earlier Billed rows retain their original version ID/snapshot.
+
+The existing sync RPC replaces only changed Draft families after explicit user
+confirmation, audits before/after and resets their amounts for review. Unchanged
+rows keep their edits. Create uses this same sync, not a separate calculation.
+Private `validate_pay_app_contract_basis(uuid)` blocks standard approval/finalization
+when revisions, prior billing or totals have changed. Existing idempotent Billed
+retries still succeed. Job-before-Pay-App locking coordinates approval/finalization
+with CO approval/void; CO line writes lock the app before the line. Voiding an
+ancestor beneath a still-approved descendant is rejected. Existing correction/
+reversal snapshots intentionally do not sync to today's scope; broader correction
+and developer-deletion regression remain required before Production.
+
+Verification actually run:
+- 246 repository tests and build passed; 48 isolated PostgreSQL assertions passed.
+- Live Staging: all 12 billing probe results passed, including the two reproduced
+  failures, negative/zero/partial billing, limits, SOV deduction, Original Budget,
+  revision delta and void reversal.
+- Live partial-finalize/revision/next-Pay-App test passed: 100 CO billed 50,
+  revised to 150, next app Previous=50 and Current=100; contract=1150 on a 1000
+  original. Voiding after Pay App approval blocked stale finalization; explicit
+  Draft sync reset the changed line. Prior Billed app and row JSON stayed identical.
+- Real protected-line RLS exclusion and stale draft rejection passed.
+- Independent concurrent request probe was **inconclusive**: remote calls did not
+  demonstrate overlapping transactions. Do not mark concurrency passed. The tiny
+  committed synthetic setup was removed; transaction-only finalizations rolled
+  back. No fixture Jobs, Pay Apps or users remain; original Staging Pay App count
+  was zero. Scoped function recovery is in ignored `.temp/billing-lineage-recovery-20260925`.
+- No actual Storage round-trip, full estimate/Silas handoff, correction/reversal
+  or independent-session concurrency signoff yet. Production remains unchanged.
+
+### Recovery details
+
 Pre-migration function/policy/action/template and schema definitions plus financial
 fingerprints were captured in ignored `.temp/contract-adjustment-recovery-20260925`.
 This is scoped recovery material, not a full database or Storage backup.

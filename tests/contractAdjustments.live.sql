@@ -25,10 +25,15 @@ BEGIN
  co:=public.save_contract_adjustment(payload);
  IF co.price_amount<>750 THEN RAISE EXCEPTION 'Mixed signed value incorrect'; END IF;
  was_denied:=false;
+ BEGIN PERFORM public.save_contract_adjustment(payload || jsonb_build_object('expected_updated_at',co.updated_at-interval '1 second','title','Stale overwrite'));
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT ILIKE '%changed%' AND SQLERRM NOT ILIKE '%reload%' THEN RAISE; END IF; was_denied:=true; END;
+ IF NOT was_denied THEN RAISE EXCEPTION 'Stale save accepted'; END IF;
+ was_denied:=false;
  BEGIN PERFORM public.approve_job_change_order(co.id,NULL); EXCEPTION WHEN insufficient_privilege THEN was_denied:=true; END;
  IF NOT was_denied THEN RAISE EXCEPTION 'Supervisor approved financial commitment'; END IF;
  co:=public.set_contract_adjustment_status(co.id,'submitted',NULL,co.updated_at);
  PERFORM set_config('request.jwt.claims','{"sub":"__co_state_user","role":"authenticated"}',true);
+ IF EXISTS(SELECT 1 FROM public.change_order_lines WHERE change_order_id=co.id) THEN RAISE EXCEPTION 'Unassigned User read protected adjustment lines'; END IF;
  was_denied:=false;
  BEGIN PERFORM public.approve_job_change_order(co.id,NULL); EXCEPTION WHEN insufficient_privilege THEN was_denied:=true; END;
  IF NOT was_denied THEN RAISE EXCEPTION 'Ordinary User approved'; END IF;
@@ -81,5 +86,5 @@ RESET ROLE;
 SELECT jsonb_build_object(
  'new_rpc_anon_denied',NOT has_function_privilege('anon','public.save_contract_adjustment(jsonb)','EXECUTE'),
  'private_validator_auth_denied',NOT has_function_privilege('authenticated','public.validate_contract_adjustment(uuid)','EXECUTE'),
- 'result','PASS: real Supervisor/Manager/User/explicit-deny gates, incomplete drafts, mixed signs, zero, credits, idempotent posting, unchanged original, closeout, audit') result;
+ 'result','PASS: real Supervisor/Manager/User/explicit-deny gates, protected line exclusion, stale save rejection, incomplete drafts, mixed signs, zero, credits, idempotent posting, unchanged original, closeout, audit') result;
 ROLLBACK;

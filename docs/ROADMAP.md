@@ -12,6 +12,13 @@ verification and deployed owner acceptance; Production is
 unchanged. Approved-record archival remains isolated until Billing consumers can
 preserve its contract value. This does not discard the other roadmap items below.
 
+**12:42 EDT follow-up:** Owner accepted the flow and chose one continuing billable
+adjustment across revisions. Staging Billing lineage migration `20260925163928`
+fixes revision double-counting and obsolete Draft rows after void. Real partial
+billing/revision/next-app and immutable-history tests passed. Independent-session
+concurrency, correction/reversal and remaining Storage/estimate/Silas integration
+gates remain; no Production promotion. See review for reproduction and test scope.
+
 **Updated:** 2026-09-24 12:20 EDT (UTC-04:00) · **Machine:** `RYAN_NORTHGATE`
 **Scope:** This is the cross-machine queue for work that remains open. `HANDOFF.md` preserves completed release history; `docs/ENVIRONMENT_RELEASE_WORKFLOW.md` records environment details. Older review documents are evidence, not separate competing roadmaps.
 

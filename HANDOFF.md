@@ -22855,3 +22855,31 @@ new adjustment/closeout RPC. No live test fixtures remain.
 Next: owner testing on the real Staging site and the remaining integration gates
 in the review document. Do not promote to Production or claim independent-session
 concurrency / full Billing compatibility or actual Storage upload tests passed.
+
+## Entry 318 — Billing continuity across adjustment revisions, Staging only
+
+**Date:** 2026-09-25 12:42 EDT (UTC-04:00)
+**Machine:** `Ryan_Northgate`
+**Branch:** `codex/staging-demo-integration` → `origin/staging`
+**Sync marker:** `BIRCH-LINEAGE-20260925-001` (resolve commit by marker)
+**Migration:** Staging ledger `20260925163928`; repository
+`20260925163437_contract_adjustment_billing_lineage.sql`.
+**Deployment:** Pending frontend publication; Production untouched.
+
+Owner approved the flow and selected one continuing CO with immutable billed
+history. Integration found and fixed double-counted original/revision contract
+values and stale voided Draft rows. Reused Billing RPCs; no new tables or data
+backfill. Explicit sync resets only affected draft families with confirmation.
+Latest approved version carries billing from all older versions. Standard
+approval/finalization rejects stale source/billing snapshots. Controlled credit
+adjustments cover reduced/voided contract values without rewriting history.
+
+246 tests + build + 48 local PostgreSQL assertions passed. Twelve real Staging
+billing cases passed, as did the actual partially-billed revision/next-app and
+stale-finalization/immutability transaction. Protected-line RLS and stale draft
+tests passed. Concurrent-request probe inconclusive (no proven overlap); synthetic
+setup removed, finalization writes rolled back. No production changes.
+
+Remaining: true overlapping-session verification, correction/reversal/Developer
+deletion regression, actual Storage round trip, complete estimate/Silas handoff
+tests and owner Billing acceptance. Do not call the entire release Production-ready.

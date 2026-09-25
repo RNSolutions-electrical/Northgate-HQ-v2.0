@@ -32,7 +32,7 @@ function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttemp
   const targetBilled = scheduled * (Number(percent) || 0) / 100;
   const preview = override === '' ? targetBilled - previousBilled : Number(override || 0);
   const remainingPreview = scheduled - previousBilled - preview;
-  const fullyBilled = Math.abs(Number(row.previous_billed_amount || row.billed_to_date_amount || 0)) >= Math.abs(scheduled) && Math.abs(scheduled) > 0;
+  const fullyBilled = Math.abs(previousBilled - scheduled) < 0.005 && Math.abs(scheduled) > 0;
   const isCredit = override !== '' && Number(override) < -0.005;
   const rowState = isCredit || Math.abs(preview) > 0.005 ? 'is-in-progress' : fullyBilled ? 'is-complete' : hasPayValue(row, kind) ? 'is-unbilled' : 'is-empty';
 
@@ -41,7 +41,7 @@ function PayLine({ row, kind, editable, correction, onSaved, onFullyBilledAttemp
       setState({ working: false, error: 'Enter a valid billing amount.' });
       return;
     }
-    if (isCredit && previousBilled + Number(override) < -0.005) {
+    if (kind !== 'co' && isCredit && previousBilled + Number(override) < -0.005) {
       setState({ working: false, error: `The credit cannot exceed the ${money(previousBilled)} previously billed on this line.` });
       return;
     }
@@ -118,6 +118,7 @@ export function BillingActions({ jobId, canManage, canCorrect = false, onComplet
   const amount = useMemo(() => selected ? currentTotal(selected) : 0, [selected]);
 
   async function call(name, args, success, selectResult = false, clearReason = false) {
+    if (name === 'sync_job_pay_application_change_orders' && !window.confirm('Sync the latest approved revisions and previous billing? Changed or removed adjustment rows will reset their Draft amounts for review. Unchanged rows and all Billed history are preserved.')) return;
     setWorking(name); setMessage({ tone: '', text: '' });
     try {
       const result = await withSupabaseTokenRetry(getToken, async (client) => { const { data, error } = await client.rpc(name, args); if (error) throw error; return data; });
@@ -194,7 +195,7 @@ export function BillingActions({ jobId, canManage, canCorrect = false, onComplet
         {editable ? <div className="pay-app-edit-controls"><label><input type="checkbox" checked={showEmptyLines} onChange={(event) => setShowEmptyLines(event.target.checked)} /> Show zero-value lines</label><button type="button" className="secondary-button" disabled={Boolean(working)} onClick={() => setIsSaveAllOpen(true)}><Save aria-hidden="true" /> Save All</button></div> : null}
         {editable ? <form className="pay-app-settings" onSubmit={saveHeader}><label><span>Period start</span><input name="period_start" type="date" defaultValue={selected.billing_period_start || ''} /></label><label><span>Period end</span><input name="period_end" type="date" defaultValue={String(selected.billing_period_end).slice(0, 10)} required /></label><label><span>Retainage %</span><input name="retainage_percent" type="number" min="0" max="100" step="0.01" defaultValue={selected.retainage_percent || 0} /></label><label><span>Form framework</span><select name="template_key" defaultValue={selected.template_key}>{PAY_APP_TEMPLATE_OPTIONS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label><button className="secondary-button" type="submit" disabled={Boolean(working)}><Save aria-hidden="true" /> Save settings</button></form> : null}
         <PayTable titleText="Original contract SOV" note={`${selected.lines?.length || 0} immutable source snapshots`} rows={selected.lines || []} kind="sov" editable={editable} correction={selected.pay_app_kind === 'correction'} load={load} showEmptyLines={showEmptyLines} onFullyBilledAttempt={setFullyBilledLine} />
-        <PayTable titleText="Approved Change Orders" note="Approved, active Change Orders captured by this Pay App." rows={selected.change_orders || []} kind="co" editable={editable} correction={selected.pay_app_kind === 'correction'} load={load} showEmptyLines={showEmptyLines} onFullyBilledAttempt={setFullyBilledLine} action={editable ? <button type="button" className="secondary-button" onClick={() => call('sync_job_pay_application_change_orders', { p_pay_app_id: selected.id }, 'Approved Change Orders synchronized.')} disabled={Boolean(working)}><RefreshCw aria-hidden="true" /> Sync approved COs</button> : null} />
+        <PayTable titleText="Change Orders & Credits" note="One continuing adjustment across revisions. Previous includes all Billed versions; sync changed Draft rows and review their amounts before approval." rows={selected.change_orders || []} kind="co" editable={editable} correction={selected.pay_app_kind === 'correction'} load={load} showEmptyLines={showEmptyLines} onFullyBilledAttempt={setFullyBilledLine} action={editable && selected.pay_app_kind === 'standard' ? <button type="button" className="secondary-button" onClick={() => call('sync_job_pay_application_change_orders', { p_pay_app_id: selected.id }, 'Adjustments synchronized. Review reset amounts on changed rows before approving.')} disabled={Boolean(working)}><RefreshCw aria-hidden="true" /> Sync approved COs</button> : null} />
         <details className="pay-app-audit"><summary>Workflow record and audit history</summary><dl><div><dt>Approval</dt><dd>{selected.approved_by || '—'} · {selected.approved_at ? new Date(selected.approved_at).toLocaleString() : '—'}<br />{selected.approval_note || '—'}</dd></div><div><dt>Billing</dt><dd>{selected.billed_by || '—'} · {selected.billed_at ? new Date(selected.billed_at).toLocaleString() : '—'}<br />{selected.billed_note || '—'}</dd></div><div><dt>Void</dt><dd>{selected.voided_by || '—'} · {selected.voided_at ? new Date(selected.voided_at).toLocaleString() : '—'}<br />{selected.void_reason || '—'}</dd></div></dl></details>
       </>}
     </div></div>

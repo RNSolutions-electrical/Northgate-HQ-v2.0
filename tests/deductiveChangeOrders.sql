@@ -1,3 +1,7 @@
+-- HISTORICAL pre-state-model contract only: signed-document and nonzero gates below
+-- intentionally describe the older Production workflow. Do NOT run unchanged as
+-- Staging acceptance. Use contractAdjustments.live.sql, contractAdjustments.billing.live.sql,
+-- and billingLineage.live.sql for the September 25 Staging behavior.
 -- Run only inside BEGIN/ROLLBACK. All users, documents, jobs and bills are fixtures.
 INSERT INTO public.user_permissions(clerk_user_id,email,role,division,is_active)
 VALUES ('__deductive_test','deductive@example.invalid','Developer','Admin',true),

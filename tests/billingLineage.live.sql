@@ -1,0 +1,61 @@
+-- Staging only. No retained fixture data or billed history.
+BEGIN;
+INSERT INTO public.user_permissions(clerk_user_id,email,role,business_role,division,is_active)
+ VALUES('__lineage_test','lineage@example.invalid','Director','Director','Electrical',true);
+SELECT set_config('request.jwt.claims','{"sub":"__lineage_test","role":"authenticated"}',true);
+INSERT INTO public.jobs(name,division,status) VALUES('__lineage_rollback','Electrical','active');
+DO $test$
+DECLARE j uuid; b uuid; app uuid; prior_app uuid; line uuid; co public.change_orders; revision public.change_orders;
+ snapshot jsonb; key uuid:=gen_random_uuid(); denied boolean:=false; r jsonb;
+BEGIN
+ SELECT id INTO STRICT j FROM public.jobs WHERE name='__lineage_rollback';
+ SET LOCAL ROLE authenticated;
+ b:=(public.save_job_financial_batch(j,'[{"description":"Lineage fixture","cost_code":"16.CO","budget_amount":1000}]','Rollback-only test')->0->>'id')::uuid;
+ RESET ROLE;
+ INSERT INTO public.job_revenue_lines(job_id,division,description,scheduled_value_amount,source_original_budget_amount)
+ VALUES(j,'Electrical','Original contract',1000,1000);
+ SET LOCAL ROLE authenticated;
+ co:=public.save_contract_adjustment(jsonb_build_object('job_id',j,'title','Addition','lines',jsonb_build_array(jsonb_build_object('job_budget_line_id',b,'description','Scope','material_amount',100))));
+ co:=public.set_contract_adjustment_status(co.id,'approved',NULL,co.updated_at);
+ app:=public.create_job_pay_application(j,CURRENT_DATE,'aia_g702_g703',NULL);
+ RESET ROLE;
+ SELECT id INTO STRICT line FROM public.job_pay_application_change_orders WHERE pay_application_id=app;
+ SET LOCAL ROLE authenticated;
+ PERFORM public.save_job_pay_application_change_order(line,50,NULL,NULL);
+ PERFORM public.set_job_pay_application_status(app,'approved',NULL);
+ PERFORM public.finalize_job_pay_application(app,key,NULL);
+ r:=public.finalize_job_pay_application(app,key,NULL);
+ IF NOT (r->>'idempotent')::boolean THEN RAISE EXCEPTION 'Retry not idempotent'; END IF;
+ RESET ROLE;
+ SELECT jsonb_build_object('app',to_jsonb(h),'rows',(SELECT jsonb_agg(to_jsonb(x)) FROM public.job_pay_application_change_orders x WHERE x.pay_application_id=h.id)) INTO snapshot FROM public.job_pay_applications h WHERE id=app;
+ prior_app:=app;
+ SET LOCAL ROLE authenticated;
+ revision:=public.revise_job_change_order(co.id,'Increase scope');
+ revision:=public.save_contract_adjustment(jsonb_build_object('id',revision.id,'job_id',j,'co_number',revision.co_number,'title','Revised addition','expected_updated_at',revision.updated_at,'lines',jsonb_build_array(jsonb_build_object('job_budget_line_id',b,'description','Scope','material_amount',150))));
+ revision:=public.set_contract_adjustment_status(revision.id,'approved',NULL,revision.updated_at);
+ app:=public.create_job_pay_application(j,CURRENT_DATE,'aia_g702_g703',NULL);
+ RESET ROLE;
+ SELECT id INTO STRICT line FROM public.job_pay_application_change_orders WHERE pay_application_id=app;
+ IF (SELECT previous_billed_amount FROM public.job_pay_application_change_orders WHERE id=line)<>50 THEN RAISE EXCEPTION 'Prior revision billing lost'; END IF;
+ IF (SELECT current_contract_value FROM public.job_pay_applications WHERE id=app)<>1150 THEN RAISE EXCEPTION 'Revision contract wrong'; END IF;
+ SET LOCAL ROLE authenticated;
+ PERFORM public.save_job_pay_application_change_order(line,100,NULL,NULL);
+ RESET ROLE;
+ IF (SELECT final_current_amount FROM public.job_pay_application_change_orders WHERE id=line)<>100 THEN RAISE EXCEPTION 'Incremental amount wrong'; END IF;
+ SET LOCAL ROLE authenticated;
+ PERFORM public.set_job_pay_application_status(app,'approved',NULL);
+ PERFORM public.void_approved_job_change_order(revision.id,'Cancel increased scope',revision.co_number);
+ BEGIN PERFORM public.finalize_job_pay_application(app,gen_random_uuid(),NULL);
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE 'Contract adjustments changed%' THEN RAISE; END IF; denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Stale approved Pay App finalized'; END IF;
+ PERFORM public.set_job_pay_application_status(app,'draft',NULL);
+ PERFORM public.sync_job_pay_application_change_orders(app);
+ RESET ROLE;
+ SELECT id INTO STRICT line FROM public.job_pay_application_change_orders WHERE pay_application_id=app;
+ IF (SELECT approved_value FROM public.job_pay_application_change_orders WHERE id=line)<>100 THEN RAISE EXCEPTION 'Void fallback wrong'; END IF;
+ IF (SELECT final_current_amount FROM public.job_pay_application_change_orders WHERE id=line)<>0 THEN RAISE EXCEPTION 'Changed Draft not reset'; END IF;
+ IF snapshot IS DISTINCT FROM (SELECT jsonb_build_object('app',to_jsonb(h),'rows',(SELECT jsonb_agg(to_jsonb(x)) FROM public.job_pay_application_change_orders x WHERE x.pay_application_id=h.id)) FROM public.job_pay_applications h WHERE id=prior_app) THEN RAISE EXCEPTION 'Billed snapshot changed'; END IF;
+END $test$;
+RESET ROLE;
+SELECT 'PASS: actual Billing RPCs, partial finalization, retry idempotency, prior-version carry-forward, single revised total, incremental billing, stale-finalization rejection, void fallback, Draft reset and historical immutability' result;
+ROLLBACK;
