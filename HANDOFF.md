@@ -22619,3 +22619,23 @@ Do not promote unrelated Staging features with this patch.
 Owner refreshes Inventory, opens a bin's Add materials / Count screen and
 checks the Storage/unit/shelf/bay/bin links in their authenticated session.
 This documentation-only follow-up skips CI; deployed code stays at v0.5.1.
+
+## Entry 322 — Inventory breadcrumb styling v0.5.2
+
+**Date:** 2026-09-28 15:15 EDT (-04:00)
+**Updated by:** Codex on Ryan_Northgate
+**Phase:** Production formatting patch
+**Session type:** implementation
+
+### What Was Completed
+- Owner requested matching the Storage breadcrumb appearance and approved
+  commit/deployment. Sync marker: STORAGE-STYLE-20260928-001.
+- Return links now use code-only labels, inherited text color without
+  underlines, and the existing red current-location highlight. Full location
+  labels remain in tooltips. Navigation and permissions are unchanged.
+- Ten focused tests and the verification-only build passed; diff check clean.
+- Release v0.5.2; no migrations. Prior frontend rollback point is v0.5.1,
+  Netlify deploy 6abab98827bcdf000997652f.
+
+### Next Steps (in order)
+Publish the immutable tag/release, promote main and verify live assets.

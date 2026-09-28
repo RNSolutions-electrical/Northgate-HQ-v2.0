@@ -20,6 +20,9 @@ test('Count return navigation uses the authorized Storage hierarchy', async t =>
       assert.ok(html.indexOf('Shelf E2') < html.indexOf('Bay E24'));
       assert.ok(html.indexOf('Bay E24') < html.indexOf('Bin E241'));
       assert.ok(!html.includes('scanBinId'));
+      assert.deepEqual([...html.matchAll(/<a\b[^>]*>([^<]*)<\/a>/g)].map(match => match[1]), ['Storage', 'E', 'E2', 'E24', 'E241']);
+      assert.equal((html.match(/aria-current="location"/g) || []).length, 1);
+      assert.match(html, /aria-current="location"[^>]*>E241<\/a>/);
     });
     await t.test('standalone count has no misleading location path', () => {
       assert.equal(renderPath(records, ''), '');

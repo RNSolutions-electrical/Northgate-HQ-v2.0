@@ -12,9 +12,10 @@ export function StorageReturnPath({ records, binId }) {
       {trail.map(row => (
         <Link key={row.id} className="secondary-button"
           to={`/inventory?${new URLSearchParams({ view: 'storage', locationId: row.id })}`}
+          aria-current={row.id === binId ? 'location' : undefined}
           title={`${storageNames[row.type]} ${row.code} — ${row.label || row.code}`}
         >
-          {storageNames[row.type]} {row.code}
+          {row.code}
         </Link>
       ))}
     </nav>
