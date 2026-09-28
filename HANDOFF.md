@@ -22639,3 +22639,12 @@ This documentation-only follow-up skips CI; deployed code stays at v0.5.1.
 
 ### Next Steps (in order)
 Publish the immutable tag/release, promote main and verify live assets.
+
+### Publication verification — 2026-09-28 15:16 EDT, Ryan_Northgate
+- v0.5.2 app commit 86933c87717d630561e2ff95c624723583af44e2 is published
+  as ready Netlify deploy 6ababcbc35bdf800087a45e8 (19:15:42 UTC).
+- Live Production Inventory page and index-DN0mqw5b.css returned HTTP 200;
+  CSS contains the link reset and selected-location rules.
+- Tag/release and main push completed. Sync: STORAGE-STYLE-20260928-001.
+- No database changes. This evidence-only commit skips CI; refresh the
+  authenticated Count screen to inspect the final appearance.
