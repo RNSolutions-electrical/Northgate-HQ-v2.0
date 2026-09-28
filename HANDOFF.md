@@ -22901,3 +22901,42 @@ Owner next test: partially bill an approved CO, approve an increased revision,
 create the next Pay App and confirm Previous carries forward and only the
 difference remains; old Billed app must be unchanged. See Entry 318 for remaining
 gates. No Production promotion authorized or performed.
+
+## Entry 323 — Exploration prompt reconciliation and roadmap intake
+
+**Date:** 2026-09-28 16:00 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Exploration / planning only
+**Session type:** alignment
+**Branch:** `codex/staging-demo-integration` -> `origin/staging`
+**Sync marker:** `COMPASS-ROADMAP-20260928-001` (`[skip ci]`)
+**Base commit:** `1ae6a949602710798205ef1e203f91a229dd1537`
+
+### Context
+Owner supplied two prompts to avoid losing or duplicating prior ideas, expressly
+requesting Exploration Mode and repository-visible documentation, not implementation.
+Prior Production work ended at v0.5.2, app 86933c8 / deploy
+6ababcbc35bdf800087a45e8, main docs 992e343. Staging stays at app d2e4f61.
+
+### What Was Completed
+- Archived both full prompts with explicit proposal-only provenance.
+- Reconciled repeated CO revamp against existing Staging state-model/Billing work;
+  retained outstanding concurrency, correction/deletion, Storage, handoff and
+  owner acceptance gates, including the approved-record archival hold.
+- Added planned material-price monitoring/review and ARC ED platform initiatives,
+  reusable foundations, proposed phases, permission/security/technical-review
+  boundaries, future module inventory and open decisions.
+- Updated ROADMAP and repaired stale root SYNC_STATUS “current” heading.
+- Details: docs/planning/EXPLORATION_INTAKE_20260928.md. Complete source proposals
+  are in docs/planning/sources. Existing backlog remains intact.
+
+### Schema Changes
+None. No application behavior, live records, role defaults or infrastructure changed.
+No vendor lookup, schedule, purchase, training content publication or deployment.
+
+### Next Steps (in order)
+Publish documentation with CI skipped and mirror only planning files/indexes to
+main under COMPASS-ROADMAP-20260928-002. Do not merge Staging features to main.
+Remain in Exploration until owner selects/authorizes an implementation slice.
+Validate current live schema/API/provider capabilities when that slice begins;
+this intake is not a complete schema audit or a claim that future features exist.

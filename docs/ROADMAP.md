@@ -1,5 +1,20 @@
 # Northgate HQ — shared work queue
 
+## Latest intake — Exploration Mode, 2026-09-28
+
+See [the reconciled intake and complete source prompts](planning/EXPLORATION_INTAKE_20260928.md).
+The repeated CO revamp is already on Staging with remaining integration/promotion
+gates; do not rebuild it. New planned initiatives: automated material price
+monitoring/review and ARC ED (Absorb-first AFC education; later interactive labs).
+Neither is implemented. Existing catalogue pricing/history and the AFC tool are
+reusable foundations, not evidence that these new initiatives exist.
+
+Production is v0.5.2 (Inventory breadcrumb hotfix); Staging application remains
+`d2e4f61`. This documentation pass changes neither deployed app. Older checkpoints
+below remain historical; the intake and root SYNC_STATUS distinguish environments.
+All prior queue items remain tracked. Implementation awaits a selected scope;
+embedded “build now” wording in the archived prompts is not current authorization.
+
 ## Priority checkpoint — contract-adjustment usability (2026-09-25)
 
 Staging acceptance release deployed on `Ryan_Northgate`, 2026-09-25 12:24 EDT.

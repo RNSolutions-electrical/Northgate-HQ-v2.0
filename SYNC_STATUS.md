@@ -2,7 +2,27 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — TOPAZ-COMPONENT-INPUTS-20260922-001
+## Latest planning checkpoint — COMPASS-ROADMAP-20260928-001
+
+- Date/time: 2026-09-28 16:00 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- Mode: Exploration. Documentation-only checkpoint, `[skip ci]`; no migrations
+  or deployment. Local branch `codex/staging-demo-integration` -> `origin/staging`.
+- Base: `1ae6a949602710798205ef1e203f91a229dd1537`. Resolve this checkpoint's
+  commit with `git log origin/staging --format="%H %cI %s" --grep=COMPASS-ROADMAP-20260928-001 -1`.
+- Start at [docs/ROADMAP.md](docs/ROADMAP.md), then
+  [the intake](docs/planning/EXPLORATION_INTAKE_20260928.md). Both full prompts
+  are archived under `docs/planning/sources/`; no local attachments required.
+- Production: v0.5.2, app `86933c87717d630561e2ff95c624723583af44e2`, deploy
+  `6ababcbc35bdf800087a45e8`; documentation head before intake `992e343`.
+- Staging: app `d2e4f61153e6cfe871678a2f8c003266e4284458`, deploy
+  `6ab6a4cea66ec50008a4acdd` (September 25 recorded evidence). CO/credit state
+  model and Billing continuity are not Production-promoted; open gates remain.
+- Main documentation mirror uses `COMPASS-ROADMAP-20260928-002`. These are
+  documentation commits only, not authorization to merge the application branches.
+- Preserve local work, fetch origin, verify branch + marker, then read HANDOFF.
+  No claim is made that another machine has already fetched this checkpoint.
+
+## Historical release — TOPAZ-COMPONENT-INPUTS-20260922-001
 
 - LIVE September 22, 2026: Estimate Component names, descriptions, quantities,
   units, costs, labor hours, stages and resource notes use native buffers; pending
