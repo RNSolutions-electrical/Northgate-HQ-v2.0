@@ -22594,3 +22594,28 @@ Tag/release the accepted patch as v0.5.1, fast-forward Production main,
 verify Netlify publication and live assets, and record deployment evidence.
 Rollback point: v0.5.0 / Netlify 6ab5472cb12e7cdb63937be9.
 Do not promote unrelated Staging features with this patch.
+
+## Entry 321 — Inventory navigation Production publication verified
+
+**Date:** 2026-09-28 15:03 EDT (-04:00)
+**Updated by:** Codex on Ryan_Northgate
+**Phase:** Production v0.5.1 publication
+**Session type:** implementation
+
+### What Was Completed
+- Sync marker: STORAGE-RETURN-20260928-001.
+- App commit: 6bd45d63f3ca4acb849ce9bdf662f7e35d6e4912.
+- Immutable tag/GitHub Release: v0.5.1; Production main fast-forwarded.
+- Netlify deploy 6abab98827bcdf000997652f is ready for that exact commit,
+  published 2026-09-28 19:02:11 UTC (15:02:11 EDT).
+- Live rnsolutions.net/inventory?view=count returned HTTP 200; its
+  /northgate/assets/index-D3Jlynvt.js returned 200 with JavaScript MIME type,
+  contains the return navigation and Production database reference, and
+  contains neither the Staging database reference nor build placeholders.
+- No migrations, database writes or Staging promotion occurred. Previous
+  Production deploy 6ab5472cb12e7cdb63937be9 remains the rollback point.
+
+### Next Steps (in order)
+Owner refreshes Inventory, opens a bin's Add materials / Count screen and
+checks the Storage/unit/shelf/bay/bin links in their authenticated session.
+This documentation-only follow-up skips CI; deployed code stays at v0.5.1.
