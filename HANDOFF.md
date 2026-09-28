@@ -22648,3 +22648,40 @@ Publish the immutable tag/release, promote main and verify live assets.
 - Tag/release and main push completed. Sync: STORAGE-STYLE-20260928-001.
 - No database changes. This evidence-only commit skips CI; refresh the
   authenticated Count screen to inspect the final appearance.
+
+## Entry 323 — Exploration roadmap intake mirrored to main
+
+**Date:** 2026-09-28 16:01 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Exploration / planning only
+**Session type:** alignment
+**Branch:** `release/production-demo-candidate-20260923` -> `origin/main`
+**Sync marker:** `COMPASS-ROADMAP-20260928-002` (`[skip ci]`)
+**Base commit:** `992e3432a69f334b12fcde335c66bda81e9651ad`
+
+### Context
+Owner supplied two prompts for reconciliation and durable cross-machine planning,
+not implementation. Production work is complete at v0.5.2; this mode switch does
+not authorize new features or promotion of unfinished Staging work.
+
+### What Was Completed
+- Full prompts retained under docs/planning/sources; reconciled intake at
+  docs/planning/EXPLORATION_INTAKE_20260928.md distinguishes repeated CO work
+  already on Staging, its open gates, new price-monitoring and ARC ED initiatives,
+  future teaching modules, reusable foundations, open decisions and phased work.
+- Same intake published first to staging as 87c172258291f72595dad527e274f914108a0ba9
+  / COMPASS-ROADMAP-20260928-001. Main receives planning documentation only.
+- Root SYNC_STATUS separates actual app releases from docs commits; main ROADMAP
+  links to the complete Staging queue. Existing backlog/history remains intact.
+- Archived prompt bodies checked against originals; intake links and whitespace
+  checked. No application tests needed for this docs-only change.
+
+### Schema Changes
+None. No application, database, user permissions, live data, vendor request,
+purchase, schedule or deployment changed. Embedded “build now” text is not the
+owner's current instruction. Existing CO revision-continuity choice stays locked.
+
+### Next Steps (in order)
+Fetch the appropriate branch, read SYNC_STATUS and ROADMAP, then remain in
+Exploration until the owner selects and authorizes a discrete implementation.
+Do not duplicate the existing CO engine, catalogue, price history or AFC tool.

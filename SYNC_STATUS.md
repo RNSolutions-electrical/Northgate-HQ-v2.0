@@ -2,7 +2,28 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
-## Current release — TOPAZ-COMPONENT-INPUTS-20260922-001
+## Latest planning checkpoint — COMPASS-ROADMAP-20260928-002
+
+- Date/time: 2026-09-28 16:01 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- Mode: Exploration. Documentation-only main mirror, `[skip ci]`; no migrations
+  or deployment. Local checkout `release/production-demo-candidate-20260923` ->
+  `origin/main`. Base main: `992e3432a69f334b12fcde335c66bda81e9651ad`.
+- Resolve this checkpoint: `git log origin/main --format="%H %cI %s" --grep=COMPASS-ROADMAP-20260928-002 -1`.
+- Staging planning commit: `87c172258291f72595dad527e274f914108a0ba9`, marker
+  `COMPASS-ROADMAP-20260928-001`, already pushed to `origin/staging`.
+- Start at [the intake](docs/planning/EXPLORATION_INTAKE_20260928.md); source
+  prompts are in `docs/planning/sources/`; HANDOFF Entry 323 records this pass.
+  The complete broader queue is `docs/ROADMAP.md` on staging, linked from main's
+  ROADMAP. Preserve local work and fetch before resuming; do not merge code branches.
+- Production app: v0.5.2 / `86933c87717d630561e2ff95c624723583af44e2`, deploy
+  `6ababcbc35bdf800087a45e8`, verified September 28. It is not this docs commit.
+- Staging app: `d2e4f61153e6cfe871678a2f8c003266e4284458`, deploy
+  `6ab6a4cea66ec50008a4acdd` per September 25 verification. Not Production-ready;
+  Billing/concurrency/correction/Storage/handoff acceptance gates remain.
+- New price monitoring and ARC ED are planning only. No external vendor service,
+  scheduler, course publication, permission or database change was performed.
+
+## Historical release — TOPAZ-COMPONENT-INPUTS-20260922-001
 
 - LIVE September 22, 2026: Estimate Component names, descriptions, quantities,
   units, costs, labor hours, stages and resource notes use native buffers; pending
