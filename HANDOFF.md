@@ -22564,3 +22564,33 @@ Ryan explicitly authorized migration and deployment of Entry 284.
 - No Production migration, tag, GitHub Release, code deployment or data write was
   performed. The rounding correction must also reach Staging before owner
   acceptance of the candidate.
+
+## Entry 320 — Production Inventory return navigation release
+
+**Date:** 2026-09-28 15:00 EDT (-04:00)
+**Updated by:** Codex on Ryan_Northgate
+**Phase:** Production usability patch v0.5.1
+**Session type:** implementation
+
+### Context
+Owner requested direct return navigation from bin Add materials / Count to
+the bay, shelf and storage unit, then approved commit and Production deployment.
+Sync marker: STORAGE-RETURN-20260928-001.
+
+### What Was Completed
+- Count now renders Storage/ancestor/bin links from the existing authorized
+  location hierarchy; no inferred code-based parents or additional queries.
+- Existing responsive breadcrumb styles and Storage routes are reused.
+- 218 selected tests passed; verification-only build passed. Local Edge
+  component harness verified all four location destinations and no overflow
+  at 1280px/390px. Authenticated Production smoke test remains an owner check.
+- Fresh origin/main and the live Production deploy both match 810b3c9.
+
+### Schema Changes
+None. Inventory balances, write paths and permissions remain unchanged.
+
+### Next Steps (in order)
+Tag/release the accepted patch as v0.5.1, fast-forward Production main,
+verify Netlify publication and live assets, and record deployment evidence.
+Rollback point: v0.5.0 / Netlify 6ab5472cb12e7cdb63937be9.
+Do not promote unrelated Staging features with this patch.

@@ -30,6 +30,7 @@ import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx
 import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
 import { StorageLocationSetup } from './StorageLocationSetup.jsx';
 import { StorageWorkspace } from './StorageWorkspace.jsx';
+import { StorageReturnPath } from './StorageReturnPath.jsx';
 import { resolveStorageLocations } from './storageHierarchy.js';
 import { MaterialCatalogueWorkspace } from './MaterialCatalogueWorkspace.jsx';
 import { MaterialStockReviews } from './MaterialStockReviews.jsx';
@@ -1923,6 +1924,7 @@ export function InventoryWorkspace({ permissions }) {
       const intakeMessage = countMessages.new;
       return (
         <div className="inventory-section-stack">
+          {canReadCounts && <StorageReturnPath records={locationRecords} binId={scanBinId || countIntakeDraft.bin_id} />}
           <article className="card workspace-card">
             <Toolbar descriptionIsDiagnostic
               eyebrow="Count"
