@@ -546,6 +546,8 @@ export function InventoryWorkspace({ permissions }) {
   const [search, setSearch] = useState('');
   const [exportType, setExportType] = useState('current');
   const [exportLocation, setExportLocation] = useState({ unit: '', shelf: '', bay: '', bin: '' });
+  const [exportPdfBusy, setExportPdfBusy] = useState(false);
+  const [exportPdfError, setExportPdfError] = useState('');
   const [countLocation, setCountLocation] = useState({ unit: '', shelf: '', bay: '', bin: '' });
   const [pendingReviews, setPendingReviews] = useState(null);
   const [reviewRefresh, setReviewRefresh] = useState(0);
@@ -1315,6 +1317,28 @@ export function InventoryWorkspace({ permissions }) {
       inventoryExportCsv(exportType, exportCatalogue, exportRows), 'text/csv;charset=utf-8');
   }
 
+  async function handleDownloadBlankCountPdf() {
+    if (exportType !== 'blank' || exportPdfBusy || !exportRows.length) return;
+    setExportPdfBusy(true);
+    setExportPdfError('');
+    try {
+      const { buildBlankInventoryCountPdf } = await import('./inventoryCountPdf.js');
+      const location = Object.values(exportLocation).filter(Boolean)
+        .map(id => locationRecords.find(row => row.id === id)?.code).filter(Boolean).join(' / ') || 'All storage locations';
+      const bytes = await buildBlankInventoryCountPdf(exportRows, { location, search });
+      const url = window.URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `northgate-inventory-blank-count-${new Date().toISOString().slice(0, 10)}.pdf`;
+      anchor.click();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setExportPdfError(error?.message || 'The blank count PDF could not be created.');
+    } finally {
+      setExportPdfBusy(false);
+    }
+  }
+
 
   function setCountMessage(key, tone, text) {
     setCountMessages((current) => ({
@@ -1606,9 +1630,9 @@ export function InventoryWorkspace({ permissions }) {
       return (
         <div className="inventory-section-stack">
           <article className="card workspace-card">
-            <Toolbar eyebrow="Export" title="Build an inventory sheet" description="Choose the sheet and location. Downloads are CSV files that open in Excel; exporting does not change stock or post to accounting." dense />
+            <Toolbar eyebrow="Export" title="Build an inventory sheet" description="Choose the sheet and location. Download a CSV for Excel or a printable PDF for manual counts. Exporting does not change stock or post to accounting." dense />
             <div className="inventory-export-controls">
-              <label>Sheet type<select value={exportType} onChange={event => setExportType(event.target.value)}>{INVENTORY_EXPORT_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+              <label>Sheet type<select value={exportType} onChange={event => { setExportType(event.target.value); setExportPdfError(''); }}>{INVENTORY_EXPORT_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
               {exportType !== 'catalogue' && <div className="inventory-location-filters" aria-label="Export location filters">
                 <label>Shelving Unit<select value={exportLocation.unit} onChange={event => setExportLocation({ unit: event.target.value, shelf: '', bay: '', bin: '' })}><option value="">All units</option>{units.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
                 <label>Shelf<select value={exportLocation.shelf} onChange={event => setExportLocation(current => ({ ...current, shelf: event.target.value, bay: '', bin: '' }))}><option value="">All shelves</option>{shelves.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
@@ -1616,8 +1640,11 @@ export function InventoryWorkspace({ permissions }) {
                 <label>Bin<select value={exportLocation.bin} onChange={event => setExportLocation(current => ({ ...current, bin: event.target.value }))}><option value="">All bins</option>{bins.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
               </div>}
               <div className="inventory-export-actions"><span>{exportPreviewRows.length} row{exportPreviewRows.length === 1 ? '' : 's'} in this export{exportType === 'financial' ? ` · ${formatMoney(knownValue)} known value` : ''}</span>
-                <button type="button" className="primary-button" onClick={handleDownloadAccountingCsv} disabled={(exportType === 'catalogue' ? readModel.isLoading : countSheet.isLoading) || !exportPreviewRows.length}><Download aria-hidden="true" /> Download CSV</button>
+                <div className="inventory-export-buttons"><button type="button" className="primary-button" onClick={handleDownloadAccountingCsv} disabled={(exportType === 'catalogue' ? readModel.isLoading : countSheet.isLoading) || !exportPreviewRows.length}><Download aria-hidden="true" /> Download CSV</button>
+                  {exportType === 'blank' && <button type="button" className="secondary-button" onClick={handleDownloadBlankCountPdf} disabled={countSheet.isLoading || !exportPreviewRows.length || exportPdfBusy}><Download aria-hidden="true" /> {exportPdfBusy ? 'Preparing PDF…' : 'Download printable PDF'}</button>}</div>
               </div>
+              {exportType === 'blank' && <small>The PDF leaves counts and notes blank for handwriting. It does not show system quantities or prices.</small>}
+              {exportPdfError && <p role="alert">{exportPdfError}</p>}
               {exportType === 'financial' && <small>Uncounted or unpriced rows remain blank in the valuation columns; the total includes only rows with both values.</small>}
             </div>
             <DataTable

@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildStockMaterials } from '../src/modules/inventory/inventorySearch.js';
 import { inventoryExportCsv, inventoryExportRows } from '../src/modules/inventory/inventoryExports.js';
+import { buildBlankInventoryCountPdf } from '../src/modules/inventory/inventoryCountPdf.js';
 import { suggestCatalogueCode } from '../src/lib/catalogueCodeSuggestion.mjs';
+import { PDFDocument } from 'pdf-lib';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const catalogue = [
   { id: 'a', material_code: 'A', name: 'Coupling', broad_category: 'EMT' },
@@ -36,6 +39,33 @@ test('blank/current/financial sheets preserve unknown counts and missing prices'
 test('catalogue exports neutralize spreadsheet formulas', () => {
   const csv = inventoryExportCsv('catalogue', [{ id: 'x', material_code: '=2+2', name: '@call' }], []);
   assert.match(csv, /'=2\+2,'@call/);
+});
+
+test('blank count PDF is print-ready, paginated, location-scoped, and excludes expected quantities and prices', async () => {
+  const rows = Array.from({ length: 38 }, (_, index) => ({
+    material_code: `MAT-${String(index + 1).padStart(3, '0')}`,
+    item_name: index === 0 ? '3/4" EMT Compression Coupling - rain-tight' : `Material ${index + 1}`,
+    storage_unit_code: 'E', shelf_code: 'E1', bay_code: 'E11', bin_code: `E${index + 100}`,
+    unit_of_measure: 'EA', quantity_on_hand: 987654, price_per_unit: 1234.56,
+  }));
+  const bytes = await buildBlankInventoryCountPdf(rows, {
+    location: 'E / E1 / E11', search: 'EMT', generatedAt: new Date('2026-09-29T12:00:00Z'),
+  });
+  const pdf = await PDFDocument.load(bytes);
+  assert.deepEqual(pdf.getPage(0).getSize(), { width: 792, height: 612 });
+  assert.ok(pdf.getPageCount() >= 3);
+  const parsed = await getDocument({ data: bytes.slice() }).promise;
+  let text = '';
+  for (let page = 1; page <= parsed.numPages; page += 1) {
+    text += (await (await parsed.getPage(page)).getTextContent()).items.map(item => item.str).join(' ');
+  }
+  assert.match(text, /INVENTORY COUNT SHEET/);
+  assert.match(text, /E \/ E1 \/ E11/);
+  assert.match(text, /MAT-001/);
+  assert.match(text, /MAT-038/);
+  assert.match(text, /COUNTED QTY/);
+  assert.match(text, /Page 1 of/);
+  assert.doesNotMatch(text, /987654|1234\.56|SYSTEM QTY|UNIT COST/);
 });
 
 test('suggested catalogue number is editable, unique against loaded codes, and deterministic', () => {

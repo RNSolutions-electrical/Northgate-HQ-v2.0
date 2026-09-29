@@ -2,6 +2,25 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
+## Inventory printable count sheet — INVENTORY-COUNT-PDF-20260929-001
+
+- Date/time: 2026-09-29 12:39 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- Branch: `release/production-demo-candidate-20260923`. **Not deployed** to
+  Production or Staging; `main` and `staging` are unchanged.
+- Resolve on another machine: `git log origin/release/production-demo-candidate-20260923 --format="%H %cI %s" --grep=INVENTORY-COUNT-PDF-20260929-001 -1`.
+- The blank inventory count export now offers both CSV and a landscape Letter
+  PDF for clipboard counts, scoped to the selected unit/shelf/bay/bin. PDF
+  deliberately omits system quantities and prices and includes writable count
+  and notes columns. Existing CSV exports are preserved.
+- A local sample-data UI preview is in `tests/browser/inventory-ui-preview.html`;
+  run `node scripts/serve-inventory-ui-preview.mjs` and open the reported local
+  URL. It does not connect to Production or Staging.
+- Verification: 19 selected Inventory/Storage tests passed; generated PDF
+  rendered and visually checked. Normal Vite build remains gated on real target
+  environment values. See HANDOFF Entry 325.
+- The one-save Inventory Management bulk-edit workflow is still a separate
+  backend pass. A printed sheet does not itself import or commit counts.
+
 ## Inventory UI implementation checkpoint — INVENTORY-UI-20260929-001
 
 - Date/time: 2026-09-29 12:07:55 EDT (UTC-04:00); machine `Ryan_Northgate`.

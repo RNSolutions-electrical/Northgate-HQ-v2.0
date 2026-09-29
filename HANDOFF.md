@@ -22733,3 +22733,38 @@ None.
    and unit changes, timestamped quantity history with reversal, and persisted
    catalogue taxonomy. Preserve old balances/history and use tested migrations.
 3. Keep unrelated Staging roadmap work separate from this Production patch.
+
+## Entry 325 — Printable Inventory count sheet prepared
+
+**Date:** 2026-09-29 12:39 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Production-targeted Inventory usability, pre-deployment
+**Session type:** implementation
+**Branch:** `release/production-demo-candidate-20260923`
+**Sync marker:** `INVENTORY-COUNT-PDF-20260929-001`
+
+### Context
+The owner approved the UI slice and requested a clipboard-friendly PDF for
+manual inventory counts as part of the eventual Production release. This is
+not authorization to deploy the unfinished Inventory Management backend pass.
+
+### What Was Completed
+- Blank count export now offers a landscape Letter PDF beside the existing CSV.
+  It respects the same search and unit/shelf/bay/bin scope, lists code,
+  material, location and unit, and leaves Counted Qty and Notes empty for
+  handwriting. It omits expected system quantities and prices.
+- The PDF repeats its header, count-owner/date fields and page numbers on each
+  page. Long material text wraps and rows paginate. The sample-data UI preview
+  includes the new PDF choice; it has no live connection or writes.
+- 19 selected Inventory/Storage tests passed. Generated sample PDF was rendered
+  and visually checked for alignment and legibility. Production Vite build was
+  not attempted with fake credentials; an ordinary build correctly stopped on
+  missing target environment variables. No migration or deployment.
+
+### Next Steps
+1. Review the printable PDF with a real-sized manual count. The local preview
+   is reproducible with `node scripts/serve-inventory-ui-preview.mjs`.
+2. Complete and verify the separately scoped, authorized bulk Inventory
+   Management save before promising one-action entry of paper counts.
+3. Use configured Production credentials for release build and acceptance
+   testing before promoting this branch to `main`.
