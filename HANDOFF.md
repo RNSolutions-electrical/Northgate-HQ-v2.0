@@ -22830,3 +22830,39 @@ pre-hotfix definition; no table data needs restoring. That reversal would
 reintroduce the ambiguous-column error, so first diagnose the new issue.
 The existing Staging Inventory Management preview work is separate and was
 not altered by this hotfix.
+
+## Entry 328 — Canonical business role profile-save correction
+
+**Date:** 2026-09-29 15:50 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Production permission-data correction and database fix
+**Session type:** migration, audited correction, verification
+**Sync marker:** `PROFILE-BUSINESS-ROLE-20260929-001`
+**Application version:** unchanged, v0.5.3
+**Migration:** `20260929194805_sync_permission_profile_business_role.sql`
+
+Joe Rimbey's Production profile showed legacy `role = Manager` in Construction,
+but canonical `business_role` was null. The Job Team selector and its database
+trigger use canonical business rank, so Project Manager was disabled. The
+Developer profile-save RPC updated only the legacy role/department, and new
+profiles did not default a canonical role. The migration gives new profiles a
+least-privilege `business_role = User` default and synchronizes ordinary
+profile saves with their canonical business rank. Saving the legacy Developer
+technical role retains the existing business rank rather than promoting it.
+The RPC continues to require Developer access and a reason, and now logs
+before/after role, business role, department and effective permissions.
+
+The migration passed Staging first. Simulated Manager and Developer profile
+saves, including audit checks, succeeded and were rolled back. The same
+migration was applied to Production with Ryan's approval. Joe alone was then
+corrected through the audited profile-save RPC, using his existing Manager /
+Construction values and an owner-approved correction reason. Production now
+reports Joe's legacy and canonical roles as Manager. Wyatt Dickson's separate
+legacy-Manager / null-business-role profile was deliberately left unchanged.
+
+A rolled-back Production test confirmed Joe can now be assigned the Toro
+Pizzeria Job Team Project Manager role; his actual Toro assignment remains
+Member for Ryan to change in the UI. No application bundle was published.
+If rollback is required, restore the preceding profile-save RPC definition
+and remove the new column default; Joe's audited profile correction should
+be reviewed separately before any data reversal.
