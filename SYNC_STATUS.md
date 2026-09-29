@@ -2,6 +2,24 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
+## Inventory UI implementation checkpoint — INVENTORY-UI-20260929-001
+
+- Date/time: 2026-09-29 12:05 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- Branch: `release/production-demo-candidate-20260923`, based on
+  `4e22ee7df60501145832cbfdb0dc9ac3e34dd7c1`. Production-targeted UI
+  work only. **Not deployed**; Production remains at the separate v0.5.2
+  app release shown below.
+- Resolve on another machine: `git log origin/release/production-demo-candidate-20260923 --format="%H %cI %s" --grep=INVENTORY-UI-20260929-001 -1`.
+- Inventory/Full Catalogue browsing, hierarchical filters, Inventory Management
+  location filtering, Stock Reviews badge, four CSV export options, and an
+  editable catalogue-code helper are implemented. There is no migration or
+  permission change. Catalogue category hints are not persisted yet.
+- Verification: 222 selected Node tests passed; Vite compiled with placeholder
+  environment values for verification only. See HANDOFF Entry 324 and the
+  Inventory section in `docs/ROADMAP.md`.
+- Next: owner reviews the UI before Production release. Higher-effort
+  permission/bulk-edit/quantity-history/taxonomy work remains separate.
+
 ## Latest planning checkpoint — COMPASS-ROADMAP-20260928-002
 
 - Date/time: 2026-09-28 16:01 EDT (UTC-04:00); machine `Ryan_Northgate`.

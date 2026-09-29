@@ -1,5 +1,35 @@
 # Backlog
 
+## Inventory usability — Production-targeted UI slice (September 29, 2026)
+
+Sync marker: `INVENTORY-UI-20260929-001` on `Ryan_Northgate`.
+This slice is being prepared on `release/production-demo-candidate-20260923`;
+it is **not a Production deployment** and has no schema or permission changes.
+
+- Inventory and Full Catalogue are separate primary views with keyword search,
+  four-level location filtering for stocked inventory, and Size / Category /
+  Sub Category / Sub Category 2 filters. Inventory Management's existing count
+  sheet has the same location selectors; individual count writes are unchanged.
+- Stock Reviews shows a pending count when the authorized read returns one.
+- Export offers full catalogue, blank count, current inventory, and valuation
+  CSV sheets; the latter three can be scoped to unit, shelf, bay, or bin.
+  Unknown quantities and unconfirmed prices stay blank in valuation exports.
+- New-material entry has an editable suggested catalogue number and a helper.
+  Category/size hints currently shape the code only; they are **not persisted**
+  as classification fields by the existing catalogue save RPC.
+
+### Next, higher-effort Inventory slice
+
+Define and implement the Inventory Management permission override and server
+authorization, draft/bulk edit session, one shared reason and atomic save,
+catalogue code and unit changes with safeguards, full quantity adjustment
+history (timestamped records, not date-named columns/tables), and safe reversal.
+Persist catalogue taxonomy fields only after designing and testing the save
+path. Do not mistake the new UI label for a completed bulk-management workflow.
+Use the existing audit ledger and transaction boundaries; verify no Production
+balance or history is overwritten. Owner will switch to higher effort before
+this backend work begins.
+
 ## Latest Exploration intake — September 28, 2026
 
 [Reconciled prompts and plans](planning/EXPLORATION_INTAKE_20260928.md) now

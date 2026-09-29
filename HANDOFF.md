@@ -22685,3 +22685,50 @@ owner's current instruction. Existing CO revision-continuity choice stays locked
 Fetch the appropriate branch, read SYNC_STATUS and ROADMAP, then remain in
 Exploration until the owner selects and authorizes a discrete implementation.
 Do not duplicate the existing CO engine, catalogue, price history or AFC tool.
+
+## Entry 324 — Inventory browsing and export UI prepared
+
+**Date:** 2026-09-29 12:05 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Production-targeted Inventory usability, UI-first slice
+**Session type:** implementation
+**Branch:** `release/production-demo-candidate-20260923`
+**Sync marker:** `INVENTORY-UI-20260929-001`
+**Base commit:** `4e22ee7df60501145832cbfdb0dc9ac3e34dd7c1`
+
+### Context
+Owner approved the Inventory usability recommendations, requested the UI slice
+first, and will switch to higher effort for the bulk-edit/permission/history
+work. This is intended for Production eventually, not Staging; it is not a
+Production deployment.
+
+### What Was Completed
+- Inventory and Full Catalogue now appear as separate main views. Keyword,
+  hierarchical location, size, category and subcategory filters are organized
+  together; the Count view is labeled Inventory Management and gains location
+  filters without changing its existing single-row actions.
+- The Stock Reviews sidebar receives an authorized pending-count badge.
+- Export replaces Accounting Export in the navigation and offers catalogue,
+  blank count, current count, and known-value financial CSV sheets with scoped
+  unit/shelf/bay/bin selection. Unknown counts and unconfirmed pricing are not
+  silently exported as known zero values.
+- New catalogue materials receive an editable code suggestion and code helper.
+  Category/size helper hints do not persist taxonomy because the current save
+  RPC does not accept those fields; this limitation is explicit in the UI.
+- No database, permission, balance, count-write, cart, or transaction changes.
+- 222 selected Node tests passed. A verification-only Vite build passed with
+  placeholder environment values; no configured bundle was published. The
+  first plain build correctly refused to run without environment values.
+
+### Schema Changes
+None.
+
+### Next Steps (in order)
+1. Review the Production-targeted UI slice and test with an authorized user
+   before any Production promotion. A configured build and live smoke test
+   remain required for deployment.
+2. Higher-effort backend slice: Inventory Management override/authorization,
+   draft bulk editing with one reason and atomic save, audited catalogue-code
+   and unit changes, timestamped quantity history with reversal, and persisted
+   catalogue taxonomy. Preserve old balances/history and use tested migrations.
+3. Keep unrelated Staging roadmap work separate from this Production patch.

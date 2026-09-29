@@ -18,6 +18,7 @@ const EMPTY_MODEL = Object.freeze({
   binsPreview: [],
   cartCandidates: [],
   stockRows: [],
+  locationHierarchy: null,
   destinationReferences: {
     users: [],
     vehicles: [],
@@ -77,6 +78,32 @@ async function getTrackedStock(client) {
   }
 }
 
+async function getLocationHierarchy(client) {
+  const read = async (table, fields) => {
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const result = await client.from(table).select(fields).is('archived_at', null)
+        .order('id', { ascending: true }).range(from, from + 999);
+      if (result.error) throw result.error;
+      rows.push(...(result.data ?? []));
+      if ((result.data ?? []).length < 1000) return rows;
+    }
+  };
+  try {
+    const [storageUnits, shelves, bays, bins] = await Promise.all([
+      read('storage_units', 'id,unit_code,name,division,archived_at'),
+      read('shelves', 'id,shelf_code,label,unit_id,archived_at'),
+      read('bays', 'id,bay_code,label,shelf_id,archived_at'),
+      read('bins', 'id,bin_code,label,bay_id,archived_at'),
+    ]);
+    return { storageUnits, shelves, bays, bins };
+  } catch (error) {
+    // Material browsing remains usable if a role cannot read the location tree.
+    console.warn('Location hierarchy unavailable for inventory filters', error);
+    return null;
+  }
+}
+
 export function useInventoryReadModel({ enabled, catalogueOnly = false }) {
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -127,6 +154,7 @@ export function useInventoryReadModel({ enabled, catalogueOnly = false }) {
           cartCandidatesResult,
           usersResult,
           vehiclesResult,
+          locationHierarchy,
         ] = await Promise.all([
           getCount(client, 'items', (query) =>
             query.eq('is_active', true).eq('is_archived', false),
@@ -162,6 +190,7 @@ export function useInventoryReadModel({ enabled, catalogueOnly = false }) {
             .select('id, vehicle_number, make, model, classification, holds_stock, division')
             .order('vehicle_number', { ascending: true })
             .limit(25),
+          getLocationHierarchy(client),
         ]);
 
         const readError =
@@ -201,6 +230,7 @@ export function useInventoryReadModel({ enabled, catalogueOnly = false }) {
               storageUnitsPreview: storageUnitsPreviewResult.data ?? [],
               binsPreview: binsPreviewResult.data ?? [],
               stockRows: cartCandidatesResult.data ?? [],
+              locationHierarchy,
               cartCandidates: (cartCandidatesResult.data ?? []).filter(row => Number(row.quantity_on_hand) > 0),
               destinationReferences: {
                 users: usersResult.error ? [] : usersResult.data ?? [],
