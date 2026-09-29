@@ -22768,3 +22768,32 @@ not authorization to deploy the unfinished Inventory Management backend pass.
    Management save before promising one-action entry of paper counts.
 3. Use configured Production credentials for release build and acceptance
    testing before promoting this branch to `main`.
+
+## Entry 326 — Production Inventory usability release v0.5.3
+
+**Date:** 2026-09-29 12:53 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Production release
+**Session type:** deployment and verification
+**Sync marker:** `INVENTORY-PROD-20260929-001`
+**Application commit:** `2551af094aa854480dd60249c156f7aeb62ae463`
+
+The owner approved deploying the Inventory UI slice and the printable blank
+count PDF. An annotated `v0.5.3` tag and matching GitHub Release archive the
+application commit. `main` was fast-forwarded from `4e22ee7` to `2551af0`;
+Staging was not promoted or changed. The configured Netlify Production build
+published deploy `6abbecb04fce2f00078da7bf` at 12:52:19 EDT. The live
+`/northgate/` page, its entry JavaScript, and the `inventoryCountPdf` asset
+all returned HTTP 200. The Production page did not display the Staging banner.
+
+Verification: 223 explicit Node test files passed and a verification-only Vite
+build passed. The plain `npm test` discovery attempted to run the local
+preview server script on occupied port 5320; this was environmental, not a
+failed application assertion. No migration or database writes were performed.
+
+The one-save Inventory Management permission, atomic bulk edit and quantity
+history remain future backend work. If a rollback is needed, republish the
+prior Netlify Production deploy `6ababcbc35bdf800087a45e8` (app commit
+`86933c87717d630561e2ff95c624723583af44e2`). No schema rollback is
+needed. The GitHub release is
+https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/releases/tag/v0.5.3 .

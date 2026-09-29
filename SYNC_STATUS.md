@@ -2,6 +2,33 @@
 
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
+## Production Inventory UI and printable count release — INVENTORY-PROD-20260929-001
+
+- Date/time: 2026-09-29 12:53 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- Production release: `v0.5.3`; application commit
+  `2551af094aa854480dd60249c156f7aeb62ae463` on `main`.
+- GitHub Release: https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/releases/tag/v0.5.3
+- Netlify Production site `northgate-hq-v2`: deploy
+  `6abbecb04fce2f00078da7bf`, published 2026-09-29 12:52:19 EDT.
+  Live URL: https://rnsolutions.net/northgate/ . The page, entry bundle,
+  and printable count PDF asset returned HTTP 200 after publication.
+- Resolve this checkpoint on another machine:
+  `git log origin/main --format="%H %cI %s" --grep=INVENTORY-PROD-20260929-001 -1`.
+- Shipped: Inventory/Full Catalogue browsing and filters, Inventory
+  Management location filters, pending Stock Reviews badge, four CSV exports,
+  editable catalogue-code helper, and printable blank count PDF. No migration
+  or Production database change. The atomic bulk-edit Inventory Management
+  workflow and its permission/history changes are **not** in this release.
+- Verification: 223 selected Node tests passed; configured Netlify build ready.
+  `npm test` also picked up an unrelated local preview-server script on occupied
+  port 5320, so the explicit test-file run was used for the release check.
+- Rollback: Netlify's previous Production deploy
+  `6ababcbc35bdf800087a45e8` runs app commit
+  `86933c87717d630561e2ff95c624723583af44e2`; republish that deploy if
+  the Inventory patch must be reverted. No schema rollback is required.
+- The earlier "not deployed" statements below describe their historical
+  checkpoints and are superseded by this release record.
+
 ## Inventory printable count sheet — INVENTORY-COUNT-PDF-20260929-001
 
 - Date/time: 2026-09-29 12:39 EDT (UTC-04:00); machine `Ryan_Northgate`.
