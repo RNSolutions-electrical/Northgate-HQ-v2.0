@@ -4,12 +4,13 @@ This file is the repository-visible source of truth for Codex handoffs between m
 
 ## Inventory UI implementation checkpoint — INVENTORY-UI-20260929-001
 
-- Date/time: 2026-09-29 12:05 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- Date/time: 2026-09-29 12:07:55 EDT (UTC-04:00); machine `Ryan_Northgate`.
 - Branch: `release/production-demo-candidate-20260923`, based on
   `4e22ee7df60501145832cbfdb0dc9ac3e34dd7c1`. Production-targeted UI
   work only. **Not deployed**; Production remains at the separate v0.5.2
   app release shown below.
 - Resolve on another machine: `git log origin/release/production-demo-candidate-20260923 --format="%H %cI %s" --grep=INVENTORY-UI-20260929-001 -1`.
+- Implementation commit: `fd464785e4fe96896681dae4301fe1f3fb9e708b`.
 - Inventory/Full Catalogue browsing, hierarchical filters, Inventory Management
   location filtering, Stock Reviews badge, four CSV export options, and an
   editable catalogue-code helper are implemented. There is no migration or

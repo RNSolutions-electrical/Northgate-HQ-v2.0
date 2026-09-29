@@ -22688,13 +22688,14 @@ Do not duplicate the existing CO engine, catalogue, price history or AFC tool.
 
 ## Entry 324 — Inventory browsing and export UI prepared
 
-**Date:** 2026-09-29 12:05 EDT (UTC-04:00)
+**Date:** 2026-09-29 12:07:55 EDT (UTC-04:00)
 **Updated by:** Codex on `Ryan_Northgate`
 **Phase:** Production-targeted Inventory usability, UI-first slice
 **Session type:** implementation
 **Branch:** `release/production-demo-candidate-20260923`
 **Sync marker:** `INVENTORY-UI-20260929-001`
 **Base commit:** `4e22ee7df60501145832cbfdb0dc9ac3e34dd7c1`
+**Implementation commit:** `fd464785e4fe96896681dae4301fe1f3fb9e708b`
 
 ### Context
 Owner approved the Inventory usability recommendations, requested the UI slice
