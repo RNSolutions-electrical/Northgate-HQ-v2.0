@@ -22797,3 +22797,36 @@ prior Netlify Production deploy `6ababcbc35bdf800087a45e8` (app commit
 `86933c87717d630561e2ff95c624723583af44e2`). No schema rollback is
 needed. The GitHub release is
 https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/releases/tag/v0.5.3 .
+
+## Entry 327 — Production job assignment authorization hotfix
+
+**Date:** 2026-09-29 15:36 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Production database hotfix
+**Session type:** diagnosis, migration, verification
+**Sync marker:** `JOB-ASSIGNMENT-HOTFIX-20260929-001`
+**Application version:** unchanged, v0.5.3
+**Migration:** `20260929193348_fix_scoped_authorization_job_id_ambiguity.sql`
+
+Adding a user to Toro Pizzeria failed with `column reference "job_id" is
+ambiguous`. A read-only reproduction identified
+`current_scoped_authorization_decision` as the source: its local `job_id`
+conflicted with `job_user_assignments.job_id` in the
+`ASSIGNED_PM_OR_DIRECTOR` rule. The replacement preserves the existing
+authorization logic, function signature, security mode and search path;
+only the local variable is renamed to `scoped_job_id`.
+
+The migration passed on isolated Staging first. A simulated assignment write
+there succeeded and was rolled back; a standard user was still denied. The
+same migration was then applied to Production with Ryan's approval. On Toro,
+the authorized no-change assignment call completed without error; active
+assignments and assignment audit entries stayed at three each. The standard
+user denial remained in force. Fifteen targeted Node tests passed and the
+staged SQL passed `git diff --check`. No application bundle was changed or
+published; the migration commit used `[skip ci]`.
+
+If this database-only patch must be reversed, replace the function with its
+pre-hotfix definition; no table data needs restoring. That reversal would
+reintroduce the ambiguous-column error, so first diagnose the new issue.
+The existing Staging Inventory Management preview work is separate and was
+not altered by this hotfix.
