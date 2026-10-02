@@ -9,6 +9,8 @@ test('client PDF keeps the authoritative line amount while showing optional deta
   const server = await createServer({ configFile: false, server: { middlewareMode: true } });
   try {
     const { clientChangeOrderHtml } = await server.ssrLoadModule('/src/modules/jobs/ChangeOrderWorkspace.jsx');
+    const { ChangeOrderWorkspace: nextWorkspace } = await server.ssrLoadModule('/src/modules/jobs/ChangeOrderWorkspaceNext.jsx');
+    assert.equal(typeof nextWorkspace, 'function');
     const html = clientChangeOrderHtml({
       order: { co_number: 'CO-012', revision_number: 0 },
       job: { job_number: '26-100', name: 'Example Job', address_line1: '<script>alert(1)</script>' },
@@ -54,6 +56,31 @@ test('client PDF keeps the authoritative line amount while showing optional deta
     assert.match(preview, /Current on-screen draft/);
     assert.match(preview, /Unnumbered draft/);
     assert.match(preview, /Change Order Total<\/span><span>\$100\.00/);
+
+    const credit = clientChangeOrderHtml({
+      order: { co_number: 'CR-001', record_type: 'credit', revision_number: 0 },
+      job: { name: 'Example Job' },
+      form: { title: 'Customer credit', description: 'Deleted work', change_order_date: '' },
+      lines: [{ description: 'Scope deduction', material_amount: -2500 }],
+      overallMarkupAmount: 0,
+      total: -2500,
+      logoUrl: 'https://example.invalid/logo.jpg',
+    });
+    assert.match(credit, /<strong>Credit<\/strong>/);
+    assert.match(credit, /Credit Total<\/span><span>\-\$2,500\.00/);
+
+    const incomplete = clientChangeOrderHtml({
+      order: { co_number: 'Unnumbered draft', revision_number: 0 },
+      job: { name: 'Example Job' },
+      form: { title: '', description: '', change_order_date: '' },
+      lines: [{ description: 'Pricing pending', material_amount: null, labor_amount: '' }],
+      overallMarkupAmount: 0,
+      total: null,
+      logoUrl: 'https://example.invalid/logo.jpg',
+      preview: true,
+    });
+    assert.match(incomplete, /Pricing pending<\/td><td>Not priced<\/td>/);
+    assert.match(incomplete, /Change Order Total<\/span><span>Not priced/);
   } finally {
     await server.close();
   }

@@ -22984,3 +22984,55 @@ is still advisable. Staging was not changed. To roll back frontend behavior,
 republish prior Netlify deploy `6abbecb04fce2f00078da7bf`; retain the
 additive schema unless a separate data-preserving reversal is designed.
 Release details: `docs/releases/CHANGE_ORDER_CLIENT_DETAILS_20261002.md`.
+
+## Entry 334 — Contract adjustment release package prepared, backup gate active
+
+**Date:** 2026-10-02 18:06 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** v0.6.0 Production release preparation
+**Session type:** implementation and review
+**Sync marker:** `CO-INTEGRATION-READY-20261002-012`
+
+### What Was Completed
+
+The Production-base Change Order/Credit state-model integration, continuing
+Billing lineage, v0.5.4 client PDF-detail compatibility, and pre-submit client
+preview are packaged on `feature/change-order-integration-20261002`. Ryan
+accepted the combined flow on isolated Staging and explicitly authorized the
+one-time +$1,477.60 Carolina Retina NGG-CO-9-R1 reconciliation. The separate
+Supabase-CLI-generated release migration matches the SQL rehearsed twice on
+an isolated copy. Local tests pass 239/239. A Production-mode Vite build with
+placeholder public keys passes to a clean temporary output directory; that
+bundle is not deployable. The default `dist` build target is Dropbox-locked
+and returned EPERM, not a source compilation error.
+
+### Schema Changes
+
+Two local, unapplied migrations are ordered:
+`20261002174322_contract_adjustment_state_model_integration.sql`, then
+`20261002220438_reconcile_carolina_retina_co9_revision.sql`. The second is
+guarded, idempotent, and preserves Original Budget and historical Pay Apps.
+Neither migration has been applied to Production.
+
+### What Codex Needs to Know
+
+**Production is untouched by this candidate.** The latest completed physical
+Supabase backup observed is 2026-10-02 07:42:43 UTC, but a Change Order was
+edited at 19:47:59 UTC. Ryan requested a new recovery point before any
+Production write. There is no on-demand physical backup control on this
+project and PITR is not enabled. Do not treat the older backup or the isolated
+rehearsal as a current recovery point. The full preflight, promotion order,
+and rollback boundary are in
+`docs/releases/CONTRACT_ADJUSTMENT_V0_6_0_RELEASE_CANDIDATE.md`; detailed
+rehearsal evidence is in
+`docs/reviews/CONTRACT_ADJUSTMENT_PRODUCTION_INTEGRATION_20261002.md`.
+
+### Next Steps (in order)
+
+1. Verify a completed newer Production backup (or a separately approved and
+   verified current logical dump) and record its timestamp and limits.
+2. Fetch/check `main`, then recheck live schema, CO9 fingerprint, financial
+   totals, Pay Apps, permissions, and security-advisor baseline read-only.
+3. Apply both migrations in order, verify all financial invariants, create
+   the immutable release tag/GitHub Release, deliberately promote the exact
+   code to `main`, deploy to Production, and run live smoke tests.

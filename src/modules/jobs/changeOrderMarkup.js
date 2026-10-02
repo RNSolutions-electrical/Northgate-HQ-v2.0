@@ -26,6 +26,10 @@ export function percentMarkupAmount(subtotal, percent) {
 export function withUpdatedLineMarkup(line, change) {
   const next = { ...line, ...change };
   if (next.markup_mode === 'percent') {
+    if (next.markup_percent == null || String(next.markup_percent).trim() === '') {
+      next.markup_amount = '';
+      return next;
+    }
     const calculated = percentMarkupAmount(lineSubtotal(next), next.markup_percent);
     next.markup_amount = calculated === null ? '' : calculated.toFixed(2);
   }

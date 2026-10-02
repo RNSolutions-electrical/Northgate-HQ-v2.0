@@ -30,7 +30,10 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from '../documents/documentCategories.js';
-import { ChangeOrderWorkspace } from './ChangeOrderWorkspace.jsx';
+import { ChangeOrderWorkspace } from './ChangeOrderWorkspaceNext.jsx';
+import { ContractAdjustmentTools } from './ContractAdjustmentTools.jsx';
+import { ContractCloseoutReadiness } from './ContractCloseoutReadiness.jsx';
+import { filterAdjustments } from './contractAdjustments.js';
 import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
@@ -2216,6 +2219,7 @@ export function JobsWorkspace({ permissions }) {
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [collapsedRevenueDivisions, setCollapsedRevenueDivisions] = useState({});
   const [changeOrderWorkspaceOrder, setChangeOrderWorkspaceOrder] = useState(undefined);
+  const [adjustmentView, setAdjustmentView] = useState('all');
   const [changeOrderSort, setChangeOrderSort] = useState({ key: '', direction: 'asc' });
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
@@ -4855,10 +4859,11 @@ export function JobsWorkspace({ permissions }) {
 
     if (activeTab === 'change_orders') {
       const changeOrderColumns = [
-        { key: 'co_number', header: 'CO #', sortable: true, render: (row) => <strong>{row.co_number}</strong> },
+        { key: 'co_number', header: 'Number', sortable: true, render: (row) => <strong>{row.co_number}</strong> },
+        { key: 'record_type', header: 'Type', render: (row) => row.record_type === 'credit' ? 'Credit' : 'Change Order' },
         { key: 'title', header: 'Title', sortable: true, render: (row) => row.title },
         { key: 'status', header: 'Status', sortable: true, render: (row) => <StatusBadge status={row.status} /> },
-        { key: 'price_amount', header: 'Total', sortable: true, align: 'right', render: (row) => formatMoney(row.price_amount) },
+        { key: 'price_amount', header: 'Total', sortable: true, align: 'right', render: (row) => row.price_amount == null ? 'Not priced' : formatMoney(row.price_amount) },
         { key: 'decision_at', header: 'Decision', sortable: true, render: (row) => row.approved_at ? `Approved ${formatDateTime(row.approved_at)}` : row.denied_at ? `Denied ${formatDateTime(row.denied_at)}` : '-' },
         { key: 'actions', header: 'Actions', render: (row) => <button type="button" className="secondary-button" onClick={() => setChangeOrderWorkspaceOrder(row)}>{row.status === 'draft' && permissions?.canCreateChangeOrders ? 'Edit Draft' : row.status === 'submitted' && permissions?.canSubmitChangeOrders ? 'Review / Edit' : row.status === 'approved' && permissions?.canReviseChangeOrders ? 'Review / Revise / Void' : row.status === 'voided' ? 'View Voided' : row.status === 'denied' ? 'View Denied' : 'View'}</button> },
       ];
@@ -4866,12 +4871,12 @@ export function JobsWorkspace({ permissions }) {
         <>
           {permissions?.canCreateChangeOrders ? (
             <div className="job-financials-quick-actions">
-            <button type="button" className="primary-button" onClick={() => setChangeOrderWorkspaceOrder(null)} {...uiElementAttributes('FUNCTION', 'Add Change Order')}><Plus aria-hidden="true" /> Add Change Order</button>
+            <button type="button" className="primary-button" onClick={() => setChangeOrderWorkspaceOrder(null)} {...uiElementAttributes('FUNCTION', 'Add Change Order')}><Plus aria-hidden="true" /> New Change Order / Credit</button>
             </div>
           ) : null}
           <DataTable
             columns={changeOrderColumns}
-            rows={sortedChangeOrders}
+            rows={filterAdjustments(sortedChangeOrders, adjustmentView)}
             getRowKey={(row) => row.id}
             permissions={permissions}
             isLoading={jobChangeOrders.isLoading}
@@ -4882,8 +4887,9 @@ export function JobsWorkspace({ permissions }) {
             dense
             minWidth="900px"
             emptyTitle="No change orders for this job"
-            emptyDescription="Create a draft to begin the controlled Change Order workflow."
+            emptyDescription="Save a draft at any point. Approval commits its financial changes."
           />
+          <ContractAdjustmentTools job={selectedJob} rows={sortedChangeOrders} view={adjustmentView} onViewChange={setAdjustmentView} />
         </>
       );
     }
@@ -5948,11 +5954,12 @@ export function JobsWorkspace({ permissions }) {
             <div className="module-fact-grid jobs-closeout-readiness">
               <SummaryCard label="Documents" value={closeoutReadiness.hasDocuments ? 'Ready' : 'Review'} detail={closeoutReadiness.hasDocuments ? 'At least one job document is attached' : 'No active job documents found'} tone={closeoutReadiness.hasDocuments ? 'good' : 'warn'} />
               <SummaryCard label="Open Buyout" value={closeoutReadiness.openBuyouts} detail="Not received or cancelled" tone={closeoutReadiness.openBuyouts ? 'warn' : 'good'} />
-              <SummaryCard label="Proposed COs" value={closeoutReadiness.proposedChangeOrders} detail="Awaiting a decision" tone={closeoutReadiness.proposedChangeOrders ? 'warn' : 'good'} />
+              <SummaryCard label="Unresolved adjustments" value={closeoutReadiness.proposedChangeOrders} detail="Potential or submitted" tone={closeoutReadiness.proposedChangeOrders ? 'warn' : 'good'} />
               <SummaryCard label="Schedule Items" value={closeoutReadiness.unfinishedScheduleItems} detail="Not marked complete" tone={closeoutReadiness.unfinishedScheduleItems ? 'warn' : 'good'} />
             </div>
           ) : null}
         </StatePanel>
+        <ContractCloseoutReadiness key={selectedJob.id} jobId={selectedJob.id} onOpen={canViewFinancials ? () => setActiveTab('change_orders') : null} />
       </section>
     );
   }
