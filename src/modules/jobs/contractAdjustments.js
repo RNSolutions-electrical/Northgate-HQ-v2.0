@@ -15,6 +15,7 @@ export function serializeAdjustmentLines(lines) {
     description: line.description || '', vendor_name: line.vendor_name || null,
     ...Object.fromEntries(ADJUSTMENT_MONEY_FIELDS.map((field) => [field, isBlankAmount(line[field]) ? null : line[field]])),
     ...(line.markup_mode === 'percent' && !isBlankAmount(line.markup_percent) ? { markup_percent: line.markup_percent } : {}),
+    client_breakdown: line.client_breakdown ?? null,
     sort_order: index,
   }));
 }
