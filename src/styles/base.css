@@ -794,6 +794,20 @@ textarea {
 .change-order-line__wide,
 .change-order-verification__certify { grid-column: 1 / -1; }
 .change-order-line__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.change-order-line__client-details { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; }
+.change-order-line__client-details small { color: var(--ng-muted); }
+.change-order-line__client-details .change-order-line__detail-warning { color: var(--ng-warn); font-weight: 700; }
+.change-order-detail-dialog { width: min(900px, 100%); }
+.change-order-detail-dialog__rows { display: grid; gap: 10px; }
+.change-order-detail-dialog__row { display: grid; grid-template-columns: minmax(190px, 2fr) repeat(4, minmax(80px, 1fr)) auto auto; gap: 8px; align-items: end; padding: 10px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); background: var(--ng-panel-bg-alt); }
+.change-order-detail-dialog__row label, .change-order-detail-dialog__remaining-label { display: grid; min-width: 0; gap: 4px; font-size: 0.75rem; font-weight: 700; }
+.change-order-detail-dialog__row label small { font-size: 0.67rem; font-weight: 400; }
+.change-order-detail-dialog__row input { width: 100%; }
+.change-order-detail-dialog__calculated { min-width: 86px; color: var(--ng-muted); font-size: 0.75rem; }
+.change-order-detail-dialog__remaining { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+.change-order-detail-dialog__remaining-label { max-width: 360px; }
+.change-order-detail-dialog__summary { display: flex; gap: 8px 22px; flex-wrap: wrap; padding: 12px; border-top: 1px solid var(--ng-divider); font-size: 0.8rem; }
+.change-order-detail-dialog__warning { margin: 0; padding: 10px 12px; border-left: 3px solid var(--ng-warn); background: var(--ng-warn-bg); color: var(--ng-text); font-size: 0.8rem; }
 .change-order-verification { align-items: end; }
 .change-order-verification__certify { grid-template-columns: auto 1fr !important; align-items: start; padding: 12px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); background: var(--ng-panel-bg-alt); }
 .change-order-verification__certify input { margin-top: 0.15rem; }
@@ -820,6 +834,8 @@ textarea {
 .change-order-action-reason label > span { color: var(--ng-faint); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 .change-order-action-reason input { box-shadow: inset 0 1px 1px rgba(20, 32, 44, 0.025); }
 @media (max-width: 900px) {
+  .change-order-detail-dialog__row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .change-order-detail-dialog__description { grid-column: 1 / -1; }
   .change-order-workspace__topbar { grid-template-columns: 1fr auto; }
   .change-order-workspace__topbar > .secondary-button { grid-column: 1 / -1; justify-self: start; }
   .change-order-form__grid,
@@ -830,6 +846,7 @@ textarea {
   .change-order-action-reason { grid-template-columns: 1fr; align-items: start; }
 }
 @media (max-width: 620px) {
+  .change-order-detail-dialog__row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .change-order-workspace__topbar { grid-template-columns: 1fr; }
   .change-order-workspace__topbar > .secondary-button { grid-column: auto; }
   .change-order-workspace__identity strong,

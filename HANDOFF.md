@@ -22866,3 +22866,75 @@ Member for Ryan to change in the UI. No application bundle was published.
 If rollback is required, restore the preceding profile-save RPC definition
 and remove the new column default; Joe's audited profile correction should
 be reviewed separately before any data reversal.
+
+## Entry 329 — Optional client-facing Change Order line details
+
+**Date:** 2026-10-02 12:06 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** focused Production candidate; local only
+**Branch:** `feature/change-order-client-details-20261002`
+**Sync marker:** `CO-CLIENT-DETAILS-20261002-001`
+
+Ryan confirmed that a Change Order's existing line total is the source of
+truth. Optional client detail rows may be descriptive, calculated from quantity
+and unit price, or carry manually entered amounts. A mismatch warns, and an
+optional calculated remaining row can be printed. Details do not change
+internal cost categories, markup or financial posting.
+
+The local candidate adds the compact detail dialog, PDF rows, calculations,
+and an additive migration that persists details through draft saves and
+approved-order revisions. The migration is unapplied. Tests: 231 Node checks
+and six isolated PGlite SQL assertions pass; placeholder-config compile passes.
+Full-schema and visual PDF acceptance
+remain open, and neither site was changed. GitHub was unavailable, so this
+checkpoint is not yet cross-machine fetchable. Full release gates and rollback
+notes: `docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.
+
+## Entry 330 — Client Change Order PDF release verification
+
+**Date:** 2026-10-02 12:25 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** focused Production candidate; release verification
+**Session type:** review
+**Sync marker:** `CO-CLIENT-DETAILS-20261002-002`
+**Branch:** `feature/change-order-client-details-20261002`
+
+### Review Findings
+
+Fresh `origin/main` remains `85047fc`, the candidate's base. Read-only checks
+against the Production Supabase project confirmed the existing markup and
+revision RPCs, active Change Order line RLS, and no deployed `client_breakdown`
+column. Production and Staging were not written. A synthetic three-page PDF
+was rendered in Edge; each page was visually inspected for legibility and
+page breaks. Project address escaping was also tightened.
+
+### What Codex Needs to Know
+
+All 231 explicit Node tests, six isolated PGlite assertions, and a
+placeholder-config Vite build pass. The default `npm test` discovery includes
+a browser fixture that remained running and was stopped; use the explicit
+test-file invocation for a bounded run. The isolated SQL harness uses a stub
+for the existing financial RPC and is not a full-schema migration rehearsal.
+An isolated full-schema rehearsal, final Production-config build, and
+promotion approval/recovery check remain before deployment. Do not mix the
+unfinished Inventory Management branch or Staging contract-adjustment revamp
+into this Production candidate. See the release checkpoint in
+`docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.
+
+## Entry 331 — Temporary CO migration branch could not reproduce full schema
+
+**Date:** 2026-10-02 12:34 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Production release rehearsal; no deployment
+**Session type:** review
+**Sync marker:** `CO-CLIENT-DETAILS-20261002-003`
+
+With Ryan's cost approval, a schema-only Supabase branch was created under
+RNSolutions for the optional Change Order PDF detail migration. It received
+only 31 early migrations and lacked `public.change_order_lines`; applying the
+candidate migration failed immediately with `relation does not exist`. The
+branch was deleted, and its absence was verified. Neither Production nor
+Staging received a migration or data write. This does not satisfy the
+full-schema release gate; use a complete isolated Production schema or seek
+approval for another safe rehearsal. The focused code, isolated SQL and PDF
+checks remain passing. Details: `docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.

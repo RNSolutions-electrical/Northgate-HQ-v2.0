@@ -1,5 +1,45 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Change Order schema rehearsal limitation — CO-CLIENT-DETAILS-20261002-003
+
+- Date/time: 2026-10-02 12:34 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Owner-approved temporary Supabase branch was created at $0.01344/hour,
+  but Supabase replayed only 31 early migrations, leaving Change Order tables
+  absent. The migration could not be rehearsed there. The branch was deleted
+  and removal verified; Production and Staging were not changed.
+- Candidate remains on `feature/change-order-client-details-20261002`.
+  Full-schema rehearsal and final Production-config build remain release gates.
+  See [release checkpoint](docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md).
+
+## Change Order PDF release verification — CO-CLIENT-DETAILS-20261002-002
+
+- Date/time: 2026-10-02 12:25 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Branch: `feature/change-order-client-details-20261002`, based on current
+  `origin/main` commit `85047fc`. Production and Staging remain unchanged.
+- All 231 explicit Node tests, six isolated PGlite assertions, and the
+  placeholder-config production compile pass. A three-page sample client PDF
+  was rendered and visually checked. Project address is escaped in the PDF.
+- Read-only Production schema checks match the expected legacy markup and
+  revision functions; the new column is not applied. An isolated full-schema
+  migration rehearsal and actual Production-config build remain release gates.
+  See [release checkpoint](docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md).
+
+## Optional Change Order PDF details — CO-CLIENT-DETAILS-20261002-001
+
+- Date/time: 2026-10-02 12:06 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Branch: `feature/change-order-client-details-20261002`, based on `85047fc`.
+  **Local, uncommitted and unpushed**; another machine cannot fetch it yet.
+- Optional per-line client PDF details, quantity/price or manual amounts,
+  mismatch warning and optional calculated remainder are implemented locally.
+  The CO line total remains authoritative; existing financial posting is not
+  changed. Migration `20261002160002_change_order_client_pdf_breakdown.sql`
+  is prepared but unapplied. No Production or Staging deployment occurred.
+- 231 Node tests, six isolated PGlite SQL assertions and a placeholder Vite
+  compile pass. Full-schema rehearsal, actual PDF print QA, fresh remote sync,
+  owner review and configured build
+  remain release gates. See
+  [the implementation checkpoint](docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md).
+
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
 ## Production Inventory UI and printable count release — INVENTORY-PROD-20260929-001
