@@ -797,9 +797,10 @@ textarea {
 .change-order-line__client-details { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 14px; }
 .change-order-line__client-details small { color: var(--ng-muted); }
 .change-order-line__client-details .change-order-line__detail-warning { color: var(--ng-warn); font-weight: 700; }
-.change-order-detail-dialog { width: min(900px, 100%); }
-.change-order-detail-dialog__rows { display: grid; gap: 10px; }
-.change-order-detail-dialog__row { display: grid; grid-template-columns: minmax(190px, 2fr) repeat(4, minmax(80px, 1fr)) auto auto; gap: 8px; align-items: end; padding: 10px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); background: var(--ng-panel-bg-alt); }
+.ng-dialog.change-order-detail-dialog { display: flex; flex-direction: column; width: min(1180px, 100%); max-height: calc(100dvh - 2rem); gap: 0.65rem; overflow: hidden; }
+.change-order-detail-dialog > :not(.change-order-detail-dialog__rows) { flex-shrink: 0; }
+.change-order-detail-dialog__rows { display: grid; flex: 0 1 auto; min-height: 0; gap: 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.change-order-detail-dialog__row { display: grid; grid-template-columns: minmax(240px, 2fr) repeat(4, minmax(85px, 1fr)) minmax(90px, auto) auto; gap: 8px; align-items: end; padding: 8px 10px; border: 1px solid var(--ng-divider); border-radius: var(--ng-radius-control); background: var(--ng-panel-bg-alt); }
 .change-order-detail-dialog__row label, .change-order-detail-dialog__remaining-label { display: grid; min-width: 0; gap: 4px; font-size: 0.75rem; font-weight: 700; }
 .change-order-detail-dialog__row label small { font-size: 0.67rem; font-weight: 400; }
 .change-order-detail-dialog__row input { width: 100%; }
@@ -874,6 +875,10 @@ textarea {
   .change-order-client-workflow__administrative-actions .secondary-button { flex: 1 1 100%; }
   .change-order-client-workflow__deny-reason,
   .change-order-client-workflow__administrative-actions label { flex-basis: 100%; }
+}
+@media (max-height: 640px) {
+  .ng-dialog.change-order-detail-dialog { overflow-y: auto; }
+  .change-order-detail-dialog__rows { flex: none; overflow: visible; }
 }
 
 /* ------------------------------------------------------------ responsive */
