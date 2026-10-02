@@ -45,11 +45,12 @@ label, so a partial itemization reconciles visually to the parent line.
 - The migration file was generated with Supabase CLI 2.119.0 and passed six
   isolated PGlite assertions for DDL, save/re-save, invalid-input rollback,
   and revision copying. That harness stubs the existing financial save RPC,
-  so it does **not** prove live permissions or totals. The migration remains
-  unapplied to Production and Staging. Before release, rehearse it on an
-  isolated full schema/branch, check the live function definitions and RLS,
-  verify draft save/reload, revisions, denied writes, approved locks and
-  legacy PDFs, then apply with an approved recovery point.
+  so it alone does **not** prove live permissions or totals. The migration
+  remains unapplied to Production and Staging. The full-schema restore
+  rehearsal documented below subsequently verified the database permissions,
+  totals, approved locks, revision copying, and financial posting. Legacy PDF
+  behavior remains covered by the existing test suite; Production deployment
+  still requires an approved recovery point.
 - A synthetic eight-line, three-page PDF rendered successfully in Edge and
   was visually checked on all pages. Details wrap, table headers repeat after
   page breaks, and the client total/authorization remain legible. A real owner
@@ -68,8 +69,27 @@ label, so a partial itemization reconciles visually to the parent line.
   leaving `change_order_lines` absent. The full-schema rehearsal could not
   run; the migration failed before any table change. The temporary branch was
   deleted and its absence confirmed. Production and Staging were untouched.
-  A complete isolated Production schema (or an explicitly approved alternate
-  rehearsal) is still required before applying the migration to Production.
+- On October 2, Ryan approved a separate restore of the 07:42:43 UTC Production
+  backup into `northgate-co-client-pdf-rehearsal-20261002` in RNSolutions. The
+  dashboard quoted $10.18 additional monthly compute/disk while it existed.
+  The restored full schema contained the existing Change Order line, draft
+  markup-save, and revision functions. The candidate migration applied there
+  successfully. Transactional synthetic tests passed for draft detail
+  save/reload and edit, unchanged $110 price/$100 cost, malformed-input
+  rejection, unauthorized-write rejection, approved-record lock, unchanged
+  $110 financial posting, and copying details to a linked revision while
+  preserving the approved original. Synthetic jobs, users, and Change Orders
+  were rolled back and verified absent. The new RPC grants `authenticated`
+  execution and denies `anon`; the security advisor did not flag the new
+  function. Ryan then authorized deletion of the temporary restored project,
+  and its absence from the project list was verified. Production still lacks
+  the candidate column; Staging was untouched.
+- Remaining gates: review a real owner Change Order PDF example if desired,
+  confirm the Production recovery point immediately before promotion, build
+  with the Production environment (not placeholder configuration), obtain
+  explicit Production migration/deployment approval, then verify the live
+  draft/PDF workflow and rollback readiness. This rehearsal alone does not
+  authorize promotion.
 
 Re-run the isolated SQL check with `PGLITE_MODULE` pointing to a local PGlite
 `dist/index.js`, then `node scripts/verify-change-order-client-details-db.mjs`.

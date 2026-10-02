@@ -22938,3 +22938,27 @@ Staging received a migration or data write. This does not satisfy the
 full-schema release gate; use a complete isolated Production schema or seek
 approval for another safe rehearsal. The focused code, isolated SQL and PDF
 checks remain passing. Details: `docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.
+
+## Entry 332 — Full-schema Change Order PDF-detail rehearsal passed
+
+**Date:** 2026-10-02 12:55 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Production release rehearsal; no Production deployment
+**Session type:** verification
+**Sync marker:** `CO-CLIENT-DETAILS-20261002-004`
+**Branch:** `feature/change-order-client-details-20261002`
+
+Ryan approved restoring the October 2 Production database backup into the
+temporary isolated Supabase project `northgate-co-client-pdf-rehearsal-20261002`
+(`wjbqkusquennhqttipgr`). The dashboard quoted $10.18 additional monthly
+compute/disk while it existed. The candidate migration applied successfully
+to the restored full schema. Transactional synthetic tests passed for optional
+detail save/reload and edit, unchanged price/cost and approval posting, invalid
+input and unauthorized-write rejection, approved-record lock, and revision
+copying without altering the approved original. Test data was rolled back and
+verified absent. The new RPC is executable by `authenticated`, not `anon`.
+Ryan then authorized deleting only that temporary project; it is absent from
+Supabase's project list. Production and Staging were not migrated or deployed;
+read-only verification confirmed Production still lacks the new column.
+Release review and remaining gates are documented in
+`docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.
