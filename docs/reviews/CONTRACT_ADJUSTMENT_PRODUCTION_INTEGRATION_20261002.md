@@ -1,7 +1,7 @@
 # Contract-adjustment Production integration checkpoint
 
-Sync marker: `CO-INTEGRATION-20261002-001`.
-Updated 2026-10-02 13:32 EDT (UTC-04:00) on `RYAN_NORTHGATE`.
+Sync marker: `CO-INTEGRATION-20261002-002`.
+Updated 2026-10-02 13:37 EDT (UTC-04:00) on `RYAN_NORTHGATE`.
 Branch: `feature/change-order-integration-20261002`, based on Production
 `main` at `9c1199ec9ebd19a6f946e6b606a281c83c8e07e7` (v0.5.4 code plus
 post-release handoff). **Nothing in this branch is deployed or migrated.**
@@ -11,7 +11,8 @@ post-release handoff). **Nothing in this branch is deployed or migrated.**
 Bring the simpler Staging Change Order / Credit state model and continuing
 Billing lineage to Production without losing the optional client PDF detail
 released in v0.5.4. Also make the breakdown editor fit a normal desktop view
-without scrolling, and keep actions visible on narrow screens.
+without scrolling, keep actions visible on narrow screens, and allow a
+read-only client-form preview before draft submission.
 
 ## What is already done
 
@@ -22,6 +23,14 @@ without scrolling, and keep actions visible on narrow screens.
   viewport still permits whole-dialog scrolling rather than clipping controls.
 - The client PDF test passed and a placeholder-configured Vite build passed.
   No business logic or database schema changed in this checkpoint.
+- A draft now has a separate **Preview client form** action. It renders the
+  current on-screen fields and optional client breakdown in a printable window
+  with a visible draft notice. It does not save, submit, change status, post to
+  financials, or call the export-audit RPC. Staging's existing saved-record
+  preview first saves changes and is not a substitute for this path.
+- After the preview addition, all 231 tests and a placeholder-configured Vite
+  build passed. The placeholder build is only a local verification artifact,
+  not a deployable environment build.
 
 ## Integration hazards confirmed in source
 

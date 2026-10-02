@@ -37,6 +37,23 @@ test('client PDF keeps the authoritative line amount while showing optional deta
     assert.match(html, /\$55\.00/);
     assert.match(html, /Manually priced material<small>2 EA<\/small>/);
     assert.match(html, /Change Order Total<\/span><span>\$100\.00/);
+    assert.doesNotMatch(html, /DRAFT PREVIEW/);
+
+    const preview = clientChangeOrderHtml({
+      order: { co_number: 'Unnumbered draft', revision_number: 0 },
+      job: { name: 'Example Job' },
+      form: { title: 'Unsaved scope update', description: 'Current on-screen draft', change_order_date: '' },
+      lines: [{ description: 'Current draft line', material_amount: 100, labor_amount: 0 }],
+      overallMarkupAmount: 0,
+      total: 100,
+      logoUrl: 'https://example.invalid/logo.jpg',
+      preview: true,
+    });
+    assert.match(preview, /DRAFT PREVIEW — not submitted or approved/);
+    assert.match(preview, /Unsaved scope update/);
+    assert.match(preview, /Current on-screen draft/);
+    assert.match(preview, /Unnumbered draft/);
+    assert.match(preview, /Change Order Total<\/span><span>\$100\.00/);
   } finally {
     await server.close();
   }
