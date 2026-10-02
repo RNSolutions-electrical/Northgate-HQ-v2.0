@@ -22940,3 +22940,17 @@ main under COMPASS-ROADMAP-20260928-002. Do not merge Staging features to main.
 Remain in Exploration until owner selects/authorizes an implementation slice.
 Validate current live schema/API/provider capabilities when that slice begins;
 this intake is not a complete schema audit or a claim that future features exist.
+
+## Entry 324 — Combined Change Order acceptance build on Staging
+
+**Date:** 2026-10-02 16:21 EDT (UTC-04:00)
+**Machine:** `Ryan_Northgate`
+**Mode:** Production Mode; isolated Staging acceptance before Production promotion
+**Sync marker:** `CO-STAGING-ACCEPTANCE-20261002-001`
+**Code commit:** `abbf581` on `origin/staging` (`codex/staging-demo-integration` worktree)
+**Staging Netlify deploy:** `6ac011fa7c384ca852dc2f9c`, ready and published at 2026-10-02 20:20:32 UTC
+**Staging Supabase project:** `fazfwzbuesvzhgodckiw`; applied migration `staging_change_order_client_pdf_bridge` from `20261002200926_staging_change_order_client_pdf_bridge.sql`
+
+The existing Staging Change Order/Credit state model and Billing lineage were retained. The new bridge adds optional client-facing breakdown JSON to individual lines, validates its shape, saves it without changing authoritative adjustment amounts, and carries it into controlled revisions. The Staging UI now offers the compact detail overlay, a client-form draft preview, and the updated printable PDF. The draft-save path continues to use Staging's native Clerk token; no Production JWT template assumption was introduced.
+
+Verification: 236/236 local tests passed, the Staging-identity build passed, the Staging database reports the new column/RPC and authenticated-only execute grant, and the public Staging HTML/JS returned HTTP 200 with the Staging marker and new controls. The initial Netlify upload from a Git worktree failed before publication because its local `.git` pointer was not portable; a clean archive upload succeeded. No Production code, database, or Netlify site was changed. Owner acceptance of the combined CO/Credit, Billing-revision, breakdown, and preview workflow remains required before Production migration/promotion. The Production integration candidate remains in the separate `feature/change-order-integration-20261002` worktree and must be revalidated against the then-current Production schema before promotion.
