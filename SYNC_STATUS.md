@@ -1,5 +1,18 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Production v0.5.4 Change Order client PDF details — CO-CLIENT-DETAILS-PROD-20261002-001
+
+- Date/time: 2026-10-02 13:17 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Release commit: `ca35b83c867d2a94e01c7f45ea69be14106a5282` on `main`;
+  immutable tag and GitHub Release `v0.5.4`.
+- Production Supabase migration `change_order_client_pdf_breakdown` recorded as
+  `20261002171310`; staging was not changed.
+- Netlify Production deploy `6abfe6d0df400a474bf2171b` published the
+  release commit on 2026-10-02 17:16:17 UTC. Netlify's current site deploy
+  matches. Signed-out live URL redirects to Clerk sign-in; authenticated UI
+  acceptance remains for the owner.
+- Release record and rollback: [v0.5.4](docs/releases/CHANGE_ORDER_CLIENT_DETAILS_20261002.md).
+
 ## Change Order schema rehearsal limitation — CO-CLIENT-DETAILS-20261002-003
 
 - Date/time: 2026-10-02 12:34 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.

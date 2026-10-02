@@ -46,3 +46,21 @@ would lose changes since its backup and is not the default rollback.
 
 The complete implementation review is in
 `docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.
+
+## Production promotion — 2026-10-02
+
+- Owner-approved migration `change_order_client_pdf_breakdown` is recorded in
+  Production Supabase history as `20261002171310`. Read-only checks confirmed
+  the nullable column and authenticated-only RPC; the existing anonymous
+  security-advisor findings did not increase.
+- `main` was fast-forwarded to tagged release commit
+  `ca35b83c867d2a94e01c7f45ea69be14106a5282` and GitHub Release `v0.5.4`
+  was published without reusing an earlier tag.
+- Netlify Production deploy `6abfe6d0df400a474bf2171b` published at
+  2026-10-02 17:16:17 UTC. Netlify reports the tagged commit, a ready deploy,
+  and no build errors. The Production site's current deploy matches this ID.
+- A signed-out read-only visit to `https://rnsolutions.net/northgate/` routed
+  to Clerk sign-in. Authenticated in-app acceptance remains for the owner to
+  check; no Production Change Order was created merely for smoke testing.
+- Frontend rollback remains republishing prior deploy
+  `6abbecb04fce2f00078da7bf`. Keep the additive schema in place on rollback.

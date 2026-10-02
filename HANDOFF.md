@@ -22962,3 +22962,25 @@ Supabase's project list. Production and Staging were not migrated or deployed;
 read-only verification confirmed Production still lacks the new column.
 Release review and remaining gates are documented in
 `docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md`.
+
+## Entry 333 — Production v0.5.4 Change Order PDF details live
+
+**Date:** 2026-10-02 13:17 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** focused Production release
+**Session type:** implementation and deployment
+**Sync marker:** `CO-CLIENT-DETAILS-PROD-20261002-001`
+**Release:** `v0.5.4`, commit `ca35b83c867d2a94e01c7f45ea69be14106a5282`
+
+Owner-approved additive Production migration
+`change_order_client_pdf_breakdown` is recorded as `20261002171310`; the new
+column and authenticated-only RPC were verified. The full explicit Node suite
+passed 231/231 and a Production-configured Vite build passed. The Git tag and
+GitHub Release were created, `main` was fast-forwarded, and Netlify Production
+deploy `6abfe6d0df400a474bf2171b` published the release commit at
+2026-10-02 17:16:17 UTC. Netlify reports it as the current ready deploy. A
+signed-out live visit routed to Clerk sign-in; authenticated owner acceptance
+is still advisable. Staging was not changed. To roll back frontend behavior,
+republish prior Netlify deploy `6abbecb04fce2f00078da7bf`; retain the
+additive schema unless a separate data-preserving reversal is designed.
+Release details: `docs/releases/CHANGE_ORDER_CLIENT_DETAILS_20261002.md`.
