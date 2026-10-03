@@ -23036,3 +23036,38 @@ rehearsal evidence is in
 3. Apply both migrations in order, verify all financial invariants, create
    the immutable release tag/GitHub Release, deliberately promote the exact
    code to `main`, deploy to Production, and run live smoke tests.
+
+## Entry 335 — October 3 recovery verified; Production CO/Credit database migrated
+
+**Date:** 2026-10-03 09:13 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** v0.6.0 Production release execution
+**Session type:** backup rehearsal and database migration
+**Sync marker:** `CO-INTEGRATION-PROD-DB-20261003-013`
+
+Production Supabase offered the October 3 07:22:56 UTC physical backup as a
+completed restore point. An isolated restore (`tkrojlgxbgdlrprtfksg`) matched
+the live Change Order, posting, Pay App and audit fingerprints, including the
+October 2 19:47:59 UTC CO edit and 20:01:57 UTC audit activity. A read-only
+scan of 90 timestamped public tables found no writes from the owner's
+October 2 23:00 UTC cutoff through the backup or afterward; Storage had no
+writes in that interval. Both migrations passed again on the restored copy.
+
+The Production database has now received the two migrations, recorded by
+Supabase as `20261003131058_contract_adjustment_state_model_integration` and
+`20261003131120_reconcile_carolina_retina_co9_revision`. Carolina Retina
+NGG-CO-9-R1 has exactly one new auditable +$1,477.60 posting on 16.CO.
+Original Budget, all 8 Pay Apps, and all 32 Pay App CO rows remain unchanged.
+The historical 14 postings / $5,625.91 became 15 / $7,103.51 exactly.
+Security-advisor delta consists of three expected authenticated guarded
+SECURITY DEFINER functions. No Production code has yet been deployed.
+
+**Important:** A duplicate isolated restore (`cuawhuhtyastzzdmdhom`) was
+created accidentally. Both temporary projects contain Production data and
+remain billable until deleted; explicit deletion confirmation was requested.
+Do not confuse either with Production `keogysnoukbendfkfjcn` or Staging
+`fazfwzbuesvzhgodckiw`. The uncommitted owner recovery-coverage note in
+`docs/releases/CONTRACT_ADJUSTMENT_V0_6_0_RELEASE_CANDIDATE.md` was preserved
+and supplemented with the new evidence. Next: align migration filenames,
+test, tag/release, fast-forward `main`, deploy, smoke-test, and remove both
+temporary restores. See that release checklist for the exact rollback plan.

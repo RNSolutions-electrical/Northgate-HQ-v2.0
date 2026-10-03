@@ -15,9 +15,9 @@ model and Billing lineage with Production's v0.5.4 client PDF details.
 ## Verified preparation
 
 - Production-base integration migration:
-  `20261002174322_contract_adjustment_state_model_integration.sql`.
+  `20261003131058_contract_adjustment_state_model_integration.sql`.
 - Separate, official-CLI-generated, one-time reconciliation migration:
-  `20261002220438_reconcile_carolina_retina_co9_revision.sql`.
+  `20261003131120_reconcile_carolina_retina_co9_revision.sql`.
   Its SQL body matches the twice-rehearsed candidate; it aborts on any changed
   Carolina Retina CO family or financial-line fingerprint, and it is
   idempotent. It adds one +$1,477.60 R1 posting to 16.CO and one audit entry;
@@ -83,6 +83,66 @@ model and Billing lineage with Production's v0.5.4 client PDF details.
 
 ## Current status
 
-**WAITING FOR A NEWER VERIFIED PRODUCTION RECOVERY POINT.** No Production
-migration, data correction, Git `main` promotion, tag, release, or Netlify
-deployment has been performed for this candidate.
+**PRODUCTION DATABASE MIGRATED; CODE PROMOTION PENDING.** The October 3
+recovery point and fresh isolated rehearsal cleared the backup gate. The two
+Production migrations and exact CO9 correction are applied and verified. Git
+`main` promotion, tag, release, and Netlify deployment have not occurred yet.
+
+
+## Owner recovery coverage requirement - October 2, 2026, 7:00 p.m. EDT
+
+Ryan explicitly requires the recovery point to preserve Production data through
+**at least 2026-10-02 19:00 EDT (UTC-04:00), equivalent to 2026-10-02 23:00 UTC**,
+because information added that evening must be retained. This supersedes earlier
+19:47:59 UTC and 20:01:57 UTC minimum-cutoff observations. The original hard-stop
+requirement to cover later Production writes remains in force.
+
+**Verify recoverable snapshot/data coverage, not merely backup completion time.**
+A backup completing after 23:00 UTC does not pass if its snapshot excludes data
+at or before the required cutoff. Record the covered-through time and evidence,
+completion status, and recovery limits. Immediately before any release write,
+recheck later Production writes and require a verified recovery point covering
+both this owner minimum and the then-current latest pre-release Production write.
+Keep release blocked while coverage is unverified.
+
+At the time this requirement was recorded, the Supabase connector had no
+backup-list/status action and no newer backup was claimed verified. Database
+backups do not by themselves recover Storage object bytes. This requirement
+did not authorize backup creation, configuration, credential changes,
+migration, deployment, restore, or a recurring 7 p.m. backup schedule. The
+October 3 verification and separate owner authorization are recorded below.
+
+## October 3 verified recovery and Production database release
+
+Sync marker: `CO-INTEGRATION-PROD-DB-20261003-013`.
+Checked 2026-10-03 09:12 EDT (13:12 UTC) on `RYAN_NORTHGATE`.
+
+- The Production Supabase **Restore to new project** list showed the October 3
+  07:22:56 UTC physical backup as `COMPLETED`. Supabase restored that exact
+  recovery point to isolated project `tkrojlgxbgdlrprtfksg`. The restored
+  database contained the October 2 19:47:59 UTC Change Order edit and 20:01:57
+  UTC audit activity, with matching Production fingerprints: 47 COs, 51 lines,
+  14 postings totaling $5,625.91, 8 Pay Apps, 32 Pay App CO rows, 3,305 audit
+  entries, and CO9 family net $0. A read-only scan of 90 timestamped public
+  base tables found no records modified from October 2 23:00 UTC through the
+  backup or afterward; Storage objects had no writes in that interval. This
+  directly verifies restoration of the latest observed pre-backup activity.
+- A second isolated project `cuawhuhtyastzzdmdhom` was inadvertently created
+  18 seconds after the first. It was not used. **Both temporary projects must
+  be deleted after explicit owner confirmation** to stop their charges.
+- Both candidate SQL migrations passed again on the October 3 restored copy.
+  It finished with 15 postings totaling $7,103.51, one +$1,477.60 CO9
+  reconciliation posting and one audit entry. The 8 Pay Apps, 32 Pay App CO
+  rows, and Original Budget remained unchanged.
+- Applied both migrations to Production via the Supabase migration API. Its
+  recorded versions are `20261003131058` and `20261003131120`; the local SQL
+  files were renamed to match. After the integration migration, historical
+  counts and totals remained unchanged. After the separate repair, Production
+  had one new +$1,477.60 posting and one audit entry, CO9 family net $1,477.60,
+  15 total postings totaling $7,103.51, and unchanged Original Budget and
+  historical Pay App counts. Security-advisor categories were unchanged except
+  for three expected authenticated SECURITY DEFINER functions from the
+  integration migration; their calls remain governed by application guards.
+- The backup and isolated restore are **database** recovery only. Supabase does
+  not restore Storage object bytes through this workflow. No database restore
+  has been performed against Production. This entry does not authorize one.

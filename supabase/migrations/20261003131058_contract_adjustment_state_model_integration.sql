@@ -1,5 +1,5 @@
 -- Production-base integration of the rehearsed Staging contract-adjustment state model.
--- Apply only after 20261002160002_change_order_client_pdf_breakdown.sql on an isolated rehearsal database.
+-- Apply only after 20261002171310_change_order_client_pdf_breakdown.sql on an isolated rehearsal database.
 -- State model, PDF-detail compatibility, and Billing lineage remain in one
 -- transaction: no interim save/revision can discard details or misstate Billing.
 ALTER TABLE public.change_orders ADD COLUMN record_type text NOT NULL DEFAULT 'change_order'
