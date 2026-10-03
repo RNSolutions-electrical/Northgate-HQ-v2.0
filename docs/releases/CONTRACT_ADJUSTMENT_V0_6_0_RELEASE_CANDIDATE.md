@@ -83,7 +83,7 @@ model and Billing lineage with Production's v0.5.4 client PDF details.
 
 ## Current status
 
-**RELEASED TO PRODUCTION; TEMPORARY RESTORE CLEANUP PENDING.** The October 3
+**RELEASED TO PRODUCTION; TEMPORARY RESTORES REMOVED.** The October 3
 recovery point and fresh isolated rehearsal cleared the backup gate. The two
 Production migrations and exact CO9 correction are applied and verified. The
 tag, GitHub Release, and exact-code Netlify deployment are complete.
@@ -166,6 +166,9 @@ Verified 2026-10-03 09:21 EDT (13:21 UTC) on `RYAN_NORTHGATE`.
   `6abfe6d0df400a474bf2171b` (v0.5.4). Database migrations cannot be
   rolled back by republishing the old frontend. Preserve the October 3 backup
   and use the documented guarded database recovery plan if required.
-- Temporary restored projects `tkrojlgxbgdlrprtfksg` and
-  `cuawhuhtyastzzdmdhom` still require owner-confirmed deletion to stop
-  their charges; neither is Production nor Staging.
+- With fresh owner approval, temporary restored projects
+  `tkrojlgxbgdlrprtfksg` and `cuawhuhtyastzzdmdhom` were permanently
+  deleted on October 3. Supabase's project list then showed neither ID;
+  Production `keogysnoukbendfkfjcn` remained `ACTIVE_HEALTHY`. Their
+  short-lived resource charges stop accruing after removal; this does not
+  reverse usage already incurred.

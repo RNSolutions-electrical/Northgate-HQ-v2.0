@@ -23096,3 +23096,20 @@ then verify they are absent. Production `keogysnoukbendfkfjcn` and Staging
 `fazfwzbuesvzhgodckiw` must remain untouched. The preceding Netlify deploy
 `6abfe6d0df400a474bf2171b` is the frontend rollback point; republishing it
 does not reverse the Production database migrations.
+
+## Entry 337 — isolated release rehearsal projects removed
+
+**Date:** 2026-10-03 17:57 EDT (21:57 UTC)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** v0.6.0 post-release cleanup
+**Sync marker:** `CO-INTEGRATION-TEMP-CLEANUP-20261003-015`
+
+With fresh owner confirmation at Supabase's irreversible deletion step,
+permanently deleted only the two temporary October 3 backup restores:
+`tkrojlgxbgdlrprtfksg` (used for rehearsal) and `cuawhuhtyastzzdmdhom`
+(accidental duplicate). Supabase's organization page showed a deletion
+success message, and the project connector independently listed neither ID
+afterward. Production `keogysnoukbendfkfjcn` remained `ACTIVE_HEALTHY`;
+Staging was not targeted. This stops future project charges, though brief
+usage before deletion may still appear on the bill. The October 3 Production
+backup itself was not deleted, and no Production restore was performed.
