@@ -83,10 +83,10 @@ model and Billing lineage with Production's v0.5.4 client PDF details.
 
 ## Current status
 
-**PRODUCTION DATABASE MIGRATED; CODE PROMOTION PENDING.** The October 3
+**RELEASED TO PRODUCTION; TEMPORARY RESTORE CLEANUP PENDING.** The October 3
 recovery point and fresh isolated rehearsal cleared the backup gate. The two
-Production migrations and exact CO9 correction are applied and verified. Git
-`main` promotion, tag, release, and Netlify deployment have not occurred yet.
+Production migrations and exact CO9 correction are applied and verified. The
+tag, GitHub Release, and exact-code Netlify deployment are complete.
 
 
 ## Owner recovery coverage requirement - October 2, 2026, 7:00 p.m. EDT
@@ -146,3 +146,26 @@ Checked 2026-10-03 09:12 EDT (13:12 UTC) on `RYAN_NORTHGATE`.
 - The backup and isolated restore are **database** recovery only. Supabase does
   not restore Storage object bytes through this workflow. No database restore
   has been performed against Production. This entry does not authorize one.
+
+## October 3 Production code promotion
+
+Sync marker: `CO-INTEGRATION-PROD-LIVE-20261003-014`.
+Verified 2026-10-03 09:21 EDT (13:21 UTC) on `RYAN_NORTHGATE`.
+
+- The verified release commit `3ec69de7827a388eb5b35c5d64993124c046dbbf`
+  passed 239/239 local tests, was tagged immutably as `v0.6.0`, and has a
+  [GitHub Release](https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/releases/tag/v0.6.0).
+- `main` was fast-forwarded from `9c1199e` to that exact commit without a force
+  push. Netlify Production deploy `6ac100faf928bf000863128c` is `ready` and
+  `published` from the exact `main` commit, with no build error or secret-scan
+  match. Published at 2026-10-03 13:20:10 UTC.
+- `https://rnsolutions.net/northgate/` opened in Chrome and redirected the
+  signed-out session to the Northgate sign-in page. This is an anonymous route
+  smoke test only; no authenticated Production financial workflow was changed.
+- Known-good frontend rollback remains prior Netlify deploy
+  `6abfe6d0df400a474bf2171b` (v0.5.4). Database migrations cannot be
+  rolled back by republishing the old frontend. Preserve the October 3 backup
+  and use the documented guarded database recovery plan if required.
+- Temporary restored projects `tkrojlgxbgdlrprtfksg` and
+  `cuawhuhtyastzzdmdhom` still require owner-confirmed deletion to stop
+  their charges; neither is Production nor Staging.

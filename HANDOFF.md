@@ -23071,3 +23071,28 @@ Do not confuse either with Production `keogysnoukbendfkfjcn` or Staging
 and supplemented with the new evidence. Next: align migration filenames,
 test, tag/release, fast-forward `main`, deploy, smoke-test, and remove both
 temporary restores. See that release checklist for the exact rollback plan.
+
+## Entry 336 — v0.6.0 Change Orders and Credits live in Production
+
+**Date:** 2026-10-03 09:21 EDT (13:21 UTC)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** v0.6.0 Production release verification
+**Sync marker:** `CO-INTEGRATION-PROD-LIVE-20261003-014`
+
+The immutable `v0.6.0` tag and GitHub Release identify commit
+`3ec69de7827a388eb5b35c5d64993124c046dbbf`. The reviewed branch was
+fast-forwarded to Production `main` without force push. Netlify published
+Production deploy `6ac100faf928bf000863128c` at 2026-10-03 13:20:10 UTC;
+the deploy is ready, matches that exact commit, has no build error, and its
+secret scan found no matches. Opening `https://rnsolutions.net/northgate/` in
+Chrome reached the Northgate sign-in route for a signed-out session. The
+Production migrations and financial verification are recorded in Entry 335
+and `docs/releases/CONTRACT_ADJUSTMENT_V0_6_0_RELEASE_CANDIDATE.md`.
+
+**Remaining cleanup:** isolated Supabase restore `tkrojlgxbgdlrprtfksg` and
+accidental duplicate `cuawhuhtyastzzdmdhom` are still billable and contain
+Production data. Delete only these two after explicit owner confirmation,
+then verify they are absent. Production `keogysnoukbendfkfjcn` and Staging
+`fazfwzbuesvzhgodckiw` must remain untouched. The preceding Netlify deploy
+`6abfe6d0df400a474bf2171b` is the frontend rollback point; republishing it
+does not reverse the Production database migrations.
