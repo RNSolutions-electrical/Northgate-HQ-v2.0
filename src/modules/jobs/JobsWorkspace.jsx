@@ -49,7 +49,7 @@ import { classifyBudgetHealth } from './budgetHealth.js';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
-import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySectionUrl } from './jobsNavigation.js';
+import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySectionUrl, jobDirectoryTitle } from './jobsNavigation.js';
 
 const EMPTY_JOBS = Object.freeze([]);
 const DOCUMENT_BUCKET = 'northgate-files';
@@ -6088,7 +6088,7 @@ export function JobsWorkspace({ permissions }) {
           {isDirectoryMode ? <article className="card workspace-card">
             <Toolbar
               eyebrow="Directory"
-              title={`${views.find((item) => item.key === activeView)?.label ?? 'Active'} ${directoryType === 'service_calls' ? 'Service Calls' : 'Jobs'}`}
+              title={jobDirectoryTitle(activeView, directoryType)}
               description={`Select ${directoryType === 'service_calls' ? 'a service call' : 'a job'} to open its workspace.`}
               search={(
                 <label>

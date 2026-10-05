@@ -14,3 +14,9 @@ export function jobDirectorySectionFromSearch(search) {
 export function jobDirectorySectionUrl(sectionKey) {
   return `/jobs?view=${encodeURIComponent(sectionKey)}`;
 }
+
+export function jobDirectoryTitle(sectionKey, directoryType = 'jobs') {
+  const label = JOB_DIRECTORY_SECTIONS.find(({ key }) => key === sectionKey)?.label ?? 'Active Jobs';
+  const status = label.replace(/ Jobs$/, '');
+  return `${status} ${directoryType === 'service_calls' ? 'Service Calls' : 'Jobs'}`;
+}
