@@ -1,5 +1,11 @@
 # Northgate HQ — shared work queue
 
+## Dashboard tree navigation and Personal Tools — 2026-10-05
+
+Ryan's hand-drawn Dashboard hierarchy is the direction for a persistent workspace tree across Northgate HQ. First implement and accept the Dashboard version on Staging: the left rail remains visible while the page scrolls, the selected section has real child destinations, mobile uses a drawer, and Project Health remains conspicuous through Northgate HQ Pulse without occupying the full page. Extend the shared pattern to other workspaces only after Dashboard acceptance, preserving current routes, permissions and working module navigation.
+
+**Personal Tools is a planned feature, not currently implemented.** Define personal ownership/custody, assignment and return workflows, visibility, audit, and the relationship to the existing company Tools catalogue before creating storage or navigation. The Dashboard tree must not imply that a Personal Tools record or personal assignment feed exists yet. The same applies to saved My Preferences, which require a separate persistence design.
+
 ## Latest intake — Exploration Mode, 2026-09-28
 
 See [the reconciled intake and complete source prompts](planning/EXPLORATION_INTAKE_20260928.md).

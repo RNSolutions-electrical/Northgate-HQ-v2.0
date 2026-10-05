@@ -368,11 +368,12 @@ svg { stroke-width: 1.8; }
 
 .ng-shell__rail {
   position: sticky;
-  top: var(--app-header-height);
+  top: calc(var(--app-header-height) + var(--ng-environment-banner-height, 0px));
   align-self: start;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - var(--app-header-height));
+  height: calc(100dvh - var(--app-header-height) - var(--ng-environment-banner-height, 0px));
+  overflow-y: auto;
   background: var(--ng-rail-bg);
   color: var(--ng-rail-text);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -404,6 +405,28 @@ svg { stroke-width: 1.8; }
   gap: 2px;
   padding: 10px;
 }
+.ng-shell__rail-group { min-width: 0; }
+.dashboard-section-tree { margin: 2px 0 8px 22px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,.2); }
+.dashboard-section-tree__branch { display: grid; gap: 1px; }
+.dashboard-section-tree__section,
+.dashboard-section-tree__children button { width: 100%; border: 0; background: transparent; color: var(--ng-rail-muted); text-align: left; font-size: .75rem; padding: 7px 8px; border-radius: var(--ng-radius-control); }
+.dashboard-section-tree__section { font-weight: 700; }
+.dashboard-section-tree__section:hover,
+.dashboard-section-tree__children button:hover { background: rgba(255,255,255,.08); color: var(--ng-rail-text); }
+.dashboard-section-tree__section[aria-current='page'] { background: rgba(179,38,45,.2); color: var(--ng-rail-text); }
+.dashboard-section-tree__children { display: grid; margin-left: 9px; padding-left: 9px; border-left: 1px solid rgba(255,255,255,.2); }
+.dashboard-section-tree__children button { font-size: .69rem; }
+.dashboard-section-tree__children button::before { content: '↳ '; opacity: .7; }
+.ng-drawer .dashboard-section-tree { margin: 0; padding-left: 0; border-left: 0; }
+.ng-drawer .dashboard-section-tree__section,
+.ng-drawer .dashboard-section-tree__children button { color: var(--ng-text); font-size: .9rem; min-height: 42px; }
+.ng-drawer .dashboard-section-tree__section[aria-current='page'] { background: var(--ng-brand-red-soft); color: var(--ng-brand-red); }
+.ng-drawer .dashboard-section-tree__children { border-left-color: var(--ng-divider); }
+.ng-drawer .dashboard-section-tree__section:hover,
+.ng-drawer .dashboard-section-tree__children button:hover { background: var(--ng-panel-bg-alt); color: var(--ng-text); }
+.ng-shell__rail-note { flex: 0 0 auto; }
+.ng-shell__rail { scrollbar-width: thin; }
+.ng-shell:has(.ng-environment-banner) { --ng-environment-banner-height: 32px; }
 
 .ng-shell__rail-link {
   display: flex;
@@ -1896,6 +1919,17 @@ textarea {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.65rem;
 }
+.dashboard-hero__panel--attention { border-color: #ffc857; box-shadow: inset 0 0 0 2px rgba(255,200,87,.25); }
+.dashboard-hero__panel > button { justify-content: center; }
+.dashboard-summary-details { margin: 0 var(--app-page-gutter); border: 1px solid var(--ng-border); border-radius: var(--ng-radius-card); background: var(--ng-card-bg); }
+.dashboard-summary-details > summary { cursor: pointer; padding: 12px 16px; font-weight: 800; }
+.dashboard-summary-details > .summary-grid { margin: 0; padding: 0 16px 16px; }
+.dashboard-summary-details > .module-directory-panel,
+.dashboard-summary-details > .state-panel { margin: 0 16px 16px; }
+.dashboard-workspace { margin-top: var(--card-gap); }
+.dashboard-review-tasks { padding: 0; }
+.dashboard-budget-health { display: grid; gap: 8px; }
+@media (min-width: 900px) { .dashboard-section-toggle { display: none; } }
 .dashboard-workspace,
 .summary-grid {
   margin-left: var(--app-page-gutter);

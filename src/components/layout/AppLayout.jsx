@@ -11,6 +11,7 @@ import { StatePanel } from '../ui/StatePanel.jsx';
 import {canCorrectInventoryData} from '../../modules/inventory/dataCorrectionAccess.js';
 import { DiagnosticsProvider } from '../ui/Diagnostics.jsx';
 import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
+import { dashboardSections, dashboardSectionFromSearch, dashboardSectionUrl } from '../../modules/dashboard/dashboardNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -73,6 +74,8 @@ export function AppLayout() {
 
   const navItems = permittedNavigationGroups(permissions);
   const activeModule = modules.find((module) => module.key === activeKey);
+  const dashboardNavigation = activeKey === 'dashboard' ? dashboardSections(permissions) : null;
+  const activeDashboardSection = dashboardNavigation ? dashboardSectionFromSearch(location.search, permissions) : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -83,6 +86,12 @@ export function AppLayout() {
       navItems={navItems}
       activeWorkspace={activeKey}
       activeWorkspaceLabel={activeModule?.label ?? 'Workspace'}
+      dashboardNavigation={dashboardNavigation}
+      activeDashboardSection={activeDashboardSection}
+      onDashboardSectionSelect={(sectionKey, childKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate(dashboardSectionUrl(sectionKey, childKey));
+      }}
       workspaceResetKey={location.state?.workspaceHomeKey ?? location.pathname}
       onBack={() => {if(document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))navigate(-1);}}
       onDashboard={() => {if(document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))navigate('/dashboard');}}

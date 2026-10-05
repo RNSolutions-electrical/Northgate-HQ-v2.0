@@ -1,6 +1,7 @@
 import { ArrowLeft, Bell, House, LayoutDashboard, Menu, Search, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TopNavigation } from './TopNavigation.jsx';
+import { DashboardSectionTree } from '../../modules/dashboard/DashboardSectionTree.jsx';
 
 const appEnvironment = import.meta.env.VITE_APP_ENV || 'production';
 
@@ -11,6 +12,9 @@ export function AppShell({
   navItems,
   activeWorkspace,
   activeWorkspaceLabel,
+  dashboardNavigation,
+  activeDashboardSection,
+  onDashboardSectionSelect,
   workspaceResetKey,
   onOpenWorkspace,
   onBack,
@@ -103,8 +107,8 @@ export function AppShell({
               const isActive = item.key === activeWorkspace;
 
               return (
+                <div key={item.key} className="ng-shell__rail-group">
                 <button
-                  key={item.key}
                   type="button"
                   className="ng-shell__rail-link"
                   aria-current={isActive ? 'page' : undefined}
@@ -113,6 +117,15 @@ export function AppShell({
                   {Icon ? <Icon aria-hidden="true" /> : null}
                   <span>{item.label}</span>
                 </button>
+                {isActive && item.key === 'dashboard' && dashboardNavigation ? (
+                  <DashboardSectionTree
+                    sections={dashboardNavigation}
+                    activeKey={activeDashboardSection}
+                    onSelect={onDashboardSectionSelect}
+                    label="Dashboard workspace sections"
+                  />
+                ) : null}
+                </div>
               );
             })}
           </nav>

@@ -1,17 +1,11 @@
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
-  FileText,
-  HardHat,
   Sparkles,
-  SlidersHorizontal,
-  Truck,
-  Users,
-  Wrench,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Drawer } from '../../components/ui/Drawer.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
@@ -22,6 +16,8 @@ import { createSupabaseClient } from '../../services/supabaseClient.js';
 import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
 import { mergeDashboardJobAssignments } from './dashboardJobAssignments.js';
 import { buildDashboardBudgetAlerts } from './dashboardBudgetAlerts.js';
+import { DashboardSectionTree } from './DashboardSectionTree.jsx';
+import { dashboardSections, dashboardSectionFromSearch, dashboardSectionUrl } from './dashboardNavigation.js';
 
 const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
@@ -605,9 +601,11 @@ function useDashboardTodoReminders({ enabled }) {
 export function DashboardWorkspace({ permissions }) {
   const { user } = useUser();
   const navigate = useNavigate();
-  const [activePanel, setActivePanel] = useState('my-info');
-  const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
-  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const location = useLocation();
+  const activePanel = dashboardSectionFromSearch(location.search, permissions);
+  const [isSectionDrawerOpen, setIsSectionDrawerOpen] = useState(false);
+  const [isHealthDrawerOpen, setIsHealthDrawerOpen] = useState(false);
+  const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const jobAttention = useJobAttention({ enabled: permissions.permissionSource === 'server' });
 
   const canSeeEstimates = permissions.permissionSource === 'server'
@@ -637,16 +635,19 @@ export function DashboardWorkspace({ permissions }) {
   const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
   const reviewTaskGroups=useMemo(()=>Object.entries(reviewTasks.items.reduce((groups,item)=>{(groups[item.task_type]??=[]).push(item);return groups;},{})),[reviewTasks.items]);
 
-  const sidebarItems = useMemo(() => [
-    { key: 'my-info', label: 'My Info', icon: Users, description: 'Profile details from approved sources only.' },
-    { key: 'my-work', label: 'My Work', icon: HardHat, description: 'Jobs where you have a responsibility or project membership.' },
-    { key: 'my-vehicles', label: 'My Vehicles', icon: Truck, description: 'Direct and team vehicle views.' },
-    { key: 'my-tools', label: 'My Tools', icon: Wrench, description: 'Company tools plus deferred personal tools.' },
-    ...(canSeeEstimates
-      ? [{ key: 'my-estimates', label: 'My Estimates', icon: FileText, description: 'Estimate work assigned to this user when supported.' }]
-      : []),
-    { key: 'my-preferences', label: 'My Preferences', icon: SlidersHorizontal, description: 'Supported personalization categories.' },
-  ], [canSeeEstimates]);
+  const sections = dashboardSections(permissions);
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const targetId = decodeURIComponent(location.hash.slice(1));
+    const target = document.getElementById(targetId);
+    target?.scrollIntoView({ block: 'start' });
+  }, [activePanel, location.hash]);
+
+  function selectSection(sectionKey, childKey) {
+    setIsSectionDrawerOpen(false);
+    navigate(dashboardSectionUrl(sectionKey, childKey));
+  }
 
   const phoneNumber = user?.primaryPhoneNumber?.phoneNumber
     || user?.phoneNumbers?.[0]?.phoneNumber
@@ -678,8 +679,8 @@ export function DashboardWorkspace({ permissions }) {
           </span>
         )}
         actions={(
-          <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
-            Page Menu
+          <button type="button" className="secondary-button dashboard-section-toggle" onClick={() => setIsSectionDrawerOpen(true)}>
+            Dashboard Sections
           </button>
         )}
       />
@@ -696,19 +697,31 @@ export function DashboardWorkspace({ permissions }) {
             </button>
           </div>
         </div>
-        <div className="dashboard-hero__panel">
+        <div className={`dashboard-hero__panel${openBudgetAlerts ? ' dashboard-hero__panel--attention' : ''}`}>
           <span>Needs attention</span>
-          <strong>{jobAttention.isLoading||reviewTasks.isLoading||dashboardJobs.isLoading||budgetHealth.isLoading ? 'Loading' : jobAttention.items.length+reviewTasks.items.length+openBudgetAlerts}</strong>
+          <strong>{jobAttention.isLoading||reviewTasks.isLoading||dashboardJobs.isLoading||budgetHealth.isLoading ? 'Loading' : jobAttention.items.length+reviewTasks.items.length+openBudgetAlerts+overdueTodoCount}</strong>
           <p>{jobAttention.error||reviewTasks.error||dashboardJobs.error||budgetHealth.error ? 'Some attention items could not load.' : 'Operational exceptions, budget warnings, and assigned review tasks.'}</p>
+          <button type="button" className="secondary-button secondary-button--inverse" onClick={() => setIsHealthDrawerOpen(true)}>
+            Project Health{openBudgetAlerts ? ` · ${openBudgetAlerts} open` : ''}
+          </button>
+          {reviewTasks.items.length ? <button type="button" className="secondary-button secondary-button--inverse" onClick={() => setIsReviewDrawerOpen(true)}>Assigned Reviews · {reviewTasks.items.length}</button> : null}
+          {dashboardTodoReminders.items.length ? <button type="button" className="secondary-button secondary-button--inverse" onClick={() => navigate('/employees', { state: { employeeView: 'mine', employeeTab: 'todos' } })}>{overdueTodoCount ? 'Overdue To-Dos' : 'My To-Dos'} · {dashboardTodoReminders.items.length}</button> : null}
         </div>
       </section>
 
-      {!reviewTasks.isLoading&&reviewTasks.items.length?<article className="card workspace-card module-directory-panel dashboard-review-tasks">
+      <Drawer open={isSectionDrawerOpen} onClose={() => setIsSectionDrawerOpen(false)} title="Dashboard sections" eyebrow="Workspace navigation" side="left" labelledById="dashboard-sections-drawer-title">
+        <DashboardSectionTree sections={sections} activeKey={activePanel} onSelect={selectSection} label="Dashboard sections" />
+      </Drawer>
+
+      <Drawer open={isReviewDrawerOpen} onClose={() => setIsReviewDrawerOpen(false)} title="Assigned reviews" eyebrow="Northgate HQ Pulse" labelledById="dashboard-review-drawer-title">
+      {!reviewTasks.isLoading&&reviewTasks.items.length?<article className="dashboard-review-tasks">
         <Toolbar eyebrow="Needs Attention" title="Assigned reviews" description="Open approval and review work, grouped by task type." actions={<button type="button" className="secondary-button" onClick={reviewTasks.reload}>Refresh</button>}/>
         {reviewTaskGroups.map(([type,items])=><section key={type}><h3>{type}</h3>{items.map(item=><button type="button" className="secondary-button dashboard-review-task" key={item.destination_id} onClick={()=>navigate(reviewTaskPath(item),{state:{reviewDestinationId:item.destination_id,reviewDestinationKey:item.destination_key,reviewMode:true}})}><strong>{item.title}</strong><span>{item.submitted_by_name}</span><span>Open review</span></button>)}</section>)}
       </article>:null}
+      </Drawer>
 
-      <article className="card workspace-card module-directory-panel dashboard-budget-health">
+      <Drawer open={isHealthDrawerOpen} onClose={() => setIsHealthDrawerOpen(false)} title="Project Health" eyebrow="Northgate HQ Pulse" description="Budget warnings on assigned Jobs you are permitted to view." labelledById="dashboard-health-drawer-title">
+      <div className="dashboard-budget-health">
         <Toolbar eyebrow="Project Health" title="Budget health" description="Warning and danger lines on your assigned Jobs that you are permitted to view. Acknowledgement does not dismiss an unresolved issue." actions={<button type="button" className="secondary-button" onClick={budgetHealth.reload} disabled={budgetHealth.isLoading}>Refresh</button>}/>
         {budgetHealth.error ? <StatePanel title="Budget alerts could not be loaded" description={budgetHealth.error.message} tone="danger" /> : null}
         {!budgetHealth.error && (dashboardJobs.isLoading || budgetHealth.isLoading) ? <p>Loading budget health…</p> : null}
@@ -728,8 +741,11 @@ export function DashboardWorkspace({ permissions }) {
             </div>
           </div>
         )) : null}
-      </article>
+      </div>
+      </Drawer>
 
+      <details className="dashboard-summary-details">
+      <summary>More Dashboard details{overdueTodoCount ? ` · ${overdueTodoCount} overdue to-do${overdueTodoCount === 1 ? '' : 's'}` : ''}</summary>
       <div className="summary-grid">
         <SummaryCard detailIsDiagnostic label="Permission source" value={permissions.permissionSource} detail="Server state only" tone={permissions.permissionSource === 'server' ? 'good' : 'warn'} developmentOnly />
         <SummaryCard label="Role" value={permissions.role ?? 'User'} detail={permissions.department ?? 'No department'} developmentOnly />
@@ -766,27 +782,9 @@ export function DashboardWorkspace({ permissions }) {
           />
         </article>
       ) : null}
+      </details>
 
-      <div className={`workspace-split dashboard-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
-        <PrimarySidebar
-          eyebrow="My Dashboard"
-          title="Dashboard"
-          description="Move between personal work-center sections without generic module summaries."
-          items={sidebarItems}
-          activeKey={activePanel}
-          onSelect={setActivePanel}
-          collapsed={isPrimaryCollapsed}
-          onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
-          mobileOpen={isPrimaryOpen}
-          onCloseMobile={() => setIsPrimaryOpen(false)}
-          footer={(
-            <div className="module-sidebar-note">
-              <strong>Approved sources only</strong>
-              <p>Missing assignment, reporting, estimate, and preference sources stay deferred instead of inferred.</p>
-            </div>
-          )}
-        />
-
+      <div className="dashboard-workspace">
         <div className="workspace-surface">
           {activePanel === 'my-info' ? (
             <article className="card workspace-card module-directory-panel">
@@ -816,7 +814,7 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-work' ? (
             <div className="state-panel-stack">
-              <article className="card workspace-card module-directory-panel">
+              <article id="assigned-jobs" className="card workspace-card module-directory-panel">
                 <Toolbar
                   eyebrow="My Jobs"
                   title="Jobs assigned to you"
@@ -837,7 +835,7 @@ export function DashboardWorkspace({ permissions }) {
                   onRowClick={(row) => navigate('/jobs', { state: { openJobId: row.id } })}
                 />
               </article>
-              <article className="card workspace-card module-directory-panel">
+              <article id="buyout-attention" className="card workspace-card module-directory-panel">
                 <Toolbar
                   eyebrow="Job Attention"
                   title="Buyout items needing attention"
@@ -862,7 +860,7 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-vehicles' ? (
             <div className="state-panel-stack">
-              <article className="card workspace-card module-directory-panel">
+              <article id="assigned-vehicles" className="card workspace-card module-directory-panel">
                 <Toolbar
                   eyebrow="My Vehicles"
                   title="Vehicles assigned directly to you"
@@ -897,7 +895,7 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-tools' ? (
             <div className="state-panel-stack">
-              <article className="card workspace-card module-directory-panel">
+              <article id="company-tools" className="card workspace-card module-directory-panel">
                 <Toolbar
                   eyebrow="Company Tools"
                   title="Visible company tool catalogue"
@@ -933,7 +931,7 @@ export function DashboardWorkspace({ permissions }) {
 
           {activePanel === 'my-estimates' && canSeeEstimates ? (
             <div className="state-panel-stack">
-              <article className="card workspace-card module-directory-panel">
+              <article id="assigned-estimates" className="card workspace-card module-directory-panel">
                 <Toolbar
                   eyebrow="My Estimates"
                   title="Assigned estimates"
@@ -959,7 +957,7 @@ export function DashboardWorkspace({ permissions }) {
                 />
               </article>
               {permissions.canApproveEstimates ? (
-                <article className="card workspace-card module-directory-panel">
+                <article id="estimate-review" className="card workspace-card module-directory-panel">
                   <Toolbar
                     eyebrow="Approval Queue"
                     title="Submitted estimates"
@@ -983,21 +981,6 @@ export function DashboardWorkspace({ permissions }) {
             </div>
           ) : null}
 
-          {activePanel === 'my-preferences' ? (
-            <div className="state-panel-stack">
-              <StatePanel
-                eyebrow="My Preferences"
-                title="Personalization foundation only"
-                description="Formatting density, section order, and dashboard arrangement categories are reserved here for a later approved persistence phase."
-              />
-              <StatePanel
-                eyebrow="Current State"
-                title="No supported saved personal preferences are available yet"
-                description="This pass does not create localStorage preferences, a Supabase preferences table, or fake working controls. Developer-only formatting tools remain outside normal user preferences."
-                tone="warning"
-              />
-            </div>
-          ) : null}
         </div>
       </div>
     </>
