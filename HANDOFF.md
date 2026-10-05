@@ -23043,3 +23043,17 @@ Verification: 273/273 explicit Node tests and a Staging-configured Vite build pa
 Ryan approved applying the Dashboard-style persistent navigation to Inventory as the next trial before converting other modules. The desktop app rail now lists the existing Inventory destinations using the same permission filter as the module menu. The redundant desktop sidebar is hidden, while the mobile Page Menu stays in place. The Stock Reviews count badge follows the new rail. Storage hierarchy, inventory actions, and database permissions are unchanged; the separately unfinished Inventory Management batch editor is still excluded.
 
 Verification: 276/276 explicit Node tests passed, then targeted navigation tests and Staging-configured Vite builds passed after the badge and route-selection refinements. The follow-up keeps Cart from falsely highlighting Inventory and correctly highlights Stock Reviews when entered from a review notification. Netlify shows the follow-up as published, with redirects, headers and functions deployed. Signed-in desktop/mobile visual review and owner acceptance are still needed. No Production branch/site/database changes or new migration. The broader parity promotion and isolated schema-rehearsal gates remain in effect.
+
+## Entry 330 — Jobs persistent navigation trial on Staging
+
+**Date:** 2026-10-05 16:48 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `JOBS-TREE-STAGING-20261005-001`
+**Code commit:** `48f87d560c97729aaf3cb77b9bfeb649282ac069` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac40cac591035000821f88b`, published at `staging.rnsolutions.net`
+
+After Ryan accepted the Inventory rail trial, the next Jobs trial moved the existing directory status filters into the persistent desktop workspace rail. The duplicate desktop Jobs directory sidebar is hidden; the mobile Page Menu remains. An opened job continues using its existing job-specific tabs, and Service Calls are unchanged. URL-backed directory filter selection supports returning to a selected Jobs view. No Jobs data, permissions, or schema were changed.
+
+Verification: 277/277 explicit Node tests and a Staging-configured Vite build passed. Netlify reports the code commit as the published Staging deploy. Signed-in desktop/mobile visual acceptance is still pending. Production `main`, the Production Netlify site, and both databases remain unchanged. The Inventory Management batch editor remains excluded; do not promote the parity candidate to Production without owner acceptance and isolated schema rehearsal.

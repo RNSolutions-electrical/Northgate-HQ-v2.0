@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Jobs tree Staging trial — JOBS-TREE-STAGING-20261005-001
+
+- Date/time: 2026-10-05 16:48 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- App commit `48f87d560c97729aaf3cb77b9bfeb649282ac069` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac40cac591035000821f88b` at `staging.rnsolutions.net` at 16:46 EDT.
+- Jobs directory status filters now appear under Jobs in the persistent desktop workspace rail. The redundant desktop Jobs directory sidebar is hidden, while the mobile menu remains. An open job retains its own existing project tabs; Service Calls are unchanged.
+- 277/277 explicit Node tests and a Staging-configured Vite build passed. Authenticated owner visual acceptance is pending. No migration or Production code/site/database change occurred. The unfinished Inventory Management batch editor remains excluded.
+
 ## Inventory tree Staging trial — INVENTORY-TREE-STAGING-20261005-001
 
 - Date/time: 2026-10-05 15:49 EDT (UTC-04:00); machine `Ryan_Northgate`.
