@@ -36,3 +36,45 @@ test('client PDF and draft preview keep the authoritative amount and escape deta
     assert.match(html, /\$80\.00/);
     assert.match(html, /Change Order Total<\/span><span>\$100\.00/);
 });
+
+test('client PDF preserves manually priced details, credits, and unknown draft pricing', () => {
+  const priced = clientChangeOrderHtml({
+    order: { co_number: 'CO-012', revision_number: 0 },
+    job: { name: 'Example Job' },
+    form: { title: 'Additional work', description: 'Approved scope' },
+    lines: [{ description: 'Install conduit', material_amount: 100, client_breakdown: {
+      rows: [
+        { description: 'Conduit', quantity: 2, unit: 'EA', unit_price: 10, amount: null },
+        { description: 'Field coordination', quantity: null, unit_price: null, amount: null },
+        { description: 'Manually priced material', quantity: 2, unit: 'EA', unit_price: 10, amount: 25 },
+      ],
+      show_remaining: true, remaining_label: 'Unitemized balance',
+    } }],
+    overallMarkupAmount: 0, total: 100,
+  });
+  assert.match(priced, /Unitemized balance/);
+  assert.match(priced, /\$55\.00/);
+  assert.match(priced, /Manually priced material<small>2 EA<\/small>/);
+  assert.match(priced, /Change Order Total<\/span><span>\$100\.00/);
+  assert.doesNotMatch(priced, /DRAFT PREVIEW/);
+
+  const credit = clientChangeOrderHtml({
+    order: { co_number: 'CR-001', record_type: 'credit', revision_number: 0 },
+    job: { name: 'Example Job' },
+    form: { title: 'Customer credit', description: 'Deleted work' },
+    lines: [{ description: 'Scope deduction', material_amount: -2500 }],
+    overallMarkupAmount: 0, total: -2500,
+  });
+  assert.match(credit, /<strong>Credit<\/strong>/);
+  assert.match(credit, /Credit Total<\/span><span>\-\$2,500\.00/);
+
+  const incomplete = clientChangeOrderHtml({
+    order: { co_number: 'Unnumbered draft', revision_number: 0 },
+    job: { name: 'Example Job' },
+    form: { title: '', description: '' },
+    lines: [{ description: 'Pricing pending', material_amount: null, labor_amount: '' }],
+    overallMarkupAmount: 0, total: null, preview: true,
+  });
+  assert.match(incomplete, /Pricing pending<\/td><td>Not priced<\/td>/);
+  assert.match(incomplete, /Change Order Total<\/span><span>Not priced/);
+});

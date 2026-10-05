@@ -19,6 +19,8 @@ test('nullable draft serialization retains explicit zero without leaking server 
   assert.equal('markup_percent' in line, false);
   assert.equal('line_total' in line, false);
   assert.equal('id' in line, false);
+  const [withDetails] = serializeAdjustmentLines([{ description: 'Scope', client_breakdown: { rows: [{ description: 'Material', amount: 25 }] } }]);
+  assert.deepEqual(withDetails.client_breakdown, { rows: [{ description: 'Material', amount: 25 }] });
 });
 test('editing a description does not fabricate zero markup or completed pricing', () => {
   const line = withUpdatedLineMarkup({markup_mode: 'percent', markup_percent: ''}, {description:'Incomplete'});
