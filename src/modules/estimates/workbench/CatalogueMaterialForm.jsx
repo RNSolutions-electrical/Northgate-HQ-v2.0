@@ -1,7 +1,8 @@
 import React, {useState} from 'react';
 import {cataloguePayload,laborHoursPerUnit,vendorAverage} from '../../../lib/materialCatalogueDetails.mjs';
+import {suggestCatalogueCode} from '../../../lib/catalogueCodeSuggestion.mjs';
 
-export default function CatalogueMaterialForm({line={},material,busy,error,onSave,readOnly=false}) {
+export default function CatalogueMaterialForm({line={},material,busy,error,onSave,readOnly=false,catalogueItems=[]}) {
  const unit=material?.unit_of_measure||material?.unit||line.unit||'EA';
  const [values,setValues]=useState(()=>({
   name:material?.name||line.name||'',material_code:material?.catalogue_draft?'':material?.material_code||'',unit,
@@ -12,6 +13,8 @@ export default function CatalogueMaterialForm({line={},material,busy,error,onSav
   stock:{in_stock:false,quantity:'',storage_unit:'',shelf:'',bay:'',bin:''},
  }));
  const [validation,setValidation]=useState('');
+ const [codeHelperOpen,setCodeHelperOpen]=useState(false);
+ const [codeHints,setCodeHints]=useState({category:'',subcategory:'',size:''});
  const update=patch=>setValues(current=>({...current,...patch}));
  const labor=patch=>update({neca_labor:{...values.neca_labor,...patch}});
  const stock=patch=>update({stock:{...values.stock,...patch}});
@@ -26,8 +29,19 @@ export default function CatalogueMaterialForm({line={},material,busy,error,onSav
   {(error||validation)&&<p role="alert" className="save-error">{error||validation}</p>}
   <fieldset disabled={busy||readOnly} className="resource-fields"><legend>Material</legend>
    <label className="wide">Description<input required value={values.name} maxLength={500} onChange={e=>update({name:e.target.value})}/></label>
-   <label>Catalogue number<input value={values.material_code} maxLength={160} onChange={e=>update({material_code:e.target.value})}/></label>
+   <label>Catalogue number<input value={values.material_code} maxLength={160} onChange={e=>update({material_code:e.target.value})} placeholder="Enter your code or use the helper below"/></label>
    <label>Catalogue unit<input required readOnly={Boolean(material)} value={values.unit} maxLength={30} onChange={e=>update({unit:e.target.value})}/></label>
+   {!material&&<div className="wide catalogue-code-helper">
+    <button type="button" className="secondary-button" disabled={!values.name.trim()&&!Object.values(codeHints).some(value=>value.trim())} onClick={()=>update({material_code:suggestCatalogueCode({...codeHints,name:values.name},catalogueItems.map(row=>row.material_code))})}>Suggest catalogue number</button>
+    <button type="button" className="secondary-button" aria-expanded={codeHelperOpen} onClick={()=>setCodeHelperOpen(open=>!open)}>Help me build it</button>
+    {codeHelperOpen&&<div className="catalogue-code-hints">
+      <p>Use what you know to shape the suggested code. You can always edit the result.</p>
+      <label>Category hint<input value={codeHints.category} onChange={e=>setCodeHints(current=>({...current,category:e.target.value}))} placeholder="e.g., EMT"/></label>
+      <label>Subcategory hint<input value={codeHints.subcategory} onChange={e=>setCodeHints(current=>({...current,subcategory:e.target.value}))} placeholder="e.g., Coupling"/></label>
+      <label>Size hint<input value={codeHints.size} onChange={e=>setCodeHints(current=>({...current,size:e.target.value}))} placeholder='e.g., 3/4"'/></label>
+      <small>These hints only build a catalogue number. This form does not yet save category or size classification; that requires the later catalogue data update.</small>
+    </div>}
+   </div>}
    <label className="wide">Aliases — one per line<textarea rows={3} value={values.aliases} onChange={e=>update({aliases:e.target.value})}/></label>
   </fieldset>
   <fieldset disabled={busy||readOnly} className="resource-fields"><legend>Material pricing</legend>

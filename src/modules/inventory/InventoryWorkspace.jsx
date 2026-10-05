@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
@@ -28,8 +29,10 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { Diagnostics, useDiagnostics } from '../../components/ui/Diagnostics.jsx';
 import { InventoryStockBrowser } from './InventoryStockBrowser.jsx';
+import { INVENTORY_EXPORT_TYPES, inventoryExportCsv } from './inventoryExports.js';
 import { StorageLocationSetup } from './StorageLocationSetup.jsx';
 import { StorageWorkspace } from './StorageWorkspace.jsx';
+import { StorageReturnPath } from './StorageReturnPath.jsx';
 import { resolveStorageLocations } from './storageHierarchy.js';
 import { MaterialCatalogueWorkspace } from './MaterialCatalogueWorkspace.jsx';
 import { MaterialStockReviews } from './MaterialStockReviews.jsx';
@@ -45,18 +48,19 @@ import { useInventoryCountSheet } from '../../hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
 const INVENTORY_VIEWS = [
-  { key: 'stock_reviews', label: 'Stock Reviews', icon: ClipboardList },
   { key: 'stock', label: 'Inventory', icon: PackageSearch },
+  { key: 'catalog', label: 'Full Catalogue', icon: PackageSearch, description: 'All active material catalogue entries.' },
+  { key: 'stock_reviews', label: 'Stock Reviews', icon: ClipboardList },
   { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Live stock summary and valuation export preview.' },
-  { key: 'catalog', label: 'Catalogue', icon: PackageSearch, description: 'Active material catalogue preview.' },
   { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units, shelves, bays, bins and QR labels.' },
   { key: 'scan', label: 'Scan', icon: QrCode, description: 'Resolve location QR codes and dispatch to cart or count.' },
-  { key: 'accounting', label: 'Accounting Export', icon: Download, description: 'Read-only inventory valuation export preview.' },
+  { key: 'accounting', label: 'Export', icon: Download, description: 'Catalogue, count, and valuation sheets.' },
   { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
-  { key: 'count', label: 'Count', icon: Scale, description: 'Count sheet, correction, and new bin/material intake.' },
+  { key: 'count', label: 'Inventory Management', icon: Scale, description: 'Existing count correction and new bin/material intake.' },
   { key: 'destinations', label: 'Destinations', icon: Truck, description: 'Approved user and vehicle destination references.' },
   { key: 'history', label: 'Transaction History', icon: History, description: 'Read-only ledger history through the preserved RPC.' },
   { key: 'controls', label: 'Reserved Controls', icon: ClipboardList, description: 'Cart, checkout, count, and archive boundaries.' },
@@ -99,7 +103,7 @@ const CATALOG_COLUMNS = [
   { key: 'sub_category', header: 'Subcategory', fallback: '-' },
   { key: 'unit_of_measure', header: 'Unit', fallback: '-' },
   { key: 'division', header: 'Department', fallback: '-' },
-  { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
+  { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => row.price_confirmed === false || row.price_per_unit == null ? 'Unpriced' : formatMoney(row.price_per_unit) },
 ];
 
 
@@ -184,9 +188,22 @@ const ACCOUNTING_COLUMNS = [
   { key: 'item_name', header: 'Item' },
   { key: 'division', header: 'Department', fallback: '-' },
   { key: 'quantity_on_hand', header: 'Qty', numeric: true, render: (row) => formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
-  { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => formatMoney(row.price_per_unit) },
-  { key: 'extended_value', header: 'Extended', numeric: true, render: (row) => formatMoney(getExtendedValue(row)) },
+  { key: 'price_per_unit', header: 'Unit Cost', numeric: true, render: (row) => row.price_confirmed === false || row.price_per_unit == null ? 'Unpriced' : formatMoney(row.price_per_unit) },
+  { key: 'extended_value', header: 'Extended', numeric: true, render: (row) => row.quantity_recorded === false || row.price_confirmed === false || row.price_per_unit == null ? '—' : formatMoney(getExtendedValue(row)) },
   { key: 'storage_path', header: 'Location', render: (row) => buildStoragePath(row) || row.bin_code || '-' },
+];
+
+const BLANK_EXPORT_COLUMNS = [
+  { key: 'material_code', header: 'Code', render: row => <strong>{row.material_code || '-'}</strong> },
+  { key: 'item_name', header: 'Item' },
+  { key: 'storage_path', header: 'Location', render: row => buildStoragePath(row) || row.bin_code || '-' },
+  { key: 'unit_of_measure', header: 'Unit' },
+  { key: 'counted_quantity', header: 'Counted Qty', render: () => '—' },
+];
+const CURRENT_EXPORT_COLUMNS = [
+  ...BLANK_EXPORT_COLUMNS.slice(0, 4),
+  { key: 'system_quantity', header: 'System Qty', numeric: true, render: row => row.quantity_recorded === false ? 'Not counted' : formatQuantity(row.quantity_on_hand ?? row.system_quantity) },
+  BLANK_EXPORT_COLUMNS[4],
 ];
 
 
@@ -430,26 +447,6 @@ function downloadTextFile(filename, text, type = 'text/plain') {
   window.URL.revokeObjectURL(url);
 }
 
-function escapeCsvValue(value) {
-  const text = String(value ?? '');
-  if (!/[",\n\r]/.test(text)) return text;
-  return `"${text.replaceAll('"', '""')}"`;
-}
-
-function buildAccountingCsv(rows) {
-  const headers = ['material_code', 'item_name', 'division', 'quantity', 'unit_cost', 'extended_value', 'location'];
-  const lines = rows.map((row) => [
-    row.material_code,
-    row.item_name,
-    row.division,
-    row.quantity_on_hand ?? row.system_quantity ?? 0,
-    row.price_per_unit ?? 0,
-    getExtendedValue(row),
-    buildStoragePath(row) || row.bin_code || '',
-  ].map(escapeCsvValue).join(','));
-  return [headers.join(','), ...lines].join('\n');
-}
-
 async function decodeQrFromVideoFrame(video, canvasRef) {
   if (!video?.videoWidth || !video?.videoHeight) return '';
   const { default: jsQR } = await import('jsqr');
@@ -497,6 +494,7 @@ function isDeveloperOrAdminRole(role) {
 }
 
 export function InventoryWorkspace({ permissions }) {
+  const { getToken } = useAuth();
   const diagnostics = useDiagnostics();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 899px), (pointer: coarse)').matches);
   const [confirmCheckout, setConfirmCheckout] = useState(false);
@@ -532,7 +530,7 @@ export function InventoryWorkspace({ permissions }) {
   const [mapOnly, setMapOnly] = useState(true);
   // Keep browsing context here because the material editor unmounts the browser.
   const [stockBrowserState, setStockBrowserState] = useState(() => ({
-    search: '', location: scanBinId, page: 0, category: '', subcategory: '',
+    search: '', location: scanBinId, unit: '', shelf: '', bay: '', size: '', page: 0, category: '', subcategory: '', subcategory2: '',
     highlightMissing: false, categoriesOpen: false, expandedIds: [],
   }));
   useEffect(() => {
@@ -546,6 +544,13 @@ export function InventoryWorkspace({ permissions }) {
     INVENTORY_VIEWS.some((view) => view.key === requestedView) ? requestedView : !canManageInventory && !canTransact ? (permissions.canEditCatalog ? 'catalog' : 'stock_reviews') : 'stock',
   );
   const [search, setSearch] = useState('');
+  const [exportType, setExportType] = useState('current');
+  const [exportLocation, setExportLocation] = useState({ unit: '', shelf: '', bay: '', bin: '' });
+  const [exportPdfBusy, setExportPdfBusy] = useState(false);
+  const [exportPdfError, setExportPdfError] = useState('');
+  const [countLocation, setCountLocation] = useState({ unit: '', shelf: '', bay: '', bin: '' });
+  const [pendingReviews, setPendingReviews] = useState(null);
+  const [reviewRefresh, setReviewRefresh] = useState(0);
   const [catalogCategory, setCatalogCategory] = useState('');
   const [catalogSubcategory, setCatalogSubcategory] = useState('');
   const [historyType, setHistoryType] = useState('');
@@ -588,6 +593,14 @@ export function InventoryWorkspace({ permissions }) {
   const countSheet = useInventoryCountSheet({
     enabled: canLoadInventory && (creatingLocation || ['storage', 'overview', 'accounting', 'locations', 'count', 'scan'].includes(activeView)),
   });
+  useEffect(() => {
+    if (!canLoadInventory) return;
+    let active = true;
+    getToken({ template: 'supabase' }).then(token => createSupabaseClient(token).rpc('read_catalogue_stock_reviews'))
+      .then(result => { if (active) setPendingReviews(result.error ? null : (result.data ?? []).filter(row => row.status === 'pending').length); })
+      .catch(() => { if (active) setPendingReviews(null); });
+    return () => { active = false; };
+  }, [canLoadInventory, getToken, reviewRefresh]);
   const countCorrection = useInventoryCountCorrection();
   const countIntake = useInventoryCountIntake();
   const retirement = useBinItemRetirement();
@@ -643,9 +656,13 @@ export function InventoryWorkspace({ permissions }) {
       const rows = scanContext?.binId
         ? countSheet.rows.filter((row) => row.bin_id === scanContext.binId)
         : countSheet.rows;
-      return searchMaterials(rows.map(row=>({...row,locationText:buildStoragePath(row)})),countSearch);
+      return searchMaterials(rows.filter(row => (!countLocation.unit || row.storage_unit_id === countLocation.unit)
+        && (!countLocation.shelf || row.shelf_id === countLocation.shelf)
+        && (!countLocation.bay || row.bay_id === countLocation.bay)
+        && (!countLocation.bin || row.bin_id === countLocation.bin))
+        .map(row=>({...row,locationText:buildStoragePath(row)})),countSearch);
     },
-    [countSearch, countSheet.rows, scanContext?.binId],
+    [countSearch, countSheet.rows, scanContext?.binId, countLocation],
   );
   const countIntakeItems = useMemo(() => {
     const existingInBin = new Set(
@@ -678,6 +695,17 @@ export function InventoryWorkspace({ permissions }) {
     () => buildLocationRecords(countSheet),
     [countSheet.storageUnits, countSheet.shelves, countSheet.bays, countSheet.bins],
   );
+  const browseLocations = useMemo(() => model.locationHierarchy
+    ? buildLocationRecords(model.locationHierarchy) : locationRecords,
+    [model.locationHierarchy, locationRecords]);
+  const exportRows = useMemo(() => visibleOverviewRows.filter(row =>
+    (!exportLocation.unit || row.storage_unit_id === exportLocation.unit)
+    && (!exportLocation.shelf || row.shelf_id === exportLocation.shelf)
+    && (!exportLocation.bay || row.bay_id === exportLocation.bay)
+    && (!exportLocation.bin || row.bin_id === exportLocation.bin)), [visibleOverviewRows, exportLocation]);
+  const exportCatalogue = useMemo(() => filterRows(model.catalogPreview, search,
+    ['material_code', 'name', 'size', 'broad_category', 'sub_category', 'sub_category_2', 'division']), [model.catalogPreview, search]);
+  const exportPreviewRows = exportType === 'catalogue' ? exportCatalogue : exportRows;
   const overviewQuantity = visibleOverviewRows.reduce(
     (sum, row) => sum + Number(row.quantity_on_hand ?? row.system_quantity ?? 0),
     0,
@@ -723,11 +751,12 @@ export function InventoryWorkspace({ permissions }) {
   const views = INVENTORY_VIEWS.filter(view => {
     if (view.key === 'scan') return isMobile && canScan;
     if (['controls', 'destinations'].includes(view.key)) return diagnostics;
-    if (view.key === 'catalog' || view.key === 'cart') return false;
+    if (view.key === 'cart') return false;
     if (['overview', 'accounting', 'locations', 'count'].includes(view.key)) return canManageInventory;
     return true;
   }).map((view) => {
     const badge = {
+      stock_reviews: pendingReviews,
       catalog: counts.activeItems,
       overview: countSheet.rows.length || counts.binItems,
       accounting: countSheet.rows.length || counts.inventoryBalances,
@@ -740,7 +769,7 @@ export function InventoryWorkspace({ permissions }) {
       history: history.rows.length,
       controls: null,
     }[view.key];
-    return { ...view, badge: diagnostics ? badge : null };
+    return { ...view, badge: view.key === 'stock_reviews' ? pendingReviews || null : diagnostics ? badge : null };
   });
 
   const candidateColumns = useMemo(() => [
@@ -1140,10 +1169,13 @@ export function InventoryWorkspace({ permissions }) {
     setActiveView(nextView);
     setSearch('');
     setCountSearch('');
+    if (nextView === 'catalog') {
+      setStockBrowserState(current => ({ ...current, location: '', unit: '', shelf: '', bay: '', page: 0 }));
+    }
 
     const params = new URLSearchParams(location.search);
     params.set('view', nextView);
-    if (!['cart', 'count', 'stock', 'catalog'].includes(nextView)) {
+    if (!['cart', 'count', 'stock'].includes(nextView)) {
       params.delete('scanBinId');
       params.delete('scanBinCode');
     }
@@ -1281,7 +1313,30 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function handleDownloadAccountingCsv() {
-    downloadTextFile('northgate-inventory-accounting-export.csv', buildAccountingCsv(visibleAccountingRows), 'text/csv');
+    downloadTextFile(`northgate-inventory-${exportType}-${new Date().toISOString().slice(0, 10)}.csv`,
+      inventoryExportCsv(exportType, exportCatalogue, exportRows), 'text/csv;charset=utf-8');
+  }
+
+  async function handleDownloadBlankCountPdf() {
+    if (exportType !== 'blank' || exportPdfBusy || !exportRows.length) return;
+    setExportPdfBusy(true);
+    setExportPdfError('');
+    try {
+      const { buildBlankInventoryCountPdf } = await import('./inventoryCountPdf.js');
+      const location = Object.values(exportLocation).filter(Boolean)
+        .map(id => locationRecords.find(row => row.id === id)?.code).filter(Boolean).join(' / ') || 'All storage locations';
+      const bytes = await buildBlankInventoryCountPdf(exportRows, { location, search });
+      const url = window.URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `northgate-inventory-blank-count-${new Date().toISOString().slice(0, 10)}.pdf`;
+      anchor.click();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setExportPdfError(error?.message || 'The blank count PDF could not be created.');
+    } finally {
+      setExportPdfBusy(false);
+    }
   }
 
 
@@ -1506,11 +1561,12 @@ export function InventoryWorkspace({ permissions }) {
   }
 
   function renderActiveView() {
-    if (activeView === 'stock_reviews') return <MaterialStockReviews destinationId={location.state?.reviewDestinationId} onSaved={readModel.reload}/>;
+    if (activeView === 'stock_reviews') return <MaterialStockReviews destinationId={location.state?.reviewDestinationId} onSaved={() => { readModel.reload(); setReviewRefresh(current => current + 1); }} />;
     if (activeView === 'stock' || activeView === 'catalog') {
       return <>
         {cartState.error ? <StatePanel title="Cart action failed" description={cartState.error.message} tone="danger" /> : null}
         <InventoryStockBrowser browserState={stockBrowserState} onBrowserStateChange={setStockBrowserState} model={model} loading={readModel.isLoading} error={readModel.error}
+          locationRecords={browseLocations}
           onAliases={setAliasItem}
           onManagePrice={canManageInventory&&['Director','Developer'].includes(permissions.role)?setPriceItem:null}
           fullCatalogue={activeView === 'catalog'} onScopeChange={full => updateInventoryView(full ? 'catalog' : 'stock')}
@@ -1561,38 +1617,49 @@ export function InventoryWorkspace({ permissions }) {
     }
 
     if (activeView === 'accounting') {
+      const activeLocations = locationRecords.filter(row => !row.archived_at);
+      const locationById = new Map(activeLocations.map(row => [row.id, row]));
+      const units = activeLocations.filter(row => row.type === 'unit');
+      const shelves = activeLocations.filter(row => row.type === 'shelf' && (!exportLocation.unit || row.parentId === exportLocation.unit));
+      const bays = activeLocations.filter(row => row.type === 'bay' && (!exportLocation.shelf || row.parentId === exportLocation.shelf)
+        && (!exportLocation.unit || locationById.get(row.parentId)?.parentId === exportLocation.unit));
+      const bins = activeLocations.filter(row => row.type === 'bin' && (!exportLocation.bay || row.parentId === exportLocation.bay)
+        && (!exportLocation.shelf || locationById.get(row.parentId)?.parentId === exportLocation.shelf)
+        && (!exportLocation.unit || locationById.get(locationById.get(row.parentId)?.parentId)?.parentId === exportLocation.unit));
+      const knownValue = exportRows.reduce((sum, row) => sum + (row.quantity_recorded === false || row.price_confirmed === false || row.price_per_unit == null ? 0 : getExtendedValue(row)), 0);
       return (
         <div className="inventory-section-stack">
-          <section className="summary-grid">
-            <SummaryCard detailIsDiagnostic label="Export rows" value={visibleAccountingRows.length} detail="Visible non-zero quantity rows" />
-            <SummaryCard label="Export value" value={formatMoney(overviewValue)} detail="Quantity times catalogue unit cost" />
-            <SummaryCard detailIsDiagnostic label="Filtered rows" value={visibleOverviewRows.length} detail="Rows matching current filter" />
-            <SummaryCard developmentOnly label="Boundary" value="Read only" detail="No accounting post is created" tone="good" />
-          </section>
           <article className="card workspace-card">
-            <Toolbar descriptionIsDiagnostic
-              eyebrow="Accounting"
-              title="Inventory Valuation Export"
-              description="Read-only CSV preview from the existing count-sheet read model. Exporting downloads visible rows only and does not post to accounting."
-              actions={(
-                <button type="button" className="secondary-button" onClick={handleDownloadAccountingCsv} disabled={!visibleAccountingRows.length}>
-                  <Download aria-hidden="true" /> Download CSV
-                </button>
-              )}
-              dense
-            />
+            <Toolbar eyebrow="Export" title="Build an inventory sheet" description="Choose the sheet and location. Download a CSV for Excel or a printable PDF for manual counts. Exporting does not change stock or post to accounting." dense />
+            <div className="inventory-export-controls">
+              <label>Sheet type<select value={exportType} onChange={event => { setExportType(event.target.value); setExportPdfError(''); }}>{INVENTORY_EXPORT_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+              {exportType !== 'catalogue' && <div className="inventory-location-filters" aria-label="Export location filters">
+                <label>Shelving Unit<select value={exportLocation.unit} onChange={event => setExportLocation({ unit: event.target.value, shelf: '', bay: '', bin: '' })}><option value="">All units</option>{units.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+                <label>Shelf<select value={exportLocation.shelf} onChange={event => setExportLocation(current => ({ ...current, shelf: event.target.value, bay: '', bin: '' }))}><option value="">All shelves</option>{shelves.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+                <label>Bay<select value={exportLocation.bay} onChange={event => setExportLocation(current => ({ ...current, bay: event.target.value, bin: '' }))}><option value="">All bays</option>{bays.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+                <label>Bin<select value={exportLocation.bin} onChange={event => setExportLocation(current => ({ ...current, bin: event.target.value }))}><option value="">All bins</option>{bins.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+              </div>}
+              <div className="inventory-export-actions"><span>{exportPreviewRows.length} row{exportPreviewRows.length === 1 ? '' : 's'} in this export{exportType === 'financial' ? ` · ${formatMoney(knownValue)} known value` : ''}</span>
+                <div className="inventory-export-buttons"><button type="button" className="primary-button" onClick={handleDownloadAccountingCsv} disabled={(exportType === 'catalogue' ? readModel.isLoading : countSheet.isLoading) || !exportPreviewRows.length}><Download aria-hidden="true" /> Download CSV</button>
+                  {exportType === 'blank' && <button type="button" className="secondary-button" onClick={handleDownloadBlankCountPdf} disabled={countSheet.isLoading || !exportPreviewRows.length || exportPdfBusy}><Download aria-hidden="true" /> {exportPdfBusy ? 'Preparing PDF…' : 'Download printable PDF'}</button>}</div>
+              </div>
+              {exportType === 'blank' && <small>The PDF leaves counts and notes blank for handwriting. It does not show system quantities or prices.</small>}
+              {exportPdfError && <p role="alert">{exportPdfError}</p>}
+              {exportType === 'financial' && <small>Uncounted or unpriced rows remain blank in the valuation columns; the total includes only rows with both values.</small>}
+            </div>
             <DataTable
-              columns={ACCOUNTING_COLUMNS}
-              rows={visibleAccountingRows}
-              getRowKey={(row) => row.bin_item_id}
+              columns={exportType === 'catalogue' ? CATALOG_COLUMNS : exportType === 'financial' ? ACCOUNTING_COLUMNS : exportType === 'blank' ? BLANK_EXPORT_COLUMNS : CURRENT_EXPORT_COLUMNS}
+              rows={exportPreviewRows.slice(0, 100)}
+              getRowKey={(row) => row.bin_item_id || row.id}
               permissions={permissions}
-              isLoading={countSheet.isLoading}
-              error={countSheet.error}
+              isLoading={exportType === 'catalogue' ? readModel.isLoading : countSheet.isLoading}
+              error={exportType === 'catalogue' ? readModel.error : countSheet.error}
               dense
               minWidth="1040px"
               emptyTitle="No export rows"
-              emptyDescription="Only visible rows with non-zero quantity are included in the export preview."
+              emptyDescription="Try another sheet or clear the location filter."
             />
+            {exportPreviewRows.length > 100 && <p>Preview shows the first 100 rows; CSV includes all {exportPreviewRows.length} rows.</p>}
           </article>
         </div>
       );
@@ -1921,12 +1988,22 @@ export function InventoryWorkspace({ permissions }) {
 
     if (activeView === 'count') {
       const intakeMessage = countMessages.new;
+      const activeLocations = locationRecords.filter(row => !row.archived_at);
+      const locationById = new Map(activeLocations.map(row => [row.id, row]));
+      const units = activeLocations.filter(row => row.type === 'unit');
+      const shelves = activeLocations.filter(row => row.type === 'shelf' && (!countLocation.unit || row.parentId === countLocation.unit));
+      const bays = activeLocations.filter(row => row.type === 'bay' && (!countLocation.shelf || row.parentId === countLocation.shelf)
+        && (!countLocation.unit || locationById.get(row.parentId)?.parentId === countLocation.unit));
+      const bins = activeLocations.filter(row => row.type === 'bin' && (!countLocation.bay || row.parentId === countLocation.bay)
+        && (!countLocation.shelf || locationById.get(row.parentId)?.parentId === countLocation.shelf)
+        && (!countLocation.unit || locationById.get(locationById.get(row.parentId)?.parentId)?.parentId === countLocation.unit));
       return (
         <div className="inventory-section-stack">
+          {canReadCounts && <StorageReturnPath records={locationRecords} binId={scanBinId || countIntakeDraft.bin_id} />}
           <article className="card workspace-card">
             <Toolbar descriptionIsDiagnostic
               eyebrow="Count"
-              title="Inventory Count"
+              title="Inventory Management"
               description="Set physical quantities through the preserved count correction RPC. Zero is valid; balance writes remain server-controlled."
               search={(
                 <label>
@@ -1946,6 +2023,13 @@ export function InventoryWorkspace({ permissions }) {
               )}
               dense
             />
+
+            <div className="inventory-location-filters" aria-label="Inventory Management location filters">
+              <label>Shelving Unit<select value={countLocation.unit} onChange={event => setCountLocation({ unit: event.target.value, shelf: '', bay: '', bin: '' })}><option value="">All units</option>{units.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+              <label>Shelf<select value={countLocation.shelf} onChange={event => setCountLocation(current => ({ ...current, shelf: event.target.value, bay: '', bin: '' }))}><option value="">All shelves</option>{shelves.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+              <label>Bay<select value={countLocation.bay} onChange={event => setCountLocation(current => ({ ...current, bay: event.target.value, bin: '' }))}><option value="">All bays</option>{bays.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+              <label>Bin<select value={countLocation.bin} onChange={event => setCountLocation(current => ({ ...current, bin: event.target.value }))}><option value="">All bins</option>{bins.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+            </div>
 
             {!canManageInventory ? (
               <StatePanel
@@ -2226,7 +2310,7 @@ export function InventoryWorkspace({ permissions }) {
     );
   }
 
-  if (aliasItem) return <MaterialCatalogueWorkspace item={aliasItem} permissions={permissions} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
+  if (aliasItem) return <MaterialCatalogueWorkspace item={aliasItem} permissions={permissions} catalogueItems={model.catalogPreview} onClose={()=>setAliasItem(null)} onSaved={readModel.reload}/>;
   if (priceItem) return <InventoryPriceWorkspace item={priceItem} onClose={()=>setPriceItem(null)} onSaved={readModel.reload}/>;
   if (creatingLocation && canReadCounts) return <StorageLocationSetup initialParent={locationSetupContext} permissions={permissions} locations={locationRecords}
     isLoading={countSheet.isLoading} error={countSheet.error} onReload={countSheet.reload}
@@ -2245,7 +2329,7 @@ export function InventoryWorkspace({ permissions }) {
         actions={(
           <>
             {permissions.canEditCatalog ? <button className="secondary-button" onClick={()=>setAliasItem({division:permissions.division})}>Add Catalogue Material</button> : null}
-            {canReadCounts ? <><button type="button" className="primary-button" onClick={()=>{setLocationSetupContext(null);setCreatingLocation(true);}}><Plus aria-hidden="true"/> Add Storage Location</button><button type="button" className="secondary-button" onClick={()=>updateInventoryView('count')}>Add materials / Count</button></> : null}
+            {canReadCounts ? <><button type="button" className="primary-button" onClick={()=>{setLocationSetupContext(null);setCreatingLocation(true);}}><Plus aria-hidden="true"/> Add Storage Location</button><button type="button" className="secondary-button" onClick={()=>updateInventoryView('count')}>Inventory Management</button></> : null}
             <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>
               Page Menu
             </button>
@@ -2274,7 +2358,7 @@ export function InventoryWorkspace({ permissions }) {
           title="Inventory"
           description="Read models first; write controls stay intentionally bounded."
           items={views}
-          activeKey={activeView === 'catalog' ? 'stock' : activeView}
+          activeKey={activeView}
           onSelect={updateInventoryView}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
@@ -2289,7 +2373,7 @@ export function InventoryWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
-          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart', 'storage', 'stock_reviews'].includes(activeView) ? (
+          {!['history', 'controls', 'scan', 'stock', 'catalog', 'cart', 'storage', 'stock_reviews', 'count'].includes(activeView) ? (
             <article className="card workspace-card">
               <Toolbar descriptionIsDiagnostic
                 eyebrow="Filter"

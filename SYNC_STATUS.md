@@ -1,5 +1,66 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Staging / Production reconciliation candidate — ENV-PARITY-20261005-001
+
+- Date/time: 2026-10-05 13:30 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Branch: `integration/staging-production-parity-20261005`, based on `origin/staging` and merged with `origin/main` locally. Neither deployed branch or database changed at this checkpoint.
+- Production is `rnsolutions.net` at `v0.6.0`; Staging is `staging.rnsolutions.net` with additional unfinished Staging features. The isolated candidate combines the code while keeping the uncommitted Inventory Management batch editor separate.
+- Placeholder-config Vite build and 256 explicit Node tests passed. Authenticated Staging acceptance and database-migration rehearsal remain release gates.
+- See [the parity checkpoint](docs/releases/STAGING_PRODUCTION_PARITY_20261005.md) for branch/deploy IDs, database differences, exact sequence, and rollback.
+
+## Production v0.5.4 Change Order client PDF details — CO-CLIENT-DETAILS-PROD-20261002-001
+
+- Date/time: 2026-10-02 13:17 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Release commit: `ca35b83c867d2a94e01c7f45ea69be14106a5282` on `main`;
+  immutable tag and GitHub Release `v0.5.4`.
+- Production Supabase migration `change_order_client_pdf_breakdown` recorded as
+  `20261002171310`; staging was not changed.
+- Netlify Production deploy `6abfe6d0df400a474bf2171b` published the
+  release commit on 2026-10-02 17:16:17 UTC. Netlify's current site deploy
+  matches. Signed-out live URL redirects to Clerk sign-in; authenticated UI
+  acceptance remains for the owner.
+- Release record and rollback: [v0.5.4](docs/releases/CHANGE_ORDER_CLIENT_DETAILS_20261002.md).
+
+## Change Order schema rehearsal limitation — CO-CLIENT-DETAILS-20261002-003
+
+- Date/time: 2026-10-02 12:34 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Owner-approved temporary Supabase branch was created at $0.01344/hour,
+  but Supabase replayed only 31 early migrations, leaving Change Order tables
+  absent. The migration could not be rehearsed there. The branch was deleted
+  and removal verified; Production and Staging were not changed.
+- Candidate remains on `feature/change-order-client-details-20261002`.
+  Full-schema rehearsal and final Production-config build remain release gates.
+  See [release checkpoint](docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md).
+
+## Change Order PDF release verification — CO-CLIENT-DETAILS-20261002-002
+
+- Date/time: 2026-10-02 12:25 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Branch: `feature/change-order-client-details-20261002`, based on current
+  `origin/main` commit `85047fc`. Production and Staging remain unchanged.
+- All 231 explicit Node tests, six isolated PGlite assertions, and the
+  placeholder-config production compile pass. A three-page sample client PDF
+  was rendered and visually checked. Project address is escaped in the PDF.
+- Read-only Production schema checks match the expected legacy markup and
+  revision functions; the new column is not applied. An isolated full-schema
+  migration rehearsal and actual Production-config build remain release gates.
+  See [release checkpoint](docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md).
+
+## Optional Change Order PDF details — CO-CLIENT-DETAILS-20261002-001
+
+- Date/time: 2026-10-02 12:06 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- Branch: `feature/change-order-client-details-20261002`, based on `85047fc`.
+  **Local, uncommitted and unpushed**; another machine cannot fetch it yet.
+- Optional per-line client PDF details, quantity/price or manual amounts,
+  mismatch warning and optional calculated remainder are implemented locally.
+  The CO line total remains authoritative; existing financial posting is not
+  changed. Migration `20261002160002_change_order_client_pdf_breakdown.sql`
+  is prepared but unapplied. No Production or Staging deployment occurred.
+- 231 Node tests, six isolated PGlite SQL assertions and a placeholder Vite
+  compile pass. Full-schema rehearsal, actual PDF print QA, fresh remote sync,
+  owner review and configured build
+  remain release gates. See
+  [the implementation checkpoint](docs/reviews/CHANGE_ORDER_CLIENT_PDF_DETAILS_20261002.md).
+
 This file is the repository-visible source of truth for Codex handoffs between machines.
 
 ## Latest planning checkpoint — COMPASS-ROADMAP-20260928-001

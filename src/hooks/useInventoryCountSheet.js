@@ -145,6 +145,8 @@ export function useInventoryCountSheet({ enabled }) {
             sub_category_2: item.sub_category_2 ?? null,
             sub_category_3: item.sub_category_3 ?? null,
             sub_category_4: item.sub_category_4 ?? null,
+            price_confirmed: item.price_confirmed ?? null,
+            effective_price_source: item.effective_price_source ?? null,
             manufacturer: item.manufacturer ?? null,
             manufacturer_sub: item.manufacturer_sub ?? null,
             manufacturer_part_number:

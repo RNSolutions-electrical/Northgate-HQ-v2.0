@@ -22954,3 +22954,29 @@ this intake is not a complete schema audit or a claim that future features exist
 The existing Staging Change Order/Credit state model and Billing lineage were retained. The new bridge adds optional client-facing breakdown JSON to individual lines, validates its shape, saves it without changing authoritative adjustment amounts, and carries it into controlled revisions. The Staging UI now offers the compact detail overlay, a client-form draft preview, and the updated printable PDF. The draft-save path continues to use Staging's native Clerk token; no Production JWT template assumption was introduced.
 
 Verification: 236/236 local tests passed, the Staging-identity build passed, the Staging database reports the new column/RPC and authenticated-only execute grant, and the public Staging HTML/JS returned HTTP 200 with the Staging marker and new controls. The initial Netlify upload from a Git worktree failed before publication because its local `.git` pointer was not portable; a clean archive upload succeeded. No Production code, database, or Netlify site was changed. Owner acceptance of the combined CO/Credit, Billing-revision, breakdown, and preview workflow remains required before Production migration/promotion. The Production integration candidate remains in the separate `feature/change-order-integration-20261002` worktree and must be revalidated against the then-current Production schema before promotion.
+
+## Entry 325 — Isolated Staging / Production parity preparation
+
+**Date:** 2026-10-05 13:30 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 environment reconciliation
+**Session type:** alignment
+**Sync marker:** `ENV-PARITY-20261005-001`
+
+### Context
+Production is `rnsolutions.net` at `v0.6.0`; Staging is `staging.rnsolutions.net` with additional guided/dashboard features. `main` names the Production code branch, not the Development environment. The owner wants pending release work reconciled so both sites can eventually match without losing Staging additions.
+
+### What Was Completed
+Created isolated `integration/staging-production-parity-20261005` from `origin/staging` and merged `origin/main` locally. Neither deployed branch, site, or database changed. Removed a redundant inactive Change Order editor introduced by the merge; the active Staging editor retains the Production behavior plus staging-compatible authentication. Placeholder-config Vite compile and 256 explicit Node tests passed. Read-only Supabase checks confirmed identical `save_contract_adjustment(jsonb)` definitions and client-breakdown columns but differing migration histories and a Staging-only guided-state column.
+
+### Schema Changes
+None applied. Production's one-time Carolina Retina CO9 repair must never be replayed in Staging. Do not bulk-run the merged migration folder against either environment.
+
+### Code / File Changes
+The isolated branch contains Production inventory navigation/export/catalogue improvements together with existing Staging functionality. The separately uncommitted Inventory Management batch editor in `release-demo-candidate` is not included.
+
+### What Codex Needs to Know
+Full reconciliation and rollback detail: `docs/releases/STAGING_PRODUCTION_PARITY_20261005.md`. The integration candidate is not yet a deployed or accepted release. Preserve production and staging database isolation.
+
+### Next Steps (in order)
+Confirm Inventory Management release scope; review candidate diff; test authenticated Staging flows; deploy to Staging only after Staging configuration check; collect owner acceptance; rehearse exact Production schema delta on an isolated current copy; tag and promote deliberately; verify both sites; then align Development to the accepted release.

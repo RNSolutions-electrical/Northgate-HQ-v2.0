@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { buildStockMaterials, missingMaterialInformation } from './inventorySearch.js';
 
@@ -8,23 +8,46 @@ const money = value => value == null || value === '' ? 'Not priced' : Number(val
 
 export function InventoryStockBrowser({ model, loading, error, fullCatalogue, onScopeChange, canTransact,
   busy, quantities, messages, onQuantityChange, onAdd, scanBinId = '', onClearScan, onAliases, onManagePrice,
-  browserState, onBrowserStateChange }) {
-  const { search, location, page, category, subcategory, highlightMissing, categoriesOpen, expandedIds } = browserState;
+  browserState, onBrowserStateChange, locationRecords = [] }) {
+  const { search, location, unit = '', shelf = '', bay = '', size = '', category, subcategory,
+    subcategory2 = '', page, highlightMissing, categoriesOpen, expandedIds } = browserState;
   const updateFilters = updates => onBrowserStateChange(current => ({ ...current, ...updates, page: 0 }));
   const setSearch = search => updateFilters({ search });
   const setLocation = location => updateFilters({ location });
-  const setCategory = category => updateFilters({ category, subcategory: '' });
+  const setCategory = category => updateFilters({ category, subcategory: '', subcategory2: '' });
   const setSubcategory = subcategory => updateFilters({ subcategory });
   const setPage = page => onBrowserStateChange(current => ({ ...current, page }));
-  const changeScope = full => { setPage(0); onScopeChange(full); };
+  const changeScope = full => { if (full) updateFilters({ location: '', unit: '', shelf: '', bay: '' }); else setPage(0); onScopeChange(full); };
   const stockRows = model.stockRows ?? model.cartCandidates;
+  const activeLocations = locationRecords.filter(row => !row.archived_at);
+  const locationById = new Map(activeLocations.map(row => [row.id, row]));
+  const units = activeLocations.filter(row => row.type === 'unit');
+  const shelves = activeLocations.filter(row => row.type === 'shelf' && (!unit || row.parentId === unit));
+  const bays = activeLocations.filter(row => row.type === 'bay' && (!shelf || row.parentId === shelf)
+    && (!unit || locationById.get(row.parentId)?.parentId === unit));
+  const bins = activeLocations.filter(row => row.type === 'bin' && (!bay || row.parentId === bay)
+    && (!shelf || locationById.get(row.parentId)?.parentId === shelf)
+    && (!unit || locationById.get(locationById.get(row.parentId)?.parentId)?.parentId === unit));
   const categories = [...new Set(model.catalogPreview.map(row => row.broad_category).filter(Boolean))].sort();
   const subcategories = [...new Set(model.catalogPreview.filter(row => !category || row.broad_category === category).map(row => row.sub_category).filter(Boolean))].sort();
+  const subcategories2 = [...new Set(model.catalogPreview.filter(row => (!category || row.broad_category === category) && (!subcategory || row.sub_category === subcategory)).map(row => row.sub_category_2).filter(Boolean))].sort();
+  const sizes = [...new Set(model.catalogPreview.filter(row => (!category || row.broad_category === category) && (!subcategory || row.sub_category === subcategory)).map(row => row.size).filter(Boolean))].sort();
   const locations = useMemo(() => [...new Map(stockRows.map(row => [row.bin_id,
     { id: row.bin_id, label: [row.bin_code, row.bin_label].filter(Boolean).join(' - ') }])).values()]
     .sort((a, b) => a.label.localeCompare(b.label)), [stockRows]);
+  const scopedBinIds = useMemo(() => {
+    if (!unit && !shelf && !bay) return null;
+    const byId = new Map(activeLocations.map(row => [row.id, row]));
+    return new Set(activeLocations.filter(row => row.type === 'bin' && (!bay || row.parentId === bay)
+      && (!shelf || byId.get(row.parentId)?.parentId === shelf)
+      && (!unit || byId.get(byId.get(row.parentId)?.parentId)?.parentId === unit)).map(row => row.id));
+  }, [locationRecords, unit, shelf, bay]);
   const materials = useMemo(() => buildStockMaterials(model.catalogPreview, stockRows,
-    { search, location, fullCatalogue }).filter(item => (!category || item.broad_category === category) && (!subcategory || item.sub_category === subcategory)), [model, search, location, fullCatalogue, category, subcategory]);
+    { search, location, locationIds: scopedBinIds, fullCatalogue }).filter(item => (!category || item.broad_category === category)
+      && (!subcategory || item.sub_category === subcategory) && (!subcategory2 || item.sub_category_2 === subcategory2)
+      && (!size || item.size === size)), [model, search, location, scopedBinIds, fullCatalogue, category, subcategory, subcategory2, size]);
+  const hasFilters = Boolean(search || location || unit || shelf || bay || category || subcategory || subcategory2 || size);
+  const clearFilters = () => { updateFilters({ search: '', location: '', unit: '', shelf: '', bay: '', category: '', subcategory: '', subcategory2: '', size: '' }); if (scanBinId) onClearScan(); };
   const lastPage = Math.max(0, Math.ceil(materials.length / 40) - 1);
   const currentPage = Math.min(page, lastPage);
   return <section className="inventory-stock-browser" aria-label="Material search">
@@ -37,22 +60,26 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
         <span className="sr-only">Search materials</span>
         <input type="search" placeholder="Search material, code, size, manufacturer..." value={search} onChange={event => setSearch(event.target.value)} />
       </label>
-      <label><span className="sr-only">Stock location</span><select value={location} onChange={event => setLocation(event.target.value)}>
-        <option value="">All stock locations</option>
-        {scanBinId && !locations.some(row => row.id === scanBinId) ? <option value={scanBinId}>Scanned location</option> : null}
-        {locations.map(row => <option key={row.id} value={row.id}>{row.label}</option>)}
-      </select></label>
-      <button type="button" className="icon-button" title="Clear search and location" aria-label="Clear search and location" disabled={!search && !location && !category && !subcategory}
-        onClick={() => { setSearch(''); setLocation(''); setCategory(''); setSubcategory(''); if (scanBinId) onClearScan(); }}><X aria-hidden="true" /></button>
+      <button type="button" className="inventory-filter-toggle" aria-expanded={categoriesOpen} onClick={() => onBrowserStateChange(current => ({ ...current, categoriesOpen: !current.categoriesOpen }))}>
+        <SlidersHorizontal aria-hidden="true" /> Filters{hasFilters ? ' • Active' : ''}
+      </button>
+      <button type="button" className="icon-button" title="Clear all filters" aria-label="Clear all filters" disabled={!hasFilters} onClick={clearFilters}><X aria-hidden="true" /></button>
     </div>
-    {categories.length > 0 ? <details className="inventory-category-filters" open={categoriesOpen} onToggle={event => { const open = event.currentTarget.open; onBrowserStateChange(current => current.categoriesOpen === open ? current : { ...current, categoriesOpen: open }); }}><summary>Categories{category || subcategory ? ' (filtered)' : ''}</summary>
-      <select aria-label="Material category" value={category} onChange={event => { setCategory(event.target.value); setSubcategory(''); }}>
-        <option value="">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}
-      </select>
-      <select aria-label="Material subcategory" value={subcategory} onChange={event => setSubcategory(event.target.value)}>
-        <option value="">All subcategories</option>{subcategories.map(value => <option key={value}>{value}</option>)}
-      </select>
-    </details> : null}
+    {!fullCatalogue && <div className="inventory-location-filters" aria-label="Filter by storage location">
+      <label>Shelving Unit<select value={unit} onChange={event => updateFilters({ unit: event.target.value, shelf: '', bay: '', location: '' })} disabled={!units.length}><option value="">All units</option>{units.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+      <label>Shelf<select value={shelf} onChange={event => updateFilters({ shelf: event.target.value, bay: '', location: '' })} disabled={!shelves.length}><option value="">All shelves</option>{shelves.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+      <label>Bay<select value={bay} onChange={event => updateFilters({ bay: event.target.value, location: '' })} disabled={!bays.length}><option value="">All bays</option>{bays.map(row => <option key={row.id} value={row.id}>{row.code} — {row.label}</option>)}</select></label>
+      <label>Bin<select value={location} onChange={event => setLocation(event.target.value)}><option value="">All bins</option>
+        {scanBinId && !locations.some(row => row.id === scanBinId) ? <option value={scanBinId}>Scanned location</option> : null}
+        {(activeLocations.some(row => row.type === 'bin') ? bins.map(row => ({ id: row.id, label: `${row.code} — ${row.label}` })) : locations).map(row => <option key={row.id} value={row.id}>{row.label}</option>)}
+      </select></label>
+    </div>}
+    {categoriesOpen && <div className="inventory-category-filters" aria-label="Material filters">
+      <label>Size<select value={size} onChange={event => updateFilters({ size: event.target.value })}><option value="">All sizes</option>{sizes.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>Category<select value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>Sub Category<select value={subcategory} onChange={event => updateFilters({ subcategory: event.target.value, subcategory2: '' })}><option value="">All subcategories</option>{subcategories.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>Sub Category 2<select value={subcategory2} onChange={event => updateFilters({ subcategory2: event.target.value })}><option value="">All second-level categories</option>{subcategories2.map(value => <option key={value}>{value}</option>)}</select></label>
+    </div>}
     {fullCatalogue && <label className="inventory-completeness-toggle">
       <input type="checkbox" checked={highlightMissing} onChange={event => onBrowserStateChange(current => ({ ...current, highlightMissing: event.target.checked }))} />
       Highlight missing pricing or labor
@@ -76,7 +103,7 @@ export function InventoryStockBrowser({ model, loading, error, fullCatalogue, on
             <span className="inventory-material-quantity"><strong>{item.uncountedLocations===item.locations.length&&item.locations.length?'Not counted':`${quantity(item.quantity)} ${item.unit_of_measure||''}`}</strong><small>{item.locations.length ? `${item.locations.length} location${item.locations.length === 1 ? '' : 's'}${item.uncountedLocations?` · ${item.uncountedLocations} uncounted`:''}` : 'Not stocked'}</small></span>
           </summary>
           <div className="inventory-material-detail">
-            <p>Unit cost: <strong>{money(item.price_per_unit)}</strong></p>
+            <p>Unit cost: <strong>{money(item.price_confirmed === false ? null : item.price_per_unit)}</strong></p>
             <div className="inventory-material-actions">{onAliases&&<button className="secondary-button" onClick={()=>onAliases(item)}>Material details</button>}{onManagePrice&&<button className="secondary-button" onClick={()=>onManagePrice(item)}>Manage Price</button>}</div>
             {item.locations.map(row => <div className="inventory-stock-location" key={row.bin_item_id}>
               <span><strong>{row.bin_code}</strong><small>{row.bin_label}</small></span>

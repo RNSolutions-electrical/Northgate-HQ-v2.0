@@ -7,7 +7,7 @@ import {canEditMaterialAliases} from '../../lib/materialResolver.js';
 import CatalogueMaterialForm from '../estimates/workbench/CatalogueMaterialForm.jsx';
 import './materialCatalogue.css';
 
-export function MaterialCatalogueWorkspace({item,permissions,onClose,onSaved}) {
+export function MaterialCatalogueWorkspace({item,permissions,onClose,onSaved,catalogueItems=[]}) {
  const {getToken}=useAuth(),request=useRef(null),lock=useRef(false);
  const [material,setMaterial]=useState(null),[loading,setLoading]=useState(Boolean(item.id)),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [department,setDepartment]=useState(item.division||permissions.division||'');
@@ -27,7 +27,7 @@ export function MaterialCatalogueWorkspace({item,permissions,onClose,onSaved}) {
    {loading?<p>Loading material…</p>:item.id&&!material?<p role="alert">{error}</p>:<>
     {!material&&permissions.canViewAllDivisions&&<label>Department<select value={department} onChange={e=>setDepartment(e.target.value)}>{['Electrical','Construction','Admin'].map(d=><option key={d}>{d}</option>)}</select></label>}
     {message&&<p role="status">{message}</p>}
-    <CatalogueMaterialForm key={material?.updated_at||candidateId} material={material} line={{unit:'EA'}} busy={busy} error={error} readOnly={!canEditMaterialAliases(permissions,material?.division||department)} onSave={save}/>
+    <CatalogueMaterialForm key={material?.updated_at||candidateId} material={material} line={{unit:'EA'}} busy={busy} error={error} readOnly={!canEditMaterialAliases(permissions,material?.division||department)} catalogueItems={catalogueItems} onSave={save}/>
    </>}
   </article></section>;
 }
