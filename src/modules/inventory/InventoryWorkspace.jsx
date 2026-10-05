@@ -48,6 +48,7 @@ import { useInventoryCountSheet } from '../../hooks/useInventoryCountSheet.js';
 import { useInventoryReadModel } from '../../hooks/useInventoryReadModel.js';
 import { useInventoryTransactionHistory } from '../../hooks/useInventoryTransactionHistory.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
+import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
 
@@ -596,7 +597,7 @@ export function InventoryWorkspace({ permissions }) {
   useEffect(() => {
     if (!canLoadInventory) return;
     let active = true;
-    getToken({ template: 'supabase' }).then(token => createSupabaseClient(token).rpc('read_catalogue_stock_reviews'))
+    getSupabaseAccessToken(getToken).then(token => createSupabaseClient(token).rpc('read_catalogue_stock_reviews'))
       .then(result => { if (active) setPendingReviews(result.error ? null : (result.data ?? []).filter(row => row.status === 'pending').length); })
       .catch(() => { if (active) setPendingReviews(null); });
     return () => { active = false; };
