@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Inventory tree Staging trial — INVENTORY-TREE-STAGING-20261005-001
+
+- Date/time: 2026-10-05 15:49 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- App commits `7374bf0140e639e97ad8a6dc7948ec5e3773a78d` and follow-up `024fed19e8c7068798294bd339392b4e46cb9613` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published current deploy `6ac3feb865850000081e1d3e` at `staging.rnsolutions.net` (initial deploy `6ac3fe14a4556a0008b6063f`).
+- Inventory's existing permission-filtered sections now appear in the persistent desktop workspace rail. The old desktop module sidebar is hidden to reclaim content width; mobile retains its existing Page Menu. The Stock Reviews badge is preserved in the rail. Storage and Inventory Management workflows are unchanged.
+- 276/276 explicit Node tests passed before the badge refinement; targeted navigation tests and Staging-configured Vite builds passed after the badge and route-selection refinements. Signed-in visual acceptance remains open. No migration or Production code/site/database change occurred. Inventory Management batch editing remains excluded.
+
 ## Dashboard tree first pass on Staging — DASHBOARD-TREE-STAGING-20261005-001
 
 - Date/time: 2026-10-05 15:28 EDT (UTC-04:00); machine `Ryan_Northgate`.

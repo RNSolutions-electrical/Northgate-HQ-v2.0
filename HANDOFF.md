@@ -23029,3 +23029,17 @@ Verification: 259/259 explicit Node tests passed; Staging-configured Vite build 
 Ryan supplied a hand-drawn Dashboard hierarchy, approved a persistent workspace tree and compact Project Health/Pulse presentation, and confirmed the preceding Staging Inventory fix appears to work. The first Dashboard slice moves section navigation into the sticky app rail, uses a mobile Dashboard Sections drawer, gives real subsections linkable URL destinations, and moves the full Project Health and review lists into Pulse drawers. Extra Dashboard summaries are collapsed by default so selected work appears near the top. No new data sources, role grants or database changes were introduced. Personal Tools is explicitly in the roadmap but is not implemented or presented as a working navigation destination; other workspaces await a later shared-tree pass after Dashboard acceptance.
 
 Verification: 273/273 explicit Node tests and a Staging-configured Vite build passed for the first commit; the follow-up anchor fix passed its targeted tests and Netlify build. Netlify reports the follow-up as published. The signed-out browser reached Staging Clerk sign-in; signed-in desktop/mobile visual acceptance is still required. Production `main`, Netlify and Supabase are unchanged. The Inventory Management batch editor remains excluded. Before Production promotion, continue the existing parity acceptance and isolated schema-rehearsal gates.
+
+## Entry 329 — Inventory persistent navigation trial on Staging
+
+**Date:** 2026-10-05 15:49 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `INVENTORY-TREE-STAGING-20261005-001`
+**Code commits:** `7374bf0140e639e97ad8a6dc7948ec5e3773a78d` and follow-up `024fed19e8c7068798294bd339392b4e46cb9613` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** current `6ac3feb865850000081e1d3e` (initial `6ac3fe14a4556a0008b6063f`), published at `staging.rnsolutions.net`
+
+Ryan approved applying the Dashboard-style persistent navigation to Inventory as the next trial before converting other modules. The desktop app rail now lists the existing Inventory destinations using the same permission filter as the module menu. The redundant desktop sidebar is hidden, while the mobile Page Menu stays in place. The Stock Reviews count badge follows the new rail. Storage hierarchy, inventory actions, and database permissions are unchanged; the separately unfinished Inventory Management batch editor is still excluded.
+
+Verification: 276/276 explicit Node tests passed, then targeted navigation tests and Staging-configured Vite builds passed after the badge and route-selection refinements. The follow-up keeps Cart from falsely highlighting Inventory and correctly highlights Stock Reviews when entered from a review notification. Netlify shows the follow-up as published, with redirects, headers and functions deployed. Signed-in desktop/mobile visual review and owner acceptance are still needed. No Production branch/site/database changes or new migration. The broader parity promotion and isolated schema-rehearsal gates remain in effect.
