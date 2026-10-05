@@ -9,7 +9,8 @@ export function DashboardSectionTree({ sections, activeKey, onSelect, label = 'D
             aria-current={section.key === activeKey ? 'page' : undefined}
             onClick={() => onSelect(section.key)}
           >
-            {section.label}
+            <span>{section.label}</span>
+            {section.badge != null ? <span className="dashboard-section-tree__badge">{section.badge}</span> : null}
           </button>
           {section.key === activeKey && section.children?.length ? (
             <div className="dashboard-section-tree__children">

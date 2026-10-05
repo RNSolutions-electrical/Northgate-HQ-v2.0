@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -51,21 +51,14 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { buildLocationScanPath, parseLocationScanPayload } from '../../lib/locationQr.js';
+import { INVENTORY_SECTIONS, visibleInventorySections } from './inventoryNavigation.js';
 
-const INVENTORY_VIEWS = [
-  { key: 'stock', label: 'Inventory', icon: PackageSearch },
-  { key: 'catalog', label: 'Full Catalogue', icon: PackageSearch, description: 'All active material catalogue entries.' },
-  { key: 'stock_reviews', label: 'Stock Reviews', icon: ClipboardList },
-  { key: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Live stock summary and valuation export preview.' },
-  { key: 'storage', label: 'Storage', icon: MapPinned, description: 'Storage units, shelves, bays, bins and QR labels.' },
-  { key: 'scan', label: 'Scan', icon: QrCode, description: 'Resolve location QR codes and dispatch to cart or count.' },
-  { key: 'accounting', label: 'Export', icon: Download, description: 'Catalogue, count, and valuation sheets.' },
-  { key: 'cart', label: 'Cart', icon: ShoppingCart, description: 'Open cart, add candidates, and remove staged lines.' },
-  { key: 'count', label: 'Inventory Management', icon: Scale, description: 'Existing count correction and new bin/material intake.' },
-  { key: 'destinations', label: 'Destinations', icon: Truck, description: 'Approved user and vehicle destination references.' },
-  { key: 'history', label: 'Transaction History', icon: History, description: 'Read-only ledger history through the preserved RPC.' },
-  { key: 'controls', label: 'Reserved Controls', icon: ClipboardList, description: 'Cart, checkout, count, and archive boundaries.' },
-];
+const INVENTORY_ICONS = {
+  stock: PackageSearch, catalog: PackageSearch, stock_reviews: ClipboardList,
+  overview: LayoutDashboard, storage: MapPinned, scan: QrCode, accounting: Download,
+  cart: ShoppingCart, count: Scale, destinations: Truck, history: History, controls: ClipboardList,
+};
+const INVENTORY_VIEWS = INVENTORY_SECTIONS.map(view => ({ ...view, icon: INVENTORY_ICONS[view.key] }));
 
 const HISTORY_TYPES = [
   { value: '', label: 'All transaction types' },
@@ -496,6 +489,7 @@ function isDeveloperOrAdminRole(role) {
 
 export function InventoryWorkspace({ permissions }) {
   const { getToken } = useAuth();
+  const { setInventoryReviewCount } = useOutletContext();
   const diagnostics = useDiagnostics();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 899px), (pointer: coarse)').matches);
   const [confirmCheckout, setConfirmCheckout] = useState(false);
@@ -551,6 +545,10 @@ export function InventoryWorkspace({ permissions }) {
   const [exportPdfError, setExportPdfError] = useState('');
   const [countLocation, setCountLocation] = useState({ unit: '', shelf: '', bay: '', bin: '' });
   const [pendingReviews, setPendingReviews] = useState(null);
+  useEffect(() => {
+    setInventoryReviewCount(pendingReviews);
+    return () => setInventoryReviewCount(null);
+  }, [pendingReviews, setInventoryReviewCount]);
   const [reviewRefresh, setReviewRefresh] = useState(0);
   const [catalogCategory, setCatalogCategory] = useState('');
   const [catalogSubcategory, setCatalogSubcategory] = useState('');
@@ -749,13 +747,8 @@ export function InventoryWorkspace({ permissions }) {
     if (!isMobile) stopCameraScanner();
   }, [isMobile]);
 
-  const views = INVENTORY_VIEWS.filter(view => {
-    if (view.key === 'scan') return isMobile && canScan;
-    if (['controls', 'destinations'].includes(view.key)) return diagnostics;
-    if (view.key === 'cart') return false;
-    if (['overview', 'accounting', 'locations', 'count'].includes(view.key)) return canManageInventory;
-    return true;
-  }).map((view) => {
+  const views = visibleInventorySections(permissions, { mobile: isMobile, diagnostics }).map((section) => {
+    const view = { ...section, icon: INVENTORY_ICONS[section.key] };
     const badge = {
       stock_reviews: pendingReviews,
       catalog: counts.activeItems,

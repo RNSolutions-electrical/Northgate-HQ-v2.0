@@ -15,6 +15,9 @@ export function AppShell({
   dashboardNavigation,
   activeDashboardSection,
   onDashboardSectionSelect,
+  inventoryNavigation,
+  activeInventorySection,
+  onInventorySectionSelect,
   workspaceResetKey,
   onOpenWorkspace,
   onBack,
@@ -123,6 +126,14 @@ export function AppShell({
                     activeKey={activeDashboardSection}
                     onSelect={onDashboardSectionSelect}
                     label="Dashboard workspace sections"
+                  />
+                ) : null}
+                {isActive && item.key === 'inventory' && inventoryNavigation ? (
+                  <DashboardSectionTree
+                    sections={inventoryNavigation}
+                    activeKey={activeInventorySection}
+                    onSelect={onInventorySectionSelect}
+                    label="Inventory workspace sections"
                   />
                 ) : null}
                 </div>

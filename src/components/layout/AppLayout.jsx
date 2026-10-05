@@ -12,6 +12,7 @@ import {canCorrectInventoryData} from '../../modules/inventory/dataCorrectionAcc
 import { DiagnosticsProvider } from '../ui/Diagnostics.jsx';
 import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
 import { dashboardSections, dashboardSectionFromSearch, dashboardSectionUrl } from '../../modules/dashboard/dashboardNavigation.js';
+import { inventorySectionFromSearch, visibleInventorySections } from '../../modules/inventory/inventoryNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -29,6 +30,7 @@ export function AppLayout() {
   const location = useLocation();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [notificationsOpen,setNotificationsOpen]=useState(false);
+  const [inventoryReviewCount, setInventoryReviewCount] = useState(null);
   const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
 
   useEffect(() => {
@@ -76,6 +78,13 @@ export function AppLayout() {
   const activeModule = modules.find((module) => module.key === activeKey);
   const dashboardNavigation = activeKey === 'dashboard' ? dashboardSections(permissions) : null;
   const activeDashboardSection = dashboardNavigation ? dashboardSectionFromSearch(location.search, permissions) : null;
+  const inventoryNavigation = activeKey === 'inventory'
+    ? visibleInventorySections(permissions, { diagnostics: diagnosticsEnabled }).map(section =>
+      section.key === 'stock_reviews' ? { ...section, badge: inventoryReviewCount || null } : section)
+    : null;
+  const activeInventorySection = inventoryNavigation
+    ? inventorySectionFromSearch(location.search, permissions, { diagnostics: diagnosticsEnabled })
+    : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -88,6 +97,19 @@ export function AppLayout() {
       activeWorkspaceLabel={activeModule?.label ?? 'Workspace'}
       dashboardNavigation={dashboardNavigation}
       activeDashboardSection={activeDashboardSection}
+      inventoryNavigation={inventoryNavigation}
+      activeInventorySection={activeInventorySection}
+      onInventorySectionSelect={(sectionKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        const params = new URLSearchParams(location.search);
+        params.set('view', sectionKey);
+        if (!['cart', 'count', 'stock'].includes(sectionKey)) {
+          params.delete('scanBinId');
+          params.delete('scanBinCode');
+        }
+        const targetUrl = `/inventory?${params.toString()}`;
+        if (`${location.pathname}${location.search}` !== targetUrl) navigate(targetUrl);
+      }}
       onDashboardSectionSelect={(sectionKey, childKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         const targetUrl = dashboardSectionUrl(sectionKey, childKey);
@@ -164,7 +186,7 @@ export function AppLayout() {
       )}
       >
         {canCorrectInventoryData(permissions)&&<StatePanel tone="warning" compact title="Developer Data Correction enabled" description="Temporary audited inventory correction access. History and stock safeguards remain enforced. Revoke in Developer → Permissions before official rollout." />}
-        <Outlet />
+        <Outlet context={{ setInventoryReviewCount }} />
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
     </DiagnosticsProvider>
