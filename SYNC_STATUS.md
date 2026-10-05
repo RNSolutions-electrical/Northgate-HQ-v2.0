@@ -1,5 +1,13 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Staging inventory access repair — ENV-STAGING-INVENTORY-20261005-003
+
+- Date/time: 2026-10-05 15:07 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- `staging` and `integration/staging-production-parity-20261005` contain app commit `35b4c71148ba77b25f297ac6936cb66cca9246ce`. Netlify Staging published deploy `6ac3f50e62e0af00081c092a` at `staging.rnsolutions.net`.
+- Staging Supabase `fazfwzbuesvzhgodckiw` applied migration `restore_staging_inventory_read_grants` (ledger version `20261005190246`; local file `20261005190103_restore_staging_inventory_read_grants.sql`). It restores authenticated `SELECT` on six inventory tables while retaining RLS and denying anonymous table reads. Production Supabase was not changed.
+- The inventory stock-review request now uses the shared environment-aware Clerk token helper. 259/259 Node tests and a Staging-configured Vite build passed. Authenticated owner retest of Inventory, Storage, filters and stock-review badge is pending.
+- The owner's Dashboard layout ideas are pending a sketch; no Dashboard UI change is included. Inventory Management batch editing remains excluded. No Production code or site was changed. See [the parity checkpoint](docs/releases/STAGING_PRODUCTION_PARITY_20261005.md).
+
 ## Staging parity candidate published — ENV-PARITY-STAGING-20261005-002
 
 - Date/time: 2026-10-05 14:13 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.

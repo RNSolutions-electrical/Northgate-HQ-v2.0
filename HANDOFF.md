@@ -23000,3 +23000,18 @@ Production `main` and the Production Netlify site did not change. Authenticated 
 
 ### Next Steps (in order)
 Have the owner test the combined Staging workflows, correct any regressions in Staging, then rehearse only required Production schema differences against a disposable current Production copy. Do not bulk-run the merged migration folder or replay the Carolina Retina CO9 correction. After acceptance, tag and deliberately promote the approved release to `main`; verify Production, then align Development for the next Staging cycle.
+
+## Entry 327 — Staging inventory access repair
+
+**Date:** 2026-10-05 15:07 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation and incident repair
+**Sync marker:** `ENV-STAGING-INVENTORY-20261005-003`
+**Code commit:** `35b4c71148ba77b25f297ac6936cb66cca9246ce` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac3f50e62e0af00081c092a`, published at `staging.rnsolutions.net`
+**Staging Supabase project:** `fazfwzbuesvzhgodckiw`; migration ledger version `20261005190246` from local file `20261005190103_restore_staging_inventory_read_grants.sql`
+
+The owner's browser reported inventory REST 403 responses and a separate Clerk `tokens/supabase` 404. Read-only comparison showed six Staging inventory tables had authenticated RLS read policies but lacked the underlying `SELECT` grants present in Production. The Staging-only migration restored those grants without changing RLS, write access or anonymous reads. Post-migration checks confirmed all six authenticated grants, RLS still enabled and no anonymous table grants. The stock-review request now uses the shared environment-aware Clerk token helper instead of the legacy template call on Staging.
+
+Verification: 259/259 explicit Node tests passed; Staging-configured Vite build passed; Netlify reports the new commit as the published Staging deploy. The owner still needs to refresh while authenticated and retest Inventory, Storage hierarchy, location filters and stock-review badge. No Production site, branch, or database changed. The owner is preparing a Dashboard sketch; persistent side navigation and a more compact Project Health/Pulse presentation are design notes only, not implemented. Inventory Management batch editing remains excluded. Do not promote to Production before authenticated acceptance and the planned isolated schema rehearsal.
