@@ -36,4 +36,8 @@ Environment names: Production is `rnsolutions.net`; Staging is `staging.rnsoluti
 - For a Staging frontend regression, republish the verified Staging deploy `6ac011fa7c384ca852dc2f9c`; do not reset its database.
 - For a later Production frontend regression, republish release `v0.6.0` deploy `6ac100faf928bf000863128c` while separately assessing schema/data compatibility. Database restore is a last resort: it can lose writes after the recovery point and does not include Supabase Storage objects.
 
-This is a preparation checkpoint, not authorization to deploy or migrate Production.
+## Staging publication update — 2026-10-05 14:13 EDT
+
+The owner confirmed the Netlify Staging dashboard was available. The `staging` branch was fast-forwarded to `04fc74907e8e73b5f4b77701f70ed93283b9a2bd`. Netlify published deploy `6ac3e85f3e83670008da51ee` to `staging.rnsolutions.net`. The deployed page identifies itself as `[STAGING] Northgate HQ` and sent an unauthenticated visit to the Staging Clerk sign-in. Authenticated acceptance remains pending. No Supabase migration or Production deployment occurred.
+
+This checkpoint does not authorize a Production deployment or migration.

@@ -22980,3 +22980,23 @@ Full reconciliation and rollback detail: `docs/releases/STAGING_PRODUCTION_PARIT
 
 ### Next Steps (in order)
 Confirm Inventory Management release scope; review candidate diff; test authenticated Staging flows; deploy to Staging only after Staging configuration check; collect owner acceptance; rehearse exact Production schema delta on an isolated current copy; tag and promote deliberately; verify both sites; then align Development to the accepted release.
+
+## Entry 326 — Staging parity candidate publication
+
+**Date:** 2026-10-05 14:13 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `ENV-PARITY-STAGING-20261005-002`
+
+### What Was Completed
+The owner confirmed Netlify Staging dashboard access. The isolated candidate was pushed to GitHub and `staging` was fast-forwarded to `04fc74907e8e73b5f4b77701f70ed93283b9a2bd`. Netlify auto-published Staging deploy `6ac3e85f3e83670008da51ee` at `staging.rnsolutions.net`. Netlify showed successful build, redirects, headers and functions. The public Staging page displayed `[STAGING] Northgate HQ` and redirected the signed-out browser to Staging Clerk sign-in. Inventory Management batch editing remains outside this candidate.
+
+### Schema Changes
+None. Staging and Production Supabase remained isolated and unchanged.
+
+### What Codex Needs to Know
+Production `main` and the Production Netlify site did not change. Authenticated owner acceptance, a current recovery point, and isolated rehearsal of the exact Production schema delta are still gates before any Production promotion. See `docs/releases/STAGING_PRODUCTION_PARITY_20261005.md`.
+
+### Next Steps (in order)
+Have the owner test the combined Staging workflows, correct any regressions in Staging, then rehearse only required Production schema differences against a disposable current Production copy. Do not bulk-run the merged migration folder or replay the Carolina Retina CO9 correction. After acceptance, tag and deliberately promote the approved release to `main`; verify Production, then align Development for the next Staging cycle.

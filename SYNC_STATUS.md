@@ -1,5 +1,13 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Staging parity candidate published — ENV-PARITY-STAGING-20261005-002
+
+- Date/time: 2026-10-05 14:13 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- The `staging` branch fast-forwarded to `04fc74907e8e73b5f4b77701f70ed93283b9a2bd`. Netlify Staging site `northgate-hq-staging` published deploy `6ac3e85f3e83670008da51ee` at `staging.rnsolutions.net`; Netlify reported build, redirects, headers and functions complete.
+- The live Staging URL displayed `[STAGING] Northgate HQ` and redirected unauthenticated visitors to the Staging Clerk sign-in. Authenticated owner acceptance is still pending.
+- `main`, Production Netlify, and both Supabase databases were not changed. The uncommitted Inventory Management batch editor remains excluded. Do not promote to Production before acceptance and isolated schema rehearsal.
+- Release sequence and rollback: [parity checkpoint](docs/releases/STAGING_PRODUCTION_PARITY_20261005.md).
+
 ## Staging / Production reconciliation candidate — ENV-PARITY-20261005-001
 
 - Date/time: 2026-10-05 13:30 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
