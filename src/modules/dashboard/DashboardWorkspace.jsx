@@ -639,14 +639,21 @@ export function DashboardWorkspace({ permissions }) {
 
   useEffect(() => {
     if (!location.hash) return;
-    const targetId = decodeURIComponent(location.hash.slice(1));
+    let targetId;
+    try { targetId = decodeURIComponent(location.hash.slice(1)); }
+    catch { return; }
     const target = document.getElementById(targetId);
     target?.scrollIntoView({ block: 'start' });
   }, [activePanel, location.hash]);
 
   function selectSection(sectionKey, childKey) {
     setIsSectionDrawerOpen(false);
-    navigate(dashboardSectionUrl(sectionKey, childKey));
+    const targetUrl = dashboardSectionUrl(sectionKey, childKey);
+    if (`${location.pathname}${location.search}${location.hash}` === targetUrl && childKey) {
+      document.getElementById(childKey)?.scrollIntoView({ block: 'start' });
+      return;
+    }
+    navigate(targetUrl);
   }
 
   const phoneNumber = user?.primaryPhoneNumber?.phoneNumber

@@ -1927,6 +1927,7 @@ textarea {
 .dashboard-summary-details > .module-directory-panel,
 .dashboard-summary-details > .state-panel { margin: 0 16px 16px; }
 .dashboard-workspace { margin-top: var(--card-gap); }
+.dashboard-workspace [id] { scroll-margin-top: calc(var(--app-header-height) + var(--ng-environment-banner-height, 0px) + 12px); }
 .dashboard-review-tasks { padding: 0; }
 .dashboard-budget-health { display: grid; gap: 8px; }
 @media (min-width: 900px) { .dashboard-section-toggle { display: none; } }

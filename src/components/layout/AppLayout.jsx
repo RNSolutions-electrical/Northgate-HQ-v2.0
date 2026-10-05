@@ -90,7 +90,12 @@ export function AppLayout() {
       activeDashboardSection={activeDashboardSection}
       onDashboardSectionSelect={(sectionKey, childKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
-        navigate(dashboardSectionUrl(sectionKey, childKey));
+        const targetUrl = dashboardSectionUrl(sectionKey, childKey);
+        if (`${location.pathname}${location.search}${location.hash}` === targetUrl && childKey) {
+          document.getElementById(childKey)?.scrollIntoView({ block: 'start' });
+          return;
+        }
+        navigate(targetUrl);
       }}
       workspaceResetKey={location.state?.workspaceHomeKey ?? location.pathname}
       onBack={() => {if(document.dispatchEvent(new Event('northgate:before-navigate',{cancelable:true})))navigate(-1);}}
