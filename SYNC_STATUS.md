@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Dashboard tree first pass on Staging — DASHBOARD-TREE-STAGING-20261005-001
+
+- Date/time: 2026-10-05 15:28 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- App commits `34661eb5d1205ea85c2ac3a00fa9757454a7b786` and follow-up `55cf75e3e9e2ca9790f6254ee15df1f318d0a6ba` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published current deploy `6ac3fa1cf731d70008a43334` at `staging.rnsolutions.net` (initial deploy `6ac3f99e62a77200081844d2`).
+- The persistent app rail now includes the Dashboard section tree; on mobile, Dashboard Sections opens a drawer. Project Health and assigned reviews open from Northgate HQ Pulse instead of filling the top of the page. Personal Tools is recorded in `docs/ROADMAP.md` as a future feature and is not a working navigation destination.
+- A Staging-configured Vite build and 273 explicit Node tests passed for the first commit; the follow-up anchor fix passed its targeted navigation tests and Netlify build. The browser reached the Staging sign-in screen, so signed-in visual acceptance is still required. Ryan reported the prior Staging inventory access fix working. No Production code, site or database changed; no new migration in this Dashboard slice.
+
 ## Staging inventory access repair — ENV-STAGING-INVENTORY-20261005-003
 
 - Date/time: 2026-10-05 15:07 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.

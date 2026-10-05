@@ -23015,3 +23015,17 @@ Have the owner test the combined Staging workflows, correct any regressions in S
 The owner's browser reported inventory REST 403 responses and a separate Clerk `tokens/supabase` 404. Read-only comparison showed six Staging inventory tables had authenticated RLS read policies but lacked the underlying `SELECT` grants present in Production. The Staging-only migration restored those grants without changing RLS, write access or anonymous reads. Post-migration checks confirmed all six authenticated grants, RLS still enabled and no anonymous table grants. The stock-review request now uses the shared environment-aware Clerk token helper instead of the legacy template call on Staging.
 
 Verification: 259/259 explicit Node tests passed; Staging-configured Vite build passed; Netlify reports the new commit as the published Staging deploy. The owner still needs to refresh while authenticated and retest Inventory, Storage hierarchy, location filters and stock-review badge. No Production site, branch, or database changed. The owner is preparing a Dashboard sketch; persistent side navigation and a more compact Project Health/Pulse presentation are design notes only, not implemented. Inventory Management batch editing remains excluded. Do not promote to Production before authenticated acceptance and the planned isolated schema rehearsal.
+
+## Entry 328 — Dashboard tree navigation first pass on Staging
+
+**Date:** 2026-10-05 15:28 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `DASHBOARD-TREE-STAGING-20261005-001`
+**Code commits:** `34661eb5d1205ea85c2ac3a00fa9757454a7b786` and anchor follow-up `55cf75e3e9e2ca9790f6254ee15df1f318d0a6ba` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** current `6ac3fa1cf731d70008a43334` (initial `6ac3f99e62a77200081844d2`), published at `staging.rnsolutions.net`
+
+Ryan supplied a hand-drawn Dashboard hierarchy, approved a persistent workspace tree and compact Project Health/Pulse presentation, and confirmed the preceding Staging Inventory fix appears to work. The first Dashboard slice moves section navigation into the sticky app rail, uses a mobile Dashboard Sections drawer, gives real subsections linkable URL destinations, and moves the full Project Health and review lists into Pulse drawers. Extra Dashboard summaries are collapsed by default so selected work appears near the top. No new data sources, role grants or database changes were introduced. Personal Tools is explicitly in the roadmap but is not implemented or presented as a working navigation destination; other workspaces await a later shared-tree pass after Dashboard acceptance.
+
+Verification: 273/273 explicit Node tests and a Staging-configured Vite build passed for the first commit; the follow-up anchor fix passed its targeted tests and Netlify build. Netlify reports the follow-up as published. The signed-out browser reached Staging Clerk sign-in; signed-in desktop/mobile visual acceptance is still required. Production `main`, Netlify and Supabase are unchanged. The Inventory Management batch editor remains excluded. Before Production promotion, continue the existing parity acceptance and isolated schema-rehearsal gates.
