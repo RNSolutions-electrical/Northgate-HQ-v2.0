@@ -21,7 +21,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { buildFinancialImportPreview } from './jobFinancialImport.mjs';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
@@ -49,6 +49,7 @@ import { classifyBudgetHealth } from './budgetHealth.js';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
+import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySectionUrl } from './jobsNavigation.js';
 
 const EMPTY_JOBS = Object.freeze([]);
 const DOCUMENT_BUCKET = 'northgate-files';
@@ -463,13 +464,8 @@ const JOB_HISTORY_COLUMNS = [
 
 const JOB_STATUS_OPTIONS = ['active', 'on_hold', 'complete', 'cancelled'];
 
-const JOB_VIEWS = [
-  { key: 'active', label: 'Active Jobs', icon: BriefcaseBusiness, description: 'Currently active.' },
-  { key: 'on_hold', label: 'On Hold', icon: ClipboardList, description: 'Paused jobs.' },
-  { key: 'complete', label: 'Completed', icon: PackageCheck, description: 'Completed jobs.' },
-  { key: 'cancelled', label: 'Cancelled', icon: Archive, description: 'Cancelled jobs.' },
-  { key: 'all', label: 'All Jobs', icon: ListChecks, description: 'All available jobs.' },
-];
+const JOB_VIEW_ICONS = { active: BriefcaseBusiness, on_hold: ClipboardList, complete: PackageCheck, cancelled: Archive, all: ListChecks };
+const JOB_VIEWS = JOB_DIRECTORY_SECTIONS.map(view => ({ ...view, icon: JOB_VIEW_ICONS[view.key] }));
 
 const RESERVED_TABS = Object.freeze({
   materials: {
@@ -2194,11 +2190,12 @@ function budgetLineMatchKey(line) {
 
 export function JobsWorkspace({ permissions }) {
   const { getToken } = useAuth();
+  const { setJobsNavState } = useOutletContext();
   const { user } = useUser();
   const location = useLocation();
   const navigate=useNavigate();
   const directory = useJobsDirectory({ enabled: permissions.permissionSource === 'server' });
-  const [activeView, setActiveView] = useState('active');
+  const [activeView, setActiveView] = useState(() => jobDirectorySectionFromSearch(location.search));
   const [directoryType, setDirectoryType] = useState('jobs');
   const [activeTab, setActiveTab] = useState('overview');
   const [permitPanelState,setPermitPanelState]=useState({dirty:false,busy:false});
@@ -2265,10 +2262,10 @@ export function JobsWorkspace({ permissions }) {
     [directoryType, jobs],
   );
 
-  const countsByStatus = JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
+  const countsByStatus = useMemo(() => JOB_STATUS_OPTIONS.reduce((accumulator, status) => {
     accumulator[status] = directoryJobs.filter((job) => job.status === status).length;
     return accumulator;
-  }, {});
+  }, {}), [directoryJobs]);
 
   const views = JOB_VIEWS.map((view) => ({
     ...view,
@@ -2290,6 +2287,16 @@ export function JobsWorkspace({ permissions }) {
     ?? null;
   const isDirectoryMode = !selectedJob && mode === 'browse';
   const isFocusedWorkspace = Boolean(selectedJob) || mode === 'create' || mode === 'edit' || Boolean(buyoutWorkspaceMode);
+  useEffect(() => {
+    setActiveView(jobDirectorySectionFromSearch(location.search));
+  }, [location.search]);
+  useEffect(() => {
+    const show = isDirectoryMode && directoryType === 'jobs';
+    const counts = { ...countsByStatus, all: directoryJobs.length };
+    setJobsNavState(current => current.show === show && JOB_DIRECTORY_SECTIONS.every(({ key }) => current.counts[key] === counts[key])
+      ? current : { show, counts });
+  }, [isDirectoryMode, directoryType, countsByStatus, directoryJobs.length, setJobsNavState]);
+  useEffect(() => () => setJobsNavState({ show: true, counts: {} }), [setJobsNavState]);
   const visibleCatalogueLines = useMemo(() => {
     const needle = catalogueSearch.trim().toLowerCase();
     return financialCatalogue.filter((line) => !needle || [line.division_code, line.division_name, line.subdivision_name, line.cost_code, line.description].join(' ').toLowerCase().includes(needle));
@@ -6065,6 +6072,7 @@ export function JobsWorkspace({ permissions }) {
           onSelect={(key) => {
             setActiveView(key);
             setMode('browse');
+            navigate(jobDirectorySectionUrl(key), { replace: true });
           }}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}

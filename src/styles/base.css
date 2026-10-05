@@ -1666,9 +1666,13 @@ textarea {
 .workspace-split.is-primary-collapsed { grid-template-columns: var(--app-sidebar-collapsed-width) minmax(0, 1fr); }
 .inventory-workspace.workspace-split,
 .inventory-workspace.workspace-split.is-primary-collapsed { grid-template-columns: minmax(0, 1fr); }
+.jobs-workspace.workspace-split,
+.jobs-workspace.workspace-split.is-primary-collapsed { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) {
   .inventory-workspace > .workspace-sidebar,
-  .inventory-workspace > .workspace-sidebar-scrim { display: none; }
+  .inventory-workspace > .workspace-sidebar-scrim,
+  .jobs-workspace > .workspace-sidebar,
+  .jobs-workspace > .workspace-sidebar-scrim { display: none; }
 }
 .workspace-surface { display: grid; gap: var(--card-gap); min-width: 0; }
 .workspace-card { display: grid; gap: var(--card-gap); }
