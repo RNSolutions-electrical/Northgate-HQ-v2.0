@@ -29,11 +29,14 @@ export function visibleInventorySections(permissions, { mobile = false, diagnost
 export function inventorySectionFromSearch(search, permissions, options) {
   const requested = new URLSearchParams(search).get('view');
   const normalized = requested === 'locations' ? 'storage' : requested;
-  return visibleInventorySections(permissions, options).some(({ key }) => key === normalized)
-    ? normalized
-    : permissions?.canManageInventory || permissions?.canInventoryTransactions
-      ? 'stock'
-      : permissions?.canEditCatalog ? 'catalog' : 'stock_reviews';
+  if (normalized) {
+    return visibleInventorySections(permissions, options).some(({ key }) => key === normalized)
+      ? normalized
+      : null;
+  }
+  return permissions?.canManageInventory || permissions?.canInventoryTransactions
+    ? 'stock'
+    : permissions?.canEditCatalog ? 'catalog' : 'stock_reviews';
 }
 
 export function inventorySectionUrl(sectionKey) {

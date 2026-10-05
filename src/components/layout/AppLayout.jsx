@@ -83,7 +83,9 @@ export function AppLayout() {
       section.key === 'stock_reviews' ? { ...section, badge: inventoryReviewCount || null } : section)
     : null;
   const activeInventorySection = inventoryNavigation
-    ? inventorySectionFromSearch(location.search, permissions, { diagnostics: diagnosticsEnabled })
+    ? location.state?.reviewMode && location.state?.reviewDestinationKey === 'catalogue_stock'
+      ? 'stock_reviews'
+      : inventorySectionFromSearch(location.search, permissions, { diagnostics: diagnosticsEnabled })
     : null;
 
   return (

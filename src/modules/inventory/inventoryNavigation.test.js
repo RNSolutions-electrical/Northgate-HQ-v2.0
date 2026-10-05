@@ -6,8 +6,10 @@ test('Inventory rail keeps ordinary views and limits management destinations', (
   const reader = { permissionSource: 'server', canInventoryTransactions: true };
   const keys = visibleInventorySections(reader).map(({ key }) => key);
   assert.deepEqual(keys, ['stock', 'catalog', 'stock_reviews', 'storage', 'history']);
-  assert.equal(inventorySectionFromSearch('?view=count', reader), 'stock');
+  assert.equal(inventorySectionFromSearch('?view=count', reader), null);
   assert.equal(inventorySectionFromSearch('?view=storage', reader), 'storage');
+  assert.equal(inventorySectionFromSearch('?view=cart', reader), null);
+  assert.equal(inventorySectionFromSearch('', reader), 'stock');
 });
 
 test('Inventory manager sees management views without exposing mobile scan on desktop', () => {
