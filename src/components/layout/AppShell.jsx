@@ -37,6 +37,9 @@ export function AppShell({
   reportsNavigation,
   activeReportsSection,
   onReportsSectionSelect,
+  accountingNavigation,
+  activeAccountingSection,
+  onAccountingSectionSelect,
   workspaceResetKey,
   onOpenWorkspace,
   onBack,
@@ -202,6 +205,14 @@ export function AppShell({
                     activeKey={activeReportsSection}
                     onSelect={onReportsSectionSelect}
                     label="Reports workspace sections"
+                  />
+                ) : null}
+                {isActive && item.key === 'accounting' && accountingNavigation ? (
+                  <DashboardSectionTree
+                    sections={accountingNavigation}
+                    activeKey={activeAccountingSection}
+                    onSelect={onAccountingSectionSelect}
+                    label="Accounting workspace sections"
                   />
                 ) : null}
                 </div>

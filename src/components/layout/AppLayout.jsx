@@ -19,6 +19,7 @@ import { employeeNavigationState, employeeSectionFromLocation, visibleEmployeeSe
 import { VEHICLE_WORKSPACE_SECTIONS, vehicleNavigationState, vehicleSectionFromLocation } from '../../modules/vehicles/vehiclesNavigation.js';
 import { DOCUMENT_WORKSPACE_SECTIONS, documentsSectionFromSearch, documentsSectionUrl } from '../../modules/documents/documentsNavigation.js';
 import { REPORT_WORKSPACE_SECTIONS, reportsSectionFromSearch, reportsSectionUrl } from '../../modules/reports/reportsNavigation.js';
+import { ACCOUNTING_WORKSPACE_SECTIONS, accountingSectionFromSearch, accountingSectionUrl } from '../../modules/accounting/accountingNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -114,6 +115,8 @@ export function AppLayout() {
   const activeDocumentsSection = documentsNavigation ? documentsSectionFromSearch(location.search) : null;
   const reportsNavigation = activeKey === 'reports' ? REPORT_WORKSPACE_SECTIONS : null;
   const activeReportsSection = reportsNavigation ? reportsSectionFromSearch(location.search) : null;
+  const accountingNavigation = activeKey === 'accounting' ? ACCOUNTING_WORKSPACE_SECTIONS : null;
+  const activeAccountingSection = accountingNavigation ? accountingSectionFromSearch(location.search) : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -141,6 +144,12 @@ export function AppLayout() {
       activeDocumentsSection={activeDocumentsSection}
       reportsNavigation={reportsNavigation}
       activeReportsSection={activeReportsSection}
+      accountingNavigation={accountingNavigation}
+      activeAccountingSection={activeAccountingSection}
+      onAccountingSectionSelect={(sectionKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate(accountingSectionUrl(sectionKey));
+      }}
       onReportsSectionSelect={(sectionKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         navigate(reportsSectionUrl(sectionKey));

@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -17,6 +18,7 @@ import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { ACCOUNTING_WORKSPACE_SECTIONS, accountingSectionFromSearch, accountingSectionUrl } from './accountingNavigation.js';
 
 const EMPTY_BUDGET_LINES = Object.freeze([]);
 
@@ -36,32 +38,12 @@ const BUDGET_SELECT_FIELDS = [
   'created_by',
 ].join(', ');
 
-const ACCOUNTING_VIEWS = [
-  {
-    key: 'budget-review',
-    label: 'Budget Review',
-    icon: CircleDollarSign,
-    description: 'Read-only budget foundation rows.',
-  },
-  {
-    key: 'category-totals',
-    label: 'Category Totals',
-    icon: BarChart3,
-    description: 'Budget totals grouped by locked categories.',
-  },
-  {
-    key: 'exports',
-    label: 'Export Readiness',
-    icon: FileDown,
-    description: 'Approved export boundaries.',
-  },
-  {
-    key: 'controls',
-    label: 'Reserved Controls',
-    icon: SlidersHorizontal,
-    description: 'Pricing, invoice, PO, and posting boundaries.',
-  },
-];
+const ACCOUNTING_VIEW_ICONS = {
+  'budget-review': CircleDollarSign,
+  'category-totals': BarChart3,
+  exports: FileDown,
+  controls: SlidersHorizontal,
+};
 
 const BUDGET_COLUMNS = [
   { key: 'job_id', header: 'Job', render: (row) => <strong>{shortId(row.job_id)}</strong> },
@@ -218,12 +200,16 @@ function summarizeRows(rows) {
 }
 
 export function AccountingWorkspace({ permissions }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeView = accountingSectionFromSearch(location.search);
   const canLoadAccounting = permissions?.permissionSource === 'server' && permissions?.canViewFinancials === true;
   const budgetLines = useAccountingBudgetLines({ enabled: canLoadAccounting });
-  const [activeView, setActiveView] = useState('budget-review');
   const [search, setSearch] = useState('');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+
+  useEffect(() => setSearch(''), [activeView]);
 
   const visibleRows = useMemo(
     () => filterBudgetRows(budgetLines.rows, search),
@@ -231,8 +217,9 @@ export function AccountingWorkspace({ permissions }) {
   );
   const summary = useMemo(() => summarizeRows(visibleRows), [visibleRows]);
 
-  const views = ACCOUNTING_VIEWS.map((view) => ({
+  const views = ACCOUNTING_WORKSPACE_SECTIONS.map((view) => ({
     ...view,
+    icon: ACCOUNTING_VIEW_ICONS[view.key],
     badge: {
       'budget-review': visibleRows.length,
       'category-totals': summary.categories.length,
@@ -374,13 +361,6 @@ export function AccountingWorkspace({ permissions }) {
         )}
       />
 
-      <div className="summary-grid">
-        <SummaryCard detailIsDiagnostic label="Budget Lines" value={visibleRows.length} detail="Active authorized rows" />
-        <SummaryCard detailIsDiagnostic label="Original Budget Total" value={formatMoney(summary.totalBudget)} detail="Original budget only; excludes changes and overrides" tone="good" />
-        <SummaryCard detailIsDiagnostic label="Jobs" value={summary.jobs} detail="Distinct job IDs in scope" />
-        <SummaryCard detailIsDiagnostic label="Departments" value={summary.divisions} detail="Visible departments in scope" />
-      </div>
-
       <div className={`workspace-split accounting-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
           eyebrow="Accounting Views"
@@ -389,7 +369,7 @@ export function AccountingWorkspace({ permissions }) {
           items={views}
           activeKey={activeView}
           onSelect={(key) => {
-            setActiveView(key);
+            navigate(accountingSectionUrl(key));
             setSearch('');
           }}
           collapsed={isPrimaryCollapsed}
