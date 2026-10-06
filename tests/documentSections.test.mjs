@@ -37,6 +37,7 @@ test('Shared document filters narrow checklist coverage without mutating the ful
  const documents=[{id:'plan',document_type:'plans',job_id:'job-a'},{id:'co',document_type:'change_orders',job_id:'job-b'}];
  const matching=filterDocuments(documents,{job:'job-a'});
  assert.deepEqual(documentChecklistRows(categories,matching).map(row=>row.count),[1,0]);
+ assert.deepEqual(documentChecklistRows(categories,matching,documents).map(row=>row.totalCount),[1,1]);
  assert.deepEqual(documentChecklistRows(categories,documents).map(row=>row.count),[1,1]);
  assert.equal(documents.length,2);
 });

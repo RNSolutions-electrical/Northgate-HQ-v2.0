@@ -155,8 +155,8 @@ const CHECKLIST_COLUMNS = [
     key: 'status',
     header: 'Status',
     render: (row) => (
-      <StatusBadge tone={row.count ? 'good' : 'warn'} incomplete={!row.count}>
-        {row.count ? 'Uploaded' : 'Missing'}
+      <StatusBadge tone={row.count ? 'good' : row.totalCount ? 'neutral' : 'warn'} incomplete={!row.count && !row.totalCount}>
+        {row.count ? 'Uploaded' : row.totalCount ? 'No match' : 'Missing'}
       </StatusBadge>
     ),
   },
@@ -324,7 +324,7 @@ export function DocumentsWorkspace({ permissions }) {
     ?? documents.find((document) => document.id === selectedDocumentId)
     ?? null;
 
-  const checklistRows = useMemo(() => documentChecklistRows(JOB_DOCUMENT_CATEGORIES, filteredDocuments), [filteredDocuments]);
+  const checklistRows = useMemo(() => documentChecklistRows(JOB_DOCUMENT_CATEGORIES, filteredDocuments, documents), [filteredDocuments, documents]);
   const allChecklistRows = useMemo(() => documentChecklistRows(JOB_DOCUMENT_CATEGORIES, documents), [documents]);
 
   const uploadedChecklistCount = allChecklistRows.filter((row) => row.count > 0).length;
@@ -487,7 +487,7 @@ export function DocumentsWorkspace({ permissions }) {
               <Toolbar
                 eyebrow="Job Checklist"
                 title="Required document categories"
-                description={`Visual coverage across ${filteredDocuments.length} matching documents (${filteredChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length} categories). Missing items do not block the job workflow.`}
+                description={`Visual coverage across ${filteredDocuments.length} matching documents (${filteredChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length} categories). No match means a category has files outside the current filters; missing items do not block the job workflow.`}
               />
               <DataTable
                 columns={CHECKLIST_COLUMNS}
