@@ -31,6 +31,9 @@ export function AppShell({
   vehiclesNavigation,
   activeVehiclesSection,
   onVehiclesSectionSelect,
+  documentsNavigation,
+  activeDocumentsSection,
+  onDocumentsSectionSelect,
   workspaceResetKey,
   onOpenWorkspace,
   onBack,
@@ -180,6 +183,14 @@ export function AppShell({
                     activeKey={activeVehiclesSection}
                     onSelect={onVehiclesSectionSelect}
                     label="Vehicles workspace sections"
+                  />
+                ) : null}
+                {isActive && item.key === 'documents' && documentsNavigation ? (
+                  <DashboardSectionTree
+                    sections={documentsNavigation}
+                    activeKey={activeDocumentsSection}
+                    onSelect={onDocumentsSectionSelect}
+                    label="Documents workspace sections"
                   />
                 ) : null}
                 </div>

@@ -14,6 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -24,6 +25,7 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { JOB_DOCUMENT_CATEGORIES, documentCategoryLabel } from './documentCategories.js';
+import { DOCUMENT_WORKSPACE_SECTIONS, documentsSectionFromSearch, documentsSectionUrl } from './documentsNavigation.js';
 
 const EMPTY_DOCUMENTS = Object.freeze([]);
 const EMPTY_JOBS = Object.freeze([]);
@@ -58,32 +60,7 @@ const JOB_SELECT_FIELDS = [
   'division',
 ].join(', ');
 
-const DOCUMENT_SECTIONS = [
-  {
-    key: 'index',
-    label: 'Document Index',
-    icon: FolderOpen,
-    description: 'Live job-owned documents visible to the current user.',
-  },
-  {
-    key: 'checklist',
-    label: 'Job Checklist',
-    icon: BriefcaseBusiness,
-    description: 'Visual category coverage across visible job documents.',
-  },
-  {
-    key: 'owners',
-    label: 'Owner Scopes',
-    icon: FileText,
-    description: 'Approved and reserved document owner types.',
-  },
-  {
-    key: 'controls',
-    label: 'Controls',
-    icon: ShieldCheck,
-    description: 'Storage, archive, and access boundaries.',
-  },
-];
+const DOCUMENT_SECTION_ICONS = { index: FolderOpen, checklist: BriefcaseBusiness, owners: FileText, controls: ShieldCheck };
 
 const OWNER_SCOPES = [
   {
@@ -312,9 +289,12 @@ function useDocumentIndex({ enabled }) {
 }
 
 export function DocumentsWorkspace({ permissions }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { setDocumentsNavCounts } = useOutletContext();
   const canReadDocuments = permissions.permissionSource === 'server';
   const documentIndex = useDocumentIndex({ enabled: canReadDocuments });
-  const [activeSection, setActiveSection] = useState('index');
+  const activeSection = documentsSectionFromSearch(location.search);
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
   const [search, setSearch] = useState('');
   const [filters,setFilters]=useState({section:'',tag:'',type:'',job:'',from:'',to:''});
@@ -354,8 +334,18 @@ export function DocumentsWorkspace({ permissions }) {
   const canManageJobDocuments = permissions.permissionSource === 'server' && permissions.canManageJobs;
   const statusRows = useMemo(() => CONTROL_ROWS, []);
 
-  const sections = DOCUMENT_SECTIONS.map((section) => ({
+  useEffect(() => {
+    setDocumentsNavCounts((current) => {
+      const next = { index: documents.length, checklist: `${uploadedChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length}`, owners: liveScopes };
+      return current.index === next.index && current.checklist === next.checklist && current.owners === next.owners ? current : next;
+    });
+  }, [documents.length, uploadedChecklistCount, liveScopes, setDocumentsNavCounts]);
+
+  useEffect(() => () => setDocumentsNavCounts({}), [setDocumentsNavCounts]);
+
+  const sections = DOCUMENT_WORKSPACE_SECTIONS.map((section) => ({
     ...section,
+    icon: DOCUMENT_SECTION_ICONS[section.key],
     badge: {
       index: documents.length,
       checklist: `${uploadedChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length}`,
@@ -397,7 +387,7 @@ export function DocumentsWorkspace({ permissions }) {
           description="Live index and scope boundaries."
           items={sections}
           activeKey={activeSection}
-          onSelect={setActiveSection}
+          onSelect={(sectionKey) => navigate(documentsSectionUrl(sectionKey))}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
           mobileOpen={isPrimaryOpen}

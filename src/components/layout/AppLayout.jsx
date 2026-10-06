@@ -17,6 +17,7 @@ import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySect
 import { estimatesSectionFromLocation, estimatesSectionUrl, visibleEstimatesSections } from '../../modules/estimates/estimatesNavigation.js';
 import { employeeNavigationState, employeeSectionFromLocation, visibleEmployeeSections } from '../../modules/employees/employeesNavigation.js';
 import { VEHICLE_WORKSPACE_SECTIONS, vehicleNavigationState, vehicleSectionFromLocation } from '../../modules/vehicles/vehiclesNavigation.js';
+import { DOCUMENT_WORKSPACE_SECTIONS, documentsSectionFromSearch, documentsSectionUrl } from '../../modules/documents/documentsNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -37,6 +38,7 @@ export function AppLayout() {
   const [inventoryReviewCount, setInventoryReviewCount] = useState(null);
   const [jobsNavState, setJobsNavState] = useState({ show: true, counts: {} });
   const [estimatesNavVisible, setEstimatesNavVisible] = useState(true);
+  const [documentsNavCounts, setDocumentsNavCounts] = useState({});
   const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
 
   useEffect(() => {
@@ -105,6 +107,10 @@ export function AppLayout() {
   const activeEmployeesSection = employeesNavigation ? employeeSectionFromLocation(location.state, permissions) : null;
   const vehiclesNavigation = activeKey === 'vehicles' ? VEHICLE_WORKSPACE_SECTIONS : null;
   const activeVehiclesSection = vehiclesNavigation ? vehicleSectionFromLocation(location.state) : null;
+  const documentsNavigation = activeKey === 'documents'
+    ? DOCUMENT_WORKSPACE_SECTIONS.map((section) => ({ ...section, badge: documentsNavCounts[section.key] ?? null }))
+    : null;
+  const activeDocumentsSection = documentsNavigation ? documentsSectionFromSearch(location.search) : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -128,6 +134,12 @@ export function AppLayout() {
       activeEmployeesDepartment={activeEmployeesSection === 'directory' ? location.state?.employeeDepartment?.toLowerCase() : null}
       vehiclesNavigation={vehiclesNavigation}
       activeVehiclesSection={activeVehiclesSection}
+      documentsNavigation={documentsNavigation}
+      activeDocumentsSection={activeDocumentsSection}
+      onDocumentsSectionSelect={(sectionKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate(documentsSectionUrl(sectionKey));
+      }}
       onVehiclesSectionSelect={(sectionKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         navigate('/vehicles', { state: vehicleNavigationState(sectionKey) });
@@ -233,7 +245,7 @@ export function AppLayout() {
       )}
       >
         {canCorrectInventoryData(permissions)&&<StatePanel tone="warning" compact title="Developer Data Correction enabled" description="Temporary audited inventory correction access. History and stock safeguards remain enforced. Revoke in Developer → Permissions before official rollout." />}
-        <Outlet context={{ setInventoryReviewCount, setJobsNavState, setEstimatesNavVisible }} />
+        <Outlet context={{ setInventoryReviewCount, setJobsNavState, setEstimatesNavVisible, setDocumentsNavCounts }} />
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
     </DiagnosticsProvider>
