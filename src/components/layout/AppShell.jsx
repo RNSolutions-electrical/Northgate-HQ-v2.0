@@ -24,6 +24,10 @@ export function AppShell({
   estimatesNavigation,
   activeEstimatesSection,
   onEstimatesSectionSelect,
+  employeesNavigation,
+  activeEmployeesSection,
+  activeEmployeesDepartment,
+  onEmployeesSectionSelect,
   workspaceResetKey,
   onOpenWorkspace,
   onBack,
@@ -156,6 +160,15 @@ export function AppShell({
                     activeKey={activeEstimatesSection}
                     onSelect={onEstimatesSectionSelect}
                     label="Estimates workspace sections"
+                  />
+                ) : null}
+                {isActive && item.key === 'employees' && employeesNavigation ? (
+                  <DashboardSectionTree
+                    sections={employeesNavigation}
+                    activeKey={activeEmployeesSection}
+                    activeChildKey={activeEmployeesDepartment}
+                    onSelect={onEmployeesSectionSelect}
+                    label="Employees workspace sections"
                   />
                 ) : null}
                 </div>

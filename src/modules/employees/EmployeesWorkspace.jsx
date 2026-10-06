@@ -2,7 +2,7 @@ import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Archive, Pencil, Plus, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -261,6 +261,7 @@ export function EmployeesWorkspace({ permissions }) {
   const { user } = useUser();
   const { getToken } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const canReadEmployees = permissions.permissionSource === 'server' && permissions.canManageEmployees === true;
   const directory = useEmployeeReferences({ enabled: canReadEmployees });
   const myProfile = useCurrentEmployeeProfile({ enabled: permissions.permissionSource === 'server' });
@@ -328,12 +329,13 @@ export function EmployeesWorkspace({ permissions }) {
   useEffect(() => {
     if (location.state?.employeeView === 'mine') {
       setActiveView('mine');
+      setSelectedEmployeeId('');
       if (['overview', 'contact', 'assignments', 'notes', 'todos', 'activity'].includes(location.state?.employeeTab)) {
         setActiveTab(location.state.employeeTab);
       }
       return;
     }
-    if (directoryDepartment) {
+    if (location.state?.employeeView === 'directory' || directoryDepartment) {
       setActiveView('directory');
       setSelectedEmployeeId('');
     }
@@ -625,7 +627,10 @@ export function EmployeesWorkspace({ permissions }) {
           description="Directory browsing and current-user context."
           items={employeeViews}
           activeKey={activeView}
-          onSelect={setActiveView}
+          onSelect={(view) => {
+            setActiveView(view);
+            navigate('/employees', { state: { employeeView: view } });
+          }}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
           mobileOpen={isPrimaryOpen}

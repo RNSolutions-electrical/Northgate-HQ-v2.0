@@ -1,4 +1,4 @@
-export function DashboardSectionTree({ sections, activeKey, onSelect, label = 'Dashboard sections' }) {
+export function DashboardSectionTree({ sections, activeKey, activeChildKey, onSelect, label = 'Dashboard sections' }) {
   return (
     <nav className="dashboard-section-tree" aria-label={label}>
       {sections.map((section) => (
@@ -15,7 +15,7 @@ export function DashboardSectionTree({ sections, activeKey, onSelect, label = 'D
           {section.key === activeKey && section.children?.length ? (
             <div className="dashboard-section-tree__children">
               {section.children.map((child) => (
-                <button key={child.key} type="button" onClick={() => onSelect(section.key, child.key)}>
+                <button key={child.key} type="button" aria-current={child.key === activeChildKey ? 'page' : undefined} onClick={() => onSelect(section.key, child.key)}>
                   {child.label}
                 </button>
               ))}

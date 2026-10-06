@@ -15,6 +15,7 @@ import { dashboardSections, dashboardSectionFromSearch, dashboardSectionUrl } fr
 import { inventorySectionFromSearch, visibleInventorySections } from '../../modules/inventory/inventoryNavigation.js';
 import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySectionUrl } from '../../modules/jobs/jobsNavigation.js';
 import { estimatesSectionFromLocation, estimatesSectionUrl, visibleEstimatesSections } from '../../modules/estimates/estimatesNavigation.js';
+import { employeeNavigationState, employeeSectionFromLocation, visibleEmployeeSections } from '../../modules/employees/employeesNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -99,6 +100,8 @@ export function AppLayout() {
   const activeEstimatesSection = estimatesNavigation
     ? estimatesSectionFromLocation(location.pathname, location.search, permissions, location.state)
     : null;
+  const employeesNavigation = activeKey === 'employees' ? visibleEmployeeSections(permissions) : null;
+  const activeEmployeesSection = employeesNavigation ? employeeSectionFromLocation(location.state, permissions) : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -117,6 +120,13 @@ export function AppLayout() {
       activeJobsSection={activeJobsSection}
       estimatesNavigation={estimatesNavigation}
       activeEstimatesSection={activeEstimatesSection}
+      employeesNavigation={employeesNavigation}
+      activeEmployeesSection={activeEmployeesSection}
+      activeEmployeesDepartment={activeEmployeesSection === 'directory' ? location.state?.employeeDepartment?.toLowerCase() : null}
+      onEmployeesSectionSelect={(sectionKey, childKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate('/employees', { state: employeeNavigationState(sectionKey, childKey) });
+      }}
       onEstimatesSectionSelect={(sectionKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         navigate(estimatesSectionUrl(sectionKey), {
