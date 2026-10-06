@@ -1,11 +1,18 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Documents tree Staging trial — DOCUMENTS-TREE-STAGING-20261006-001
+
+- Date/time: 2026-10-06 06:50 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `f9d97d9a2726b78f8f4efee7e9907ed63465962e` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4d2220d8a060008f58339` at 06:49 EDT on `staging.rnsolutions.net`.
+- Document Index, Job Checklist, Owner Scopes, and Controls now live in the persistent desktop rail, with the existing Index/Checklist/Owner counts. The duplicate desktop module sidebar is hidden; mobile retains Page Menu. Document reads, uploads, permissions, and storage are unchanged.
+- 267 explicit Node assertions passed across isolated runs; a Staging-configured Vite build passed. Signed-in browser checks confirmed all four sections and URL-backed selection. Ryan accepted the Vehicles trial and approved proceeding to Documents. Documents owner visual acceptance remains pending. No migration or Production branch/site/database change; Inventory Management batch editing remains excluded.
+
 ## Vehicles tree Staging trial — VEHICLES-TREE-STAGING-20261006-001
 
 - Date/time: 2026-10-06 06:42 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
 - App commit `5ede2c591e3b8157881f2b7d6d69f56a7c363c90` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4d06298c4fd0008ee7cef` at 06:42 EDT on `staging.rnsolutions.net`.
 - My Vehicle, All Vehicles, Stock Vehicles, and General Fleet now live in the persistent rail; the Vehicles top menu matches. The duplicate desktop module sidebar is hidden, with the Page Menu retained on mobile. Department menu choices were removed because the vehicle department source is still incomplete; no vehicle data, assignment permissions, or schema changed.
-- 265 explicit Node assertions passed across isolated runs, and a Staging-configured Vite build passed. Signed-in browser checks covered all four rail views and matching top-menu labels. This Staging account has zero vehicle records, so selected-vehicle detail tabs could not be exercised. Ryan accepted the preceding Employees trial; Vehicles owner visual acceptance remains pending. No Production branch/site/database change.
+- 265 explicit Node assertions passed across isolated runs, and a Staging-configured Vite build passed. Signed-in browser checks covered all four rail views and matching top-menu labels. This Staging account has zero vehicle records, so selected-vehicle detail tabs could not be exercised. Ryan accepted Vehicles on October 6 and approved proceeding to Documents. No Production branch/site/database change.
 
 ## Employees tree Staging trial — EMPLOYEES-TREE-STAGING-20261006-001
 

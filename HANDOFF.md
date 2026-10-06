@@ -23102,4 +23102,18 @@ Verification: 262 explicit Node test assertions passed across two isolated runs 
 
 Vehicles now follows the accepted persistent desktop rail pattern. Its working My Vehicle, All Vehicles, Stock Vehicles, and General Fleet views are visible in the rail and top menu. Misleading top-menu department options were removed because the module's vehicle department source remains incomplete; the legacy department state remains understood but is no longer promoted as a reliable navigation choice. The duplicate desktop sidebar is hidden while the mobile Page Menu remains. Vehicle creation, assignment, selected-record tabs, permission checks, and database objects were not changed.
 
-Verification: 265 explicit Node assertions passed across two isolated runs, a Staging-configured Vite build passed, and Netlify confirmed the exact code commit was published. The signed-in Staging browser showed all four rail views and matching top-menu entries. There are zero vehicle records in this Staging account, so selected-record detail tabs could not be exercised. Ryan's visual acceptance of this Vehicles trial is pending. Production `main`, Production Netlify, and both databases remain unchanged. Preserve the parity acceptance and isolated schema-rehearsal gates before any Production promotion.
+Verification: 265 explicit Node assertions passed across two isolated runs, a Staging-configured Vite build passed, and Netlify confirmed the exact code commit was published. The signed-in Staging browser showed all four rail views and matching top-menu entries. There are zero vehicle records in this Staging account, so selected-record detail tabs could not be exercised. Ryan accepted Vehicles on October 6 and approved proceeding to Documents. Production `main`, Production Netlify, and both databases remain unchanged. Preserve the parity acceptance and isolated schema-rehearsal gates before any Production promotion.
+
+## Entry 334 — Live Documents persistent navigation trial on Staging
+
+**Date:** 2026-10-06 06:50 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `DOCUMENTS-TREE-STAGING-20261006-001`
+**Code commit:** `f9d97d9a2726b78f8f4efee7e9907ed63465962e` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac4d2220d8a060008f58339`, published at `staging.rnsolutions.net` at 06:49 EDT
+
+Documents now follows the accepted persistent desktop rail pattern. Document Index, Job Checklist, Owner Scopes, and Controls are URL-backed rail destinations; the existing Index, Checklist, and Owner count badges remain visible. The duplicate desktop module sidebar is hidden, while the mobile Page Menu remains. Document reads, file access, uploads, audit behavior, permissions, and storage are unchanged. No database migration was needed.
+
+Verification: 267 explicit Node assertions passed across isolated runs and a Staging-configured Vite build passed. Netlify confirms the exact code commit as the published Staging deploy. A signed-in browser checked all four destinations and their URL-backed selection; the Index displayed three existing visible documents. Ryan accepted the preceding Vehicles trial; Documents owner visual acceptance remains pending. Production `main`, Production Netlify, and both databases remain unchanged. Inventory Management batch editing remains excluded. Preserve the parity acceptance and isolated schema-rehearsal gates before Production promotion.
