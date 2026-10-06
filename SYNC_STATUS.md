@@ -1,11 +1,18 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Employees tree Staging trial — EMPLOYEES-TREE-STAGING-20261006-001
+
+- Date/time: 2026-10-06 06:37 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `a0ae013f3d6400a104e63218efcb7261ff3067d2` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4cef0392d8b0008bbe803` at 06:35 EDT on `staging.rnsolutions.net`.
+- My Profile and the permission-gated Employee Directory now live in the persistent desktop rail. Existing authorized department filters appear beneath the Directory; the prior Page Menu remains for mobile. Employee detail tabs, account setup, and permissions are unchanged.
+- 262 explicit Node test assertions passed across two isolated runs; a Staging-configured Vite build passed. The default auto-discovery test run was interrupted after a local Vite cache lock with an existing preview, not an assertion failure. Signed-in Staging browser checks covered My Profile, Directory, and Construction filter. Ryan accepted the preceding Estimates trial and authorized this next module. Employees owner visual acceptance remains pending. No migration or Production branch/site/database change; the Inventory Management batch editor remains excluded.
+
 ## Estimates tree Staging trial — ESTIMATES-TREE-STAGING-20261006-001
 
 - Date/time: 2026-10-06 06:25 EDT (UTC-04:00); machine `Ryan_Northgate`.
 - App commit `8afee97bcfa922d1483e88286db24cd39f0da20e` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4cc07bf6aa00008f63670` at `staging.rnsolutions.net` at 06:23 EDT.
 - The live Estimates workbench now shows Official Estimates, My Estimates, Review Submissions (for approvers), and Assembly Library in the persistent desktop rail. Directory shortcut buttons remain available on small screens; an opened estimate retains its own editor navigation. An older inactive Estimates workspace component was not changed.
-- 279/279 explicit Node tests and a Staging-configured Vite build passed. Signed-in Staging smoke checks confirmed all four rail destinations and return from Assembly Library. This test account has no estimates, so open-estimate navigation and owner acceptance remain to be checked. No migration or Production branch/site/database change. The unfinished Inventory Management batch editor remains excluded.
+- 279/279 explicit Node tests and a Staging-configured Vite build passed. Signed-in Staging smoke checks confirmed all four rail destinations and return from Assembly Library. This test account has no estimates, so open-estimate navigation remains unverified. Ryan accepted the Estimates navigation trial on October 6 and approved proceeding to Employees. No migration or Production branch/site/database change. The unfinished Inventory Management batch editor remains excluded.
 
 ## Jobs tree Staging trial — JOBS-TREE-STAGING-20261005-001
 
