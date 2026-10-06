@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Documents summary-card cleanup on Staging — DOCUMENTS-COMPACT-STAGING-20261006-001
+
+- Date/time: 2026-10-06 07:30 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `b3dc7fdbfe7e563bb8352c7cb587b66926b4297a` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4db933ec6830007320681` at 07:29 EDT on `staging.rnsolutions.net`.
+- Removed the three redundant Visible Documents, Visible Jobs and Checklist summary cards, plus the otherwise isolated development-only Manage Job Docs card. The header and rail retain document/checklist counts, and the shared filters now sit directly below the workspace header. No document data, permission or schema change.
+- Eight targeted Documents tests and a Staging-configured Vite build passed. A signed-in browser check confirmed the card-free layout and immediate access to filters and document rows. No Production branch/site/database change; owner visual acceptance remains pending.
+
 ## Documents shared filters on Staging — DOCUMENTS-FILTERS-STAGING-20261006-001
 
 - Date/time: 2026-10-06 07:24 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.

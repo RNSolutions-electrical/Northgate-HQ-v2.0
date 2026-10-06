@@ -23131,3 +23131,17 @@ Verification: 267 explicit Node assertions passed across isolated runs and a Sta
 Ryan requested document filtering across the Documents pages like the Index. The Index's existing keyword, department, job, type, tag and date filters were moved into one shared panel that stays active while switching among Document Index, Job Checklist, Owner Scopes and Controls. Checklist counts now follow the matching set; its global rail badge retains the unfiltered coverage. A category with files outside the filter reads “No match” rather than falsely “Missing.” The two reference pages retain their guidance and show the matching documents beneath it. Filtering remains client-side over the already-authorized document read model; no data, access rule, upload path, or schema changed.
 
 Verification: 268/268 explicit Node assertions and a Staging-configured Vite build passed for the first commit. The clarification passed targeted filter tests and another build. Netlify confirms the clarification commit as the current published Staging deploy. A signed-in browser checked all four pages, persistent type filtering, matching document rows, and the corrected Checklist status. Owner visual acceptance is pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
+
+## Entry 336 — Compact Documents workspace on Staging
+
+**Date:** 2026-10-06 07:30 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** refinement
+**Sync marker:** `DOCUMENTS-COMPACT-STAGING-20261006-001`
+**Code commit:** `b3dc7fdbfe7e563bb8352c7cb587b66926b4297a` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac4db933ec6830007320681`, published at `staging.rnsolutions.net` at 07:29 EDT
+
+Ryan requested removal of the Visible Documents, Visible Jobs and Checklist summary cards to raise the useful controls. The redundant summary strip is gone, including its otherwise isolated development-only permission card; the workspace header and rail retain document/checklist counts. The shared filter panel now follows the Documents header immediately, with the Index table below. No data loading, filtering, permissions, document actions, or schema changed.
+
+Verification: eight targeted Documents tests and a Staging-configured Vite build passed. Netlify confirms the exact commit as the published Staging deploy. Signed-in browser inspection confirmed the summary cards are absent and filters plus document rows occupy the higher space. Owner visual acceptance is pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
