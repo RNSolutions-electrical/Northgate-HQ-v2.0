@@ -16,6 +16,7 @@ import { inventorySectionFromSearch, visibleInventorySections } from '../../modu
 import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySectionUrl } from '../../modules/jobs/jobsNavigation.js';
 import { estimatesSectionFromLocation, estimatesSectionUrl, visibleEstimatesSections } from '../../modules/estimates/estimatesNavigation.js';
 import { employeeNavigationState, employeeSectionFromLocation, visibleEmployeeSections } from '../../modules/employees/employeesNavigation.js';
+import { VEHICLE_WORKSPACE_SECTIONS, vehicleNavigationState, vehicleSectionFromLocation } from '../../modules/vehicles/vehiclesNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -102,6 +103,8 @@ export function AppLayout() {
     : null;
   const employeesNavigation = activeKey === 'employees' ? visibleEmployeeSections(permissions) : null;
   const activeEmployeesSection = employeesNavigation ? employeeSectionFromLocation(location.state, permissions) : null;
+  const vehiclesNavigation = activeKey === 'vehicles' ? VEHICLE_WORKSPACE_SECTIONS : null;
+  const activeVehiclesSection = vehiclesNavigation ? vehicleSectionFromLocation(location.state) : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -123,6 +126,12 @@ export function AppLayout() {
       employeesNavigation={employeesNavigation}
       activeEmployeesSection={activeEmployeesSection}
       activeEmployeesDepartment={activeEmployeesSection === 'directory' ? location.state?.employeeDepartment?.toLowerCase() : null}
+      vehiclesNavigation={vehiclesNavigation}
+      activeVehiclesSection={activeVehiclesSection}
+      onVehiclesSectionSelect={(sectionKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate('/vehicles', { state: vehicleNavigationState(sectionKey) });
+      }}
       onEmployeesSectionSelect={(sectionKey, childKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         navigate('/employees', { state: employeeNavigationState(sectionKey, childKey) });

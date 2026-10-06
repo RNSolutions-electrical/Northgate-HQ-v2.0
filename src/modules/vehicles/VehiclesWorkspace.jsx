@@ -2,7 +2,7 @@ import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth } from '@clerk/clerk-react';
 import { Briefcase, MapPin, Plus, Truck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { RecordHeader } from '../../components/ui/RecordHeader.jsx';
@@ -13,6 +13,7 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { WorkspaceTabs } from '../../components/ui/WorkspaceTabs.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { vehicleNavigationState, vehicleSectionFromLocation } from './vehiclesNavigation.js';
 
 const EMPTY_VEHICLES = Object.freeze([]);
 const EMPTY_ASSIGNMENTS = Object.freeze([]);
@@ -169,9 +170,10 @@ function useVehicleReferences({ enabled }) {
 export function VehiclesWorkspace({ permissions }) {
   const { getToken } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const canReadVehicles = permissions.permissionSource === 'server' && permissions.canManageVehicles === true;
   const vehicleState = useVehicleReferences({ enabled: canReadVehicles });
-  const [activeView, setActiveView] = useState(location.state?.vehicleView==='mine'?'mine':'all');
+  const [activeView, setActiveView] = useState(vehicleSectionFromLocation(location.state));
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [search, setSearch] = useState('');
@@ -215,6 +217,11 @@ export function VehiclesWorkspace({ permissions }) {
     { key: 'stock', label: 'Stock Vehicles', icon: Briefcase, description: 'Vehicles flagged to hold inventory.', badge: stockCount },
     { key: 'fleet', label: 'General Fleet', icon: MapPin, description: 'Visible vehicles not flagged as stock-holding.', badge: fleetCount },
   ];
+
+  useEffect(() => {
+    setActiveView(vehicleSectionFromLocation(location.state));
+    setSelectedVehicleId('');
+  }, [location.key, location.state]);
 
   const filteredVehicles = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -397,7 +404,7 @@ export function VehiclesWorkspace({ permissions }) {
           description="Browse the live visible fleet references."
           items={vehicleViews}
           activeKey={activeView}
-          onSelect={setActiveView}
+          onSelect={(view) => navigate('/vehicles', { state: vehicleNavigationState(view) })}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
           mobileOpen={isPrimaryOpen}

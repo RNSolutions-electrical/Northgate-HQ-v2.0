@@ -218,9 +218,12 @@ export function permittedNavigationGroups(permissions) {
       return [myProfile, ...departmentItems];
     }
     if (group.key === 'vehicles') {
-      return ['Electrical', 'Construction', 'Admin']
-        .filter(canUseDepartment)
-        .map((department) => ({ ...module, key: `vehicles-${department.toLowerCase()}`, label: `${department} Vehicles`, navigationState: { vehicleDepartment: department } }));
+      return [
+        { ...module, key: 'vehicles-mine', label: 'My Vehicle', navigationState: { vehicleView: 'mine' } },
+        { ...module, key: 'vehicles-all', label: 'All Vehicles', navigationState: { vehicleView: 'all' } },
+        { ...module, key: 'vehicles-stock', label: 'Stock Vehicles', navigationState: { vehicleView: 'stock' } },
+        { ...module, key: 'vehicles-fleet', label: 'General Fleet', navigationState: { vehicleView: 'fleet' } },
+      ];
     }
     const displayLabels = { inventory: 'Material Inventory', tools: 'Tool Inventory', 'panel-directory': 'Panel Directory' };
     return [{ ...module, label: displayLabels[module.key] || module.label }];

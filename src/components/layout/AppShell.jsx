@@ -28,6 +28,9 @@ export function AppShell({
   activeEmployeesSection,
   activeEmployeesDepartment,
   onEmployeesSectionSelect,
+  vehiclesNavigation,
+  activeVehiclesSection,
+  onVehiclesSectionSelect,
   workspaceResetKey,
   onOpenWorkspace,
   onBack,
@@ -169,6 +172,14 @@ export function AppShell({
                     activeChildKey={activeEmployeesDepartment}
                     onSelect={onEmployeesSectionSelect}
                     label="Employees workspace sections"
+                  />
+                ) : null}
+                {isActive && item.key === 'vehicles' && vehiclesNavigation ? (
+                  <DashboardSectionTree
+                    sections={vehiclesNavigation}
+                    activeKey={activeVehiclesSection}
+                    onSelect={onVehiclesSectionSelect}
+                    label="Vehicles workspace sections"
                   />
                 ) : null}
                 </div>
