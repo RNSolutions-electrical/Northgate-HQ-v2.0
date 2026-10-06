@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Reports summary-card cleanup on Staging — REPORTS-COMPACT-STAGING-20261006-001
+
+- Date/time: 2026-10-06 08:02 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `d84786c86378b13b07231d8af92c6bc489516f2d` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4e2fa94d55500088ef26a` at 08:01 EDT on `staging.rnsolutions.net`.
+- Removed the Available Reports, Open Jobs, Documents and Granted Flags summary strip from the top of Reports. The report library and selected report now start immediately below the workspace header. No report data, authorization, export or schema change.
+- Focused Reports tests (3/3), explicit root Node tests (109/109), and a Staging-identity compile-only Vite build passed. The unconfigured local build correctly stopped on missing keys; Netlify's configured build published successfully. Signed-in browser inspection confirmed the compact layout and report rows. The default auto-discovery test command stalled in the existing local test process and was stopped without a failure result. Ryan accepted the preceding Reports navigation layout on October 6. No Production branch/site/database change.
+
 ## Reports tree Staging trial — REPORTS-TREE-STAGING-20261006-001
 
 - Date/time: 2026-10-06 07:38 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.

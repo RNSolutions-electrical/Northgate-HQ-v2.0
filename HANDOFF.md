@@ -23159,3 +23159,17 @@ Verification: eight targeted Documents tests and a Staging-configured Vite build
 Reports now follows the accepted persistent desktop rail pattern. Its existing Report Library, Access Snapshot and Operational Sources sections are URL-backed rail destinations. The duplicate desktop module sidebar is hidden; mobile retains its Page Menu. Existing report rows, query scopes, read-only boundaries, permission checks, and database objects were not changed.
 
 Verification: 270/270 explicit Node tests and a Staging-configured Vite build passed. Netlify confirms the exact code commit as the published Staging deploy. A signed-in browser opened each of the three sections and confirmed the intended URL-backed view and desktop layout. Reports owner visual acceptance remains pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
+
+## Entry 338 — Compact Reports layout on Staging
+
+**Date:** 2026-10-06 08:02 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** refinement
+**Sync marker:** `REPORTS-COMPACT-STAGING-20261006-001`
+**Code commit:** `d84786c86378b13b07231d8af92c6bc489516f2d` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac4e2fa94d55500088ef26a`, published at `staging.rnsolutions.net` at 08:01 EDT
+
+Ryan accepted the Reports navigation trial and asked to remove the top summary cards as with Documents. Removed Available Reports, Open Jobs, Documents and Granted Flags cards; the library and selected report now follow the workspace header without that strip. Existing reports, access checks, data reads and schema are unchanged.
+
+Verification: 3/3 focused Reports tests, 109/109 explicit root Node tests, and a Staging-identity compile-only Vite build passed. Netlify confirms the exact app commit as published. Signed-in browser inspection showed no summary strip and the report library/rows directly below the header. The default test auto-discovery command stalled and was stopped; it did not report failed assertions. Owner acceptance of this refinement remains pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
