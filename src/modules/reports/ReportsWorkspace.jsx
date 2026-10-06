@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -18,6 +19,7 @@ import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
+import { REPORT_WORKSPACE_SECTIONS, reportsSectionFromSearch, reportsSectionUrl } from './reportsNavigation.js';
 
 const EMPTY_REPORT_DATA = Object.freeze({
   jobs: [],
@@ -27,26 +29,7 @@ const EMPTY_REPORT_DATA = Object.freeze({
   inventoryActivity: [],
 });
 
-const REPORT_SECTIONS = [
-  {
-    key: 'library',
-    label: 'Report Library',
-    icon: BarChart3,
-    description: 'Live read-only reports and reserved report surfaces.',
-  },
-  {
-    key: 'access',
-    label: 'Access Snapshot',
-    icon: ShieldCheck,
-    description: 'Current permission context in report form.',
-  },
-  {
-    key: 'operations',
-    label: 'Operational Sources',
-    icon: ClipboardList,
-    description: 'Read-model status for report sources.',
-  },
-];
+const REPORT_SECTION_ICONS = { library: BarChart3, access: ShieldCheck, operations: ClipboardList };
 
 const ACCESS_GROUPS = [
   ['Reports', ['canViewReports', 'canViewAllDivisions']],
@@ -451,7 +434,9 @@ function useReportData({ permissions }) {
 }
 
 export function ReportsWorkspace({ permissions }) {
-  const [activeSection, setActiveSection] = useState('library');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeSection = reportsSectionFromSearch(location.search);
   const [activeReportId, setActiveReportId] = useState('open-jobs');
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
@@ -473,6 +458,7 @@ export function ReportsWorkspace({ permissions }) {
     [reports.data.budgetLines],
   );
   const selectedReport = reportLibrary.find((report) => report.id === activeReportId) ?? reportLibrary[0];
+  const sections = REPORT_WORKSPACE_SECTIONS.map((section) => ({ ...section, icon: REPORT_SECTION_ICONS[section.key] }));
 
   function renderSelectedReport() {
     if (reports.isLoading) {
@@ -608,9 +594,9 @@ export function ReportsWorkspace({ permissions }) {
           eyebrow="Reports"
           title="Report Center"
           description="Read-only report categories."
-          items={REPORT_SECTIONS}
+          items={sections}
           activeKey={activeSection}
-          onSelect={setActiveSection}
+          onSelect={(sectionKey) => navigate(reportsSectionUrl(sectionKey))}
           collapsed={isPrimaryCollapsed}
           onToggleCollapse={() => setIsPrimaryCollapsed((current) => !current)}
           mobileOpen={isPrimaryOpen}

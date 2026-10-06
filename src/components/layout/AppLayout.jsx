@@ -18,6 +18,7 @@ import { estimatesSectionFromLocation, estimatesSectionUrl, visibleEstimatesSect
 import { employeeNavigationState, employeeSectionFromLocation, visibleEmployeeSections } from '../../modules/employees/employeesNavigation.js';
 import { VEHICLE_WORKSPACE_SECTIONS, vehicleNavigationState, vehicleSectionFromLocation } from '../../modules/vehicles/vehiclesNavigation.js';
 import { DOCUMENT_WORKSPACE_SECTIONS, documentsSectionFromSearch, documentsSectionUrl } from '../../modules/documents/documentsNavigation.js';
+import { REPORT_WORKSPACE_SECTIONS, reportsSectionFromSearch, reportsSectionUrl } from '../../modules/reports/reportsNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -111,6 +112,8 @@ export function AppLayout() {
     ? DOCUMENT_WORKSPACE_SECTIONS.map((section) => ({ ...section, badge: documentsNavCounts[section.key] ?? null }))
     : null;
   const activeDocumentsSection = documentsNavigation ? documentsSectionFromSearch(location.search) : null;
+  const reportsNavigation = activeKey === 'reports' ? REPORT_WORKSPACE_SECTIONS : null;
+  const activeReportsSection = reportsNavigation ? reportsSectionFromSearch(location.search) : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -136,6 +139,12 @@ export function AppLayout() {
       activeVehiclesSection={activeVehiclesSection}
       documentsNavigation={documentsNavigation}
       activeDocumentsSection={activeDocumentsSection}
+      reportsNavigation={reportsNavigation}
+      activeReportsSection={activeReportsSection}
+      onReportsSectionSelect={(sectionKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate(reportsSectionUrl(sectionKey));
+      }}
       onDocumentsSectionSelect={(sectionKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         navigate(documentsSectionUrl(sectionKey));
