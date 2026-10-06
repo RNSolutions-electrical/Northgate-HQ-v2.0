@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {filterDocuments,documentSection,canClassifyDocument,departmentTags,documentJobChoices,sectionLabel} from '../src/modules/documents/documentSections.js';
+import {filterDocuments,documentSection,canClassifyDocument,departmentTags,documentJobChoices,documentChecklistRows,sectionLabel} from '../src/modules/documents/documentSections.js';
 test('Document sections preserve historical ambiguity and filter metadata without changing identity',()=>{
  const rows=[{id:'one',owner_id:'job1',document_type:'plans',file_name:'plan.pdf',created_at:'2026-09-10',description:'Panel A'}, {id:'two',owner_id:'call1',document_type:'afc_calculations',document_section:'electrical',file_name:'report.pdf',description:'Panel B',created_at:'2026-09-15'}],before=structuredClone(rows);
  assert.equal(documentSection(rows[0]),'unclassified');
@@ -31,4 +31,12 @@ test('Signed Change Order organization is editable; archived and issued technica
 test('Job choices exclude service calls without excluding their documents from search',()=>{
  assert.deepEqual(documentJobChoices([{id:'job',job_type:'job'},{id:'call',job_type:'service_call'},{id:'legacycall',service_call_number:'26-001'}]).map(j=>j.id),['job']);
  assert.equal(filterDocuments([{job_label:'26-001 - Call',owner_id:'call'}],{query:'26-001'}).length,1);
+});
+test('Shared document filters narrow checklist coverage without mutating the full collection',()=>{
+ const categories=[{key:'plans',label:'Plans'},{key:'change_orders',label:'Change Orders'}];
+ const documents=[{id:'plan',document_type:'plans',job_id:'job-a'},{id:'co',document_type:'change_orders',job_id:'job-b'}];
+ const matching=filterDocuments(documents,{job:'job-a'});
+ assert.deepEqual(documentChecklistRows(categories,matching).map(row=>row.count),[1,0]);
+ assert.deepEqual(documentChecklistRows(categories,documents).map(row=>row.count),[1,1]);
+ assert.equal(documents.length,2);
 });

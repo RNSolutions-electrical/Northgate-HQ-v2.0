@@ -1,7 +1,7 @@
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import {DocumentSections,DocumentSectionControl,DocumentTagFilter} from './DocumentSections.jsx';
 import {DocumentFileActions} from './DocumentFileActions.jsx';
-import {filterDocuments,documentTagsLabel,documentJobChoices} from './documentSections.js';
+import {filterDocuments,documentTagsLabel,documentJobChoices,documentChecklistRows} from './documentSections.js';
 import { useAuth } from '@clerk/clerk-react';
 import {
   Archive,
@@ -324,12 +324,11 @@ export function DocumentsWorkspace({ permissions }) {
     ?? documents.find((document) => document.id === selectedDocumentId)
     ?? null;
 
-  const checklistRows = useMemo(() => JOB_DOCUMENT_CATEGORIES.map((category) => {
-    const count = documents.filter((document) => document.document_type === category.key).length;
-    return { ...category, count };
-  }), [documents]);
+  const checklistRows = useMemo(() => documentChecklistRows(JOB_DOCUMENT_CATEGORIES, filteredDocuments), [filteredDocuments]);
+  const allChecklistRows = useMemo(() => documentChecklistRows(JOB_DOCUMENT_CATEGORIES, documents), [documents]);
 
-  const uploadedChecklistCount = checklistRows.filter((row) => row.count > 0).length;
+  const uploadedChecklistCount = allChecklistRows.filter((row) => row.count > 0).length;
+  const filteredChecklistCount = checklistRows.filter((row) => row.count > 0).length;
   const liveScopes = OWNER_SCOPES.filter((scope) => scope.status === 'job-scoped live').length;
   const canManageJobDocuments = permissions.permissionSource === 'server' && permissions.canManageJobs;
   const statusRows = useMemo(() => CONTROL_ROWS, []);
@@ -401,6 +400,29 @@ export function DocumentsWorkspace({ permissions }) {
         />
 
         <div className="workspace-surface">
+          <article className="card workspace-card">
+            <Toolbar
+              eyebrow="Document filters"
+              title="Find documents"
+              description={`${filteredDocuments.length} of ${documents.length} visible documents match. Filters stay active as you switch Documents pages.`}
+              search={(
+                <label>
+                  <span className="sr-only">Search documents</span>
+                  <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search documents..." />
+                </label>
+              )}
+              actions={<button type="button" className="secondary-button" onClick={() => { setSearch(''); setFilters({ section: '', tag: '', type: '', job: '', from: '', to: '' }); }}>Clear</button>}
+            />
+            <DocumentSections documents={documents} value={filters.section} onChange={(section) => setFilters((current) => ({ ...current, section }))} />
+            <div className="document-index-filters">
+              <label>Job<select aria-label="Document job filter" value={filters.job} onChange={(event) => setFilters((current) => ({ ...current, job: event.target.value }))}><option value="">All jobs</option>{documentJobChoices(documentIndex.jobs).map((job) => <option key={job.id} value={job.id}>{jobMap.get(job.id)}</option>)}</select></label>
+              <label>Document type<select aria-label="Document type filter" value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="">All types</option>{[...new Set(documents.map((document) => document.document_type).filter(Boolean))].sort().map((type) => <option key={type} value={type}>{documentCategoryLabel(type)}</option>)}</select></label>
+              <DocumentTagFilter documents={documents} value={filters.tag} onChange={(tag) => setFilters((current) => ({ ...current, tag }))} />
+              <label>From<input aria-label="Document date from" type="date" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></label>
+              <label>Through<input aria-label="Document date through" type="date" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></label>
+            </div>
+          </article>
+
           {activeSection === 'index' ? (
             <>
               <article className="card workspace-card">
@@ -408,25 +430,7 @@ export function DocumentsWorkspace({ permissions }) {
                   eyebrow="Index"
                   title="Visible documents"
                   description="Rows come from public.documents and follow the existing job document RLS policies."
-                  search={(
-                    <label>
-                      <span className="sr-only">Search documents</span>
-                      <input
-                        type="search"
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Search documents..."
-                      />
-                    </label>
-                  )}
-                  actions={(
-                    <button type="button" className="secondary-button" onClick={() => {setSearch('');setFilters({section:'',tag:'',type:'',job:'',from:'',to:''});}}>
-                      Clear
-                    </button>
-                  )}
                 />
-                <DocumentSections documents={documents} value={filters.section} onChange={section=>setFilters(f=>({...f,section}))}/>
-                <div className="document-index-filters"><label>Job<select aria-label="Document job filter" value={filters.job} onChange={e=>setFilters(f=>({...f,job:e.target.value}))}><option value="">All jobs</option>{documentJobChoices(documentIndex.jobs).map(j=><option key={j.id} value={j.id}>{jobMap.get(j.id)}</option>)}</select></label><label>Document type<select aria-label="Document type filter" value={filters.type} onChange={e=>setFilters(f=>({...f,type:e.target.value}))}><option value="">All types</option>{[...new Set(documents.map(d=>d.document_type).filter(Boolean))].sort().map(t=><option key={t} value={t}>{documentCategoryLabel(t)}</option>)}</select></label><DocumentTagFilter documents={documents} value={filters.tag} onChange={tag=>setFilters(f=>({...f,tag}))}/><label>From<input aria-label="Document date from" type="date" value={filters.from} onChange={e=>setFilters(f=>({...f,from:e.target.value}))}/></label><label>Through<input aria-label="Document date through" type="date" value={filters.to} onChange={e=>setFilters(f=>({...f,to:e.target.value}))}/></label></div>
                 <DataTable
                   columns={[...DOCUMENT_COLUMNS,{key:'section',header:'Tags',render:documentTagsLabel},{key:'actions',header:'File actions',render:row=><DocumentFileActions document={row}/>}]}
                   rows={filteredDocuments}
@@ -483,7 +487,7 @@ export function DocumentsWorkspace({ permissions }) {
               <Toolbar
                 eyebrow="Job Checklist"
                 title="Required document categories"
-                description="Visual coverage across visible documents. Missing items do not block the job workflow."
+                description={`Visual coverage across ${filteredDocuments.length} matching documents (${filteredChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length} categories). Missing items do not block the job workflow.`}
               />
               <DataTable
                 columns={CHECKLIST_COLUMNS}
@@ -559,6 +563,24 @@ export function DocumentsWorkspace({ permissions }) {
                   actions={<Archive aria-hidden="true" />}
                 />
               </div>
+            </article>
+          ) : null}
+
+          {activeSection !== 'index' ? (
+            <article className="card workspace-card">
+              <Toolbar eyebrow="Matching documents" title="Documents in this view" description="The filters above narrow these rows without changing document access or ownership." />
+              <DataTable
+                columns={[...DOCUMENT_COLUMNS, { key: 'section', header: 'Tags', render: documentTagsLabel }, { key: 'actions', header: 'File actions', render: (row) => <DocumentFileActions document={row} /> }]}
+                rows={filteredDocuments}
+                getRowKey={(row) => row.id}
+                permissions={permissions}
+                isLoading={documentIndex.isLoading}
+                error={documentIndex.error}
+                dense
+                minWidth="900px"
+                emptyTitle="No documents match these filters"
+                emptyDescription="Clear or adjust the document filters above to see other visible files."
+              />
             </article>
           ) : null}
         </div>
