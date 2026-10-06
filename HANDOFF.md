@@ -23144,4 +23144,18 @@ Verification: 268/268 explicit Node assertions and a Staging-configured Vite bui
 
 Ryan requested removal of the Visible Documents, Visible Jobs and Checklist summary cards to raise the useful controls. The redundant summary strip is gone, including its otherwise isolated development-only permission card; the workspace header and rail retain document/checklist counts. The shared filter panel now follows the Documents header immediately, with the Index table below. No data loading, filtering, permissions, document actions, or schema changed.
 
-Verification: eight targeted Documents tests and a Staging-configured Vite build passed. Netlify confirms the exact commit as the published Staging deploy. Signed-in browser inspection confirmed the summary cards are absent and filters plus document rows occupy the higher space. Owner visual acceptance is pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
+Verification: eight targeted Documents tests and a Staging-configured Vite build passed. Netlify confirms the exact commit as the published Staging deploy. Signed-in browser inspection confirmed the summary cards are absent and filters plus document rows occupy the higher space. Ryan accepted the compact Documents layout on October 6 and approved proceeding to Reports. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
+
+## Entry 337 — Live Reports persistent navigation trial on Staging
+
+**Date:** 2026-10-06 07:38 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `REPORTS-TREE-STAGING-20261006-001`
+**Code commit:** `55063a8f459739f060995cd9e41cddfdabc31086` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac4dd550c56840008bc87b9`, published at `staging.rnsolutions.net` at 07:37 EDT
+
+Reports now follows the accepted persistent desktop rail pattern. Its existing Report Library, Access Snapshot and Operational Sources sections are URL-backed rail destinations. The duplicate desktop module sidebar is hidden; mobile retains its Page Menu. Existing report rows, query scopes, read-only boundaries, permission checks, and database objects were not changed.
+
+Verification: 270/270 explicit Node tests and a Staging-configured Vite build passed. Netlify confirms the exact code commit as the published Staging deploy. A signed-in browser opened each of the three sections and confirmed the intended URL-backed view and desktop layout. Reports owner visual acceptance remains pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.

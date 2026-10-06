@@ -1,11 +1,18 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Reports tree Staging trial — REPORTS-TREE-STAGING-20261006-001
+
+- Date/time: 2026-10-06 07:38 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `55063a8f459739f060995cd9e41cddfdabc31086` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4dd550c56840008bc87b9` at 07:37 EDT on `staging.rnsolutions.net`.
+- Report Library, Access Snapshot and Operational Sources now live in the persistent desktop rail. Section selection is URL-backed; the duplicate desktop sidebar is hidden and the existing mobile Page Menu remains. Report data, read-only behavior, access gates and schema are unchanged.
+- 270/270 explicit Node tests and a Staging-configured Vite build passed. Signed-in browser checks covered all three rail destinations and the read-only views. Ryan accepted the compact Documents layout on October 6 and approved proceeding to Reports. Reports owner visual acceptance remains pending. No Production branch/site/database change.
+
 ## Documents summary-card cleanup on Staging — DOCUMENTS-COMPACT-STAGING-20261006-001
 
 - Date/time: 2026-10-06 07:30 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
 - App commit `b3dc7fdbfe7e563bb8352c7cb587b66926b4297a` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4db933ec6830007320681` at 07:29 EDT on `staging.rnsolutions.net`.
 - Removed the three redundant Visible Documents, Visible Jobs and Checklist summary cards, plus the otherwise isolated development-only Manage Job Docs card. The header and rail retain document/checklist counts, and the shared filters now sit directly below the workspace header. No document data, permission or schema change.
-- Eight targeted Documents tests and a Staging-configured Vite build passed. A signed-in browser check confirmed the card-free layout and immediate access to filters and document rows. No Production branch/site/database change; owner visual acceptance remains pending.
+- Eight targeted Documents tests and a Staging-configured Vite build passed. A signed-in browser check confirmed the card-free layout and immediate access to filters and document rows. Ryan accepted the compact Documents layout on October 6 and approved proceeding to Reports. No Production branch/site/database change.
 
 ## Documents shared filters on Staging — DOCUMENTS-FILTERS-STAGING-20261006-001
 

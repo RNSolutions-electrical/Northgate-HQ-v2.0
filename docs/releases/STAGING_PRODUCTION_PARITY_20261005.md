@@ -104,4 +104,10 @@ Verification: 268/268 explicit Node tests and a Staging-configured Vite build pa
 
 Marker `DOCUMENTS-COMPACT-STAGING-20261006-001`; machine `RYAN_NORTHGATE`. App commit `b3dc7fdbfe7e563bb8352c7cb587b66926b4297a` was pushed to the integration and `staging` branches. Netlify published Staging deploy `6ac4db933ec6830007320681` at 07:29 EDT. The Visible Documents, Visible Jobs and Checklist summary cards were removed, along with the isolated development-only permission card. The existing header and rail counts remain, and document filters and rows move higher on the page. No document data, actions, access model or schema changed.
 
-Verification: eight targeted Documents tests and a Staging-configured Vite build passed. Signed-in browser inspection confirmed the compact layout. Owner visual acceptance remains pending. Production remains unchanged; parity promotion gates still apply.
+Verification: eight targeted Documents tests and a Staging-configured Vite build passed. Signed-in browser inspection confirmed the compact layout. Ryan accepted the layout on October 6 and approved moving to Reports. Production remains unchanged; parity promotion gates still apply.
+
+## Reports navigation trial — 2026-10-06 07:38 EDT
+
+Marker `REPORTS-TREE-STAGING-20261006-001`; machine `RYAN_NORTHGATE`. App commit `55063a8f459739f060995cd9e41cddfdabc31086` was pushed to the integration and `staging` branches. Netlify published Staging deploy `6ac4dd550c56840008bc87b9` at 07:37 EDT. The persistent desktop rail now provides Report Library, Access Snapshot, and Operational Sources, backed by shareable URL views. The duplicate desktop module sidebar is hidden; mobile retains the Page Menu. Report data, authorization, exports, and schema are unchanged.
+
+Verification: 270/270 explicit Node tests and a Staging-configured Vite build passed. A signed-in Staging browser opened the Reports library, Access Snapshot, and Operational Sources using the rail and verified the corresponding URL views. Owner visual acceptance remains pending. Production `main`, Production Netlify, and both databases remain unchanged. Continue the parity acceptance and isolated schema-rehearsal gates before Production promotion.
