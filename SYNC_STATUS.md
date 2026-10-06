@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Accounting compact-navigation Staging trial — ACCOUNTING-TREE-STAGING-20261006-001
+
+- Date/time: 2026-10-06 08:10 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `adea1d226901129443877d0c5ef9ceade6eb9dc7` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4e4dab1e84c0008eb5186` at 08:09 EDT on `staging.rnsolutions.net`.
+- Accounting's four existing views—Budget Review, Category Totals, Export Readiness, and Reserved Controls—are URL-backed in the persistent desktop rail. The duplicate desktop sidebar and top Budget Lines, Original Budget Total, Jobs, and Departments summary cards were removed. The Category Totals view keeps its meaningful category cards; the mobile Page Menu remains. No financial calculation, query, permission, posting or schema change.
+- 3/3 focused Accounting tests, 112/112 explicit root Node tests, and a Staging-identity compile-only Vite build passed. Netlify confirmed the exact commit. Signed-in browser checks verified the compact desktop layout and navigation through all four views. Ryan accepted the preceding Reports layout on October 6. Accounting owner visual acceptance remains pending. Production branch/site/database unchanged; parity promotion gates still apply.
+
 ## Reports summary-card cleanup on Staging — REPORTS-COMPACT-STAGING-20261006-001
 
 - Date/time: 2026-10-06 08:02 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.

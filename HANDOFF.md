@@ -23173,3 +23173,17 @@ Verification: 270/270 explicit Node tests and a Staging-configured Vite build pa
 Ryan accepted the Reports navigation trial and asked to remove the top summary cards as with Documents. Removed Available Reports, Open Jobs, Documents and Granted Flags cards; the library and selected report now follow the workspace header without that strip. Existing reports, access checks, data reads and schema are unchanged.
 
 Verification: 3/3 focused Reports tests, 109/109 explicit root Node tests, and a Staging-identity compile-only Vite build passed. Netlify confirms the exact app commit as published. Signed-in browser inspection showed no summary strip and the report library/rows directly below the header. The default test auto-discovery command stalled and was stopped; it did not report failed assertions. Owner acceptance of this refinement remains pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
+
+## Entry 339 — Accounting persistent navigation and compact layout on Staging
+
+**Date:** 2026-10-06 08:10 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `ACCOUNTING-TREE-STAGING-20261006-001`
+**Code commit:** `adea1d226901129443877d0c5ef9ceade6eb9dc7` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac4e4dab1e84c0008eb5186`, published at `staging.rnsolutions.net` at 08:09 EDT
+
+Ryan accepted the compact Reports layout and identified Accounting as the final module for the same navigation formatting. Accounting's existing Budget Review, Category Totals, Export Readiness and Reserved Controls views are now URL-backed destinations under the persistent desktop rail. The duplicate desktop module sidebar and top Budget Lines, Original Budget Total, Jobs and Departments summary cards were removed. Mobile Page Menu and the Category Totals cards remain. The financial query, calculations, permissions, read-only boundary and schema were not changed.
+
+Verification: 3/3 focused Accounting tests, 112/112 explicit root Node tests, and a Staging-identity compile-only Vite build passed. Netlify confirmed the exact app commit as the published Staging deploy. A signed-in browser checked the compact Budget Review page and all four rail destinations. Accounting owner visual acceptance remains pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
