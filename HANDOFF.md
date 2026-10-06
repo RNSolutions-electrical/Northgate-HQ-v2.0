@@ -23117,3 +23117,17 @@ Verification: 265 explicit Node assertions passed across two isolated runs, a St
 Documents now follows the accepted persistent desktop rail pattern. Document Index, Job Checklist, Owner Scopes, and Controls are URL-backed rail destinations; the existing Index, Checklist, and Owner count badges remain visible. The duplicate desktop module sidebar is hidden, while the mobile Page Menu remains. Document reads, file access, uploads, audit behavior, permissions, and storage are unchanged. No database migration was needed.
 
 Verification: 267 explicit Node assertions passed across isolated runs and a Staging-configured Vite build passed. Netlify confirms the exact code commit as the published Staging deploy. A signed-in browser checked all four destinations and their URL-backed selection; the Index displayed three existing visible documents. Ryan accepted the preceding Vehicles trial; Documents owner visual acceptance remains pending. Production `main`, Production Netlify, and both databases remain unchanged. Inventory Management batch editing remains excluded. Preserve the parity acceptance and isolated schema-rehearsal gates before Production promotion.
+
+## Entry 335 — Shared Documents filters across Staging views
+
+**Date:** 2026-10-06 07:24 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** refinement
+**Sync marker:** `DOCUMENTS-FILTERS-STAGING-20261006-001`
+**Code commits:** `079eb328005fc5d92e1076b4e1959cf158a002cf` and `c0a3553f0a20f830642d7fc468869817a021caa7` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** current `6ac4da3ba9785700081625ad` (initial `6ac4d991fbbe290008d56551`), published at `staging.rnsolutions.net` at 07:23 EDT
+
+Ryan requested document filtering across the Documents pages like the Index. The Index's existing keyword, department, job, type, tag and date filters were moved into one shared panel that stays active while switching among Document Index, Job Checklist, Owner Scopes and Controls. Checklist counts now follow the matching set; its global rail badge retains the unfiltered coverage. A category with files outside the filter reads “No match” rather than falsely “Missing.” The two reference pages retain their guidance and show the matching documents beneath it. Filtering remains client-side over the already-authorized document read model; no data, access rule, upload path, or schema changed.
+
+Verification: 268/268 explicit Node assertions and a Staging-configured Vite build passed for the first commit. The clarification passed targeted filter tests and another build. Netlify confirms the clarification commit as the current published Staging deploy. A signed-in browser checked all four pages, persistent type filtering, matching document rows, and the corrected Checklist status. Owner visual acceptance is pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.

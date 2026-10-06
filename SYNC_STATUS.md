@@ -1,5 +1,12 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Documents shared filters on Staging — DOCUMENTS-FILTERS-STAGING-20261006-001
+
+- Date/time: 2026-10-06 07:24 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commits `079eb328005fc5d92e1076b4e1959cf158a002cf` and clarification `c0a3553f0a20f830642d7fc468869817a021caa7` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published current deploy `6ac4da3ba9785700081625ad` at 07:23 EDT on `staging.rnsolutions.net` (initial filters deploy `6ac4d991fbbe290008d56551`).
+- The Index filters now persist while switching among all four Documents views. Checklist category counts reflect matching documents, while its global navigation badge remains the unfiltered total; a category with files outside the filter says “No match,” not “Missing.” Owner Scopes and Controls retain their reference information and show a filtered document list beneath it.
+- 268/268 explicit Node tests and a Staging-configured Vite build passed for the first commit; targeted filter tests and another build passed for the clarification. Signed-in browser checks covered Index, Checklist, Owner Scopes, Controls, persisted type filter, and “No match” status. No migration or Production branch/site/database change. Owner visual acceptance remains pending.
+
 ## Documents tree Staging trial — DOCUMENTS-TREE-STAGING-20261006-001
 
 - Date/time: 2026-10-06 06:50 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
