@@ -1,11 +1,18 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Vehicles tree Staging trial — VEHICLES-TREE-STAGING-20261006-001
+
+- Date/time: 2026-10-06 06:42 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
+- App commit `5ede2c591e3b8157881f2b7d6d69f56a7c363c90` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4d06298c4fd0008ee7cef` at 06:42 EDT on `staging.rnsolutions.net`.
+- My Vehicle, All Vehicles, Stock Vehicles, and General Fleet now live in the persistent rail; the Vehicles top menu matches. The duplicate desktop module sidebar is hidden, with the Page Menu retained on mobile. Department menu choices were removed because the vehicle department source is still incomplete; no vehicle data, assignment permissions, or schema changed.
+- 265 explicit Node assertions passed across isolated runs, and a Staging-configured Vite build passed. Signed-in browser checks covered all four rail views and matching top-menu labels. This Staging account has zero vehicle records, so selected-vehicle detail tabs could not be exercised. Ryan accepted the preceding Employees trial; Vehicles owner visual acceptance remains pending. No Production branch/site/database change.
+
 ## Employees tree Staging trial — EMPLOYEES-TREE-STAGING-20261006-001
 
 - Date/time: 2026-10-06 06:37 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
 - App commit `a0ae013f3d6400a104e63218efcb7261ff3067d2` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4cef0392d8b0008bbe803` at 06:35 EDT on `staging.rnsolutions.net`.
 - My Profile and the permission-gated Employee Directory now live in the persistent desktop rail. Existing authorized department filters appear beneath the Directory; the prior Page Menu remains for mobile. Employee detail tabs, account setup, and permissions are unchanged.
-- 262 explicit Node test assertions passed across two isolated runs; a Staging-configured Vite build passed. The default auto-discovery test run was interrupted after a local Vite cache lock with an existing preview, not an assertion failure. Signed-in Staging browser checks covered My Profile, Directory, and Construction filter. Ryan accepted the preceding Estimates trial and authorized this next module. Employees owner visual acceptance remains pending. No migration or Production branch/site/database change; the Inventory Management batch editor remains excluded.
+- 262 explicit Node test assertions passed across two isolated runs; a Staging-configured Vite build passed. The default auto-discovery test run was interrupted after a local Vite cache lock with an existing preview, not an assertion failure. Signed-in Staging browser checks covered My Profile, Directory, and Construction filter. Ryan accepted the Employees trial on October 6 and approved proceeding to Vehicles. No migration or Production branch/site/database change; the Inventory Management batch editor remains excluded.
 
 ## Estimates tree Staging trial — ESTIMATES-TREE-STAGING-20261006-001
 
