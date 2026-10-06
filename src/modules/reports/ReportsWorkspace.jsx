@@ -15,7 +15,6 @@ import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
 import { DataTable } from '../../components/ui/DataTable.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
-import { SummaryCard } from '../../components/ui/SummaryCard.jsx';
 import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
@@ -451,8 +450,6 @@ export function ReportsWorkspace({ permissions }) {
     () => buildSourceRows(permissions, reports.errors),
     [permissions, reports.errors],
   );
-  const availableReports = reportLibrary.filter((report) => report.status === 'available').length;
-  const grantedFlags = accessRows.filter((row) => row.value).length;
   const budgetCategoryRows = useMemo(
     () => summarizeBudgetByCategory(reports.data.budgetLines),
     [reports.data.budgetLines],
@@ -581,13 +578,6 @@ export function ReportsWorkspace({ permissions }) {
           </>
         )}
       />
-
-      <div className="summary-grid">
-        <SummaryCard label="Available reports" value={availableReports} detail="Live read-only views" />
-        <SummaryCard label="Open jobs" value={reports.data.jobs.length} detail="Visible active jobs" />
-        <SummaryCard label="Documents" value={reports.data.documents.length} detail="Visible job files" />
-        <SummaryCard label="Granted flags" value={grantedFlags} detail={`${accessRows.length} report-relevant flags`} developmentOnly />
-      </div>
 
       <div className={`workspace-split reports-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
