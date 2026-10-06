@@ -372,13 +372,6 @@ export function DocumentsWorkspace({ permissions }) {
         )}
       />
 
-      <div className="summary-grid">
-        <SummaryCard label="Visible documents" value={documents.length} detail={documentIndex.isLoading ? 'Loading index' : 'Job-owned rows'} />
-        <SummaryCard detailIsDiagnostic label="Visible jobs" value={documentIndex.jobs.length} detail="Jobs in current scope" />
-        <SummaryCard label="Checklist" value={`${uploadedChecklistCount}/${JOB_DOCUMENT_CATEGORIES.length}`} detail="Categories with uploads" tone={uploadedChecklistCount === JOB_DOCUMENT_CATEGORIES.length ? 'good' : 'warn'} />
-        <SummaryCard developmentOnly label="Manage job docs" value={canManageJobDocuments ? 'Granted' : 'Read only'} detail="Writes stay in Jobs" tone={canManageJobDocuments ? 'good' : 'warn'} />
-      </div>
-
       <div className={`workspace-split documents-workspace${isPrimaryCollapsed ? ' is-primary-collapsed' : ''}`}>
         <PrimarySidebar
           eyebrow="Documents"
