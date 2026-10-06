@@ -2,7 +2,7 @@ import { getSupabaseAccessToken } from '../../../services/clerkToken.js';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {useAuth} from '@clerk/clerk-react';
-import {useLocation,useNavigate} from 'react-router-dom';
+import {useLocation,useNavigate,useOutletContext} from 'react-router-dom';
 import {Plus,ArrowLeft,RefreshCw} from 'lucide-react';
 import {usePermissions} from '../../../hooks/usePermissions.js';
 import {createSupabaseClient} from '../../../services/supabaseClient.js';
@@ -17,6 +17,7 @@ import workspaceCSS from './workspace.css?inline';
 import catalogueCSS from '../../inventory/materialCatalogue.css?inline';
 const css=baseCSS+'\n'+workspaceCSS+'\n'+catalogueCSS;
 import {handoffDestinationState} from './handoff.mjs';
+import {estimatesSectionFromLocation,estimatesSectionUrl} from '../estimatesNavigation.js';
 
 function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,...handoffProps}){
  const ref=useRef(),[target,setTarget]=useState(null);
@@ -28,8 +29,9 @@ function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onD
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
  const permissions=usePermissions(),{getToken}=useAuth();
+ const {setEstimatesNavVisible}=useOutletContext();
  const personalOnly=permissions.canSavePersonalWork&&!permissions.canEstimate&&!permissions.canApproveEstimates;
- const [view,setView]=useState('official');
+ const [view,setView]=useState(()=>estimatesSectionFromLocation(location.pathname,location.search,permissions,location.state));
  const personalMode=personalOnly||view==='personal';
  const reviewMode=!personalOnly&&view==='review';
  const [reviewRows,setReviewRows]=useState([]),[selectedReview,setSelectedReview]=useState(null);
@@ -45,7 +47,13 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const [checklistConfig,setChecklistConfig]=useState(null);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
  const client=useCallback(async()=>createSupabaseClient(await getSupabaseAccessToken(getToken)),[getToken]);
- useEffect(()=>{if(location.state?.reviewMode)setView('review');},[location.state?.reviewMode]);
+ useEffect(()=>{
+  if(!libraryOnly)setView(estimatesSectionFromLocation(location.pathname,location.search,permissions,location.state));
+ },[libraryOnly,location.pathname,location.search,location.state?.reviewMode,permissions.canSavePersonalWork,permissions.canEstimate,permissions.canApproveEstimates]);
+ useEffect(()=>{
+  setEstimatesNavVisible(libraryOnly||(!selected&&!selectedReview));
+ },[libraryOnly,selected,selectedReview,setEstimatesNavVisible]);
+ useEffect(()=>()=>setEstimatesNavVisible(true),[setEstimatesNavVisible]);
  const reloadChecklist=useCallback(async()=>{
   try{const db=await client(),result=await db.from('estimate_checklist_definitions').select('*').order('sort_order');if(result.error)throw result.error;setChecklistConfig(result.data);}
   catch{setChecklistConfig(null);}
@@ -231,6 +239,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  function switchView(next){
   if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;
   dirty.current=false;active.current=null;setSelected(null);setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});setView(next);
+  navigate(estimatesSectionUrl(next),{state:{department:division,reviewMode:next==='review'}});
  }
  async function submitPersonal(event){
   event.preventDefault();
@@ -301,7 +310,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   </section>;
  }
  return <section className="workspace-stack">
-  <WorkspaceHeader eyebrow="Workspace" title={reviewMode?'Estimate review queue':personalMode?'My Estimates':division+' Estimates'} description={reviewMode?'Review exact submitted payloads before promoting, returning, or declining them.':personalMode?'Private working estimates remain unpublished until submitted for review.':'Build pricing, prepare a client proposal, and retain approved versions.'} descriptionIsDiagnostic={false} actions={<>{!personalOnly&&view!=='official'&&<button className="secondary-button" type="button" onClick={()=>switchView('official')}>Official estimates</button>}{!personalOnly&&view!=='personal'&&<button className="secondary-button" type="button" onClick={()=>switchView('personal')}>My Estimates</button>}{!personalOnly&&view!=='review'&&<button className="secondary-button" type="button" onClick={()=>switchView('review')}>Review submissions</button>}{!personalMode&&!reviewMode&&<button className="secondary-button" type="button" onClick={()=>navigate('/estimates/assemblies')}>Assembly library</button>}<button className="secondary-button" type="button" onClick={reload}><RefreshCw size={16}/>Refresh</button></>}/>
+  <WorkspaceHeader eyebrow="Workspace" title={reviewMode?'Estimate review queue':personalMode?'My Estimates':division+' Estimates'} description={reviewMode?'Review exact submitted payloads before promoting, returning, or declining them.':personalMode?'Private working estimates remain unpublished until submitted for review.':'Build pricing, prepare a client proposal, and retain approved versions.'} descriptionIsDiagnostic={false} actions={<><span className="estimate-workbench-directory-links">{!personalOnly&&view!=='official'&&<button className="secondary-button" type="button" onClick={()=>switchView('official')}>Official estimates</button>}{!personalOnly&&view!=='personal'&&<button className="secondary-button" type="button" onClick={()=>switchView('personal')}>My Estimates</button>}{permissions.canApproveEstimates&&view!=='review'&&<button className="secondary-button" type="button" onClick={()=>switchView('review')}>Review submissions</button>}{!personalMode&&!reviewMode&&<button className="secondary-button" type="button" onClick={()=>navigate('/estimates/assemblies')}>Assembly library</button>}</span><button className="secondary-button" type="button" onClick={reload}><RefreshCw size={16}/>Refresh</button></>}/>
   {error&&<p role="alert">{error}</p>}
   {workflow.error&&<p role="alert">{workflow.error}</p>}
   {workflow.success&&<p role="status">{workflow.success}</p>}

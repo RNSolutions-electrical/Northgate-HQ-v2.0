@@ -14,6 +14,7 @@ import {reviewTaskPath,useReviewTasks} from '../../hooks/useReviewTasks.js';
 import { dashboardSections, dashboardSectionFromSearch, dashboardSectionUrl } from '../../modules/dashboard/dashboardNavigation.js';
 import { inventorySectionFromSearch, visibleInventorySections } from '../../modules/inventory/inventoryNavigation.js';
 import { JOB_DIRECTORY_SECTIONS, jobDirectorySectionFromSearch, jobDirectorySectionUrl } from '../../modules/jobs/jobsNavigation.js';
+import { estimatesSectionFromLocation, estimatesSectionUrl, visibleEstimatesSections } from '../../modules/estimates/estimatesNavigation.js';
 
 /**
  * Composes the shell around whichever module route is active.
@@ -33,6 +34,7 @@ export function AppLayout() {
   const [notificationsOpen,setNotificationsOpen]=useState(false);
   const [inventoryReviewCount, setInventoryReviewCount] = useState(null);
   const [jobsNavState, setJobsNavState] = useState({ show: true, counts: {} });
+  const [estimatesNavVisible, setEstimatesNavVisible] = useState(true);
   const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
 
   useEffect(() => {
@@ -93,6 +95,10 @@ export function AppLayout() {
     ? JOB_DIRECTORY_SECTIONS.map(section => ({ ...section, badge: jobsNavState.counts[section.key] || null }))
     : null;
   const activeJobsSection = jobsNavigation ? jobDirectorySectionFromSearch(location.search) : null;
+  const estimatesNavigation = activeKey === 'estimates' && estimatesNavVisible ? visibleEstimatesSections(permissions) : null;
+  const activeEstimatesSection = estimatesNavigation
+    ? estimatesSectionFromLocation(location.pathname, location.search, permissions, location.state)
+    : null;
 
   return (
     <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
@@ -109,6 +115,14 @@ export function AppLayout() {
       activeInventorySection={activeInventorySection}
       jobsNavigation={jobsNavigation}
       activeJobsSection={activeJobsSection}
+      estimatesNavigation={estimatesNavigation}
+      activeEstimatesSection={activeEstimatesSection}
+      onEstimatesSectionSelect={(sectionKey) => {
+        if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
+        navigate(estimatesSectionUrl(sectionKey), {
+          state: { department: location.state?.department ?? permissions.department ?? permissions.division, reviewMode: sectionKey === 'review' },
+        });
+      }}
       onJobsSectionSelect={(sectionKey) => {
         if (!document.dispatchEvent(new Event('northgate:before-navigate', { cancelable: true }))) return;
         navigate(jobDirectorySectionUrl(sectionKey), { replace: true });
@@ -200,7 +214,7 @@ export function AppLayout() {
       )}
       >
         {canCorrectInventoryData(permissions)&&<StatePanel tone="warning" compact title="Developer Data Correction enabled" description="Temporary audited inventory correction access. History and stock safeguards remain enforced. Revoke in Developer → Permissions before official rollout." />}
-        <Outlet context={{ setInventoryReviewCount, setJobsNavState }} />
+        <Outlet context={{ setInventoryReviewCount, setJobsNavState, setEstimatesNavVisible }} />
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
     </DiagnosticsProvider>
