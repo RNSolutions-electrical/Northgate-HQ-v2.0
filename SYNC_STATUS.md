@@ -1,11 +1,18 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Estimates tree Staging trial — ESTIMATES-TREE-STAGING-20261006-001
+
+- Date/time: 2026-10-06 06:25 EDT (UTC-04:00); machine `Ryan_Northgate`.
+- App commit `8afee97bcfa922d1483e88286db24cd39f0da20e` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published deploy `6ac4cc07bf6aa00008f63670` at `staging.rnsolutions.net` at 06:23 EDT.
+- The live Estimates workbench now shows Official Estimates, My Estimates, Review Submissions (for approvers), and Assembly Library in the persistent desktop rail. Directory shortcut buttons remain available on small screens; an opened estimate retains its own editor navigation. An older inactive Estimates workspace component was not changed.
+- 279/279 explicit Node tests and a Staging-configured Vite build passed. Signed-in Staging smoke checks confirmed all four rail destinations and return from Assembly Library. This test account has no estimates, so open-estimate navigation and owner acceptance remain to be checked. No migration or Production branch/site/database change. The unfinished Inventory Management batch editor remains excluded.
+
 ## Jobs tree Staging trial — JOBS-TREE-STAGING-20261005-001
 
 - Date/time: 2026-10-05 16:48 EDT (UTC-04:00); machine `Ryan_Northgate`.
 - App commits `48f87d560c97729aaf3cb77b9bfeb649282ac069` and heading follow-up `5bcc5b80a9c11d8b6d87c734c369dc3b35de367f` on `staging` and `integration/staging-production-parity-20261005`; Netlify Staging published current deploy `6ac40d87ef5eb000087bc94a` at `staging.rnsolutions.net` at 16:50 EDT (initial Jobs deploy `6ac40cac591035000821f88b`).
 - Jobs directory status filters now appear under Jobs in the persistent desktop workspace rail. The redundant desktop Jobs directory sidebar is hidden, while the mobile menu remains. An open job retains its own existing project tabs; Service Calls are unchanged.
-- 277/277 explicit Node tests and a Staging-configured Vite build passed; the heading follow-up passed its targeted test and another Staging-configured build. Signed-in browser smoke checks confirmed the rail, filters, corrected heading, and unchanged open-job tabs. Owner acceptance is pending. No migration or Production code/site/database change occurred. The unfinished Inventory Management batch editor remains excluded.
+- 277/277 explicit Node tests and a Staging-configured Vite build passed; the heading follow-up passed its targeted test and another Staging-configured build. Signed-in browser smoke checks confirmed the rail, filters, corrected heading, and unchanged open-job tabs. Ryan accepted the Jobs trial on October 6 and approved continuing to Estimates. No migration or Production code/site/database change occurred. The unfinished Inventory Management batch editor remains excluded.
 
 ## Inventory tree Staging trial — INVENTORY-TREE-STAGING-20261005-001
 

@@ -23059,3 +23059,19 @@ After Ryan accepted the Inventory rail trial, the next Jobs trial moved the exis
 Verification: 277/277 explicit Node tests and a Staging-configured Vite build passed. Netlify reports the code commit as the published Staging deploy. Signed-in desktop/mobile visual acceptance is still pending. Production `main`, the Production Netlify site, and both databases remain unchanged. The Inventory Management batch editor remains excluded; do not promote the parity candidate to Production without owner acceptance and isolated schema rehearsal.
 
 Signed-in browser smoke testing confirmed the Jobs rail and its URL-backed On Hold / All Jobs filters. It also revealed a doubled directory heading (such as “All Jobs Jobs”). Follow-up commit `5bcc5b80a9c11d8b6d87c734c369dc3b35de367f` normalized directory titles for Jobs and Service Calls; its targeted test and Staging-configured build passed. Netlify published current deploy `6ac40d87ef5eb000087bc94a` at 16:50 EDT. The refreshed Staging page shows “All Jobs” correctly, and an open job still has its original tabs. Owner visual acceptance remains pending.
+
+Ryan accepted the Jobs layout on October 6 and approved continuing to Estimates.
+
+## Entry 331 — Live Estimates persistent navigation trial on Staging
+
+**Date:** 2026-10-06 06:25 EDT (UTC-04:00)
+**Updated by:** Codex on `Ryan_Northgate`
+**Phase:** Pre-1.0 Staging acceptance
+**Session type:** implementation
+**Sync marker:** `ESTIMATES-TREE-STAGING-20261006-001`
+**Code commit:** `8afee97bcfa922d1483e88286db24cd39f0da20e` on `origin/staging` and `origin/integration/staging-production-parity-20261005`
+**Staging Netlify deploy:** `6ac4cc07bf6aa00008f63670`, published at `staging.rnsolutions.net`
+
+The live Estimates route uses `WorkbenchRoute`, not the older `EstimatesWorkspace`. Its Official Estimates, My Estimates, Review Submissions, and Assembly Library destinations now appear in the persistent desktop rail, filtered by estimating authority. The prior directory buttons remain available on small screens. URL-backed section selection and the existing review-notification state both open the corresponding destination. While an estimate or review item is open, its own editor navigation remains primary and the rail's section tree is hidden. No estimate data, pricing, review workflow, or database schema was changed.
+
+Verification: 279/279 explicit Node tests and a Staging-configured Vite build passed. Netlify confirms the commit as the published Staging deploy. Signed-in browser smoke checks covered all four destinations and return from Assembly Library. There are no estimates in that Staging account, so open-estimate behavior and owner visual acceptance remain unverified. The first click immediately after publication encountered a stale dynamic asset; refreshing loaded the current build normally. Production `main`, Production Netlify, and both databases remain unchanged. The unfinished Inventory Management batch editor remains excluded. Keep the existing acceptance and isolated schema-rehearsal gates before any Production promotion.
