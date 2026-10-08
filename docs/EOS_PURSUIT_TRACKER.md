@@ -173,11 +173,14 @@ values spill off the screen on his phone. Commit `952dfb8` constrains the
 mobile label/value grid, permits long values to wrap, and aligns the filters
 to the viewport; Netlify published it on Staging as deploy
 `6ac7a0c96371d20008cd6d9c`. Seven focused tests and a compile-only
-Staging-identity build passed. A developer-account mobile visual check is
-still pending because the accessible browser was signed in as the ordinary
-User. Mobile/200% text, remaining alternate-role UI checks, and award retry/
-concurrency remain interactive gaps; award and access rules also passed
-rollback-only database tests earlier.
+Staging-identity build passed. Ryan refreshed on his phone and accepted the
+improved layout. Additional rollback-only Staging database checks confirmed
+that a shared client edit appears in both linked pursuits, and a repeated
+existing-Job award returns the same Job without changing budget or baseline.
+The test transaction left zero QA clients or pursuits. A 200% browser view,
+remaining alternate-role UI checks, and true concurrent-click behavior
+remain interactive gaps; award and access rules also passed rollback-only
+database tests earlier.
 
 Before any Production deployment:
 
@@ -203,10 +206,10 @@ Before any Production deployment:
    and filter, Dormant transition, reminders, award-overlay cancel, and
    Delete/Undo/redelete and one existing-Job award submission without budget
    posting also passed on October 8. The ordinary User's lack of E.O.S.
-   visibility passed owner testing. The mobile overflow fix is deployed but
-   awaits phone review. Mobile/200%, remaining alternate-role UI, and
-   award retry/concurrency remain interactive gaps; full owner acceptance
-   remains open.
+   visibility passed owner testing. Ryan accepted the repaired phone layout;
+   shared-client propagation and sequential award retry passed rollback-only
+   checks. The 200% view, remaining alternate-role UI, and true concurrent
+   award clicks remain interactive gaps; full owner acceptance remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
 
