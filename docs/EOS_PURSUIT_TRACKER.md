@@ -167,7 +167,15 @@ showed unchanged Job financials: 177 budget lines, $1,627,664 budget total,
 177 revenue lines, and financial baseline version 433. Ryan approved
 recoverable removal of this second QA pursuit; it is soft-deleted and the
 Awards card returned to its prior 5 pursuits/$34,121.08. The Job was left
-untouched. Mobile/200% text, alternate-role UI checks, and award retry/
+untouched. On October 8 Ryan verified that `Ryan@thenorthgategroup.com`,
+the ordinary Staging User, cannot see E.O.S. He also found that tracker card
+values spill off the screen on his phone. Commit `952dfb8` constrains the
+mobile label/value grid, permits long values to wrap, and aligns the filters
+to the viewport; Netlify published it on Staging as deploy
+`6ac7a0c96371d20008cd6d9c`. Seven focused tests and a compile-only
+Staging-identity build passed. A developer-account mobile visual check is
+still pending because the accessible browser was signed in as the ordinary
+User. Mobile/200% text, remaining alternate-role UI checks, and award retry/
 concurrency remain interactive gaps; award and access rules also passed
 rollback-only database tests earlier.
 
@@ -194,7 +202,9 @@ Before any Production deployment:
    checks. Name-only save, full and inline edits, follow-up dates, card totals
    and filter, Dormant transition, reminders, award-overlay cancel, and
    Delete/Undo/redelete and one existing-Job award submission without budget
-   posting also passed on October 8. Mobile/200%, alternate-role UI, and
+   posting also passed on October 8. The ordinary User's lack of E.O.S.
+   visibility passed owner testing. The mobile overflow fix is deployed but
+   awaits phone review. Mobile/200%, remaining alternate-role UI, and
    award retry/concurrency remain interactive gaps; full owner acceptance
    remains open.
 5. Promote this feature through its own Staging acceptance and release path.
