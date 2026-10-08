@@ -28,8 +28,13 @@ team-release promotion until its own acceptance checks are complete.
   found `Ryan@thenorthgategroup.com` with `User` business rank. On October 8,
   Ryan approved `CRNCMK@gmail.com` as the temporary Staging-only EOS tester.
   It is an active Director with Developer authority; the audited EOS grant
-  was applied without changing either account's business role. The ordinary
-  Ryan account remains an ungranted User for denial testing.
+  was applied without changing either account's business role. At that time,
+  the ordinary Ryan account was an ungranted User for denial testing. On
+  October 8, Ryan promoted that account through the application to Manager
+  and granted E.O.S. access for a signed-in acceptance check; a read-only
+  Staging query confirmed it is active with Manager business rank and an
+  E.O.S. grant. Its earlier ungranted-User denial result remains historical,
+  not its current permission state.
   The current account-provisioning RPC does not explicitly carry an employee
   profile's business rank into `user_permissions.business_role`; verify the
   canonical rank after first sign-in and set it through the existing permission
@@ -202,10 +207,13 @@ separate Staging SQL award requests for one new QA pursuit overlapped in time,
 both returned the same existing Job, and produced one award update audit row.
 The Job retained 177 budget lines, $1,627,664 original budget and baseline
 version 433. Two labeled QA pursuits were soft-deleted, leaving 41 active
-source pursuits and no active QA pursuit. Signed-in Manager and technical-
-Developer-only UI variants remain open; the Staging accounts currently cover
-the granted Director/Developer and ungranted ordinary-User views. Browser
-double-click behavior itself was not separately exercised.
+source pursuits and no active QA pursuit. Ryan then promoted
+`Ryan@thenorthgategroup.com` to Manager, granted E.O.S. access, and reported
+that the signed-in experience worked. A read-only Staging query confirmed
+the active Manager rank and grant; this is owner-reported UI acceptance,
+not an agent-observed browser test. The technical-Developer-without-business-
+authority UI variant remains open. Browser double-click behavior itself
+was not separately exercised.
 
 Before any Production deployment:
 
@@ -239,9 +247,14 @@ Before any Production deployment:
    1200, 1500, and 1800 CSS-pixel browser checks. Ryan also accepted the
    actual 200% computer-browser view. Rollback-only Staging role tests and
    truly overlapping award transactions passed without Job financial impact.
-   Signed-in Manager and technical-Developer-only UI variants remain open;
-   a separate Staging Manager login is not currently available. Full owner
-   acceptance remains open.
+   Ryan tested the newly promoted, granted Manager account in the signed-in
+   Staging UI and reported it worked; read-only database verification confirms
+   its active Manager rank and E.O.S. grant. The earlier ungranted-User UI
+   denial remains a valid historical check from before this promotion.
+   Technical-Developer-without-business-authority and ungranted-Manager UI
+   variants remain untested with real signed-in accounts (backend checks
+   passed). Browser double-click behavior was not separately exercised.
+   Full owner acceptance for Production promotion remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
 
