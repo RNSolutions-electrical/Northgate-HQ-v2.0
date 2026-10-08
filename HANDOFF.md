@@ -23248,3 +23248,17 @@ The source workbook was imported into Staging without obtaining or exposing a se
 **Staging deploy:** Netlify `6ac775bfc21f82000804ffc6`, published October 8 at 06:51:59 EDT to `https://staging.rnsolutions.net`
 
 The E.O.S. app, additive migration, isolated workbook import and temporary tester grant from Entry 343 are now together on Staging. Netlify reported a ready deploy for the exact code commit with no secret-scan matches. The signed-in Director browser loaded `/eos` with the persistent Staging banner, 41 source pursuits, client choices and leadership reminder. New Pursuit opened and cancelled; search narrowed and cleared. No browser test records were saved. A Staging JWT check confirmed `CRNCMK@gmail.com` has E.O.S. access and `Ryan@thenorthgategroup.com` does not. Focused tests passed 16/16 and the Staging-identity Vite build passed; the broad npm auto-discovery run was stopped at a Vite cache lock without assertion failures. Full interactive owner acceptance remains open; see `docs/EOS_PURSUIT_TRACKER.md`. Production `main`, Production Netlify and Production Supabase remain unchanged. Do not combine E.O.S. with the pending team-release parity promotion.
+
+## Entry 345 — E.O.S. row readability and >50% pipeline refinement
+
+**Sync marker:** `EOS-STAGING-REFINEMENT-20261008-0842-EDT-RYAN_NORTHGATE`
+
+**Date/time:** October 8, 2026, 08:42 EDT (America/New_York)
+
+**Machine:** `RYAN_NORTHGATE`, isolated checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`
+
+**Code commit:** `b8e30075839d0b1a3c80a7c088c1b6edd174f8d8` on `origin/staging` and `origin/dev-eos-pursuit-tracker-20261006`
+
+**Staging deploy:** Netlify `6ac78f6f031acd00084e3ee4`, published October 8 at 08:41:36 EDT to `https://staging.rnsolutions.net`
+
+Ryan accepted the first E.O.S. view and requested row hover readability plus a >50% total that includes estimates as well as pursuits, excluding awarded jobs. The probability card is now “Pursuits / Estimates >50%”; its total and click filter share the same predicate. Awarded rows remain in Awards. Tracker rows visibly distinguish hover and keyboard focus, retaining Go/No Go tint. Seven focused EOS tests and a Staging-identity Vite build passed; the build used a fresh temporary output directory because the existing local `dist` was file-locked. The exact code commit is the ready Staging deploy; no migration was required. Owner visual acceptance of this refinement remains pending. Production app, branch and database remain unchanged.

@@ -132,6 +132,19 @@ Vite build passed. In rollback-only Staging JWT checks, the temporary
 `Ryan@thenorthgategroup.com` User did not. The broad npm auto-discovery run
 stalled on a Vite cache lock and was stopped without assertion failures.
 
+October 8 refinement: commit `b8e30075839d0b1a3c80a7c088c1b6edd174f8d8`
+was published to Staging by Netlify deploy `6ac78f6f031acd00084e3ee4` at
+08:41:36 EDT. Tracker rows now gain a stronger hover and keyboard-focus
+background while retaining Go/No Go tint. The fourth pipeline card remains
+Awards; the probability card now reads “Pursuits / Estimates >50%” and counts
+both active phases above 50%. Awarded records leave that card and remain in
+Awards. The card's click filter uses the same shared predicate as its total.
+Seven focused EOS tests and a Staging-identity Vite build to a fresh temporary
+output directory passed. The usual local `dist` cleanup was blocked by an
+existing file lock, so the fresh output directory avoided touching it. No
+schema or data migration was needed. Owner visual acceptance of this
+refinement remains pending.
+
 Before any Production deployment:
 
 1. Rehearse the migration on an isolated database against the current schema.
