@@ -184,8 +184,14 @@ original totals on return to All. At a 950 CSS-pixel viewport, representative
 of a 1900-pixel desktop at 200% zoom, the tracker stayed within its area but
 the site-wide header navigation overlapped its account controls; overlap was
 also visible at 1200, 1360 and 1500 pixels. This is a shared-shell responsive
-defect, not an E.O.S. data or authorization failure. A true 200% zoom check
-after a shared-header fix, remaining alternate-role UI checks, and genuine
+defect, not an E.O.S. data or authorization failure. The shared-header fix was
+deployed to Staging October 8 in commits `c8c9b92` and `7d54385` (ready
+Netlify deploy `6ac7d0289550780008a32697`). At 1500, 1200 and 950 CSS
+pixels the compact menu no longer overlaps the account controls, while the
+workspace rail remains visible; at 1800px the full navigation fits, and at
+700px the existing phone layout is unchanged. The signed-in browser opened
+and closed the compact menu, and the viewport override was reset. A true
+200% browser-zoom owner check, remaining alternate-role UI checks, and genuine
 concurrent-click behavior remain open; award and access rules also passed
 rollback-only database tests earlier.
 
@@ -217,7 +223,8 @@ Before any Production deployment:
    shared-client propagation and sequential award retry passed rollback-only
    checks. The source filter and read-only shared-client card also passed
    authorized browser checks. The 200%-equivalent viewport exposed a
-   site-wide header overlap. A true 200% view, remaining alternate-role UI,
+   site-wide header overlap; the subsequent Staging header fix passed 950,
+   1200, 1500, and 1800 CSS-pixel browser checks. A true 200% view, remaining alternate-role UI,
    and true concurrent
    award clicks remain interactive gaps; full owner acceptance remains open.
 5. Promote this feature through its own Staging acceptance and release path.
