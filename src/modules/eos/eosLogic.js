@@ -50,6 +50,11 @@ export function inView(row, view) {
   return row.status === EOS_STATUS.ACTIVE && row.phase !== 'Awarded' && row.go_no_go !== 'No Go';
 }
 
+export function isHighProbabilityOpportunity(row) {
+  return (row.phase === 'Pursuit' || row.phase === 'Estimate')
+    && row.probability != null && Number(row.probability) > 50;
+}
+
 export function summarizePursuits(rows) {
   const eligible = rows.filter((row) => inView(row, 'Active'));
   const card = (filtered) => ({
@@ -62,7 +67,7 @@ export function summarizePursuits(rows) {
   const awards = rows.filter((row) => !row.deleted_at && row.phase === 'Awarded');
   return {
     estimates: card(estimates), pursuits: card(pursuits),
-    likely: card(pursuits.filter((row) => row.probability != null && Number(row.probability) > 50)),
+    likely: card([...pursuits, ...estimates].filter(isHighProbabilityOpportunity)),
     awards: card(awards),
     weighted: [...pursuits, ...estimates].reduce((sum, row) =>
       sum + (row.planning_value == null || row.probability == null ? 0

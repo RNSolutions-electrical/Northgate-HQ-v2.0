@@ -5,7 +5,7 @@ import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
 import { Drawer } from '../../components/ui/Drawer.jsx';
 import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
-import { EOS_MODULES, EOS_VIEWS, differentReminderIndex, companyToday, inView, isOverdueStart,
+import { EOS_MODULES, EOS_VIEWS, differentReminderIndex, companyToday, inView, isHighProbabilityOpportunity, isOverdueStart,
   meetingDatePatch, sortPursuits, summarizePursuits } from './eosLogic.js';
 import './eos.css';
 
@@ -137,8 +137,7 @@ export function EosWorkspace({ permissions }) {
   const summary = useMemo(() => summarizePursuits(sourceRows), [sourceRows]);
   const visible = useMemo(() => sortPursuits(sourceRows.filter((row) => inView(row, view))
     .filter((row) => !metricFilter || ({ estimates: row.phase === 'Estimate',
-      pursuits: row.phase === 'Pursuit', likely: row.phase === 'Pursuit'
-        && row.probability != null && Number(row.probability) > 50,
+      pursuits: row.phase === 'Pursuit', likely: isHighProbabilityOpportunity(row),
       awards: row.phase === 'Awarded' })[metricFilter])
     .filter((row) => managerFilter === 'All'
       || (managerFilter.startsWith('source:')
@@ -318,7 +317,7 @@ export function EosWorkspace({ permissions }) {
     </section> : <>
       <div className="eos-summary">
         {[['estimates','Total Estimates','Estimate'],['pursuits','Total Pursuits','Pursuit'],
-          ['likely','Total Pursuits >50%','Pursuit'],['awards','Total Awards','Awarded']].map(([key,label,phase]) =>
+          ['likely','Pursuits / Estimates >50%','Pursuit'],['awards','Total Awards','Awarded']].map(([key,label,phase]) =>
           <button type="button" key={key} className="summary-card eos-summary-card"
             aria-pressed={metricFilter === key}
             onClick={() => { setView(phase === 'Awarded' ? 'Awards' : 'Active'); setMetricFilter(key); setSearch(''); }}>

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { companyToday, differentReminderIndex, inView, isOverdueStart, meetingDatePatch, shiftCalendarDate, sortPursuits, summarizePursuits } from '../src/modules/eos/eosLogic.js';
+import { companyToday, differentReminderIndex, inView, isHighProbabilityOpportunity, isOverdueStart, meetingDatePatch, shiftCalendarDate, sortPursuits, summarizePursuits } from '../src/modules/eos/eosLogic.js';
 
 test('meeting follow-ups use calendar days across month and year boundaries', () => {
   assert.deepEqual(meetingDatePatch('2026-12-27'), {
@@ -17,6 +17,7 @@ test('pipeline metrics distinguish missing and zero, strict greater than fifty, 
     { phase: 'Pursuit', status: 'Active', probability: 50.1, planning_value: 0 },
     { phase: 'Pursuit', status: 'Active', probability: 80, planning_value: null },
     { phase: 'Estimate', status: 'Active', probability: 25, planning_value: 200 },
+    { phase: 'Estimate', status: 'Active', probability: 75, planning_value: 400 },
     { phase: null, status: 'Active', probability: null, planning_value: 50 },
     { phase: 'Pursuit', status: 'Dormant', probability: 90, planning_value: 500 },
     { phase: 'Pursuit', status: 'Active', go_no_go: 'No Go', planning_value: 500 },
@@ -24,10 +25,10 @@ test('pipeline metrics distinguish missing and zero, strict greater than fifty, 
   ];
   const result = summarizePursuits(rows);
   assert.deepEqual(result.pursuits, { count: 3, value: 100, missing: 1 });
-  assert.deepEqual(result.likely, { count: 2, value: 0, missing: 1 });
-  assert.equal(result.estimates.value, 200);
+  assert.deepEqual(result.likely, { count: 3, value: 400, missing: 1 });
+  assert.equal(result.estimates.value, 600);
   assert.equal(result.awards.count, 1);
-  assert.equal(result.weighted, 100);
+  assert.equal(result.weighted, 400);
   assert.equal(result.missingPhase, 1);
 });
 
@@ -42,6 +43,16 @@ test('dormant and no-go remain accessible; today is not overdue', () => {
   assert.equal(inView({ ...noGo, status: 'Active' }, 'No Go'), true);
   assert.equal(inView({ ...noGo, status: 'Active' }, 'Active'), false);
   assert.equal(inView({ status: 'Active', phase: 'Awarded', job_id: 'job' }, 'Awards'), true);
+});
+
+test('a high-probability estimate leaves the active metric when awarded', () => {
+  const estimate = { phase: 'Estimate', status: 'Active', probability: 75, planning_value: 400 };
+  assert.equal(isHighProbabilityOpportunity(estimate), true);
+  assert.equal(summarizePursuits([estimate]).likely.count, 1);
+  const awarded = { ...estimate, phase: 'Awarded', job_id: 'job-1' };
+  assert.equal(isHighProbabilityOpportunity(awarded), false);
+  assert.equal(summarizePursuits([awarded]).likely.count, 0);
+  assert.equal(summarizePursuits([awarded]).awards.count, 1);
 });
 
 test('numeric sort keeps nulls last in either direction', () => {

@@ -37,6 +37,9 @@
 .eos-table th:nth-child(14) { width: 5.5%; }
 .eos-row--go { background: color-mix(in srgb,var(--ng-ok-bg) 75%,white); }
 .eos-row--no-go { background: color-mix(in srgb,var(--ng-err-bg) 70%,white); }
+.eos-row:hover, .eos-row:focus-within { background: color-mix(in srgb,var(--ng-brand-red) 10%,var(--ng-card-bg)); }
+.eos-row--go:hover, .eos-row--go:focus-within { background: color-mix(in srgb,var(--ng-ok-bg) 65%,var(--ng-panel-bg-alt)); }
+.eos-row--no-go:hover, .eos-row--no-go:focus-within { background: color-mix(in srgb,var(--ng-err-bg) 60%,var(--ng-panel-bg-alt)); }
 .eos-row--overdue { border-left: 3px solid var(--ng-warn); }
 .eos-link, .eos-cell-button { display: block; max-width: 100%; border: 0; background: transparent; padding: 0; color: var(--ng-text); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .eos-link { color: var(--ng-brand-red); font-weight: 700; }
