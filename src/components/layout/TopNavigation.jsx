@@ -36,7 +36,7 @@ export function TopNavigation({
 
           return (
             <div key={item.key} className={`top-nav__group${isGroup ? ' top-nav__group--menu' : ''}`}
-              onPointerEnter={e=>{if(isGroup&&e.pointerType==='mouse'&&window.matchMedia('(min-width: 900px) and (hover: hover)').matches)setOpenGroup(item.key);}}
+              onPointerEnter={e=>{if(isGroup&&e.pointerType==='mouse'&&window.matchMedia('(min-width: 1700px) and (hover: hover)').matches)setOpenGroup(item.key);}}
               onPointerLeave={e=>{if(e.pointerType==='mouse')setOpenGroup(null);}}
               onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setOpenGroup(null);}}
               onKeyDown={e=>{if(e.key==='Escape')setOpenGroup(null);}}

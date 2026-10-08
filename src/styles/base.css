@@ -1016,6 +1016,71 @@ textarea {
   }
 }
 
+/* The full header navigation needs more width than the page's mobile layout.
+   Collapse only the header menu here; keep the workspace rail until 899px. */
+@media (max-width: 1699px) {
+  .ng-shell__menu-button { display: grid; flex: 0 0 40px; }
+
+  .top-nav {
+    display: none;
+    position: fixed;
+    top: var(--app-header-height);
+    left: 0;
+    right: 0;
+    z-index: 45;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    height: auto;
+    max-height: calc(100dvh - var(--app-header-height));
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--ng-card-bg);
+    border-bottom: 1px solid var(--ng-border);
+    box-shadow: var(--ng-shadow-raised);
+    padding: 10px var(--app-page-gutter) 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .top-nav.is-open { display: flex; }
+  .top-nav__mobile-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 52px;
+    margin-bottom: 6px;
+    padding: 4px 4px 10px;
+    border-bottom: 1px solid var(--ng-divider);
+  }
+  .top-nav__mobile-heading > div { display: grid; gap: 2px; }
+  .top-nav__mobile-heading strong { font-size: 1rem; }
+  .top-nav__mobile-heading button {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid var(--ng-border);
+    border-radius: var(--ng-radius-control);
+    background: var(--ng-card-bg);
+  }
+  .top-nav__item {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    border: 1px solid transparent;
+    border-radius: var(--ng-radius-control);
+    padding-inline: 12px;
+  }
+  .top-nav__item.is-active {
+    border-color: rgba(191, 31, 42, 0.22);
+    background: var(--ng-brand-red-soft);
+  }
+  .top-nav__group { width: 100%; flex-wrap: wrap; }
+  .top-nav__group--menu > .top-nav__item { flex: 1; width: auto; }
+  .top-nav__disclosure { min-width: 44px; min-height: 44px; }
+  .top-nav__menu { position: static; width: 100%; margin: 4px 0 8px; box-shadow: none; }
+  .top-nav__menu-item { min-height: 44px; }
+}
+
 @media (max-width: 899px) {
   :root {
     --app-page-gutter: 10px;
@@ -1028,8 +1093,6 @@ textarea {
   body {
     overflow-x: hidden;
   }
-
-  .ng-shell__menu-button { display: grid; }
 
   .ng-shell__header-inner {
     min-width: 0;
@@ -1063,70 +1126,6 @@ textarea {
     width: 36px;
     height: 36px;
   }
-
-  .top-nav {
-    display: none;
-    position: fixed;
-    top: var(--app-header-height);
-    left: 0;
-    right: 0;
-    z-index: 45;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 2px;
-    height: auto;
-    max-height: calc(100dvh - var(--app-header-height));
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--ng-card-bg);
-    border-bottom: 1px solid var(--ng-border);
-    box-shadow: var(--ng-shadow-raised);
-    padding: 10px var(--app-page-gutter) 16px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .top-nav.is-open { display: flex; }
-  .top-nav__item { min-height: 44px; }
-  .top-nav__mobile-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 52px;
-    margin-bottom: 6px;
-    padding: 4px 4px 10px;
-    border-bottom: 1px solid var(--ng-divider);
-  }
-  .top-nav__mobile-heading > div { display: grid; gap: 2px; }
-  .top-nav__mobile-heading strong { font-size: 1rem; }
-  .top-nav__mobile-heading button {
-    display: grid;
-    width: 42px;
-    height: 42px;
-    place-items: center;
-    border: 1px solid var(--ng-border);
-    border-radius: var(--ng-radius-control);
-    background: var(--ng-card-bg);
-  }
-  .top-nav__item {
-    width: 100%;
-    justify-content: flex-start;
-    border: 1px solid transparent;
-    border-radius: var(--ng-radius-control);
-    padding-inline: 12px;
-  }
-  .top-nav__item.is-active {
-    border-color: rgba(191, 31, 42, 0.22);
-    background: var(--ng-brand-red-soft);
-  }
-  .top-nav__group { width: 100%; flex-wrap:wrap; }
-  .top-nav__group--menu>.top-nav__item{flex:1;width:auto}
-  .top-nav__disclosure{min-width:44px;min-height:44px}
-  .top-nav__menu {
-    position: static;
-    width: 100%;
-    margin: 4px 0 8px;
-    box-shadow: none;
-  }
-  .top-nav__menu-item { min-height: 44px; }
 
   .ng-shell__body { grid-template-columns: minmax(0, 1fr); }
   .ng-shell__rail { display: none; }
@@ -1566,7 +1565,10 @@ textarea {
 .top-nav-scrim.is-open { opacity: 1; pointer-events: auto; }
 
 @media (min-width: 900px) {
-  .workspace-sidebar-scrim,
+  .workspace-sidebar-scrim { display: none; }
+}
+
+@media (min-width: 1700px) {
   .top-nav-scrim { display: none; }
 }
 
