@@ -23382,3 +23382,13 @@ Ryan rapidly clicked the **Award / Job handoff launcher** and observed that its 
 **Recorded:** 2026-10-08 16:28 EDT (UTC-04:00) · Machine: Ryan / Northgate Windows · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: owner-reported Staging browser acceptance and documentation only.
 
 Ryan clarified that he also tried clicking the **final award confirmation** twice. On the second attempt, the pointer showed a red circle with a slash, indicating that the action was not available to click again. This closes the final-button rapid-click UX check based on owner observation. The overlapping database requests in Entry 354 independently confirmed one Job link, one award update audit row, and unchanged Job financials. The browser report does not itself establish the number of network requests or audit rows, so the two forms of evidence remain distinct. E.O.S. is still Staging-only; this entry does not authorize a Production promotion or change app code/data.
+
+## Entry 358 — Staging-to-Production whole-release inventory; no promotion
+
+**Sync marker:** `STAGING-PROMOTION-AUDIT-20261008-1636-EDT-RYAN_NORTHGATE`
+
+**Recorded:** 2026-10-08 16:36 EDT (UTC-04:00) · Machine: `Ryan_Northgate` · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: read-only release audit and documentation.
+
+Ryan requested a review of **all** current Staging work before deciding what to promote. The current Production and Staging Netlify deploys, fresh Git branch relationship, live migration counts, selected schema/function definitions, and existing acceptance records were checked. `origin/staging` is 91 commits ahead of `origin/main` (140 changed files), but its latest deployed app code is `7d54385`; later commits are `[skip ci]` documentation. Production still runs v0.6.0 code `3ec69de`. The release inventory, unresolved workflow tests, selective database-delta requirement, recovery boundary, and exact preparation sequence are recorded in `docs/releases/STAGING_FULL_PROMOTION_AUDIT_20261008.md`.
+
+No feature was declared release-ready solely from this branch comparison. In particular, Staging and Production have equivalent contract-adjustment functions through different migration histories, while Staging alone has nullable uncoded CO draft lines and guided state; Production lacks the E.O.S., My Work, and budget-alert acknowledgement objects. Do not merge the entire branch or replay all Staging migrations without the documented review. No app code, Supabase data/schema, Netlify site, or Production branch was changed by this audit.
