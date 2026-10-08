@@ -41,6 +41,7 @@ const DENY_ALL = Object.freeze({
   can_express_checkout: false,
   can_approve_express_checkout: false,
   can_defer_completion: false,
+  can_manage_eos: false,
 });
 
 function camel(flags) {
@@ -82,6 +83,7 @@ function camel(flags) {
     canExpressCheckout: flags.can_express_checkout,
     canApproveExpressCheckout: flags.can_approve_express_checkout,
     canDeferCompletion: flags.can_defer_completion,
+    canManageEos: flags.can_manage_eos,
   };
 }
 
@@ -155,6 +157,10 @@ export function usePermissions() {
         const { data: addonRows, error: addonError } = await client.rpc('get_current_user_addons');
         if (addonError) throw addonError;
         next.addons = (addonRows ?? []).map((row) => row.addon_key);
+        // Optional until the EOS migration is applied. Do not fail the rest of
+        // the app's permission lookup when this isolated module is absent.
+        const { data: eosAccess, error: eosError } = await client.rpc('current_user_can_manage_eos');
+        next.permissions.can_manage_eos = !eosError && eosAccess === true;
         if (isMounted) setState({ isLoading: false, error: null, ...next });
       } catch (error) {
         console.error('Permission lookup failed', error);

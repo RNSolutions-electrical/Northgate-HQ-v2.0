@@ -40,6 +40,7 @@ import { PanelDirectoryWorkspace } from './panel-directory/PanelDirectoryWorkspa
 import { SilasWorkspace } from './silas/SilasWorkspace.jsx';
 import { ToolsWorkspace } from './tools/ToolsWorkspace.jsx';
 import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
+import { EosWorkspace } from './eos/EosWorkspace.jsx';
 
 export const MODULE_SCREENS = {
   afc:AfcWorkspace,
@@ -58,4 +59,5 @@ export const MODULE_SCREENS = {
   silas: SilasWorkspace,
   tools: ToolsWorkspace,
   vehicles: VehiclesWorkspace,
+  eos: EosWorkspace,
 };

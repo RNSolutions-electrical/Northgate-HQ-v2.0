@@ -1,0 +1,1035 @@
+{
+  "rows": [
+    {
+      "id": "p5",
+      "name": "Renovation",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c1",
+      "notes": "Major house repairs and remodel",
+      "phase": "Pursuit",
+      "value": 600000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 5,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p6",
+      "name": "Bryan-Lee Funeral Home Renovation",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c2",
+      "notes": "Phased FFE and alteration, incld MEP",
+      "phase": "Pursuit",
+      "value": 1000000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 6,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p7",
+      "name": "Office Building in Morrisville",
+      "managers": [
+        "Eric"
+      ],
+      "client": "",
+      "notes": "",
+      "phase": "",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 7,
+      "originalPhase": "",
+      "job": ""
+    },
+    {
+      "id": "p8",
+      "name": "LongLeaf - Patio",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c3",
+      "notes": "Modify patio sun shades and structure",
+      "phase": "Pursuit",
+      "value": 50000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 8,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p9",
+      "name": "Dix Conservancy Sun Flower Lights & Poles",
+      "managers": [
+        "Tim",
+        "DW"
+      ],
+      "client": "c4",
+      "notes": "Install light poles and lights",
+      "phase": "Pursuit",
+      "value": 20000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 9,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p10",
+      "name": "Kryosphere - Ultra Low Freezer Farm @ 13000",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c1",
+      "notes": "BMG space",
+      "phase": "Pursuit",
+      "value": 750000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 10,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p11",
+      "name": "Kryosphere Cooler",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c1",
+      "notes": "Cooler - WTP",
+      "phase": "Estimate",
+      "value": 2750000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 11,
+      "originalPhase": "Estimate",
+      "job": ""
+    },
+    {
+      "id": "p12",
+      "name": "Grace Church - 16ksf ground-up",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c5",
+      "notes": "",
+      "phase": "Estimate",
+      "value": 5000000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 12,
+      "originalPhase": "Estimate",
+      "job": ""
+    },
+    {
+      "id": "p13",
+      "name": "Glennon Towne",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c6",
+      "notes": "10,500sf flex space ground up plus site",
+      "phase": "Pursuit",
+      "value": 3000000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 13,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p14",
+      "name": "Generator install",
+      "managers": [
+        "Ryan",
+        "Dave"
+      ],
+      "client": "",
+      "notes": "",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 14,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p15",
+      "name": "Various Dan Gill drywall and plumbing repairs",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c7",
+      "notes": "Drywall repair due to shower leaks",
+      "phase": "Pursuit",
+      "value": 5000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 15,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p16",
+      "name": "701 E Six Forks",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c8",
+      "notes": "Up-fit at old Rural Plumbing Building",
+      "phase": "Pursuit",
+      "value": 400000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 16,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p17",
+      "name": "821 Wake Forest Rd",
+      "managers": [
+        "Jason"
+      ],
+      "client": "c9",
+      "notes": "Parking and building addition",
+      "phase": "Pursuit",
+      "value": 800000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 17,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p19",
+      "name": "BioGen Walk-ins",
+      "managers": [
+        "Ryan"
+      ],
+      "client": "c10",
+      "notes": "4 Coolers wiring",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 19,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p20",
+      "name": "720 Pebble Brook",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c11",
+      "notes": "Bathroom, Closet add, paint, floor",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 20,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p21",
+      "name": "Richard and Linda Dunn Residence",
+      "managers": [
+        "Eric"
+      ],
+      "client": "c12",
+      "notes": "Blowing Rock - 2 story house addition",
+      "phase": "Pursuit",
+      "value": 750000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 21,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p22",
+      "name": "3301 - Suit 11",
+      "managers": [
+        "Ryan",
+        "DW"
+      ],
+      "client": "c13",
+      "notes": "Service upgrade from 400amps to 1,000amps",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 22,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p23",
+      "name": "15 n west - restaurant",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c14",
+      "notes": "first TI in renovated building",
+      "phase": "Pursuit",
+      "value": 840568,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 23,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p24",
+      "name": "Levitate",
+      "managers": [
+        "Eric",
+        "Ryan"
+      ],
+      "client": "c15",
+      "notes": "Plans 2026 - moving into existing space",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 24,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p25",
+      "name": "309 N Boylan - theatre",
+      "managers": [
+        "Jason"
+      ],
+      "client": "",
+      "notes": "Repeat client for electrical work",
+      "phase": "Estimate",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 25,
+      "originalPhase": "Estimate",
+      "job": ""
+    },
+    {
+      "id": "p26",
+      "name": "917 W South St",
+      "managers": [
+        "Eric"
+      ],
+      "client": "c16",
+      "notes": "Maintenance items - existing house",
+      "phase": "Estimate",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 26,
+      "originalPhase": "Estimate",
+      "job": ""
+    },
+    {
+      "id": "p28",
+      "name": "Louis Cherry  - 401 Haywood",
+      "managers": [
+        "Tim"
+      ],
+      "client": "",
+      "notes": "Enclosed deck/porch",
+      "phase": "Pursuit",
+      "value": 250000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 28,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p29",
+      "name": "Eric Flischer - Hotel in Greensboro-student housing",
+      "managers": [
+        "Eric"
+      ],
+      "client": "",
+      "notes": "212 Units p-tak, upgrade service 6/26 complete - Meeting next week",
+      "phase": "Pursuit",
+      "value": 2000000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 29,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p31",
+      "name": "317 Pell St",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c17",
+      "notes": "Ashley Morris client, Interior reno/Screen Porh Addition",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 31,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p32",
+      "name": "2415 Medway Drive 27608",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c18",
+      "notes": "1957 split level, window replacement",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 32,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p33",
+      "name": "513 Bloodworth - Misc projects",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c19",
+      "notes": "Previous client",
+      "phase": "Estimate",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 33,
+      "originalPhase": "Estimate",
+      "job": ""
+    },
+    {
+      "id": "p34",
+      "name": "Glen Burnie Trail",
+      "managers": [
+        "Eric"
+      ],
+      "client": "",
+      "notes": "",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 34,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p35",
+      "name": "James Cane",
+      "managers": [
+        "Eric"
+      ],
+      "client": "",
+      "notes": "4 levels of deck replacement",
+      "phase": "Pursuit",
+      "value": 300000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 35,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p36",
+      "name": "Bike Shed - 613 Polk",
+      "managers": [
+        "Jason",
+        "Tim"
+      ],
+      "client": "c20",
+      "notes": "Send plans to Eric",
+      "phase": "Pursuit",
+      "value": 25000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 36,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p37",
+      "name": "1517 Caswell",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c21",
+      "notes": "Roof and eyebrow repair do to tree limb",
+      "phase": "Estimate",
+      "value": 40000,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 37,
+      "originalPhase": "Estimate",
+      "job": ""
+    },
+    {
+      "id": "p38",
+      "name": "313 E Lane St",
+      "managers": [
+        "Tim"
+      ],
+      "client": "c22",
+      "notes": "Previous client, mutliple repairs and electrical work",
+      "phase": "Pursuit",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 38,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p40",
+      "name": "House of many porches",
+      "managers": [
+        "Eric"
+      ],
+      "client": "c23",
+      "notes": "Teaming opportunity - Dix Campus",
+      "phase": "Pursuit",
+      "value": 500000,
+      "probability": 33,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 40,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "p119",
+      "name": "607 Watts - Durham Roof",
+      "managers": [
+        "Jason"
+      ],
+      "client": "c24",
+      "notes": "Roof",
+      "phase": "Pursuit",
+      "value": 57000,
+      "probability": 30,
+      "start": "",
+      "go": "Go",
+      "initial": "",
+      "source": "General",
+      "sourceRow": 119,
+      "originalPhase": "Pursuit",
+      "job": ""
+    },
+    {
+      "id": "e2",
+      "name": "26-022 · Pendant install, cubicle tie-in, additional cubicle troubleshoot",
+      "managers": [],
+      "client": "c25",
+      "notes": "",
+      "phase": "Awarded",
+      "value": 6653.2,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 2,
+      "originalPhase": "Awarded - To be scheduled",
+      "job": "26-022"
+    },
+    {
+      "id": "e3",
+      "name": "26-023 · Remove and replace ~60 2x4's lay-in lights",
+      "managers": [],
+      "client": "c26",
+      "notes": "replace 35 lights with 35 owner supplied 2x4's, supply and install 25 new matching lights AT NO CCL24-LSCS",
+      "phase": "Awarded",
+      "value": 10199.25,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 3,
+      "originalPhase": "Awarded - To be scheduled",
+      "job": "26-023"
+    },
+    {
+      "id": "e4",
+      "name": "26-024 · Install 6 high bay lights in R&D can warehouse",
+      "managers": [],
+      "client": "c27",
+      "notes": "",
+      "phase": "Awarded",
+      "value": 5900,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 4,
+      "originalPhase": "In Progress",
+      "job": "26-024"
+    },
+    {
+      "id": "e5",
+      "name": "26-025 · Install new sub panel and multiple pieces of large equipment",
+      "managers": [],
+      "client": "c28",
+      "notes": "",
+      "phase": "Estimate",
+      "value": 43999.85,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 5,
+      "originalPhase": "Proposal Sent",
+      "job": ""
+    },
+    {
+      "id": "e6",
+      "name": "26-026 · Exhaust fan troubleshoot. Fan was determined to be bad. Old one was wired incorrectly. Tommy will reach out when the new motor arrives. Will bill this as T&M once new fan is installed.",
+      "managers": [],
+      "client": "c28",
+      "notes": "",
+      "phase": "Awarded",
+      "value": 685.81,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 6,
+      "originalPhase": "Invoiced",
+      "job": "26-026"
+    },
+    {
+      "id": "e7",
+      "name": "26-027 · Electrical Service Inspection",
+      "managers": [],
+      "client": "c28",
+      "notes": "",
+      "phase": "Estimate",
+      "value": 1705.68,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 7,
+      "originalPhase": "Proposal Sent",
+      "job": ""
+    },
+    {
+      "id": "e8",
+      "name": "26-028 · Gateway Plaza temporary generator facilitation, procurement, set up and disassembly",
+      "managers": [],
+      "client": "c29",
+      "notes": "includes labor allowance. if not used, estimate to be reduced to $8,135.52",
+      "phase": "Awarded",
+      "value": 10682.82,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 8,
+      "originalPhase": "In Progress",
+      "job": "26-028"
+    },
+    {
+      "id": "e9",
+      "name": "Rhodes and LL generators",
+      "managers": [],
+      "client": "",
+      "notes": "",
+      "phase": "",
+      "value": null,
+      "probability": null,
+      "start": "",
+      "go": "",
+      "initial": "",
+      "source": "Electrical",
+      "sourceRow": 9,
+      "originalPhase": "",
+      "job": ""
+    }
+  ],
+  "clients": [
+    {
+      "id": "c1",
+      "name": "Chance White",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c2",
+      "name": "Whitney Rodgers",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c3",
+      "name": "Russ jones",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c4",
+      "name": "Nick Smit",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c5",
+      "name": "Kyle Koyne",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c6",
+      "name": "Kumar Manchikanti",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c7",
+      "name": "Dan Gill",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c8",
+      "name": "Kyle Coyne/BEACON",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c9",
+      "name": "Temple Sloan",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c10",
+      "name": "GRR",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c11",
+      "name": "Diana Little",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c12",
+      "name": "R&L",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c13",
+      "name": "Beacon Partners",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c14",
+      "name": "Connor Johnson",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c15",
+      "name": "Alex/Pete",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c16",
+      "name": "Dimler",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c17",
+      "name": "Courtney Whalen",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c18",
+      "name": "Caroline Mamoulides",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c19",
+      "name": "Tommy Harrill",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c20",
+      "name": "Kyle & Emily Reece",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c21",
+      "name": "Henry Ward",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c22",
+      "name": "Angela S",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c23",
+      "name": "Holt Construction",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c24",
+      "name": "Walt/Caty",
+      "company": "",
+      "phone": "",
+      "email": "",
+      "address": "",
+      "notes": ""
+    },
+    {
+      "id": "c25",
+      "name": "Alex kallimanis",
+      "company": "",
+      "phone": "",
+      "email": "alex.kallimanis@levitateapp.com",
+      "address": "2415 Crabtree Blvd, Raleigh, NC 27603",
+      "notes": ""
+    },
+    {
+      "id": "c26",
+      "name": "Kyle Coyne",
+      "company": "",
+      "phone": "540-623-0918",
+      "email": "kyle@beacondevelopment.com",
+      "address": "3414 N Duke St- job, 702 Oerlin rd, Suite 400, Raleigh, NC 27605",
+      "notes": ""
+    },
+    {
+      "id": "c27",
+      "name": "Anderson Glover",
+      "company": "",
+      "phone": "",
+      "email": "Anderson@harrispark.com",
+      "address": "1403 Capital Blvd, Raleigh, NC 27603",
+      "notes": ""
+    },
+    {
+      "id": "c28",
+      "name": "Tommy Hogan",
+      "company": "",
+      "phone": "",
+      "email": "tommy@raleighmech.com",
+      "address": "7405 ACC Blvd, Raleigh, NC 27617",
+      "notes": ""
+    },
+    {
+      "id": "c29",
+      "name": "Lindsay Barrier",
+      "company": "",
+      "phone": "",
+      "email": "lindsay@lodendev.com",
+      "address": "2409 Capital Blvd, Raleigh, NC 27603",
+      "notes": ""
+    }
+  ]
+}

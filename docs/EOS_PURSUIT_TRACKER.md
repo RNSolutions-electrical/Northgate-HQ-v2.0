@@ -1,0 +1,147 @@
+# E.O.S Project Pursuit Tracker — development handoff
+
+Status: isolated development branch; migration rehearsed on a disposable
+Production-backup restore and applied to isolated Staging on October 8. The
+workbook is imported to Staging, but the app code and signed-in acceptance
+checks are still pending. Production remains unchanged. This feature must not
+be included in the pending Staging → Production team-release promotion until
+its own signed-in Staging acceptance checks are complete.
+
+## Scope
+
+- `/eos` has the full Entrepreneurial Operating System heading, the Project
+  Pursuit Tracker, editable client contacts and leadership reminders. Go/No Go
+  Tracker and Company Scorecard are honestly labeled Coming soon.
+- Entry is limited to an explicit `eos_access_grants` row **and** an active
+  Manager/Director business rank. Technical Developer access by itself is not
+  sufficient. RLS and security-definer RPCs enforce the same boundary as the
+  route. Access is managed in Developer → Access Control by an actor with both
+  Director business rank and Developer authority.
+- The October 6 owner-approved initial emails are Ryan Noel, Eric Brinker,
+  David Wright, Tim Brixey, Jason Green and Rick Joseph at their
+  `@thenorthgategroup.com` addresses. Migration grants only matching, active
+  Manager/Director accounts. A read-only Production check on October 6 found
+  matching accounts only for Ryan and Tim. David, Jason and Rick have unlinked
+  employee profiles; Eric had no matching profile. Do not invent or elevate
+  those four. Grant them in Developer → Access Control after their real accounts
+  exist and have the proper business rank. A read-only October 6 Staging check
+  found `Ryan@thenorthgategroup.com` with `User` business rank. On October 8,
+  Ryan approved `CRNCMK@gmail.com` as the temporary Staging-only EOS tester.
+  It is an active Director with Developer authority; the audited EOS grant
+  was applied without changing either account's business role. The ordinary
+  Ryan account remains an ungranted User for denial testing.
+  The current account-provisioning RPC does not explicitly carry an employee
+  profile's business rank into `user_permissions.business_role`; verify the
+  canonical rank after first sign-in and set it through the existing permission
+  console if appropriate. EOS does not silently alter the broader auth model.
+
+## Data and workflow
+
+- New `eos_clients`, `eos_pursuits`, `eos_pursuit_managers` and
+  `eos_leadership_reminders` tables live in
+  `20261006130000_eos_pursuit_foundation.sql`, with read/write RLS, audit triggers,
+  date derivation and source provenance. Routine deletion is a recoverable
+  soft-delete with inline Undo; hard DELETE is not granted to app clients.
+- `eos_save_pursuit` updates the pursuit and manager association in one
+  transaction. `eos_award_pursuit` locks the pursuit, uses the existing Job
+  creation permission/function or verifies access to an existing Job, then
+  links it exactly once. Planning value never posts to Job financials.
+- The active/default pipeline excludes Dormant, No Go and Awarded records.
+  The four overview cards use source scope only; search and manager filters
+  narrow the table. Strictly greater than 50% controls the third card.
+- The original workbook remains untouched. `workbookSeed.json` is the supplied
+  normalized extraction. `scripts/import-eos-workbook.mjs --dry-run` reports
+  33 General + 8 Electrical rows and unresolved manager/client/job mappings.
+  The import is staging-only and idempotent by source sheet + row. `--apply`
+  requires `EOS_STAGING_URL`, `EOS_STAGING_SERVICE_KEY` and
+  `EOS_EXPECTED_STAGING_REF`, which must exactly match the staging project.
+  Never place the service key in a commit, browser bundle or console output.
+  Run the import only after the Staging migration is rehearsed and applied.
+- The package's first quote source link was replaced with a direct Echelon
+  Front article; the second quotation follows Echelon Front's punctuation and
+  cites its explicit Jocko Willink/Leif Babin attribution. Original reminders
+  remain clearly labeled as paraphrases. Seed keys make the set idempotent.
+
+## Validation and promotion gates
+
+Completed locally: 12 EOS logic/canonical permission tests, 41-row dry-run,
+and a compile-only Vite build with placeholder environment identifiers. These
+do **not** constitute a database rehearsal or signed-in browser acceptance.
+
+October 7 rehearsal attempt: Ryan approved a temporary schema-only Supabase
+branch at the displayed $0.01344/hour rate. Branch
+`eos-migration-rehearsal-20261007` (`cxvarreitnkujlafhadi`) was created without
+Production data or Git sync. Read-only inspection found that it lacked the
+Northgate `user_permissions`, `jobs`, and `change_logs` tables, so applying the
+EOS migration there would not test the real dependency graph. The branch was
+deleted and its absence verified; Production and Staging were not changed.
+The next safe rehearsal route is a temporary **restore to a new project** from
+the latest Production backup, which copies real data and needs separate owner
+approval and a cost check before creation. Do not mistake the empty branch
+attempt for a passed migration test.
+
+October 7 follow-up: Ryan separately approved a temporary restore. Project
+`northgate-eos-rehearsal-20261007` (`knbafigwlkvukjqsmydo`) was restored from
+the October 7 07:37 UTC Production backup at a displayed $10.18/month while
+active. It contained the required Northgate schema. The EOS migration applied
+there; the rollback-only SQL smoke test passed after correcting fixture naming
+ambiguities and separating side-effecting checks. The test covered grants,
+Manager/Director and technical Developer boundaries, direct-write denial,
+client/pursuit audit, dates, multiple managers, delete/undo, award to existing
+Job, award creating a new Job, retry idempotence, and no budget posting. It
+left zero fixture users, pursuits or clients. The conditional seed granted
+only the eligible Ryan and Tim Production accounts in the temporary copy;
+six reminder rows were seeded. No live database was changed.
+
+The rehearsal found that Supabase default privileges allowed direct writes
+until explicitly revoked. The migration now revokes all default grants on EOS
+tables before granting only intended operations. It also restricts trigger
+function execution and fixes `eos_touch` search-path mutability. Security
+advisors now show only expected EOS notices: `eos_access_grants` deliberately
+has no RLS policy because no app role has table privileges, and authenticated
+users can call the guarded SECURITY DEFINER RPCs by design. Unrelated inherited
+schema advisor findings remain outside this feature's scope. Ryan approved
+deletion of the temporary restore. It was deleted October 7 at 09:57 EDT;
+Supabase displayed a successful deletion notice, and a fresh project listing
+confirmed `knbafigwlkvukjqsmydo` absent with Production
+`keogysnoukbendfkfjcn` still healthy. The optional exit-survey submission
+failed, but project deletion succeeded. No temporary rehearsal project remains.
+
+October 8 Staging application: migration `20261008104622_eos_pursuit_foundation`
+applied to isolated Supabase branch `fazfwzbuesvzhgodckiw`; rollback-only SQL
+smoke passed. The approved `CRNCMK@gmail.com` grant was made through the
+audited `set_eos_access` RPC. The supplied workbook was imported with service
+role context through the Supabase SQL connector: 29 distinct source clients,
+41 unique pursuits (33 General, 8 Electrical), and six reminders. A repeat
+import inserted zero clients and zero pursuits. Eight pursuit rows had no
+source client. Five source job numbers did not match Staging Jobs, so they
+remain preserved as original labels and unlinked; no Job budget was posted.
+Source manager initials and ambiguous client labels were not guessed or
+auto-mapped. The repo import script still requires a Staging service key for
+its own `--apply` path; the connector route avoided exposing such a key.
+
+Before any Production deployment:
+
+1. Rehearse the migration on an isolated database against the current schema.
+   **Completed October 7** on the temporary restore described above. The
+   `tests/eosPursuit.live.sql` fixtures rolled back; exact initial migration
+   was followed by local corrections for default grants and trigger access,
+   which are consolidated into the repository migration file.
+2. Apply only to isolated Staging after rehearsal. **Completed October 8.**
+   Only the owner-approved temporary Staging tester is granted. The ordinary
+   User remains ungranted; the other named managers are not invented or
+   promoted.
+3. Run the staging-only workbook import and repeat it. **Completed October
+   8.** Existing Job links were checked; all five numbers are unmatched in
+   Staging. Resolve ambiguous mappings with the owner later; do not guess.
+4. Signed-in browser-check Manager/Director with and without EOS grants,
+   technical Developer without business authority, desktop/laptop/mobile/200%
+   text, all inline/full editors, sorting/filtering, client sharing, delete/undo,
+   dates, metrics, reminders and award retry/concurrency. Check Job creation
+   permissions and that no budget is posted.
+5. Promote this feature through its own Staging acceptance and release path.
+   The current Production and Staging applications/databases remain unchanged.
+
+Rollback: revert/hide this isolated code before promotion. If the additive
+schema has been applied, leave its tables intact until data and audit have
+been exported/reviewed; do not drop EOS data as an automatic rollback.

@@ -12,6 +12,7 @@ import {
   Truck,
   Users,
   Wrench,
+  Target,
   Puzzle,
 } from 'lucide-react';
 
@@ -130,6 +131,9 @@ export const MODULES = [
     status: 'live',
     description: 'Review queue, pricing controls, and approved exports.',
   },
+  { key: 'eos', path: '/eos', label: 'E.O.S', icon: Target,
+    requires: ['canManageEos'], status: 'live',
+    description: 'Entrepreneurial Operating System management tools.' },
   {
     key: 'silas',
     path: '/silas',
@@ -187,6 +191,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'documents', moduleKey: 'documents' },
   { key: 'reports', moduleKey: 'reports' },
   { key: 'accounting', moduleKey: 'accounting' },
+  { key: 'eos', moduleKey: 'eos' },
   { key: 'silas', moduleKey: 'silas' },
   { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc'] },
   { key: 'developer', moduleKey: 'developer' },

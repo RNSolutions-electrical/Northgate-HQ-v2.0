@@ -32,6 +32,7 @@ import {DeveloperDataCorrectionControl} from './DeveloperDataCorrectionControl.j
 import { DeveloperAssignmentControl } from './DeveloperAssignmentControl.jsx';
 import { FinancialLineCatalogueConsole } from './FinancialLineCatalogueConsole.jsx';
 import { ServiceStageConsole } from './ServiceStageConsole.jsx';
+import { EosAccessConsole } from '../eos/EosAccessConsole.jsx';
 import { PermissionTemplateEditor, UserPermissionTemplateEditor, usePermissionTemplates } from './PermissionTemplates.jsx';
 import {
   DEVELOPER_HELPFUL_LINKS,
@@ -976,6 +977,7 @@ export function DeveloperWorkspace({ permissions }) {
 
       {activeConsolePage === 'access' ? (
       <section className="developer-permissions developer-console-page" aria-label="Access control">
+        <EosAccessConsole />
         <Toolbar
           eyebrow="Access Control"
           title="User permissions"

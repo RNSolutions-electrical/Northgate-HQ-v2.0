@@ -23187,3 +23187,50 @@ Verification: 3/3 focused Reports tests, 109/109 explicit root Node tests, and a
 Ryan accepted the compact Reports layout and identified Accounting as the final module for the same navigation formatting. Accounting's existing Budget Review, Category Totals, Export Readiness and Reserved Controls views are now URL-backed destinations under the persistent desktop rail. The duplicate desktop module sidebar and top Budget Lines, Original Budget Total, Jobs and Departments summary cards were removed. Mobile Page Menu and the Category Totals cards remain. The financial query, calculations, permissions, read-only boundary and schema were not changed.
 
 Verification: 3/3 focused Accounting tests, 112/112 explicit root Node tests, and a Staging-identity compile-only Vite build passed. Netlify confirmed the exact app commit as the published Staging deploy. A signed-in browser checked the compact Budget Review page and all four rail destinations. Accounting owner visual acceptance remains pending. Production `main`, Production Netlify and both databases are unchanged. Inventory Management batch editing remains excluded; parity acceptance and isolated schema rehearsal remain Production gates.
+
+## Entry 340 — E.O.S Project Pursuit Tracker isolated development
+
+**Date:** 2026-10-06 09:03 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Development; not promoted to Staging or Production
+**Working marker:** `EOS-DEV-20261006-001` (not a pushed release sync marker)
+**Starting commit:** `b9af4aa` on `integration/staging-production-parity-20261005`
+**Development branch:** `dev-eos-pursuit-tracker-20261006`
+
+Ryan supplied the EOS package and directed implementation using its brief as authoritative. The new E.O.S route, tracker, shared contact card, reminder controls, management access console, additive schema/RLS/audit migration, atomic award handoff, staging-only 41-row import script and focused logic tests are on this isolated branch. Ryan clarified that EOS access is for six selected people, **not all Managers**: Ryan Noel, Eric Brinker, David Wright, Tim Brixey, Jason Green and Rick Joseph at their Northgate addresses. The migration grants only currently active Manager/Director accounts matching those addresses. A read-only Production directory check found Ryan and Tim eligible now, David/Jason/Rick as unlinked employee profiles, and no matching Eric profile. No roles or users were changed.
+
+The supplied workbook remains untouched. See `docs/EOS_PURSUIT_TRACKER.md` for schema, access, import, unresolved mappings, acceptance gates and rollback. This development work has **not** been migrated, committed, pushed, deployed or browser-accepted at this checkpoint. Production `main`, Staging, Netlify and both databases remain unchanged. The pending team-release parity path must stay separate; EOS requires isolated schema rehearsal and its own Staging acceptance. A local 12-assertion EOS/permission test group passed and a compile-only Vite build passed with placeholder environment identifiers; `tests/eosPursuit.live.sql` is prepared but not run, so live database behavior is unverified.
+
+## Entry 341 — E.O.S isolated schema rehearsal could not proceed
+
+**Date:** 2026-10-07 09:23 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Development validation; no Staging or Production migration
+**Working marker:** `EOS-REHEARSAL-20261007-001` (not a release sync marker)
+**Development branch:** `dev-eos-pursuit-tracker-20261006` from `b9af4aa`; changes remain local and uncommitted
+
+Ryan approved a temporary schema-only Supabase branch. The `RNSolutions` Production project's UI quoted $0.01344/hour, so branch `eos-migration-rehearsal-20261007` (`cxvarreitnkujlafhadi`) was created without Production data or Git sync. A read-only dependency check showed that it lacked `public.user_permissions`, `public.jobs`, and `public.change_logs`; these objects do exist in Production. No EOS SQL was applied to the empty branch. The branch was deleted by exact branch ID and list verification showed only Production `main` and persistent Staging remained. No Production or Staging database, app, Netlify, or Git remote was changed.
+
+Local checks still pass: 12 focused Node tests, 41-row workbook import dry-run (33 General, 8 Electrical), Vite build, and `git diff --check`. A migration audit mismatch found during review was fixed locally: EOS INSERT audit entries now use Northgate's permitted `create` action. The actual migration and RLS/award smoke test remain **unverified**. Next safe route: obtain separate authorization for a temporary restore-to-new-project from a current Production backup, inspect its cost, rehearse there, delete the temporary project, then continue the Staging gate. See `docs/EOS_PURSUIT_TRACKER.md`.
+
+## Entry 342 — E.O.S migration rehearsed on isolated Production-backup restore
+
+**Date:** 2026-10-07 09:45 EDT (UTC-04:00)
+**Updated by:** Codex on `RYAN_NORTHGATE`
+**Phase:** Development validation; no Staging or Production migration
+**Working marker:** `EOS-RESTORE-REHEARSAL-20261007-001` (not a release sync marker)
+**Development branch:** `dev-eos-pursuit-tracker-20261006` from `b9af4aa`; changes remain local and uncommitted
+
+Ryan separately authorized a temporary restore of Production's completed October 7 07:37 UTC backup. Supabase quoted $10.18/month while active, under the $15 ceiling. He entered the temporary database password privately and created `northgate-eos-rehearsal-20261007` (`knbafigwlkvukjqsmydo`). Its schema dependencies matched Production. The EOS migration applied to that temporary project only; rollback-only smoke tests now pass for RLS/explicit grants, ordinary and ungranted users, audited CRUD, dates, multiple managers, recoverable removal, both existing-Job and new-Job award handoffs, idempotent retries, and no Job budget posting. Fixtures left no test users, pursuits or clients. Initial conditional grants in the temporary copy reached only Ryan and Tim; the other four named people were not silently created or promoted.
+
+The rehearsal found a real Supabase default-grant issue: direct pursuit updates remained possible until table privileges were explicitly revoked. The repository migration now starts from revoked table grants and re-grants only intended operations. A test-query naming ambiguity and side-effect ordering in the fixture were also corrected. Supabase advisors prompted locking down direct execution of internal trigger functions and setting the touch trigger's search path; these corrections are consolidated in the local migration. Remaining EOS advisor notices are intentional: the grant table has no app role access or RLS policy, while guarded authenticated RPCs are deliberately callable. The 12 focused Node tests still pass. Ryan approved deletion of the temporary restored project. At 09:57 EDT on October 7, Supabase confirmed `northgate-eos-rehearsal-20261007` (`knbafigwlkvukjqsmydo`) deleted; a fresh project listing confirmed it absent and Production `keogysnoukbendfkfjcn` healthy. The optional exit survey failed to submit, but deletion succeeded. Production and Staging remain unchanged. Next gate: Staging migration/import and signed-in acceptance, not automatic Production promotion.
+
+## Entry 343 — E.O.S. Staging schema, access and source import
+
+**Sync marker:** `EOS-STAGING-DATA-20261008-0650-EDT-RYAN_NORTHGATE`
+**Date/time:** October 8, 2026, 06:50 EDT (America/New_York)
+**Machine:** `RYAN_NORTHGATE`, isolated checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`
+
+Ryan approved an isolated Staging acceptance rollout and a temporary E.O.S. grant for `CRNCMK@gmail.com`, while retaining `Ryan@thenorthgategroup.com` as an ordinary ungranted User. A read-only Staging check confirmed the first account is an active Director with Developer authority and the second an active User. No business roles were changed. Supabase Staging branch `fazfwzbuesvzhgodckiw` received additive migration `20261008104622_eos_pursuit_foundation`; the rollback-only live SQL smoke passed. The grant was applied via the audited `set_eos_access` RPC and verified with an audit row. Supabase's EOS advisor notices are the same intentional ones documented in `docs/EOS_PURSUIT_TRACKER.md`.
+
+The source workbook was imported into Staging without obtaining or exposing a service key: 29 distinct client labels, 41 pursuits (33 General, 8 Electrical) and six reminders. Repeating the import inserted zero rows. Eight pursuits had no source client; five source Job numbers had no Staging match and remain unlinked with their original labels preserved. No manager initials or ambiguous client names were guessed. Production database `keogysnoukbendfkfjcn` was not touched. Focused EOS/auth/environment tests passed 16/16, and a Staging-identity compile-only Vite build passed. The broad `npm test` auto-discovery encountered a Vite cache lock and hung; it was stopped without assertion failures. **App code is still uncommitted and not deployed at this checkpoint.** Next: commit and push this isolated feature to Staging, verify the Netlify deploy, and conduct signed-in acceptance. Do not include EOS in the pending parity promotion to Production.
