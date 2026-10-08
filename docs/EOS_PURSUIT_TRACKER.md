@@ -1,11 +1,11 @@
 # E.O.S Project Pursuit Tracker — development handoff
 
-Status: isolated development branch; migration rehearsed on a disposable
-Production-backup restore and applied to isolated Staging on October 8. The
-workbook is imported to Staging, but the app code and signed-in acceptance
-checks are still pending. Production remains unchanged. This feature must not
-be included in the pending Staging → Production team-release promotion until
-its own signed-in Staging acceptance checks are complete.
+Status: deployed to isolated Staging on October 8 at commit `4152f709`.
+The migration was rehearsed on a disposable Production-backup restore, applied
+to Staging, and the workbook imported. Initial signed-in browser and access
+checks passed; full owner acceptance is still pending. Production remains
+unchanged. Do not include this feature in the pending Staging → Production
+team-release promotion until its own acceptance checks are complete.
 
 ## Scope
 
@@ -120,6 +120,18 @@ Source manager initials and ambiguous client labels were not guessed or
 auto-mapped. The repo import script still requires a Staging service key for
 its own `--apply` path; the connector route avoided exposing such a key.
 
+October 8 Staging deploy: code commit `4152f709025157f90d07c64152d13bd7c3d71c88`
+was pushed to `origin/staging` and published by Netlify deploy
+`6ac775bfc21f82000804ffc6` at 06:51:59 EDT. The signed-in
+`https://staging.rnsolutions.net/eos` page displayed the Staging banner,
+41 imported pursuits, client choices, and leadership reminder. Opening and
+cancelling New Pursuit and narrowing/clearing search worked without changing
+records. Focused EOS/auth/environment tests passed 16/16; a Staging-identity
+Vite build passed. In rollback-only Staging JWT checks, the temporary
+`CRNCMK@gmail.com` Director tester had EOS access and the ordinary
+`Ryan@thenorthgategroup.com` User did not. The broad npm auto-discovery run
+stalled on a Vite cache lock and was stopped without assertion failures.
+
 Before any Production deployment:
 
 1. Rehearse the migration on an isolated database against the current schema.
@@ -138,9 +150,11 @@ Before any Production deployment:
    technical Developer without business authority, desktop/laptop/mobile/200%
    text, all inline/full editors, sorting/filtering, client sharing, delete/undo,
    dates, metrics, reminders and award retry/concurrency. Check Job creation
-   permissions and that no budget is posted.
+   permissions and that no budget is posted. **Partially complete:** signed-in
+   Director page, count, search and New Pursuit overlay; backend grant/denial
+   checks. Full interactive owner acceptance remains open.
 5. Promote this feature through its own Staging acceptance and release path.
-   The current Production and Staging applications/databases remain unchanged.
+   Staging is deployed; Production app/database remain unchanged.
 
 Rollback: revert/hide this isolated code before promotion. If the additive
 schema has been applied, leave its tables intact until data and audit have

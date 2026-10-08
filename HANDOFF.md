@@ -23234,3 +23234,17 @@ The rehearsal found a real Supabase default-grant issue: direct pursuit updates 
 Ryan approved an isolated Staging acceptance rollout and a temporary E.O.S. grant for `CRNCMK@gmail.com`, while retaining `Ryan@thenorthgategroup.com` as an ordinary ungranted User. A read-only Staging check confirmed the first account is an active Director with Developer authority and the second an active User. No business roles were changed. Supabase Staging branch `fazfwzbuesvzhgodckiw` received additive migration `20261008104622_eos_pursuit_foundation`; the rollback-only live SQL smoke passed. The grant was applied via the audited `set_eos_access` RPC and verified with an audit row. Supabase's EOS advisor notices are the same intentional ones documented in `docs/EOS_PURSUIT_TRACKER.md`.
 
 The source workbook was imported into Staging without obtaining or exposing a service key: 29 distinct client labels, 41 pursuits (33 General, 8 Electrical) and six reminders. Repeating the import inserted zero rows. Eight pursuits had no source client; five source Job numbers had no Staging match and remain unlinked with their original labels preserved. No manager initials or ambiguous client names were guessed. Production database `keogysnoukbendfkfjcn` was not touched. Focused EOS/auth/environment tests passed 16/16, and a Staging-identity compile-only Vite build passed. The broad `npm test` auto-discovery encountered a Vite cache lock and hung; it was stopped without assertion failures. **App code is still uncommitted and not deployed at this checkpoint.** Next: commit and push this isolated feature to Staging, verify the Netlify deploy, and conduct signed-in acceptance. Do not include EOS in the pending parity promotion to Production.
+
+## Entry 344 — E.O.S. published on isolated Staging; acceptance open
+
+**Sync marker:** `EOS-STAGING-DEPLOY-20261008-0654-EDT-RYAN_NORTHGATE`
+
+**Date/time:** October 8, 2026, 06:54 EDT (America/New_York)
+
+**Machine:** `RYAN_NORTHGATE`, isolated checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`
+
+**Code commit:** `4152f709025157f90d07c64152d13bd7c3d71c88` on `origin/staging` and `origin/dev-eos-pursuit-tracker-20261006`
+
+**Staging deploy:** Netlify `6ac775bfc21f82000804ffc6`, published October 8 at 06:51:59 EDT to `https://staging.rnsolutions.net`
+
+The E.O.S. app, additive migration, isolated workbook import and temporary tester grant from Entry 343 are now together on Staging. Netlify reported a ready deploy for the exact code commit with no secret-scan matches. The signed-in Director browser loaded `/eos` with the persistent Staging banner, 41 source pursuits, client choices and leadership reminder. New Pursuit opened and cancelled; search narrowed and cleared. No browser test records were saved. A Staging JWT check confirmed `CRNCMK@gmail.com` has E.O.S. access and `Ryan@thenorthgategroup.com` does not. Focused tests passed 16/16 and the Staging-identity Vite build passed; the broad npm auto-discovery run was stopped at a Vite cache lock without assertion failures. Full interactive owner acceptance remains open; see `docs/EOS_PURSUIT_TRACKER.md`. Production `main`, Production Netlify and Production Supabase remain unchanged. Do not combine E.O.S. with the pending team-release parity promotion.
