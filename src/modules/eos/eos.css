@@ -71,6 +71,14 @@
 }
 @media (max-width: 650px) { .eos-summary { grid-template-columns: 1fr 1fr; }
   .eos-summary-card .summary-card__value { white-space: normal; }
-  .eos-table tbody { grid-template-columns: 1fr; } .eos-form { grid-template-columns: 1fr; }
+  .eos-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: end; }
+  .eos-filters > *, .eos-filters select, .eos-filters input { min-width: 0; box-sizing: border-box; }
+  .eos-filters .eos-search { grid-column: 1 / -1; }
+  .eos-table, .eos-table-wrap, .eos-table tbody, .eos-table tr { width: 100%; min-width: 0; box-sizing: border-box; }
+  .eos-table tbody { grid-template-columns: minmax(0,1fr); } .eos-form { grid-template-columns: 1fr; }
+  .eos-table tr { overflow: hidden; }
+  .eos-table td { display: grid; grid-template-columns: minmax(0,6.5rem) minmax(0,1fr); align-items: start; }
+  .eos-table td::before { min-width: 0; flex: none; }
+  .eos-table td > * { grid-column: 2; width: 100%; max-width: none; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
   .eos-reminder { align-items: start; flex-direction: column; }
 }
