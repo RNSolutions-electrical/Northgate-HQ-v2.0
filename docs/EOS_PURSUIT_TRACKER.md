@@ -190,8 +190,10 @@ Netlify deploy `6ac7d0289550780008a32697`). At 1500, 1200 and 950 CSS
 pixels the compact menu no longer overlaps the account controls, while the
 workspace rail remains visible; at 1800px the full navigation fits, and at
 700px the existing phone layout is unchanged. The signed-in browser opened
-and closed the compact menu, and the viewport override was reset. A true
-200% browser-zoom owner check, remaining alternate-role UI checks, and genuine
+and closed the compact menu, and the viewport override was reset. Ryan then
+tested Staging E.O.S. at actual 200% zoom in his computer browser and reported
+that everything looked good. This closes the true-zoom gate based on owner
+visual acceptance. Remaining alternate-role UI checks and genuine
 concurrent-click behavior remain open; award and access rules also passed
 rollback-only database tests earlier.
 
@@ -224,9 +226,10 @@ Before any Production deployment:
    checks. The source filter and read-only shared-client card also passed
    authorized browser checks. The 200%-equivalent viewport exposed a
    site-wide header overlap; the subsequent Staging header fix passed 950,
-   1200, 1500, and 1800 CSS-pixel browser checks. A true 200% view, remaining alternate-role UI,
-   and true concurrent
-   award clicks remain interactive gaps; full owner acceptance remains open.
+   1200, 1500, and 1800 CSS-pixel browser checks. Ryan also accepted the
+   actual 200% computer-browser view. Remaining alternate-role UI and true
+   concurrent award clicks remain interactive gaps; full owner acceptance
+   remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
 
