@@ -177,10 +177,17 @@ Staging-identity build passed. Ryan refreshed on his phone and accepted the
 improved layout. Additional rollback-only Staging database checks confirmed
 that a shared client edit appears in both linked pursuits, and a repeated
 existing-Job award returns the same Job without changing budget or baseline.
-The test transaction left zero QA clients or pursuits. A 200% browser view,
-remaining alternate-role UI checks, and true concurrent-click behavior
-remain interactive gaps; award and access rules also passed rollback-only
-database tests earlier.
+The test transaction left zero QA clients or pursuits. In a later authorized
+Chrome session, two pursuits opened the same shared client card without any
+save. The source filter narrowed Active from 35 to 32 rows and restored its
+original totals on return to All. At a 950 CSS-pixel viewport, representative
+of a 1900-pixel desktop at 200% zoom, the tracker stayed within its area but
+the site-wide header navigation overlapped its account controls; overlap was
+also visible at 1200, 1360 and 1500 pixels. This is a shared-shell responsive
+defect, not an E.O.S. data or authorization failure. A true 200% zoom check
+after a shared-header fix, remaining alternate-role UI checks, and genuine
+concurrent-click behavior remain open; award and access rules also passed
+rollback-only database tests earlier.
 
 Before any Production deployment:
 
@@ -208,7 +215,10 @@ Before any Production deployment:
    posting also passed on October 8. The ordinary User's lack of E.O.S.
    visibility passed owner testing. Ryan accepted the repaired phone layout;
    shared-client propagation and sequential award retry passed rollback-only
-   checks. The 200% view, remaining alternate-role UI, and true concurrent
+   checks. The source filter and read-only shared-client card also passed
+   authorized browser checks. The 200%-equivalent viewport exposed a
+   site-wide header overlap. A true 200% view, remaining alternate-role UI,
+   and true concurrent
    award clicks remain interactive gaps; full owner acceptance remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
