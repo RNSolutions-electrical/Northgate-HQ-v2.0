@@ -251,9 +251,17 @@ Before any Production deployment:
    Staging UI and reported it worked; read-only database verification confirms
    its active Manager rank and E.O.S. grant. The earlier ungranted-User UI
    denial remains a valid historical check from before this promotion.
-   Technical-Developer-without-business-authority and ungranted-Manager UI
-   variants remain untested with real signed-in accounts (backend checks
-   passed). Browser double-click behavior was not separately exercised.
+   The technical-Developer-without-business-authority UI variant remains
+   untested with a real signed-in account (backend checks passed). Ryan
+   subsequently confirmed that his promoted Manager account could not view
+   E.O.S. until he granted access, and removing the grant
+   redirected an already-open E.O.S. route to Dashboard before refresh. He
+   reported Director and Developer access behaved as expected; this does not
+   establish that technical Developer authority alone grants access. Rapid
+   clicks on the Award / Job handoff launcher opened one interface without
+   duplicate visible behavior. Repeated clicks on the final award confirmation
+   were not observed in a browser; overlapping database awards passed and
+   Ryan accepts the combined protection for Staging.
    Full owner acceptance for Production promotion remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
