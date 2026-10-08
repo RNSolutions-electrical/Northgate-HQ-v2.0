@@ -194,8 +194,18 @@ and closed the compact menu, and the viewport override was reset. Ryan then
 tested Staging E.O.S. at actual 200% zoom in his computer browser and reported
 that everything looked good. This closes the true-zoom gate based on owner
 visual acceptance. Remaining alternate-role UI checks and genuine
-concurrent-click behavior remain open; award and access rules also passed
-rollback-only database tests earlier.
+concurrent-click behavior were investigated next. A rollback-only Staging
+transaction passed five role variants: granted Manager and Director allowed;
+ungranted Manager, ungranted technical Developer/Director, and ordinary User
+with a fixture grant denied. All fixture users and grants rolled back. Two
+separate Staging SQL award requests for one new QA pursuit overlapped in time,
+both returned the same existing Job, and produced one award update audit row.
+The Job retained 177 budget lines, $1,627,664 original budget and baseline
+version 433. Two labeled QA pursuits were soft-deleted, leaving 41 active
+source pursuits and no active QA pursuit. Signed-in Manager and technical-
+Developer-only UI variants remain open; the Staging accounts currently cover
+the granted Director/Developer and ungranted ordinary-User views. Browser
+double-click behavior itself was not separately exercised.
 
 Before any Production deployment:
 
@@ -227,9 +237,11 @@ Before any Production deployment:
    authorized browser checks. The 200%-equivalent viewport exposed a
    site-wide header overlap; the subsequent Staging header fix passed 950,
    1200, 1500, and 1800 CSS-pixel browser checks. Ryan also accepted the
-   actual 200% computer-browser view. Remaining alternate-role UI and true
-   concurrent award clicks remain interactive gaps; full owner acceptance
-   remains open.
+   actual 200% computer-browser view. Rollback-only Staging role tests and
+   truly overlapping award transactions passed without Job financial impact.
+   Signed-in Manager and technical-Developer-only UI variants remain open;
+   a separate Staging Manager login is not currently available. Full owner
+   acceptance remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
 
