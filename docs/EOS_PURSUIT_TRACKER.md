@@ -142,8 +142,25 @@ Awards. The card's click filter uses the same shared predicate as its total.
 Seven focused EOS tests and a Staging-identity Vite build to a fresh temporary
 output directory passed. The usual local `dist` cleanup was blocked by an
 existing file lock, so the fresh output directory avoided touching it. No
-schema or data migration was needed. Owner visual acceptance of this
-refinement remains pending.
+schema or data migration was needed. Ryan visually accepted the refinement
+on October 8.
+
+October 8 signed-in UI follow-up: a clearly labeled temporary QA pursuit was
+saved with only its name, then edited to an Estimate with a $1,000 planning
+value, 75% probability, discussion and initial meeting. The 7-day and 2-week
+dates derived as October 15 and 22. The active estimate and >50% card totals
+each rose by one and $1,000, and the >50% card narrowed to the two matching
+rows. An inline discussion edit persisted. Changing the QA estimate to
+Dormant removed it from the active metrics, and the Dormant view showed it.
+The award handoff UI showed existing-Job and new-Job options; it was cancelled
+without creating or linking a Job. Reminder management listed six enabled
+entries and navigated back. Ryan authorized the recoverable Delete/Undo test.
+The QA pursuit disappeared from Dormant after Delete, returned with its fields
+after Undo, and disappeared again after a second Delete. A refresh showed zero
+Dormant rows and the active cards at their pre-test totals. The soft-deleted QA
+record remains recoverable in Staging audit/history; Production was untouched.
+Mobile/200% text and actual award submission remain unverified interactively;
+award and permissions logic passed rollback-only database tests earlier.
 
 Before any Production deployment:
 
@@ -165,7 +182,10 @@ Before any Production deployment:
    dates, metrics, reminders and award retry/concurrency. Check Job creation
    permissions and that no budget is posted. **Partially complete:** signed-in
    Director page, count, search and New Pursuit overlay; backend grant/denial
-   checks. Full interactive owner acceptance remains open.
+   checks. Name-only save, full and inline edits, follow-up dates, card totals
+   and filter, Dormant transition, reminders, award-overlay cancel, and
+   Delete/Undo/redelete also passed on October 8. Mobile/200% and actual award
+   submission remain interactive gaps; full owner acceptance remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
 

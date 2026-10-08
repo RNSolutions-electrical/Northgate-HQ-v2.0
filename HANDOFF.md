@@ -23262,3 +23262,23 @@ The E.O.S. app, additive migration, isolated workbook import and temporary teste
 **Staging deploy:** Netlify `6ac78f6f031acd00084e3ee4`, published October 8 at 08:41:36 EDT to `https://staging.rnsolutions.net`
 
 Ryan accepted the first E.O.S. view and requested row hover readability plus a >50% total that includes estimates as well as pursuits, excluding awarded jobs. The probability card is now “Pursuits / Estimates >50%”; its total and click filter share the same predicate. Awarded rows remain in Awards. Tracker rows visibly distinguish hover and keyboard focus, retaining Go/No Go tint. Seven focused EOS tests and a Staging-identity Vite build passed; the build used a fresh temporary output directory because the existing local `dist` was file-locked. The exact code commit is the ready Staging deploy; no migration was required. Owner visual acceptance of this refinement remains pending. Production app, branch and database remain unchanged.
+
+## Entry 346 — E.O.S. visual acceptance and interactive Staging checks
+
+**Sync marker:** `EOS-STAGING-UI-20261008-0907-EDT-RYAN_NORTHGATE`
+
+**Date/time:** October 8, 2026, 09:07 EDT (America/New_York)
+
+**Machine:** `RYAN_NORTHGATE`, isolated checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`
+
+Ryan accepted the October 8 row hover and combined >50% card refinement. A signed-in Staging browser saved a temporary `EOS QA temporary 2026-10-08` pursuit with only its name, then edited it to a $1,000, 75%-probability Estimate. Follow-up dates auto-derived from the October 8 initial meeting. Both the Estimate and >50% active card totals increased correctly; clicking the >50% card narrowed to the two matching rows. An inline discussion edit persisted. Changing the QA estimate to Dormant removed it from active totals, and the Dormant view showed it. Award / Job handoff opened and was cancelled before linking or creating a Job. Reminder management displayed six enabled entries. The QA record remains Dormant pending cleanup. The recoverable Delete/Undo UI, mobile/200% layout, and actual award submission remain interactive acceptance gaps; rollback-only database tests already covered award and access rules. Production remains unchanged, and E.O.S. is not cleared for Production promotion.
+
+## Entry 347 — E.O.S. recoverable Delete/Undo verified on Staging
+
+**Sync marker:** `EOS-STAGING-UNDO-20261008-0909-EDT-RYAN_NORTHGATE`
+
+**Date/time:** October 8, 2026, 09:09 EDT (America/New_York)
+
+**Machine:** `RYAN_NORTHGATE`, isolated checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`
+
+Ryan explicitly authorized Delete → Undo → Delete on the temporary `EOS QA temporary 2026-10-08` Staging pursuit. The first Delete removed it from the Dormant view and offered Undo. Undo restored the record with its edited fields. The second Delete removed it again. After browser refresh, Dormant showed zero rows and the active summary cards matched their original totals. This is a recoverable soft-delete, not a hard purge. No Job was created or linked, and Production remains unchanged. Remaining E.O.S. interactive gates include mobile/200% layout and actual award submission; rollback-only SQL tests had already exercised award, access and no-budget-posting behavior. E.O.S. is still Staging-only.
