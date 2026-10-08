@@ -159,8 +159,17 @@ The QA pursuit disappeared from Dormant after Delete, returned with its fields
 after Undo, and disappeared again after a second Delete. A refresh showed zero
 Dormant rows and the active cards at their pre-test totals. The soft-deleted QA
 record remains recoverable in Staging audit/history; Production was untouched.
-Mobile/200% text and actual award submission remain unverified interactively;
-award and permissions logic passed rollback-only database tests earlier.
+An additional temporary $1,000 Estimate was awarded through the signed-in
+Staging UI to existing Job `STG-20260923-001`. The UI moved it out of active
+Estimate and >50% totals into Awards, and confirmed that planning value was
+not posted as budget. Read-only Staging database checks before and after
+showed unchanged Job financials: 177 budget lines, $1,627,664 budget total,
+177 revenue lines, and financial baseline version 433. Ryan approved
+recoverable removal of this second QA pursuit; it is soft-deleted and the
+Awards card returned to its prior 5 pursuits/$34,121.08. The Job was left
+untouched. Mobile/200% text, alternate-role UI checks, and award retry/
+concurrency remain interactive gaps; award and access rules also passed
+rollback-only database tests earlier.
 
 Before any Production deployment:
 
@@ -184,8 +193,10 @@ Before any Production deployment:
    Director page, count, search and New Pursuit overlay; backend grant/denial
    checks. Name-only save, full and inline edits, follow-up dates, card totals
    and filter, Dormant transition, reminders, award-overlay cancel, and
-   Delete/Undo/redelete also passed on October 8. Mobile/200% and actual award
-   submission remain interactive gaps; full owner acceptance remains open.
+   Delete/Undo/redelete and one existing-Job award submission without budget
+   posting also passed on October 8. Mobile/200%, alternate-role UI, and
+   award retry/concurrency remain interactive gaps; full owner acceptance
+   remains open.
 5. Promote this feature through its own Staging acceptance and release path.
    Staging is deployed; Production app/database remain unchanged.
 

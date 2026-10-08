@@ -23282,3 +23282,13 @@ Ryan accepted the October 8 row hover and combined >50% card refinement. A signe
 **Machine:** `RYAN_NORTHGATE`, isolated checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`
 
 Ryan explicitly authorized Delete → Undo → Delete on the temporary `EOS QA temporary 2026-10-08` Staging pursuit. The first Delete removed it from the Dormant view and offered Undo. Undo restored the record with its edited fields. The second Delete removed it again. After browser refresh, Dormant showed zero rows and the active summary cards matched their original totals. This is a recoverable soft-delete, not a hard purge. No Job was created or linked, and Production remains unchanged. Remaining E.O.S. interactive gates include mobile/200% layout and actual award submission; rollback-only SQL tests had already exercised award, access and no-budget-posting behavior. E.O.S. is still Staging-only.
+
+## Entry 348 — E.O.S. award handoff verified and QA pursuit removed on Staging
+
+**Sync marker:** `EOS-STAGING-AWARD-20261008-0913-EDT-RYAN_NORTHGATE`
+
+**Completed:** 2026-10-08 09:13 EDT (UTC-04:00) · Machine: Ryan / Northgate Windows · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: Staging UI acceptance and documentation only.
+
+The signed-in Staging E.O.S. tracker created a clearly labeled temporary `$1,000`, 75%-probability Estimate, then used **Award / Link** to attach it to existing Staging Job `STG-20260923-001` (`STAGING Smoke Test 2026-09-23`). The UI confirmed “Award linked to Job. Planning value was not posted as a budget.” Its Estimate and >50% card totals returned to their baseline; Awards rose from 5/$34,121.08 to 6/$35,121.08. Read-only checks on the isolated Staging Supabase project before and after the award showed that Job remained at 177 budget lines, $1,627,664 budget total, 177 revenue lines, and financial baseline version 433. Ryan then explicitly approved soft-deleting only the temporary `EOS QA award handoff 2026-10-08` pursuit. The Awards card returned to 5/$34,121.08; database read-back showed the pursuit still has phase Awarded and its Job link in recoverable history, with `deleted_at` set. The Job and its financials were not changed by cleanup. No Production app or data change occurred.
+
+Remaining E.O.S. interactive acceptance: mobile/200% layout, alternate-role UI checks, client-sharing scenarios, and award retry/concurrency. Backend rollback-only tests already covered authorization, idempotence, and no budget posting. E.O.S. remains Staging-only and is not yet cleared for Production promotion.
