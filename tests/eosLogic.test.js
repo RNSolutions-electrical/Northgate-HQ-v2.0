@@ -55,6 +55,14 @@ test('a high-probability estimate leaves the active metric when awarded', () => 
   assert.equal(summarizePursuits([awarded]).awards.count, 1);
 });
 
+test('a Job association alone does not award or remove a pursuit from pipeline metrics', () => {
+  const estimate = { phase: 'Estimate', status: 'Active', probability: 75, planning_value: 400 };
+  assert.deepEqual(summarizePursuits([{ ...estimate, job_id: 'job-1' }]),
+    summarizePursuits([estimate]));
+  assert.equal(inView({ ...estimate, job_id: 'job-1' }, 'Active'), true);
+  assert.equal(inView({ ...estimate, job_id: 'job-1' }, 'Awards'), false);
+});
+
 test('numeric sort keeps nulls last in either direction', () => {
   const rows = [{ planning_value: null }, { planning_value: 5 }, { planning_value: 100 }];
   assert.deepEqual(sortPursuits(rows, 'planning_value', 'asc').map((row) => row.planning_value), [5, 100, null]);

@@ -82,6 +82,7 @@ export function EosWorkspace({ permissions }) {
   const [clientEditor, setClientEditor] = useState(null);
   const [reminderEditor, setReminderEditor] = useState(null);
   const [award, setAward] = useState(null);
+  const [jobLink, setJobLink] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [jobLookup, setJobLookup] = useState('');
   const [inline, setInline] = useState(null);
@@ -160,10 +161,10 @@ export function EosWorkspace({ permissions }) {
       setError('Probability must be between 0 and 100.'); return false;
     }
     // Awarded is a controlled handoff, never a direct status edit.
-    if (form.phase === 'Awarded' && !form.job_id && !allowUnlinkedAward) {
+    const priorPhase = rows.find((row) => row.id === form.id)?.phase || 'Pursuit';
+    if (form.phase === 'Awarded' && priorPhase !== 'Awarded' && !allowUnlinkedAward) {
       if (!form.id) setError('Save the pursuit first, then use Award / Link to create or link its Job.');
       else {
-        const priorPhase = rows.find((row) => row.id === form.id)?.phase || 'Pursuit';
         const saved = await savePursuit({ ...form, phase: priorPhase }, { allowUnlinkedAward: true });
         if (saved) startAward(form);
       }
@@ -226,17 +227,23 @@ export function EosWorkspace({ permissions }) {
   }
 
   async function startAward(row) {
-    setAward({ ...row, existing_job_id: '', division: permissions.department || 'Construction', job_number: '' });
+    setAward({ ...row, existing_job_id: row.job_id || '', division: permissions.department || 'Construction', job_number: '' });
     setJobLookup('');
-    await searchJobs('');
+    await searchJobs('', row.job_id);
   }
-  async function searchJobs(term) {
+  async function startJobLink(row) {
+    setJobLink({ row, selected_job_id: row.job_id || '' });
+    setJobLookup('');
+    await searchJobs('', row.job_id);
+  }
+  async function searchJobs(term, currentJobId = jobLink?.row.job_id || award?.job_id) {
     try {
       const matches = await call(async (client) => {
         const base = () => client.from('jobs').select('id,job_number,name,division').is('archived_at', null);
         const query = term.trim();
         const requests = query ? [base().ilike('name', `%${query}%`).limit(50),
           base().ilike('job_number', `%${query}%`).limit(50)] : [base().order('name').limit(100)];
+        if (currentJobId) requests.push(base().eq('id', currentJobId).limit(1));
         const results = await Promise.all(requests);
         const failed = results.find((item) => item.error);
         if (failed) throw failed.error;
@@ -257,6 +264,20 @@ export function EosWorkspace({ permissions }) {
     }, 'Award linked to Job. Planning value was not posted as a budget.');
     if (id) { setAward(null); setEditor(null); setInline(null); setMetricFilter(''); setView('Awards'); }
   }
+  async function saveJobLink(jobId) {
+    if (!jobLink) return;
+    const result = await run(async (client) => {
+      const response = await client.rpc('eos_set_pursuit_job', {
+        p_pursuit_id: jobLink.row.id,
+        p_job_id: jobId || null,
+        p_expected_job_id: jobLink.row.job_id || null,
+      });
+      if (response.error) throw response.error;
+      return true;
+    }, jobId ? 'Job linked. Pursuit status and Job financials were unchanged.'
+      : 'Job unlinked. Pursuit status and Job financials were unchanged.');
+    if (result) setJobLink(null);
+  }
 
   function openEditor(row) { setEditor({ ...row, manager_ids: row.eos_pursuit_managers?.map((item) => item.user_id) || [] }); }
   function fieldValue(row, field) {
@@ -267,8 +288,8 @@ export function EosWorkspace({ permissions }) {
     return row[field] || '—';
   }
   function showInline(row, field) {
-    if (row.job_id && (field === 'phase' || field === 'status')) {
-      setError('A linked award remains in Awards. A reversal workflow is not defined.');
+    if (row.phase === 'Awarded' && (field === 'phase' || field === 'status')) {
+      setError('An awarded pursuit remains in Awards. A reversal workflow is not defined.');
       return;
     }
     const key = field === 'client' ? 'client_id' : field === 'manager' ? 'manager_ids' : field;
@@ -362,7 +383,8 @@ export function EosWorkspace({ permissions }) {
                   {field === 'potential_start_date' && isOverdueStart(row) && <span className="eos-overdue">Overdue</span>}</button>}
             </td>)}<td data-label="Actions"><div className="eos-row-actions">
               {row.job_id && <button type="button" onClick={() => navigate('/jobs', { state: { openJobId: row.job_id } })}>Job</button>}
-              {!row.job_id && <button type="button" onClick={() => startAward(row)}>Award / Link</button>}
+              <button type="button" onClick={() => startJobLink(row)}>{row.job_id ? 'Change Job link' : 'Link Job'}</button>
+              {row.phase !== 'Awarded' && <button type="button" onClick={() => startAward(row)}>Award</button>}
               <button type="button" disabled={busy} onClick={() => deletePursuit(row)}>Delete</button>
             </div></td></tr>)}</tbody></table>
           {!visible.length && <p className="eos-empty">No pursuits in this view.</p>}</div>
@@ -370,8 +392,8 @@ export function EosWorkspace({ permissions }) {
     </>}
     {editor && <Drawer open onClose={() => setEditor(null)} title={editor.id ? 'Edit Pursuit' : 'New Pursuit'} labelledById="eos-pursuit-title" width="min(56rem, 100vw)">
       <div className="eos-form">{FIELDS.map(([field,label,type]) => <label key={field}>{label}
-        {editor.job_id && (field === 'phase' || field === 'status')
-          ? <span>{editor[field]} · Linked award; reversal is not available</span>
+        {editor.phase === 'Awarded' && (field === 'phase' || field === 'status')
+          ? <span>{editor[field]} · Award reversal is not available</span>
           : <Control field={label} type={type} value={editor[field]} clients={clients} directory={directory}
             onChange={(value) => setEditor({ ...editor, ...normalizePatch(field,value) })} />}
         {field === 'client_id' && <button type="button" className="eos-mini" onClick={() => setClientEditor({ display_name: '' })}>Add client</button>}
@@ -394,15 +416,30 @@ export function EosWorkspace({ permissions }) {
       <div className="eos-actions"><button type="button" onClick={() => setReminderEditor(null)}>Cancel</button><button type="button" className="primary-button" disabled={busy} onClick={() => saveReminder(reminderEditor)}>Save</button></div>
     </Drawer>}
     {award && <Drawer open onClose={() => setAward(null)} title="Award / Job handoff" labelledById="eos-award-title" width="min(48rem, 100vw)">
-      <p>Link an existing Job or create one. The planning value remains in EOS and is not posted to the Job budget.</p>
-      <div className="eos-form"><label>Search existing Jobs<input value={jobLookup} onChange={(e) => setJobLookup(e.target.value)}
+      <p>{award.job_id ? 'Mark this pursuit Awarded using its current Job link.'
+        : 'Link an existing Job or create one to award this pursuit.'} The planning value remains in EOS and is not posted to the Job budget.</p>
+      {!award.job_id && <div className="eos-form"><label>Search existing Jobs<input value={jobLookup} onChange={(e) => setJobLookup(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchJobs(jobLookup); } }} /></label>
         <button type="button" className="secondary-button" onClick={() => searchJobs(jobLookup)}>Find Jobs</button>
         <label>Existing Job<select value={award.existing_job_id || ''} onChange={(e) => setAward({ ...award, existing_job_id: e.target.value })}>
         <option value="">Create new Job</option>{jobs.map((job) => <option key={job.id} value={job.id}>{job.job_number || 'No number'} · {job.name}</option>)}</select></label>
         {!award.existing_job_id && <><label>Department<select value={award.division || 'Construction'} onChange={(e) => setAward({ ...award, division: e.target.value })}><option>Construction</option><option>Electrical</option><option>Admin</option></select></label>
-          <label>Job number<input value={award.job_number || ''} onChange={(e) => setAward({ ...award, job_number: e.target.value })} /></label></>}</div>
+          <label>Job number<input value={award.job_number || ''} onChange={(e) => setAward({ ...award, job_number: e.target.value })} /></label></>}</div>}
+      {award.job_id && <p>This pursuit is already linked to a Job. Awarding it will retain that link. To change the Job, cancel and use Change Job link first.</p>}
       <div className="eos-actions"><button type="button" onClick={() => setAward(null)}>Cancel</button><button type="button" className="primary-button" disabled={busy || (!award.existing_job_id && !award.job_number)} onClick={finishAward}>Confirm award handoff</button></div>
+    </Drawer>}
+    {jobLink && <Drawer open onClose={() => setJobLink(null)} title="Job link" labelledById="eos-job-link-title" width="min(42rem, 100vw)">
+      <p>Link this pursuit to an existing Job, or remove its current link. This does not award or un-award the pursuit, delete a Job, or change Job financials.</p>
+      <div className="eos-form"><label>Search Jobs<input value={jobLookup} onChange={(e) => setJobLookup(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchJobs(jobLookup); } }} /></label>
+        <button type="button" className="secondary-button" onClick={() => searchJobs(jobLookup)}>Find Jobs</button>
+        <label>Existing Job<select value={jobLink.selected_job_id} onChange={(e) => setJobLink({ ...jobLink, selected_job_id: e.target.value })}>
+          <option value="">Select a Job</option>{jobs.map((job) => <option key={job.id} value={job.id}>{job.job_number || 'No number'} · {job.name}</option>)}
+        </select></label></div>
+      <div className="eos-actions"><button type="button" onClick={() => setJobLink(null)}>Cancel</button>
+        {jobLink.row.job_id && <button type="button" className="secondary-button" disabled={busy} onClick={() => saveJobLink(null)}>Unlink Job</button>}
+        <button type="button" className="primary-button" disabled={busy || !jobLink.selected_job_id || jobLink.selected_job_id === jobLink.row.job_id}
+          onClick={() => saveJobLink(jobLink.selected_job_id)}>Save Job link</button></div>
     </Drawer>}
   </div>;
 }
