@@ -4,7 +4,7 @@
 
 **Recorded:** 2026-10-09 09:43 EDT (UTC-04:00), machine `Ryan_Northgate`, checkout `job-assignment-fix`, branch `dev-eos-pursuit-tracker-20261006`.
 
-**Release state:** Database changes applied only to isolated Staging; UI is prepared locally but intentionally **not yet deployed** while Ryan tests Silas on Staging. Production app, database, and branch are unchanged.
+**Release state:** Database changes applied only to isolated Staging. After Ryan reported that the Silas-guided Change Order flow passed, the UI commit `b70e9eaffb7c1e802d07ec66b9e1c524c9bc4f35` was promoted to `staging` and published by ready Netlify deploy `6ac8f02fd2d2e70008a6573c` at 2026-10-09 09:46:39 EDT. Production app, database, and branch are unchanged.
 
 ## Owner decisions
 
@@ -29,10 +29,10 @@ The corresponding isolated Staging migration-ledger versions are `20261009134035
 - Staging retained 41 active source pursuits. One pre-existing active pursuit remains linked to a Staging `Test Award` Job; this work did not alter it.
 - The explicit Node suite passed **298/298** and a Staging-identity compile-only Vite build passed. The build used placeholder public keys and does not prove signed-in browser behavior.
 - Supabase Security Advisor flags the authenticated-callable SECURITY DEFINER RPC as expected; it is deliberately exposed only to signed-in callers and checks explicit E.O.S. authority and Job access inside the function. Direct table UPDATE and anonymous RPC execution remain denied. Other inherited advisor findings are outside this change.
+- After deployment, the rollback-only existing `tests/eosPursuit.live.sql` regression passed again. Live read-only checks found 41 active pursuits, one pre-existing link, authenticated RPC access, and anonymous/direct-table-update denial. A Chrome session signed in as `ryan@thenorthgategroup.com` redirected from `/eos` to `/dashboard` and did not expose E.O.S.; this is an access-boundary check, **not** an authorized-user visual check of the new controls.
 
 ## Remaining gates
 
-1. Wait for Ryan's ongoing Silas test before pushing the UI change to `staging`, to avoid a mid-workflow refresh. The new Staging database functions are backward compatible with the currently published E.O.S. UI.
-2. Publish the UI to Staging, verify the exact ready deploy, then signed-in test link/change/unlink with a safe Staging pursuit and Job. Confirm phase, value, Job budget, and audit remain correct. Leave or restore the test relationship deliberately.
-3. Build an idempotent Production import that leaves all source pursuits unlinked and preserves source labels; do not reuse the old Staging script's optional Job-number auto-linking behavior.
-4. Rehearse the Production-targeted schema delta on a fresh isolated Production restore with historical award and permission cases before requesting promotion approval.
+1. Sign in as an E.O.S.-authorized Staging account and visually test link/change/unlink with a safe pursuit and Job. Confirm phase, value, Job budget, and audit remain correct. Leave or restore the test relationship deliberately. The database-level operations have passed but this browser test has not.
+2. Build an idempotent Production import that leaves all source pursuits unlinked and preserves source labels; do not reuse the old Staging script's optional Job-number auto-linking behavior.
+3. Rehearse the Production-targeted schema delta on a fresh isolated Production restore with historical award and permission cases before requesting promotion approval.
