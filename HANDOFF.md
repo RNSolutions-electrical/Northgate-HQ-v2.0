@@ -23434,3 +23434,11 @@ Ryan reported that the Silas-guided Change Order flow passes. After that owner a
 **Recorded:** 2026-10-09 09:58 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: isolated Staging only.
 
 Ryan confirmed that the E.O.S. Award Reversal UI explicitly said unavailable and approved restoring the prior phase while retaining the Job link and Job itself, with a reason and audit. The previously undefined workflow now has a controlled RPC and UI candidate. Two migrations were applied to Staging only; a rollback-only test found and corrected an audit-action constraint before the final live test passed. Original E.O.S. regression passed, no test pursuit remained, and the 41 active source pursuits were preserved. Five imported Awards have no recorded prior phase and therefore require an explicit return-phase choice. The UI has not yet been published or browser-accepted as of this entry. See `docs/releases/EOS_AWARD_REVERSAL_STAGING_20261009.md` for migration versions, safeguards, tests, and remaining gate. Production is unchanged.
+
+## Entry 364 — E.O.S. Award Reversal UI published to Staging
+
+**Sync marker:** `EOS-AWARD-REVERSAL-STAGING-DEPLOY-20261009-1000-EDT-RYAN_NORTHGATE`
+
+**Recorded:** 2026-10-09 10:00 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branches: `dev-eos-pursuit-tracker-20261006` and `staging` · Scope: Staging only.
+
+Commit `8acf959f8f218d0032ce1b87c025a685e833ecdc` was pushed to both development and Staging after the isolated database migrations and rollback-only tests passed. Netlify deploy `6ac8f34d64056c0008c70b75` became ready/current at 10:00:06 EDT from that exact commit. The signed-in E.O.S. browser reversal still requires owner acceptance; do not claim the feature fully accepted based only on the SQL and build checks. Production app, branch, and database were not changed. See `docs/releases/EOS_AWARD_REVERSAL_STAGING_20261009.md`.
