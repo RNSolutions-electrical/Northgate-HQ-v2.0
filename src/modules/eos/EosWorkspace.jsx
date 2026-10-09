@@ -82,6 +82,7 @@ export function EosWorkspace({ permissions }) {
   const [clientEditor, setClientEditor] = useState(null);
   const [reminderEditor, setReminderEditor] = useState(null);
   const [award, setAward] = useState(null);
+  const [reversal, setReversal] = useState(null);
   const [jobLink, setJobLink] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [jobLookup, setJobLookup] = useState('');
@@ -264,6 +265,20 @@ export function EosWorkspace({ permissions }) {
     }, 'Award linked to Job. Planning value was not posted as a budget.');
     if (id) { setAward(null); setEditor(null); setInline(null); setMetricFilter(''); setView('Awards'); }
   }
+  async function finishReversal() {
+    if (!reversal || !reversal.reason.trim()) return;
+    const restored = await run(async (client) => {
+      const response = await client.rpc('eos_reverse_award', {
+        p_pursuit_id: reversal.row.id,
+        p_expected_job_id: reversal.row.job_id || null,
+        p_reason: reversal.reason.trim(),
+        p_restore_phase: reversal.row.phase_before_award || reversal.restorePhase || null,
+      });
+      if (response.error) throw response.error;
+      return response.data;
+    }, 'Award reversed. The Job link and Job financials were unchanged.');
+    if (restored) { setReversal(null); setEditor(null); setInline(null); setMetricFilter(''); setView('Active'); }
+  }
   async function saveJobLink(jobId) {
     if (!jobLink) return;
     const result = await run(async (client) => {
@@ -289,7 +304,7 @@ export function EosWorkspace({ permissions }) {
   }
   function showInline(row, field) {
     if (row.phase === 'Awarded' && (field === 'phase' || field === 'status')) {
-      setError('An awarded pursuit remains in Awards. A reversal workflow is not defined.');
+      setError('Use Reverse award in the Actions column to change an awarded pursuit’s phase.');
       return;
     }
     const key = field === 'client' ? 'client_id' : field === 'manager' ? 'manager_ids' : field;
@@ -385,6 +400,7 @@ export function EosWorkspace({ permissions }) {
               {row.job_id && <button type="button" onClick={() => navigate('/jobs', { state: { openJobId: row.job_id } })}>Job</button>}
               <button type="button" onClick={() => startJobLink(row)}>{row.job_id ? 'Change Job link' : 'Link Job'}</button>
               {row.phase !== 'Awarded' && <button type="button" onClick={() => startAward(row)}>Award</button>}
+              {row.phase === 'Awarded' && <button type="button" onClick={() => setReversal({ row, reason: '', restorePhase: '' })}>Reverse award</button>}
               <button type="button" disabled={busy} onClick={() => deletePursuit(row)}>Delete</button>
             </div></td></tr>)}</tbody></table>
           {!visible.length && <p className="eos-empty">No pursuits in this view.</p>}</div>
@@ -393,7 +409,7 @@ export function EosWorkspace({ permissions }) {
     {editor && <Drawer open onClose={() => setEditor(null)} title={editor.id ? 'Edit Pursuit' : 'New Pursuit'} labelledById="eos-pursuit-title" width="min(56rem, 100vw)">
       <div className="eos-form">{FIELDS.map(([field,label,type]) => <label key={field}>{label}
         {editor.phase === 'Awarded' && (field === 'phase' || field === 'status')
-          ? <span>{editor[field]} · Award reversal is not available</span>
+          ? <span>{editor[field]} · Use Reverse award in the tracker</span>
           : <Control field={label} type={type} value={editor[field]} clients={clients} directory={directory}
             onChange={(value) => setEditor({ ...editor, ...normalizePatch(field,value) })} />}
         {field === 'client_id' && <button type="button" className="eos-mini" onClick={() => setClientEditor({ display_name: '' })}>Add client</button>}
@@ -427,6 +443,22 @@ export function EosWorkspace({ permissions }) {
           <label>Job number<input value={award.job_number || ''} onChange={(e) => setAward({ ...award, job_number: e.target.value })} /></label></>}</div>}
       {award.job_id && <p>This pursuit is already linked to a Job. Awarding it will retain that link. To change the Job, cancel and use Change Job link first.</p>}
       <div className="eos-actions"><button type="button" onClick={() => setAward(null)}>Cancel</button><button type="button" className="primary-button" disabled={busy || (!award.existing_job_id && !award.job_number)} onClick={finishAward}>Confirm award handoff</button></div>
+    </Drawer>}
+    {reversal && <Drawer open onClose={() => setReversal(null)} title="Reverse award" labelledById="eos-reversal-title" width="min(42rem, 100vw)">
+      <p>Return <strong>{reversal.row.project_name}</strong> to its prior phase. The Job link and Job financials will remain unchanged. This action is recorded in the audit history.</p>
+      <div className="eos-form">
+        {reversal.row.phase_before_award
+          ? <p>Restore phase: <strong>{reversal.row.phase_before_award}</strong></p>
+          : <label>Restore phase <small>The prior phase was not recorded for this imported award.</small>
+            <select value={reversal.restorePhase} onChange={(e) => setReversal({ ...reversal, restorePhase: e.target.value })}>
+              <option value="">Select phase</option><option value="Pursuit">Pursuit</option><option value="Estimate">Estimate</option>
+            </select></label>}
+        <label>Reason for reversal<textarea rows="3" value={reversal.reason}
+          onChange={(e) => setReversal({ ...reversal, reason: e.target.value })} /></label>
+      </div>
+      <div className="eos-actions"><button type="button" onClick={() => setReversal(null)}>Cancel</button>
+        <button type="button" className="primary-button" disabled={busy || !reversal.reason.trim() || (!reversal.row.phase_before_award && !reversal.restorePhase)}
+          onClick={finishReversal}>Confirm reversal</button></div>
     </Drawer>}
     {jobLink && <Drawer open onClose={() => setJobLink(null)} title="Job link" labelledById="eos-job-link-title" width="min(42rem, 100vw)">
       <p>Link this pursuit to an existing Job, or remove its current link. This does not award or un-award the pursuit, delete a Job, or change Job financials.</p>

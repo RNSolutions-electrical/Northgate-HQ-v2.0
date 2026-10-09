@@ -23426,3 +23426,11 @@ Ryan chose to import the 41 source pursuits without automatic Job links, add aut
 **Recorded:** 2026-10-09 09:48 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Source branch: `dev-eos-pursuit-tracker-20261006` · Target branch: `staging` · Scope: Staging only.
 
 Ryan reported that the Silas-guided Change Order flow passes. After that owner acceptance, E.O.S. Job-link commit `b70e9eaffb7c1e802d07ec66b9e1c524c9bc4f35` was pushed to `origin/staging` and Netlify published ready/current deploy `6ac8f02fd2d2e70008a6573c` at 09:46:39 EDT. The Staging E.O.S. SQL regression passed again after deployment, and live read-only checks found 41 active pursuits, the one pre-existing Job link, authenticated RPC availability, and anonymous/direct-table-update denial. A Chrome account without E.O.S. access was redirected from `/eos` to the dashboard, so the new controls still require an authorized-user visual test. Database-level link/change/unlink behavior passed the rollback-only fixture in Entry 361. See `docs/releases/EOS_JOB_LINK_STAGING_20261009.md` for the exact remaining gates. No Production app, data, schema, or branch change occurred.
+
+## Entry 363 — E.O.S. Award Reversal added to isolated Staging database
+
+**Sync marker:** `EOS-AWARD-REVERSAL-STAGING-20261009-0958-EDT-RYAN_NORTHGATE`
+
+**Recorded:** 2026-10-09 09:58 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: isolated Staging only.
+
+Ryan confirmed that the E.O.S. Award Reversal UI explicitly said unavailable and approved restoring the prior phase while retaining the Job link and Job itself, with a reason and audit. The previously undefined workflow now has a controlled RPC and UI candidate. Two migrations were applied to Staging only; a rollback-only test found and corrected an audit-action constraint before the final live test passed. Original E.O.S. regression passed, no test pursuit remained, and the 41 active source pursuits were preserved. Five imported Awards have no recorded prior phase and therefore require an explicit return-phase choice. The UI has not yet been published or browser-accepted as of this entry. See `docs/releases/EOS_AWARD_REVERSAL_STAGING_20261009.md` for migration versions, safeguards, tests, and remaining gate. Production is unchanged.

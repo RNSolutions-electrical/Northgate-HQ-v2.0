@@ -63,6 +63,25 @@ BEGIN
   BEGIN UPDATE public.eos_pursuits SET phase='Pursuit' WHERE id=pursuit_id;
   EXCEPTION WHEN insufficient_privilege THEN denied:=true; END;
   IF NOT denied THEN RAISE EXCEPTION 'Direct award reversal was allowed'; END IF;
+  PERFORM public.eos_set_pursuit_job(pursuit_id,fixture_job_id,NULL);
+  IF public.eos_reverse_award(pursuit_id,fixture_job_id,'Rollback-only award reversal',NULL)<>'Estimate' THEN
+    RAISE EXCEPTION 'Award reversal did not restore the recorded Estimate phase';
+  END IF;
+  SELECT * INTO STRICT row FROM public.eos_pursuits WHERE id=pursuit_id;
+  IF row.job_id IS DISTINCT FROM fixture_job_id OR row.phase<>'Estimate'
+    OR EXISTS(SELECT 1 FROM public.job_budget_lines WHERE job_id=fixture_job_id) THEN
+    RAISE EXCEPTION 'Award reversal changed Job link or financials';
+  END IF;
+  denied:=false;
+  BEGIN PERFORM public.eos_reverse_award(pursuit_id,fixture_job_id,'Repeat reversal',NULL);
+  EXCEPTION WHEN invalid_parameter_value THEN denied:=true; END;
+  IF NOT denied THEN RAISE EXCEPTION 'A non-award was reversed'; END IF;
+  PERFORM public.eos_award_pursuit(pursuit_id,fixture_job_id,NULL,NULL);
+  PERFORM set_config('request.jwt.claims','{"sub":"__eos_link_other","role":"authenticated"}',true);
+  denied:=false;
+  BEGIN PERFORM public.eos_reverse_award(pursuit_id,fixture_job_id,'Unauthorized reversal',NULL);
+  EXCEPTION WHEN insufficient_privilege THEN denied:=true; END;
+  IF NOT denied THEN RAISE EXCEPTION 'Ungrantanted Manager reversed EOS award'; END IF;
 END $test$;
 RESET ROLE;
 DO $audit$ BEGIN
@@ -70,6 +89,13 @@ DO $audit$ BEGIN
     AND user_id='__eos_link_manager' AND action='update'
     AND before_data->'job_id' IS DISTINCT FROM after_data->'job_id') < 4 THEN
     RAISE EXCEPTION 'Job-link before/after audit entries missing';
+  END IF;
+  IF (SELECT count(*) FROM public.change_logs WHERE table_name='eos_pursuits'
+    AND user_id='__eos_link_manager' AND action='update'
+    AND note='Rollback-only award reversal'
+    AND before_data->>'phase'='Awarded' AND after_data->>'phase'='Estimate'
+    AND before_data->>'job_id'=after_data->>'job_id')<>1 THEN
+    RAISE EXCEPTION 'Reasoned award-reversal audit entry missing';
   END IF;
 END $audit$;
 ROLLBACK;
