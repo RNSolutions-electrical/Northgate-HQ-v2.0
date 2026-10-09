@@ -1,5 +1,9 @@
 # Northgate HQ — shared work queue
 
+## Current release checkpoint — 2026-10-09
+
+The authoritative current Staging-to-Production queue is in [the full promotion audit](releases/STAGING_FULL_PROMOTION_AUDIT_20261008.md) and [the October 9 follow-up](releases/STAGING_PROMOTION_PREP_20261009.md). Ryan has now accepted the Staging Silas-guided Change Order and E.O.S. Award Reversal flows. The E.O.S. Production source manifest is prepared read-only with no inferred Job or manager links. Remaining gates are cross-module acceptance, an idempotent Production writer, a targeted database delta rehearsed on an isolated Production restore, a current recovery point, and explicit Production promotion approval. Older dated sections below are historical checkpoints and must not be read as current deployed versions or open acceptance status.
+
 ## Dashboard tree navigation and Personal Tools — 2026-10-05
 
 Ryan's hand-drawn Dashboard hierarchy is the direction for a persistent workspace tree across Northgate HQ. First implement and accept the Dashboard version on Staging: the left rail remains visible while the page scrolls, the selected section has real child destinations, mobile uses a drawer, and Project Health remains conspicuous through Northgate HQ Pulse without occupying the full page. Extend the shared pattern to other workspaces only after Dashboard acceptance, preserving current routes, permissions and working module navigation.

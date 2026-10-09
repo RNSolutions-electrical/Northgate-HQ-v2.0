@@ -23442,3 +23442,11 @@ Ryan confirmed that the E.O.S. Award Reversal UI explicitly said unavailable and
 **Recorded:** 2026-10-09 10:00 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branches: `dev-eos-pursuit-tracker-20261006` and `staging` · Scope: Staging only.
 
 Commit `8acf959f8f218d0032ce1b87c025a685e833ecdc` was pushed to both development and Staging after the isolated database migrations and rollback-only tests passed. Netlify deploy `6ac8f34d64056c0008c70b75` became ready/current at 10:00:06 EDT from that exact commit. The signed-in E.O.S. browser reversal still requires owner acceptance; do not claim the feature fully accepted based only on the SQL and build checks. Production app, branch, and database were not changed. See `docs/releases/EOS_AWARD_REVERSAL_STAGING_20261009.md`.
+
+## Entry 365 — Owner accepted Award Reversal; Production E.O.S. import manifest prepared
+
+**Sync marker:** `EOS-PRODUCTION-IMPORT-PLAN-20261009-1110-EDT-RYAN_NORTHGATE`
+
+**Recorded:** 2026-10-09 11:10 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: Staging acceptance and read-only Production release preparation.
+
+Ryan reported that Award Reversal works in the signed-in Staging UI, closing that owner-facing gate. The rollback-only SQL test already covered prior-phase restoration, unchanged Job link and financials, audit reason, and denied unauthorized action. A new read-only E.O.S. Production import manifest verifies 41 unique pursuits, 29 source client labels, eight blank-client rows, five original Job numbers retained only as source text, and **zero automatic Job or manager links**. It cannot write to a database. A read-only live comparison confirmed the expected E.O.S., guided CO, My Work, and budget-alert acknowledgement objects are still absent from Production and present on Staging. See `docs/releases/STAGING_PROMOTION_PREP_20261009.md` for the remaining targeted-migration, Production-copy rehearsal, importer, recovery, cross-module, and release gates. No Production change was made.

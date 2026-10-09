@@ -47,6 +47,16 @@ These number matches are **not yet approved links**. Review the source descripti
 
 No Production write is part of this preparation step.
 
+## October 9 E.O.S. acceptance and import-plan follow-up
+
+**Sync marker:** `EOS-PRODUCTION-IMPORT-PLAN-20261009-1110-EDT-RYAN_NORTHGATE`
+
+Ryan accepted the signed-in Staging Award Reversal flow after its controlled Staging deployment. The preceding owner report also accepted the Silas-guided Change Order flow. These close the specific owner-reported browser gates, while the cross-module, Production-copy migration, recovery, and final release gates remain. The Staging E.O.S. Job-link and Award Reversal migrations must be included in the later targeted database delta.
+
+`scripts/plan-eos-production-import.mjs` is a **read-only** source manifest: no database connection or write mode. It verifies 41 unique source pursuits (33 General, eight Electrical), 29 client labels, eight blank-client rows, five original Job numbers retained as source text, and zero inferred Job or manager links. It preserves exact ambiguous client and manager labels. `src/modules/eos/eosProductionImportPlan.js` provides the pure mapping/validation model and `tests/eosProductionImportPlan.test.js` guards these decisions. The existing `scripts/import-eos-workbook.mjs` is Staging-only and can auto-link exact Job-number matches; it must **not** be reused for the initial Production import. A separate idempotent Production writer, source-identity collision handling, and an isolated restore rehearsal are still required before any live import.
+
+A read-only live object check reconfirmed on October 9 that Production lacks the E.O.S. tables and Award Reversal RPC, `change_orders.guided_state`, `job_budget_health_acknowledgements`, and `read_my_job_responsibilities()`, while Staging has them. This is an object-presence check, not a complete schema-diff certification. No Production schema, data, app, or branch was changed by this step.
+
 ## October 9 test-gate follow-up
 
 **Sync marker:** `STAGING-PROMOTION-TEST-GATE-20261009-0912-EDT-RYAN_NORTHGATE`

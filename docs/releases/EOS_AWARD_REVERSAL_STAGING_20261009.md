@@ -16,4 +16,6 @@ Verification: the rollback-only E.O.S. Job-link/reversal SQL test and original E
 
 The UI was published to Staging by ready/current Netlify deploy `6ac8f34d64056c0008c70b75` from exact commit `8acf959f8f218d0032ce1b87c025a685e833ecdc` at 2026-10-09 10:00:06 EDT. The Staging site reports no deployment error. Production remains unchanged.
 
-Remaining: owner-test a reversal in the signed-in browser on a safe pursuit. Confirm that the phase and Awards total change, the Job link remains, the Job's budget is unchanged, and the reason appears in audit history. Production promotion remains a separate reviewed decision.
+Ryan reported on October 9 that Award Reversal works in the signed-in Staging interface. This closes the user-facing reversal check by owner acceptance. The rollback-only database test independently established phase restoration, preserved Job link and financials, audit reason, and unauthorized denial; the owner's short report does not independently verify every one of those internal conditions.
+
+Production promotion remains a separate reviewed decision.
