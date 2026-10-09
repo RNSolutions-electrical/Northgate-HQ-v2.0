@@ -1,8 +1,6 @@
--- CANDIDATE ONLY: not a numbered migration and not approved for execution.
--- It is intentionally outside supabase/migrations so staging db push cannot
--- replay a Production-specific reconciliation. Move into a CLI-created
--- migration only after final live schema comparison and owner approval.
--- Preserve Production's current save_job_change_order_draft function.
+-- Production-only candidate. Do not apply to Staging or run without owner approval.
+-- Keep outside the repository's active supabase/migrations directory until release.
+-- The current Production save_job_change_order_draft function is authoritative.
 BEGIN;
 
 DO $preflight$
@@ -34,8 +32,7 @@ ALTER TABLE public.change_orders ADD COLUMN guided_state jsonb;
 ALTER TABLE public.change_orders ADD CONSTRAINT change_orders_guided_state_object_check
   CHECK (guided_state IS NULL OR jsonb_typeof(guided_state) = 'object');
 
--- Final stale-write guard from Staging, calling Production's authoritative
--- draft-save RPC. The older uncoded-draft migration must not be replayed.
+-- Final Staging stale-write guard, without replaying the older draft-save RPC.
 CREATE FUNCTION public.save_guided_change_order_draft(
   p_change_order_id uuid, p_job_id uuid, p_division text, p_co_number text,
   p_title text, p_description text, p_internal_notes text, p_lines jsonb,
@@ -81,7 +78,7 @@ BEGIN
   RETURN saved;
 END $$;
 
--- CREATE FUNCTION defaults EXECUTE to PUBLIC. Close it in the same unit.
+-- Close default PUBLIC execute before transaction commit.
 REVOKE ALL ON FUNCTION public.save_guided_change_order_draft(uuid,uuid,text,text,text,text,text,jsonb,jsonb)
   FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.save_guided_change_order_draft(uuid,uuid,text,text,text,text,text,jsonb,jsonb)

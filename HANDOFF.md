@@ -23478,3 +23478,13 @@ The explicit Node suite passed 287/287, and a placeholder-key Staging-identity c
 **Recorded:** 2026-10-09 13:03 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: owner acceptance report and release coordination only.
 
 Ryan reported that everything in the combined Staging test passes. He is collecting minor formatting tweaks for a later final formatting edit; no unspecified tweak should enter this release candidate. This closes the owner browser-acceptance gate but does **not** authorize Production migration, E.O.S. import, merge, release tag, or deploy. Remaining technical release gates are the formal Production-targeted migration, Production-configured build, fresh recovery-point check, and final release review/approval. See `docs/releases/STAGING_PROMOTION_ACCEPTANCE_20261009.md` for the test scope and limitations.
+
+## Entry 369 — Production release gate prepared; owner approval still required
+
+**Sync marker:** `STAGING-PROMOTION-RELEASE-GATE-20261009-1310-EDT-RYAN_NORTHGATE`
+
+**Recorded:** 2026-10-09 13:10 EDT (UTC-04:00) · Machine: `RYAN_NORTHGATE` · Checkout: `job-assignment-fix` · Branch: `dev-eos-pursuit-tracker-20261006` · Scope: offline release preparation only.
+
+The Production-only guided-CO delta now has CLI-generated migration number `20261009170611`, still isolated under `docs/releases/production-migration-candidate/` and **not** placed in the active Staging migration folder or applied anywhere. Its preflight checks Production's current draft-save function fingerprint and schema, and the guided RPC grant is limited to authenticated users before commit. The exact nine-file selective migration order, idempotent 41-pursuit import checks, recovery limitations, stop conditions, and proposed `v0.7.0` release sequence are in `docs/releases/STAGING_PROMOTION_RELEASE_GATE_20261009.md`. The full explicit Node suite passed **287/287** after this addition. A placeholder-key Production-identity compile passed; this is not a live-authentication test or a deployable artifact.
+
+At the preparation check, Production's newest visible scheduled database backup was 2026-10-09 09:04:29 UTC. Supabase database backups exclude Storage objects, and the deleted rehearsal copy is not a standing recovery point. Recheck the backup, live migration ledger/schema, Git refs, and both deploys at action time. No Production database, import, branch, release tag, or Netlify deploy was changed. Obtain separate explicit owner approval before those actions, with the recovery gap disclosed if no newer backup exists.
