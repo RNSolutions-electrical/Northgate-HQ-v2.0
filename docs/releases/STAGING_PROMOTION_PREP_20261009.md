@@ -46,3 +46,11 @@ These number matches are **not yet approved links**. Review the source descripti
 5. Build the exact candidate with Production-scoped environment configuration, verify the final Staging deploy and cross-module smoke tests, then request separate approval for Production migration/data import/merge/deploy. Preserve a forward-repair rollback path and release notes.
 
 No Production write is part of this preparation step.
+
+## October 9 test-gate follow-up
+
+**Sync marker:** `STAGING-PROMOTION-TEST-GATE-20261009-0912-EDT-RYAN_NORTHGATE`
+
+The Inventory breadcrumb's authorized hierarchy-to-link mapping was extracted into a small pure module and its test now exercises that same model without Vite's failing CommonJS SSR fixture. The rendered component still uses React Router `Link` and the same Storage destination, ancestor order, current-location marker, and title text. The obsolete fixture was removed. The explicit suite now passes **297/297**; the Staging-identity compile-only build passes with the same non-blocking XLSX/chunk warnings. This clears the local test-harness gate but does not replace signed-in cross-module acceptance or a Production-configured build.
+
+A read-only live object check reconfirmed that Production lacks the five E.O.S. tables, `job_budget_health_acknowledgements`, and `read_my_job_responsibilities()`, while Staging has them. Both have `save_job_change_order_draft(...)` with the same signature but different definitions as noted in the prior audit. This remains a selective-migration task, not a blanket Staging migration replay.
