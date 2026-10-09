@@ -1,8 +1,10 @@
 # Whole-release Staging acceptance — October 9, 2026
 
-**Status:** Ready for owner browser testing on `staging.rnsolutions.net`; not approved for Production. Use Staging test records only. Report the Job/record name and exact error or screenshot for any failure. Do not enter real Production data here.
+**Status:** Owner reports the combined Staging browser checks passed on October 9, 2026. This is acceptance of the tested Staging behavior, **not** approval for a Production migration, import, merge, or deploy. Minor formatting ideas are being collected for a later, separate edit; none are specified or added to this candidate yet.
 
 **Sync marker:** `STAGING-PROMOTION-ACCEPTANCE-READY-20261009-1224-EDT-RYAN_NORTHGATE` · Recorded 2026-10-09 12:24 EDT on `RYAN_NORTHGATE`.
+
+**Acceptance update marker:** `STAGING-PROMOTION-OWNER-PASS-20261009-1303-EDT-RYAN_NORTHGATE` · Owner reported “Everything passes” at approximately 13:03 EDT. This records the overall result, not individual screenshots or per-step evidence.
 
 ## Owner checks
 
