@@ -34,5 +34,5 @@ export function refreshed(item){
  return next;
 }
 export function makeTemplate(state,name,includeItems){
- return {id:id(),name,rate:state.rate,materialMarkup:state.materialMarkup??30,feePercent:state.feePercent??state.overallMarkup??30,sections:clone(state.sections),entries:includeItems?state.entries.filter(e=>!e.packageId).map((e,index)=>({id:id(),number:index+1,location:`Area ${index+1}`,section:e.section,drawing:'',name:'',status:'Not started',items:e.items.filter(i=>!i.quoteId).map(i=>({...clone(i),notes:'',status:'Not started',lines:i.lines.map(l=>({...clone(l),notes:''}))}))})):[]};
+ return {id:id(),name,rate:state.rate,laborRateVersion:state.laborRateVersion,estimateLaborRateOverride:state.estimateLaborRateOverride,libraryDefaultRateSnapshot:state.libraryDefaultRateSnapshot,materialMarkup:state.materialMarkup??30,feePercent:state.feePercent??state.overallMarkup??30,sections:clone(state.sections),entries:includeItems?state.entries.filter(e=>!e.packageId).map((e,index)=>({id:id(),number:index+1,location:`Area ${index+1}`,section:e.section,drawing:'',name:'',status:'Not started',items:e.items.filter(i=>!i.quoteId).map(i=>({...clone(i),notes:'',status:'Not started',lines:i.lines.map(l=>({...clone(l),notes:''}))}))})):[]};
 }

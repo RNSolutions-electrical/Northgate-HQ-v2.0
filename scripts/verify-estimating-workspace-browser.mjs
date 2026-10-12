@@ -20,7 +20,7 @@ try{
  await cost.fill('0');await page.getByLabel('Labor hours per unit',{exact:true}).fill('0');
  assert.equal(await page.locator('.component-group.incomplete').count(),0);
  await page.getByRole('button',{name:'Add to catalogue',exact:true}).click();
- await page.getByRole('dialog').getByLabel('Catalogue number / material code').fill('CUSTOM-001');
+ await page.getByRole('dialog').getByLabel('Catalogue number',{exact:true}).fill('CUSTOM-001');
  await page.getByRole('dialog').getByRole('button',{name:'Save catalogue material',exact:true}).click();
  await page.getByRole('dialog').waitFor({state:'hidden'});
  assert.equal(await page.evaluate(()=>window.integration.catalogue[0].material_code),'CUSTOM-001');

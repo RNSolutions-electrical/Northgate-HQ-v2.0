@@ -35,7 +35,7 @@ test('personal estimates cannot directly approve, hand off, or mutate shared cat
 });
 
 test('personal estimate search uses the readable shared catalogue and assembly library',()=>{
-  assert.match(route,/Promise\.all\(\[loadCatalogue\(db\),loadAssemblyLibrary\(db\)\]\)/);
+  assert.match(route,/Promise\.all\(\[loadCatalogue\(db\),loadAssemblyLibrary\(db,division\)\]\)/);
   assert.doesNotMatch(route,/library\.current=\[\];setCatalogue\(\[\]\)/);
 });
 

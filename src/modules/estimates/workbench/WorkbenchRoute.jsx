@@ -1,3 +1,4 @@
+import {newLaborRates} from './laborRates.mjs';
 import { getSupabaseAccessToken } from '../../../services/clerkToken.js';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
@@ -41,7 +42,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const requestedDivision=location.state?.department||permissions.department||permissions.division;
  const division=allowedDivisions.includes(requestedDivision)?requestedDivision:permissions.division;
  const dirty=useRef(false),active=useRef(null),saving=useRef(false);
- const library=useRef([]);
+ const library=useRef([]),librarySettings=useRef(null);
  const [handoffs,setHandoffs]=useState({});
  const [associatedJob,setAssociatedJob]=useState(null);
  const [checklistConfig,setChecklistConfig]=useState(null);
@@ -69,8 +70,9 @@ export default function WorkbenchRoute({libraryOnly=false}){
     setReviewRows(response.data||[]);setRows([]);setHandoffs({});
     return;
    }
+   librarySettings.current=await loadRateSettings(db);
    if(personalMode){
-    const [materials,assemblies]=await Promise.all([loadCatalogue(db),loadAssemblyLibrary(db)]);
+    const [materials,assemblies]=await Promise.all([loadCatalogue(db),loadAssemblyLibrary(db,division)]);
     const response=await db.rpc('read_my_v5_working_copies',{p_module_key:'estimating',p_limit:200});
     if(response.error)throw response.error;
     library.current=assemblies;setCatalogue(materials);
@@ -83,7 +85,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
     return;
    }
    const materials=await loadCatalogue(db);
-   library.current=await loadAssemblyLibrary(db);
+   library.current=await loadAssemblyLibrary(db,division);
    const response=libraryOnly?{data:[]}:await db.from('estimate_workbenches').select('estimate_id,revision,document,updated_at,estimates!estimate_workbenches_estimate_id_fkey!inner(division,status,submitted_at,version_number,revision_of,revision_root_id,source_snapshot_id)').eq('estimates.division',division).order('updated_at',{ascending:false});
    if(response.error)throw response.error;
    const workbenches=response.data||[];
@@ -145,7 +147,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
    setRows(current=>[data,...current.filter(r=>r.estimate_id!==data.estimate_id)]);
    // A refresh failure must not turn a committed transaction into a reported failed save.
    if(updates.length){try{setCatalogue(await loadCatalogue(db));}catch{setError('Saved successfully. Catalogue refresh failed; reopen before another shared update.');}}
-   if(assembly){try{library.current=await loadAssemblyLibrary(db);data.document={...data.document,library:structuredClone(library.current)};}catch{setError('Saved successfully. Library refresh failed; refresh the catalogue before editing shared assemblies again.');}}
+   if(assembly){try{library.current=await loadAssemblyLibrary(db,division);data.document={...data.document,library:structuredClone(library.current)};}catch{setError('Saved successfully. Library refresh failed; refresh the catalogue before editing shared assemblies again.');}}
    return data;
   }finally{saving.current=false;}
  }
@@ -218,18 +220,31 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const next={...row,estimates:header.data,snapshot:null};
   active.current=next;dirty.current=false;setRows(current=>[next,...current.filter(r=>r.estimate_id!==next.estimate_id)]);setSelected(next);
  }
+ async function loadRateSettings(db){
+  const response=await db.from('assembly_library_settings').select('division,default_rate,updated_at').eq('division',division).single();
+  if(response.error)throw new Error('Assembly Library rates are unavailable. Refresh or contact your administrator.');
+  return response.data;
+ }
+ async function loadLibraryRates(){
+  const db=await client();const [settings,assemblies]=await Promise.all([loadRateSettings(db),loadAssemblyLibrary(db,division)]);
+  librarySettings.current=settings;library.current=assemblies;return {settings,library:structuredClone(assemblies)};
+ }
+ async function saveRateSettings(rate,expected){
+  const db=await client(),response=await db.rpc('save_assembly_library_settings',{p_division:division,p_rate:rate,p_expected_updated_at:expected.updated_at});
+  if(response.error)throw response.error;librarySettings.current=response.data;return response.data;
+ }
  async function saveLibrary(document,updates,assembly){
   if(!assembly)throw new Error('Select an assembly to save.');
   const db=await client(),{data,error}=await db.rpc('save_assembly_library',{p_division:division,p_assembly:assembly});
   if(error)throw error;
   const saved={...assembly,id:data.id,libraryId:data.id,updatedAt:null,qty:1,kind:'Assembly',status:'Not started'};
   library.current=[...library.current.filter(a=>a.id!==saved.id),saved];
-  try{library.current=await loadAssemblyLibrary(db);}catch{setError('Saved. Library refresh failed; refresh before further edits.');}
+  try{library.current=await loadAssemblyLibrary(db,division);}catch{setError('Saved. Library refresh failed; refresh before further edits.');}
   return {document:{...document,library:structuredClone(library.current)}};
  }
  async function create(e){
   e.preventDefault();setCreating(true);setError('');
-  try{const f=new FormData(e.target);active.current=null;const doc=seed(f.get('name').trim(),f.get('customer').trim(),f.get('template'));doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
+  try{const f=new FormData(e.target);active.current=null;const doc=newLaborRates(seed(f.get('name').trim(),f.get('customer').trim(),f.get('template')),librarySettings.current);doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
   catch(e){setError(e.message);}finally{setCreating(false);}
  }
  function exit(){
@@ -267,8 +282,9 @@ export default function WorkbenchRoute({libraryOnly=false}){
  }
  if(permissions.isLoading||loading)return <p>Loading estimator and material catalogue...</p>;
  if(!permissions.canEstimate&&!permissions.canApproveEstimates&&!permissions.canSavePersonalWork)return <p>Estimate access is required.</p>;
- if(libraryOnly&&personalOnly)return <p>Shared assembly access requires estimating authority. Personal assemblies remain inside My Estimates.</p>;
- if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...seed('Assembly library'),library:structuredClone(library.current)}} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
+ if(!reviewMode&&!librarySettings.current)return <p role="alert">{error||'Assembly Library rate settings are unavailable.'}</p>;
+  if(libraryOnly&&personalOnly)return <p>Shared assembly access requires estimating authority. Personal assemblies remain inside My Estimates.</p>;
+ if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...newLaborRates(seed('Assembly library'),librarySettings.current),librarySettings:librarySettings.current,library:structuredClone(library.current)}} onSaveLibrarySettings={permissions.canEditCatalog?saveRateSettings:undefined} onLoadLibraryRates={loadLibraryRates} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
  if(selectedReview){
   if(selectedReview.destination_key!=='official_estimate')return <section className="workspace-stack">
    <WorkspaceHeader eyebrow={selectedReview.task_type} title={selectedReview.estimate_name||'Shared estimating change'} description={`Submitted by ${selectedReview.submitted_by_name} for ${selectedReview.target_division||'company review'}.`} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
@@ -294,7 +310,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  }
  if(selected){
   const approvedSnapshot=selected.snapshot||null;
-  const document={...selected.document,approvedAt:approvedSnapshot?.approved_at||null,library:structuredClone(library.current)};
+  const document={...selected.document,approvedAt:approvedSnapshot?.approved_at||null,libraryDefaultRateCurrent:librarySettings.current?.default_rate,library:structuredClone(library.current)};
   const personalLocked=personalMode&&selected.estimates?.status==='submitted';
   return <section className="workspace-stack">
    {error&&<p role="alert">{error}</p>}
@@ -306,7 +322,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
     {workflow.success&&<p role="status">{workflow.success}</p>}
     <div className="job-financials-form__actions"><button className="primary-button" disabled={personalLocked||workflow.busy||!workflow.reason.trim()}>{workflow.busy?'Submitting...':'Submit for Review'}</button></div>
    </form>}
-   <EditorFrame key={selected.estimate_id||selected.personal_id} document={document} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client());return structuredClone(library.current);}} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
+   <EditorFrame key={selected.estimate_id||selected.personal_id} document={document} onLoadLibraryRates={loadLibraryRates} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
   </section>;
  }
  return <section className="workspace-stack">

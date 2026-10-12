@@ -19,7 +19,7 @@ export function createSupabaseClient(){return {
  from(table){
   let start=0,end=999,filters={},single=false;
   const q={select:()=>q,eq(k,v){filters[k]=v;return q;},in:()=>q,single(){single=true;return q;},is:()=>q,order:()=>q,limit:()=>q,range(a,b){start=a;end=b;return q;},
-   then(resolve){const f=window.workbenchFixture;if(table==='estimate_checklist_definitions'&&f.failDefinitions)return Promise.resolve({error:{message:'Checklist load failed'}}).then(resolve);let data=table==='estimate_checklist_definitions'?f.definitions:table==='estimate_workflow_handoffs'?f.handoffs:table==='jobs'?[{id:'job-1',name:'Review job',job_number:'TEST',division:'Electrical',job_type:'job'},{id:'call-1',name:'Service review',job_number:'SC-1',division:'Electrical',job_type:'service_call'}]:table==='job_budget_lines'?[{id:'budget-1',job_id:'job-1',cost_code:'16.CO',description:'Electrical Change Orders'}]:table==='items'?materialRows.slice(start,end+1):table==='assemblies'?f.library.slice(start,end+1):table==='estimate_snapshots'?f.snapshots:table==='estimates'?f.rows.map(r=>({id:r.estimate_id,...r.estimates})):f.rows;data=data.filter(r=>Object.entries(filters).every(([k,v])=>table==='items'||table==='assemblies'||k.includes('.')||r[k]===v));return Promise.resolve({data:single?data[0]:data}).then(resolve);}};
+   then(resolve){const f=window.workbenchFixture;if(table==='estimate_checklist_definitions'&&f.failDefinitions)return Promise.resolve({error:{message:'Checklist load failed'}}).then(resolve);let data=table==='assembly_library_settings'?[{division:'Electrical',default_rate:75,updated_at:'settings-stamp'}]:table==='estimate_checklist_definitions'?f.definitions:table==='estimate_workflow_handoffs'?f.handoffs:table==='jobs'?[{id:'job-1',name:'Review job',job_number:'TEST',division:'Electrical',job_type:'job'},{id:'call-1',name:'Service review',job_number:'SC-1',division:'Electrical',job_type:'service_call'}]:table==='job_budget_lines'?[{id:'budget-1',job_id:'job-1',cost_code:'16.CO',description:'Electrical Change Orders'}]:table==='items'?materialRows.slice(start,end+1):table==='assemblies'?f.library.slice(start,end+1):table==='estimate_snapshots'?f.snapshots:table==='estimates'?f.rows.map(r=>({id:r.estimate_id,...r.estimates})):f.rows;data=data.filter(r=>Object.entries(filters).every(([k,v])=>table==='items'||table==='assemblies'||k.includes('.')||r[k]===v));return Promise.resolve({data:single?data[0]:data}).then(resolve);}};
   return q;
  },
  async rpc(name,args){
@@ -48,7 +48,7 @@ export function createSupabaseClient(){return {
    const a=args.p_assembly,prior=f.library.find(x=>x.id===a.id);
    if(prior&&prior.updated_at!==a.updatedAt)return {error:{message:'Assembly changed. Refresh library.'}};
    const id=a.id||'assembly-'+(f.library.length+1);
-   f.library=[...f.library.filter(x=>x.id!==id),{id,name:a.name,description:a.notes,categories:a.categories||[],updated_at:String(f.calls.length),
+   f.library=[...f.library.filter(x=>x.id!==id),{id,name:a.name,description:a.notes,labor_rate_override:a.libraryLaborRateOverride,categories:a.categories||[],updated_at:String(f.calls.length),
     assembly_items:a.lines.map((l,i)=>({id:l.libraryLineId||id+'-line-'+i,item_id:l.catalogueId,description:l.name,quantity:l.qty,unit:l.unit,
      unit_cost_snapshot:l.price??0,labor_rate_hrs_snapshot:l.hours??0,price_missing:l.price==null,labor_missing:l.hours==null,
      stage:l.stage,fixed_quantity:l.fixed,note:l.notes,sort_order:i}))}];

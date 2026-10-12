@@ -1,3 +1,4 @@
+import {effectiveLaborRate} from './laborRates.mjs';
 // Audience-specific report projections. Never serialize an estimate into a public report.
 import {summary,itemValue,issues,invalid,takeoff} from './workspaceModel.mjs';
 import {round} from './pricing.mjs';
@@ -59,7 +60,7 @@ export function makeReport(data,kind,options={}){
       });
       if(kind==='detail'){
         const quote=(data.quotes||[]).find(q=>q.id===i.quoteId);
-        Object.assign(work,{pricing:p,laborRate:i.laborRateOverride??data.rate,notes:i.notes||'',issues:issues(i),
+        Object.assign(work,{pricing:p,laborRate:effectiveLaborRate(i,data).rate,notes:i.notes||'',issues:issues(i),
           quote:quote?{vendor:quote.vendor,reference:quote.reference,name:quote.name}:null});
       }
       return work;

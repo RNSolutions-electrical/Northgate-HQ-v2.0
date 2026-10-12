@@ -38,16 +38,18 @@ export function catalogueChanges(lines,materials){
  }
  return [...patches.values()];
 }
-export async function loadAssemblyLibrary(client){
+export async function loadAssemblyLibrary(client,division){
  const rows=[];
  for(let from=0;;from+=500){
-  const {data,error}=await client.from('assemblies')
-   .select('id,name,division,unit,description,category,categories,component_groups,updated_at,assembly_items(id,item_id,description,quantity,waste_percent,unit,unit_cost_snapshot,unit_cost_source,unit_cost_source_updated_at,unit_cost_snapshotted_at,labor_rate_hrs_snapshot,note,archived_at,stage,fixed_quantity,price_missing,labor_missing,sort_order,component_group_id)')
-   .eq('is_library_item',true).is('archived_at',null).order('id').range(from,from+499);
+  let query=client.from('assemblies')
+   .select('id,name,division,unit,description,category,categories,component_groups,labor_rate_override,updated_at,assembly_items(id,item_id,description,quantity,waste_percent,unit,unit_cost_snapshot,unit_cost_source,unit_cost_source_updated_at,unit_cost_snapshotted_at,labor_rate_hrs_snapshot,note,archived_at,stage,fixed_quantity,price_missing,labor_missing,sort_order,component_group_id)')
+   .eq('is_library_item',true).is('archived_at',null).order('id');
+   if(division)query=query.eq('division',division);
+   const {data,error}=await query.range(from,from+499);
   if(error)throw error;rows.push(...data);
   if(data.length<500)break;
  }
- return rows.map(a=>({id:a.id,libraryId:a.id,division:a.division,components:a.component_groups||undefined,categories:a.categories??(a.category?[a.category]:[]),updatedAt:a.updated_at,name:a.name,notes:a.description||'',qty:1,kind:'Assembly',status:'Not started',lines:(a.assembly_items||[]).filter(l=>!l.archived_at).sort((a,b)=>a.sort_order-b.sort_order).map(l=>({
+ return rows.map(a=>({id:a.id,libraryId:a.id,division:a.division,libraryLaborRateOverride:a.labor_rate_override==null?null:Number(a.labor_rate_override),components:a.component_groups||undefined,categories:a.categories??(a.category?[a.category]:[]),updatedAt:a.updated_at,name:a.name,notes:a.description||'',qty:1,kind:'Assembly',status:'Not started',lines:(a.assembly_items||[]).filter(l=>!l.archived_at).sort((a,b)=>a.sort_order-b.sort_order).map(l=>({
   id:l.id,componentId:l.component_group_id||undefined,libraryLineId:l.id,catalogueId:l.item_id||'',name:l.description,qty:Number(l.quantity)*(1+Number(l.waste_percent||0)/100),unit:l.unit||'EA',
   price:l.price_missing?null:Number(l.unit_cost_snapshot),priceSource:l.unit_cost_source||'legacy_snapshot',priceSourceUpdatedAt:l.unit_cost_source_updated_at||null,priceSnapshotAt:l.unit_cost_snapshotted_at||null,
   hours:l.labor_missing?null:Number(l.labor_rate_hrs_snapshot),stage:l.stage||'Rough-in',fixed:l.fixed_quantity||false,notes:l.note||''
