@@ -1,3 +1,4 @@
+import {effectiveLaborRate} from './laborRates.mjs';
 import React from 'react';
 import {money} from './model.mjs';
 import {itemPricing} from './pricing.mjs';
@@ -15,7 +16,7 @@ export function WorkItemReview({item, parent, data}) {
   <dl className="review-facts">{[
    ['Entry',parent.name],['Location',parent.location],['Section',parent.section],['Drawing / sheet',parent.drawing],
    ['Entry internal notes',parent.internalNotes],['Work item',item.name],['Kind',item.kind],['Quantity',item.qty],['Status',item.status],['Internal notes',item.notes],
-   ['Material cost',money(pricing.material)],['Labor hours',pricing.hours.toFixed(2)],['Labor rate',currency(item.laborRateOverride??data.rate)],
+   ['Material cost',money(pricing.material)],['Labor hours',pricing.hours.toFixed(2)],['Labor rate',currency(effectiveLaborRate(item,data).rate)],['Labor rate source',effectiveLaborRate(item,data).source],
    ['Labor cost',money(pricing.labor)],['Other cost',money(pricing.other)],['Base cost',money(pricing.cost)],
    ['Material markup',`${pricing.materialRate}%${item.materialMarkupOverride != null ? ' (override)' : ' (estimate default)'}`],
    ['Markup amount',money(pricing.materialMarkup)],['Price before estimate fee',money(pricing.price)],

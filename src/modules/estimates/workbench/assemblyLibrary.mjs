@@ -1,4 +1,5 @@
 import {normalizeCategories} from './assemblyCategories.mjs';
+import {rateNumber} from './laborRates.mjs';
 export function assemblyLibrarySave(item, {editingLibrary=false, name=item.name}={}) {
  if (!name.trim()) throw new Error('Enter a library assembly name.');
  if (!item.lines.length) throw new Error('Add at least one material or labor line.');
@@ -7,6 +8,7 @@ export function assemblyLibrarySave(item, {editingLibrary=false, name=item.name}
   updatedAt:editingLibrary?item.updatedAt||null:null,
   name:name.trim(),notes:editingLibrary?item.notes||'':'',
   categories:normalizeCategories(item.categories||[]),
+  libraryLaborRateOverride:rateNumber(item.libraryLaborRateOverride,{optional:true}),
   components:item.components||null,
   lines:item.lines.map(line=>{
    if (!line.name.trim()) throw new Error('Enter a description for each component.');

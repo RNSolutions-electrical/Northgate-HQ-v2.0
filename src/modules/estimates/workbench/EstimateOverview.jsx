@@ -1,8 +1,9 @@
 import React from 'react';
 import {money} from './model.mjs';
+import {setEstimateRate,effectiveLaborRate} from './laborRates.mjs';
 import {sumPricing,entryPricing} from './pricing.mjs';
 import {proposalFields} from './proposal.mjs';
-export default function EstimateOverview({data,locked,onChange,onPricing,onChecklist,missingChecklist,onOpenJob,job}){
+export default function EstimateOverview({data,locked,onChange,onPricing,onChecklist,missingChecklist,onOpenJob,job,onRefreshRates}){
  const p=sumPricing(data.entries.flatMap(e=>e.items),data),proposal=proposalFields(data);
  const awarded=data.entries.flatMap(e=>e.items).filter(i=>i.quoteId).map(i=>data.quotes.find(q=>q.id===i.quoteId)).filter(Boolean).reduce((n,q)=>n+Number(q.materialAmount||0)+Number(q.otherAmount||0),0);
  const set=(key,value)=>onChange(d=>({...d,[key]:value}));
@@ -12,7 +13,7 @@ export default function EstimateOverview({data,locked,onChange,onPricing,onCheck
   <section><h3>Project overview</h3><fieldset disabled={locked} className="overview-fields">
    <label>Estimate name<input value={data.name} onChange={e=>set('name',e.target.value)}/></label>
    <label>Customer<input value={data.customer||''} onChange={e=>set('customer',e.target.value)}/></label>
-   <label>Labor rate / hour<input type="number" min="0" step="any" value={data.rate} onChange={e=>set('rate',e.target.value)}/></label>
+   <label>Labor rate / hour<input type="number" min="0" max="1000000000" step="any" value={data.estimateLaborRateOverride??''} onChange={e=>onChange(d=>setEstimateRate(d,e.target.value))}/><small>Blank inherits the saved library rate. {effectiveLaborRate({},data).source}: {money(effectiveLaborRate({},data).rate)}/hour</small></label><button type="button" disabled={data.estimateLaborRateOverride==null} onClick={()=>onChange(d=>setEstimateRate(d,null))}>Reset estimate rate to inherited</button><button type="button" onClick={onRefreshRates}>Refresh inherited labor rates</button>
    <div className="resource-fields"><label>Material markup %<input type="number" min="0" step="any" value={data.materialMarkup??30} onChange={e=>set('materialMarkup',e.target.value)}/></label><label>Fee %<input type="number" min="0" step="any" value={data.feePercent??data.overallMarkup??30} onChange={e=>set('feePercent',e.target.value)}/></label></div>
    <label>Scope<textarea rows={5} value={proposal.scope} onChange={e=>set('proposal',{...proposal,scope:e.target.value})}/></label>
   </fieldset>{job&&<button onClick={onOpenJob}>Open associated job: {job.name||job.number||'Job'}</button>}</section>
