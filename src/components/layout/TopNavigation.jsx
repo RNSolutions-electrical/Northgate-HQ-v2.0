@@ -1,5 +1,6 @@
 import { ChevronDown, X } from 'lucide-react';
 import { useState } from 'react';
+import {CalculatorLauncher} from '../calculator/Calculator.jsx';
 
 export function TopNavigation({
   items,
@@ -82,6 +83,7 @@ export function TopNavigation({
             </div>
           );
         })}
+        <CalculatorLauncher mobile onOpen={onCloseMobile}/>
       </nav>
     </>
   );

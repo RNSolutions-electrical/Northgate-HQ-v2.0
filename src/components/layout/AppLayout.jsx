@@ -1,4 +1,4 @@
-import { UserButton, useClerk } from '@clerk/clerk-react';
+import { UserButton, useClerk, useAuth } from '@clerk/clerk-react';
 import { Bell, MessageSquarePlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } fr
 import { usePermissions } from '../../hooks/usePermissions.js';
 import { permittedModules, permittedNavigationGroups } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
+import {CalculatorProvider} from '../calculator/Calculator.jsx';
 import { StatePanel } from '../ui/StatePanel.jsx';
 import {canCorrectInventoryData} from '../../modules/inventory/dataCorrectionAccess.js';
 import { DiagnosticsProvider } from '../ui/Diagnostics.jsx';
@@ -28,6 +29,7 @@ import { ACCOUNTING_WORKSPACE_SECTIONS, accountingSectionFromSearch, accountingS
  * the array — never rendered disabled. See 04_PRESENTATION_CONTRACT.md §4.
  */
 export function AppLayout() {
+  const {userId}=useAuth();
   const { signOut } = useClerk();
   const permissions = usePermissions();
   const [highlightIncomplete] = useIncompleteHighlightPreference();
@@ -119,7 +121,7 @@ export function AppLayout() {
   const activeAccountingSection = accountingNavigation ? accountingSectionFromSearch(location.search) : null;
 
   return (
-    <DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
+      <CalculatorProvider userId={userId} environment={import.meta.env.VITE_APP_ENV||'production'}><DiagnosticsProvider permissions={permissions} enabled={showDiagnostics}>
       <AppShell
       eyebrow="HEADQUARTERS"
       title="Northgate"
@@ -266,6 +268,6 @@ export function AppLayout() {
         <Outlet context={{ setInventoryReviewCount, setJobsNavState, setEstimatesNavVisible, setDocumentsNavCounts }} />
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
-    </DiagnosticsProvider>
+    </DiagnosticsProvider></CalculatorProvider>
   );
 }
