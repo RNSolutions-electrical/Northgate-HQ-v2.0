@@ -3,6 +3,20 @@
 Ryan explicitly authorized this narrow Production incident mitigation. The
 unrelated standalone-estimate approval candidate remains local and unpublished.
 
+## Published identity
+
+- Fixed code/tag commit: `fd47ca092889d435c298afce765b6125fb62d712`.
+- Annotated `v0.7.3` tag object: `e876f254dabdf221d989440a9ce0cb2658089798`.
+- [GitHub Release v0.7.3](https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/releases/tag/v0.7.3),
+  ID `412171635`, published **2026-10-13 22:45:24 UTC**.
+- Production project: `keogysnoukbendfkfjcn`; applied migration versions are
+  `20261013223023` and `20261013223745`. No other migration was applied.
+- Source/release push uses `[skip ci]`: no frontend build/deploy was triggered.
+  Netlify still reports the existing v0.7.2 frontend deploy ready at `b452934`.
+- Post-release checks through 22:46:03: rollback counter still 19,738,967;
+  22:38–22:44 has zero matching promotion/40001 errors; both original customer
+  destinations still pending, version 1. No real promotion test was executed.
+
 ## Scope and cause
 
 Only `public.apply_v5_estimate_promotion(uuid,integer,text,text)` was changed,
