@@ -1,4 +1,15 @@
 .estimate-create-form, .estimate-directory { padding: 20px; border: 1px solid #dce1e6; border-radius: 10px; background: #fff; }
+.estimate-submission-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.estimate-submission-bar p { margin: 0; }
+.ng-shell:has(.estimate-editor-frame--fit) .ng-shell__body { min-height: calc(100dvh - var(--ng-estimate-shell-top, var(--app-header-height))); }
+.ng-shell:has(.estimate-editor-frame--fit) .ng-shell__rail { height: calc(100dvh - var(--ng-estimate-shell-top, var(--app-header-height))); }
+.estimate-submission-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-sizing: border-box; overflow-y: auto; padding: 20px; border: 1px solid #dce1e6; border-radius: 10px; color: inherit; background: #fff; }
+.estimate-submission-dialog::backdrop { background: #0008; }
+.estimate-submission-dialog .job-financials-form { padding: 0; border: 0; }
+.estimate-submission-dialog h2 { margin-top: 0; }
+.estimate-submission-dialog label { display: grid; gap: 6px; }
+.estimate-submission-dialog textarea { width: 100%; box-sizing: border-box; min-height: 100px; resize: vertical; font: inherit; }
+.estimate-submission-dialog .job-financials-form__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .estimate-create-form h2, .estimate-directory h2 { margin: 0 0 16px; }
 .estimate-create-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(150px, .8fr) auto; gap: 16px; align-items: end; }
 .estimate-create-grid label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
