@@ -1,0 +1,66 @@
+import {PGlite} from '../.temp/promotion-checks/node_modules/@electric-sql/pglite/dist/index.js';
+import {readFile,writeFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+const db=new PGlite(),q=(sql,args=[])=>db.query(sql,args),one=async(sql,args=[])=>Object.values((await q(sql,args)).rows[0])[0];
+try{
+ await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE SCHEMA auth;
+ CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql AS $$SELECT jsonb_build_object('sub',current_setting('test.actor',true))$$;
+ CREATE TABLE user_permissions(id uuid PRIMARY KEY,clerk_user_id text,is_active boolean,display_name text,email text,business_role text,division text);
+ CREATE TABLE v5_change_set_destinations(id uuid PRIMARY KEY,status text,version integer,payload_hash text,change_set_id uuid,destination_key text,action_id text,scope_context jsonb,proposed_payload jsonb);
+ CREATE TABLE v5_change_sets(id uuid PRIMARY KEY,working_copy_id uuid,initiated_by text,working_copy_version integer,payload_hash text);
+ CREATE TABLE v5_working_copies(id uuid PRIMARY KEY,module_key text,work_type text,owner_user_id text,version integer,payload_hash text,payload jsonb,scope_context jsonb);
+ CREATE TABLE estimates(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),division text,title text,customer_name text,created_by text,estimator_id text,editor_version integer,status text);
+ CREATE TABLE estimate_workbenches(estimate_id uuid PRIMARY KEY,revision integer,document jsonb);
+ CREATE TABLE change_logs(user_id text,user_name text,table_name text,record_id text,action text,before_data jsonb,after_data jsonb,note text);
+ SET check_function_bodies=off;`);
+ await db.exec(await readFile('tests/fixtures/promotionBefore.sql','utf8'));
+ const before=await one("select pg_get_functiondef('public.apply_v5_estimate_promotion(uuid,integer,text,text)'::regprocedure)");
+ assert.equal(await one("select md5(pg_get_functiondef('public.apply_v5_estimate_promotion(uuid,integer,text,text)'::regprocedure))"),'742dcfe5660cc13392dbb870bb319d56');
+ await db.exec('revoke all on function apply_v5_estimate_promotion(uuid,integer,text,text) from public,anon;grant execute on function apply_v5_estimate_promotion(uuid,integer,text,text) to authenticated,service_role;');
+ await db.exec(await readFile('supabase/migrations/20261013223023_pause_estimate_promotion_incident.sql','utf8'));
+ await assert.rejects(()=>q('select apply_v5_estimate_promotion(null,null,null,null)'),error=>error.code==='PT503');
+ assert.equal(await one('select count(*)::int from estimates'),0);assert.equal(await one("select has_function_privilege('anon','apply_v5_estimate_promotion(uuid,integer,text,text)','EXECUTE')"),false);
+ assert.equal(await one("select has_function_privilege('authenticated','apply_v5_estimate_promotion(uuid,integer,text,text)','EXECUTE')"),true);
+ await db.exec(before);assert.equal(await one("select md5(pg_get_functiondef('public.apply_v5_estimate_promotion(uuid,integer,text,text)'::regprocedure))"),'742dcfe5660cc13392dbb870bb319d56');
+ await db.exec(await readFile('supabase/migrations/20261013223023_pause_estimate_promotion_incident.sql','utf8'));
+ await writeFile('.temp/promotion-incident/pause-test.json',JSON.stringify({passed:true,recoveryDefinitionMatches:true,code:'PT503',recordsCreated:0,grantsUnchanged:true},null,2));
+ console.log('PASS: actual Production function pause, PT503/no writes, unchanged grants, exact local recovery definition round-trip');
+ await db.exec(`ALTER TABLE v5_change_set_destinations ADD COLUMN reviewed_by text,ADD COLUMN reviewed_at timestamptz,ADD COLUMN review_note text,ADD COLUMN applied_record jsonb,ADD COLUMN applied_at timestamptz,ADD COLUMN updated_at timestamptz;
+ ALTER TABLE v5_change_sets ADD COLUMN status text,ADD COLUMN updated_at timestamptz;
+ ALTER TABLE v5_working_copies ADD COLUMN status text,ADD COLUMN updated_at timestamptz;
+ CREATE FUNCTION current_scoped_authorization_decision(action text,context jsonb) RETURNS jsonb LANGUAGE sql AS $$SELECT jsonb_build_object('allowed',EXISTS(SELECT 1 FROM user_permissions WHERE clerk_user_id=auth.jwt()->>'sub' AND is_active AND business_role IN ('Supervisor','Director')))$$;
+ INSERT INTO user_permissions(id,clerk_user_id,is_active,display_name,business_role,division) VALUES(gen_random_uuid(),'reviewer',true,'Fixture reviewer','Supervisor','Electrical'),(gen_random_uuid(),'author',true,'Fixture author','User','Electrical'),(gen_random_uuid(),'other-reviewer',true,'Fixture other','Supervisor','Construction'),(gen_random_uuid(),'inactive',false,'Fixture inactive','Supervisor','Electrical');
+ `);
+ await db.exec(await readFile('tests/fixtures/promotionCompletion.sql','utf8'));
+ const rates=await readFile('supabase/migrations/20261012220350_assembly_library_labor_rates.sql','utf8');
+ for(const name of ['assembly_rate_number','validate_workbench_structure']){const start=rates.indexOf('FUNCTION public.'+name+'('),create=rates.lastIndexOf('CREATE',start),tag=/AS\s+(\$[\w]*\$)/.exec(rates.slice(create));const end=rates.indexOf(tag[1],create+tag.index+tag[0].length);await db.exec(rates.slice(create,rates.indexOf(';',end+tag[1].length)+1));}
+ const make=async(proposals={})=>{
+  const w=randomUUID(),c=randomUUID(),d=randomUUID(),payload={name:'Promotion fixture',customer:'Fixture customer',entries:[],rate:75,materialMarkup:30,feePercent:30,internalNotes:'PRIVATE fixture note',reviewProposals:proposals},projected={...payload};delete projected.reviewProposals;
+  await q("insert into v5_working_copies(id,module_key,work_type,owner_user_id,version,payload_hash,payload,scope_context,status) values($1,'estimating','estimate','author',2,$2,$3,'{\"division\":\"Electrical\"}','submitted')",[w,'b'.repeat(64),payload]);
+  await q("insert into v5_change_sets(id,working_copy_id,initiated_by,working_copy_version,payload_hash,status) values($1,$2,'author',2,$3,'submitted')",[c,w,'b'.repeat(64)]);
+  await q("insert into v5_change_set_destinations(id,status,version,payload_hash,change_set_id,destination_key,action_id,scope_context,proposed_payload) values($1,'pending',1,$2,$3,'official_estimate','POL-002','{\"division\":\"Electrical\"}',$4)",[d,'a'.repeat(64),c,projected]);return {w,c,d,payload,projected};
+ };
+ const actor=name=>q("select set_config('test.actor',$1,false)",[name]);
+ const promote=fixture=>one('select apply_v5_estimate_promotion($1,1,$2,$3)',[fixture.d,'a'.repeat(64),'Approve fixture only']);
+ // The exact original defect is proven locally, never by calling customer RPCs.
+ let fixture=await make();await actor('reviewer');await db.exec(before);await assert.rejects(()=>promote(fixture),error=>error.code==='40001');assert.equal(await one('select count(*)::int from estimates'),0);
+ await db.exec(await readFile('supabase/migrations/20261013223023_pause_estimate_promotion_incident.sql','utf8'));
+ await assert.rejects(()=>promote(fixture),error=>error.code==='PT503');
+ assert.equal(await one("select md5(pg_get_functiondef('public.apply_v5_estimate_promotion(uuid,integer,text,text)'::regprocedure))"),'92ced3145472e7e6f4cecc5d549b3895');
+ await db.exec(await readFile('supabase/migrations/20261013223745_fix_estimate_promotion_conflicts.sql','utf8'));
+ const repaired=await one("select pg_get_functiondef('public.apply_v5_estimate_promotion(uuid,integer,text,text)'::regprocedure)");assert.ok(!repaired.includes("'40001'"));assert.ok(!repaired.includes('PT503'));
+ const approved=await promote(fixture);assert.equal(approved.idempotent,false);assert.equal((await promote(fixture)).idempotent,true);assert.equal(await one('select count(*)::int from estimates'),1);assert.equal(await one('select status from estimates'),'draft');assert.deepEqual(await one('select document from estimate_workbenches'),fixture.projected);assert.deepEqual(await one('select payload from v5_working_copies where id=$1',[fixture.w]),fixture.payload);
+ const reject=async(mutate,expected='PT409',name='reviewer')=>{const value=await make();await mutate(value);await actor(name);const count=await one('select count(*)::int from estimates');await assert.rejects(()=>promote(value),error=>error.code===expected);assert.equal(await one('select count(*)::int from estimates'),count);};
+ await reject(f=>q('update v5_working_copies set version=3 where id=$1',[f.w]));
+ await reject(f=>q("update v5_working_copies set payload_hash='stale' where id=$1",[f.w]));
+ await reject(f=>q("update v5_working_copies set owner_user_id='someone-else' where id=$1",[f.w]));
+ await reject(f=>q("update v5_working_copies set payload=jsonb_set(payload,'{customer}','\"Altered fixture scope\"') where id=$1",[f.w]));
+ await reject(f=>q('update v5_change_set_destinations set version=2 where id=$1',[f.d]));
+ await reject(f=>q("update v5_change_set_destinations set payload_hash='stale' where id=$1",[f.d]));
+ await reject(async()=>{},'42501','author');await reject(async()=>{},'42501','inactive');await reject(async()=>{},'42501','other-reviewer');
+ fixture=await make({assembly:{name:'Separate fixture proposal'}});await q("insert into v5_change_set_destinations(id,status,version,payload_hash,change_set_id,destination_key)values($1,'pending',1,$2,$3,'shared_assembly')",[randomUUID(),'c'.repeat(64),fixture.c]);await actor('reviewer');await promote(fixture);assert.equal(await one('select status from v5_change_sets where id=$1',[fixture.c]),'partially_applied');assert.equal(await one('select status from v5_working_copies where id=$1',[fixture.w]),'submitted');assert.deepEqual(await one("select payload->'reviewProposals' from v5_working_copies where id=$1",[fixture.w]),fixture.payload.reviewProposals);
+ fixture=await make();await db.exec("create function fail_fixture_audit() returns trigger language plpgsql as $$begin if new.table_name='v5_change_set_destinations' then raise exception 'Fixture audit failure';end if;return new;end$$;create trigger fail_fixture_audit before insert on change_logs for each row execute function fail_fixture_audit()");const count=await one('select count(*)::int from estimates');await assert.rejects(()=>promote(fixture),/Fixture audit failure/);assert.equal(await one('select count(*)::int from estimates'),count);assert.equal(await one('select status from v5_change_set_destinations where id=$1',[fixture.d]),'pending');
+ await writeFile('.temp/promotion-incident/fix-test.json',JSON.stringify({passed:true,checks:['original failure reproduced locally','PT503 containment no writes','correct projected payload','owner/full-source-version/hash/destination-version/hash mismatch PT409','role/department/inactive denial','single creation on retry','separate linked proposals retained','notes intact','completion audit rollback','exact original recovery round-trip'],boundary:'actual promotion/completion/structure functions; local synthetic profiles with authorization-decision fixture'},null,2));
+ console.log('PASS: corrected promotion, preserved source/role/scope guards, PT409 conflicts, idempotency, separate proposals/notes, actual completion hook and audit rollback');
+}finally{await db.close();}
