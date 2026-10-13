@@ -2,6 +2,7 @@ import { ArrowLeft, Bell, House, LayoutDashboard, Menu, Search, Sparkles } from 
 import { useEffect, useState } from 'react';
 import { TopNavigation } from './TopNavigation.jsx';
 import { DashboardSectionTree } from '../../modules/dashboard/DashboardSectionTree.jsx';
+import {CalculatorLauncher} from '../calculator/Calculator.jsx';
 
 const appEnvironment = import.meta.env.VITE_APP_ENV || 'production';
 
@@ -219,6 +220,7 @@ export function AppShell({
               );
             })}
           </nav>
+          <div className="ng-shell__calculator"><CalculatorLauncher/></div>
           <div className="ng-shell__rail-note">
             <strong>Northgate HQ</strong>
             <span>Operations rebuild · {buildLabel}</span>
