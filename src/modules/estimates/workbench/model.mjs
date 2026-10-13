@@ -30,9 +30,10 @@ export function seed(name='New estimate',customer='',template='Commercial'){
 }
 export function refreshed(item){
  const next=freshItem(item);
+ if(next.components)next.components=next.components.map(({internalNotes,...component})=>component);
  next.lines=next.lines.map(l=>{const m=catalogue.find(x=>x.id===l.catalogueId);return m?{...l,price:m.price,hours:m.hours,priceOverride:false,laborOverride:false,notes:''}:{...l,needsReview:true,notes:''};});
  return next;
 }
 export function makeTemplate(state,name,includeItems){
- return {id:id(),name,rate:state.rate,laborRateVersion:state.laborRateVersion,estimateLaborRateOverride:state.estimateLaborRateOverride,libraryDefaultRateSnapshot:state.libraryDefaultRateSnapshot,materialMarkup:state.materialMarkup??30,feePercent:state.feePercent??state.overallMarkup??30,sections:clone(state.sections),entries:includeItems?state.entries.filter(e=>!e.packageId).map((e,index)=>({id:id(),number:index+1,location:`Area ${index+1}`,section:e.section,drawing:'',name:'',status:'Not started',items:e.items.filter(i=>!i.quoteId).map(i=>({...clone(i),notes:'',status:'Not started',lines:i.lines.map(l=>({...clone(l),notes:''}))}))})):[]};
+ return {id:id(),name,rate:state.rate,laborRateVersion:state.laborRateVersion,estimateLaborRateOverride:state.estimateLaborRateOverride,libraryDefaultRateSnapshot:state.libraryDefaultRateSnapshot,materialMarkup:state.materialMarkup??30,feePercent:state.feePercent??state.overallMarkup??30,sections:clone(state.sections),entries:includeItems?state.entries.filter(e=>!e.packageId).map((e,index)=>({id:id(),number:index+1,location:`Area ${index+1}`,section:e.section,drawing:'',name:'',status:'Not started',items:e.items.filter(i=>!i.quoteId).map(i=>({...clone(i),notes:'',status:'Not started',components:i.components?.map(({internalNotes,...component})=>component),lines:i.lines.map(l=>({...clone(l),notes:''}))}))})):[]};
 }

@@ -1,3 +1,4 @@
+import {componentGroups} from './componentStructure.mjs';
 import {effectiveLaborRate} from './laborRates.mjs';
 import React from 'react';
 import {money} from './model.mjs';
@@ -26,6 +27,7 @@ export function WorkItemReview({item, parent, data}) {
    ['Quoted material',currency(quote.materialAmount)],['Quoted other',currency(quote.otherAmount)],
   ].map(([label,content]) => <div key={label}><dt>{label}</dt><dd>{value(content)}</dd></div>)}</dl></>}
   {item.quoteId && !quote && <p className="missing-warning">The linked quote is not present in this version. Verify the source before editing.</p>}
+  {componentGroups(item).filter(group=>group.internalNotes?.trim()).map(group=><section className="review-component" key={group.id}><h4>{group.name} — Internal component note</h4><p className="review-note-text">{group.internalNotes}</p></section>)}
   <h3 className="review-components-heading">Components ({(item.lines || []).length})</h3>
   {(item.lines || []).map((line,index) => {
    const quantity = Number(line.qty) * (line.fixed ? 1 : Number(item.qty));
