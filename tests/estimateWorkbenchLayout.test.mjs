@@ -8,22 +8,12 @@ const styles=readFileSync(new URL('../src/modules/estimates/workbench/style.css'
 const components=readFileSync(new URL('../src/modules/estimates/workbench/ComponentEditor.jsx',import.meta.url),'utf8');
 const picker=readFileSync(new URL('../src/modules/estimates/workbench/MaterialPicker.jsx',import.meta.url),'utf8');
 
-test('estimate entries and work items provide internal note fields',()=>{
- assert.match(app,/Internal entry notes/);
+test('estimate entries and work items use compact annotation controls',()=>{
+ assert.match(app,/EstimateNote label="Internal entry notes"/);
+ assert.match(app,/EstimateNote label="Internal work item notes"/);
  assert.match(app,/entry\.internalNotes/);
- assert.match(app,/Internal work item notes/);
- assert.match(app,/className="inline-work-item-note"/);
- assert.match(app,/What is this item, or what needs review\?/);
- assert.match(app,/const InlineWorkItemNote=memo/);
- assert.match(app,/defaultValue=\{value\|\|''\}/);
- assert.match(app,/onInput=\{event=>\{if\(!changed\.current\)/);
- assert.doesNotMatch(app,/const \[draft,setDraft\]=useState/);
- assert.match(app,/onBlur=\{event=>\{focused\.current=false;if\(changed\.current\)onCommit\(event\.currentTarget\.value\)/);
- assert.match(app,/pendingInlineNotes=useRef\(new Map\(\)\)/);
- assert.match(app,/next=applyPendingInlineNotes\(next\);pendingInlineNotes\.current\.clear\(\)/);
- assert.match(app,/const openInlineItem=.*pendingInlineNotes\.current\.delete/);
- assert.match(app,/onClick=\{\(\)=>openInlineItem\(item,parent\)\}/);
- assert.match(app,/excluded from customer proposals/);
+ assert.match(components,/Internal component note/);
+ assert.match(components,/Assembly resource note/);
 });
 
 test('work item review separates verification facts from components',()=>{
@@ -38,9 +28,9 @@ test('work item review separates verification facts from components',()=>{
 
 test('estimate rows reserve dedicated space for values and actions',()=>{
  assert.match(styles,/\.toc-head,\.entry-row\{grid-template-columns:[^}]*148px/);
- assert.match(styles,/\.item-row\{grid-template-columns:[^}]*minmax\(240px,.9fr\)[^}]*124px/);
+ assert.match(styles,/\.item-row\{grid-template-columns:[^}]*90px[^}]*124px/);
  assert.match(styles,/\.item-actions\{min-width:124px\}/);
- assert.match(styles,/\.inline-work-item-note textarea\{[^}]*min-height:64px/);
+
 });
 
 test('component inputs buffer keystrokes outside the Workbench render path',()=>{

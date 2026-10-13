@@ -9,7 +9,7 @@ export function assemblyLibrarySave(item, {editingLibrary=false, name=item.name}
   name:name.trim(),notes:editingLibrary?item.notes||'':'',
   categories:normalizeCategories(item.categories||[]),
   libraryLaborRateOverride:rateNumber(item.libraryLaborRateOverride,{optional:true}),
-  components:item.components||null,
+  components:item.components?.map(({internalNotes,...component})=>component)||null,
   lines:item.lines.map(line=>{
    if (!line.name.trim()) throw new Error('Enter a description for each component.');
    return {...line,libraryLineId:editingLibrary?line.libraryLineId||null:null,

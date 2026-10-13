@@ -1,3 +1,4 @@
+import EstimateNote from './EstimateNote.jsx';
 import React,{memo,useEffect,useRef,useState} from 'react';
 import {componentGroups,ensureComponents,addComponentLine,addComponentGroup} from './componentStructure.mjs';
 import {invalid,catalogueMissing} from './workspaceModel.mjs';
@@ -15,7 +16,7 @@ function Numeric({label,value,onChange,onDraft,disabled}){
  return <BufferedInput label={label} inputMode="decimal" value={value} disabled={disabled} onDraft={value=>onDraft(normalize(value))} onCommit={value=>onChange(normalize(value))}/>;
 }
 function priceSourceLabel(source){return ({inventory_explicit:'Inventory override',estimating_master:'Estimating master',estimate_override:'Estimate override',legacy_snapshot:'Legacy snapshot'})[source]||'Unverified price';}
-function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,focus,onCopy}){
+function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,focus,onCopy,libraryMode}){
  const missing=!group.name?.trim()||!group.lines.length||group.lines.some(l=>!l.name?.trim()||['qty','price','hours'].some(k=>invalid(l[k])));
  const [open,setOpen]=useState(missing||focus);
  const change=(id,patch)=>onEdit(i=>Object.assign(i.lines.find(l=>l.id===id),patch));
@@ -26,8 +27,9 @@ function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,
  };
  const stageComponentName=value=>onStage(`component:${group.id}:name`,i=>{ensureComponents(i);i.components.find(c=>c.id===group.id).name=value;});
  return <details className={'component-group '+(missing?'incomplete':'')} open={open} onToggle={e=>setOpen(e.currentTarget.open)}>
-  <summary><strong>{prefix}.{group.number} · {group.name||'Unnamed component'}</strong><span>{missing?'Missing information':group.lines.length+' material / labor rows'}</span></summary>
+  <summary><strong>{prefix}.{group.number} · {group.name||'Unnamed component'}</strong><span>{(group.internalNotes?.trim()||group.lines.some(line=>line.notes?.trim()))&&<b className="note-indicator">● Notes · </b>}{missing?'Missing information':group.lines.length+' material / labor rows'}</span></summary>
   <div className="component-body">
+   {!libraryMode&&<EstimateNote label="Internal component note" value={group.internalNotes} readOnly={!editable} onSave={value=>onEdit(i=>{ensureComponents(i);i.components.find(c=>c.id===group.id).internalNotes=value;})}/>}
    <BufferedInput label="Component name" disabled={!editable} value={group.name} onDraft={stageComponentName} onCommit={value=>onEdit(i=>{ensureComponents(i);i.components.find(c=>c.id===group.id).name=value;})}/>
    {group.lines.map((line,index)=>{
     const labor=line.kind==='labor'||line.unit==='HR',material=catalogue.find(m=>m.id===line.catalogueId);
@@ -42,7 +44,7 @@ function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,
       <Numeric label="Labor hours per unit" value={line.hours} disabled={!editable} onDraft={hours=>stageLine(line.id,'hours',hours,{laborOverride:true})} onChange={hours=>change(line.id,{hours,laborOverride:true})}/>
       <BufferedInput label="Stage" disabled={!editable} value={line.stage||''} onDraft={value=>stageLine(line.id,'stage',value)} onCommit={value=>change(line.id,{stage:value})}/>
       <label className="check"><input type="checkbox" disabled={!editable} checked={!!line.fixed} onChange={e=>change(line.id,{fixed:e.target.checked})}/>Fixed total quantity</label>
-      <BufferedInput className="wide" label="Resource notes" disabled={!editable} value={line.notes||''} onDraft={value=>stageLine(line.id,'notes',value)} onCommit={value=>change(line.id,{notes:value})}/>
+      <EstimateNote label={libraryMode?"Assembly resource note":"Internal resource note"} shared={libraryMode} value={line.notes} readOnly={!editable} onSave={value=>change(line.id,{notes:value})}/>
      </div>
      {!labor&&<p className="muted">Price source: {priceSourceLabel(line.priceSource)}{line.priceSnapshotAt?` · copied ${new Date(line.priceSnapshotAt).toLocaleString()}`:''}</p>}
      {!labor&&canEditCatalog&&onCatalogue&&<button type="button" disabled={!editable||!line.name?.trim()} onClick={()=>onCatalogue(line,material)}>{material?'Review catalogue details':'Add to catalogue'}</button>}
@@ -54,7 +56,7 @@ function Group({group,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,
   </div>
  </details>;
 }
-export default function ComponentEditor({item,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,focusLine,onCopyComponent}){
+export default function ComponentEditor({item,prefix,editable,onEdit,onStage,onCatalogue,canEditCatalog,focusLine,onCopyComponent,libraryMode=false}){
  const [focus,setFocus]=useState(focusLine||null);
- return <><h3>Components</h3><p className="muted">Entry → Work item → Component → Material / labor rows</p>{componentGroups(item).map(group=><Group key={group.id} group={group} prefix={prefix} editable={editable} onEdit={onEdit} onStage={onStage} onCatalogue={onCatalogue} canEditCatalog={canEditCatalog} focus={group.id===focus} onCopy={onCopyComponent}/>)}<button type="button" disabled={!editable} onClick={()=>{const id=crypto.randomUUID();setFocus(id);onEdit(i=>{ensureComponents(i);i.components.push({id,name:'New component'});});}}>Add component</button></>;
+ return <><h3>Components</h3><p className="muted">Entry → Work item → Component → Material / labor rows</p>{componentGroups(item).map(group=><Group key={group.id} group={group} prefix={prefix} editable={editable} onEdit={onEdit} onStage={onStage} onCatalogue={onCatalogue} canEditCatalog={canEditCatalog} focus={group.id===focus} onCopy={onCopyComponent} libraryMode={libraryMode}/>)}<button type="button" disabled={!editable} onClick={()=>{const id=crypto.randomUUID();setFocus(id);onEdit(i=>{ensureComponents(i);i.components.push({id,name:'New component'});});}}>Add component</button></>;
 }
