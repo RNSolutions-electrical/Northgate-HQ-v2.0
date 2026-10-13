@@ -8,6 +8,7 @@ import {Plus,ArrowLeft,RefreshCw} from 'lucide-react';
 import {usePermissions} from '../../../hooks/usePermissions.js';
 import {createSupabaseClient} from '../../../services/supabaseClient.js';
 import WorkbenchEditor from './app.jsx';
+import PersonalEstimateSubmission from './PersonalEstimateSubmission.jsx';
 import { EstimateDirectory } from './EstimateDirectory.jsx';
 import './estimateDirectory.css';
 import {seed,sections,setCatalogue} from './model.mjs';
@@ -20,11 +21,26 @@ const css=baseCSS+'\n'+workspaceCSS+'\n'+catalogueCSS;
 import {handoffDestinationState} from './handoff.mjs';
 import {estimatesSectionFromLocation,estimatesSectionUrl} from '../estimatesNavigation.js';
 
-function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,...handoffProps}){
- const ref=useRef(),[target,setTarget]=useState(null);
+function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,fitViewport=false,...handoffProps}){
+ const ref=useRef(),[target,setTarget]=useState(null),[height,setHeight]=useState(0);
+ useEffect(()=>{
+  if(!fitViewport)return;
+  const frame=ref.current,win=frame.ownerDocument.defaultView;
+  const shell=frame.closest('.ng-shell'),body=frame.closest('.ng-shell__body');
+  const resize=()=>{
+   // Measure header/banner height, including wrapped text on small screens.
+   if(shell&&body)shell.style.setProperty('--ng-estimate-shell-top',(body.getBoundingClientRect().top+win.scrollY)+'px');
+   const content=frame.closest('.ng-shell__content');
+   const bottom=content?parseFloat(win.getComputedStyle(content).paddingBottom)||0:0;
+   setHeight(Math.max(1,(win.visualViewport?.height||win.innerHeight)-(frame.getBoundingClientRect().top+win.scrollY)-bottom-16));
+  };
+  const observer=new ResizeObserver(resize);observer.observe(frame.parentElement);
+  win.addEventListener('resize',resize);win.visualViewport?.addEventListener('resize',resize);resize();
+  return()=>{observer.disconnect();win.removeEventListener('resize',resize);win.visualViewport?.removeEventListener('resize',resize);shell?.style.removeProperty('--ng-estimate-shell-top');};
+ },[fitViewport]);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
- return <iframe title="Estimate editor" ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
-  style={{width:'100%',height:'calc(100dvh - 130px)',minHeight:620,border:0}}
+ return <iframe title="Estimate editor" className={fitViewport?'estimate-editor-frame--fit':undefined} ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
+  style={{display:'block',width:'100%',height:fitViewport&&height?height:'calc(100dvh - 130px)',minHeight:fitViewport?0:620,border:0}}
  >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
@@ -41,7 +57,8 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const allowedDivisions=permissions.canViewAllDivisions?['Electrical','Construction','Admin']:[permissions.division].filter(Boolean);
  const requestedDivision=location.state?.department||permissions.department||permissions.division;
  const division=allowedDivisions.includes(requestedDivision)?requestedDivision:permissions.division;
- const dirty=useRef(false),active=useRef(null),saving=useRef(false);
+ const dirty=useRef(false),active=useRef(null),saving=useRef(false),submitting=useRef(false);
+ useEffect(()=>{setWorkflow({reason:'',busy:false,error:'',success:''});},[selected?.personal_id]);
  const library=useRef([]),librarySettings=useRef(null);
  const [handoffs,setHandoffs]=useState({});
  const [associatedJob,setAssociatedJob]=useState(null);
@@ -258,16 +275,20 @@ export default function WorkbenchRoute({libraryOnly=false}){
  }
  async function submitPersonal(event){
   event.preventDefault();
+  if(submitting.current||workflow.busy||!personalMode||active.current?.estimates?.status==='submitted')return;
   if(dirty.current){setWorkflow(current=>({...current,error:'Save the current estimate before submitting it.'}));return;}
   const reason=workflow.reason.trim();if(!reason||!active.current?.personal_id)return;
+  const submitted=active.current;submitting.current=true;
   setWorkflow(current=>({...current,busy:true,error:'',success:''}));
   try{
-   const db=await client(),response=await db.rpc('submit_v5_estimate_for_review',{p_request_id:crypto.randomUUID(),p_working_copy_id:active.current.personal_id,p_expected_version:active.current.revision,p_reason:reason});
+   const db=await client(),response=await db.rpc('submit_v5_estimate_for_review',{p_request_id:crypto.randomUUID(),p_working_copy_id:submitted.personal_id,p_expected_version:submitted.revision,p_reason:reason});
    if(response.error)throw response.error;
-   const next={...active.current,estimates:{...active.current.estimates,status:'submitted'}};
-   active.current=next;setSelected(next);setRows(current=>current.map(row=>row.personal_id===next.personal_id?next:row));
+   const next={...submitted,estimates:{...submitted.estimates,status:'submitted'}};
+   setRows(current=>current.map(row=>row.personal_id===next.personal_id?next:row));
+   if(active.current?.personal_id!==submitted.personal_id)return;
+   active.current=next;setSelected(next);
    setWorkflow({reason:'',busy:false,error:'',success:'Submitted for review. The locked payload remains private until a reviewer promotes it.'});
-  }catch(error){setWorkflow(current=>({...current,busy:false,error:error.message||'Submission failed.'}));}
+  }catch(error){if(active.current?.personal_id===submitted.personal_id)setWorkflow(current=>({...current,busy:false,error:error.message||'Submission failed.'}));}finally{submitting.current=false;}
  }
  async function reviewPersonal(decision){
   const note=workflow.reason.trim();if(!note||!selectedReview||workflow.busy)return;
@@ -314,15 +335,8 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const personalLocked=personalMode&&selected.estimates?.status==='submitted';
   return <section className="workspace-stack">
    {error&&<p role="alert">{error}</p>}
-   {personalMode&&<form className="job-financials-form" onSubmit={submitPersonal}>
-    <h2>{personalLocked?'Submitted for review':'Submit for review'}</h2>
-    <p>{personalLocked?'This payload is locked while a reviewer considers it.':'Save the estimate, then explain what the reviewer should know.'}</p>
-    <label>Submission reason<textarea value={workflow.reason} onChange={event=>setWorkflow(current=>({...current,reason:event.target.value,error:'',success:''}))} disabled={personalLocked} required rows={3}/></label>
-    {workflow.error&&<p role="alert">{workflow.error}</p>}
-    {workflow.success&&<p role="status">{workflow.success}</p>}
-    <div className="job-financials-form__actions"><button className="primary-button" disabled={personalLocked||workflow.busy||!workflow.reason.trim()}>{workflow.busy?'Submitting...':'Submit for Review'}</button></div>
-   </form>}
-   <EditorFrame key={selected.estimate_id||selected.personal_id} document={document} onLoadLibraryRates={loadLibraryRates} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
+   {personalMode&&<PersonalEstimateSubmission key={'submission:'+selected.personal_id} routeKey={location.key} locked={personalLocked} workflow={workflow} onReason={reason=>setWorkflow(current=>({...current,reason,error:'',success:''}))} onSubmit={submitPersonal}/>}
+   <EditorFrame fitViewport key={selected.estimate_id||selected.personal_id} document={document} onLoadLibraryRates={loadLibraryRates} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
   </section>;
  }
  return <section className="workspace-stack">
