@@ -41,6 +41,9 @@
 .eos-row--go:hover, .eos-row--go:focus-within { background: color-mix(in srgb,var(--ng-ok-bg) 65%,var(--ng-panel-bg-alt)); }
 .eos-row--no-go:hover, .eos-row--no-go:focus-within { background: color-mix(in srgb,var(--ng-err-bg) 60%,var(--ng-panel-bg-alt)); }
 .eos-row--overdue { border-left: 3px solid var(--ng-warn); }
+.eos-row--selected { outline: 3px solid #276698; outline-offset: -3px; }
+.eos-row--selected > td:first-child { box-shadow: inset 5px 0 #276698; }
+.eos-row-actions button[aria-pressed="true"] { font-weight: 800; text-decoration: underline; color: #174a72; }
 .eos-link, .eos-cell-button { display: block; max-width: 100%; border: 0; background: transparent; padding: 0; color: var(--ng-text); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .eos-link { color: var(--ng-brand-red); font-weight: 700; }
 .eos-cell-button:hover, .eos-link:hover { text-decoration: underline; }

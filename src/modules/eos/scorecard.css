@@ -1,0 +1,37 @@
+.scorecard-workspace { margin: 0 1rem; padding: 1.2rem; border: 1px solid var(--ng-border,#ccd5da); border-radius: .7rem; background: var(--ng-card-bg,#fff); min-width: 0; color: var(--ng-text,#202d36); }
+.scorecard-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.scorecard-heading h2 { margin: .25rem 0; font-size: 1.8rem; }
+.scorecard-heading p { color: var(--ng-muted,#576873); }
+.scorecard-local { padding: .6rem; border: 1px solid #b87d22; background: #fff5da; color: #67440d; border-radius: .4rem; font-size: .75rem; }
+.scorecard-tabs,.scorecard-toolbar,.scorecard-category-list { display: flex; flex-wrap: wrap; align-items: end; gap: .6rem; margin: 1rem 0; }
+.scorecard-workspace button { border: 1px solid var(--ng-border,#c2ced5); background: var(--ng-card-bg,#fff); color: inherit; border-radius: .35rem; padding: .55rem .75rem; cursor: pointer; font: inherit; }
+.scorecard-workspace button:disabled { opacity: .55; cursor: not-allowed; }
+.scorecard-tabs button[aria-pressed=true] { background: #8e2430; color: white; border-color: #8e2430; }
+.scorecard-toolbar label,.scorecard-editor label { display: grid; gap: .3rem; font-size: .8rem; }
+.scorecard-workspace input,.scorecard-workspace select,.scorecard-workspace textarea { font: inherit; padding: .5rem; border: 1px solid #aab9c3; border-radius: .3rem; background: var(--ng-card-bg,#fff); color: inherit; min-width: 0; }
+.scorecard-workspace .scorecard-check { display: flex; align-items: center; gap: .4rem; }
+.scorecard-status { min-height: 1.4rem; color: #345a46; font-size: .85rem; }
+.scorecard-help { color: var(--ng-muted,#576873); font-size: .85rem; }
+.scorecard-scroll { max-width: 100%; overflow: auto; max-height: 70vh; border: 1px solid #c2ced5; border-radius: .35rem; overscroll-behavior-x: contain; }
+.scorecard-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; table-layout: fixed; font-size: .86rem; }
+.scorecard-table th,.scorecard-table td { border-bottom: 1px solid #d8e0e5; border-right: 1px solid #d8e0e5; padding: .7rem; vertical-align: top; text-align: left; width: 16rem; min-width: 16rem; max-width: 16rem; overflow-wrap: anywhere; }
+.scorecard-table thead th { background: #eef2f5; color: #3f505b; }
+.scorecard-table thead tr:first-child th { position: sticky; top: 0; z-index: 3; }
+.scorecard-table .scorecard-identity { position: sticky; left: 0; z-index: 2; width: 16rem; min-width: 16rem; background: var(--ng-card-bg,#fff); }
+.scorecard-table thead .scorecard-identity { z-index: 4; background: #eef2f5; }
+.scorecard-table tr:hover td,.scorecard-table tr:hover th { background: #f3f6f9; }
+.scorecard-table tr.is-selected td,.scorecard-table tr.is-selected th { background: #e8f1fb; border-top: 2px solid #2c638e; border-bottom: 2px solid #2c638e; }
+.scorecard-table small { display: block; color: #526773; font-weight: 400; line-height: 1.5; margin-top: .3rem; }
+.scorecard-workspace .scorecard-cell { display: block; width: 100%; padding: .25rem 0; border: 0; background: transparent; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scorecard-cell strong { font-size: 1.05rem; }
+.scorecard-workspace .scorecard-selector { text-align: left; font-weight: 700; padding: .2rem 0; border: 0; background: transparent; color: #852330; }
+.scorecard-workspace .scorecard-carry { color: #785711; }
+.scorecard-editor,.scorecard-import { margin: 1rem 0; padding: 1rem; background: #f3f6f8; border: 1px solid #aebfcb; border-radius: .4rem; display: flex; flex-wrap: wrap; gap: .7rem; align-items: end; }
+.scorecard-editor h3,.scorecard-editor p,.scorecard-import h3,.scorecard-import p,.scorecard-import ul { width: 100%; margin: .2rem 0; }
+.scorecard-editor label:has(textarea) { flex: 1 1 100%; }
+.scorecard-editor textarea { width: 100%; box-sizing: border-box; }
+.scorecard-import pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.scorecard-metrics article { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; border-bottom: 1px solid #d0dce4; padding: 1rem 0; }
+.scorecard-metrics span { flex: 1; }
+.scorecard-workspace :focus-visible { outline: 3px solid #276698; outline-offset: 2px; }
+@media(max-width:700px) { .scorecard-workspace{margin:0;padding:.75rem}.scorecard-toolbar label{max-width:100%}.scorecard-table .scorecard-identity{position:static}.scorecard-scroll{max-height:65vh} }

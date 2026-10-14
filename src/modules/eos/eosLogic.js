@@ -3,7 +3,7 @@ export const EOS_VIEWS = Object.freeze(['Active', 'No Go', 'Dormant', 'Awards'])
 export const EOS_MODULES = Object.freeze([
   { key: 'pursuits', label: 'Project Pursuit Tracker', available: true },
   { key: 'go-no-go', label: 'Go/No Go Tracker', available: false },
-  { key: 'scorecard', label: 'Company Scorecard', available: false },
+  { key: 'scorecard', label: 'Company Scorecard', available: true },
 ]);
 
 export function differentReminderIndex(items, previousId, random = Math.random) {
