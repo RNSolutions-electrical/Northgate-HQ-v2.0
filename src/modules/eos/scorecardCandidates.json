@@ -1,0 +1,270 @@
+{
+  "source": "Dropbox id:zRynuueOL8EAAAAAAAEVsg",
+  "revision": "0165d455ed8a23f000000029202e230",
+  "modified": "2026-10-07T19:46:25Z",
+  "sheet": "Scorecard",
+  "status": "Reference only. No history or seed observations. No automatic account mapping.",
+  "candidates": [
+    {
+      "source_row": 3,
+      "category": "Sales",
+      "name": "Opportunities greater than 50%",
+      "owner_label": "Tim",
+      "source_goal": "10M",
+      "source_goal_format": "General",
+      "review": "Goal 10M conflicts with count-like history. Confirm unit and definition."
+    },
+    {
+      "source_row": 4,
+      "category": "Sales",
+      "name": "# Construction Estimates in the que",
+      "owner_label": "Tim",
+      "source_goal": 5,
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 5,
+      "category": "Sales",
+      "name": "# Electrical Estimates in the que",
+      "owner_label": "Dave",
+      "source_goal": 2,
+      "source_goal_format": "General",
+      "review": "Dave confirmed as owner; account still needs resolution."
+    },
+    {
+      "source_row": 7,
+      "category": "Operations",
+      "name": "# of Projects Behind Schedule",
+      "owner_label": "Rick",
+      "source_goal": 0,
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 8,
+      "category": "Operations",
+      "name": "Utilization rate hrs billed/hrs paid",
+      "owner_label": "Valentina",
+      "source_goal": 0.9,
+      "source_goal_format": "0%",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 9,
+      "category": "Operations",
+      "name": "% of Electrical hours on Service Calls",
+      "owner_label": "Valentina",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 10,
+      "category": "Operations",
+      "name": "% of Electrical hours on GC site",
+      "owner_label": "Valentina",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 11,
+      "category": "Operations",
+      "name": "% of Electrical hours on Bids",
+      "owner_label": "Valentina",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 12,
+      "category": "Operations",
+      "name": "% of Electrical hours on Stand Alone projects",
+      "owner_label": "Valentina",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 13,
+      "category": "Operations",
+      "name": "% of Electrical hours on Overhead",
+      "owner_label": "Valentina",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 14,
+      "category": "Operations",
+      "name": "# of Electrical service calls",
+      "owner_label": "Ryan",
+      "source_goal": 5,
+      "source_goal_format": "0.00",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 15,
+      "category": "Operations",
+      "name": "Running Electrical Stand Alone Jobs under contract",
+      "owner_label": "Ryan",
+      "source_goal": 2,
+      "source_goal_format": "0.00",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 16,
+      "category": "Operations",
+      "name": "Running Construction jobs under contract",
+      "owner_label": "Eric",
+      "source_goal": 10,
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 17,
+      "category": "Operations",
+      "name": "New Cool Projects started this week",
+      "owner_label": "Eric",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 18,
+      "category": "Operations",
+      "name": "Completed Project total this quarter",
+      "owner_label": "Eric",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 19,
+      "category": "Operations",
+      "name": "Cool Project Gross Margin",
+      "owner_label": "Eric",
+      "source_goal": "15per",
+      "source_goal_format": "General",
+      "review": "Gross Margin / 15per conflicts with money-like history. Confirm unit and definition."
+    },
+    {
+      "source_row": 20,
+      "category": "Operations",
+      "name": "Running Tally Cool Jobs completed",
+      "owner_label": "Eric",
+      "source_goal": 500,
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 22,
+      "category": "Finance",
+      "name": "Jobs not billed last 30 days",
+      "owner_label": "Eric",
+      "source_goal": 0,
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 23,
+      "category": "Finance",
+      "name": "A/R greater than 30 days",
+      "owner_label": "Valentina",
+      "source_goal": 0,
+      "source_goal_format": "\"$\"#,##0_);[Red]\\(\"$\"#,##0\\)",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 24,
+      "category": "Finance",
+      "name": "A/P over 30 days",
+      "owner_label": "Valentina",
+      "source_goal": 0,
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 25,
+      "category": "Finance",
+      "name": "Amt billed last 30 days",
+      "owner_label": "Valentina",
+      "source_goal": "750K",
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 26,
+      "category": "Finance",
+      "name": "Revenue Collected this Quarter",
+      "owner_label": "Valentina",
+      "source_goal": "2M",
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 27,
+      "category": "Finance",
+      "name": "% of Electrical Stand Alone Jobs Bids/Won",
+      "owner_label": "Ryan",
+      "source_goal": 0.8,
+      "source_goal_format": "0",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 28,
+      "category": "Finance",
+      "name": "Electrical Service Call Profit % for the quarter",
+      "owner_label": "Ryan",
+      "source_goal": " ",
+      "source_goal_format": "General",
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 29,
+      "category": "Finance",
+      "name": "Electrical Service Call Profit % Year to Date",
+      "owner_label": "Ryan",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 30,
+      "category": "Finance",
+      "name": "Electrical Service Call Revenue for the quarter (invoiced)",
+      "owner_label": "Ryan",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 31,
+      "category": "Finance",
+      "name": "Electrical Service Call Revenue for the quarter (Received)",
+      "owner_label": "Ryan",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 32,
+      "category": "Finance",
+      "name": "Electrical Service Call Profit $ Quarter",
+      "owner_label": "Ryan",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    },
+    {
+      "source_row": 33,
+      "category": "Finance",
+      "name": "Electrical Service call Profit $ Year to Date",
+      "owner_label": "Ryan",
+      "source_goal": null,
+      "source_goal_format": null,
+      "review": "Provisional: review before operational setup."
+    }
+  ]
+}
