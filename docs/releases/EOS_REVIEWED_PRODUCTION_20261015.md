@@ -117,3 +117,10 @@ Refresh existing production tabs before using EOS. The legacy-save restriction
 is deliberate so stale clients cannot bypass optimistic concurrency. Signed-in
 Production editing remains an owner follow-up; no customer records were used to
 test it. Ordinary checks are complete with no deployment blocker.
+
+## Immutable release identity
+
+Annotated v0.8.0 points to published app d8e8770c543ed55053bd4ae91030f0d6f2999a5a.
+GitHub Release 413946385:
+https://github.com/RNSolutions-electrical/Northgate-HQ-v2.0/releases/tag/v0.8.0
+Release documentation follows as skip-ci commits; the deployed app remains d8e8770.
