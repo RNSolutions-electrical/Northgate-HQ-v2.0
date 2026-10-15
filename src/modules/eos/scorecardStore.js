@@ -1,3 +1,4 @@
+import { eosRpc } from './eosRequest.js';
 import { AGGREGATIONS, CARRY, UNITS, WINDOWS, canManageEos, definitionAt, eligibleMembers, makePeriod, measurementWindow, observation, parseValue, validDate } from './scorecardLogic.js';
 
 const clone = (value) => structuredClone(value);
@@ -117,9 +118,9 @@ export function observationDraft(state, metricId, period) {
 export function createRemoteScorecardStore(call) {
   let oldestLoaded = null;
   let loadedSnapshot = null;
-  const rpc = (name, args = {}) => call(async (client) => {
-    const { data, error } = await client.rpc(name, args);
-    if (error) throw new Error(`Scorecard server contract unavailable or rejected: ${error.message}`);
+  const rpc = (name, args = {}) => call(async (client, signal) => {
+    const { data, error } = await eosRpc(client, name, args, signal);
+    if (error) throw Object.assign(new Error(error.code === 'PT409' ? `${error.message}. Reload the current data before revising your retained draft.` : `Scorecard server contract unavailable or rejected: ${error.message}`), { code: error.code });
     return data;
   });
   return {
