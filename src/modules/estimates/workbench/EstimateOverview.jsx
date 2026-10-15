@@ -21,7 +21,7 @@ export default function EstimateOverview({data,locked,onChange,onPricing,onCheck
    <div><dt>Material</dt><dd>{money(p.material)}</dd></div><div><dt>Labor · {p.hours.toFixed(2)} hours</dt><dd>{money(p.labor)}</dd></div>
    <div><dt>Other costs</dt><dd>{money(p.other)}</dd></div><div><dt>Quotes received</dt><dd>{data.quotes.filter(q=>!q.archivedAt).length}</dd></div><div><dt>Awarded quote value · included above</dt><dd>{money(awarded)}</dd></div>
    <div><dt>Total base cost</dt><dd>{money(p.cost)}</dd></div><div><dt>Estimated gross profit</dt><dd>{money(p.markup)} · {p.margin.toFixed(2)}%</dd></div>
-   <div className="total"><dt>Proposal total</dt><dd>{money(p.price)}</dd></div></dl><p className="muted">Based on entered direct costs. Not net profit; no unentered overhead or taxes assumed.</p><button className="primary" onClick={()=>onPricing()}>Open pricing</button>
+   <div><dt>Subtotal before tax</dt><dd>{money(p.preTaxTotal)}</dd></div><div><dt>Sales tax</dt><dd>{money(p.salesTax)}</dd></div><div><dt>Credit card fee</dt><dd>{money(p.creditCardFee)}</dd></div><div className="total"><dt>Proposal total</dt><dd>{money(p.price)}</dd></div></dl><p className="muted">Based on entered direct costs. Not net profit; no unentered overhead or taxes assumed.</p><button className="primary" onClick={()=>onPricing()}>Open pricing</button>
   </section>
  </div>
  <details className="workspace-sections"><summary>Sections · {data.sections.length}</summary><div className="sections-list">{data.sections.map(s=>{const amount=data.entries.filter(e=>e.section===s).reduce((n,e)=>n+entryPricing(e,data).price,0);return <button className={amount?'has-value':''} key={s} onClick={()=>onPricing(s)}><span>{s}</span><strong>{money(amount)}</strong></button>;})}</div></details>

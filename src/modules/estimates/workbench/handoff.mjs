@@ -13,7 +13,7 @@ export function handoffPreview(document){
    labor_amount:price.labor,other_amount:price.other,markup_amount:round(price.materialMarkup+fee),
    fee_amount:fee,line_total:round(price.subtotal+fee)};
  }));
- return {lines,total:total.price,fee:total.fee};
+ return {lines,total:total.price,fee:total.fee,chargeError:total.chargeError,hasProposalCharges:!!(Number(document.proposal?.salesTaxPercent)||Number(document.proposal?.creditCardPercent))};
 }
 export function handoffFinancialBuckets(document){
  const preview=handoffPreview(document),labels={material_amount:'Material',labor_amount:'Labor',other_amount:'Other / quoted cost',markup_amount:'Markup / OH&P'};

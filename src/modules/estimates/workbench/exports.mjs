@@ -33,7 +33,10 @@ export function exportCsv(data,entries,options){
   rows=[['Project','Section / row','Base cost','Material markup baseline %','Material markup effective %','Material markup amount','Subtotal before fee','Fee %','Fee amount','Price component','Included quotes (already in section totals)','Data type']];
   for(const v of sectionPricing(entries,data)){const ids=entries.filter(e=>e.section===v.section).flatMap(e=>e.items.map(i=>i.quoteId));const quotes=(data.quotes||[]).filter(q=>ids.includes(q.id));rows.push([data.name,v.section,v.cost,baseline.material,v.material?v.materialMarkup/v.material*100:0,v.materialMarkup,v.subtotal,'','',v.subtotal,quotes.map(q=>q.name+' / '+q.vendor).join('; '),'Draft estimate']);}
   const total=sumPricing(entries.flatMap(e=>e.items),data);
+  if(total.chargeError)throw new Error(total.chargeError);
   rows.push([data.name,'Fee','','','','','',baseline.fee,total.fee,total.fee,'','Draft estimate']);
+  rows.push([data.name,'Sales tax','','','','','',data.proposal?.salesTaxPercent??0,total.salesTax,total.salesTax,'','Draft estimate']);
+  rows.push([data.name,'Credit card fee','','','','','',data.proposal?.creditCardPercent??0,total.creditCardFee,total.creditCardFee,'','Draft estimate']);
  }else if(options.kind==='takeoff'){
   rows=[['Document','Project','Vendor','Reference','Requested date','Delivery / vendor notes','Material description','Quantity','Unit',...(options.purpose==='rfq'?['Supplier unit price','Lead time','Availability']:[])]];
   for(const r of takeoffRows(entries))rows.push([options.purpose==='rfq'?'Request for pricing - DRAFT':'Material order - DRAFT',data.name,options.vendor,options.reference,options.date,options.notes,r.description,r.quantity,r.unit,...(options.purpose==='rfq'?['','','']:[])]);
@@ -96,7 +99,9 @@ export async function exportPdf(data,entries,options,scopeLabel){
  newPage();paragraph(data.name,{size:16,font:bold});paragraph(scopeLabel+' | '+entries.length+' selected entries',{size:10,color:muted});
  if(options.kind==='project'){
   const p=sumPricing(entries.flatMap(e=>e.items),data),baseline=defaults(data);
+  if(p.chargeError)throw new Error(p.chargeError);
   paragraph('Total estimate price: '+money(p.price),{size:16,font:bold});
+  paragraph('Subtotal before tax: '+money(p.preTaxTotal)+' | Sales tax: '+money(p.salesTax)+' | Credit card fee: '+money(p.creditCardFee));
   paragraph('Base cost: '+money(p.cost)+' | OH&P / price: '+p.margin.toFixed(2)+'%',{color:muted});
   table(['MARKUP','BASELINE','AMOUNT'],[['Material only',baseline.material+'%',money(p.materialMarkup)],['Fee (on subtotal after material markup)',baseline.fee+'%',money(p.fee)]],[318,90,120]);
   paragraph('Section breakdown',{size:12,font:bold});

@@ -1,5 +1,6 @@
 import {totals} from './model.mjs';
 import {effectiveLaborRate} from './laborRates.mjs';
+import {proposalCharges} from './proposalCharges.mjs';
 export const round=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
 export const defaults=data=>({material:Number(data.materialMarkup??30),fee:Number(data.feePercent??data.overallMarkup??30)});
 export const hasOverride=item=>item.materialMarkupOverride!=null;
@@ -18,7 +19,12 @@ export function sumPricing(items,data,includeFee=true){
  for(const key of Object.keys(result))if(key!=='hours')result[key]=round(result[key]);
  result.fee=includeFee?round(result.subtotal*defaults(data).fee/100):0;
  result.price=round(result.subtotal+result.fee);result.markup=round(result.materialMarkup+result.fee);
- return {...result,margin:result.price?result.markup/result.price*100:0};
+ const margin=result.price?result.markup/result.price*100:0;
+ let charges=proposalCharges(result.price);
+ // Keep an incomplete input editable, but saving/exporting rejects it explicitly.
+ let chargeError='';
+ if(includeFee)try{charges=proposalCharges(result.price,data.proposal);}catch(error){chargeError=error.message;}
+ return {...result,...charges,chargeError,margin};
 }
 export const entryPricing=(entry,data)=>sumPricing(entry.items,data,false);
 export function sectionPricing(entries,data){return [...new Set(entries.map(e=>e.section))].map(section=>({section,...sumPricing(entries.filter(e=>e.section===section).flatMap(e=>e.items),data,false)}));}

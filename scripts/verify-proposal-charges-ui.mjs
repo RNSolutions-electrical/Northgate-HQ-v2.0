@@ -1,0 +1,33 @@
+import {createServer} from 'vite';
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+const server=await createServer({server:{host:'127.0.0.1',port:5334,strictPort:true}});
+await server.listen();
+const browser=await chromium.launch({headless:true,channel:'msedge'}),errors=[];
+try{
+ await mkdir('.temp/proposal-charges',{recursive:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1050}});
+ page.on('pageerror',error=>errors.push(error.message));
+ await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
+ await page.goto('http://127.0.0.1:5334/northgate/tests/browser/labor-rates.html');
+ await page.getByRole('button',{name:'Proposal',exact:true}).click();
+ const tax=page.getByLabel('Sales tax %',{exact:true}),card=page.getByLabel('Credit card fee %',{exact:true});
+ assert.equal(await tax.inputValue(),'0');assert.equal(await card.inputValue(),'0');
+ await tax.fill('7.25');await card.fill('3');
+ const proposal=page.locator('.proposal-builder');
+ for(const amount of ['$195.00','$14.14','$6.27','$215.41'])await proposal.getByText(amount,{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Save proposal',exact:true}).first().click();
+ assert.equal(await page.evaluate(()=>window.rateFixture.document.proposal.salesTaxPercent),'7.25');
+ await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
+ assert.equal(await tax.inputValue(),'7.25');assert.equal(await card.inputValue(),'3');
+ await tax.fill('-1');await page.getByRole('button',{name:'Save proposal',exact:true}).first().click();
+ assert.equal(await page.evaluate(()=>window.rateFixture.saves),0);
+ await proposal.getByRole('alert').waitFor();
+ await tax.fill('7.25');await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:'.temp/proposal-charges/proposal-mobile.png',fullPage:true});
+ await page.setViewportSize({width:1440,height:1050});
+ await page.screenshot({path:'.temp/proposal-charges/proposal-desktop.png',fullPage:true});
+ assert.deepEqual(errors,[]);
+ console.log('PASS: synthetic editor zero defaults, live ordered charge totals, save/reload, invalid-save prevention, desktop/mobile proposal rendering. All non-local network requests blocked.');
+}finally{await browser.close();await server.close();}

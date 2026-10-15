@@ -34,7 +34,10 @@ export function makeReport(data,kind,options={}){
   if(kind==='proposal'){
     report.sections=[['contact','Attention'],['siteAddress','Project address'],['introduction','Introduction'],['scope','Scope of work'],['inclusions','Included'],['exclusions','Exclusions'],['schedule','Schedule'],['terms','Terms and conditions']]
       .filter(([key])=>data.proposal?.[key]?.trim()).map(([key,label])=>({label,text:data.proposal[key]}));
-    report.total=summary(data).price;
+    const pricing=summary(data);
+    if(pricing.chargeError)throw new Error(pricing.chargeError);
+    report.total=pricing.price;
+    report.charges={preTaxTotal:pricing.preTaxTotal,salesTax:pricing.salesTax,creditCardFee:pricing.creditCardFee};
     report.provisional=data.entries.some(e=>e.items.some(i=>issues(i).length));
     return report;
   }
@@ -69,6 +72,7 @@ export function makeReport(data,kind,options={}){
   });
   if(kind!=='field'){
     report.totals=summary(data);report.materialMarkup=data.materialMarkup;report.feePercent=data.feePercent;
+    if(report.totals.chargeError)throw new Error(report.totals.chargeError);
     report.provisional=data.entries.some(e=>e.items.some(i=>issues(i).length));
   }
   return report;
@@ -112,18 +116,18 @@ const section=(label,text)=>text?`<section><h2>${h(label)}</h2><p>${h(text)}</p>
 const table=(heads,rows,widths=[])=>`<table>${widths.length?'<colgroup>'+widths.map(w=>`<col style="width:${w}%">`).join('')+'</colgroup>':''}<thead><tr>${heads.map(x=>`<th>${h(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(cells=>'<tr>'+cells.map(x=>'<td>'+x+'</td>').join('')+'</tr>').join('')}</tbody></table>`;
 const value=(v,currency=false)=>v==null?'<span class="missing">Not entered</span>':h(currency?money(v):qty(v));
 const scope=r=>section('Scope of work',r.scope);
-const totals=r=>`<div class="totals"><div><span>Base cost</span><b>${h(money(r.totals.cost))}</b></div><div><span>Material markup (default ${h(r.materialMarkup)}%; task overrides retained)</span><b>${h(money(r.totals.materialMarkup))}</b></div><div><span>Entries subtotal before fee</span><b>${h(money(r.totals.subtotal))}</b></div><div><span>Fee (${h(r.feePercent)}%)</span><b>${h(money(r.totals.fee))}</b></div><div class="grand"><span>Grand total</span><b>${h(money(r.totals.price))}</b></div></div>`;
+const totals=r=>`<div class="totals"><div><span>Base cost</span><b>${h(money(r.totals.cost))}</b></div><div><span>Material markup (default ${h(r.materialMarkup)}%; task overrides retained)</span><b>${h(money(r.totals.materialMarkup))}</b></div><div><span>Entries subtotal before fee</span><b>${h(money(r.totals.subtotal))}</b></div><div><span>Fee (${h(r.feePercent)}%)</span><b>${h(money(r.totals.fee))}</b></div><div><span>Sales tax</span><b>${h(money(r.totals.salesTax||0))}</b></div><div><span>Credit card fee</span><b>${h(money(r.totals.creditCardFee||0))}</b></div><div class="grand"><span>Grand total</span><b>${h(money(r.totals.price))}</b></div></div>`;
 
 export function reportHTML(r){
   let body='';
   if(r.kind==='proposal'){
-    body=r.sections.map(s=>section(s.label,s.text)).join('')+`<div class="hero"><span>Total proposal price</span><strong>${h(money(r.total))}</strong></div>`;
+    body=r.sections.map(s=>section(s.label,s.text)).join('')+`<div class="totals"><div><span>Subtotal before tax</span><b>${h(money(r.charges?.preTaxTotal??r.total))}</b></div><div><span>Sales tax</span><b>${h(money(r.charges?.salesTax||0))}</b></div><div><span>Credit card fee</span><b>${h(money(r.charges?.creditCardFee||0))}</b></div></div>`+`<div class="hero"><span>Total proposal price</span><strong>${h(money(r.total))}</strong></div>`;
   }else if(r.kind==='rfq'||r.kind==='takeoff'){
     body=`<p class="meta">${h(r.selection)} · ${r.rows.length} material lines</p>`;
     if(r.kind==='rfq')body+=`<p>Please enter your unit prices, extended prices and lead times. Identify substitutions, freight, tax and exclusions separately. This request is not a purchase order.</p><div class="vendor-fields"><span>Vendor / contact</span><span>Quote reference / date</span><span>Pricing valid through</span><span>Freight / sales tax (separate)</span></div>`+table(['Item / description','Qty / unit','Vendor unit price','Vendor extended price','Lead time'],r.rows.map(x=>[h(x.reference)+'<br><b>'+h(x.description)+'</b>',h(qty(x.quantity)+' '+x.unit),'<div class="blank"></div>','','']),[36,13,17,19,15])+`<h2>Substitutions, manufacturer / part numbers and exclusions</h2><p>Reference the item numbers above. The CSV includes separate columns for these notes.</p><div class="blank"></div>`;
     else body+=table(['Item / description','Quantity','Unit','Material cost','Ordered'],r.rows.map(x=>[h(x.reference)+' · '+h(x.description),h(qty(x.quantity)),h(x.unit),h(money(x.cost)),x.ordered?'Yes':'No']),[42,15,10,20,13]);
   }else{
-    if(r.kind!=='field')body+=`<div class="hero"><div><span class="eyebrow">Grand total proposal price</span><p class="meta">Entry subtotals plus the estimate fee</p></div><strong>${h(money(r.totals.price))}</strong></div>`;
+    if(r.kind!=='field')body+=`<div class="hero"><div><span class="eyebrow">Grand total proposal price</span><p class="meta">Entry subtotals plus estimate fee, sales tax and credit card fee</p></div><strong>${h(money(r.totals.price))}</strong></div>`;
     body+=scope(r);
     if(r.kind==='summary')body+=table(['Entry','Description','Entry subtotal before fee'],r.entries.map(e=>[h(e.reference)+'<br><b>'+h(e.name)+'</b>',h(e.description),h(money(e.subtotal))]),[33,44,23]);
     else body+=r.entries.map(e=>`<section class="entry"><div class="entry-head"><h2>${h(e.reference)} · ${h(e.name)}</h2><p class="meta">${[e.section,e.location,e.drawing&&'Drawing '+e.drawing].filter(Boolean).map(h).join(' · ')}</p></div>${e.description?'<p>'+h(e.description)+'</p>':''}${e.items.map(i=>`<section class="work"><div class="work-head"><h3>${h(i.reference)} · ${h(i.name)}</h3><p class="meta">${h(i.quantity)} work-item units · ${qty(i.hours)} labor hours${i.status?' · '+h(i.status):''}</p></div>${i.vendorScope?'<p>Vendor package scope. No component takeoff has been entered.</p>':''}${r.kind==='detail'&&i.quote?'<p>Awarded quote: '+h(i.quote.vendor)+' · '+h(i.quote.reference)+'</p>':''}${i.components.length?table(r.kind==='field'?['Component / description','Total qty / unit','Labor hours','Stage']:['Component / description','Total qty / unit','Unit cost','Material cost','Labor hours'],i.components.map(c=>r.kind==='field'?[h(c.reference)+'<br><b>'+h(c.description)+'</b>',value(c.quantity)+' '+h(c.unit),value(c.hours),h(c.stage)]:[h(c.reference)+'<br><b>'+h(c.description)+'</b><small>'+h(c.perItemQuantity)+' per work-item'+(c.fixed?' (fixed quantity)':'')+'</small>',value(c.quantity)+' '+h(c.unit),value(c.unitCost,true),value(c.materialCost,true),value(c.hours)+'<small>'+h(c.hoursPerUnit)+' per unit</small>']),r.kind==='field'?[46,20,15,19]:[34,16,16,18,16]):''}${r.kind==='detail'?`<p class="notes">Material ${h(money(i.pricing.material))} · Labor ${h(money(i.pricing.labor))} (${h(money(i.laborRate))}/hr) · Other ${h(money(i.pricing.other))}<br>Material markup ${h(i.pricing.materialRate)}%: ${h(money(i.pricing.materialMarkup))} · Work-item subtotal before fee: <b>${h(money(i.pricing.price))}</b></p>${i.notes?'<p class="notes">Work-item notes: '+h(i.notes)+'</p>':''}${i.components.filter(c=>c.notes).map(c=>'<p class="notes">'+h(c.reference)+' notes: '+h(c.notes)+'</p>').join('')}${i.issues.length?'<p class="warning">'+i.issues.map(h).join('; ')+'</p>':''}`:''}</section>`).join('')}${r.kind==='detail'?'<p><b>Entry subtotal before fee: '+h(money(e.subtotal))+'</b></p>':''}</section>`).join('');

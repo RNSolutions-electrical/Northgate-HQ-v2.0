@@ -1,8 +1,10 @@
 import {money} from './model.mjs';
 import {sumPricing} from './pricing.mjs';
 import {proposalFields} from './proposal.mjs';
+import {proposalCharges} from './proposalCharges.mjs';
 
 export async function exportDraftProposalPdf(document){
+ proposalCharges(0,document.proposal);
  return buildProposal(document,sumPricing(document.entries.flatMap(e=>e.items),document).price,{draft:true});
 }
 export async function exportApprovedProposalPdf(snapshot){
@@ -40,7 +42,14 @@ async function buildProposal(document,total,{draft=false,date}={}){
  if(fields.introduction)paragraph(fields.introduction);
  section('Scope of work',fields.scope);
  section('Included',fields.inclusions);section('Exclusions',fields.exclusions);section('Schedule',fields.schedule);
- ensure(75);page.drawLine({start:{x:margin,y:792-y},end:{x:564,y:792-y},thickness:.75,color:rule});y+=14;
+ ensure(145);page.drawLine({start:{x:margin,y:792-y},end:{x:564,y:792-y},thickness:.75,color:rule});y+=14;
+ // Historical approved totals remain authoritative; new snapshots freeze the breakdown.
+ const charges=draft?sumPricing((document.entries||[]).flatMap(e=>e.items||[]),document):document.proposalChargeSnapshot;
+ if(charges&&(charges.salesTax||charges.creditCardFee)){
+  paragraph('Subtotal before tax: '+money(charges.preTaxTotal),{gap:3});
+  paragraph('Sales tax ('+(document.proposal?.salesTaxPercent??0)+'%): '+money(charges.salesTax),{gap:3});
+  paragraph('Credit card fee ('+(document.proposal?.creditCardPercent??0)+'%): '+money(charges.creditCardFee),{gap:8});
+ }
  paragraph('TOTAL PROPOSAL',{size:10,font:bold,color:muted,gap:4});paragraph(money(total),{size:22,font:bold,gap:16});
  section('Terms and conditions',fields.terms);
  const pages=pdf.getPages();pages.forEach((p,index)=>{p.drawLine({start:{x:margin,y:36},end:{x:564,y:36},thickness:.5,color:rule});p.drawText(draft?'Northgate Group | Draft - not approved':'Northgate Group | Approved proposal',{x:margin,y:22,size:8,font:normal,color:muted});p.drawText(`${index+1} / ${pages.length}`,{x:530,y:22,size:8,font:normal,color:muted});});
