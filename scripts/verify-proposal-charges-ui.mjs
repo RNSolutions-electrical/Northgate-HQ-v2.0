@@ -24,7 +24,8 @@ try{
  await tax.fill('-1');await page.getByRole('button',{name:'Save proposal',exact:true}).first().click();
  assert.equal(await page.evaluate(()=>window.rateFixture.saves),0);
  await proposal.getByRole('alert').waitFor();
- await tax.fill('7.25');await page.setViewportSize({width:390,height:844});
+ await tax.fill('7.25');await page.getByRole('button',{name:'Save proposal',exact:true}).first().click();
+ assert.equal(await page.evaluate(()=>window.rateFixture.saves),1);await page.setViewportSize({width:390,height:844});
  await page.screenshot({path:'.temp/proposal-charges/proposal-mobile.png',fullPage:true});
  await page.setViewportSize({width:1440,height:1050});
  await page.screenshot({path:'.temp/proposal-charges/proposal-desktop.png',fullPage:true});
