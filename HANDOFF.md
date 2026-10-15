@@ -23498,3 +23498,28 @@ At the preparation check, Production's newest visible scheduled database backup 
 Ryan explicitly approved proceeding after disclosure that the latest completed Production database backup was 2026-10-09 09:04:29 UTC and Storage objects were excluded. Point-in-time recovery is not enabled. Live preflight matched the rehearsed schema, migration ledger, data counts, and draft-save function fingerprint. Nine selective Production migrations applied and were recorded; the old Staging CO draft-save migration was not replayed. The guided RPC grants only authenticated execution. The E.O.S. importer inserted 41 source pursuits/29 client labels with eight blanks, five historical Awarded records, and zero inferred Job or manager links. Production financial counts and amounts matched before/after. Security-advisor changes were limited to the expected guarded E.O.S. objects; pre-existing findings remain.
 
 The immutable `v0.7.0` tag/GitHub Release points to `e178c64`. Because that commit had `[skip ci]`, an empty commit `aeb13f3` with the **identical tree** triggered the Git-connected Production build. Netlify published it ready at 17:22:07 UTC with no secret-scan matches. The explicit Node suite passed 287/287. Signed-in Production smoke loaded Dashboard, Jobs, Carolina Retina financials and Change Orders, and Inventory. The current technical Developer account's E.O.S. route denial redirected correctly; an authorized manager's Production E.O.S. browser smoke remains for owner follow-up. No rollback was performed. Full migration IDs, baseline values, recovery limits, and release links are in `docs/releases/V0_7_0_PRODUCTION_RELEASE_20261009.md`.
+
+## Entry 371 - EOS friendliness cleanup deployed to Staging for owner review
+
+**Sync marker:** `EOS-USABILITY-STAGING-20261015-RYAN_NORTHGATE`
+
+**Recorded:** 2026-10-15 11:45 UTC. Machine Ryan_Northgate. Isolated October 15
+checkout; source codex/eos-usability-20261015; target staging only.
+
+App commit 79b18c73ca37217b41b25aef729856d4d224c74a clarifies Meeting dates,
+Wednesday reference ranges, metric settings, optional workbook Source details,
+common/More filters and selected-week quarter/year exports. New weekly entries
+get seven-day measurement defaults; saved dates and values are untouched.
+Cumulative sum restrictions, actual-only summaries, carry provenance, zero,
+member editing and retire/restore/history are preserved. No database writes,
+migrations, import or real metric starting values were performed.
+
+313 tests, staging-identity build and isolated desktop/mobile real-component
+browser checks pass. Netlify staging deploy 6ad0bc79a0ccfa5fa7fa9a2e is ready/current
+at the exact app commit, published 11:44:20.758 UTC. Live EOS HTML/asset and
+staging identity pass. Connected computer-use initialization failed; signed-in
+live owner acceptance remains open. See docs/releases/EOS_USABILITY_STAGING_20261015.md
+for checklist, calculation boundary, limitations and exact deploy evidence.
+Production branch/site/database were not changed or authorized for promotion.
+The estimate Submit for Review modal/scrolling fix remains Staging-only; current
+Production is b452934 / deploy 6ace81232c40f252dfd1bb70 (notes/calculator).

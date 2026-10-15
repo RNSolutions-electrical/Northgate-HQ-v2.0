@@ -1,4 +1,13 @@
 # Northgate HQ Cross-Machine Sync Status
+## Current staging handoff - EOS-USABILITY-STAGING-20261015-RYAN_NORTHGATE
+
+- App commit 79b18c73ca37217b41b25aef729856d4d224c74a, staging only.
+- Netlify ready/current deploy 6ad0bc79a0ccfa5fa7fa9a2e; published 2026-10-15
+  11:44:20.758 UTC. Live EOS/JS HTTP and isolated project identity verified.
+- 313 tests, staging-configured build, synthetic desktop/mobile browser checks pass.
+- No database/schema/data or Production change. Signed-in Ryan acceptance pending.
+- Read docs/releases/EOS_USABILITY_STAGING_20261015.md and HANDOFF Entry 371.
+- Previous staging handoff sections and release markers retained below.
 
 ## Accounting compact-navigation Staging trial — ACCOUNTING-TREE-STAGING-20261006-001
 
@@ -985,3 +994,4 @@ Every future completed cross-machine synchronization must replace the current ma
 - `SABLE-COMPASS-20260827` — feature implementation commit `2268e16`.
 - `ONYX-BEACON-20260827-001` — feature commit `9ec9e78`; durable repository status established.
 - `TEAL-MERIDIAN-20260826` — feature commit `9ec9e78`; originally task-only, made discoverable by `ONYX-BEACON-20260827-001`.
+

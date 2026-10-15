@@ -77,3 +77,18 @@ ready at b4529347a4c79119971d620cfce738630e027c98 (notes/calculator), published
 2026-10-13 19:06:41 UTC. It does not contain dfde10a, the Submit for Review dialog
 and editor scrolling/layout fix. That fix is on staging and included in 90ad8d6.
 Nothing was promoted to Production for this status question.
+
+## Deployment evidence
+
+Netlify staging site 431ce717-1a06-45a0-9d7a-8acd06a67dde published ready/current
+deploy 6ad0bc79a0ccfa5fa7fa9a2e from exact app commit
+79b18c73ca37217b41b25aef729856d4d224c74a at 2026-10-15 11:44:20.758 UTC.
+No deploy error; secret scan found no matches across 955 files.
+https://6ad0bc79a0ccfa5fa7fa9a2e--northgate-hq-staging.netlify.app/eos
+
+Live https://staging.rnsolutions.net/eos returned HTTP 200; its
+/assets/index-ByBvcanv.js returned 200 and application/javascript, includes
+new labels and isolated staging project identity. HTTP evidence saved at
+.temp/eos-usability/live-http.json. origin/main remained
+13ce6e0908042963849f440c489e96f010b80c19. Production deploy remained
+6ace81232c40f252dfd1bb70. Later documentation-only commit uses [skip ci].
