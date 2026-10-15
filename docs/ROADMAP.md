@@ -141,3 +141,13 @@ Source: Ryan's September 24 Staging-development package. The narrow Production d
 ## Promotion boundary
 
 The above feature items are **Development → Staging** work. A Production release is a separate, deliberate decision after acceptance, migration/recovery review, version tag and GitHub Release, and deployment verification. Necessary Production hotfixes follow their own reviewed path. Nothing in this queue authorizes automatic Production migration or deployment.
+
+
+## Sitewide export, preview and print overlay — approved direction, deferred implementation (2026-10-15)
+
+Provide one consistent in-app overlay for export, preview and print across modules.
+Users must be able to adjust scope and presentation before explicitly choosing Save,
+Download or Print. Opening a preview must never open a separate browser tab or start
+an automatic download. Preserve permission checks, readable pagination and export
+provenance. Review existing export entry points before implementation. This is a
+roadmap requirement only; the EOS conflict correction does not implement it.

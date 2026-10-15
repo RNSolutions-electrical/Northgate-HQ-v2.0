@@ -1,3 +1,4 @@
+import { eosRpc } from './eosRequest.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
@@ -176,13 +177,13 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
       'potential_start_date','go_no_go','initial_meeting','follow_up_7_day','meeting_2_week','status']
       .map((field) => [field, form[field] === '' ? null : form[field]]));
     payload.project_name = name;
-    const result = await run(async (client) => {
+    const result = await run(async (client, signal) => {
       const request = JSON.stringify([form.id, form.updated_at, payload, managerIds]);
       retryIdentity.current[request] ||= crypto.randomUUID();
-      const response = await client.rpc('eos_save_pursuit_v1', {
+      const response = await eosRpc(client, 'eos_save_pursuit_v1', {
         p_expected_updated_at: form.updated_at || null, p_request_id: retryIdentity.current[request],
         p_id: form.id || null, p_data: payload, p_manager_ids: managerIds,
-      });
+      }, signal);
       if (response.error) throw response.error;
       return response.data;
     }, 'Pursuit saved.');
