@@ -23,7 +23,8 @@ export function measurementWindow(definition, period) {
   const asOf = period.meeting_date;
   const start = definition.window === 'YTD' ? `${asOf.slice(0, 4)}-01-01`
     : definition.window === 'QTD' ? `${asOf.slice(0, 4)}-${String(Math.floor((Number(asOf.slice(5, 7)) - 1) / 3) * 3 + 1).padStart(2, '0')}-01`
-      : definition.window === 'rolling-30' ? shiftCalendarDate(asOf, -29) : asOf;
+      : definition.window === 'rolling-30' ? shiftCalendarDate(asOf, -29)
+        : definition.window === 'period' ? shiftCalendarDate(asOf, -7) : asOf;
   return { measurement_start: start, as_of: asOf };
 }
 export const canManageEos = (actor, members) => Boolean(actor?.id && actor.active && members.some((m) => m.user_id === actor.id && m.is_active && m.is_member));
@@ -75,6 +76,7 @@ export function scopedPeriods(state, { scope = 'current', periodId, from, to } =
   if (scope === 'custom' && (!validDate(from) || !validDate(to) || from > to)) throw new Error('Choose a valid inclusive reporting-anchor date range.');
   return [...state.periods].filter((p) => scope === 'full' || (scope === 'current' && p.id === periodId)
     || (scope === 'quarter' && selected && quarter(p.anchor) === quarter(selected.anchor))
+    || (scope === 'year' && selected && p.anchor.slice(0, 4) === selected.anchor.slice(0, 4))
     || (scope === 'custom' && p.anchor >= from && p.anchor <= to)).sort((a, b) => a.anchor.localeCompare(b.anchor));
 }
 export function exportRows(state, filters) {
