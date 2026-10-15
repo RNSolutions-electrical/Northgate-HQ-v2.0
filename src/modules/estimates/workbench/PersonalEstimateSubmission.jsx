@@ -2,7 +2,8 @@ import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 
 // Kept mounted for this estimate: cancel/reopen and failed requests retain the reason.
-export default function PersonalEstimateSubmission({locked,workflow,onReason,onSubmit,routeKey,lockedLabel='Submitted for review',lockedMessage='This payload is locked while a reviewer considers it.'}){
+export default function PersonalEstimateSubmission({locked,promoted=false,workflow,onReason,onSubmit,routeKey,lockedLabel='Submitted for review',lockedMessage='This payload is locked while a reviewer considers it.'}){
+
  const [open,setOpen]=useState(false),dialog=useRef(null),trigger=useRef(null),status=useRef(null),title=useId(),description=useId();
  useEffect(()=>setOpen(false),[routeKey,locked]);
  useEffect(()=>{
@@ -28,8 +29,9 @@ export default function PersonalEstimateSubmission({locked,workflow,onReason,onS
  };
  return <>
   <div className="estimate-submission-bar">
-   <button ref={trigger} className="primary-button" type="button" disabled={locked||workflow.busy} onClick={()=>setOpen(true)}>{locked?lockedLabel:'Submit for Review'}</button>
-   {locked&&<span>{lockedMessage}</span>}
+   <button ref={trigger} className="primary-button" type="button" disabled={locked||workflow.busy} onClick={()=>setOpen(true)}>{promoted?'Promoted to official estimate':locked?lockedLabel:'Submit for Review'}</button>
+   {locked&&<span>{promoted?'This personal source is retained as promotion history.':lockedMessage}</span>}
+
    {workflow.success&&<p ref={status} tabIndex={-1} role="status">{workflow.success}</p>}
   </div>
   {open&&createPortal(<dialog ref={dialog} tabIndex={-1} className="estimate-submission-dialog" aria-labelledby={title} aria-describedby={description} onKeyDown={trapFocus} onCancel={event=>{event.preventDefault();close();}}>

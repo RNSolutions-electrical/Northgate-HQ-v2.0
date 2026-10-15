@@ -18,7 +18,7 @@ test('personal work access is server-derived and defaults to deny in the client'
 });
 
 test('My Estimates uses the RPC-only durable working-copy store', () => {
-  assert.match(route, /read_my_v5_working_copies/);
+  assert.match(route, /read_personal_estimate_directory/);
   assert.match(route, /save_v5_working_copy/);
   assert.match(route, /p_module_key:'estimating'/);
   assert.match(route, /p_work_type:'estimate'/);
