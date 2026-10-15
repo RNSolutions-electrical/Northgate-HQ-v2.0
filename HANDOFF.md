@@ -23522,3 +23522,25 @@ Fixed annotated v0.7.2 tag and published GitHub Release 412018367 identify code 
 Ryan authorized narrowly scoped Production containment and repair. Paused only apply_v5_estimate_promotion with PT503 at 22:30:23 UTC; the two identified retrying backends stopped and both destinations stayed pending. After exact-function local tests and verified quiescence, repaired projected payload comparison and changed explicit application-conflict 40001 raises to PT409 at 22:37:45. Original owner/version/hash/role checks, ACL/search_path and source records are preserved. Both customer submissions remained pending/version 1 through 22:46; no actual approval/job/estimate promotion was used as a test. Retry error windows are zero and the rollback counter remains flat. CPU percentage and original HTTP actor remain unverified.
 
 Fixed v0.7.3 tag/release commit fd47ca092889d435c298afce765b6125fb62d712; GitHub Release 412171635. Production ledger: 20261013223023_pause_estimate_promotion_incident and 20261013223745_fix_estimate_promotion_conflicts. All 308 named tests and actual-function promotion/completion/recovery/rollback fixture tests pass. Database-only release uses skip-ci; existing frontend deploy 6ace81232c40f252dfd1bb70 at b452934 stays ready. Staging stays 8858de8; standalone approval candidate 76c8083 is not deployed/applied. Full cause, evidence, recovery points and limits: docs/releases/V0_7_3_PROMOTION_INCIDENT_20261013.md.
+
+## Entry 371 - Reviewed EOS scorecard and estimate modal promoted to Production
+
+**Marker:** EOS-REVIEWED-PRODUCTION-20261015-RYAN_NORTHGATE.
+Ryan accepted staging and explicitly authorized promotion. Selective integration
+starts from b296188 (including 47f899e tax/card fees); it includes EOS scorecard,
+member editing, PT409/deadlines, friendliness, and dfde10a personal review dialog /
+scrolling. No stale staging merge or real data import. Production migration
+20261015145753 installs empty guarded scorecard storage/RPCs, retains existing
+service-role ACLs and replaces legacy client Pursuit saves with versioned writes.
+Existing business/financial data and all tax function fingerprints match before.
+
+334 named regressions, disposable EOS/tax PostgreSQL, rollback-only production
+DDL, EOS/tax/modal desktop/mobile fixtures and production build pass. Netlify
+6ad0ea06a80a4d22e9ebc1e8 is ready/current from exact app commit d8e8770c543ed55053bd4ae91030f0d6f2999a5a,
+published 14:58:32.962 UTC. Live deep routes/assets and production identity pass.
+All 13 EOS definitions match reviewed staging. No metric/pilot values, extra
+pursuits, member grants or real customer submissions were introduced. Tax/card
+fees and charged downstream-handoff restriction remain intact. Existing tabs
+must refresh. Connected signed-in browser is unavailable; actual production edit
+acceptance remains owner follow-up. Backup/recovery, advisor delta and evidence:
+docs/releases/EOS_REVIEWED_PRODUCTION_20261015.md.

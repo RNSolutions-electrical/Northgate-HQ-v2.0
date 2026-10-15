@@ -77,3 +77,43 @@ asset MIME, production Supabase identity, EOS labels, modal and tax controls.
 Verify final function definitions/privileges, six RLS tables and empty scorecard;
 compare existing business and charge-function fingerprints, test read-only member
 and denial paths, and inspect advisor changes. Record applied ledger/deploy below.
+
+## Published result
+
+Production app commit d8e8770c543ed55053bd4ae91030f0d6f2999a5a is published by
+Netlify deploy 6ad0ea06a80a4d22e9ebc1e8, ready/current on main, at
+2026-10-15 14:58:32.962 UTC. No deploy error or secret-scan matches (974 files).
+Applied ledger 20261015145753 / eos_scorecard_reviewed_production maps to the
+CLI-created source above. Source/client contain both reviewed EOS and dfde10a
+estimate modal/scrolling changes. Newer production tax/card-fee code is retained.
+
+Post-apply evidence:
+
+- All 13 EOS contract function definitions exactly match reviewed live staging.
+- Six scorecard tables have RLS. Zero metrics, observations and scorecard audit
+  rows; no staging pilot records imported. Anonymous read RPC execute denied;
+  authenticated legacy writer denied; existing service-role privilege retained.
+- Rollback-only authenticated-member read succeeds; ungranted identity denied.
+- Pursuits, managers, grants, estimates, workbenches, snapshots and four tax
+  function hashes exactly match immediate pre-release capture. No business rows
+  changed. Counts before migration: 41 pursuits, one manager link, three grants.
+- Live EOS, estimates and assembly deep routes return 200; 12 referenced assets
+  return successfully with expected MIME. Main bundle index-DvbHInR2.js contains
+  EOS labels; lazy estimate bundle includes modal and both charge controls.
+  Production Supabase identity verified. Evidence .temp/eos-production-http.json.
+- Staging remains 9a8716b; release did not overwrite it with the production tax work.
+
+Security advisor delta is expected from the reviewed staging contract: eight new
+member-guarded authenticated definer RPCs, while the legacy writer loses client
+execution (net 229 to 236 warnings). No new anonymous exposure or definer-view
+findings. Private observation_json carries staging's existing mutable-search-path
+warning (6 to 7); the private schema/helper has no anon/authenticated usage/execute,
+and it formats a typed row rather than accessing client-selected relations.
+RLS-without-policy and definer-view findings remain 22 and four. No unrelated
+security change was bundled. Guidance:
+https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+
+Refresh existing production tabs before using EOS. The legacy-save restriction
+is deliberate so stale clients cannot bypass optimistic concurrency. Signed-in
+Production editing remains an owner follow-up; no customer records were used to
+test it. Ordinary checks are complete with no deployment blocker.

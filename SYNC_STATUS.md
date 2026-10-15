@@ -1,5 +1,16 @@
 # Northgate HQ Cross-Machine Sync Status
 
+## Current Production — EOS-REVIEWED-PRODUCTION-20261015-RYAN_NORTHGATE
+
+- App commit d8e8770c543ed55053bd4ae91030f0d6f2999a5a; ready/current Netlify
+  6ad0ea06a80a4d22e9ebc1e8, published 2026-10-15 14:58:32.962 UTC.
+- EOS/modal selective promotion from b296188 preserves 47f899e tax/card fees.
+- Production ledger 20261015145753; no imported scorecard/pursuit values or grants.
+- 334 tests, EOS/tax PostgreSQL, UI fixtures, production build and live HTTP pass.
+- Read docs/releases/EOS_REVIEWED_PRODUCTION_20261015.md and HANDOFF Entry 371.
+- Previous release/staging markers retained below. Refresh existing app tabs.
+
+
 ## Accounting compact-navigation Staging trial — ACCOUNTING-TREE-STAGING-20261006-001
 
 - Date/time: 2026-10-06 08:10 EDT (UTC-04:00); machine `RYAN_NORTHGATE`.
