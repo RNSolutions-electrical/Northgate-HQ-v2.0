@@ -23544,3 +23544,8 @@ fees and charged downstream-handoff restriction remain intact. Existing tabs
 must refresh. Connected signed-in browser is unavailable; actual production edit
 acceptance remains owner follow-up. Backup/recovery, advisor delta and evidence:
 docs/releases/EOS_REVIEWED_PRODUCTION_20261015.md.
+
+
+## Entry 372 - Estimate lifecycle archive/restore candidate (not deployed)
+
+Production Mode implementation in isolated fix/estimate-lifecycle-20261015 from a504f88. Separate personal and official archive/restore, scoped link status and promoted-source read-only behavior; preserves workflow hashes, review/audit history, snapshots and downstream links. New migration 20261015171453 is UNAPPLIED. Read-only Production: 3 applied promotions, 0 missing headers/workbenches, 1 linked official archive with recovery audit; exact reported estimate still pending. No real record changed. 334 named tests, disposable PostgreSQL lifecycle checks, rendered UI checks and synthetic Development build pass. Full design, evidence and release gates: docs/reviews/ESTIMATE_LIFECYCLE_20261015.md. Deployment/cleanup not authorized.

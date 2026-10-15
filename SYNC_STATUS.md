@@ -996,3 +996,8 @@ Every future completed cross-machine synchronization must replace the current ma
 - `SABLE-COMPASS-20260827` — feature implementation commit `2268e16`.
 - `ONYX-BEACON-20260827-001` — feature commit `9ec9e78`; durable repository status established.
 - `TEAL-MERIDIAN-20260826` — feature commit `9ec9e78`; originally task-only, made discoverable by `ONYX-BEACON-20260827-001`.
+
+
+### Estimate lifecycle candidate — 2026-10-15
+
+Local fix/estimate-lifecycle-20261015 only; migration 20261015171453 unapplied, no deployment/live mutations. Separate recoverable personal/official archives and scoped promotion visibility. Exact target identification and deployment approval remain open. Evidence: docs/reviews/ESTIMATE_LIFECYCLE_20261015.md.
