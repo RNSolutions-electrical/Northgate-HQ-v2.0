@@ -23549,3 +23549,8 @@ docs/releases/EOS_REVIEWED_PRODUCTION_20261015.md.
 ## Entry 372 - Estimate lifecycle archive/restore candidate (not deployed)
 
 Production Mode implementation in isolated fix/estimate-lifecycle-20261015 from a504f88. Separate personal and official archive/restore, scoped link status and promoted-source read-only behavior; preserves workflow hashes, review/audit history, snapshots and downstream links. New migration 20261015171453 is UNAPPLIED. Read-only Production: 3 applied promotions, 0 missing headers/workbenches, 1 linked official archive with recovery audit; exact reported estimate still pending. No real record changed. 334 named tests, disposable PostgreSQL lifecycle checks, rendered UI checks and synthetic Development build pass. Full design, evidence and release gates: docs/reviews/ESTIMATE_LIFECYCLE_20261015.md. Deployment/cleanup not authorized.
+
+
+### Entry 372 follow-up — exact estimate identified, 2026-10-16
+
+Personal Test Estimate / Codex / version 8 is personal 669b038e-dd23-4cbb-ad7c-3030d0400306. Promotion succeeded; linked official b8dc4f3e-d229-4294-b51e-dfcdf16b5e71 was archived October 15 14:07 UTC (Old test estimate), prior state approved. Snapshot and handoff persist. Active-only official visibility is expected; personal archive UI is missing. Recommend retaining official archive and, after release/authorization, archiving only personal source. No real writes. 334 regressions, DB and rendered-UI checks pass again. Full follow-up: docs/reviews/ESTIMATE_LIFECYCLE_20261015.md.
