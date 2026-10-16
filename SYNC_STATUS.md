@@ -1007,3 +1007,5 @@ ESTIMATE-LIFECYCLE-PROD-V090-20261016-001: Production v0.9.0 deployed 9af388a / 
 COMPONENTLESS-APPROVAL-PROD-V091-20261016-001: v0.9.1/d54c656 ready in Production, migration 20261016174505. Customer records unchanged. See release receipt.
 
 PROPOSAL-FORMATTING-PROD-V092-20261016-001: Production v0.9.2/1fe9528 ready, deploy 6ad26592f784be315a3db862. Approval hotfix preserved; e75bcb4 excluded; no DB migration. See release receipt.
+
+PROJECT-FINANCIAL-ADD-PROD-V093-20261016-001: v0.9.3/dc2de6d ready on Production, deploy 6ad28722f48eddc8eb974f91. No migration; unreviewed scrollbar repair excluded. See release receipt.
