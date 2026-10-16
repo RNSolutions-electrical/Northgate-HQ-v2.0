@@ -40,6 +40,7 @@ import { GuidedChangeOrder } from '../silas/GuidedChangeOrder.jsx';
 import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
+import { FinancialLineDivisionPicker } from './FinancialLineDivisionPicker.jsx';
 import { JobFinancialProposalQueue } from './JobFinancialProposalQueue.jsx';
 import { SovBuilder } from './SovBuilder.jsx';
 import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
@@ -2219,6 +2220,7 @@ export function JobsWorkspace({ permissions }) {
   const [budgetForm, setBudgetForm] = useState(DEFAULT_BUDGET_FORM);
   const [budgetReasonOpen, setBudgetReasonOpen] = useState(false);
   const [isAddingBudgetLine, setIsAddingBudgetLine] = useState(false);
+  const [isBudgetDivisionPickerOpen, setIsBudgetDivisionPickerOpen] = useState(false);
   const [budgetEditFocusField, setBudgetEditFocusField] = useState('');
   const [revenueForm, setRevenueForm] = useState(DEFAULT_REVENUE_FORM);
   const [isAddingRevenueLine, setIsAddingRevenueLine] = useState(false);
@@ -2248,6 +2250,14 @@ export function JobsWorkspace({ permissions }) {
   const [isPrimaryOpen, setIsPrimaryOpen] = useState(false);
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const previousSelectedJobIdRef = useRef('');
+  const budgetFeedbackRef = useRef(null);
+
+  useEffect(() => {
+    if (activeTab === 'financials' && (budgetForm.error || budgetForm.success)) {
+      budgetFeedbackRef.current?.focus({ preventScroll: true });
+      budgetFeedbackRef.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeTab, budgetForm.error, budgetForm.success]);
 
   const jobs = directory.jobs;
   const canCreateJobs = permissions?.canCreateJobs === true;
@@ -2473,6 +2483,7 @@ export function JobsWorkspace({ permissions }) {
   }, [schedulePrintMode]);
 
   function selectJob(job) {
+    setIsBudgetDivisionPickerOpen(false);
     setGuidedChangeOrder(undefined);
     setSelectedJobId(job.id);
     setActiveTab('overview');
@@ -3248,14 +3259,16 @@ export function JobsWorkspace({ permissions }) {
 
   function startBudgetEdit(row, focusField = '') {
     if (!row?.id || !canProposeSelectedBudget) return;
+    setIsBudgetDivisionPickerOpen(false);
     setIsAddingBudgetLine(false);
     setBudgetEditFocusField(focusField);
     setBudgetForm(budgetToForm(row));
   }
 
   function startBudgetAdd(projectDivision, divisionLabel) {
-    if (!canProposeSelectedBudget || !projectDivision?.id) return;
-    setBudgetEditFocusField('');
+    if (!canProposeSelectedBudget || !projectDivision?.id || isAddingBudgetLine || budgetForm.isSaving || budgetForm.id) return;
+    setIsBudgetDivisionPickerOpen(false);
+    setBudgetEditFocusField('description');
     setBudgetForm({
       ...DEFAULT_BUDGET_FORM,
       project_division_id: projectDivision.id,
@@ -5246,7 +5259,9 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
-          {budgetForm.error && !isAddingBudgetLine ? <StatePanel tone="danger" title="Financial line not saved" description={budgetForm.error.message} compact /> : null}
+          {budgetForm.error || budgetForm.success ? <div ref={budgetFeedbackRef} tabIndex={-1} role={budgetForm.error ? 'alert' : 'status'}>
+            <StatePanel tone={budgetForm.error ? 'danger' : 'success'} title={budgetForm.error ? 'Financial line not saved' : 'Financial line saved'} description={budgetForm.error ? budgetForm.error.message : budgetForm.success} compact />
+          </div> : null}
           <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Current Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes; ${budgetOverrideCount} manual overrides`} />
             <SummaryCard label="Actual Costs" value={formatMoney(actualTotal)} detail="Costs posted to date" />
@@ -5268,11 +5283,12 @@ export function JobsWorkspace({ permissions }) {
           {canProposeSelectedBudget ? (
             <div className="job-financials-quick-actions">
               {canApproveSelectedBudget ? <button type="button" className="primary-button" onClick={() => setIsBudgetTemplateOpen(true)}>Build from Template</button> : null}
-              <button type="button" className="secondary-button" onClick={() => document.getElementById('job-financial-line-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Add Financial Line</button>
+              <button type="button" className="secondary-button" disabled={isAddingBudgetLine || budgetForm.isSaving || Boolean(budgetForm.id)} aria-expanded={isBudgetDivisionPickerOpen} onClick={() => setIsBudgetDivisionPickerOpen((current) => !current)}>Add Financial Line</button>
               {canApproveSelectedBudget ? <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>{isBudgetBulkInputOpen ? 'Close Bulk Input' : 'Bulk Input'}</button> : null}
               {canApproveSelectedBudget ? <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen(true)} {...uiElementAttributes('FUNCTION', 'Import Cost Report')}>Import Cost Report</button> : null}
             </div>
           ) : null}
+          {isBudgetDivisionPickerOpen ? <FinancialLineDivisionPicker key={selectedJob.id} jobId={selectedJob.id} onClose={() => setIsBudgetDivisionPickerOpen(false)} onSelect={(division) => startBudgetAdd(division, projectDivisionLabel({ project_division: division }))} /> : null}
           {budgetTemplateAction.success ? <StatePanel tone="success" title="Financial template applied" description={budgetTemplateAction.success} compact /> : null}
           {isBudgetTemplateOpen ? <div className="ng-dialog-root"><div className="ng-dialog-scrim is-open" /><section className="ng-dialog financial-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="budget-template-title">
             <header className="ng-dialog__header"><div><span className="eyebrow">Financial setup</span><h3 id="budget-template-title">Build budget from template</h3><p className="ng-dialog__description">Select the project Divisions you need. This adds their cost-code lines with zero amounts; it does not change an existing budget.</p></div><button type="button" className="icon-button" onClick={() => setIsBudgetTemplateOpen(false)} aria-label="Close budget template">×</button></header>
@@ -5362,7 +5378,7 @@ export function JobsWorkspace({ permissions }) {
                       type="button"
                       className="secondary-button job-budget-division__add-line"
                       onClick={() => startBudgetAdd({ id: group.projectDivisionId, code: rows[0]?.project_division?.code, name: rows[0]?.project_division?.name, sort_order: rows[0]?.project_division?.sort_order }, division)}
-                      disabled={isAddingBudgetLine || budgetForm.isSaving}
+                      disabled={isAddingBudgetLine || budgetForm.isSaving || Boolean(budgetForm.id)}
                     >
                       <Plus aria-hidden="true" /> Add Line
                     </button>
