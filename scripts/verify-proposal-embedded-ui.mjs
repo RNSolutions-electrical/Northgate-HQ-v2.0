@@ -10,7 +10,7 @@ const native=process.env.PROPOSAL_NATIVE_PRINT==='1';
 await server.listen();const browser=await chromium.launch({headless:!native,channel:'msedge',...(native?{ignoreDefaultArgs:['--disable-print-preview']}:{})});
 const directory='.temp/proposal-embedded';await mkdir(directory,{recursive:true});
 try{
- const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[],downloads=[];page.setDefaultTimeout(20000);
+ const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[],downloads=[];page.setDefaultTimeout(Number(process.env.PROPOSAL_QA_TIMEOUT_MS)||20000);
  page.on('pageerror',error=>{errors.push(error.message);console.error(error.message);});page.on('download',download=>downloads.push(download));
  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
  await page.goto('http://127.0.0.1:5348/northgate/tests/fixtures/workbench.html?editing');
