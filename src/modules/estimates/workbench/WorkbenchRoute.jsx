@@ -21,7 +21,7 @@ const css=baseCSS+'\n'+workspaceCSS+'\n'+catalogueCSS;
 import {handoffDestinationState} from './handoff.mjs';
 import {estimatesSectionFromLocation,estimatesSectionUrl} from '../estimatesNavigation.js';
 
-function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,fitViewport=false,...handoffProps}){
+function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onDirty,onExit,onReloadLibrary,libraryOnly,onArchiveAssembly,onArchiveEstimate,onCreateRevision,version,onOpenOriginal,fitViewport=false,leadingContent,...handoffProps}){
  const ref=useRef(),[target,setTarget]=useState(null),[height,setHeight]=useState(0);
  useEffect(()=>{
   if(!fitViewport)return;
@@ -41,7 +41,7 @@ function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onD
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" className={fitViewport?'estimate-editor-frame--fit':undefined} ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{display:'block',width:'100%',height:fitViewport&&height?height:'calc(100dvh - 130px)',minHeight:fitViewport?0:620,border:0}}
- >{target&&createPortal(<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>,target)}</iframe>;
+ >{target&&createPortal(<>{leadingContent}<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/></>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
@@ -369,7 +369,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
    <div className="job-financials-form"><h2>Proposed shared change</h2><p><strong>Submission reason:</strong> {selectedReview.shared_reason}</p><pre className="estimate-review-payload">{JSON.stringify(selectedReview.proposed_payload,null,2)}</pre><label>Review note<textarea value={workflow.reason} onChange={event=>setWorkflow(current=>({...current,reason:event.target.value,error:'',success:''}))} required rows={3}/></label>{workflow.error&&<p role="alert">{workflow.error}</p>}<div className="job-financials-form__actions"><button className="primary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('apply')}>Approve and Apply</button><button className="secondary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('return')}>Return for Changes</button><button className="secondary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('decline')}>Decline</button></div></div>
   </section>;
   const reviewDocument={...selectedReview.proposed_payload,library:[]};
-  return <section className="workspace-stack">
+  const reviewPanel=<div className="estimate-review-panel">
    <WorkspaceHeader eyebrow="Estimate review" title={reviewDocument.name||'Submitted estimate'} description={'Submitted by '+selectedReview.submitted_by_name+' for '+selectedReview.target_division+'.'} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
    <div className="job-financials-form">
     <h2>Review decision</h2>
@@ -383,7 +383,9 @@ export default function WorkbenchRoute({libraryOnly=false}){
      {selectedReview.destination_key!=='standalone_estimate'&&<button className="secondary-button" type="button" disabled={workflow.busy||!workflow.reason.trim()} onClick={()=>reviewPersonal('decline')}>Decline</button>}
     </div>
    </div>
-   <EditorFrame document={reviewDocument} permissions={{...permissions,personalOnly:false,personalLocked:true}} onDirty={()=>{}} onExit={()=>setSelectedReview(null)} onReloadLibrary={async()=>[]}/>
+  </div>;
+  return <section className="workspace-stack">
+   <EditorFrame fitViewport leadingContent={reviewPanel} document={reviewDocument} permissions={{...permissions,personalOnly:false,personalLocked:true}} onDirty={()=>{}} onExit={()=>setSelectedReview(null)} onReloadLibrary={async()=>[]}/>
   </section>;
  }
  if(selected){
