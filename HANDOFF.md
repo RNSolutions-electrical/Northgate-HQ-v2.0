@@ -23555,3 +23555,6 @@ Ryan accepted Staging and authorized promotion. Code/tag 9af388a/v0.9.0; Netlify
 
 ## v0.9.1 componentless quote approval hotfix — 2026-10-16
 Live d54c656 / Netlify 6ad262ca38bfc02f815e6b47, migration 20261016174505. Old approval wrapper rejected linked quotes with zero resource rows; optional grouping is removed while priced-source validation, permissions, totals and snapshots remain protected. 344 tests plus real PostgreSQL/races/editor UI/recovery pass; all 14 normalized data fingerprints unchanged. No estimate edited/approved by release checks. See docs/releases/V0_9_1_COMPONENTLESS_APPROVAL_20261016.md. Proposal formatting is separately approved/next; scrollbar fix excluded.
+
+## v0.9.2 reviewed proposal formatting Production — 2026-10-16
+Released 1fe9528 / Netlify 6ad26592f784be315a3db862 at 17:57:57 UTC. Approved sequence 88ddd21/60cde5f/f590a09/77b4dc5 only; componentless approval hotfix retained; scrollbar e75bcb4 excluded. 354 tests, build, desktop/mobile actual iframe pixel/font checks and cancelled one-/three-page native previews pass. Live font/letterhead and export assets verify. No database migration or business-record action. See docs/releases/V0_9_2_PROPOSAL_FORMATTING_PRODUCTION_20261016.md.
