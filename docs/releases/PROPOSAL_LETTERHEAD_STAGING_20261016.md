@@ -26,4 +26,16 @@ Reusable PDF overlay is adopted only for proposals here. Other HQ exporters and 
 
 ## Deployment receipt
 
-Pending exact ready deploy verification. Update this section after the authorized Staging Git deployment; do not infer publication from a successful push alone. Production remains withheld.
+Published **2026-10-16 16:39:32 UTC** at https://staging.rnsolutions.net/estimates.
+
+- Exact deployed code: `f590a09d92b6ff6f915d5aecce48013ce93c158d`.
+- Netlify ready deploy: `6ad2532486c3cdf1e222f6d5`; site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, branch `staging`; no deploy errors or secret-scan matches.
+- Immutable URL: https://6ad2532486c3cdf1e222f6d5--northgate-hq-staging.netlify.app/estimates.
+- Atomic Git push updated only `staging` and `release/proposal-staging-20261016`. Verified `main` remains `bb74361045c44a358435343188c9d798019f5f29`. Netlify's context name is `production` because this is the Staging site's primary Git deploy; the target is the separate Staging site and isolated Staging backend, never the Production site.
+- Served `/assets/index-BFX9OXMs.js` SHA-256 `a9948de8aba5c613f99fb60522e7250c4ac8408e6f2612d969bc76847c94d598` matches the reviewed Staging-configured local build exactly.
+- Logo `/assets/northgate-header-DNA85ehx.png` returns HTTP 200 `image/png`, 46,791 bytes, SHA-256 `b33dfd38a3066fe61507096bfe090bf69229180068ebd39eda42d3cb88cbc8d5`.
+- All three served TTFs return HTTP 200 `font/ttf` and byte-identical hashes to the reviewed local build. `/estimates` and `/northgate/estimates` deep links both return the deployed entry HTML. Bundle contains the Staging banner and isolated project `fazfwzbuesvzhgodckiw` configuration.
+- Fresh isolated desktop/mobile entry smoke check reaches the expected Staging Clerk sign-in host, then Cloudflare security verification (403). No application page errors were observed. **Authenticated Staging owner acceptance remains pending**; no authentication challenge was bypassed and no signed-in record action was attempted. Ryan's existing browser and Production editing session were not used.
+- No migrations, shared database queries/writes, customer sends, account changes, credential changes, Production branch push or Production deployment occurred.
+
+Production promotion remains withheld for Ryan's review of this Staging release. Documentation-only receipt commits use `[skip ci]`; the immutable deployed application remains the exact code commit above.

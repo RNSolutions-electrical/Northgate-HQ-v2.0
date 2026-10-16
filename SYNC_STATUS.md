@@ -1004,3 +1004,5 @@ Local fix/estimate-lifecycle-20261015 only; migration 20261015171453 unapplied, 
 
 ESTIMATE-LIFECYCLE-PROD-V090-20261016-001: Production v0.9.0 deployed 9af388a / 6ad2296da5d37d55222d89b8, ledger 20261016134012. GitHub Release 415011675. Proposal formatting excluded; see release receipt for integrity evidence and automated sign-in limit.
 ESTIMATE-LIFECYCLE-STAGING-20261016-001: deployed 3a23a6a / 6ad207bffeaebd6b8b043d09 to Staging only. CO correction included; customer data unchanged. Cloudflare blocks automated sign-in acceptance. See deployment receipt.
+
+PROPOSAL-LETTERHEAD-STAGING-20261016-001: ready deploy 6ad2532486c3cdf1e222f6d5, code f590a09, Staging only. 350 tests pass/1 skip, Staging build, browser and real cancelled print-preview QA pass. Exact served app/logo/font bytes verified. Cloudflare blocks isolated signed-in acceptance; main bb74361 and Production untouched. See docs/releases/PROPOSAL_LETTERHEAD_STAGING_20261016.md.
