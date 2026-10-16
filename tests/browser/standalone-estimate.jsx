@@ -18,6 +18,15 @@ const settings={default_rate:95,division:'Electrical'},params=new URLSearchParam
 let doc={...newLaborRates(seed('Standalone fixture','Fixture customer'),settings),entries:[{id:'entry',number:1,name:'Install light',internalNotes:'PRIVATE entry',location:'Office',section:'Power',items:[{id:'item',number:1,name:'Light work',kind:'Assembly',qty:2,notes:'PRIVATE work',components:[{id:'component',name:'Light',internalNotes:'PRIVATE component'}],lines:[{id:'line',componentId:'component',name:'Fixture material',qty:1,unit:'EA',price:10.05,hours:0.15,stage:'Rough-in',notes:'PRIVATE resource'}]}]}]};
 doc=definitions.filter(d=>!d.parent_key).reduce((value,d)=>answerConsideration(value,d,d.key==='available_fault_current'?'not_applicable':'excluded'),doc);
 if(params.has('long-review')){const entry=doc.entries[0];doc.entries=Array.from({length:24},(_,index)=>({...structuredClone(entry),id:'entry-'+index,number:index+1,name:'Review scope '+(index+1),items:entry.items.map(item=>({...structuredClone(item),id:'item-'+index}))}));doc.proposal.scope=Array.from({length:60},(_,index)=>'Review scope item '+(index+1)+': retain grounding, bonding and testing.').join('\n\n');}
+if(params.get('componentless')==='manual'){
+ doc.entries[0].items[0].components=[];for(const line of doc.entries[0].items[0].lines)delete line.componentId;
+}
+if(params.get('componentless')==='quote'){
+ doc.packages=[{id:'quote-package',name:'Fixture quoted scope',section:'Vendor quotes',awardedQuoteId:'quote'}];
+ doc.quotes=[{id:'quote',packageId:'quote-package',name:'Fixture quote',vendor:'Fixture supplier',materialAmount:100,otherAmount:25}];
+ doc.entries[0].packageId='quote-package';doc.entries[0].items[0]={...doc.entries[0].items[0],quoteId:'quote',components:[],lines:[]};
+}
+if(params.get('componentless')==='unpriced'){doc.entries[0].items[0].components=[];doc.entries[0].items[0].lines=[];}
 window.standaloneFixture={definitions,settings,calls:[],mode:'success',request:null,pending:null,handoff:null,total:handoffPreview(doc).total,row:{estimate_id:'estimate-fixture',revision:1,document:doc,estimates:{division:'Electrical',status:'draft',version_number:1}}};
 if(params.has('long-review')){window.standaloneFixture.request={id:'review-fixture',reason:'Synthetic submitted draft for long-content review.',status:'pending'};window.standaloneFixture.row.estimates.status='submitted';}
 function Shell(){const [visible,setEstimatesNavVisible]=useState(true),navigate=useNavigate(),location=useLocation();return <CalculatorProvider userId="standalone-fixture" environment="staging"><AppShell title="Northgate" buildLabel="Local fixture" navItems={[{key:'estimates',label:'Estimates',icon:House}]} activeWorkspace="estimates" activeWorkspaceLabel="Estimates" estimatesNavigation={visible?ESTIMATES_WORKSPACE_SECTIONS:null} activeEstimatesSection={new URLSearchParams(location.search).get('view')||'official'} onEstimatesSectionSelect={value=>navigate('/estimates?view='+(typeof value==='string'?value:value.key))} onOpenWorkspace={()=>{}} onBack={()=>{}} onDashboard={()=>{}} onWorkspaceHome={()=>{}}><Outlet context={{setEstimatesNavVisible}}/></AppShell></CalculatorProvider>;}

@@ -15,7 +15,7 @@ if(process.env.STANDALONE_LOCAL_POSTGRES==='1'){
  const client=new Client({host:'127.0.0.1',port:55439,user:'postgres',database:'postgres'});await client.connect();
  db={query:(...args)=>client.query(...args),exec:sql=>client.query(sql),close:()=>client.end()};
 }
-const read=p=>readFile(p,'utf8'),q=(sql,args=[])=>db.query(sql,args),one=async(sql,args=[])=>Object.values((await q(sql,args)).rows[0])[0],checks=[];
+const read=p=>readFile(p,'utf8'),q=(sql,args=[])=>db.query(sql,args),one=async(sql,args=[])=>{const result=await q(sql,args);assert.ok(result.rows[0],'No fixture row: '+sql);return Object.values(result.rows[0])[0];},checks=[];
 const actor=async name=>{await db.exec('reset role');await q("select set_config('test.actor',$1,false)",[name]);await db.exec('set role authenticated');};
 const rootOne=async(sql,args=[])=>{await db.exec('reset role');const value=await one(sql,args);await db.exec('set role authenticated');return value;};
 function fn(sql,name){const start=sql.search(new RegExp('CREATE(?: OR REPLACE)? FUNCTION public\\.'+name+'\\('));assert.ok(start>=0,name);const rest=sql.slice(start),match=/AS\s+(\$[\w]*\$)/.exec(rest);assert.ok(match,name);const end=rest.indexOf(match[1],match.index+match[0].length);return rest.slice(0,rest.indexOf(';',end+match[1].length)+1);}
@@ -61,6 +61,7 @@ try{
   await db.exec(await read('supabase/migrations/20261015171453_estimate_lifecycle_archive_restore.sql'));
   await db.exec(await read('supabase/migrations/20261016110350_standalone_estimate_review_v080.sql'));
  }
+ if(process.env.COMPONENTLESS_HOTFIX==='1')await db.exec(await read('supabase/migrations/20261016173353_componentless_priced_work_item_approval.sql'));
  await db.exec('set check_function_bodies=on');
  await db.exec("insert into user_permissions(clerk_user_id,role,division,display_name)values('developer','Developer','Electrical','Developer fixture'),('user','User','Electrical','User fixture'),('inactive','Developer','Electrical','Inactive fixture'),('reviewer','User','Electrical','Reviewer fixture'),('wrong-division','Supervisor','Construction','Other fixture');update user_permissions set is_active=false where clerk_user_id='inactive';insert into user_permission_overrides(user_id,permission_flag,granted)values('reviewer','can_approve_estimates',true);");
  await db.exec("insert into svc_stage_definitions(key,label,kind,job_status,background_color)values('pursuit','Pursuit','work','on_hold','#ffffdd');");
@@ -99,6 +100,9 @@ try{
  await actor('developer');saved=await save();const tr=await submit(saved.estimate_id);await actor('reviewer');await review(tr);await db.exec('reset role');await db.exec('alter table estimate_workbenches disable trigger audit_estimate_workbench');await q("update estimate_workbenches set document=jsonb_set(document,'{entries,0,items,0,name}','\"Changed same-price scope\"') where estimate_id=$1",[saved.estimate_id]);await db.exec('alter table estimate_workbenches enable trigger audit_estimate_workbench');await actor('developer');await assert.rejects(()=>handoff(saved.estimate_id,'job',null,{number:'MUST-NOT-CREATE',name:'Blocked corrupt scope'}),/Approved scope/);assert.equal(await rootOne("select count(*)::int from jobs where job_number='MUST-NOT-CREATE'"),0);checks.push('same-price changed approved scope rejected before optional destination creation');
  await actor('developer');saved=await save();const ar=await submit(saved.estimate_id);await db.exec('reset role');await db.exec("create function fail_review_audit() returns trigger language plpgsql as $$begin if new.table_name='estimate_review_requests' and new.action='update' then raise exception 'Injected review audit failure';end if;return new;end$$;create trigger fail_review before insert on change_logs for each row execute function fail_review_audit()");await actor('reviewer');await assert.rejects(()=>review(ar),/Injected/);assert.equal(await one('select status from estimates where id=$1',[saved.estimate_id]),'submitted');assert.equal(await one('select status from estimate_review_requests where id=$1',[ar.id]),'pending');assert.equal(await one('select count(*)::int from estimate_snapshots where estimate_id=$1',[saved.estimate_id]),0);checks.push('approval/audit failure rolls back status, snapshot and decision atomically');
  await db.exec('reset role;drop trigger fail_review on change_logs');await actor('developer');
+ if(process.env.COMPONENTLESS_HOTFIX==='1'){
+  const {verifyComponentless}=await import('./verify-componentless-estimate-cases.mjs');await verifyComponentless({db,doc,actor,save,submit,review,one,checks});await actor('developer');
+ }
  const recovery=await save(),recoveryRequest=await submit(recovery.estimate_id);await actor('reviewer');const recoveredApproval=await review(recoveryRequest);await actor('developer');
  await one('select archive_estimate($1,null)',[recovery.estimate_id]);
  const archiveStamp=await rootOne('select updated_at::text from estimates where id=$1',[recovery.estimate_id]);
