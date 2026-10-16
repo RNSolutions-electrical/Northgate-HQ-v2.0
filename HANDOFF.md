@@ -23554,3 +23554,6 @@ Production Mode implementation in isolated fix/estimate-lifecycle-20261015 from 
 ### Entry 372 follow-up — exact estimate identified, 2026-10-16
 
 Personal Test Estimate / Codex / version 8 is personal 669b038e-dd23-4cbb-ad7c-3030d0400306. Promotion succeeded; linked official b8dc4f3e-d229-4294-b51e-dfcdf16b5e71 was archived October 15 14:07 UTC (Old test estimate), prior state approved. Snapshot and handoff persist. Active-only official visibility is expected; personal archive UI is missing. Recommend retaining official archive and, after release/authorization, archiving only personal source. No real writes. 334 regressions, DB and rendered-UI checks pass again. Full follow-up: docs/reviews/ESTIMATE_LIFECYCLE_20261015.md.
+
+## Estimate approval/archive Staging release — 2026-10-16
+Deployed code 3a23a6a, Netlify 6ad207bffeaebd6b8b043d09, Staging migrations 20261016111623/27/32/36. Includes Production CO fix 2c1880f. 341 tests and isolated PostgreSQL races pass; existing data fingerprints unchanged. Signed-in acceptance stops at Cloudflare on accounts.staging.rnsolutions.net. Production estimate promotion withheld. See docs/releases/ESTIMATE_LIFECYCLE_STAGING_DEPLOYED_20261016.md. Sync: ESTIMATE-LIFECYCLE-STAGING-20261016-001.

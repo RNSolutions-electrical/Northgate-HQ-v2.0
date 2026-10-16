@@ -1001,3 +1001,5 @@ Every future completed cross-machine synchronization must replace the current ma
 ### Estimate lifecycle candidate — 2026-10-15
 
 Local fix/estimate-lifecycle-20261015 only; migration 20261015171453 unapplied, no deployment/live mutations. Separate recoverable personal/official archives and scoped promotion visibility. Exact target identification and deployment approval remain open. Evidence: docs/reviews/ESTIMATE_LIFECYCLE_20261015.md.
+
+ESTIMATE-LIFECYCLE-STAGING-20261016-001: deployed 3a23a6a / 6ad207bffeaebd6b8b043d09 to Staging only. CO correction included; customer data unchanged. Cloudflare blocks automated sign-in acceptance. See deployment receipt.
