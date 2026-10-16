@@ -78,7 +78,9 @@ BEGIN
  END IF;
  IF e.status<>'draft' THEN RAISE EXCEPTION 'An editable draft is required for review' USING ERRCODE='42501'; END IF;
  PERFORM public.validate_workbench_structure(w.document,true);
- IF jsonb_array_length(public.workbench_handoff_pricing(w.document)->'lines')=0
+ -- Validate priced scope without invoking the destination-only proposal-charge guard.
+ -- The immutable request retains the complete original document and charge rates.
+ IF jsonb_array_length(public.workbench_handoff_pricing(jsonb_set(w.document,'{proposal}',coalesce(w.document->'proposal','{}'::jsonb)||'{"salesTaxPercent":0,"creditCardPercent":0}'::jsonb))->'lines')=0
  THEN RAISE EXCEPTION 'Add at least one priced item before submitting' USING ERRCODE='22023'; END IF;
  PERFORM public.workbench_finalization_snapshot(w.document);
  INSERT INTO public.estimate_review_requests(id,estimate_id,source_revision,source_document,source_hash,submitted_by,submission_note)
@@ -165,8 +167,8 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.estimate_workflow_handoffs WHERE estimate_id=e.id) AND e.status='approved' THEN
   SELECT * INTO w FROM public.estimate_workbenches WHERE estimate_id=e.id FOR UPDATE;
   SELECT * INTO s FROM public.estimate_snapshots WHERE estimate_id=e.id AND locked ORDER BY approved_at DESC,id DESC LIMIT 1;
-  IF s.workbench_document IS NULL OR (s.workbench_document-ARRAY['approvedAt','finalizationChecklist'])
-     IS DISTINCT FROM (w.document-ARRAY['approvedAt','finalizationChecklist']) THEN
+  IF s.workbench_document IS NULL OR (s.workbench_document-ARRAY['approvedAt','finalizationChecklist','proposalChargeSnapshot'])
+     IS DISTINCT FROM (w.document-ARRAY['approvedAt','finalizationChecklist','proposalChargeSnapshot']) THEN
    RAISE EXCEPTION 'Approved scope does not match the saved estimate; reopen its snapshot or create a reviewed revision before handoff' USING ERRCODE='PT409';
   END IF;
  END IF;

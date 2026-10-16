@@ -8,7 +8,7 @@ const form=fs.readFileSync(new URL('../src/modules/estimates/workbench/EstimateH
 
 test('estimate job handoff uses the atomic idempotent financial mapper',()=>{
  assert.match(route,/handoff_estimate_to_destination/);
- const lifecycle=fs.readFileSync(new URL('../supabase/migrations/20261013201613_standalone_estimate_review.sql',import.meta.url),'utf8');
+ const lifecycle=fs.readFileSync(new URL('../supabase/migrations/20261016110350_standalone_estimate_review_v080.sql',import.meta.url),'utf8');
  assert.match(lifecycle,/RETURN public\.submit_estimate_for_review_v2/);
  assert.match(migration,/UNIQUE \(handoff_id, bucket_key\)/);
  assert.match(migration,/budget_amount=budget_amount\+amount/);
