@@ -1,0 +1,13 @@
+import {mkdir,writeFile} from 'node:fs/promises';
+import {exportDraftProposalPdf,exportApprovedProposalPdf} from '../src/modules/estimates/workbench/proposalPdf.mjs';
+import {sumPricing} from '../src/modules/estimates/workbench/pricing.mjs';
+await mkdir('.temp/proposal-letterhead',{recursive:true});
+const descriptions=['Install generator and concrete equipment pad. Provide all control wiring.','Provide service entrance rated transfer switch and required load management.','Drive two ground rods and bond gas service to electrical ground.','Provide generator battery, programming, testing and startup.','Obtain electrical permit and coordinate inspection.'];
+const doc={name:'Generator installation proposal',customer:'Example customer',rate:75,materialMarkup:30,feePercent:30,proposal:{scopeMode:'grouped',proposalDate:'2026-10-16',contact:'Example attention',siteAddress:'Synthetic project address, Raleigh, NC',introduction:'This quote is for the electrical scope of work to install and provide the following:',scopeGroups:[],showLinePrices:false,exclusions:'Utility service charges and landscaping are excluded.',terms:'Thank you for the opportunity to quote this work!'},entries:[{id:'electrical',number:1,name:'Generator installation',location:'Exterior',items:descriptions.map((name,i)=>({id:'item-'+i,number:i+1,name,qty:1,lines:[{qty:1,price:1600-i*250,hours:2}]}))}]};
+const charges=sumPricing(doc.entries[0].items,doc);const snapshot={approved_at:'2026-10-16T12:00:00Z',pricing_total:charges.price,workbench_document:{...doc,proposalChargeSnapshot:charges}};
+await writeFile('.temp/proposal-letterhead/synthetic-total-only.pdf',await exportApprovedProposalPdf(snapshot));
+doc.proposal.showLinePrices=true;doc.proposal.salesTaxPercent=7.25;doc.proposal.creditCardPercent=3;doc.proposal.serviceCall='SC-EXAMPLE';
+await writeFile('.temp/proposal-letterhead/synthetic-priced-tax-card.pdf',await exportDraftProposalPdf(doc));
+doc.proposal.scopeGroups=[{text:('Long grouped scope with clear retained source detail. ').repeat(160)+'FINAL GROUP TEXT',lineKeys:doc.entries[0].items.map(i=>JSON.stringify(['electrical',i.id]))}];
+await writeFile('.temp/proposal-letterhead/synthetic-long-scope.pdf',await exportDraftProposalPdf(doc));
+console.log('Generated three synthetic PDFs; no live data was used.');
