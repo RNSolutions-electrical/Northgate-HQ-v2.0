@@ -1,0 +1,41 @@
+{
+  "syntheticOnly": true,
+  "report": [
+    {
+      "scenario": "Reproduce all 12 trigger description/note rewrites, then rollback",
+      "passed": true
+    },
+    {
+      "scenario": "Exact repair SQL on 119 synthetic legacy rows",
+      "linked": 116,
+      "divisions": 12,
+      "withheld": 3,
+      "allOriginalDescriptionsNotesAmountsAndOtherFieldsPreserved": true,
+      "allLinksAudited": true
+    },
+    {
+      "scenario": "Repeated repair rejects stale plan without new changes",
+      "passed": true
+    },
+    {
+      "scenario": "Rejected description restoration rolls back entire transaction",
+      "passed": true
+    },
+    {
+      "scenario": "Whitespace-sensitive source refuses implicit RPC normalization",
+      "passed": true
+    },
+    {
+      "scenario": "Unauthorized actor cannot start the repair",
+      "passed": true
+    },
+    {
+      "scenario": "Two real PostgreSQL repair transactions",
+      "secondWaitsOnJobLock": true,
+      "secondRejectsChangedPlan": true,
+      "noDuplicatesAndOriginalFieldsPreserved": true
+    }
+  ],
+  "sql_sha256": "B0A3FB4BC066219CBB00B8B810C136A40BF63D01B85EA30EB8C25C4B204BD78D",
+  "postgres_version": "18.4"
+}

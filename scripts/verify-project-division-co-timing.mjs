@@ -79,6 +79,10 @@ try{
   await q("INSERT INTO public.job_budget_lines(job_id,division,cost_code,description,budget_amount,actual_cost_amount,note) VALUES($1,'Construction','16.CO','Legacy CO',75,12,'System-managed change-order allocation line.')",[job]);
   await q("INSERT INTO public.job_budget_lines(job_id,division,cost_code,description,budget_amount,actual_cost_amount,committed_cost_amount,forecast_final_amount) VALUES($1,'Construction','16.100','Legacy electrical',1000,200,300,1100)",[job]);
  };
+ if(process.env.CO_REPAIR_TEST==='1'){
+  const {verifyRepair}=await import('./verify-project-division-link-repair.mjs');
+  await verifyRepair({db,Client,definition,approved,migration});
+ }else{
  await seed();
  const empty=await apply([cat16]);
  assert.equal(empty.result.divisions_added,1);assert.equal(empty.result.lines_added,1);
@@ -165,4 +169,5 @@ try{
  await mkdir('.temp/project-division-co',{recursive:true});
  await writeFile(`.temp/project-division-co/evidence-${Client?'postgres':'pglite'}.json`,JSON.stringify({migrationPath,authHelpers:'synthetic stubs; live evaluator/ACL tests recorded separately',report},null,2));
  console.log(JSON.stringify(report,null,2));
+ }
 }finally{await db.close();}
