@@ -32,3 +32,14 @@ Target is only Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, https://stag
 Automatic approval review rejected an all-environment-variable read because it could expose unrelated secrets. No workaround was attempted; use the site's existing Git build configuration. No new credentials or permission grants are required for the local fix.
 
 Live authenticated business-action acceptance remains Ryan's review: all financial creates/updates and rejection tests used synthetic local data. No real project financial line was added or changed. Production/main and the separately pending review-scroll approval remain untouched by this release. Append the exact Staging deployment receipt after Netlify confirms publication.
+
+## Verified Staging publication
+
+Published at **2026-10-16 19:16:14.450 UTC**. Exact code commit: `76221e03a7621f33e886e0e477897deadfa05c78`; Netlify deploy: `6ad277ec3e1d3405f3a50496`, state `ready`, target site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, branch `staging`. No deploy errors and no normal/enhanced secret-scan matches. The configured Netlify build succeeded without reading site environment variables.
+
+- Review: https://staging.rnsolutions.net/jobs — open a project, then Financials and Add Financial Line.
+- Immutable review: https://6ad277ec3e1d3405f3a50496--northgate-hq-staging.netlify.app/jobs.
+- Custom-domain and immutable `/jobs` routes both return HTTP 200 and byte-identical JavaScript/CSS. Served `/assets/index-C8ePlBVb.js` SHA-256: `055bb80c9bd3d9526bbd451867809cc7caf514a678fb4990590ceba867875f41`. Served `/assets/index-D5GKhxF_.css` SHA-256: `6416ac975612e235447346f560f8b77f67541699c71eb102eee54e674de9e13d`.
+- Served application contains the financial division picker and isolated Staging backend URL; synthetic build-only values are absent. Public asset verification used GETs only, with no sign-in or business RPCs. Evidence: `.temp/financial-add-qa/deploy-verification.json`.
+- Atomic publication advanced only `staging` and `fix/project-financial-add-20261016` to the tested code. Verified remote main remains `ac89a3020266a06bb11585385bf64679b70f98a6`. Review-scroll ancestor and estimating/database/dependency/configuration source remain intact.
+- Receipt-only commits use `[skip ci]`; the deployed application remains exact code `76221e03`. This branch includes pending Staging-only review-scroll work and must not be promoted wholesale to Production.
