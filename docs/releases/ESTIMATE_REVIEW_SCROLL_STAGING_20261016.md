@@ -38,4 +38,13 @@ Live pure validation accepts a synthetic componentless quote with tax/card setti
 
 ## Staging frontend deployment
 
-Pending ready deploy verification. Previous code `77b4dc5ca2733bfb914e3624c8c1c7a002d8eea1`, receipt `5a1b301c5153797307d967c37bc1c5f495747bae`, deploy `6ad2575293f5ef7050b28d53`. Target remains Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, isolated backend `fazfwzbuesvzhgodckiw`. No main/Production push or deployment is performed by this task.
+Published **2026-10-16 17:57:52 UTC** at https://staging.rnsolutions.net/estimates?view=review.
+
+- Exact code: `8c2705bd5e838e1fcff2cb0283722827fb7c7338`; ready Netlify deploy `6ad2658ee08657389e961653`, no deploy errors or secret-scan matches.
+- Immutable review URL: https://6ad2658ee08657389e961653--northgate-hq-staging.netlify.app/estimates?view=review.
+- Served `/assets/index-6wcs0DsE.js` SHA-256 `83256681d955607e2bea2ec33f214f0ee3f8fae93eef2f28ab0bd33b58cb1362` and `/assets/WorkbenchRoute-BJlE92dA.js` SHA-256 `4f6dfbadc57faebe482f86ede8a13db886920f0e53b1a04452016db68ae6cc75` match the tested Staging build exactly. Logo/fonts remain byte-identical; deep links and isolated Staging configuration verify.
+- Atomic push updated only `staging` and `fix/estimate-review-scroll-20261016`. No main/Production push or deployment was performed by this task. Remote main advanced independently to `1fe9528d8b9c866a4122a7a99656a4aa13b0cfd6` while the separate release owner handled approved proposal promotion; this Staging candidate anchors the released approval receipt `223bd27` and preserves all accepted Staging proposal fixes.
+- Target remains Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, isolated backend `fazfwzbuesvzhgodckiw`. Previous code `77b4dc5`, receipt `5a1b301`, deploy `6ad2575293f5ef7050b28d53`.
+- Authenticated Staging owner acceptance remains pending; the existing fresh-browser sign-in challenge was not bypassed or retried. All business-action UI checks used synthetic network-isolated adapters. No live estimate was modified or approved.
+
+The scroll correction remains **Staging-only until Ryan reviews it**. Do not promote this branch wholesale to Production merely because its approved proposal and v0.9.1 hotfix ancestors are released. Receipt-only follow-ups use `[skip ci]`; deployed application code remains the exact commit above.
