@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='30s';
 -- Local candidate only. Official estimate review is separate from destination handoff.
 -- Fix the existing job-handoff retry aggregate without changing allocation math.
 DO $$

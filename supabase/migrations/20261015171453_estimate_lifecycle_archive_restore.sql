@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='30s';
 -- Unapplied lifecycle extension. Personal archive is independent of promotion.
 -- Keep workflow status/version/hash intact: they identify immutable submissions.
 CREATE FUNCTION public.set_personal_estimate_archived(p_id uuid,p_expected_version integer,p_expected_updated_at timestamptz,p_archived boolean)

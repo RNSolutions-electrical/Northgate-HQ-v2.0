@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='30s';
 -- Staging dependency reconciliation, not an incident pause/replay. No record writes.
 -- Production's accepted v0.7.3 function is reached directly from the captured old
 -- definition; an already-correct definition is a no-op. Preserve all existing ACLs.
