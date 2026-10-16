@@ -45,7 +45,7 @@ test('approved subtotal rounding mismatch has explicit immutable total-only expo
  const pages=await inspect(await exportApprovedProposalPdf(snapshot,{totalOnly:true}));
  assert.match(pages[0].text,/Total: \$10\.08/);assert.match(pages[0].text,/Testing and permitting/);assert.doesNotMatch(pages[0].text,/\$10\.07/);assert.equal(JSON.stringify(snapshot),before);
  const source=await readFile(new URL('../src/modules/estimates/workbench/ProposalBuilder.jsx',import.meta.url),'utf8');
- assert.ok(source.includes('onPreview({totalOnly:true})'));assert.ok(source.indexOf('Preview total-only PDF')<source.indexOf('<fieldset disabled='),'read-only recovery is outside the locked editing fieldset');
+ assert.ok(source.includes('onPreview({totalOnly:true})'));assert.ok(source.indexOf('Export Proposal (total only)')<source.indexOf('<fieldset disabled='),'read-only recovery is outside the locked editing fieldset');
 });
 
 test('fonts support accented customer names but reject unsupported characters instead of losing them',async()=>{

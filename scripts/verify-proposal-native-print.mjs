@@ -21,7 +21,7 @@ try{
    sessionStorage.setItem('rates-document',JSON.stringify(doc));
   },variant);
   await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
-  await page.getByRole('button',{name:'Preview draft PDF',exact:true}).first().click();
+  await page.getByRole('button',{name:'Export Proposal',exact:true}).first().click();
   await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
   const overlay=page.getByRole('dialog',{name:'Draft proposal preview'}),pageCount=await overlay.locator('canvas').count();
   await page.screenshot({path:evidence+'/'+variant+'-overlay.png'});

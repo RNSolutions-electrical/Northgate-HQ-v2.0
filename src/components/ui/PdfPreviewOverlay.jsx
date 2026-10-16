@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import './pdfPreviewOverlay.css';
+import previewStyles from './pdfPreviewOverlay.css?inline';
 
 /** Preview the exact export bytes. No navigation, download or print occurs on open. */
 export default function PdfPreviewOverlay({bytes,filename,title='PDF preview',onClose}){
@@ -18,7 +18,9 @@ export default function PdfPreviewOverlay({bytes,filename,title='PDF preview',on
    const [pdfjs,worker]=await Promise.all([import('pdfjs-dist'),import('pdfjs-dist/build/pdf.worker.mjs?url')]);
    if(cancelled)return;
    pdfjs.GlobalWorkerOptions.workerSrc=worker.default;
-   loading=pdfjs.getDocument({data:new Uint8Array(bytes)});pdf=await loading.promise;
+   // Workbench renders through a portal into an iframe. PDF.js must register
+   // embedded fonts alongside the canvases, rather than in the module's parent document.
+   loading=pdfjs.getDocument({data:new Uint8Array(bytes),ownerDocument:pages.current.ownerDocument});pdf=await loading.promise;
    if(cancelled)return;
    pages.current.replaceChildren();
    for(let number=1;number<=pdf.numPages;number++){
@@ -51,6 +53,7 @@ export default function PdfPreviewOverlay({bytes,filename,title='PDF preview',on
   finally{if(mounted.current)setPrinting(false);}
  }
  return <dialog className="pdf-preview-overlay" ref={dialog} aria-label={title} onCancel={e=>{e.preventDefault();onClose();}}>
+  <style>{previewStyles}</style>
   <header><h2>{title}</h2><div className="pdf-preview-actions"><button onClick={onClose}>Back to edit</button><button disabled={!ready||printing} onClick={print}>{printing?'Preparing print…':'Print'}</button><button disabled={!ready} onClick={download}>Save / Download</button><button aria-label="Close PDF preview" onClick={onClose}>Close</button></div></header>
   {!ready&&!error&&<p role="status">Rendering PDF preview…</p>}{error&&<p role="alert">{error}</p>}
   <div className="pdf-preview-pages" ref={pages}/>

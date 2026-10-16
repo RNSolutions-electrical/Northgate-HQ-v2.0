@@ -14,7 +14,7 @@ export function ProposalBuilder({data,locked,approved,busy,onChange,onPreview,on
  return <section className="proposal-builder">
   <div className="section-heading"><div><h2>Proposal builder</h2><p className="muted">Customer-facing scope and terms only. Internal costs, markup, vendor pricing and work-item notes are not exported.</p></div></div>
   {locked&&<p className="dialog-note">{approved?'This is the approved snapshot. Create a revision to change the proposal.':'Estimate editing permission is required to change this draft.'}</p>}
-  <div className="actions">{!locked&&<button className="primary" disabled={busy} onClick={onSave}><Save size={16}/> Save proposal</button>}<button disabled={busy} onClick={()=>onPreview()}><Eye size={16}/>{approved?'Preview approved PDF':'Preview draft PDF'}</button>{approved&&fields.showLinePrices&&<button disabled={busy} onClick={()=>onPreview({totalOnly:true})}>Preview total-only PDF</button>}</div>
+  <div className="actions">{!locked&&<button className="primary" disabled={busy} onClick={onSave}><Save size={16}/> Save proposal</button>}<button disabled={busy} onClick={()=>onPreview()}><Eye size={16}/>Export Proposal</button>{approved&&fields.showLinePrices&&<button disabled={busy} onClick={()=>onPreview({totalOnly:true})}>Export Proposal (total only)</button>}</div>
   {approved&&fields.showLinePrices&&<p className="muted">Total-only preview keeps the approved scope and total unchanged. Use it if item prices cannot reconcile with the saved subtotal.</p>}
   <p className="muted">Save proposal saves the whole current estimate draft. It does not submit or approve it. Blank sections are omitted from the PDF.</p>
   <fieldset disabled={locked||busy} className="proposal-fields">
@@ -32,6 +32,6 @@ export function ProposalBuilder({data,locked,approved,busy,onChange,onPreview,on
    <ProposalScopeEditor data={data} fields={fields} onChange={onChange}/>
    {[['inclusions','Included'],['exclusions','Exclusions'],['schedule','Schedule'],['terms','Terms and conditions']].map(([key,label])=><label key={key}>{label}<textarea aria-label={label} rows={5} value={fields[key]} onChange={e=>onChange({...fields,[key]:e.target.value})}/></label>)}
   </fieldset>
-  <div className="actions">{!locked&&<button className="primary" disabled={busy} onClick={onSave}><Save size={16}/> Save proposal</button>}<button disabled={busy} onClick={()=>onPreview()}><Eye size={16}/>{approved?'Preview approved PDF':'Preview draft PDF'}</button>{approved&&fields.showLinePrices&&<button disabled={busy} onClick={()=>onPreview({totalOnly:true})}>Preview total-only PDF</button>}</div>
+  <div className="actions">{!locked&&<button className="primary" disabled={busy} onClick={onSave}><Save size={16}/> Save proposal</button>}<button disabled={busy} onClick={()=>onPreview()}><Eye size={16}/>Export Proposal</button>{approved&&fields.showLinePrices&&<button disabled={busy} onClick={()=>onPreview({totalOnly:true})}>Export Proposal (total only)</button>}</div>
  </section>;
 }

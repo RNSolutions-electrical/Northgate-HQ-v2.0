@@ -33,7 +33,7 @@ try{
  await page.getByLabel('Customer pricing').selectOption('lines');
  await page.getByRole('button',{name:'Save proposal',exact:true}).first().click();await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
  assert.equal(await page.locator('.proposal-scope-group').count(),2);assert.equal(await page.getByLabel('Customer pricing').inputValue(),'lines');
- const open=page.getByRole('button',{name:'Preview draft PDF',exact:true}).first();
+ const open=page.getByRole('button',{name:'Export Proposal',exact:true}).first();
  await open.click();const overlay=page.getByRole('dialog',{name:'Draft proposal preview'}),save=overlay.getByRole('button',{name:'Save / Download',exact:true});await save.waitFor();await save.isEnabled();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
  assert.equal(downloads.length,0);assert.equal(popups.length,0);assert.ok(await overlay.locator('canvas').count()>2);
  await page.screenshot({path:directory+'/desktop-overlay.png'});
@@ -73,8 +73,8 @@ try{
  });
  await page.setViewportSize({width:1440,height:1050});await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
  const originalSnapshot=await page.evaluate(()=>sessionStorage.getItem('rates-approval'));assert.equal(await page.getByLabel('Customer pricing').isDisabled(),true);
- await page.getByRole('button',{name:'Preview approved PDF',exact:true}).first().click();await page.getByText('Scope item prices do not reconcile with the saved proposal subtotal. Use total-only presentation.',{exact:true}).waitFor();
- await page.getByRole('button',{name:'Preview total-only PDF',exact:true}).first().click();const approvedOverlay=page.getByRole('dialog',{name:'Approved proposal preview'});await approvedOverlay.getByRole('button',{name:'Save / Download'}).waitFor();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
+ await page.getByRole('button',{name:'Export Proposal',exact:true}).first().click();await page.getByText('Scope item prices do not reconcile with the saved proposal subtotal. Use total-only presentation.',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Export Proposal (total only)',exact:true}).first().click();const approvedOverlay=page.getByRole('dialog',{name:'Approved proposal preview'});await approvedOverlay.getByRole('button',{name:'Save / Download'}).waitFor();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
  await approvedOverlay.getByRole('button',{name:'Back to edit'}).click();assert.equal(await page.evaluate(()=>sessionStorage.getItem('rates-approval')),originalSnapshot);
  assert.equal(downloads.length,1);assert.equal(popups.length,0);assert.deepEqual(errors,[]);
  console.log('PASS: grouping/save/reload, required scope, pagination, stable totals, byte-identical PDF download, raster-print pagination, approved total-only recovery, interrupted rendering/printing, mobile overlay, Escape/back/close/repeated opens, no auto-download/popups. Print dialog is stubbed; native paper output needs manual review.');
