@@ -53,8 +53,15 @@ try{
  CREATE TABLE v5_working_copies(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),owner_user_id text,module_key text,work_type text,version int,status text,payload jsonb,payload_hash text,scope_context jsonb,archived_at timestamptz,updated_at timestamptz DEFAULT now());
  CREATE TABLE v5_change_sets(id uuid PRIMARY KEY,working_copy_id uuid);
  CREATE TABLE v5_change_set_destinations(change_set_id uuid,destination_key text,status text,applied_record jsonb,applied_at timestamptz);`);
- await db.exec(await read('supabase/migrations/20261015171453_estimate_lifecycle_archive_restore.sql'));
- await db.exec(await read('supabase/migrations/20261016110350_standalone_estimate_review_v080.sql'));await db.exec('set check_function_bodies=on');
+ if(process.env.STANDALONE_PRODUCTION_MIGRATION==='1'){
+  const production=JSON.parse(await read('.temp/standalone-checks/production-functions-before.json'));
+  await db.exec(production.find(f=>f.proname==='set_contract_adjustment_status').definition);
+  await db.exec(await read('supabase/migrations/20261016133828_estimate_lifecycle_reviewed_production.sql'));
+ }else{
+  await db.exec(await read('supabase/migrations/20261015171453_estimate_lifecycle_archive_restore.sql'));
+  await db.exec(await read('supabase/migrations/20261016110350_standalone_estimate_review_v080.sql'));
+ }
+ await db.exec('set check_function_bodies=on');
  await db.exec("insert into user_permissions(clerk_user_id,role,division,display_name)values('developer','Developer','Electrical','Developer fixture'),('user','User','Electrical','User fixture'),('inactive','Developer','Electrical','Inactive fixture'),('reviewer','User','Electrical','Reviewer fixture'),('wrong-division','Supervisor','Construction','Other fixture');update user_permissions set is_active=false where clerk_user_id='inactive';insert into user_permission_overrides(user_id,permission_flag,granted)values('reviewer','can_approve_estimates',true);");
  await db.exec("insert into svc_stage_definitions(key,label,kind,job_status,background_color)values('pursuit','Pursuit','work','on_hold','#ffffdd');");
  job=await one("insert into jobs(name,division,job_type)values('Linked fixture','Electrical','job')returning id");budget=await one("insert into job_budget_lines(job_id,division,category,cost_code,description)values($1,'Electrical','other','01.CO','CO fixture')returning id",[job]);catalogue=await one("insert into financial_line_catalogue(cost_code,description,category,division_code,division_name)values('01.01','Electrical fixture','material','01','Electrical')returning id");
