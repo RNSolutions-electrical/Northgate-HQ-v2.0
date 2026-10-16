@@ -1,6 +1,6 @@
 dialog.pdf-preview-overlay{box-sizing:border-box;width: min(1080px,96vw);max-width:96vw;height:94dvh;max-height:94dvh;padding:0;border:1px solid #c7ccd0;border-radius:10px;background:#e8eaed;color:#20262b;overflow:auto}
 .pdf-preview-overlay::backdrop{background:#101820b8}
-.pdf-preview-overlay>header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:white;padding:14px 20px;border-bottom:1px solid #c7ccd0}
+.pdf-preview-overlay>header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:white;margin:0;padding:14px 20px;border-bottom:1px solid #c7ccd0}
 .pdf-preview-overlay h2{font-size:18px;margin:0}.pdf-preview-actions{display:flex;gap:8px;flex-wrap:wrap}.pdf-preview-actions button{min-height:40px}
 .pdf-preview-pages{display:grid;gap:20px;padding:20px;justify-items:center}.pdf-preview-pages canvas{display:block;width:100%;max-width:816px;height:auto;box-shadow:0 2px 8px #0003;background:white}
 .pdf-preview-overlay>p{padding:0 20px}.pdf-print-frame{position:fixed;width:1px;height:1px;bottom:0;left:0;border:0}
