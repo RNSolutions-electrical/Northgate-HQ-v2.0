@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "5.61.3",
+    "@pdf-lib/fontkit": "1.1.1",
     "@supabase/supabase-js": "2.108.2",
     "jsqr": "1.4.0",
     "lucide-react": "1.21.0",

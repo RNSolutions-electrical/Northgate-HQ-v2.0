@@ -1,0 +1,81 @@
+import {createServer} from 'vite';
+import assert from 'node:assert/strict';
+import {mkdir,readFile} from 'node:fs/promises';
+import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+const server=await createServer({server:{host:'127.0.0.1',port:5346,strictPort:true}});
+await server.listen();
+const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH}:process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:process.platform==='win32'?{channel:'msedge'}:{})});
+try{
+ const directory='.temp/proposal-presentation';await mkdir(directory,{recursive:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1050}}),errors=[],downloads=[],popups=[];
+ page.on('pageerror',error=>errors.push(error.message));page.on('download',download=>downloads.push(download));page.on('popup',popup=>popups.push(popup));
+ await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
+ await page.goto('http://127.0.0.1:5346/northgate/tests/browser/labor-rates.html');
+ await page.evaluate(()=>{
+  const doc=structuredClone(window.rateFixture.document),entry=doc.entries[0],item=entry.items[0];
+  doc.name='Synthetic generator proposal';doc.customer='Example customer';
+  entry.items=Array.from({length:24},(_,index)=>({...structuredClone(item),id:'item-'+index,number:index+1,name:index===1?'Grounding and gas bonding required by code':'Synthetic scope '+(index+1)}));
+  sessionStorage.setItem('rates-document',JSON.stringify(doc));
+ });
+ await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
+ const proposal=page.locator('.proposal-builder');
+ await page.getByLabel('Sales tax %',{exact:true}).fill('7.25');await page.getByLabel('Credit card fee %',{exact:true}).fill('3');
+ await page.getByLabel('Contact / attention').fill('Example attention');await page.getByLabel('Service-call number (optional)').fill('SC-456');await page.getByLabel('Proposal date').fill('2026-10-16');
+ const totals=await proposal.locator('dl').innerText();
+ await page.getByLabel('Scope presentation').selectOption('grouped');
+ const boxes=page.locator('.proposal-source-lines input');await boxes.nth(0).check();await boxes.nth(1).check();
+ await page.getByLabel('New grouped scope item').fill('Provide generator installation and grounding.');await page.getByRole('button',{name:'Group selected work items',exact:true}).click();
+ assert.equal(await page.locator('.proposal-scope-group').count(),1);
+ await page.getByRole('button',{name:'Select all remaining work items'}).click();
+ await page.getByLabel('New grouped scope item').fill(('Long grouped scope for pagination and mobile review. ').repeat(110)+'FINAL GROUP TEXT');await page.getByRole('button',{name:'Group selected work items',exact:true}).click();
+ assert.equal(await page.locator('.proposal-scope-group').count(),2);assert.equal(await proposal.locator('dl').innerText(),totals);
+ await page.getByLabel('Customer pricing').selectOption('lines');
+ await page.getByRole('button',{name:'Save proposal',exact:true}).first().click();await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
+ assert.equal(await page.locator('.proposal-scope-group').count(),2);assert.equal(await page.getByLabel('Customer pricing').inputValue(),'lines');
+ const open=page.getByRole('button',{name:'Preview draft PDF',exact:true}).first();
+ await open.click();const overlay=page.getByRole('dialog',{name:'Draft proposal preview'}),save=overlay.getByRole('button',{name:'Save / Download',exact:true});await save.waitFor();await save.isEnabled();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
+ assert.equal(downloads.length,0);assert.equal(popups.length,0);assert.ok(await overlay.locator('canvas').count()>2);
+ await page.screenshot({path:directory+'/desktop-overlay.png'});
+ await page.evaluate(()=>{const original=URL.createObjectURL;URL.createObjectURL=function(blob){if(blob.type==='application/pdf')window.__savedPdf=blob.arrayBuffer().then(bytes=>Array.from(new Uint8Array(bytes)));return original.call(this,blob);};});
+ const downloadPromise=page.waitForEvent('download');await save.click();const download=await downloadPromise;await download.saveAs(directory+'/grouped-priced.pdf');
+ const savedBytes=new Uint8Array(await readFile(directory+'/grouped-priced.pdf'));assert.deepEqual(Array.from(savedBytes),await page.evaluate(()=>window.__savedPdf));
+ const bytes=new Uint8Array(savedBytes),pdf=await getDocument({data:bytes,useSystemFonts:true}).promise;const expectedPages=pdf.numPages;let text='';for(let i=1;i<=pdf.numPages;i++)text+=(await(await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+' ';await pdf.destroy();text=text.replace(/\s+/g,' ');
+ assert.match(text,/FINAL GROUP TEXT/);assert.match(text,/Grounding and gas bonding required by code/);assert.match(text,/SC-456/);assert.match(text,/Example attention/);
+ await page.evaluate(()=>{window.__prints=0;window.__observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.tagName==='IFRAME'&&node.className==='pdf-print-frame')node.contentWindow.print=()=>window.__prints++;});window.__observer.observe(document.body,{childList:true});});
+ await overlay.getByRole('button',{name:'Print',exact:true}).click();await page.waitForFunction(()=>window.__prints===1);assert.equal(await page.locator('.pdf-print-frame').count(),1);
+ const printHtml=await page.evaluate(()=>{
+  const frame=document.querySelector('.pdf-print-frame'),images=[...frame.contentDocument.images],canvases=[...document.querySelector('.pdf-preview-pages').querySelectorAll('canvas')];
+  if(images.length!==canvases.length||images.some((image,index)=>image.src!==canvases[index].toDataURL('image/png')))throw new Error('Print bytes differ from preview pages');
+  return frame.contentDocument.documentElement.outerHTML;
+ });
+ const printPage=await browser.newPage();await printPage.setContent(printHtml);await printPage.evaluate(()=>Promise.all([...document.images].map(image=>image.decode())));
+ const printed=await printPage.pdf({path:directory+'/raster-print.pdf',preferCSSPageSize:true,printBackground:true});await printPage.close();
+ const printPdf=await getDocument({data:new Uint8Array(printed)}).promise;assert.equal(printPdf.numPages,expectedPages);await printPdf.destroy();
+ await overlay.getByRole('button',{name:'Back to edit',exact:true}).click();assert.equal(await page.locator('.pdf-print-frame').count(),0);assert.equal(await page.getByLabel('Service-call number (optional)').inputValue(),'SC-456');
+ await page.getByLabel('Customer pricing').selectOption('total');await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:directory+'/mobile-editor.png',fullPage:true});
+ await open.click();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);await page.screenshot({path:directory+'/mobile-overlay.png'});
+ assert.equal(await overlay.evaluate(element=>element.scrollWidth<=element.clientWidth),true);
+ await page.keyboard.press('Escape');await overlay.waitFor({state:'detached'});
+ for(let i=0;i<2;i++){await open.click();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);await overlay.getByRole('button',{name:'Close PDF preview'}).click();}
+ // Closing while the render is still preparing must not reopen anything or leak errors.
+ await open.click();await overlay.getByRole('button',{name:'Close PDF preview'}).click();await overlay.waitFor({state:'detached'});
+ await open.click();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
+ const printsBefore=await page.evaluate(()=>window.__prints);
+ await page.evaluate(()=>{const actions=document.querySelector('.pdf-preview-actions');[...actions.querySelectorAll('button')].find(b=>b.textContent==='Print').click();[...actions.querySelectorAll('button')].find(b=>b.textContent==='Back to edit').click();});
+ await overlay.waitFor({state:'detached'});assert.equal(await page.locator('.pdf-print-frame').count(),0);assert.equal(await page.evaluate(()=>window.__prints),printsBefore);
+ await page.evaluate(async()=>{
+  const {sumPricing}=await import('/northgate/src/modules/estimates/workbench/pricing.mjs');
+  const doc=JSON.parse(sessionStorage.getItem('rates-document'));doc.proposal.salesTaxPercent=0;doc.proposal.creditCardPercent=0;doc.proposal.showLinePrices=true;doc.approvedAt='2026-10-16T12:00:00Z';
+  const charges=sumPricing(doc.entries.flatMap(e=>e.items),doc);doc.proposalChargeSnapshot={...charges,preTaxTotal:charges.preTaxTotal+.01,price:charges.price+.01};
+  sessionStorage.setItem('rates-document',JSON.stringify(doc));sessionStorage.setItem('rates-approval',JSON.stringify({pricing_total:charges.price+.01,approved_at:doc.approvedAt,workbench_document:doc}));
+ });
+ await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
+ const originalSnapshot=await page.evaluate(()=>sessionStorage.getItem('rates-approval'));assert.equal(await page.getByLabel('Customer pricing').isDisabled(),true);
+ await page.getByRole('button',{name:'Preview approved PDF',exact:true}).first().click();await page.getByText('Scope item prices do not reconcile with the saved proposal subtotal. Use total-only presentation.',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Preview total-only PDF',exact:true}).first().click();const approvedOverlay=page.getByRole('dialog',{name:'Approved proposal preview'});await approvedOverlay.getByRole('button',{name:'Save / Download'}).waitFor();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
+ await approvedOverlay.getByRole('button',{name:'Back to edit'}).click();assert.equal(await page.evaluate(()=>sessionStorage.getItem('rates-approval')),originalSnapshot);
+ assert.equal(downloads.length,1);assert.equal(popups.length,0);assert.deepEqual(errors,[]);
+ console.log('PASS: grouping/save/reload, required scope, pagination, stable totals, byte-identical PDF download, raster-print pagination, approved total-only recovery, interrupted rendering/printing, mobile overlay, Escape/back/close/repeated opens, no auto-download/popups. Print dialog is stubbed; native paper output needs manual review.');
+}finally{await browser.close();await server.close();}
