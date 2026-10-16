@@ -33,7 +33,8 @@ try{
   const tree=await call('Accessibility.getFullAXTree');await writeFile(evidence+'/'+variant+'-print-accessibility.json',JSON.stringify(tree,null,2));
   const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(evidence+'/'+variant+'-native-print.png',Buffer.from(shot.data,'base64'));
   const total=tree.nodes.find(node=>/^Total: \d+ sheet/.test(node.name?.value||''))?.name.value;
-  const duplex=tree.nodes.some(node=>['generic','button','combobox'].includes(node.role?.value)&&node.name?.value==='Print on both sides');
+  const controls=await call('Runtime.evaluate',{expression:'(()=>{const values=[];function visit(root){for(const e of root.querySelectorAll("*")){if(e.tagName==="BUTTON")values.push(e.innerText.trim());if(e.shadowRoot)visit(e.shadowRoot);}}visit(document);return values;})()',returnByValue:true});
+  const duplex=controls.result.value.includes('Print on both sides');
   assert.equal(Number(total?.match(/\d+/)?.[0]),duplex?Math.ceil(pageCount/2):pageCount,'Native print sheet count must match PDF pages and observed duplex setting');
   const cancel=tree.nodes.filter(node=>node.role?.value==='button'&&node.name?.value==='Cancel');assert.equal(cancel.length,1);
   const resolved=await call('DOM.resolveNode',{backendNodeId:cancel[0].backendDOMNodeId});
