@@ -1,4 +1,4 @@
-# Project division CO attachment timing — Production receipt
+# v0.9.4 — Project division CO attachment timing Production receipt
 
 Production ledger `20261016211525`, migration `fix_project_division_co_attachment_timing`, applied 2026-10-16 at approximately 21:15:25 UTC. Source: `supabase/migrations/20261016204812_fix_project_division_co_attachment_timing.sql` (upstream a73ba84c7d122c4ea833c2d5e836d36c408006e2; local c6480fd). Only the existing attachment trigger timing changed from BEFORE INSERT (type 7) to AFTER INSERT (type 5), enabled O.
 
@@ -12,5 +12,6 @@ Execution blocker: the connected Production administrative SQL session is postgr
 
 Private scoped full-row before-state, linked financial records and timing fingerprints are retained only under ignored .temp/co-production-repair. Refresh them and revalidate the reviewed mapping immediately before any authorized repair execution. This public-safe receipt contains no customer identifiers or financial details.
 
-Recovery: do not restore the old BEFORE trigger as a routine rollback; it reintroduces the FK failure. Use a reviewed forward correction. No data repair recovery is needed because no repair ran. Source and receipt remain local pending publication.
+Release verification: all 354 explicitly enumerated repository tests pass with zero skips. Independent timing regression passed in PGlite and PostgreSQL 17.10. This release includes only the timing source, its synthetic regression harness and sanitized Staging/Production receipts; scoped data repair preparation and private snapshots are excluded. All publication commits use [skip ci] because the deployed frontend does not change. The existing ready Production frontend remains Netlify 6ad28722f48eddc8eb974f91, application dc2de6d17c4259e169a787b20dfa0169515092b6 (v0.9.3).
 
+Recovery: do not restore the old BEFORE trigger as a routine rollback; it reintroduces the FK failure. Use a reviewed forward correction. No data repair recovery is needed because no repair ran. Publish this receipt and source as immutable database-only v0.9.4; frontend stays at v0.9.3.
