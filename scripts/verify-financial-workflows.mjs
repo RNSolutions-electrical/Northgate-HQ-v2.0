@@ -63,7 +63,9 @@ try {
   await page.goto(url+'?readonly');await page.getByText('101 - Budget Fixture',{exact:true}).click();
   if(await page.locator('.workspace-tabs__mobile-trigger').isVisible()) await page.locator('.workspace-tabs__mobile-trigger').click();
   await page.getByRole('button',{name:/^Financials/}).click();await page.locator('.job-budget-division__toggle').first().click();
-  assert.equal(await page.getByRole('button',{name:'Edit current budget for Material',exact:true}).count(),0);
+  // V5 financial viewers without approval rights contribute through proposals.
+  assert.equal(await page.getByRole('button',{name:'Edit current budget for Material',exact:true}).count(),1);
+  assert.equal(await page.evaluate(()=>window.financialFixture.calls.filter(c=>c.name==='save_job_financial_batch').length),0);
   assert.deepEqual(errors,[]);
-  console.log('PASS: integrated Jobs override/reset, protected reason dialog, cancelled reason preserves draft, failed save retention, readonly, desktop/tablet/phone.');
+  console.log('PASS: integrated Jobs override/reset, protected reason dialog, cancelled reason preserves draft, failed save retention, contributor access, desktop/tablet/phone.');
 } finally {await browser?.close();await server.close();}

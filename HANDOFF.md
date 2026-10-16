@@ -23558,3 +23558,7 @@ Live d54c656 / Netlify 6ad262ca38bfc02f815e6b47, migration 20261016174505. Old a
 
 ## v0.9.2 reviewed proposal formatting Production — 2026-10-16
 Released 1fe9528 / Netlify 6ad26592f784be315a3db862 at 17:57:57 UTC. Approved sequence 88ddd21/60cde5f/f590a09/77b4dc5 only; componentless approval hotfix retained; scrollbar e75bcb4 excluded. 354 tests, build, desktop/mobile actual iframe pixel/font checks and cancelled one-/three-page native previews pass. Live font/letterhead and export assets verify. No database migration or business-record action. See docs/releases/V0_9_2_PROPOSAL_FORMATTING_PRODUCTION_20261016.md.
+
+## Project Financials Add Financial Line — Staging candidate, 2026-10-16
+Ryan approved implementation and Staging at 19:08 UTC. The top Add action targeted a hidden legacy form; empty budgets lacked division Add buttons and inline create errors were hidden. A selected-job active-division picker now enters the existing inline workflow, with visible focused save feedback and protected draft/repeated-click behavior. Batch/proposal RPCs, audit reasons, permissions and existing financial values are preserved. Based on Staging receipt 7f82168, retaining review-scroll/approval code 8c2705b; no main/Production or DB changes. Named tests: 336 pass/1 skip; desktop/phone Add suite, desktop/tablet/phone existing financial suite, review-scroll regression and synthetic-config build pass. Live financial mutations were not used. Receipt/limits: docs/releases/PROJECT_FINANCIAL_ADD_STAGING_20261016.md.
+

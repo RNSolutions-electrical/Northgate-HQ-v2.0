@@ -6,7 +6,7 @@ import path from 'node:path';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const mocks = path.resolve('tests/fixtures/financial-workflows-mocks.js');
-const server = await createServer({ plugins: [{name:'fixture',enforce:'pre',resolveId(id) {
+const server = await createServer({ cacheDir:'.temp/financial-add-vite', plugins: [{name:'fixture',enforce:'pre',resolveId(id) {
   if (id==='@clerk/clerk-react'||id.endsWith('/services/supabaseClient.js')) return mocks;
 }}], server:{host:'127.0.0.1',port:5191,strictPort:true}});
 await server.listen();
@@ -57,10 +57,13 @@ try {
     await page.getByLabel('Financial line description',{exact:true}).fill(description);
     await page.getByLabel(`Cost code for ${description}`,{exact:true}).fill('26.999');
     await page.getByLabel(`Original budget for ${description}`,{exact:true}).fill('123.45');
-    await page.screenshot({path:`${output}/${name}-inline-editor.png`,fullPage:true});
     await page.evaluate(()=>window.financialFixture.failNext=true);
     await page.getByRole('button',{name:'Save',exact:true}).click();
-    await page.getByRole('alert').getByText('Fixture rejected save',{exact:true}).waitFor();
+    try { await page.getByRole('alert').getByText('Fixture rejected save',{exact:true}).waitFor(); }
+    catch(error) {
+      console.log(JSON.stringify(await page.evaluate(()=>({calls:window.financialFixture.calls,failNext:window.financialFixture.failNext,alerts:[...document.querySelectorAll('[role="alert"]')].map(e=>e.textContent),inputs:[...document.querySelectorAll('input[aria-label]')].map(e=>({label:e.getAttribute('aria-label'),value:e.value,valid:e.checkValidity()}))})),null,2));
+      await page.screenshot({path:`${output}/${name}-failure-debug.png`,fullPage:true});throw error;
+    }
     assert.equal(await page.getByRole('alert').evaluate(e=>{const r=e.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),true);
     assert.equal(await page.getByLabel('Financial line description',{exact:true}).inputValue(),description);
     assert.equal(await page.getByLabel(`Original budget for ${description}`,{exact:true}).inputValue(),'123.45');
