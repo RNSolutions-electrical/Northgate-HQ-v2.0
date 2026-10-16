@@ -44,7 +44,16 @@ try{
  await db.exec(`CREATE TABLE financial_line_catalogue(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),cost_code text,description text,category text,division_code text,division_name text,is_protected_financial boolean DEFAULT false,is_active boolean DEFAULT true,sort_order numeric DEFAULT 0,notes text);
  CREATE TABLE job_budget_divisions(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),job_id uuid,code text,name text,sort_order numeric,created_at timestamptz DEFAULT now(),archived_at timestamptz);`);
  await db.exec(await read('supabase/migrations/20260921134103_fix_financial_template_and_estimate_budget_mapping.sql'));
- await db.exec(await read('supabase/migrations/20261015135754_estimate_proposal_charges.sql'));
+ await db.exec(await read('tests/fixtures/promotionBefore.sql'));
+ await db.exec(await read('supabase/migrations/20261016111126_staging_estimate_dependency_reconciliation.sql'));
+ await db.exec(await read('supabase/migrations/20260921235409_workbench_estimate_archive_guard.sql'));
+ // Minimal personal-table dependencies; personal authorization/lifecycle is tested
+ // separately. The combined checks below use the real official approval/archive RPCs.
+ await db.exec(`CREATE FUNCTION current_scoped_authorization_decision(text,jsonb) RETURNS jsonb LANGUAGE sql AS $$SELECT jsonb_build_object('allowed',EXISTS(SELECT 1 FROM user_permissions WHERE clerk_user_id=auth.jwt()->>'sub' AND is_active AND role='Developer'))$$;
+ CREATE TABLE v5_working_copies(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),owner_user_id text,module_key text,work_type text,version int,status text,payload jsonb,payload_hash text,scope_context jsonb,archived_at timestamptz,updated_at timestamptz DEFAULT now());
+ CREATE TABLE v5_change_sets(id uuid PRIMARY KEY,working_copy_id uuid);
+ CREATE TABLE v5_change_set_destinations(change_set_id uuid,destination_key text,status text,applied_record jsonb,applied_at timestamptz);`);
+ await db.exec(await read('supabase/migrations/20261015171453_estimate_lifecycle_archive_restore.sql'));
  await db.exec(await read('supabase/migrations/20261016110350_standalone_estimate_review_v080.sql'));await db.exec('set check_function_bodies=on');
  await db.exec("insert into user_permissions(clerk_user_id,role,division,display_name)values('developer','Developer','Electrical','Developer fixture'),('user','User','Electrical','User fixture'),('inactive','Developer','Electrical','Inactive fixture'),('reviewer','User','Electrical','Reviewer fixture'),('wrong-division','Supervisor','Construction','Other fixture');update user_permissions set is_active=false where clerk_user_id='inactive';insert into user_permission_overrides(user_id,permission_flag,granted)values('reviewer','can_approve_estimates',true);");
  await db.exec("insert into svc_stage_definitions(key,label,kind,job_status,background_color)values('pursuit','Pursuit','work','on_hold','#ffffdd');");
@@ -54,6 +63,7 @@ try{
  await actor('user');await assert.rejects(()=>submit(id),/permission/);await actor('inactive');await assert.rejects(()=>submit(id),/Active/);await actor('developer');
  const jobsBefore=await rootOne('select count(*)::int from jobs'),r=await submit(id);assert.equal(r.status,'pending');assert.equal((await submit(id)).id,r.id);assert.equal(await one('select status from estimates where id=$1',[id]),'submitted');assert.equal(await rootOne('select count(*)::int from jobs'),jobsBefore);assert.equal(await rootOne('select count(*)::int from estimate_workflow_handoffs'),0);
  await assert.rejects(()=>save(doc,id,1),/Editable/);assert.equal((await q('update estimate_workbenches set revision=2 where estimate_id=$1 returning *',[id])).rows.length,0);
+ await assert.rejects(()=>one('select archive_estimate($1,null)',[id]),/Resolve pending/);
  await actor('wrong-division');assert.equal((await q('select * from read_standalone_estimate_reviews(200)')).rows.length,0);await assert.rejects(()=>review(r),/permission/);await actor('user');await assert.rejects(()=>review(r),/permission/);await actor('inactive');await assert.rejects(()=>review(r),/reviewer/);await actor('reviewer');assert.equal((await q('select * from read_standalone_estimate_reviews(200)')).rows.length,1);
  await assert.rejects(()=>review({...r,source_hash:'stale'}),/changed/);await assert.rejects(()=>review(r,'approve',' '),/review note/);
  const approved=await review(r);assert.equal(approved.status,'approved');assert.equal((await review(r)).approved_snapshot_id,approved.approved_snapshot_id);assert.equal(await one('select status from estimates where id=$1',[id]),'approved');assert.equal(await one('select count(*)::int from estimate_snapshots where estimate_id=$1',[id]),1);assert.equal(await rootOne('select count(*)::int from jobs'),jobsBefore);
@@ -81,8 +91,15 @@ try{
  await actor('developer');const zero=structuredClone(doc);zero.entries[0].items[0].laborRateOverride=0;saved=await save(zero);const zr=await submit(saved.estimate_id);await actor('reviewer');const za=await review(zr);assert.equal(Number(await one('select pricing_total from estimate_snapshots where id=$1',[za.approved_snapshot_id])),handoffPreview(zero).total);checks.push('v0.7.1 library/estimate/work-item hierarchy and explicit zero rates retain approval pricing parity');
  await actor('developer');saved=await save();const tr=await submit(saved.estimate_id);await actor('reviewer');await review(tr);await db.exec('reset role');await db.exec('alter table estimate_workbenches disable trigger audit_estimate_workbench');await q("update estimate_workbenches set document=jsonb_set(document,'{entries,0,items,0,name}','\"Changed same-price scope\"') where estimate_id=$1",[saved.estimate_id]);await db.exec('alter table estimate_workbenches enable trigger audit_estimate_workbench');await actor('developer');await assert.rejects(()=>handoff(saved.estimate_id,'job',null,{number:'MUST-NOT-CREATE',name:'Blocked corrupt scope'}),/Approved scope/);assert.equal(await rootOne("select count(*)::int from jobs where job_number='MUST-NOT-CREATE'"),0);checks.push('same-price changed approved scope rejected before optional destination creation');
  await actor('developer');saved=await save();const ar=await submit(saved.estimate_id);await db.exec('reset role');await db.exec("create function fail_review_audit() returns trigger language plpgsql as $$begin if new.table_name='estimate_review_requests' and new.action='update' then raise exception 'Injected review audit failure';end if;return new;end$$;create trigger fail_review before insert on change_logs for each row execute function fail_review_audit()");await actor('reviewer');await assert.rejects(()=>review(ar),/Injected/);assert.equal(await one('select status from estimates where id=$1',[saved.estimate_id]),'submitted');assert.equal(await one('select status from estimate_review_requests where id=$1',[ar.id]),'pending');assert.equal(await one('select count(*)::int from estimate_snapshots where estimate_id=$1',[saved.estimate_id]),0);checks.push('approval/audit failure rolls back status, snapshot and decision atomically');
+ await db.exec('reset role;drop trigger fail_review on change_logs');await actor('developer');
+ const recovery=await save(),recoveryRequest=await submit(recovery.estimate_id);await actor('reviewer');const recoveredApproval=await review(recoveryRequest);await actor('developer');
+ await one('select archive_estimate($1,null)',[recovery.estimate_id]);
+ const archiveStamp=await rootOne('select updated_at::text from estimates where id=$1',[recovery.estimate_id]);
+ await one('select restore_estimate($1,$2)',[recovery.estimate_id,archiveStamp]);
+ assert.equal(await one('select status from estimates where id=$1',[recovery.estimate_id]),'approved');
+ assert.equal(await one('select count(*)::int from estimate_snapshots where id=$1',[recoveredApproval.approved_snapshot_id]),1);
+ checks.push('combined lifecycle: pending standalone review cannot archive; approved estimate archives/restores exact state with snapshot retained');
  if(process.env.STANDALONE_LOCAL_POSTGRES==='1'){
-  await db.exec('reset role;drop trigger fail_review on change_logs');
   const {verifyStandaloneRaces}=await import('./verify-standalone-estimate-races.mjs');
   await verifyStandaloneRaces({doc,save,submit,actor,one,rootOne,checks});
  }

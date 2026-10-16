@@ -6,12 +6,13 @@ const {Client}=pg;
 export async function verifyStandaloneRaces({doc,save,submit,actor,one,rootOne,checks}){
  const clients=[new Client({host:'127.0.0.1',port:55439,user:'postgres',database:'postgres'}),new Client({host:'127.0.0.1',port:55439,user:'postgres',database:'postgres'})];
  await Promise.all(clients.map(c=>c.connect()));const [a,b]=clients;
- async function race(id,first,second,roles=['developer','developer'],expectBlock=true){
+ async function race(id,first,second,roles=['developer','developer'],expectBlock=true,table='estimates'){
+  assert.ok(['estimates','v5_working_copies'].includes(table));
   for(let i=0;i<2;i++){await clients[i].query('reset role');await clients[i].query("select set_config('test.actor',$1,false)",[roles[i]]);}
   for(const c of clients)await c.query('set role authenticated;set statement_timeout=5000;set lock_timeout=4000');
   // Root fixture coordinator holds the row regardless of the reviewer's direct-table RLS.
   await a.query('reset role;begin');
-  assert.equal((await a.query('select id from estimates where id=$1 for update',[id])).rowCount,1);
+  assert.equal((await a.query(`select id from ${table} where id=$1 for update`,[id])).rowCount,1);
   await a.query('set role authenticated');
   const pid=(await b.query('select pg_backend_pid() pid')).rows[0].pid;
   const pending=b.query(second.sql,second.args).then(value=>({value}),error=>({error}));
@@ -42,6 +43,23 @@ export async function verifyStandaloneRaces({doc,save,submit,actor,one,rootOne,c
   op={sql:"select row_to_json(h) result from handoff_estimate_to_destination($1,1,'service_call',null,$2,null,'{}','{}') h",args:[saved.estimate_id,{number:'RACE-SVC',name:'Concurrent fixture'}]};
   result=await race(saved.estimate_id,op,op);assert.ifError(result.loser.error);assert.equal(result.winner.rows[0].result.id,result.loser.value.rows[0].result.id);
   assert.equal(await rootOne("select count(*)::int from jobs where job_number='RACE-SVC'"),1);
+  saved=await save();
+  result=await race(saved.estimate_id,submission(saved.estimate_id,randomUUID()),{sql:'select archive_estimate($1,null)',args:[saved.estimate_id]});
+  assert.equal(result.loser.error?.code,'55000');assert.equal(await one('select status from estimates where id=$1',[saved.estimate_id]),'submitted');
+  saved=await save();
+  result=await race(saved.estimate_id,{sql:'select archive_estimate($1,null)',args:[saved.estimate_id]},submission(saved.estimate_id,randomUUID()));
+  assert.ok(result.loser.error);assert.equal(await rootOne('select count(*)::int from estimate_review_requests where estimate_id=$1',[saved.estimate_id]),0);
   checks.push('real PostgreSQL two-session lock contention: duplicate submit/approve/handoff idempotence; competing submission/decision conflicts PT409; concurrent save of submitted scope rejected before approval completes');
+  checks.push('combined archive-versus-submit races serialize both orders: pending review stays visible; archived draft cannot acquire a review request');
+  const personal=await rootOne("insert into v5_working_copies(owner_user_id,module_key,work_type,version,status,payload) values('developer','estimating','estimate',1,'draft','{}') returning jsonb_build_object('id',id,'stamp',updated_at::text)");
+  const personalOp=(archived,stamp=personal.stamp)=>({sql:'select set_personal_estimate_archived($1,1,$2,$3)',args:[personal.id,stamp,archived]});
+  op=personalOp(true);result=await race(personal.id,op,op,['developer','developer'],true,'v5_working_copies');assert.ifError(result.loser.error);
+  assert.equal(await rootOne("select count(*)::int from change_logs where table_name='v5_working_copies' and record_id=$1",[personal.id]),1);
+  let stamp=await rootOne('select updated_at::text from v5_working_copies where id=$1',[personal.id]);
+  op=personalOp(false,stamp);result=await race(personal.id,op,op,['developer','developer'],true,'v5_working_copies');assert.ifError(result.loser.error);
+  stamp=await rootOne('select updated_at::text from v5_working_copies where id=$1',[personal.id]);
+  result=await race(personal.id,personalOp(true,stamp),personalOp(false,stamp),['developer','developer'],true,'v5_working_copies');assert.equal(result.loser.error?.code,'PT409');
+  assert.equal(await rootOne('select archived_at is not null from v5_working_copies where id=$1',[personal.id]),true);
+  checks.push('personal lifecycle separate-session races: duplicate archive/restore are no-ops; competing archive/restore rejects stale timestamp PT409 (synthetic personal authorization)');
  }finally{await Promise.all(clients.map(c=>c.end()));}
 }
