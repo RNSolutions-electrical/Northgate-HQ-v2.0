@@ -23552,3 +23552,6 @@ Production Mode implementation in isolated fix/estimate-lifecycle-20261015 from 
 
 ## v0.9.0 estimate lifecycle Production — 2026-10-16
 Ryan accepted Staging and authorized promotion. Code/tag 9af388a/v0.9.0; Netlify 6ad2296da5d37d55222d89b8; applied Production migration 20261016134012. CO security fix retained. 341 tests, exact migration/races, desktop/mobile UI and scoped recovery pass. All 13 business/workflow/financial/template fingerprints unchanged; a separate pre-migration user-permissions update is documented. Automated Production sign-in reaches Cloudflare; no record actions attempted. See docs/releases/V0_9_0_ESTIMATE_LIFECYCLE_PRODUCTION_20261016.md. Sync ESTIMATE-LIFECYCLE-PROD-V090-20261016-001.
+
+## v0.9.1 componentless quote approval hotfix — 2026-10-16
+Live d54c656 / Netlify 6ad262ca38bfc02f815e6b47, migration 20261016174505. Old approval wrapper rejected linked quotes with zero resource rows; optional grouping is removed while priced-source validation, permissions, totals and snapshots remain protected. 344 tests plus real PostgreSQL/races/editor UI/recovery pass; all 14 normalized data fingerprints unchanged. No estimate edited/approved by release checks. See docs/releases/V0_9_1_COMPONENTLESS_APPROVAL_20261016.md. Proposal formatting is separately approved/next; scrollbar fix excluded.
