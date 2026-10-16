@@ -42,7 +42,7 @@ try{
  const savedBytes=new Uint8Array(await readFile(directory+'/grouped-priced.pdf'));assert.deepEqual(Array.from(savedBytes),await page.evaluate(()=>window.__savedPdf));
  const bytes=new Uint8Array(savedBytes),pdf=await getDocument({data:bytes,useSystemFonts:true}).promise;const expectedPages=pdf.numPages;let text='';for(let i=1;i<=pdf.numPages;i++)text+=(await(await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+' ';await pdf.destroy();text=text.replace(/\s+/g,' ');
  assert.match(text,/FINAL GROUP TEXT/);assert.match(text,/Grounding and gas bonding required by code/);assert.match(text,/SC-456/);assert.match(text,/Example attention/);
- await page.evaluate(()=>{window.__prints=0;window.__observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.tagName==='IFRAME'&&node.className==='pdf-print-frame')node.contentWindow.print=()=>window.__prints++;});window.__observer.observe(document.body,{childList:true});});
+ await page.evaluate(()=>{window.__prints=0;window.__observer=new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.tagName==='IFRAME'&&node.className==='pdf-print-frame'&&node.contentWindow)node.contentWindow.print=()=>window.__prints++;});window.__observer.observe(document.body,{childList:true});});
  await overlay.getByRole('button',{name:'Print',exact:true}).click();await page.waitForFunction(()=>window.__prints===1);assert.equal(await page.locator('.pdf-print-frame').count(),1);
  const printHtml=await page.evaluate(()=>{
   const frame=document.querySelector('.pdf-print-frame'),images=[...frame.contentDocument.images],canvases=[...document.querySelector('.pdf-preview-pages').querySelectorAll('canvas')];
@@ -71,7 +71,7 @@ try{
   const charges=sumPricing(doc.entries.flatMap(e=>e.items),doc);doc.proposalChargeSnapshot={...charges,preTaxTotal:charges.preTaxTotal+.01,price:charges.price+.01};
   sessionStorage.setItem('rates-document',JSON.stringify(doc));sessionStorage.setItem('rates-approval',JSON.stringify({pricing_total:charges.price+.01,approved_at:doc.approvedAt,workbench_document:doc}));
  });
- await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
+ await page.setViewportSize({width:1440,height:1050});await page.reload();await page.getByRole('button',{name:'Proposal',exact:true}).click();
  const originalSnapshot=await page.evaluate(()=>sessionStorage.getItem('rates-approval'));assert.equal(await page.getByLabel('Customer pricing').isDisabled(),true);
  await page.getByRole('button',{name:'Preview approved PDF',exact:true}).first().click();await page.getByText('Scope item prices do not reconcile with the saved proposal subtotal. Use total-only presentation.',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Preview total-only PDF',exact:true}).first().click();const approvedOverlay=page.getByRole('dialog',{name:'Approved proposal preview'});await approvedOverlay.getByRole('button',{name:'Save / Download'}).waitFor();await page.waitForFunction(()=>document.querySelector('.pdf-preview-actions button:nth-child(3)')?.disabled===false);
