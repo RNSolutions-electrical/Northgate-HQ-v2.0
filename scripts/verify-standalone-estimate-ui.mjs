@@ -4,7 +4,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createServer} from 'vite';
 const require=createRequire(import.meta.url),{chromium}=require('C:/Users/Ryan/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'),adapter=path.resolve('tests/fixtures/standalone-estimate-adapters.js');
-const server=await createServer({configFile:false,base:'/',define:{'import.meta.env.VITE_APP_ENV':'"staging"'},plugins:[{name:'local-standalone-adapters',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||/\/(services\/(supabaseClient|clerkToken)|hooks\/usePermissions)\.js$/.test(id))return adapter;}}],server:{host:'127.0.0.1',port:5340,strictPort:true}});await server.listen();
+const server=await createServer({cacheDir:'.temp/vite-standalone-estimate',configFile:false,base:'/',define:{'import.meta.env.VITE_APP_ENV':'"staging"'},plugins:[{name:'local-standalone-adapters',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||/\/(services\/(supabaseClient|clerkToken)|hooks\/usePermissions)\.js$/.test(id))return adapter;}}],server:{host:'127.0.0.1',port:5340,strictPort:true}});await server.listen();
 const browser=await chromium.launch({headless:true,channel:'msedge'}),checks=[],errors=[];
 await mkdir('.temp/standalone-checks',{recursive:true});
 try{for(const width of [1440,390]){

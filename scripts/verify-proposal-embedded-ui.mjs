@@ -5,7 +5,7 @@ import path from 'node:path';
 import {checkNativePrintPreview} from './nativePrintPreviewCheck.mjs';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const mocks=path.resolve('tests/fixtures/workbench-mocks.js');
-const server=await createServer({plugins:[{name:'fixture',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||id.endsWith('/services/supabaseClient.js')||id.endsWith('/hooks/usePermissions.js'))return mocks;}}],server:{host:'127.0.0.1',port:5348,strictPort:true}});
+const server=await createServer({cacheDir:'.temp/vite-proposal-embedded',plugins:[{name:'fixture',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||id.endsWith('/services/supabaseClient.js')||id.endsWith('/hooks/usePermissions.js'))return mocks;}}],server:{host:'127.0.0.1',port:5348,strictPort:true}});
 const native=process.env.PROPOSAL_NATIVE_PRINT==='1';
 await server.listen();const browser=await chromium.launch({headless:!native,channel:'msedge',...(native?{ignoreDefaultArgs:['--disable-print-preview']}:{})});
 const directory='.temp/proposal-embedded';await mkdir(directory,{recursive:true});

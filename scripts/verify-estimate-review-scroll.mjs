@@ -3,7 +3,7 @@ import {createServer} from 'vite';
 import {mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright'),adapter=path.resolve('tests/fixtures/standalone-estimate-adapters.js');
-const server=await createServer({configFile:false,base:'/',define:{'import.meta.env.VITE_APP_ENV':'"staging"'},plugins:[{name:'review-scroll-adapters',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||/\/(services\/(supabaseClient|clerkToken)|hooks\/usePermissions)\.js$/.test(id))return adapter;}}],server:{host:'127.0.0.1',port:5349,strictPort:true}});await server.listen();
+const server=await createServer({cacheDir:'.temp/vite-review-scroll',configFile:false,base:'/',define:{'import.meta.env.VITE_APP_ENV':'"staging"'},plugins:[{name:'review-scroll-adapters',enforce:'pre',resolveId(id){if(id==='@clerk/clerk-react'||/\/(services\/(supabaseClient|clerkToken)|hooks\/usePermissions)\.js$/.test(id))return adapter;}}],server:{host:'127.0.0.1',port:5349,strictPort:true}});await server.listen();
 const browser=await chromium.launch({headless:true,channel:'msedge'}),directory='.temp/estimate-review-scroll',results=[];await mkdir(directory,{recursive:true});
 try{
  for(const width of [1440,390]){

@@ -1,6 +1,6 @@
 # Submitted estimate review scrolling — 2026-10-16
 
-Status: verified isolated implementation, awaiting the separate quote-approval hotfix's released commit before further Staging integration. Production proposal/scroll promotion remains withheld. No live estimates, financial calculations, approval handlers, snapshots, migrations or account settings changed.
+Status: verified combined Staging candidate. Released quote-approval hotfix reconciled; its reviewed database migration applied to Staging. No live estimates, financial calculations, snapshots or account settings changed. This task does not deploy Production; the separate release owner controls approved proposal promotion. The scroll fix remains Staging-only pending review.
 
 ## Exact route and cause
 
@@ -24,8 +24,18 @@ The controls moved documents; their decision callbacks, required-note conditions
 - Existing actual approved-header/iframe proposal check passes: all fonts in the correct document, responsive desktop/mobile, pixel equality to independent downloaded-PDF rendering, explicit download, immutable snapshot, Escape/Back/Close/reopen.
 - Synthetic before/after review and proposal screenshots plus measurements: ignored `.temp/estimate-review-scroll/`. No user/customer screenshot was published. Authenticated Staging acceptance remains separate from network-isolated fixture verification.
 
-## Coordination and publication boundary
+## Released hotfix reconciliation and combined verification
 
-Separate lifecycle owner is implementing the urgent priced-quote approval Production hotfix. This branch does not duplicate or alter that gate. Reconcile its exact released source before any subsequent Staging integration and rerun affected checks if needed. No Production proposal/scroll promotion is authorized.
+Normal merge `4901e95` preserves Production v0.9.1 code `d54c656234cc7d35674435803b4d011744fba09f` and receipt `223bd279221a42a76d8b869289dacd9613030d04`, alongside the accepted Staging proposal/iframe fixes and scroll commit `e75bcb4`. Conflicts preserved both release records and both independent synthetic fixture variants. No approval gate was reimplemented or broadened here.
 
-Current Staging remains proposal preview fix code `77b4dc5ca2733bfb914e3624c8c1c7a002d8eea1`, receipt `5a1b301c5153797307d967c37bc1c5f495747bae`, ready Netlify deploy `6ad2575293f5ef7050b28d53`. Scroll correction is not deployed yet. Target for the later authorized deployment remains Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, isolated backend `fazfwzbuesvzhgodckiw`.
+Combined full suite: **353 passed, 1 skipped, 0 failed**. Staging build, actual long-review scroll/modal/table tests, approved-proposal iframe pixel/download regression and existing full lifecycle browser suite pass. Explicit componentless browser cases at 1440px/390px approve priced manual/linked-quote items and block unpriced items without an approval RPC. The exact released migration passes the isolated PGlite lifecycle/componentless suite, including invalid-source rejection and pricing/snapshot parity. Test servers now use separate ignored Vite caches to prevent fixture-adapter interference.
+
+Staging target was verified as persistent branch `staging`, ref `fazfwzbuesvzhgodckiw`, API URL https://fazfwzbuesvzhgodckiw.supabase.co. All four released migration preflight hashes matched. Applied only source `20261016173353_componentless_priced_work_item_approval.sql` (SHA-256 `883255C7DEB8054A78E1D5B67CEAD0C258DBF0B68E86235DCD1593601FFA5163`), with five-second lock and 30-second statement bounds. Actual Staging ledger: **20261016175352**, `componentless_priced_work_item_approval`.
+
+Verified installed wrapper hash `94a7bf2b18ca9d34de6acfd3481b62de` and structure hash `7ef7cb4b8bd6b53e22a8d745b094dddd`, matching the released Production fix. Function owners/ACLs, protected internal approval (`b9860bd3229bf5fa8fef7d7be71a9a3c`), handoff pricing/charge guard (`ce3bc1adc014248106252263420fff39`) and CO authorization (`0099a2e4e5dcdb037af6fd69602a336b`) remain unchanged. All ten tracked estimate/personal/Job/CO/budget/handoff data fingerprints match before/after migration. Existing advisor notice categories are unchanged.
+
+Live pure validation accepts a synthetic componentless quote with tax/card settings, without records. Uncharged quote pricing returns 224.68 for the synthetic input. The unchanged charged-handoff guard still rejects unsupported destination accounting. No real estimate was edited, submitted or approved by these checks.
+
+## Staging frontend deployment
+
+Pending ready deploy verification. Previous code `77b4dc5ca2733bfb914e3624c8c1c7a002d8eea1`, receipt `5a1b301c5153797307d967c37bc1c5f495747bae`, deploy `6ad2575293f5ef7050b28d53`. Target remains Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, isolated backend `fazfwzbuesvzhgodckiw`. No main/Production push or deployment is performed by this task.
