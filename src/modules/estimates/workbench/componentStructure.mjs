@@ -1,11 +1,11 @@
 // Backward-compatible grouping metadata; flat lines remain the single pricing/takeoff source.
 // Existing ungrouped lines become one component each without changing any values.
 export function componentGroups(item){
-  if(item.components)return item.components.map((c,index)=>({...c,number:index+1,lines:item.lines.filter(l=>l.componentId===c.id)}));
+  if(item.components?.length)return item.components.map((c,index)=>({...c,number:index+1,lines:(item.lines||[]).filter(l=>l.componentId===c.id)}));
   return (item.lines||[]).map((line,index)=>({id:'component-'+line.id,name:line.name,number:index+1,lines:[line]}));
 }
 export function ensureComponents(item){
-  if(item.components)return;
+  if(item.components?.length)return;
   item.components=componentGroups(item).map(({id,name})=>({id,name}));
   item.lines.forEach(l=>{l.componentId='component-'+l.id;});
 }

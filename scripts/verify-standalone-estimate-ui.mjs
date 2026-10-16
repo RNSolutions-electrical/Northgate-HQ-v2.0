@@ -39,5 +39,18 @@ try{for(const width of [1440,390]){
  await page.screenshot({path:`.temp/standalone-checks/restored-${width}.png`});
  await page.close();checks.push(width+'px: estimate-only submission/review/approval, optional handoff, official archive failure/restore, promoted personal lock and independent personal archive/restore');
  }
+ if(process.env.COMPONENTLESS_HOTFIX==='1')for(const width of [1440,390])for(const mode of ['manual','quote','unpriced']){
+  const page=await browser.newPage({viewport:{width,height:900}});page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());
+  await page.goto('http://127.0.0.1:5340/tests/browser/standalone-estimate.html?componentless='+mode);await page.getByRole('button',{name:/Standalone fixture/}).click();const frame=page.frameLocator('iframe');
+  await frame.getByRole('button',{name:'Approve estimate',exact:true}).click();
+  if(mode==='unpriced'){
+   await frame.getByRole('alert').filter({hasText:'Complete missing work-item names, quantities or pricing'}).waitFor();
+   assert.equal(await page.evaluate(()=>window.standaloneFixture.calls.filter(c=>c.name==='approve_workbench_estimate').length),0);
+  }else{
+   const dialog=frame.getByRole('dialog');await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'Approve estimate',exact:true}).click();await page.getByRole('button',{name:'Approved estimate',exact:true}).waitFor();
+   assert.equal(await page.evaluate(()=>window.standaloneFixture.calls.filter(c=>c.name==='approve_workbench_estimate').length),1);
+  }
+  await page.screenshot({path:`.temp/standalone-checks/componentless-${mode}-${width}.png`});await page.close();checks.push(width+'px componentless '+mode+': actual editor approval gate verified');
+ }
  assert.deepEqual(errors,[]);await writeFile('.temp/standalone-checks/ui-results.json',JSON.stringify({passed:true,checks,errors,boundary:'actual shell/route/editor, mocked transport; SQL authority separately tested'},null,2));console.log(checks.join('\n'));
 }finally{await browser.close();await server.close();}

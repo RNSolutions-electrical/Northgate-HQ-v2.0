@@ -1,14 +1,18 @@
-import {componentGroups} from './componentStructure.mjs';
 import {itemPricing,sumPricing} from './pricing.mjs';
 export const invalid=value=>value==null||String(value).trim()===''||!Number.isFinite(Number(value))||Number(value)<0;
-export const issues=item=>item.quoteId?[]:[
+export const issues=(item,document)=>[
  ...(!item.name?.trim()?['Work item name is required']:[]),
  ...(invalid(item.qty)?['Quantity is required']:[]),
- ...(!componentGroups(item).length?['Add a component']:[]),
- ...componentGroups(item).flatMap(c=>[...(!c.name?.trim()?['Component '+c.number+': name missing']:[]),...(!c.lines.length?['Component '+c.number+': add material or labor']:[])]),
+ ...(!item.quoteId&&!(item.lines||[]).length?['Enter priced material/labor rows or link a quote']:[]),
+ ...(item.quoteId&&document?quoteIssues(item,document):[]),
  ...(item.lines||[]).flatMap((l,index)=>[...(!l.name?.trim()?['Row '+(index+1)+': description missing']:[]),...['qty','price','hours'].filter(k=>invalid(l[k])).map(k=>'Row '+(index+1)+': '+k+' missing or invalid')]),
  ...(item.laborRateOverride!=null&&invalid(item.laborRateOverride)?['Labor rate override is invalid']:[])
 ];
+function quoteIssues(item,document){
+ const quotes=(document.quotes||[]).filter(q=>q.id===item.quoteId);
+ if(quotes.length!==1||quotes[0].archivedAt)return ['Link one active quote with valid costs'];
+ return ['materialAmount','otherAmount'].filter(k=>invalid(quotes[0][k])).map(k=>'Quote '+k+' missing or invalid');
+}
 export const itemValue=itemPricing;
 export function summary(d){const t=sumPricing(d.entries.flatMap(e=>e.items),d);return {...t,gross:t.markup};}
 // Stable identities: catalogue ID, or the earliest source resource ID for custom rows.
