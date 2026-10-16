@@ -21,7 +21,23 @@ try{for(const width of [1440,390]){
  if(width<900)await frame.getByLabel('Workspace',{exact:true}).selectOption('Pricing');else await frame.getByRole('button',{name:'Pricing',exact:true}).click();await frame.getByRole('button',{name:'Expand entry 001',exact:true}).click();await frame.getByRole('button',{name:'Expand work item Light work',exact:true}).click();assert.match(await frame.locator('.work-item-review').innerText(),/PRIVATE entry/);
  const approvalCalls=await page.evaluate(()=>window.standaloneFixture.calls.filter(c=>c.name==='review_standalone_estimate').length);
  await frame.getByRole('button',{name:'Link / create destination',exact:true}).click();await frame.getByLabel('Destination',{exact:true}).selectOption('change_order');await frame.getByLabel('Job',{exact:true}).selectOption('job-fixture');await frame.getByLabel('Apply project division to all work items').selectOption('budget-fixture');await page.evaluate(()=>window.standaloneFixture.mode='failure');await frame.getByRole('button',{name:'Confirm handoff',exact:true}).click();await frame.getByRole('alert').waitFor();assert.equal(await frame.getByLabel('Job',{exact:true}).inputValue(),'job-fixture');await page.evaluate(()=>window.standaloneFixture.mode='success');await frame.getByRole('button',{name:'Confirm handoff',exact:true}).click();await frame.getByRole('heading',{name:'Destination ready',exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.standaloneFixture.calls.filter(c=>c.name==='review_standalone_estimate').length),approvalCalls);await frame.getByRole('button',{name:'Back to estimate',exact:true}).click();await frame.getByRole('button',{name:'Open linked destination',exact:true}).waitFor();
- await page.close();checks.push(width+'px: estimate-only modal failure/retention, submitted lock, review approval, approved listing/reopen/notes, optional handoff failure/retry without reapproval');
+ await frame.getByRole('button',{name:'All estimates',exact:true}).click();
+ page.on('dialog',dialog=>dialog.accept());
+ await page.evaluate(()=>window.standaloneFixture.mode='failure');
+ await page.getByRole('button',{name:'Archive official estimate',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'Fixture archive failed'}).waitFor();
+ await page.evaluate(()=>window.standaloneFixture.mode='success');
+ await page.getByRole('button',{name:'Archive official estimate',exact:true}).click();await page.getByText('No estimates yet.').waitFor();
+ await page.getByRole('button',{name:'Show archived estimates',exact:true}).click();
+ await page.getByRole('button',{name:'Restore',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:/Standalone fixture/}).isDisabled(),true);
+ await page.getByRole('button',{name:'Restore',exact:true}).click();await page.getByText('No estimates yet.').waitFor();
+ await page.getByRole('button',{name:'Show active estimates',exact:true}).click();await open();await page.getByRole('button',{name:'Approved estimate',exact:true}).waitFor();
+ await frame.getByRole('button',{name:'All estimates',exact:true}).click();await page.getByRole('button',{name:/^My [Ee]stimates$/}).click();await open();await page.getByRole('button',{name:'Promoted to official estimate',exact:true}).waitFor();assert.equal(await frame.getByRole('button',{name:'Save Draft',exact:true}).isDisabled(),true);
+ await frame.getByRole('button',{name:'All estimates',exact:true}).click();await page.getByRole('button',{name:'Archive personal copy',exact:true}).click();await page.getByText('No estimates yet.').waitFor();
+ await page.getByRole('button',{name:'Show archived estimates',exact:true}).click();await page.getByRole('button',{name:'Restore',exact:true}).click();await page.getByRole('button',{name:'Show active estimates',exact:true}).click();await page.getByRole('button',{name:/Standalone fixture/}).waitFor();
+ assert.equal(await page.evaluate(()=>window.standaloneFixture.row.estimates.status),'approved');
+ await page.screenshot({path:`.temp/standalone-checks/restored-${width}.png`});
+ await page.close();checks.push(width+'px: estimate-only submission/review/approval, optional handoff, official archive failure/restore, promoted personal lock and independent personal archive/restore');
  }
  assert.deepEqual(errors,[]);await writeFile('.temp/standalone-checks/ui-results.json',JSON.stringify({passed:true,checks,errors,boundary:'actual shell/route/editor, mocked transport; SQL authority separately tested'},null,2));console.log(checks.join('\n'));
 }finally{await browser.close();await server.close();}

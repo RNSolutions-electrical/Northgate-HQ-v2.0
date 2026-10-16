@@ -17,7 +17,7 @@ export function EstimateDirectory({rows, reviewMode=false, personalMode=false, a
        {index===3&&!reviewMode ? <span className={`estimate-directory-status estimate-directory-status--${status}`}>{archived?'Archived':value}{personalMode&&row.promotion&&<small style={{display:'block'}}>{row.promotion.state==='archived'?'Official estimate archived':row.promotion.state==='active'?`Official estimate in ${row.promotion.division}`:'Official estimate unavailable; ask an administrator'}</small>}{personalMode&&status==='promoted'&&!row.promotion&&<small style={{display:'block'}}>Official link unavailable; ask an administrator</small>}</span> : <span>{value}</span>}
       </span>)}
      </button>
-     {onArchive&&<button type="button" className="secondary-button" disabled={busy||(!archived&&personalMode&&status==='submitted')} onClick={()=>onArchive(row)}>{archived?'Restore':personalMode?'Archive personal copy':'Archive official estimate'}</button>}
+     {onArchive&&<button type="button" className="secondary-button" disabled={busy||(!archived&&status==='submitted')} onClick={()=>onArchive(row)}>{archived?'Restore':personalMode?'Archive personal copy':'Archive official estimate'}</button>}
     </li>;
    })}</ul>
   </> : <p className="estimate-directory-empty">{reviewMode ? 'No estimates are awaiting review.' : 'No estimates yet.'}</p>}

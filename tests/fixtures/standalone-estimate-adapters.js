@@ -2,12 +2,20 @@
 const getToken=async()=>null;
 export const useAuth=()=>({getToken});
 export const getSupabaseAccessToken=async()=>null;
-export const usePermissions=()=>({isLoading:false,canEstimate:!new URLSearchParams(location.search).has('denied'),canApproveEstimates:!new URLSearchParams(location.search).has('user'),canSavePersonalWork:true,division:'Electrical'});
+export const usePermissions=()=>({isLoading:false,canEstimate:!new URLSearchParams(location.search).has('denied'),canApproveEstimates:!new URLSearchParams(location.search).has('user'),canSavePersonalWork:true,canArchiveRecords:true,division:'Electrical'});
 export function createSupabaseClient(){return {
- from(table){let id=null;const response=()=>{const f=window.standaloneFixture;return {error:null,data:table==='assembly_library_settings'?f.settings:table==='estimate_workbenches'?[f.row]:table==='estimate_checklist_definitions'?f.definitions:table==='estimate_snapshots'?(id?f.row.snapshot:f.row.snapshot?[f.row.snapshot]:[]):table==='estimate_workflow_handoffs'?(f.handoff?[f.handoff]:[]):table==='jobs'?[{id:'job-fixture',job_number:'LOCAL-1',name:'Optional fixture',job_type:'job',division:'Electrical'}]:table==='job_budget_lines'?[{id:'budget-fixture',cost_code:'01.CO',description:'Electrical division',category:'other'}]:table==='financial_line_catalogue'?[{id:'catalogue-fixture',cost_code:'01.01',description:'Fixture cost',category:'material',division_code:'01',division_name:'Electrical'}]:[]};};
+ from(table){let id=null;const response=()=>{const f=window.standaloneFixture;return {error:null,data:table==='assembly_library_settings'?f.settings:table==='estimate_workbenches'?(f.row.archived_at?[]:[f.row]):table==='estimate_checklist_definitions'?f.definitions:table==='estimate_snapshots'?(id?f.row.snapshot:f.row.snapshot?[f.row.snapshot]:[]):table==='estimate_workflow_handoffs'?(f.handoff?[f.handoff]:[]):table==='jobs'?[{id:'job-fixture',job_number:'LOCAL-1',name:'Optional fixture',job_type:'job',division:'Electrical'}]:table==='job_budget_lines'?[{id:'budget-fixture',cost_code:'01.CO',description:'Electrical division',category:'other'}]:table==='financial_line_catalogue'?[{id:'catalogue-fixture',cost_code:'01.01',description:'Fixture cost',category:'material',division_code:'01',division_name:'Electrical'}]:[]};};
   const chain=new Proxy({}, {get:(_,key)=>key==='then'?(resolve)=>Promise.resolve(response()).then(resolve):(...args)=>{if(key==='eq'&&args[0]==='id')id=args[1];return chain;}});return chain;
  },
  async rpc(name,args){const f=window.standaloneFixture;
+  if(name==='read_archived_estimate_directory')return {data:f.row.archived_at?[f.row]:[]};
+  if(name==='read_personal_estimate_directory')return {data:Boolean(f.personalArchived)===args.p_archived?[{id:'personal-fixture',version:1,updated_at:'2026-10-16T00:00:00Z',work_type:'estimate',status:'promoted',payload:f.row.document,scope_context:{division:'Electrical'},promotion:{state:f.row.archived_at?'archived':'active',division:'Electrical',estimate_id:f.row.estimate_id}}]:[]};
+  if(name==='set_official_estimate_archived'||name==='set_personal_estimate_archived'){
+   f.calls.push({name,args:structuredClone(args)});
+   if(f.mode==='failure')return {error:{message:'Fixture archive failed'}};
+   if(name==='set_official_estimate_archived')f.row={...f.row,archived_at:args.p_archived?'2026-10-16T00:00:00Z':null};else f.personalArchived=args.p_archived;
+   return {data:null};
+  }
   if(name==='read_v5_estimate_task_queue')return {data:[]};
   if(name==='read_standalone_estimate_reviews')return {data:f.request?.status==='pending'?[{destination_id:f.request.id,destination_version:f.row.revision,payload_hash:'fixture-hash',submitted_at:'2026-10-13',submitted_by:'fixture-user',submitted_by_name:'Fixture author',shared_reason:f.request.reason,target_division:'Electrical',estimate_name:f.row.document.name,customer_name:f.row.document.customer,destination_key:'standalone_estimate',task_type:'Estimate approval',proposed_payload:f.row.document,estimate_id:f.row.estimate_id}]:[]};
   f.calls.push({name,args:structuredClone(args)});

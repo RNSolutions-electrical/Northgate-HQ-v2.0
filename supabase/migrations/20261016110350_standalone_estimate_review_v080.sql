@@ -175,6 +175,21 @@ BEGIN
  RETURN public.submit_estimate_for_review_v2(p_estimate_id,p_expected_revision,p_destination,p_job_id,p_new_job,p_co_number,p_line_targets,p_financial_targets);
 END $$;
 
+-- Archive and review share the estimate-header lock. Do not hide a pending review
+-- through either the new directory action or an older editor's archive RPC.
+CREATE FUNCTION public.guard_pending_standalone_estimate_archive() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+ IF OLD.archived_at IS NULL AND NEW.archived_at IS NOT NULL
+ AND EXISTS(SELECT 1 FROM public.estimate_review_requests WHERE estimate_id=OLD.id AND status='pending') THEN
+  RAISE EXCEPTION 'Resolve pending estimate review before archiving' USING ERRCODE='55000';
+ END IF;
+ RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.guard_pending_standalone_estimate_archive() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER guard_pending_standalone_estimate_archive BEFORE UPDATE ON public.estimates
+FOR EACH ROW EXECUTE FUNCTION public.guard_pending_standalone_estimate_archive();
+
 REVOKE ALL ON FUNCTION public.submit_standalone_estimate_review(uuid,uuid,integer,text),public.read_standalone_estimate_reviews(integer),
  public.review_standalone_estimate(uuid,integer,text,text,text),public.handoff_estimate_to_destination(uuid,integer,text,uuid,jsonb,text,jsonb,jsonb) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_standalone_estimate_review(uuid,uuid,integer,text),public.read_standalone_estimate_reviews(integer),
