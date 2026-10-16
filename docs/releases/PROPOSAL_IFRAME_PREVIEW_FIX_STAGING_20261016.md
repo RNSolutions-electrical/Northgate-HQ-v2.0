@@ -23,4 +23,14 @@ The approved header and both builder actions consistently read **Export Proposal
 
 ## Deployment
 
-Pending authorized Staging publication and exact served-asset verification. Previous ready code `f590a09d92b6ff6f915d5aecce48013ce93c158d`, receipt `a1915e993492d312995686b70957c8b352378438`, deploy `6ad2532486c3cdf1e222f6d5`. Target remains separate Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde` and backend `fazfwzbuesvzhgodckiw`. Production remains unchanged.
+Published **2026-10-16 16:57:13 UTC** at https://staging.rnsolutions.net/estimates.
+
+- Exact code: `77b4dc5ca2733bfb914e3624c8c1c7a002d8eea1`; ready Netlify deploy `6ad2575293f5ef7050b28d53`, no deploy errors or secret-scan matches.
+- Immutable URL: https://6ad2575293f5ef7050b28d53--northgate-hq-staging.netlify.app/estimates.
+- Verified served main `/assets/index-DNwXZr4s.js` SHA-256 `106bf60e07feaf67aeb61143447aa0abf257f67c4c4383511c74e1b3cb9597f7` and corrected `/assets/WorkbenchRoute-zxNkIXTB.js` SHA-256 `e86dd942141ed13e17a2fc02d58ed46c50aab8afbea9d5cba899ba598171d980` match the tested local Staging build byte for byte.
+- All three font files and actual company logo remain byte-identical to the reviewed assets and return correct content types. Both estimate deep links return the new entry HTML. Staging banner/backend configuration remains isolated.
+- Target: separate Staging site `431ce717-1a06-45a0-9d7a-8acd06a67dde`, backend `fazfwzbuesvzhgodckiw`. Atomic push updated only `staging` and `fix/proposal-export-review-20261016`; `main` remains `bb74361045c44a358435343188c9d798019f5f29`.
+- Previous ready release: code `f590a09`, receipt `a1915e9`, deploy `6ad2532486c3cdf1e222f6d5`. No migrations, live-record actions or Production deployment occurred. Ryan's existing Production editing/browser session was not used.
+- Authenticated Staging owner acceptance remains for Ryan; isolated sign-in encountered the existing Cloudflare challenge during the preceding release and no bypass was attempted. The actual application route/iframe was tested with synthetic network-isolated adapters, not with a live customer estimate.
+
+Receipt-only follow-up commits use `[skip ci]`; deployed application code remains the exact code commit above. Production promotion remains withheld.

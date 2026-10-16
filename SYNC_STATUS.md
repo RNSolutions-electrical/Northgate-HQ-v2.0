@@ -1006,3 +1006,5 @@ ESTIMATE-LIFECYCLE-PROD-V090-20261016-001: Production v0.9.0 deployed 9af388a / 
 ESTIMATE-LIFECYCLE-STAGING-20261016-001: deployed 3a23a6a / 6ad207bffeaebd6b8b043d09 to Staging only. CO correction included; customer data unchanged. Cloudflare blocks automated sign-in acceptance. See deployment receipt.
 
 PROPOSAL-LETTERHEAD-STAGING-20261016-001: ready deploy 6ad2532486c3cdf1e222f6d5, code f590a09, Staging only. 350 tests pass/1 skip, Staging build, browser and real cancelled print-preview QA pass. Exact served app/logo/font bytes verified. Cloudflare blocks isolated signed-in acceptance; main bb74361 and Production untouched. See docs/releases/PROPOSAL_LETTERHEAD_STAGING_20261016.md.
+
+PROPOSAL-IFRAME-FIX-STAGING-20261016-001: ready77b4dc5 / deploy6ad2575293f5ef7050b28d53. Actual iframe font/layout defect reproduced/fixed, Export Proposal label, 350tests pass/1skip, real iframe pixel equality/native-print Cancel and Staging build verified. Served assets exact; Production/mainbb74361 untouched. See correction receipt.
