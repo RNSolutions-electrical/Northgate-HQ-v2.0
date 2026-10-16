@@ -1,6 +1,6 @@
 # Estimate lifecycle archive and restore candidate — 2026-10-15
 
-Status: local implementation only; Production Mode. No deployment or migration application authorized or performed. Exact reported test estimate remains unidentified.
+Status: local implementation only; Production Mode. No deployment or migration application authorized or performed. Exact reported test estimate identified read-only on October 16; see follow-up below.
 
 ## Baseline and diagnosis
 
@@ -35,4 +35,15 @@ Run DB check with PGLITE_MODULE pointing to an installed @electric-sql/pglite/di
 
 ## Remaining release gates
 
-Identify Ryan's test estimate and inspect its exact personal/destination/official/archive linkage read-only. Obtain approval for deployment and the unapplied 20261015171453 migration; compare live function/schema definitions again and test in the approved isolated environment. Perform signed-in browser acceptance before release; rendered component checks do not replace it. No production cleanup or restoration is bundled with deployment approval.
+Exact-record identification is complete. Obtain approval for deployment and the unapplied 20261015171453 migration; compare live function/schema definitions again and test in the approved isolated environment. Perform signed-in browser acceptance before release; rendered component checks do not replace it. No production cleanup or restoration is bundled with deployment approval.
+
+
+## Exact-record follow-up — 2026-10-16
+
+Ryan identified Personal Test Estimate / Codex / personal version 8. Unique exact match: personal working copy 669b038e-dd23-4cbb-ad7c-3030d0400306, Electrical, promoted, not personally archived. Its version-5 review was returned and version-7 review declined; version 8 applied successfully on September 21 at 12:27:47 UTC via destination 81c2d038-c0a8-4348-b53c-a29785058257. Official estimate b8dc4f3e-d229-4294-b51e-dfcdf16b5e71 and revision-1 workbench both exist. Personal version 8 and official version 1 are separate counters.
+
+Confirmed cause: the official estimate was archived October 15 at 14:07:21 UTC with reason Old test estimate. The archive audit preserves prior status approved. One approval snapshot and one workflow handoff remain. The official active-only RLS intentionally excludes it; the personal source retains promoted status. This is not an orphan or a failed promotion. Audit prose is historical evidence only, not new authorization to delete or alter records.
+
+Recommended action: preserve the already archived official record and its snapshot/handoff. Once archive UI release is approved, archive only the personal source if Ryan wants it removed from My Estimates. Restore the official record only if explicitly requested; it would return to approved, never draft. No relinking, recreation, hard-delete, or data repair is needed.
+
+Readiness recheck: remote main remains a504f88 and staging 9a8716b. Candidate migration is still unapplied; the live Workbench restore integration anchor exists. All 334 named regressions and both isolated database/rendered-UI lifecycle checks pass again. Synthetic Development build rechecked. No live writes, cleanup, migration, or deployment performed. Signed-in browser acceptance remains outstanding; no active browser was disturbed. No further user input is needed for diagnosis or automated checks. Release/target archive authorization and any desired official restoration are separate decisions; parent should coordinate them when convenient.
