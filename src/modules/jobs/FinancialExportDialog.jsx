@@ -5,11 +5,11 @@ import { buildFinancialExportRows, downloadFinancialFile, filterFinancialExportR
 const initial=Object.fromEntries(FINANCIAL_EXPORT_OPTIONS.map(([key])=>[key,true]));
 const safe=value=>String(value||'job').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'').toLowerCase();
 
-export function FinancialExportDialog({ open, onClose, job, lines, changeOrderByLineId }) {
+export function FinancialExportDialog({ open, onClose, job, lines, changeOrderByLineId,projectDivisions,catalogueDivisions }) {
  const [selected,setSelected]=useState(initial);
  const [working,setWorking]=useState('');
  const [error,setError]=useState('');
- const rows=useMemo(()=>buildFinancialExportRows(lines,changeOrderByLineId),[lines,changeOrderByLineId]);
+ const rows=useMemo(()=>buildFinancialExportRows(lines,changeOrderByLineId,{projectDivisions,catalogueDivisions}),[lines,changeOrderByLineId,projectDivisions,catalogueDivisions]);
  const divisions=useMemo(()=>financialExportDivisions(rows),[rows]);
  const divisionSignature=divisions.map(({key})=>key).join('|');
  const [selectedDivisions,setSelectedDivisions]=useState(new Set());

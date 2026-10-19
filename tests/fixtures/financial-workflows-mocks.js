@@ -35,7 +35,7 @@ export function createSupabaseClient() {return {
   },
   async rpc(name,args) {
     if(name==='read_financial_catalogue')return {data:{divisions:[],lines:[]},error:null};
-    if(name==='read_job_financial_names')return {data:{divisions:[],lines:[]},error:null};
+    if(name==='read_job_financial_names')return {data:{divisions:(location.search.includes('no-divisions')?[]:divisions.filter(d=>d.job_id===args.p_job_id&&!d.archived_at)).map(d=>({id:d.id,code:d.code,effective_name:d.name,catalogue_division_id:null})),lines:[]},error:null};
     window.financialFixture.calls.push({name,args});
     if(window.financialFixture.delaySave && name==='save_job_financial_batch') await new Promise(resolve=>setTimeout(resolve,300));
     if(window.financialFixture.failNext){window.financialFixture.failNext=false;return {error:{message:'Fixture rejected save'}};}

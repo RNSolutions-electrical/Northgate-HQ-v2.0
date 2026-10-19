@@ -23614,3 +23614,23 @@ financial/audit fingerprints and 37 custom rows remain unchanged. Full exact
 receipts/limits: docs/releases/FINANCIAL_CATALOGUE_PROMOTION_20261019.md.
 Review https://rnsolutions.net/northgate/jobs. No blocker remains; manual unmatched
 line reconciliation is Ryan's follow-up. Receipt-only push skips CI.
+
+## Entry 377 - Approved grouping/Add Line Production promotion
+
+Ryan approved code-only promotion of Staging `5f7ce88` after confirming posted COs
+must retain approvals, amounts, history and links. Thirteen approved source/test
+blobs match exactly; 25 unrelated Staging file differences are excluded. No database,
+auth/config/dependency change, budget rebuild, financial write, reclassification,
+link repair or repost is authorized or needed.
+
+Fresh read-only Production snapshot 21:43:51.945720 UTC has 124 Toro active rows;
+live baseline is 17 sections/two Add Line buttons. Exact candidate gives 13 sections
+with every original identity/amount/link/category retained, protected 16.5 O&P
+$34,131 intact, Division16 Original $147,900, stable explicit/inferred Add Line and
+the existing audited/proposal paths. Full financial/CO/allocation/issued-line/audit
+fingerprints match the 21:47:46.573676 pre-publication snapshot. Final aggregate
+375 pass/one skip, fresh-snapshot desktop/phone, all financial regressions, ten local
+PostgreSQL groups and synthetic Production build pass. Raw data remains ignored and
+excluded from published assets. Exact receipts and limitations follow in
+docs/releases/FINANCIAL_DIVISION_GROUPING_PRODUCTION_20261019.md. Deploy only through
+the focused main fast-forward; preserve Staging and existing financial records.

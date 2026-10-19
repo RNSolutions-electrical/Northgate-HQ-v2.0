@@ -53,6 +53,7 @@ import {mergeFinancialNames,resolvedDivisionLabel,resolvedDivisionName} from './
 import {FinancialNameOverride} from './FinancialNameOverride.jsx';
 import {RecordEditMenu} from '../../components/ui/RecordEditMenu.jsx';
 import {FinancialDivisionSection} from './FinancialDivisionSection.jsx';
+import {createFinancialDivisionResolver,groupFinancialDivisions,validateFinancialDivisionEntry} from './financialDivisionGroups.js';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
@@ -159,6 +160,7 @@ const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipmen
 const DEFAULT_BUDGET_FORM = Object.freeze({
   id: '',
   project_division_id: '',
+  division_context: null,
   project_division: null,
   category: 'material',
   is_protected_financial: false,
@@ -334,7 +336,7 @@ const JOB_BUDGET_SELECT_FIELDS = [
   'forecast_final_amount',
   'schedule_of_values_amount',
   'project_division_id',
-  'project_division:job_budget_divisions(id, code, name, sort_order)',
+  'project_division:job_budget_divisions(id, code, name, sort_order, archived_at)',
   'note',
   'created_by',
 ].join(', ');
@@ -1118,17 +1120,6 @@ function projectDivisionLabel(row) {
     : 'Unassigned project division';
 }
 
-function projectDivisionSortOrder(row) {
-  const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
-  return row?.project_division?.sort_order ?? Number(costCodeDivision || 999);
-}
-
-function projectDivisionKey(row) {
-  if (row?.project_division_id || row?.project_division?.id) return `project:${row.project_division_id || row.project_division.id}`;
-  const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
-  return costCodeDivision ? `cost:${costCodeDivision}` : 'unassigned';
-}
-
 function revenueDivisionLabel(row) {
   const division = row?.source_project_division;
   if (division?._financialName) return resolvedDivisionLabel(division);
@@ -1558,6 +1549,7 @@ function useJobBudgetLines({ enabled, jobId }) {
     isLoading: false,
     error: null,
     lines: EMPTY_BUDGET_LINES,
+    divisions: [],
   });
 
   useEffect(() => {
@@ -1565,7 +1557,7 @@ function useJobBudgetLines({ enabled, jobId }) {
 
     async function load() {
       if (!enabled || !jobId) {
-        setState({ isLoading: false, error: null, lines: EMPTY_BUDGET_LINES });
+        setState({ isLoading: false, error: null, lines: EMPTY_BUDGET_LINES, divisions: [] });
         return;
       }
 
@@ -1591,6 +1583,7 @@ function useJobBudgetLines({ enabled, jobId }) {
             isLoading: false,
             error: null,
             lines: mergeFinancialNames(data ?? EMPTY_BUDGET_LINES, names.data || {}),
+            divisions: names.data?.divisions || [],
           });
         }
       } catch (error) {
@@ -1600,6 +1593,7 @@ function useJobBudgetLines({ enabled, jobId }) {
             isLoading: false,
             error,
             lines: EMPTY_BUDGET_LINES,
+            divisions: [],
           });
         }
       }
@@ -2252,6 +2246,7 @@ export function JobsWorkspace({ permissions }) {
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
   const [financialCatalogue, setFinancialCatalogue] = useState([]);
+  const [financialMasterDivisions,setFinancialMasterDivisions] = useState([]);
   const [catalogueSearch, setCatalogueSearch] = useState('');
   const [catalogueSelectedIds, setCatalogueSelectedIds] = useState([]);
   const [scheduleForm, setScheduleForm] = useState(DEFAULT_SCHEDULE_FORM);
@@ -2354,7 +2349,7 @@ export function JobsWorkspace({ permissions }) {
         const client = createSupabaseClient(token);
         const { data, error } = await client.rpc('read_financial_catalogue',{p_include_retired:false});
         if (error) throw error;
-        if (active) setFinancialCatalogue(data?.lines || []);
+        if (active) { setFinancialCatalogue(data?.lines || []); setFinancialMasterDivisions(data?.divisions || []); }
       } catch (error) {
         if (active) setBudgetTemplateAction((current) => ({ ...current, error }));
       }
@@ -3305,20 +3300,19 @@ export function JobsWorkspace({ permissions }) {
     setBudgetForm(budgetToForm(row));
   }
 
-  function startBudgetAdd(projectDivision, divisionLabel) {
-    if (!canProposeSelectedBudget || !projectDivision?.id || isAddingBudgetLine || budgetForm.isSaving || budgetForm.id) return;
+  function startBudgetAdd(context) {
+    if (!canProposeSelectedBudget || !context || context.action==='blocked' || isAddingBudgetLine || budgetForm.isSaving || budgetForm.id) return;
+    if(context.action==='choose'){setIsBudgetDivisionPickerOpen(true);return;}
     setIsBudgetDivisionPickerOpen(false);
     setBudgetEditFocusField('description');
     setBudgetForm({
       ...DEFAULT_BUDGET_FORM,
-      project_division_id: projectDivision.id,
-      project_division: projectDivision,
+      project_division_id: context.projectDivisionId || '',
+      project_division: context.projectDivision,
+      division_context: context,
     });
     setIsAddingBudgetLine(true);
-    if (divisionLabel) {
-      const key=projectDivision._financialName?.catalogue_division_id ? `master:${projectDivision._financialName.catalogue_division_id}` : `project:${projectDivision.id}`;
-      setCollapsedBudgetDivisions((current) => ({ ...current, [key]: false }));
-    }
+    setCollapsedBudgetDivisions((current) => ({ ...current, [context.key]: false }));
   }
 
   function resetBudgetForm() {
@@ -3354,8 +3348,13 @@ export function JobsWorkspace({ permissions }) {
       const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const projectDivisionId = existingRow?.project_division_id || budgetForm.project_division_id || null;
-      if (!budgetForm.id && !projectDivisionId) {
-        throw new Error('Choose a project division by using its Add line button.');
+      if (!budgetForm.id) {
+        const context=budgetForm.division_context;
+        if(!context)throw new Error('Choose a division by using its Add Line button.');
+        const invalid=validateFinancialDivisionEntry(context,basePayload);
+        if(invalid)throw new Error(invalid);
+        const fresh=createFinancialDivisionResolver({rows:jobBudget.lines,projectDivisions:jobBudget.divisions,catalogueDivisions:financialMasterDivisions}).resolve({...basePayload,project_division_id:projectDivisionId});
+        if(fresh.action!=='add'||fresh.key!==context.key||fresh.projectDivisionId!==context.projectDivisionId)throw new Error(fresh.disabledReason||'The division changed. Cancel this draft and choose the division again.');
       }
       const payload = { ...basePayload, project_division_id: projectDivisionId };
       const line = { ...payload, id: budgetForm.id || null,
@@ -5050,7 +5049,7 @@ export function JobsWorkspace({ permissions }) {
       const isEditingBudgetRow = (row) => budgetForm.id === row.id
         || (isAddingBudgetLine && row.id === '__new_budget_line__');
       const budgetRows = isAddingBudgetLine
-        ? [...jobBudget.lines, { ...budgetForm, id: '__new_budget_line__' }]
+        ? [...jobBudget.lines, { ...budgetForm, id: '__new_budget_line__', _divisionContext:budgetForm.division_context }]
         : jobBudget.lines;
       const revenueRows = isAddingRevenueLine
         ? [...jobRevenue.lines, { ...DEFAULT_REVENUE_FORM, id: '__new_revenue_line__' }]
@@ -5063,17 +5062,7 @@ export function JobsWorkspace({ permissions }) {
         groups.set(key, group);
         return groups;
       }, new Map()).entries()].sort(([, left], [, right]) => left.sortOrder - right.sortOrder);
-      const budgetGroups = [...budgetRows.reduce((groups, row) => {
-        const division = projectDivisionLabel(row);
-        const masterId=row.project_division?._financialName?.catalogue_division_id || row._financialName?.catalogue_division_id;
-        const peer=budgetRows.find(candidate=>candidate.project_division_id && projectDivisionLabel(candidate)===division);
-        const key=masterId?`master:${masterId}`:peer?`project:${peer.project_division_id}`:projectDivisionKey(row);
-        const group = groups.get(key) || { label:division, rows: [], sortOrder: projectDivisionSortOrder(row), projectDivisionId: row.project_division_id || row.project_division?.id || null };
-        group.projectDivisionId ||= row.project_division_id || row.project_division?.id || null;
-        group.rows.push(row);
-        groups.set(key, group);
-        return groups;
-      }, new Map()).entries()].sort(([, left], [, right]) => left.sortOrder - right.sortOrder);
+      const budgetGroups=groupFinancialDivisions(budgetRows,{projectDivisions:jobBudget.divisions,catalogueDivisions:financialMasterDivisions});
       const inlineBudgetInput = (row, field, label) => (
         isEditingBudgetRow(row) ? (
           <input
@@ -5327,7 +5316,7 @@ export function JobsWorkspace({ permissions }) {
             description="Manage the job budget, costs, and forecasts by cost code."
             actions={<button type="button" className="secondary-button" onClick={() => setFinancialExportOpen(true)}>Export Financials</button>}
           />
-          <FinancialExportDialog open={financialExportOpen} onClose={() => setFinancialExportOpen(false)} job={selectedJob} lines={jobBudget.lines} changeOrderByLineId={approvedChangeOrderCostByBudgetLineId} />
+          <FinancialExportDialog open={financialExportOpen} onClose={() => setFinancialExportOpen(false)} job={selectedJob} lines={jobBudget.lines} changeOrderByLineId={approvedChangeOrderCostByBudgetLineId} projectDivisions={jobBudget.divisions} catalogueDivisions={financialMasterDivisions} />
           <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={() => { jobBudget.reload(); jobRevenue.reload(); }} />
           {canProposeSelectedBudget ? (
             <div className="job-financials-quick-actions">
@@ -5337,7 +5326,7 @@ export function JobsWorkspace({ permissions }) {
               {canApproveSelectedBudget ? <button type="button" className="secondary-button" onClick={() => setIsBudgetImportOpen(true)} {...uiElementAttributes('FUNCTION', 'Import Cost Report')}>Import Cost Report</button> : null}
             </div>
           ) : null}
-          {isBudgetDivisionPickerOpen ? <FinancialLineDivisionPicker key={selectedJob.id} jobId={selectedJob.id} onClose={() => setIsBudgetDivisionPickerOpen(false)} onSelect={(division) => startBudgetAdd(division, projectDivisionLabel({ project_division: division }))} /> : null}
+          {isBudgetDivisionPickerOpen ? <FinancialLineDivisionPicker key={selectedJob.id} jobId={selectedJob.id} onClose={() => setIsBudgetDivisionPickerOpen(false)} onSelect={startBudgetAdd} /> : null}
           {budgetTemplateAction.success ? <StatePanel tone="success" title="Financial template applied" description={budgetTemplateAction.success} compact /> : null}
           {isBudgetTemplateOpen ? <div className="ng-dialog-root"><div className="ng-dialog-scrim is-open" /><section className="ng-dialog financial-setup-dialog" role="dialog" aria-modal="true" aria-labelledby="budget-template-title">
             <header className="ng-dialog__header"><div><span className="eyebrow">Financial setup</span><h3 id="budget-template-title">Build budget from template</h3><p className="ng-dialog__description">Select the project Divisions you need. This adds their cost-code lines with zero amounts; it does not change an existing budget.</p></div><button type="button" className="icon-button" onClick={() => setIsBudgetTemplateOpen(false)} aria-label="Close budget template">×</button></header>
@@ -5379,7 +5368,8 @@ export function JobsWorkspace({ permissions }) {
 
           {budgetGroups.map(([division, group]) => {
             const rows = group.rows;
-            const linkedDivision = rows.find((row) => row.project_division?.id === group.projectDivisionId)?.project_division;
+            const linkedDivision = group.projectDivision;
+            const namingLine = rows.find(row=>row.project_division_id===group.projectDivisionId);
             const isCollapsed = collapsedBudgetDivisions[division] !== false;
             const unassignedDivisionChangeOrders = group.projectDivisionId
               ? approvedChangeOrderCostByProjectDivisionId.get(group.projectDivisionId) || 0
@@ -5428,13 +5418,14 @@ export function JobsWorkspace({ permissions }) {
                     </span>
                   </span>
                   </button>
-                  {linkedDivision?._financialName ? <FinancialNameOverride key={`${selectedJob.id}:${isEditingDivisionNames}`} line={rows.find(row=>row.project_division_id===group.projectDivisionId)} division={linkedDivision} canPropose={isEditingDivisionNames && !budgetForm.id && !isAddingBudgetLine} canApprove={canApproveSelectedBudget} onEditorState={handleDivisionNameEditorState} onSaved={()=>{jobBudget.reload();jobRevenue.reload();}}/> : null}
-                  {canProposeSelectedBudget && group.projectDivisionId ? (
+                  {linkedDivision?._financialName ? <FinancialNameOverride key={`${selectedJob.id}:${isEditingDivisionNames}`} line={namingLine} division={linkedDivision} canPropose={Boolean(namingLine) && isEditingDivisionNames && !budgetForm.id && !isAddingBudgetLine} canApprove={canApproveSelectedBudget} onEditorState={handleDivisionNameEditorState} onSaved={()=>{jobBudget.reload();jobRevenue.reload();}}/> : null}
+                  {canProposeSelectedBudget ? (
                     <button
                       type="button"
                       className="secondary-button job-budget-division__add-line"
-                      onClick={() => startBudgetAdd({ ...linkedDivision, id: group.projectDivisionId }, division)}
-                      disabled={isAddingBudgetLine || budgetForm.isSaving || Boolean(budgetForm.id)}
+                      onClick={() => startBudgetAdd(group)}
+                      title={group.disabledReason || (group.action==='choose'?'Choose a division for this financial line':undefined)}
+                      disabled={group.action==='blocked' || isAddingBudgetLine || budgetForm.isSaving || Boolean(budgetForm.id)}
                     >
                       <Plus aria-hidden="true" /> Add Line
                     </button>

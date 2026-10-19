@@ -52,7 +52,7 @@ export function createSupabaseClient() {return {
   },
   async rpc(name,args) {
     if(name==='read_financial_catalogue')return {data:{divisions:[],lines:catalogue},error:null};
-    if(name==='read_job_financial_names')return {data:{divisions:[],lines:[]},error:null};
+    if(name==='read_job_financial_names')return {data:{divisions:[division,division7].map(d=>({id:d.id,code:d.code,effective_name:d.name,catalogue_division_id:null})),lines:[]},error:null};
     window.financialFixture.calls.push({name,args});
     if(name === 'save_job_financial_batch') {
       const saved = args.p_lines.map(line => ({...rows.find(row=>row.id===line.id),...line,id:line.id || 'new-line',

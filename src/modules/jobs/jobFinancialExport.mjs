@@ -1,5 +1,5 @@
-import { financialDivisionName, financialLineDescription } from './financialDivisionLabels.js';
-import {resolvedDivisionName} from './financialNames.js';
+import {financialLineDescription} from './financialDivisionLabels.js';
+import {createFinancialDivisionResolver} from './financialDivisionGroups.js';
 
 const OPTIONS = Object.freeze([
   ['budget', 'Budget'],
@@ -13,20 +13,10 @@ const OPTIONS = Object.freeze([
 export const FINANCIAL_EXPORT_OPTIONS = OPTIONS;
 
 const amount = (value) => Number(value) || 0;
-const divisionCodeFromLine = (line) => line?.project_division?.code
-  || String(line?.cost_code || '').match(/^\d{2}/)?.[0]
-  || '';
-const divisionNameFromLine = (line) => line?.project_division?._financialName ? resolvedDivisionName(line.project_division) : line?._financialName?.effective_division_name || line?._financialName?.catalogue_division_name || financialDivisionName(divisionCodeFromLine(line), line?.project_division?.name);
-const divisionKeyFromLine = (line) => line?.project_division?._financialName?.catalogue_division_id || line?._financialName?.catalogue_division_id || line?.project_division_id
-  || line?.project_division?.id
-  || (divisionCodeFromLine(line) ? `cost:${divisionCodeFromLine(line)}` : 'unassigned');
-const divisionLabelFromLine = (line) => {
-  const code = divisionCodeFromLine(line);
-  const name = divisionNameFromLine(line);
-  if (code && name) return `${code} — ${name}`;
-  if (code) return `Division ${code}`;
-  return 'Unassigned project division';
-};
+// Preserve the export selector's existing UUID/cost key format while sharing
+// canonical membership and names with the financial view.
+const exportDivisionKey = context => context.key.startsWith('master:')?context.key.slice(7)
+  :context.key.startsWith('project:')?context.key.slice(8):context.key.startsWith('code:')?`cost:${context.code}`:context.key;
 const csvCell = (value, protectFormula = true) => {
   const raw = String(value ?? '');
   const text = protectFormula && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
@@ -46,13 +36,14 @@ export function financialExportColumns(selected) {
   ];
 }
 
-export function buildFinancialExportRows(lines, changeOrderByLineId = new Map()) {
-  return lines.map((line) => ({
-    projectDivisionKey: divisionKeyFromLine(line),
-    projectDivisionCode: divisionCodeFromLine(line),
-    projectDivisionName: divisionNameFromLine(line),
-    projectDivisionLabel: divisionLabelFromLine(line),
-    projectDivisionSortOrder: line?.project_division?.sort_order ?? Number(divisionCodeFromLine(line) || 999),
+export function buildFinancialExportRows(lines, changeOrderByLineId = new Map(),divisionOptions={}) {
+  const {resolve}=createFinancialDivisionResolver({...divisionOptions,rows:lines});
+  return lines.map((line) => {const context=resolve(line);return {
+    projectDivisionKey: exportDivisionKey(context),
+    projectDivisionCode: context.code,
+    projectDivisionName: context.name,
+    projectDivisionLabel: context.code?`${context.code} \u2014 ${context.name}`:context.label,
+    projectDivisionSortOrder: context.sortOrder,
     costCode: line.cost_code || '',
     description: financialLineDescription(line),
     budget: amount(line.current_budget_override_amount ?? (amount(line.budget_amount) + amount(line.budget_change_amount) + amount(changeOrderByLineId.get(line.id)))),
@@ -65,7 +56,7 @@ export function buildFinancialExportRows(lines, changeOrderByLineId = new Map())
     completionForecast: amount(line.forecast_final_amount),
     category: line.category || '',
     notes: line.note || '',
-  }));
+  };});
 }
 
 export function financialExportSummary(rows) {
