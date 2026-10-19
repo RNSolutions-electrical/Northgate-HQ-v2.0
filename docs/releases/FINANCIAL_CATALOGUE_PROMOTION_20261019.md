@@ -7,8 +7,8 @@ the focused Job Edit menu, section-bounded sticky headers and that visual cleanu
 It does not authorize merging unrelated Staging work or changing the meanings of
 unmatched Production codes. Ryan subsequently approved preserving all unmatched
 entries as job-only custom lines and will reconcile them manually from his job
-cost report. The required catalogue migration is now verified in Production;
-the application publication receipt follows below when ready.
+cost report. The required catalogue migration and reviewed application package are
+now verified in Production; exact receipts follow below.
 
 ## Verified cleanup on Staging
 
@@ -81,9 +81,9 @@ Evidence is ignored under each worktree's `.temp/`.
 ## Production preflight and approved preservation decision
 
 Read-only confirmed target: Supabase `keogysnoukbendfkfjcn` (`northgate-hq-v2.0`),
-healthy PostgreSQL 17.6. Production has no `financial_division_catalogue` table and
-has not applied this catalogue migration. Existing financial-save/proposal function
-hashes exactly match the migration's guarded preflight:
+healthy PostgreSQL 17.6. Initial preflight found no `financial_division_catalogue`
+table or catalogue migration. Existing financial-save/proposal function hashes
+exactly matched the migration's guarded preflight:
 `85be3ca12db88a0e88b3705b357e469b` and `02b8febabbe0a123d5b4238f5cde8810`.
 No duplicate master codes, conflicting master division names, ambiguous active job
 division codes, linked master/project division mismatches or invalid copied-name
@@ -186,3 +186,63 @@ for the new master/reference indexes. Existing anonymous-execute, RLS/policy,
 search-path, view and unindexed-FK findings are unchanged. Exact snapshots and
 comparisons are ignored under `.temp/production-catalogue-before.json` and
 `.temp/production-catalogue-after.json`.
+
+## Verified Production application publication
+
+- Prepared code commit: `58a9c0e70deec286bcf7d4c9af220956902bc223`.
+- Exact deployed commit, including the pre-publication migration receipt:
+  **`a1446b2add0e5bc2a5fb76c1eba84a8aad2669a7`**, fast-forwarded to `main` from
+  `1e0c5635b6289b4e2f4c55eaa8fb81b9cb8152a0`. Source/test/migration bytes remain
+  identical to the tested prepared release; subsequent changes are documentation.
+- Production site: **`16adb4ff-83a9-4440-8aad-fcb820d55cac`** (`northgate-hq-v2`).
+- Ready Netlify deploy: **`6ad6498a10b13ea805229665`**, published
+  **2026-10-19 16:47:28.622 UTC**, exact `main` commit, no deploy error.
+- Live: https://rnsolutions.net/northgate/jobs
+- Immutable: https://6ad6498a10b13ea805229665--northgate-hq-v2.netlify.app/northgate/jobs
+
+Strict-TLS custom/immutable Jobs, Developer, Estimates and Inventory deep links
+return 200 with identical page/assets and correct MIME types. The bundle contains
+the new financial/name/menu controls, Production Supabase and the embedded live
+Clerk key; isolated Staging identity and synthetic local keys are absent. Matching
+JavaScript `/northgate/assets/index-3j_AHW1X.js` (2,107,974 bytes) SHA256:
+`2ce84f3ef925f11c87c43bd26c84b777d4bf3fcbc3a03e4b0a3c0135f7a14614`.
+CSS `/northgate/assets/index-CFpMAqNI.css` (186,097 bytes) SHA256:
+`1b369a81dae546c60fb830877afca916c1f5eb5d45bafea001911061bbe3cae3`.
+The small rolldown runtime also matches (SHA256
+`5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75`).
+Ignored `.temp/production-financial-deploy.json` stores exact served receipts.
+
+Authenticated read-only Developer smoke on the ready Production code confirms:
+
+- Toro Pizzeria Division 04: $5,500 current budget, $6,729.59 actual and signed
+  **-$1,229.59 Remaining Budget**, with the intentional split rows intact.
+  Labor remains $5,500 budget/$0 actual; zero-budget material remains $6,729.59
+  actual and **-$6,729.59 / OVER BUDGET**. Zero rows are neutral. Forecasted
+  Remaining Budget is separately **+$5,500** with existing zero forecasts retained.
+  Job actual Remaining Budget is $496,774.06 with the explicit actual-cost label.
+- Main Edit exposes Job Details and Division Names. Naming mode opens the existing
+  linked Division 07 catalogue/reset dialog, then Cancel and Done restore normal
+  viewing with no persistent division edit buttons. No name/reset save submitted.
+- Expanded Concrete pins at the actual Production 63px shell offset and releases
+  entirely before Masonry pins at 63px. Column labels align at the header bottom,
+  158.46875px. Collapsed Masonry is static. The inherited division hint/empty
+  control is absent; existing line hints/overrides remain intact.
+- Developer > Systems lists the 12 master divisions with Production-specific names
+  and use counts. A used catalogue entry's code is disabled in its editor; Cancel
+  works. No catalogue edit/import/retire/save is submitted. Both checked tabs have
+  no captured browser error logs.
+- Existing custom Footings Materials text is preserved. Legacy inferred groups
+  retain their existing missing/archived physical links; this release does not
+  synthesize or merge project-division records. Division naming controls apply to
+  stored active job divisions (Toro has 07/08); inferred Masonry has no stored active
+  division record to rename. That existing relationship scope is retained.
+
+Final read-only database verification still matches the original financial and
+audit fingerprints and reports exactly one catalogue migration and 37 custom rows.
+No business-data test save, report-based correction, cost transfer, balancing line,
+CO posting or forecast fill/clamp was performed. No known release blocker remains.
+Phone/other permission/failure/save scenarios were verified in the exact release's
+fixtures; live Production smoke uses the authorized desktop Developer session and
+read-only/cancelled workflows. Ryan's manual report reconciliation remains his
+separate follow-up. Pending financial proposals need reload after metadata baseline
+advancement. Receipt-only follow-up commits use `[skip ci]` and preserve this deploy.

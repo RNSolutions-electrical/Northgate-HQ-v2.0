@@ -23596,3 +23596,21 @@ Staging cleanup is ready as `6ad64572172aff953870faad`. Production application
 publication/live receipt follows in docs/releases/FINANCIAL_CATALOGUE_PROMOTION_20261019.md.
 Recover UI forward through a source revert/CI; preserve additive catalogue metadata
 and audits. Do not drop schema/restore old financial RPCs after naming writes.
+
+### Verified Production publication - 2026-10-19
+
+Exact deployed `main` commit `a1446b2add0e5bc2a5fb76c1eba84a8aad2669a7` is ready as
+Netlify `6ad6498a10b13ea805229665`, published 16:47:28.622 UTC. Custom/immutable
+HTTPS deep links and identical assets verify correct Production identity/new
+controls with no synthetic keys. Signed-in Developer read-only Toro smoke confirms
+Masonry -$1,229.59 actual Remaining Budget versus separate +$5,500 forecast balance,
+the split labor/material lines, red zero-budget overspending and neutral zeros,
+job actual remaining, Edit naming/dialog Cancel/Done, clean header spacing and
+Concrete-to-Masonry bounded sticky takeover at the actual 63px shell offset.
+Developer Systems master names/use counts and disabled used-code editor verify.
+No captured browser error or live business save. Existing inferred division groups
+remain unlinked; naming controls operate on stored active divisions. Final original
+financial/audit fingerprints and 37 custom rows remain unchanged. Full exact
+receipts/limits: docs/releases/FINANCIAL_CATALOGUE_PROMOTION_20261019.md.
+Review https://rnsolutions.net/northgate/jobs. No blocker remains; manual unmatched
+line reconciliation is Ryan's follow-up. Receipt-only push skips CI.
