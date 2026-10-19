@@ -47,6 +47,8 @@ import { CurrentBudgetCell } from './CurrentBudgetCell.jsx';
 import { JobResponsibilities } from './JobResponsibilities.jsx';
 import { effectiveCurrentBudget, hasCurrentBudgetOverride } from './currentBudget.js';
 import { classifyBudgetHealth } from './budgetHealth.js';
+import { signedBudgetBalance, budgetBalanceClass } from './budgetBalance.js';
+import { PROJECT_DIVISION_NAMES, financialDivisionName, financialDivisionLabel, financialLineDescription } from './financialDivisionLabels.js';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
@@ -150,11 +152,6 @@ const DEFAULT_CHANGE_ORDER_FORM = Object.freeze({
   isSaving: false,
 });
 const BUDGET_CATEGORY_OPTIONS = ['material', 'labor', 'subcontractor', 'equipment', 'permit', 'ohp_fee', 'other'];
-const PROJECT_DIVISION_NAMES = Object.freeze({
-  '01': 'General Requirements', '02': 'Site Work', '03': 'Concrete', '04': 'Masonry', '05': 'Metals',
-  '06': 'Woods and Plastics', '07': 'Thermal & Moisture Protection', '08': 'Doors and Windows',
-  '09': 'Finishes', '10': 'Specialties', '15': 'Mechanical', '16': 'Electrical',
-});
 const DEFAULT_BUDGET_FORM = Object.freeze({
   id: '',
   project_division_id: '',
@@ -1105,12 +1102,12 @@ function projectDivisionLabel(row) {
   const projectDivision = row?.project_division;
   if (projectDivision?.id) {
     return projectDivision.code
-      ? `Division ${projectDivision.code} — ${projectDivision.name || 'Unnamed'}`
+      ? financialDivisionLabel(projectDivision.code, projectDivision.name)
       : projectDivision.name || 'Unnamed project division';
   }
   const costCodeDivision = String(row?.cost_code || '').match(/^\d{2}/)?.[0];
   return costCodeDivision
-    ? `Division ${costCodeDivision} — ${PROJECT_DIVISION_NAMES[costCodeDivision] || 'Unnamed'}`
+    ? financialDivisionLabel(costCodeDivision, PROJECT_DIVISION_NAMES[costCodeDivision])
     : 'Unassigned project division';
 }
 
@@ -1127,9 +1124,9 @@ function projectDivisionKey(row) {
 
 function revenueDivisionLabel(row) {
   const division = row?.source_project_division;
-  if (division?.id) return division.code ? `Division ${division.code} — ${division.name || 'Unnamed'}` : division.name || 'Unnamed project division';
+  if (division?.id) return financialDivisionLabel(division.code, division.name);
   const code = String(row?.sov_line || '').match(/^\d{2}/)?.[0];
-  return code ? `Division ${code} — ${PROJECT_DIVISION_NAMES[code] || 'Unnamed'}` : 'Unassigned project division';
+  return code ? financialDivisionLabel(code, PROJECT_DIVISION_NAMES[code]) : 'Unassigned project division';
 }
 
 function revenueDivisionSortOrder(row) {
@@ -2309,9 +2306,9 @@ export function JobsWorkspace({ permissions }) {
   useEffect(() => () => setJobsNavState({ show: true, counts: {} }), [setJobsNavState]);
   const visibleCatalogueLines = useMemo(() => {
     const needle = catalogueSearch.trim().toLowerCase();
-    return financialCatalogue.filter((line) => !needle || [line.division_code, line.division_name, line.subdivision_name, line.cost_code, line.description].join(' ').toLowerCase().includes(needle));
+    return financialCatalogue.filter((line) => !needle || [line.division_code, financialDivisionName(line.division_code, line.division_name), line.subdivision_name, line.cost_code, financialLineDescription(line)].join(' ').toLowerCase().includes(needle));
   }, [catalogueSearch, financialCatalogue]);
-  const catalogueDivisions = useMemo(() => [...new Map(financialCatalogue.map((line) => [line.division_code, { code: line.division_code, name: line.division_name }])).values()]
+  const catalogueDivisions = useMemo(() => [...new Map(financialCatalogue.map((line) => [line.division_code, { code: line.division_code, name: financialDivisionName(line.division_code, line.division_name) }])).values()]
     .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })), [financialCatalogue]);
   const importVisibleRows = useMemo(() => (budgetImport.preview || []).filter((row) => budgetImport.granularity === 'all' || !row.rawCode.includes('.')), [budgetImport.preview, budgetImport.granularity]);
   const importDivisions = useMemo(() => [...new Set(importVisibleRows.map((row) => row.division).filter(Boolean))].sort(), [importVisibleRows]);
@@ -3752,7 +3749,7 @@ export function JobsWorkspace({ permissions }) {
           const selectedCode = divisionParts[1] === 'project' ? divisionParts[3] : divisionParts[2];
           const divisionLine = jobBudget.lines.find((line) => projectDivisionId ? (line.project_division_id || line.project_division?.id) === projectDivisionId : String(line.cost_code || '').startsWith(selectedCode));
           const code = selectedCode || divisionLine?.project_division?.code || String(divisionLine?.cost_code || '').match(/^\d{2}/)?.[0];
-          const name = divisionLine?.project_division?.name || `Division ${code}`;
+          const name = financialDivisionName(code, divisionLine?.project_division?.name) || PROJECT_DIVISION_NAMES[code] || `Division ${code}`;
           if (!code) throw new Error('Choose a project division before adding its change-order line.');
           budgetLine = jobBudget.lines.find((line) => (projectDivisionId ? line.project_division_id === projectDivisionId : !line.project_division_id) && line.cost_code === `${code}.CO`);
           if (!budgetLine) {
@@ -4965,6 +4962,7 @@ export function JobsWorkspace({ permissions }) {
       const financialRevisedTotal = jobBudget.lines.reduce((total, line) => total + budgetLineRevisedBudget(line), 0);
       const budgetOverrideCount = jobBudget.lines.filter(hasCurrentBudgetOverride).length;
       const actualTotal = sumField(jobBudget.lines, 'actual_cost_amount');
+      const remainingBudgetTotal = signedBudgetBalance(financialRevisedTotal, actualTotal);
       const committedTotal = sumField(jobBudget.lines, 'committed_cost_amount');
       const forecastFinalTotal = jobBudget.lines.reduce((total, line) => total + forecastFinal(line), 0);
       const forecastedRemainingBudgetTotal = financialRevisedTotal - forecastFinalTotal;
@@ -4977,7 +4975,7 @@ export function JobsWorkspace({ permissions }) {
         .reduce((total, line) => total + budgetLineRevisedBudget(line), 0);
       const projectedGrossProfit = revisedRevenueTotal - forecastFinalTotal;
       const projectedMargin = revisedRevenueTotal ? projectedGrossProfit / revisedRevenueTotal : null;
-      const budgetLineRemaining = (row) => budgetLineRevisedBudget(row) - (Number(row.actual_cost_amount) || 0);
+      const budgetLineRemaining = (row) => signedBudgetBalance(budgetLineRevisedBudget(row), row.actual_cost_amount);
       const budgetLineForecastedRemaining = (row) => budgetLineRevisedBudget(row) - forecastFinal(row);
       const budgetLineCanDelete = (row) => [
         row.budget_amount, row.current_budget_override_amount, row.budget_change_amount,
@@ -5022,6 +5020,7 @@ export function JobsWorkspace({ permissions }) {
       const budgetGroups = [...budgetRows.reduce((groups, row) => {
         const division = projectDivisionLabel(row);
         const group = groups.get(division) || { rows: [], sortOrder: projectDivisionSortOrder(row), projectDivisionId: row.project_division_id || row.project_division?.id || null };
+        group.projectDivisionId ||= row.project_division_id || row.project_division?.id || null;
         group.rows.push(row);
         groups.set(division, group);
         return groups;
@@ -5105,7 +5104,7 @@ export function JobsWorkspace({ permissions }) {
         {
           key: 'description',
           header: 'Description',
-          render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'description'} /> : editableBudgetValue(row, 'description', <strong>{row.description || 'Untitled budget line'}</strong>, 'description'),
+          render: (row) => isEditingBudgetRow(row) ? <input aria-label="Financial line description" className="job-financials-table-input job-financials-table-input--description" type="text" value={budgetForm.description} onChange={(event) => updateInlineBudgetField('description', event.target.value)} disabled={budgetForm.isSaving} autoFocus={budgetEditFocusField === 'description'} /> : editableBudgetValue(row, 'description', <strong>{financialLineDescription(row) || 'Untitled budget line'}</strong>, 'description'),
         },
         { key: 'budget_amount', header: 'Original Budget', render: (row) => inlineBudgetInput(row, 'budget_amount', 'Original budget') || editableBudgetValue(row, 'budget_amount', financialValue(row.budget_amount), 'original estimate'), align: 'right' },
         { key: 'budget_change_amount', header: 'Changes', render: (row) => inlineBudgetInput(row, 'budget_change_amount', 'Budget changes') || editableBudgetValue(row, 'budget_change_amount', financialValue((Number(row.budget_change_amount) || 0) + budgetLineChangeOrderAmount(row)), 'budget changes'), align: 'right' },
@@ -5117,8 +5116,8 @@ export function JobsWorkspace({ permissions }) {
         { key: 'actual_cost_amount', header: 'Actual Costs', render: (row) => inlineBudgetInput(row, 'actual_cost_amount', 'Actual costs') || editableBudgetValue(row, 'actual_cost_amount', financialValue(row.actual_cost_amount), 'actual costs'), align: 'right' },
         { key: 'committed_cost_amount', header: 'Committed Costs', render: (row) => inlineBudgetInput(row, 'committed_cost_amount', 'Committed costs') || editableBudgetValue(row, 'committed_cost_amount', financialValue(row.committed_cost_amount), 'committed costs'), align: 'right' },
         { key: 'remaining_budget', header: 'Remaining Budget', render: (row) => {
-          const health = classifyBudgetHealth(budgetLineRevisedBudget(row), row.actual_cost_amount);
-          return <span className="job-budget-health-cell"><strong>{formatMoney(budgetLineRemaining(row))}</strong><span className={`job-budget-health-badge job-budget-health-badge--${health.state}`}>{health.label}{health.remainingPercent === null ? '' : ` · ${Math.max(0, health.remainingPercent).toFixed(1)}% left`}</span></span>;
+          const health = classifyBudgetHealth(budgetLineRevisedBudget(row), row.actual_cost_amount, { signedRemaining: true });
+          return <span className={`job-budget-health-cell ${budgetBalanceClass(budgetLineRemaining(row))}`}><strong>{formatMoney(budgetLineRemaining(row))}</strong><span className={`job-budget-health-badge job-budget-health-badge--${health.state}`}>{health.label}{health.remainingPercent === null ? '' : ` · ${Math.max(0, health.remainingPercent).toFixed(1)}% left`}</span></span>;
         }, align: 'right' },
         { key: 'forecast_to_complete_amount', header: 'Monthly Forecast', render: (row) => inlineBudgetInput(row, 'forecast_to_complete_amount', 'Monthly forecast') || editableBudgetValue(row, 'forecast_to_complete_amount', financialValue(row.forecast_to_complete_amount), 'monthly forecast'), align: 'right' },
         {
@@ -5265,9 +5264,10 @@ export function JobsWorkspace({ permissions }) {
           <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Current Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes; ${budgetOverrideCount} manual overrides`} />
             <SummaryCard label="Actual Costs" value={formatMoney(actualTotal)} detail="Costs posted to date" />
+            <SummaryCard label="Remaining Budget" value={formatMoney(remainingBudgetTotal)} detail="Current budget minus actual costs" tone={remainingBudgetTotal < 0 ? 'danger' : remainingBudgetTotal > 0 ? 'good' : 'default'} />
             <SummaryCard label="Committed Costs" value={formatMoney(committedTotal)} detail="Buyout or committed exposure" />
             <SummaryCard label="Completion Forecast" value={formatMoney(forecastFinalTotal)} detail="Expected total cost at completion" />
-            <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Current budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : 'good'} />
+            <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Current budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : forecastedRemainingBudgetTotal > 0 ? 'good' : 'default'} />
             {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
             {canViewProtectedProjectFinancials ? <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} /> : null}
           </div>
@@ -5297,9 +5297,9 @@ export function JobsWorkspace({ permissions }) {
               <div className="financial-export-divisions">{catalogueDivisions.map((division) => {
                 const members = financialCatalogue.filter((line) => line.division_code === division.code);
                 const selected = members.filter((line) => catalogueSelectedIds.includes(line.id)).length;
-                return <label key={division.code}><input type="checkbox" checked={selected === members.length} onChange={(event) => setCatalogueSelectedIds((current) => event.target.checked ? [...new Set([...current, ...members.map((line) => line.id)])] : current.filter((id) => !members.some((line) => line.id === id)))} /><span><strong>Division {division.code} — {division.name}</strong><small>{selected} of {members.length} cost-code lines selected</small></span></label>;
+                return <label key={division.code}><input type="checkbox" checked={selected === members.length} onChange={(event) => setCatalogueSelectedIds((current) => event.target.checked ? [...new Set([...current, ...members.map((line) => line.id)])] : current.filter((id) => !members.some((line) => line.id === id)))} /><span><strong>{financialDivisionLabel(division.code, division.name)}</strong><small>{selected} of {members.length} cost-code lines selected</small></span></label>;
               })}</div>
-              <div className="financial-export-section"><label><span>Find individual cost codes</span><input value={catalogueSearch} onChange={(event) => setCatalogueSearch(event.target.value)} placeholder="Search code or description" /></label><div className="financial-setup-lines">{visibleCatalogueLines.map((line) => <label key={line.id}><input type="checkbox" checked={catalogueSelectedIds.includes(line.id)} onChange={(event) => setCatalogueSelectedIds((current) => event.target.checked ? [...current, line.id] : current.filter((id) => id !== line.id))} /><span>{line.cost_code} — {line.description}</span></label>)}</div></div>
+              <div className="financial-export-section"><label><span>Find individual cost codes</span><input value={catalogueSearch} onChange={(event) => setCatalogueSearch(event.target.value)} placeholder="Search code or description" /></label><div className="financial-setup-lines">{visibleCatalogueLines.map((line) => <label key={line.id}><input type="checkbox" checked={catalogueSelectedIds.includes(line.id)} onChange={(event) => setCatalogueSelectedIds((current) => event.target.checked ? [...current, line.id] : current.filter((id) => id !== line.id))} /><span>{line.cost_code} — {financialLineDescription(line)}</span></label>)}</div></div>
               <p className="muted-copy">{catalogueSelectedIds.length} lines selected. Existing matching financial amounts will be preserved.</p>
             </> : <StatePanel tone="warn" title="No template lines loaded" description="The shared financial-line catalogue is empty in this environment. You can add a line manually; the template catalogue must be seeded before division selection is available." compact />}
             {budgetTemplateAction.error ? <StatePanel tone="danger" title="Template could not be applied" description={budgetTemplateAction.error.message} compact /> : null}
@@ -5313,7 +5313,7 @@ export function JobsWorkspace({ permissions }) {
               <div className="financial-export-section"><div className="financial-export-section__heading"><strong>Select Divisions and lines</strong><div className="financial-export-quick-actions"><button type="button" className="text-button" onClick={() => setBudgetImport((current) => ({ ...current, selectedCodes: importVisibleRows.filter((row) => row.matches.length === 1).map((row) => row.code) }))}>Select all matches</button><button type="button" className="text-button" onClick={() => setBudgetImport((current) => ({ ...current, selectedCodes: [] }))}>Clear</button></div></div><div className="financial-export-divisions">{importDivisions.map((division) => {
                 const rows = importVisibleRows.filter((row) => row.division === division && row.matches.length === 1);
                 return <label key={division}><input type="checkbox" disabled={!rows.length} checked={Boolean(rows.length) && rows.every((row) => budgetImport.selectedCodes.includes(row.code))} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...new Set([...current.selectedCodes, ...rows.map((row) => row.code)])] : current.selectedCodes.filter((code) => !rows.some((row) => row.code === code)) }))} /><span><strong>Division {division}</strong><small>{rows.length} matching lines</small></span></label>;
-              })}</div><div className="financial-setup-lines">{importVisibleRows.map((row) => <label key={row.code}><input type="checkbox" disabled={row.matches.length !== 1} checked={budgetImport.selectedCodes.includes(row.code)} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...current.selectedCodes, row.code] : current.selectedCodes.filter((code) => code !== row.code) }))} /><span><strong>{row.rawCode}</strong> · {row.matches.length === 1 ? row.matches[0].description : row.matches.length ? 'Ambiguous match — review manually' : 'No matching job line'}<small>Estimate {row.estimate == null ? '—' : formatMoney(row.estimate)} · Actual {row.actual == null ? '—' : formatMoney(row.actual)} · Revenue {row.revenue == null ? '—' : formatMoney(row.revenue)}</small></span></label>)}</div></div>
+              })}</div><div className="financial-setup-lines">{importVisibleRows.map((row) => <label key={row.code}><input type="checkbox" disabled={row.matches.length !== 1} checked={budgetImport.selectedCodes.includes(row.code)} onChange={(event) => setBudgetImport((current) => ({ ...current, selectedCodes: event.target.checked ? [...current.selectedCodes, row.code] : current.selectedCodes.filter((code) => code !== row.code) }))} /><span><strong>{row.rawCode}</strong> · {row.matches.length === 1 ? financialLineDescription(row.matches[0]) : row.matches.length ? 'Ambiguous match — review manually' : 'No matching job line'}<small>Estimate {row.estimate == null ? '—' : formatMoney(row.estimate)} · Actual {row.actual == null ? '—' : formatMoney(row.actual)} · Revenue {row.revenue == null ? '—' : formatMoney(row.revenue)}</small></span></label>)}</div></div>
               <div className="financial-export-section"><strong>Values to import</strong><div className="financial-export-options">{[['estimate', 'Estimated Costs / Original Budget'], ['actual', 'Actual Costs'], ['revenue', 'Revenue (preview only)']].map(([field, label]) => <label key={field}><input type="checkbox" checked={budgetImport.fields[field]} onChange={(event) => setBudgetImport((current) => ({ ...current, fields: { ...current.fields, [field]: event.target.checked } }))} />{label}</label>)}</div>{budgetImport.fields.revenue ? <p className="muted-copy">Revenue is displayed for review but will not write to Billing/SOV in this import.</p> : null}{budgetImport.fields.estimate ? <label><span>Reason for Original Budget updates</span><input value={budgetImport.reason} onChange={(event) => setBudgetImport((current) => ({ ...current, reason: event.target.value }))} placeholder="Required when importing estimates" /></label> : null}</div>
               <p className="muted-copy">{budgetImport.selectedCodes.filter((code) => importVisibleRows.some((row) => row.code === code && row.matches.length === 1)).length} matched lines selected. Unmatched and ambiguous lines are never changed. The original report will be saved in Job Documents under Cost Reports before the financial batch is applied.</p>
             </> : null}
@@ -5330,6 +5330,7 @@ export function JobsWorkspace({ permissions }) {
 
           {budgetGroups.map(([division, group]) => {
             const rows = group.rows;
+            const linkedDivision = rows.find((row) => row.project_division?.id === group.projectDivisionId)?.project_division;
             const isCollapsed = collapsedBudgetDivisions[division] !== false;
             const unassignedDivisionChangeOrders = group.projectDivisionId
               ? approvedChangeOrderCostByProjectDivisionId.get(group.projectDivisionId) || 0
@@ -5341,7 +5342,8 @@ export function JobsWorkspace({ permissions }) {
             const divisionOverrideCount = rows.filter(hasCurrentBudgetOverride).length;
             const divisionActualCosts = sumField(rows, 'actual_cost_amount');
             const divisionFinalForecast = rows.reduce((total, row) => total + forecastFinal(row), 0);
-            const divisionRemainingBudget = divisionTotalBudget - divisionFinalForecast;
+            const divisionRemainingBudget = signedBudgetBalance(divisionTotalBudget, divisionActualCosts);
+            const divisionForecastedRemainingBudget = divisionTotalBudget - divisionFinalForecast;
             return (
               <section className="job-budget-division" key={division}>
                 <div className="job-budget-division__header">
@@ -5367,9 +5369,13 @@ export function JobsWorkspace({ permissions }) {
                       <small>Actual costs</small>
                       <strong>{formatMoney(divisionActualCosts)}</strong>
                     </span>
-                    <span className={divisionRemainingBudget < 0 ? 'is-negative' : 'is-positive'}>
-                      <small>Remaining</small>
+                    <span className={budgetBalanceClass(divisionRemainingBudget)}>
+                      <small>Remaining Budget</small>
                       <strong>{formatMoney(divisionRemainingBudget)}</strong>
+                    </span>
+                    <span className={budgetBalanceClass(divisionForecastedRemainingBudget)}>
+                      <small>Forecasted Remaining Budget</small>
+                      <strong>{formatMoney(divisionForecastedRemainingBudget)}</strong>
                     </span>
                   </span>
                   </button>
@@ -5377,7 +5383,7 @@ export function JobsWorkspace({ permissions }) {
                     <button
                       type="button"
                       className="secondary-button job-budget-division__add-line"
-                      onClick={() => startBudgetAdd({ id: group.projectDivisionId, code: rows[0]?.project_division?.code, name: rows[0]?.project_division?.name, sort_order: rows[0]?.project_division?.sort_order }, division)}
+                      onClick={() => startBudgetAdd({ ...linkedDivision, id: group.projectDivisionId }, division)}
                       disabled={isAddingBudgetLine || budgetForm.isSaving || Boolean(budgetForm.id)}
                     >
                       <Plus aria-hidden="true" /> Add Line
@@ -5391,7 +5397,7 @@ export function JobsWorkspace({ permissions }) {
                   permissions={permissions}
                   isLoading={jobBudget.isLoading}
                   error={jobBudget.error}
-                  rowClassName={(row) => `job-budget-health-row--${classifyBudgetHealth(budgetLineRevisedBudget(row), row.actual_cost_amount).state}`}
+                  rowClassName={(row) => `job-budget-health-row--${classifyBudgetHealth(budgetLineRevisedBudget(row), row.actual_cost_amount, { signedRemaining: true }).state}`}
                   dense
                   minWidth="1920px"
                   emptyTitle="No financial lines for this division"

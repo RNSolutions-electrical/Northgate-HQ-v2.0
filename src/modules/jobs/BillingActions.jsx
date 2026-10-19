@@ -6,6 +6,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge.jsx';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
 import { PAY_APP_TEMPLATE_OPTIONS, getPayAppTemplate } from './billingPayAppTemplates.js';
+import { financialDivisionLabel } from './financialDivisionLabels.js';
 
 const MONEY = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const today = () => new Date().toISOString().slice(0, 10);
@@ -212,7 +213,7 @@ function PayTable({ titleText, note, rows, kind, editable, correction, load, act
   const [collapsedDivisions, setCollapsedDivisions] = useState({});
   const groups = kind === 'sov' ? [...visibleRows.reduce((result, row) => {
     const code = row.project_division_code || String(row.cost_code || '').match(/^\d{2}/)?.[0] || '';
-    const label = code ? `Division ${code} — ${row.project_division_name || 'Unnamed'}` : 'Unassigned project division';
+    const label = code ? financialDivisionLabel(code, row.project_division_name) : 'Unassigned project division';
     const group = result.get(label) || { rows: [], sortOrder: Number(code || 999) };
     group.rows.push(row); result.set(label, group); return result;
   }, new Map()).entries()].sort(([, left], [, right]) => left.sortOrder - right.sortOrder) : [['Approved Change Orders', { rows: visibleRows, sortOrder: 0 }]];

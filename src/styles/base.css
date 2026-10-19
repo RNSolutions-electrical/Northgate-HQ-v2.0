@@ -689,7 +689,9 @@ svg { stroke-width: 1.8; }
 .job-budget-health-badge--warning { color: #79520b; background: #fff3d3; }
 .job-budget-health-badge--danger,
 .job-budget-health-badge--over-budget { color: #98242d; background: #fce9e9; }
-.job-budget-health-badge--unavailable { color: #5a6570; background: #eef1f4; }
+.job-budget-health-badge--unavailable,
+.job-budget-health-badge--neutral { color: #5a6570; background: #eef1f4; }
+.job-budget-health-cell.is-negative > strong { color: var(--ng-err); }
 .job-responsibilities { border: 1px solid var(--ng-border, #d9e0e7); background: #fff; border-radius: 5px; padding: 1rem; margin: 1rem 0; }
 .job-responsibilities h3 { margin: .15rem 0; }
 .job-responsibilities p { margin: .25rem 0 .8rem; color: #586574; }
@@ -4249,7 +4251,7 @@ textarea {
 
 .job-budget-division__metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(92px, auto));
+  grid-template-columns: repeat(3, minmax(92px, auto));
   gap: 0.6rem;
   justify-content: end;
   min-width: 0;

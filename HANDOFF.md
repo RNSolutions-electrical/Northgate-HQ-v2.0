@@ -23579,3 +23579,25 @@ Ready Netlify deploy 6ad277ec3e1d3405f3a50496 published exact code 76221e03a7621
 
 ## Project-division CO trigger timing — Staging only, 2026-10-16
 Ryan authorized Staging repair/testing and a separate customer reconciliation plan at20:46:39UTC. Migration source20261016204812 (commit a73ba84c7d122c4ea833c2d5e836d36c408006e2, SHA256 EBABC55D6CA3CD21622C71E9AF3786322D5AB84535FFE73D67EA64ECC46E8840) applied only to isolated Staging fazfwzbuesvzhgodckiw, actual ledger20261016205518 fix_project_division_co_attachment_timing. Existing attachment trigger now AFTER INSERT before ensure trigger alphabetically; unchanged FK/functions/owners/ACLs, six exact business-data fingerprints unchanged. Local PostgreSQL18.4 exact reproduction, migration idempotence/preflight rollback, protected-alignment rollback, real two-connection wait/retry, CO reuse/no duplicates and unchanged amount tests pass; actual Staging authorization evaluator/ACL checks and336 named tests pass(1skip). No live template/test-record mutations or Production/customer correction. Frontend remains ready Netlify6ad277ec3e1d3405f3a50496/app76221e03; review-scroll preserved. Detailed customer mapping plan is local/ignored pending review, with three ambiguous generic lines withheld. Receipt/recovery/limits:docs/releases/PROJECT_DIVISION_CO_TIMING_STAGING_20261016.md. Source/receipt-only pushes skip CI; Production remains unapproved.
+
+## Entry 373 - Actual Remaining Budget and Division 07 labels, Staging candidate
+
+**Date:** 2026-10-19
+**Updated by:** Codex
+**Phase:** Focused financial-line display correction
+**Session type:** implementation
+
+### Context
+Ryan approved Staging-only actual Remaining Budget and added consistent Division 07 labeling plus focused creation/import/aggregation regression review.
+
+### What Was Completed
+Job/division/expanded-line actual remaining is signed current budget minus actual; Toro split lines yield -$1,229.59. Explicit forecast balance retains its original semantics. Zero-budget costs stay negative/red/over budget; zero is neutral without invalid percentages. Targeted known catalogue alias displays canonically, future workbook import/export prevents its recurrence, custom/stored names remain intact, and grouped Add Line retains linked division metadata. Existing Staging source/migrations and unrelated checkouts are preserved.
+
+### Code / File Changes
+Jobs/Billing/division picker/export/catalogue import and presentation helpers/styles, focused unit/browser fixtures and release record. Current-budget override precedence, financial RPCs, data, schema, auth, dependencies and forecast semantics are unchanged.
+
+### What Codex Needs to Know
+Final aggregate: 362 pass/1 skip/0 fail; 40 synthetic financial UI groups plus existing Add Line, financial workflows and preserved review-scroll regressions pass. Final synthetic Staging build and visual QA pass. No live financial mutations. Existing SQL templates still copy the stored catalogue spelling until separately approved data correction; exact affected records are local/ignored. Full coverage/limits and pending deploy receipt: docs/releases/FINANCIAL_REMAINING_LABELS_STAGING_20261019.md.
+
+### Next Steps (in order)
+Push verified fast-forward to Staging only, confirm exact Netlify receipt and signed-in read-only UI, then Ryan review. Do not promote this branch to Production or apply stored-label/customer-link corrections without separate authorization.

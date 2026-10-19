@@ -31,7 +31,7 @@ test('SOV and Pay App interfaces group lines into collapsible project divisions'
   assert.match(jobs, /collapsedRevenueDivisions/);
   assert.match(jobs, /revenueGroups\.map/);
   assert.match(billing, /collapsedDivisions/);
-  assert.match(billing, /Division \$\{code\}/);
+  assert.match(billing, /financialDivisionLabel\(code, row\.project_division_name\)/);
   assert.match(billing, /Collapse All/);
 });
 

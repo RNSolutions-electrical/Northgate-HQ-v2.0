@@ -12,3 +12,13 @@ test('classifies budget boundaries without changing amounts', () => {
   ]) assert.equal(classifyBudgetHealth(budget, actual).state, expected);
   assert.equal(classifyBudgetHealth(10000, 10500).label, 'OVER BUDGET');
 });
+
+test('zero and negative budgets retain over-budget status without a percentage denominator', () => {
+  const classify = (budget, actual) => classifyBudgetHealth(budget, actual, { signedRemaining: true });
+  assert.deepEqual(classify(0, 6729.59), { state: 'over-budget', label: 'OVER BUDGET', remainingPercent: null });
+  assert.equal(classify(-100, -50).state, 'over-budget');
+  assert.equal(classify(-100, -150).remainingPercent, null);
+  assert.deepEqual(classify(0, 0), { state: 'neutral', label: 'At budget', remainingPercent: null });
+  assert.equal(classify(100, 100).state, 'neutral');
+  assert.equal(classify(0.3, 0.1 + 0.2).state, 'neutral');
+});
