@@ -33,6 +33,7 @@ export function FinancialNameOverride({line,division,canPropose,canApprove,onSav
   const linked=division?Boolean(metadata.catalogue_division_id):Boolean(metadata.catalogue_line_id);
   if(!linked)return <small className="financial-name-hint">Job-only custom {division?'division':'line'}</small>;
   const overridden=metadata.name_override!==null && metadata.name_override!==undefined;
+  const retired=metadata.catalogue_active===false;
   async function save(event){
     event.preventDefault();if(lock.current)return;lock.current=true;setBusy(true);setError('');
     try{
@@ -48,8 +49,9 @@ export function FinancialNameOverride({line,division,canPropose,canApprove,onSav
       setOpen(false);onSaved?.();
     }catch(e){setError(e.message || 'The project name was not saved.');}finally{lock.current=false;setBusy(false);}
   }
+  if(division && !overridden && !retired && !canPropose && !open)return null;
   return <div className="financial-name-control">
-    <small className="financial-name-hint">{overridden?'Project name override':'Catalogue name'}{metadata.catalogue_active===false?' · Retired for new use':''}</small>
+    {overridden || !division || retired ? <small className="financial-name-hint">{overridden?'Project name override':division?'':'Catalogue name'}{retired?`${overridden || !division?' · ':''}Retired for new use`:''}</small> : null}
     {overridden?<small className="financial-name-hint">Catalogue: {metadata.catalogue_name}</small>:null}
     {canPropose?<button ref={opener} type="button" className="text-button" onClick={()=>{setValue(metadata.name_override || '');setError('');setOpen(true);}}>Edit {division?'division':'line'} name</button>:null}
     {open?createPortal(<div className="ng-dialog-root"><div className="ng-dialog-scrim is-open"/><form ref={panel} onKeyDown={dialogKey} className="ng-dialog financial-name-dialog" role="dialog" aria-modal="true" aria-label={`Project ${division?'division':'line'} name`} onSubmit={save}>
