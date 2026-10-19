@@ -84,3 +84,78 @@ do not imply live non-Developer authorization was exercised.
 ## Publication and live preservation receipt
 
 Exact code/deploy, asset and final read-only preservation receipts follow below.
+
+### Verified ready release
+
+- Exact deployed `main` commit:
+  **`e8a239de6389eb40a8f5a1cac559cfd23241f6d1`**.
+- Production site: `16adb4ff-83a9-4440-8aad-fcb820d55cac` (`northgate-hq-v2`).
+- Ready deploy: **`6ad69040e21f5c2ab1335be8`**, branch `main`, published
+  **2026-10-19 21:49:05.841 UTC**. Exact commit confirmed; no deploy error.
+- Live: https://rnsolutions.net/northgate/jobs . Immutable:
+  https://6ad69040e21f5c2ab1335be8--northgate-hq-v2.netlify.app/northgate/jobs .
+- Secret scan: 1,063 files, zero regular/enhanced matches. Strict-TLS custom and
+  immutable Jobs/Developer/Estimates/Inventory deep links return 200. Served assets
+  have correct MIME types and identical hashes. Production identity and grouping
+  controls are present; Staging URL, synthetic key and private fixture markers are
+  absent.
+
+JavaScript `/northgate/assets/index-DC3ychBt.js` is 2,110,651 bytes, SHA256
+`ffc03fe1d12969e417d4d0dc2e0d67c84df6226d7c2c787a27dae8393e28fdeb`.
+CSS `/northgate/assets/index-CFpMAqNI.css` is 186,097 bytes, SHA256
+`1b369a81dae546c60fb830877afca916c1f5eb5d45bafea001911061bbe3cae3`.
+The rolldown runtime hash is
+`5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75`.
+Ignored `.temp/grouping-promotion-deploy.json` holds the served receipt.
+
+### Authenticated live result
+
+The existing signed-in Developer session on the ready code confirms **13 sections
+and 13 Add Line buttons**, with **124 rendered financial rows**. All eight summary
+cards are byte-for-byte identical to the pre-deploy UI baseline. Concrete has six
+rows, Thermal/Moisture eight, Openings 13 and Electrical 12. The export chooser
+matches these 13 sections and reports **124 of 124 authorized lines**.
+
+Inferred Electrical and explicit Division07 Add Line each open exactly one draft
+inside the correct section; Cancel removes each draft. Unassigned opens the
+12-division chooser; Cancel closes it. No live form value, Save, proposal, import,
+template rebuild or financial record mutation is submitted. Protected custom
+`16.5` is visible under the merged Electrical header as O&P/Protected, preserving
+its $34,131 original/current budget and completion forecast. The header retains
+$147,900 current/original, $19,006.20 actual, $128,893.80 actual remaining and
+$1,526.60 forecast balance. Expanded Electrical pins at the measured 63px shell
+boundary; column labels begin at its 158.46875px bottom. The review tab remains
+open with no draft and no captured browser error.
+
+The Contract Changes view retains the same 21 displayed records, including the
+approved Firewall/Insulation and voided Countertops entries, with identical rendered
+status, amount, decision and action text. All 22 underlying Toro CO records and
+its two posting records are independently compared in full by the snapshots.
+
+### Post-deploy financial preservation
+
+The final read-only snapshot at **2026-10-19 21:50:47.651008 UTC**, after the cancelled
+Add Line/export/CO checks, matches the **21:47:46.573676** pre-deploy snapshot.
+Every original active Toro row matches field for field, with no additions/removals.
+Across all Production jobs, complete table counts and full-row checksums match:
+
+| Table | Count | Unchanged MD5 |
+| --- | ---: | --- |
+| job_budget_lines | 671 | `05e7db0cc9fdc4330fe080e7adf0a746` |
+| job_budget_divisions | 53 | `b9102424c3af6180be3bd75de50012e3` |
+| change_orders | 49 | `8fa15ac80dbf823ddb736838958dc696` |
+| change_order_financial_postings | 16 | `fd03c86d3d5315ceb795150f8ac8e05d` |
+| change_order_allocations | 6 | `a989909aa84eb1d63b513ad44d8fbb66` |
+| job_revenue_lines | 360 | `7416eaf8a56412abb1be49e956f7164a` |
+| job_pay_applications | 8 | `4a3a1df2c5085506f1727ea0b5212722` |
+| job_pay_application_lines | 382 | `ca2c142dc5ca7b9a7d177a7ebb86e799` |
+| change_logs | 4,820 | `fb158b10122456057adb6dc24ebd58f4` |
+
+Thus existing approvals, amounts, posted CO ledger/reversals, allocations, links,
+issued billing snapshots and audit history are preserved with no double posting.
+No concurrent financial/audit change was observed during these fresh snapshots.
+Ignored `grouping-promotion-preservation.json` records exact timestamps/counts/
+hashes; raw before/after snapshots remain local. No financial or database write was
+performed by this task. Local multi-role/save/failure tests supplement the live
+Developer read/cancel smoke; live non-Developer saves were not exercised. No release
+blocker remains. Receipt-only documentation uses `[skip ci]` to preserve this deploy.

@@ -23634,3 +23634,20 @@ PostgreSQL groups and synthetic Production build pass. Raw data remains ignored 
 excluded from published assets. Exact receipts and limitations follow in
 docs/releases/FINANCIAL_DIVISION_GROUPING_PRODUCTION_20261019.md. Deploy only through
 the focused main fast-forward; preserve Staging and existing financial records.
+
+### Verified Production publication - 2026-10-19
+
+Exact `main` source `e8a239de6389eb40a8f5a1cac559cfd23241f6d1` is ready as Netlify
+`6ad69040e21f5c2ab1335be8`, published 21:49:05.841 UTC. Custom/immutable HTTPS assets
+and deep links match with correct Production identity, no private fixtures/synthetic
+keys and zero scan findings. Authenticated Toro now has 13 sections/124 rendered
+rows, unchanged eight summary cards, merged protected 16.5 O&P at $34,131, working
+inferred/explicit Add Line/Cancel, a 12-context Unassigned chooser, matching export
+membership and pinned Electrical header at 63px. No live Save or record mutation.
+The Contract Changes view is unchanged. Final 21:50:47.651008 read-only snapshot
+matches 21:47:46.573676 for all seven complete financial tables, 382 issued Pay App
+lines and all 4,820 audit rows; every Toro row and its full CO/posting records match.
+No approval/amount/link/history change, rebuild, repost or double counting occurred.
+Exact assets/counts/hashes/limits: docs/releases/FINANCIAL_DIVISION_GROUPING_PRODUCTION_20261019.md.
+No blocker remains; Production Toro is open for Ryan. Receipt-only push skips CI;
+Staging remains on fa8ffd9/6ad665 without merging its unrelated changes.
