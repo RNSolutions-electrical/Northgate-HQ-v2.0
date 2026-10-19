@@ -23565,3 +23565,34 @@ Ryan approved implementation and Staging at 19:08 UTC. The top Add action target
 
 ## v0.9.3 Project Financials Add Line Production — 2026-10-16
 Ryan verified Staging and approved Production. Released dc2de6d/v0.9.3, Netlify 6ad28722f48eddc8eb974f91 at 20:21:08 UTC. Division picker/empty budgets, visible save errors and draft/retry protection verified. 354 tests plus desktop/phone Add and desktop/tablet/phone workflow regressions/build pass. Only two reviewed product files changed; estimating/unreviewed scrollbar/DB/dependencies/config excluded. Five financial RPC hashes/owners/ACLs unchanged; no real record actions. See docs/releases/V0_9_3_PROJECT_FINANCIAL_ADD_PRODUCTION_20261016.md.
+# Entry 376 - Reviewed financial catalogue package, Production promotion
+
+Ryan approved the signed actual Remaining Budget, central catalogue/local naming,
+focused Job Edit menu, bounded sticky financial headers and final inherited-label
+spacing cleanup. He explicitly approved preserving all 37 unmatched existing lines
+as job-only custom and will correct them manually from his report. No inferred
+mapping, recategorization, amount/history correction or Production test save.
+
+The isolated release is built from main `1e0c5635`, selecting only 38 reviewed
+source/test/migration files with bytes identical to cleanup Staging `376dbf8`.
+Unrelated Staging estimate review viewport files are excluded; Production release
+history, currentBudget override rules and dependencies are retained. Local prepared
+code `58a9c0e` passes 366 aggregate tests/one skip, builds, five Edit/sticky UI groups,
+three catalogue groups, 40 Remaining Budget groups, seven Add Line groups, existing
+financial workflows and nine PostgreSQL migration/recovery groups.
+
+Fresh Production preflight matches the approved mapping. Catalogue SQL is applied
+as ledger `20261019164425 central_financial_catalogue_names`, source SHA256
+`31bf5499d9fa4ac4985897d32bd1ca9cc73774063fe3c99a9a10e24a6c8f8fb5`;
+stored SQL byte count/digest match. All original financial/division/revenue/Pay App/
+legacy-code/audit fingerprints and per-job values are unchanged. Post-state: 630
+linked + 37 custom = 667 lines; 180 copied-name overrides; all 53 divisions linked,
+six local names; no helper rows, missing division links retained. All 3,851 original
+audits unchanged; 910 metadata audits added. Existing triggers advance ten job
+baseline versions; proposals must reload. Authorization helpers unchanged, RLS and
+grants verified, only the expected guarded-RPC/index advisor notices are added.
+
+Staging cleanup is ready as `6ad64572172aff953870faad`. Production application
+publication/live receipt follows in docs/releases/FINANCIAL_CATALOGUE_PROMOTION_20261019.md.
+Recover UI forward through a source revert/CI; preserve additive catalogue metadata
+and audits. Do not drop schema/restore old financial RPCs after naming writes.

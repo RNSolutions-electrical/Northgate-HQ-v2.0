@@ -5,8 +5,10 @@ hint from financial division headers and closing the gap before Add Line. Approv
 covers signed actual Remaining Budget, central catalogue/project naming overrides,
 the focused Job Edit menu, section-bounded sticky headers and that visual cleanup.
 It does not authorize merging unrelated Staging work or changing the meanings of
-unmatched Production codes. No Production action has been performed by this release
-yet; the mapping decision below is pending.
+unmatched Production codes. Ryan subsequently approved preserving all unmatched
+entries as job-only custom lines and will reconcile them manually from his job
+cost report. The required catalogue migration is now verified in Production;
+the application publication receipt follows below when ready.
 
 ## Verified cleanup on Staging
 
@@ -76,7 +78,7 @@ invariance, no CO helper insertion, role/job bounds, proposal application and ra
 Permission helpers in that rehearsal are synthetic; live tests remain read-only.
 Evidence is ignored under each worktree's `.temp/`.
 
-## Production preflight and pending mapping decision
+## Production preflight and approved preservation decision
 
 Read-only confirmed target: Supabase `keogysnoukbendfkfjcn` (`northgate-hq-v2.0`),
 healthy PostgreSQL 17.6. Production has no `financial_division_catalogue` table and
@@ -94,12 +96,10 @@ The exact Staging migration would map 630 lines and mark **37 unmatched lines
 accounting-baseline code. Their current descriptions/categories have real meanings;
 none should be inferred into a different master entry.
 
-The proposed preservation path leaves every unmatched code unlinked and preserves
-its exact code, description, category, amounts, division links and history, while
-explicitly recording the job-only flag. This requires a mapping decision under
-Ryan's instruction not to silently reclassify unmatched codes. A choice between
-that preservation path and holding for code-by-code review is pending. **No
-Production migration, main push or deploy has begun. This is pending, not denied.**
+Ryan approved leaving every unmatched code unlinked and preserving its exact code,
+description, category, amounts, division links and history while explicitly
+recording the job-only flag. He will make report-based corrections manually.
+No automatic inferred catalogue match or business-data correction is included.
 
 For matched codes, 180 differing copied descriptions would become explicit local
 name overrides without overwriting their originals. All 434 existing category
@@ -109,7 +109,7 @@ not transfer costs, insert balancing/CO rows, fill/clamp forecasts or reclassify
 financial categories. It reuses existing Developer/job/line authorization bounds;
 no credential or broader security-sensitive access is required.
 
-## Execution and recovery plan after the mapping decision
+## Execution and recovery plan
 
 1. Refresh refs, ready deploy and Production read-only snapshot. Recheck the exact
    mapping counts, guarded function hashes, uniqueness/length constraints and
@@ -138,4 +138,51 @@ The requested software-engineering skill was searched through the complete cloud
 and executor catalogues and local/repository locations; it is unavailable. Existing
 repository working/release instructions plus the Supabase and Netlify deployment
 skills govern this bounded release. Production completion receipts will be appended
-only after the pending mapping choice and verified execution.
+only after verified execution.
+
+## Verified Production migration
+
+Fresh preflight at **2026-10-19 16:43:53.871761 UTC** still matched all reviewed
+mapping counts and function hashes, with no ambiguous code/division matches or
+invalid copied names. Main remained `1e0c5635`; no intervening edits were overwritten.
+
+Exact reviewed SQL applied through the supported migration tool to Production
+`keogysnoukbendfkfjcn` as ledger **`20261019164425 central_financial_catalogue_names`**.
+The ledger stores one 45,867-byte SQL statement, MD5
+`fc7577ce65e5066c1f3d931276e787a2`, identical to the reviewed file (SHA256 above).
+
+Post-application: **667 original lines, 630 linked, 37 job-only custom (36 active),
+180 preserved local line names, 53 linked original project divisions, six local
+division names, 12 master divisions and 177 master codes**. All 348 originally
+missing physical division links remain missing. Zero mapping errors and no new
+financial/CO helper lines. There are 910 explicit metadata/seed audit records;
+all 3,851 earlier audit records remain byte-for-byte unchanged.
+
+| Original data (new metadata/timestamps excluded where applicable) | MD5 before and after |
+| --- | --- |
+| Financial identities, amounts, categories and copied text | `4b0147c8e86f6f6fbacb48fcebebcfef` |
+| Project divisions and original names | `c8e69dbe8709ead8dec8fe2a53697f00` |
+| Revenue | `7416eaf8a56412abb1be49e956f7164a` |
+| Issued Pay App lines | `ca2c142dc5ca7b9a7d177a7ebb86e799` |
+| Legacy inventory cost codes | `87bb05e67ed040e068e54aa6cd847dab` |
+| Existing audit history | `fb4f348703176309dd0999882241afbc` |
+
+Per-job original/adjustment/actual/forecast/override sums and row counts also match.
+Existing baseline triggers remain enabled: ten jobs' concurrency versions advance
+by their 667 total metadata updates; one job with no mapped lines is unchanged.
+Toro Pizzeria advances 51 to 178. Pending proposals must reload the new baseline;
+this is metadata concurrency, not a monetary change.
+
+Existing authorization helper hashes/owners/grants are unchanged. The new master
+table has RLS; anonymous SELECT and authenticated direct UPDATE are denied. The
+internal reference trigger is not directly executable by authenticated users.
+Public read/save RPCs reject anonymous callers and retain the reviewed internal
+Developer/job/line bounds. No credential, role or broader access was introduced.
+
+Advisor comparison adds only the three intentional guarded authenticated RPC
+[SECURITY DEFINER notices](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+and two [unused-index informational notices](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)
+for the new master/reference indexes. Existing anonymous-execute, RLS/policy,
+search-path, view and unindexed-FK findings are unchanged. Exact snapshots and
+comparisons are ignored under `.temp/production-catalogue-before.json` and
+`.temp/production-catalogue-after.json`.
