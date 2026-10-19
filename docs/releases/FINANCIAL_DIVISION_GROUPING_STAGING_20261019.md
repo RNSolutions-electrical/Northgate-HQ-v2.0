@@ -96,3 +96,47 @@ permissions. Live verification uses the existing signed-in desktop Developer
 session and cancelled workflows; no live Add Line/name/reset/proposal save is made.
 Production site/main and both environments' seven financial table fingerprints
 are checked for invariance around this Staging-only deployment.
+
+### Verified publication
+
+- Exact code commit: **`5f7ce88916e7d4948440e335182f3179577b465e`**.
+- Dedicated Staging site: `431ce717-1a06-45a0-9d7a-8acd06a67dde`.
+- Ready deploy: **`6ad665bfdba3040672cb1502`**, branch `staging`, published
+  **2026-10-19 18:47:50.667 UTC**, exact commit confirmed, no deploy error.
+- Review: https://staging.rnsolutions.net/jobs . Immutable receipt:
+  https://6ad665bfdba3040672cb1502--northgate-hq-staging.netlify.app/jobs .
+- Secret scan: 1,068 files; zero regular/enhanced matches. Strict-TLS custom and
+  immutable Jobs pages/assets return 200 with correct MIME and identical hashes.
+  JavaScript `/assets/index-DOyxZiOy.js`, 2,110,849 bytes, SHA256
+  `a583216fcbf04ee625702fadf412695a945264e03057ab4fb74f05dc5daa5dec`;
+  CSS `/assets/index-CFpMAqNI.css`, 186,097 bytes, SHA256
+  `1b369a81dae546c60fb830877afca916c1f5eb5d45bafea001911061bbe3cae3`.
+  Staging identity/new controls are present; Production endpoint, synthetic keys
+  and private fixture markers are absent.
+
+Signed-in live Developer comparison proves all **12 preexisting Toro Test headers
+and all eight summary cards are identical** to the pre-deploy baseline. The export
+selector retains all **180 authorized rows** across those same 12 divisions.
+Electrical Add Line opens exactly one draft in the electrical section; Cancel
+removes it. The existing project-name editor opens with the correct catalogue name;
+Cancel/Done return to normal viewing without name buttons or drafts. Masonry still
+shows **-$1,229.59** actual Remaining Budget. Expanded Masonry pins at the measured
+**96.84375px** Staging shell/banner boundary; column labels begin at its
+**192.3125px** bottom. No captured browser error remains. The Staging review tab is
+left open. No live save/reset/import/archive/proposal action was performed.
+
+After the cancelled live smoke, all seven complete Staging table fingerprints
+match their before values. Production's divisions, COs, postings, allocations,
+revenue and Pay App fingerprints also match. Its complete budget-line fingerprint
+changed during the window: read-only inspection finds contemporaneous updates on
+other jobs, while **all 124 active Toro original rows still match the captured
+snapshot field for field**, with no additions/removals. A claim that the entire
+Production budget-line table is unchanged would therefore be incorrect; attribution
+of other-job activity is outside this task. This task performed no Production
+write. Ignored `live-invariance.json` records the exact before/after fingerprints.
+
+Production `main` remains **`27cb1ccbdde4a3a80c7805c2de6be59804afbab1`** and its ready
+deploy remains **`6ad6498a10b13ea805229665`**. No Production promotion or schema/auth
+change was performed. The receipt-only follow-up skips CI and retains the verified
+Staging deploy. No release blocker remains; live saves and live non-Developer
+authorization were deliberately verified only through local fixtures/rehearsal.

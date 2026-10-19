@@ -23703,3 +23703,18 @@ is excluded from the build. No live financial record, migration or Production de
 is authorized. Publication/invariance receipts follow in
 docs/releases/FINANCIAL_DIVISION_GROUPING_STAGING_20261019.md. Preserve all existing
 Staging work and Production main receipt 27cb1cc.
+
+### Verified publication - 2026-10-19
+
+Exact source `5f7ce88916e7d4948440e335182f3179577b465e` is ready as Staging Netlify
+`6ad665bfdba3040672cb1502`, published 18:47:50.667 UTC. HTTPS assets match custom and
+immutable URLs with isolated identity, no private fixture/synthetic data or scan
+matches. Signed-in read-only Toro Test retains every original header/summary,
+12 sections/180 export rows, correct Add Line draft/Cancel, naming Cancel/Done,
+-$1,229.59 Masonry remaining and measured sticky behavior. All seven Staging
+financial-table fingerprints match. Production Toro's 124 rows are identical to the
+snapshot; six other Production table checksums match, while the global budget-line
+checksum differs amid observed concurrent updates on other jobs. No Production
+write was made here; do not claim whole-table invariance. Main 27cb1cc and Production
+deploy6ad649 remain unchanged. Exact receipts/limits are in the release doc.
+Receipt-only push skips CI. Staging is ready for Ryan review; no blocker remains.
