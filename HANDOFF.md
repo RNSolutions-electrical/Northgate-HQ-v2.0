@@ -23601,3 +23601,6 @@ Final aggregate: 362 pass/1 skip/0 fail; 40 synthetic financial UI groups plus e
 
 ### Next Steps (in order)
 Push verified fast-forward to Staging only, confirm exact Netlify receipt and signed-in read-only UI, then Ryan review. Do not promote this branch to Production or apply stored-label/customer-link corrections without separate authorization.
+
+### Verified Staging publication - 2026-10-19
+Exact code f91bcdfa7ea1a32e50f795953e3b7c5c76a995ef published ready as Netlify 6ad60dd8bbb5651b8e44f123 at 12:32:53.344 UTC. Strict-TLS custom/immutable deep links/assets and isolated identity match, with no secret-scan findings. Signed-in read-only Temporary Test Job smoke confirms signed job/division actual remaining, distinct forecast, canonical Division 07, red zero-budget overspending, neutral zeros and collapse/expand consistency. No live record actions. Main remains1e0c5635 and Production deploy6ad28722. Ryan review: https://staging.rnsolutions.net/jobs. Exact receipt and remaining stored-label correction limits: docs/releases/FINANCIAL_REMAINING_LABELS_STAGING_20261019.md. Receipt-only commit skips CI; do not blanket-promote Staging.
