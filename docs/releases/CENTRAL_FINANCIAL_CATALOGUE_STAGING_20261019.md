@@ -41,7 +41,17 @@ Existing financial baseline triggers advanced each job by 177 metadata updates: 
 
 RLS is enabled on the new master table. Anonymous master read/save, authenticated direct master update and authenticated direct internal division-name apply are denied. Advisor comparison adds no error, anonymous-execute, missing-RLS, missing-policy, mutable-search-path or unindexed-FK finding. The three intentional authenticated, guarded RPCs add the standard [authenticated SECURITY DEFINER notice](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable); they enforce existing Developer/job/line bounds internally. One new [unused-index informational notice](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index) concerns the new division reference index. Existing unrelated advisor findings remain unchanged.
 
-Code commit, Netlify deploy and live smoke receipts will be appended after publication.
+Verified publication:
+
+- Exact code commit **`fc7b1663473b2392a62cec67db437839c7b3a1bf`**, pushed as a fast-forward to `staging` from receipt `c711e4f`. No main/Production push.
+- Dedicated Staging site **`431ce717-1a06-45a0-9d7a-8acd06a67dde`**, ready Netlify deploy **`6ad61e02d7b472b67c3e7297`**, published **2026-10-19 13:41:47.757 UTC**. Netlify confirms branch `staging`, exact commit above, no error and no standard/enhanced secret-scan matches across 1,053 files. Its `production` context is the primary deploy of the dedicated Staging site.
+- Review **https://staging.rnsolutions.net/developer** → Systems → Financial catalogue, and **https://staging.rnsolutions.net/jobs** → Toro Test → Financials. Immutable deployment: **https://6ad61e02d7b472b67c3e7297--northgate-hq-staging.netlify.app**.
+- Strict-TLS custom and immutable Jobs/developer/estimates deep links return HTTP 200. Both serve identical JS `/assets/index-Bq5BOgvB.js` (SHA-256 `691cadc0f1cae728c106cf7f56660a5dbca38dda5e9ce4d82414bb0ea66099be`) and CSS `/assets/index-DHoUbRiE.css` (SHA-256 `985a2e7a2fcc3cf40beff4dfac3138fac99faa30cb6db107f376105ee52e7aa1`). The published bundle contains the new catalogue/name RPCs and controls, isolated Staging Supabase/Clerk identity, and no local synthetic build keys.
+- Signed-in Developer read-only smoke: Toro Test Division 04 shows current budget $5,500.00, actual $6,729.59 and signed Remaining Budget **-$1,229.59**, unchanged across expand/collapse. Its budgeted labor and zero-budget material remain separate; material shows **-$6,729.59 / OVER BUDGET**, zero rows are neutral. Existing completion forecasts remain separate (this live test job currently has $0 forecast balance). Catalogue-name indicators and line override dialog load with the actual master original. The dialog was cancelled.
+- Live Developer → Systems manager reads canonical Division 07 and its cost codes, shows three existing job uses, and disables the used division code in its editor. Search/tabs and opening/cancelling the editor work. No save, import, retire/reactivate, financial write or proposal application was performed in the live smoke. The manager tab is left open for Ryan.
+- Production remains on main **`1e0c5635b6289b4e2f4c55eaa8fb81b9cb8152a0`**, deploy **`6ad28722f48eddc8eb974f91`**. A final read-only Production check confirms no new master table and zero catalogue migration ledger rows.
+
+Receipt-only follow-up is committed with `[skip ci]`; it does not replace the verified application deploy above. Ryan acceptance and any Production promotion remain separate.
 
 ## Recovery and limits
 
