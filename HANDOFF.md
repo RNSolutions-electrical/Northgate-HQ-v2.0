@@ -23653,3 +23653,32 @@ Staging changes remain intact. Phone, permissions and failure/draft behavior wer
 verified in fixtures. Main `1e0c5635` and Production deploy `6ad28722` are unchanged.
 Review https://staging.rnsolutions.net/jobs; receipt and limits in the release doc.
 Receipt-only push skips CI. No blocker remains; Production remains unapproved.
+
+## Entry 376 - Approved financial package promoted to Production, 2026-10-19
+
+Ryan approved final division-hint/spacing cleanup and Production promotion, then
+explicitly approved preserving unmatched codes as job-only custom for his manual
+report reconciliation. Cleanup Staging source `376dbf8` is ready as Netlify
+`6ad64572172aff953870faad`. The isolated Production release selects only 38 approved
+source/test/migration files from main `1e0c5635`, retaining all unrelated Staging
+work and excluding its unreviewed estimate viewport changes.
+
+Production catalogue ledger `20261019164425 central_financial_catalogue_names` is
+applied, exact stored SQL matches source SHA256
+`31bf5499d9fa4ac4985897d32bd1ca9cc73774063fe3c99a9a10e24a6c8f8fb5`.
+Original 667 financial rows, per-job values, divisions, revenue, issued Pay App,
+legacy codes and all 3,851 original audit rows match their before fingerprints.
+630 linked lines, 37 custom (36 active), 180 copied-name overrides, 53 original
+divisions/six overrides, 12 master divisions/177 codes; no helper rows. Existing
+triggers advance financial concurrency baselines; pending proposals must reload.
+
+Exact deployed `main` commit `a1446b2add0e5bc2a5fb76c1eba84a8aad2669a7` is published
+ready as Netlify `6ad6498a10b13ea805229665` at 16:47:28.622 UTC. Production receipt
+commit `27cb1ccbdde4a3a80c7805c2de6be59804afbab1` skips CI. Local 366 tests/one skip,
+builds, financial/catalogue/Edit/sticky UI and nine PostgreSQL groups pass; live
+HTTPS assets/identity, signed-in read-only Toro -$1,229.59 actual versus separate
++$5,500 forecast, name dialog Cancel/Done, bounded sticky headers and master manager
+verify. No Production business-data test save or inferred mapping. Existing inferred
+division links remain unchanged; their absent active records cannot be renamed.
+Full receipt/limits: docs/releases/FINANCIAL_CATALOGUE_PROMOTION_20261019.md.
+No blocker remains. Staging stays on its broader candidate, without a main merge.
