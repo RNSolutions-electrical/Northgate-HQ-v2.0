@@ -689,7 +689,42 @@ svg { stroke-width: 1.8; }
 .job-budget-health-badge--warning { color: #79520b; background: #fff3d3; }
 .job-budget-health-badge--danger,
 .job-budget-health-badge--over-budget { color: #98242d; background: #fce9e9; }
-.job-budget-health-badge--unavailable { color: #5a6570; background: #eef1f4; }
+.job-budget-health-badge--unavailable,
+.job-budget-health-badge--neutral { color: #5a6570; background: #eef1f4; }
+.job-budget-health-cell.is-negative > strong { color: var(--ng-err); }
+.financial-name-control { display: grid; gap: .25rem; min-width: 0; }
+.financial-name-hint { color: var(--ng-muted); font-size: .7rem; overflow-wrap: anywhere; }
+.financial-name-control > .text-button { font-size: .72rem; }
+.financial-name-control .ng-dialog { width: min(560px, calc(100vw - 2rem)); padding: 1.25rem; }
+.financial-name-control .ng-dialog > label { display: grid; gap: .4rem; margin: .8rem 0; }
+.financial-name-dialog { width: min(560px, calc(100vw - 2rem)); padding: 1.25rem; }
+.financial-name-dialog > label { display: grid; gap: .4rem; margin: .8rem 0; }
+.record-edit-menu { position: relative; }
+.record-edit-menu > button svg { width: 14px; height: 14px; }
+.record-edit-menu__items { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; display: grid; min-width: 180px; max-width: calc(100vw - 2rem); padding: 4px; background: var(--ng-card-bg); border: 1px solid var(--ng-border); border-radius: var(--ng-radius-card); box-shadow: var(--ng-shadow); }
+.record-edit-menu__items > button { border: 0; background: transparent; padding: 10px 12px; text-align: left; min-height: 40px; }
+.record-edit-menu__items > button:hover:not(:disabled),.record-edit-menu__items > button:focus-visible { background: var(--ng-panel-bg); }
+.record-edit-menu__items > button:disabled { opacity: .5; cursor: not-allowed; }
+.job-edit-hint { max-width: 240px; font-size: .72rem; color: var(--ng-muted); }
+.job-edit-mode { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0; padding: 1rem; background: var(--ng-panel-bg); border: 1px solid var(--ng-brand-red); border-radius: var(--ng-radius-card); }
+.job-edit-mode p { font-size: .8rem; }
+/* Keep the existing document scroll owner. Overflow clipping must not create
+   an intermediate vertical scroll container that captures CSS sticky. */
+.ng-shell__content:has(.job-budget-division--expanded) { overflow-x: clip; overflow-y: visible; }
+.job-budget-division--expanded > .job-budget-division__header { position: sticky; top: var(--financial-sticky-top,0px); z-index: 8; background: var(--ng-card-bg); }
+.job-budget-division--expanded > .table-wrap { overflow: visible; }
+.job-budget-division--expanded > .table-wrap thead { position: sticky; top: calc(var(--financial-sticky-top,0px) + var(--financial-division-header-height,0px)); z-index: 7; }
+.job-budget-division--expanded :is(input,select,button) { scroll-margin-top: calc(var(--financial-sticky-top,0px) + var(--financial-division-header-height,0px) + 120px); }
+@media (max-width:720px) { .record-edit-menu { width: 100%; } .record-edit-menu > button { width: 100%; } .record-edit-menu__items { left: 0; width: 100%; } .job-edit-mode { flex-wrap: wrap; } }
+@media print { .record-edit-menu,.job-edit-mode { display: none; } .job-budget-division--expanded > .job-budget-division__header,.job-budget-division--expanded > .table-wrap thead { position: static; } }
+.financial-catalogue-manager { min-width: 0; display: grid; gap: 1rem; }
+.financial-catalogue-filters, .financial-catalogue-editor { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(250px,100%),1fr)); gap: 1rem; }
+.financial-catalogue-manager label { display: grid; gap: .4rem; min-width: 0; }
+.financial-catalogue-manager input, .financial-catalogue-manager select, .financial-catalogue-manager textarea { width: 100%; min-width: 0; }
+.financial-catalogue-editor { border: 1px solid var(--ng-border); border-radius: .5rem; padding: 1rem; }
+.financial-catalogue-editor h4, .financial-catalogue-editor > p, .financial-catalogue-editor > .job-financials-quick-actions { grid-column: 1 / -1; }
+.financial-catalogue-manager input[type=checkbox] { width: auto; justify-self: start; }
+.financial-catalogue-manager .table-wrap { overflow-x: auto; }
 .job-responsibilities { border: 1px solid var(--ng-border, #d9e0e7); background: #fff; border-radius: 5px; padding: 1rem; margin: 1rem 0; }
 .job-responsibilities h3 { margin: .15rem 0; }
 .job-responsibilities p { margin: .25rem 0 .8rem; color: #586574; }
@@ -4249,7 +4284,7 @@ textarea {
 
 .job-budget-division__metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(92px, auto));
+  grid-template-columns: repeat(3, minmax(92px, auto));
   gap: 0.6rem;
   justify-content: end;
   min-width: 0;

@@ -12,6 +12,7 @@ import { clientChangeOrderHtml } from './ChangeOrderClientForm.mjs';
 import { clientDetailAmount, clientDetailSummary, MAX_CLIENT_DETAILS, validateClientDetails } from './changeOrderClientDetails.mjs';
 import { adjustmentLineTotal, serializeAdjustmentLines, isEditableAdjustment } from './contractAdjustments.js';
 import { editableChangeOrderLines, lineSubtotal, percentMarkupAmount, withUpdatedLineMarkup } from './changeOrderMarkup.js';
+import {financialLineDescription} from './financialDivisionLabels.js';
 
 const DOCUMENT_BUCKET = 'northgate-files';
 const MONEY_FIELDS = ['material_amount', 'labor_amount', 'equipment_amount', 'subcontract_amount', 'other_amount', 'markup_amount'];
@@ -20,7 +21,7 @@ function blankLine(budgetLine = null, sortOrder = 0) {
   return {
     key: crypto.randomUUID(),
     job_budget_line_id: budgetLine?.id || '',
-    description: budgetLine?.description || '',
+    description: budgetLine ? financialLineDescription(budgetLine) : '',
     vendor_name: '',
     material_amount: '',
     labor_amount: '',
@@ -449,7 +450,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
             <details className="change-order-line" key={line.key} open={lines.length === 1 ? true : undefined}>
               <summary className="change-order-line__heading"><strong>Line {index + 1} · {line.description || 'Untitled — incomplete'}</strong><span>{money(lineTotal(line))}</span></summary>
               <div className="change-order-line__grid">
-                <label><span>Financial line / cost code <small>{!line.job_budget_line_id ? 'Required to submit' : ''}</small></span><select value={line.job_budget_line_id || ''} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Save draft without coding</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
+                <label><span>Financial line / cost code <small>{!line.job_budget_line_id ? 'Required to submit' : ''}</small></span><select value={line.job_budget_line_id || ''} onChange={(e) => updateLine(line.key, 'job_budget_line_id', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Save draft without coding</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {financialLineDescription(item)}</option>)}{changeOrderBudgetLines.length && remainingBudgetLines.length ? <option value="__cost_code_separator__" disabled>--------------------</option> : null}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {financialLineDescription(item)}</option>)}</select></label>
                 <label><span>Vendor / subcontractor</span><input value={line.vendor_name || ''} onChange={(e) => updateLine(line.key, 'vendor_name', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 <label className="change-order-line__wide"><span>Description / scope</span><input value={line.description || ''} onChange={(e) => updateLine(line.key, 'description', e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
                 {MONEY_FIELDS.filter((field) => field !== 'markup_amount').map((field) => <label key={field}><span>{field.replace('_amount', '').replace('_', ' ')}</span><input type="number" step="0.01" value={line[field] ?? ''} onChange={(e) => updateLine(line.key, field, e.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>)}
@@ -469,7 +470,7 @@ export function ChangeOrderWorkspace({ job, initialOrder, budgetLines, permissio
           <p>Applied to the sum of line totals after each line’s own markup. This is separate from line markup.</p>
           <div className="change-order-line__grid">
             <label><span>Overall markup %</span><input type="number" min="0" step="any" value={form.overall_markup_percent} onChange={(event) => setField('overall_markup_percent', event.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)} /></label>
-            <label><span>Financial line for overall markup</span><select value={form.overall_markup_budget_line_id} onChange={(event) => setField('overall_markup_budget_line_id', event.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {item.description}</option>)}</select></label>
+            <label><span>Financial line for overall markup</span><select value={form.overall_markup_budget_line_id} onChange={(event) => setField('overall_markup_budget_line_id', event.target.value)} disabled={!isDraft || !canEditDraft || Boolean(action.name)}><option value="">Select financial line</option>{changeOrderBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {financialLineDescription(item)}</option>)}{remainingBudgetLines.map((item) => <option key={item.id} value={item.id}>{item.cost_code || 'No code'} — {financialLineDescription(item)}</option>)}</select></label>
             <div><small>Calculated overall markup</small><strong>{money(overallMarkupAmount)}</strong></div>
             <div><small>Final Change Order total</small><strong>{money(total)}</strong></div>
           </div>

@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {handoffFinancialBuckets,handoffPreview} from './handoff.mjs';
 import {money} from './model.mjs';
+import {mergeFinancialNames,resolvedLineName} from '../../jobs/financialNames.js';
 
 export function EstimateHandoff({document,client,onSubmit,onOpen,onBack}){
  const [destination,setDestination]=useState('change_order'),[jobs,setJobs]=useState([]),[jobId,setJobId]=useState('');
@@ -15,10 +16,11 @@ export function EstimateHandoff({document,client,onSubmit,onOpen,onBack}){
  }catch(e){if(active)setError(e.message);}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[client]);
  useEffect(()=>{let active=true;setBudget([]);setCatalogue([]);setTargets({});setFinancialTargets({});if(!jobId){setLoading(false);return;}
  setLoading(true);(async()=>{try{const db=await client();
-  const requests=[db.from('financial_line_catalogue').select('id,cost_code,description,category,division_code,division_name,is_protected_financial').eq('is_active',true).order('division_code').order('sort_order').order('cost_code')];
+  const requests=[db.rpc('read_financial_catalogue',{p_include_retired:false})];
   if(jobId!=='new')requests.push(db.from('job_budget_lines').select('id,cost_code,description,category,is_protected_financial').eq('job_id',jobId).is('archived_at',null).order('cost_code'));
   const responses=await Promise.all(requests);for(const response of responses)if(response.error)throw response.error;
-  if(active){setCatalogue(responses[0].data||[]);setBudget(responses[1]?.data||[]);}
+  const names=jobId==='new'?{data:{}}:await db.rpc('read_job_financial_names',{p_job_id:jobId});if(names.error)throw names.error;
+  if(active){setCatalogue(responses[0].data?.lines||[]);setBudget(mergeFinancialNames(responses[1]?.data||[],names.data||{}).map(row=>({...row,description:resolvedLineName(row)})));}
  }catch(e){if(active)setError(e.message);}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[client,jobId,destination]);
  async function submit(e){e.preventDefault();if(busy||submitting.current)return;submitting.current=true;setBusy(true);setError('');try{
   const saved=await onSubmit({destination,jobId:jobId==='new'?null:jobId,newJob:jobId==='new'?{number:number.trim(),name:name.trim()}:null,coNumber:coNumber.trim(),targets,financialTargets});setResult(saved);

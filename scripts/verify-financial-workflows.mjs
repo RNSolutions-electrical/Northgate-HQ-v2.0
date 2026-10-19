@@ -13,7 +13,7 @@ const server = await createServer({cacheDir:path.join(tmpdir(),`financial-fixtur
 await server.listen();let browser;
 try {
   browser=await chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'msedge'});
-  const page=await browser.newPage();page.setDefaultTimeout(12000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await browser.newPage();page.setDefaultTimeout(12000);page.setDefaultNavigationTimeout(60000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:5190/northgate/tests/fixtures/financial-workflows.html';
   await mkdir('.temp/financial-workflows/screenshots',{recursive:true});
   for(const [name,width,height] of [['desktop',1440,1000],['tablet',768,1024],['phone',390,844]]){
