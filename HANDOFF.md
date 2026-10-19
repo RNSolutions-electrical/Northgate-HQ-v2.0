@@ -23637,3 +23637,19 @@ redesign, database migration, financial data edit or permission change is includ
 Exact publication/live receipt follows in
 docs/releases/JOB_EDIT_MENU_STICKY_DIVISIONS_STAGING_20261019.md. Production remains
 unapproved; preserve all existing Staging candidates.
+
+### Verified publication - 2026-10-19
+
+Exact source `1870886b16262763ec43176745d52ee2d67b0ee0` is published ready as Netlify
+`6ad641f93f46c4a763bedc2c` at 16:15:17.015 UTC on the dedicated Staging site.
+Strict-TLS custom/immutable `/jobs` and identical assets verify the new controls,
+isolated backend and absence of synthetic keys; no secret-scan matches. Signed-in
+Developer live Toro Test smoke confirms Edit destinations, focused naming/dialog
+Cancel/Done, hidden division-name buttons in normal view, expanded Concrete to
+Masonry sticky takeover at the measured shell/banner boundary and intact column
+labels. Masonry still shows -$1,229.59 actual Remaining Budget. No live business
+save/reset/proposal or financial data operation was performed; Ryan's intervening
+Staging changes remain intact. Phone, permissions and failure/draft behavior were
+verified in fixtures. Main `1e0c5635` and Production deploy `6ad28722` are unchanged.
+Review https://staging.rnsolutions.net/jobs; receipt and limits in the release doc.
+Receipt-only push skips CI. No blocker remains; Production remains unapproved.
