@@ -1,13 +1,34 @@
-import {useState,useRef} from 'react';
+import {useState,useRef,useEffect} from 'react';
+import {createPortal} from 'react-dom';
 import {useAuth} from '@clerk/clerk-react';
 import {getSupabaseAccessToken} from '../../services/clerkToken.js';
 import {createSupabaseClient} from '../../services/supabaseClient.js';
 import {financialNamePatch} from './financialNames.js';
 
-export function FinancialNameOverride({line,division,canPropose,canApprove,onSaved}) {
+export function FinancialNameOverride({line,division,canPropose,canApprove,onSaved,onEditorState}) {
   const metadata=division?._financialName || line?._financialName;
   const [open,setOpen]=useState(false),[value,setValue]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const lock=useRef(false),{getToken}=useAuth();
+  const panel=useRef(null),opener=useRef(null);
+  useEffect(()=>{onEditorState?.({open,busy});},[open,busy,onEditorState]);
+  useEffect(()=>()=>onEditorState?.({open:false,busy:false}),[onEditorState]);
+  useEffect(()=>{
+    if(!open)return;
+    const focused=opener.current||document.activeElement,overflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';panel.current?.querySelector('input')?.focus();
+    return()=>{document.body.style.overflow=overflow;if(focused?.isConnected)focused.focus();};
+  },[open]);
+  function dialogKey(event){
+    if(event.key==='Escape'){
+      event.preventDefault();event.stopPropagation();
+      if(!busy && (value===(metadata?.name_override||'') || window.confirm('Discard this unsaved project name?')))setOpen(false);
+    }
+    if(event.key!=='Tab')return;
+    const nodes=[...panel.current.querySelectorAll('input:not(:disabled),button:not(:disabled)')],first=nodes[0],last=nodes.at(-1);
+    if(!first){event.preventDefault();return;}
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  }
   if(!metadata)return null;
   const linked=division?Boolean(metadata.catalogue_division_id):Boolean(metadata.catalogue_line_id);
   if(!linked)return <small className="financial-name-hint">Job-only custom {division?'division':'line'}</small>;
@@ -30,14 +51,14 @@ export function FinancialNameOverride({line,division,canPropose,canApprove,onSav
   return <div className="financial-name-control">
     <small className="financial-name-hint">{overridden?'Project name override':'Catalogue name'}{metadata.catalogue_active===false?' · Retired for new use':''}</small>
     {overridden?<small className="financial-name-hint">Catalogue: {metadata.catalogue_name}</small>:null}
-    {canPropose?<button type="button" className="text-button" onClick={()=>{setValue(metadata.name_override || '');setError('');setOpen(true);}}>Edit {division?'division':'line'} name</button>:null}
-    {open?<div className="ng-dialog-root"><div className="ng-dialog-scrim is-open"/><form className="ng-dialog" role="dialog" aria-modal="true" aria-label={`Project ${division?'division':'line'} name`} onSubmit={save}>
+    {canPropose?<button ref={opener} type="button" className="text-button" onClick={()=>{setValue(metadata.name_override || '');setError('');setOpen(true);}}>Edit {division?'division':'line'} name</button>:null}
+    {open?createPortal(<div className="ng-dialog-root"><div className="ng-dialog-scrim is-open"/><form ref={panel} onKeyDown={dialogKey} className="ng-dialog financial-name-dialog" role="dialog" aria-modal="true" aria-label={`Project ${division?'division':'line'} name`} onSubmit={save}>
       <header className="ng-dialog__header"><div><h3>Project {division?'division':'line'} name</h3><p>This name applies only to this job. The catalogue code and financial values stay the same.</p></div></header>
       <label><span>Catalogue name</span><strong>{metadata.catalogue_name}</strong></label>
       <label><span>Project name override</span><input aria-label="Project name override" value={value} maxLength={250} disabled={busy} onChange={e=>setValue(e.target.value)} placeholder={metadata.catalogue_name} autoFocus/></label>
       <button type="button" className="text-button" disabled={busy} onClick={()=>setValue('')}>Use catalogue name</button>
       {error?<p role="alert" className="form-error">{error}</p>:null}
       <footer className="ng-dialog__actions"><button type="button" className="ng-dialog__button" disabled={busy} onClick={()=>setOpen(false)}>Cancel</button><button className="ng-dialog__button ng-dialog__button--primary" disabled={busy}>{busy?'Saving...':canApprove?'Save project name':'Submit name for review'}</button></footer>
-    </form></div>:null}
+    </form></div>,document.body):null}
   </div>;
 }

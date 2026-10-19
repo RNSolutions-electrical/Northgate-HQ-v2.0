@@ -151,3 +151,16 @@ Download or Print. Opening a preview must never open a separate browser tab or s
 an automatic download. Preserve permission checks, readable pagination and export
 provenance. Review existing export entry points before implementation. This is a
 roadmap requirement only; the EOS conflict correction does not implement it.
+
+## Contextual Edit menus and focused editing — review direction (2026-10-19)
+
+Ryan approved starting on the Jobs page: a compact Edit menu offers the permitted
+Job Details and Division Names destinations, with a focused naming mode and Done.
+The reusable `RecordEditMenu` accepts operation entries; callers retain existing
+permissions, save behavior, draft protection and destination-specific focus.
+Future module reviews should assess which edit operations benefit from this
+pattern. Preserve spreadsheet-style inline editing where it remains convenient;
+do not replace every module's controls or infer new permissions from this design.
+Check keyboard/focus, outside-click/Escape dismissal, mobile layout, unsaved drafts
+and existing audit/review paths before applying it elsewhere. This is a consistency
+review item, not authorization for a sitewide redesign or Production rollout.

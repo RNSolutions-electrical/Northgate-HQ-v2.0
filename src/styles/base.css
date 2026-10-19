@@ -697,6 +697,26 @@ svg { stroke-width: 1.8; }
 .financial-name-control > .text-button { font-size: .72rem; }
 .financial-name-control .ng-dialog { width: min(560px, calc(100vw - 2rem)); padding: 1.25rem; }
 .financial-name-control .ng-dialog > label { display: grid; gap: .4rem; margin: .8rem 0; }
+.financial-name-dialog { width: min(560px, calc(100vw - 2rem)); padding: 1.25rem; }
+.financial-name-dialog > label { display: grid; gap: .4rem; margin: .8rem 0; }
+.record-edit-menu { position: relative; }
+.record-edit-menu > button svg { width: 14px; height: 14px; }
+.record-edit-menu__items { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; display: grid; min-width: 180px; max-width: calc(100vw - 2rem); padding: 4px; background: var(--ng-card-bg); border: 1px solid var(--ng-border); border-radius: var(--ng-radius-card); box-shadow: var(--ng-shadow); }
+.record-edit-menu__items > button { border: 0; background: transparent; padding: 10px 12px; text-align: left; min-height: 40px; }
+.record-edit-menu__items > button:hover:not(:disabled),.record-edit-menu__items > button:focus-visible { background: var(--ng-panel-bg); }
+.record-edit-menu__items > button:disabled { opacity: .5; cursor: not-allowed; }
+.job-edit-hint { max-width: 240px; font-size: .72rem; color: var(--ng-muted); }
+.job-edit-mode { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0; padding: 1rem; background: var(--ng-panel-bg); border: 1px solid var(--ng-brand-red); border-radius: var(--ng-radius-card); }
+.job-edit-mode p { font-size: .8rem; }
+/* Keep the existing document scroll owner. Overflow clipping must not create
+   an intermediate vertical scroll container that captures CSS sticky. */
+.ng-shell__content:has(.job-budget-division--expanded) { overflow-x: clip; overflow-y: visible; }
+.job-budget-division--expanded > .job-budget-division__header { position: sticky; top: var(--financial-sticky-top,0px); z-index: 8; background: var(--ng-card-bg); }
+.job-budget-division--expanded > .table-wrap { overflow: visible; }
+.job-budget-division--expanded > .table-wrap thead { position: sticky; top: calc(var(--financial-sticky-top,0px) + var(--financial-division-header-height,0px)); z-index: 7; }
+.job-budget-division--expanded :is(input,select,button) { scroll-margin-top: calc(var(--financial-sticky-top,0px) + var(--financial-division-header-height,0px) + 120px); }
+@media (max-width:720px) { .record-edit-menu { width: 100%; } .record-edit-menu > button { width: 100%; } .record-edit-menu__items { left: 0; width: 100%; } .job-edit-mode { flex-wrap: wrap; } }
+@media print { .record-edit-menu,.job-edit-mode { display: none; } .job-budget-division--expanded > .job-budget-division__header,.job-budget-division--expanded > .table-wrap thead { position: static; } }
 .financial-catalogue-manager { min-width: 0; display: grid; gap: 1rem; }
 .financial-catalogue-filters, .financial-catalogue-editor { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(250px,100%),1fr)); gap: 1rem; }
 .financial-catalogue-manager label { display: grid; gap: .4rem; min-width: 0; }

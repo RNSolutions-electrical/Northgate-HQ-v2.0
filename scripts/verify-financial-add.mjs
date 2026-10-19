@@ -65,7 +65,9 @@ try {
       console.log(JSON.stringify(await page.evaluate(()=>({calls:window.financialFixture.calls,failNext:window.financialFixture.failNext,alerts:[...document.querySelectorAll('[role="alert"]')].map(e=>e.textContent),inputs:[...document.querySelectorAll('input[aria-label]')].map(e=>({label:e.getAttribute('aria-label'),value:e.value,valid:e.checkValidity()}))})),null,2));
       await page.screenshot({path:`${output}/${name}-failure-debug.png`,fullPage:true});throw error;
     }
-    assert.equal(await page.getByRole('alert').evaluate(e=>{const r=e.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),true);
+    const feedback=await page.getByRole('alert').evaluate(e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:innerHeight,scrollY};});
+    if(feedback.top<0||feedback.bottom>feedback.height){console.log('Feedback bounds',name,feedback);await page.screenshot({path:`${output}/${name}-feedback-position.png`});}
+    assert.ok(feedback.top>=0&&feedback.bottom<=feedback.height,'Save feedback stays in the viewport');
     assert.equal(await page.getByLabel('Financial line description',{exact:true}).inputValue(),description);
     assert.equal(await page.getByLabel(`Original budget for ${description}`,{exact:true}).inputValue(),'123.45');
     await page.screenshot({path:`${output}/${name}-rejected-save.png`,fullPage:true});

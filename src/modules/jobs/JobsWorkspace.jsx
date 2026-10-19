@@ -20,7 +20,7 @@ import {
   PackageCheck,
   Plus,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { buildFinancialImportPreview } from './jobFinancialImport.mjs';
 import { PrimarySidebar } from '../../components/layout/PrimarySidebar.jsx';
@@ -51,6 +51,8 @@ import { signedBudgetBalance, budgetBalanceClass } from './budgetBalance.js';
 import { PROJECT_DIVISION_NAMES, financialDivisionName, financialDivisionLabel, financialLineDescription } from './financialDivisionLabels.js';
 import {mergeFinancialNames,resolvedDivisionLabel,resolvedDivisionName} from './financialNames.js';
 import {FinancialNameOverride} from './FinancialNameOverride.jsx';
+import {RecordEditMenu} from '../../components/ui/RecordEditMenu.jsx';
+import {FinancialDivisionSection} from './FinancialDivisionSection.jsx';
 import { requiresAuditReason, hasReasonCoverage } from '../../services/auditPolicy.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { uiElementAttributes } from '../../config/uiTerminology.js';
@@ -2208,6 +2210,9 @@ export function JobsWorkspace({ permissions }) {
   const [activeView, setActiveView] = useState(() => jobDirectorySectionFromSearch(location.search));
   const [directoryType, setDirectoryType] = useState('jobs');
   const [activeTab, setActiveTab] = useState('overview');
+  const [divisionNameEditJobId,setDivisionNameEditJobId]=useState('');
+  const [divisionNameEditor,setDivisionNameEditor]=useState({open:false,busy:false});
+  const jobEditTriggerRef=useRef(null),divisionNameModeRef=useRef(null);
   const [permitPanelState,setPermitPanelState]=useState({dirty:false,busy:false});
   const [leavePermit,setLeavePermit]=useState(null);
   const guardPermit=action=>{if(permitPanelState.busy)return;if(activeTab==='permits'&&permitPanelState.dirty)setLeavePermit(()=>action);else action();};
@@ -2263,6 +2268,11 @@ export function JobsWorkspace({ permissions }) {
 
   useEffect(() => {
     if (activeTab === 'financials' && (budgetForm.error || budgetForm.success)) {
+      const chrome=[...document.querySelectorAll('.ng-shell__header,.ng-environment-banner')];
+      if(budgetFeedbackRef.current){
+        budgetFeedbackRef.current.style.scrollMarginBlockStart=`${8+chrome.reduce((height,node)=>height+node.getBoundingClientRect().height,0)}px`;
+        budgetFeedbackRef.current.style.scrollMarginBlockEnd='8px';
+      }
       budgetFeedbackRef.current?.focus({ preventScroll: true });
       budgetFeedbackRef.current?.scrollIntoView({ block: 'nearest' });
     }
@@ -2328,6 +2338,13 @@ export function JobsWorkspace({ permissions }) {
   const canReassignJobDivision = permissions?.role === 'Developer';
   const canApproveSelectedBudget = canEditJobWithPermission(permissions, selectedJob, 'canApproveBudget');
   const canProposeSelectedBudget = canViewFinancials && permissions.permissionSource === 'server';
+  const canEditDivisionNames=canProposeSelectedBudget && selectedJob?.job_type!=='service_call';
+  const isEditingDivisionNames=Boolean(selectedJob && divisionNameEditJobId===selectedJob.id && activeTab==='financials' && mode==='browse' && canEditDivisionNames);
+  const hasActiveEdit=Boolean(budgetForm.id||isAddingBudgetLine||budgetForm.isSaving||revenueForm.id||isAddingRevenueLine||revenueForm.isSaving||buyoutWorkspaceMode||scheduleForm.id||isAddingScheduleItem||scheduleForm.isSaving||isBudgetBulkInputOpen||isBudgetImportOpen||isBudgetTemplateOpen);
+  const handleDivisionNameEditorState=useCallback(state=>setDivisionNameEditor(state),[]);
+  useEffect(()=>{setDivisionNameEditJobId('');setDivisionNameEditor({open:false,busy:false});},[selectedJobId]);
+  useEffect(()=>{if(activeTab!=='financials'||mode!=='browse'||!canEditDivisionNames)setDivisionNameEditJobId('');},[activeTab,mode,canEditDivisionNames]);
+  useEffect(()=>{if(isEditingDivisionNames)divisionNameModeRef.current?.focus();},[isEditingDivisionNames]);
   useEffect(() => {
     let active = true;
     async function loadFinancialCatalogue() {
@@ -2573,6 +2590,17 @@ export function JobsWorkspace({ permissions }) {
     setMode('edit');
     setJobForm(jobToForm(selectedJob));
     setJobAction({ action: '', error: null, success: '' });
+    window.requestAnimationFrame(()=>document.querySelector('.job-create-form :is(input,select,textarea):not([disabled])')?.focus());
+  }
+
+  function startDivisionNameEdit(){
+    if(!selectedJob||!canEditDivisionNames||hasActiveEdit||divisionNameEditor.open)return;
+    guardPermit(()=>{setActiveTab('financials');setDivisionNameEditJobId(selectedJob.id);});
+  }
+
+  function finishDivisionNameEdit(){
+    if(divisionNameEditor.open||hasActiveEdit)return;
+    setDivisionNameEditJobId('');jobEditTriggerRef.current?.focus();
   }
 
   async function writeJobChangeLog(client, { action, recordId, beforeData, afterData, note, tableName = 'jobs' }) {
@@ -5366,9 +5394,9 @@ export function JobsWorkspace({ permissions }) {
             const divisionRemainingBudget = signedBudgetBalance(divisionTotalBudget, divisionActualCosts);
             const divisionForecastedRemainingBudget = divisionTotalBudget - divisionFinalForecast;
             return (
-              <section className="job-budget-division" key={division}>
+              <FinancialDivisionSection expanded={!isCollapsed} key={division}>
                 <div className="job-budget-division__header">
-                  <button type="button" className="job-budget-division__toggle" onClick={() => setCollapsedBudgetDivisions((current) => ({ ...current, [division]: !isCollapsed }))}>
+                  <button type="button" className="job-budget-division__toggle" aria-expanded={!isCollapsed} onClick={() => setCollapsedBudgetDivisions((current) => ({ ...current, [division]: !isCollapsed }))}>
                   <span className="job-budget-division__title">
                     <span>{isCollapsed ? '▸' : '▾'} {group.label}</span>
                     <small>{rows.length} line{rows.length === 1 ? '' : 's'}</small>
@@ -5400,7 +5428,7 @@ export function JobsWorkspace({ permissions }) {
                     </span>
                   </span>
                   </button>
-                  {linkedDivision?._financialName ? <FinancialNameOverride line={rows.find(row=>row.project_division_id===group.projectDivisionId)} division={linkedDivision} canPropose={canProposeSelectedBudget && !budgetForm.id && !isAddingBudgetLine} canApprove={canApproveSelectedBudget} onSaved={()=>{jobBudget.reload();jobRevenue.reload();}}/> : null}
+                  {linkedDivision?._financialName ? <FinancialNameOverride key={`${selectedJob.id}:${isEditingDivisionNames}`} line={rows.find(row=>row.project_division_id===group.projectDivisionId)} division={linkedDivision} canPropose={isEditingDivisionNames && !budgetForm.id && !isAddingBudgetLine} canApprove={canApproveSelectedBudget} onEditorState={handleDivisionNameEditorState} onSaved={()=>{jobBudget.reload();jobRevenue.reload();}}/> : null}
                   {canProposeSelectedBudget && group.projectDivisionId ? (
                     <button
                       type="button"
@@ -5425,7 +5453,7 @@ export function JobsWorkspace({ permissions }) {
                   emptyTitle="No financial lines for this division"
                   emptyDescription="Add a financial line to begin this division's budget."
                 /> : null}
-              </section>
+              </FinancialDivisionSection>
             );
           })}
 
@@ -6393,16 +6421,18 @@ export function JobsWorkspace({ permissions }) {
                     { label: 'Sub-divisions', value: (selectedJob.sub_divisions || []).map((item) => item.division).join(', ') || 'None' },
                     { label: 'Manage', value: canManageSelectedJob ? 'Granted' : 'Read only' },
                   ] : []}
-                  actions={selectedJob && canManageSelectedJob ? (
+                  actions={selectedJob && (canManageSelectedJob||canEditDivisionNames) ? (
                     <>
                       <button type="button" className="secondary-button" onClick={returnToJobList}>Back to Jobs</button>
-                      {activeTab === 'buyout' ? <button type="button" className="primary-button" onClick={startBuyoutCreate}><Plus aria-hidden="true" /> Add Buyout</button> : null}
-                      <button type="button" className="secondary-button" onClick={startJobEdit} disabled={Boolean(jobAction.action)}>
-                        Edit
-                      </button>
-                      <button type="button" className="secondary-button secondary-button--danger" onClick={handleJobArchive} disabled={Boolean(jobAction.action)}>
+                      {canManageSelectedJob && activeTab === 'buyout' ? <button type="button" className="primary-button" onClick={startBuyoutCreate}><Plus aria-hidden="true" /> Add Buyout</button> : null}
+                      <RecordEditMenu key={`${selectedJob.id}:${activeTab}`} triggerRef={jobEditTriggerRef} menuLabel="Job edit options" disabled={Boolean(jobAction.action)||divisionNameEditor.open} options={[
+                        ...(canManageSelectedJob?[{key:'details',label:'Job Details',disabled:hasActiveEdit,onSelect:()=>guardPermit(startJobEdit)}]:[]),
+                        ...(canEditDivisionNames?[{key:'division-names',label:'Division Names',disabled:hasActiveEdit,onSelect:startDivisionNameEdit}]:[]),
+                      ]}/>
+                      {hasActiveEdit?<small className="job-edit-hint">Save or cancel the current edit before choosing another edit option.</small>:null}
+                      {canManageSelectedJob?<button type="button" className="secondary-button secondary-button--danger" onClick={handleJobArchive} disabled={Boolean(jobAction.action)}>
                         {jobAction.action === 'archive' ? 'Archiving...' : 'Archive'}
-                      </button>
+                      </button>:null}
                     </>
                   ) : null}
                 />
@@ -6412,6 +6442,10 @@ export function JobsWorkspace({ permissions }) {
                 {jobAction.success ? (
                   <StatePanel tone="success" eyebrow="Saved" title="Job action complete" description={jobAction.success} compact />
                 ) : null}
+                {isEditingDivisionNames?<section className="job-edit-mode" aria-label="Division names editing" ref={divisionNameModeRef} tabIndex={-1}>
+                  <div><h3>Editing division names</h3><p>Save each project name or use the catalogue name. Done returns to normal viewing.</p></div>
+                  <button type="button" className="primary-button" onClick={finishDivisionNameEdit} disabled={divisionNameEditor.open||hasActiveEdit}>Done</button>
+                </section>:null}
                 <WorkspaceTabs
                   tabs={visibleTabs}
                   activeKey={activeTab}

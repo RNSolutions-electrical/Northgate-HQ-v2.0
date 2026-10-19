@@ -12,7 +12,7 @@ try{
  browser=await chromium.launch({headless:true,channel:'msedge'});const page=await browser.newPage();page.setDefaultTimeout(20000);page.setDefaultNavigationTimeout(60000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
  const manager=page.getByRole('region',{name:'Financial catalogue manager'});
- async function open(query=''){await page.goto(`http://127.0.0.1:5193/northgate/tests/fixtures/central-catalogue.html${query}`);await manager.getByText('Electrical',{exact:true}).first().waitFor();await page.getByText('101 - Budget Fixture',{exact:true}).click();if(await page.locator('.workspace-tabs__mobile-trigger').isVisible())await page.locator('.workspace-tabs__mobile-trigger').click();await page.getByRole('button',{name:/^Financials/}).click();}
+ async function open(query=''){await page.goto(`http://127.0.0.1:5193/northgate/tests/fixtures/central-catalogue.html${query}`);await manager.getByText('Electrical',{exact:true}).first().waitFor();await page.getByText('101 - Budget Fixture',{exact:true}).click();if(await page.locator('.workspace-tabs__mobile-trigger').isVisible())await page.locator('.workspace-tabs__mobile-trigger').click();await page.getByRole('button',{name:/^Financials/}).click();await page.locator('.record-header').getByRole('button',{name:'Edit',exact:true}).click();await page.getByRole('menuitem',{name:'Division Names',exact:true}).click();}
  const group=()=>page.locator('.job-budget-division').first();
  const projectDialog=()=>page.getByRole('dialog',{name:/Project (division|line) name/});
  for(const [device,width,height] of [['desktop',1440,1000],['phone',390,844]]){

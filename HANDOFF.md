@@ -23616,3 +23616,24 @@ Staging-only migration ledger `20261019133823 central_financial_catalogue_names`
 ### Verified publication
 
 Exact code `fc7b1663473b2392a62cec67db437839c7b3a1bf` is ready as Netlify `6ad61e02d7b472b67c3e7297`, published 2026-10-19 13:41:47.757 UTC on the dedicated Staging site. Custom/immutable HTTPS assets and deep links match; isolated identity/new controls present, no secret-scan matches. Signed-in read-only live smoke confirms Toro Test Division 04 -$1,229.59, expanded split rows/negative material/neutral zeros, actual catalogue inheritance, the cancelled project-name dialog, canonical Division 07 master/cost codes, existing-use counts and the disabled used-code editor. Manager is left open at Developer → Systems for Ryan. No live business save/review application. Main `1e0c5635`, Production deploy `6ad28722`, and Production catalogue schema/ledger remain unchanged. Full exact receipt and local/live test limits are in the release document. Receipt-only push skips CI; Production remains unapproved.
+
+## Entry 375 — Job Edit menu and expanded financial division context, Staging only
+
+Ryan approved a focused Jobs-page Edit menu (Job Details and Division Names), then
+requested sticky expanded financial division headers. The permission-filtered menu
+retains Job Details and adds a focused division naming mode with Done; normal
+viewing hides division-name edit buttons. Existing override/reset/proposal saves and
+spreadsheet inline editing are preserved. Drafts block conflicting Edit actions;
+dialogs retain failed drafts, protect dirty Escape, trap/restore focus and render
+above sticky layers. Actual shell/banner/header measurements keep expanded section
+and desktop column headers in context; collapsed headers remain in normal flow.
+Sticky headers release at their section boundary without a nested vertical scroller.
+
+Final 366 aggregate pass/one skip; five Edit/sticky browser groups plus catalogue,
+40 Remaining Budget groups, seven Add Line groups, financial workflows and prior
+review-scroll checks pass. Final build, diff check and desktop/phone visual QA pass.
+Broader module consistency review is documented in docs/ROADMAP.md; no global
+redesign, database migration, financial data edit or permission change is included.
+Exact publication/live receipt follows in
+docs/releases/JOB_EDIT_MENU_STICKY_DIVISIONS_STAGING_20261019.md. Production remains
+unapproved; preserve all existing Staging candidates.
