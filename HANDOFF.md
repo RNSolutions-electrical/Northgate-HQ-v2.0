@@ -23682,3 +23682,24 @@ verify. No Production business-data test save or inferred mapping. Existing infe
 division links remain unchanged; their absent active records cannot be renamed.
 Full receipt/limits: docs/releases/FINANCIAL_CATALOGUE_PROMOTION_20261019.md.
 No blocker remains. Staging stays on its broader candidate, without a main merge.
+
+## Entry 377 - Canonical division grouping and Add Line, Staging only
+
+Ryan approved a code-only repair using a fresh read-only Production Toro snapshot
+locally, preserving existing Staging data. Released source reproduces 17 groups
+and two Add Line buttons. Shared view/action/export identity resolution yields 13
+groups with all 124 original rows exactly once, identical totals and protected
+custom 16.5 O&P intact at $34,131; Division16 Original remains $147,900. Existing
+explicit targets and inferred null-parent contexts support Add Line through the
+unchanged audited/proposal paths; no project/helper/link repair occurs. Ambiguous
+or retired contexts fail safely and rejected drafts remain editable.
+
+Final aggregate 375 pass/one skip/zero failures; actual-snapshot desktop/phone proof,
+local saves/cancel/validation/retirement/names/export/scope/sticky checks, existing
+financial/catalogue/Edit/review-scroll UI, ten local PostgreSQL groups and synthetic
+Staging build pass. Live baseline Toro Test already has 12 sections; it is retained
+for read-only post-deploy comparison. Raw Production data stays ignored locally and
+is excluded from the build. No live financial record, migration or Production deploy
+is authorized. Publication/invariance receipts follow in
+docs/releases/FINANCIAL_DIVISION_GROUPING_STAGING_20261019.md. Preserve all existing
+Staging work and Production main receipt 27cb1cc.

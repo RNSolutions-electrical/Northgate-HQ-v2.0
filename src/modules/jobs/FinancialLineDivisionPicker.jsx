@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
-import { resolvedDivisionLabel } from './financialNames.js';
+import {createFinancialDivisionResolver} from './financialDivisionGroups.js';
 
 export function FinancialLineDivisionPicker({ jobId, onSelect, onClose }) {
   const { getToken } = useAuth();
@@ -20,8 +20,12 @@ export function FinancialLineDivisionPicker({ jobId, onSelect, onClose }) {
         if (error) throw error;
         const names=await client.rpc('read_job_financial_names',{p_job_id:jobId});
         if(names.error)throw names.error;
+        const catalogue=await client.rpc('read_financial_catalogue',{p_include_retired:false});
+        if(catalogue.error)throw catalogue.error;
         const byId=new Map((names.data?.divisions||[]).map(row=>[row.id,row]));
-        if (active) setState({ loading: false, divisions: (data || []).map(row=>({...row,_financialName:byId.get(row.id)})), error: null });
+        const projectDivisions=(data||[]).map(row=>({...row,_financialName:byId.get(row.id)}));
+        const choices=createFinancialDivisionResolver({projectDivisions,catalogueDivisions:catalogue.data?.divisions||[]}).choices();
+        if (active) setState({ loading: false, divisions:choices, error: null });
       } catch (error) {
         if (active) setState({ loading: false, divisions: [], error });
       }
@@ -31,14 +35,14 @@ export function FinancialLineDivisionPicker({ jobId, onSelect, onClose }) {
   }, [getToken, jobId]);
 
   return <section className="job-financials-compact-form" aria-label="Choose financial line division">
-    <p>Choose the project division for the new financial line.</p>
+    <p>Choose the division for the new financial line.</p>
     {state.loading ? <p role="status">Loading project divisions...</p>
       : state.error ? <StatePanel tone="danger" title="Project divisions could not be loaded" description={state.error.message} compact />
         : state.divisions.length ? <div className="job-financials-quick-actions">
-          {state.divisions.map((division) => <button key={division.id} type="button" className="secondary-button" onClick={() => onSelect(division)}>
-            {resolvedDivisionLabel(division)}
+          {state.divisions.map((division) => <button key={division.key} type="button" className="secondary-button" onClick={() => onSelect(division)}>
+            {division.label}
           </button>)}
-        </div> : <StatePanel tone="neutral" title="No active project divisions" description="A budget approver can use Build from Template to set up project divisions before adding a financial line." compact />}
+        </div> : <StatePanel tone="neutral" title="No active project divisions" description="No active division is available for a new financial line." compact />}
     <button type="button" className="secondary-button" onClick={onClose}>Cancel adding financial line</button>
   </section>;
 }

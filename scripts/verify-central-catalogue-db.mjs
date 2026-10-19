@@ -181,6 +181,21 @@ try{
  assert.deepEqual(await scalar('select snapshot from public.job_pay_application_lines'),history);
  assert.equal(await scalar("select md5(string_agg((to_jsonb(b)-array['updated_at','catalogue_line_id','name_override','is_job_only_custom'])::text,'' order by id)) from public.job_budget_lines b where id=any($1::uuid[])",[fixture.lines.map(row=>row.id)]),original);
  reports.push('Authenticated role cannot directly write the new master table or invoke Developer metadata writes');
+ // The inferred Add Line UI must use the existing audited contract, not create
+ // project divisions or silently attach/reclassify legacy rows.
+ await actor('approver');
+ const priorCount=await scalar('select count(*)::int from public.job_budget_lines'),priorDivisions=await scalar('select count(*)::int from public.job_budget_divisions');
+ await exec('begin');
+ try{
+  const inferred=await scalar('select public.save_job_financial_batch($1,$2,null)',[job,JSON.stringify([{description:'Synthetic inferred custom line',cost_code:'16.999',project_division_id:null,is_job_only_custom:true,budget_amount:12.34}])]);
+  assert.equal(inferred[0].project_division_id,null);assert.equal(inferred[0].catalogue_line_id,null);assert.equal(inferred[0].is_job_only_custom,true);assert.equal(Number(inferred[0].budget_amount),12.34);
+  const known=await scalar('select public.save_job_financial_batch($1,$2,null)',[job,JSON.stringify([{description:'Synthetic inferred catalogue split',cost_code:'16.1',project_division_id:null,budget_amount:0}])]);
+  assert.equal(known[0].project_division_id,null);assert.ok(known[0].catalogue_line_id);assert.equal(known[0].is_job_only_custom,false);
+  assert.equal(await scalar('select count(*)::int from public.job_budget_divisions'),priorDivisions);assert.equal(await scalar('select count(*)::int from public.job_budget_lines'),priorCount+2);
+ }finally{await exec('rollback');}
+ assert.equal(await scalar('select count(*)::int from public.job_budget_lines'),priorCount);
+ await actor('viewer');await assert.rejects(()=>scalar('select public.save_job_financial_batch($1,$2,null)',[job,JSON.stringify([{description:'Unauthorized inferred line',cost_code:'16.999',project_division_id:null,is_job_only_custom:true}])]),/Financial edit permission/);
+ reports.push('Existing audited RPC accepts inferred catalogue/custom lines with null project IDs, preserves custom classification, creates no project/helper rows, rolls back atomically, and denies unauthorized writes');
  await mkdir('.temp/catalogue-qa',{recursive:true});await writeFile('.temp/catalogue-qa/database-evidence.json',JSON.stringify({reports,passed:true},null,2));
  console.log(`PASS: ${reports.length} central catalogue database scenario groups.\n${reports.join('\n')}`);
 }finally{await client.end();}
