@@ -3,7 +3,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { StatePanel } from '../../components/ui/StatePanel.jsx';
-import { financialDivisionLabel } from './financialDivisionLabels.js';
+import { resolvedDivisionLabel } from './financialNames.js';
 
 export function FinancialLineDivisionPicker({ jobId, onSelect, onClose }) {
   const { getToken } = useAuth();
@@ -14,10 +14,14 @@ export function FinancialLineDivisionPicker({ jobId, onSelect, onClose }) {
       setState({ loading: true, divisions: [], error: null });
       try {
         const token = await getSupabaseAccessToken(getToken);
-        const { data, error } = await createSupabaseClient(token).from('job_budget_divisions')
+        const client=createSupabaseClient(token);
+        const { data, error } = await client.from('job_budget_divisions')
           .select('id,code,name,sort_order').eq('job_id', jobId).is('archived_at', null).order('sort_order');
         if (error) throw error;
-        if (active) setState({ loading: false, divisions: data || [], error: null });
+        const names=await client.rpc('read_job_financial_names',{p_job_id:jobId});
+        if(names.error)throw names.error;
+        const byId=new Map((names.data?.divisions||[]).map(row=>[row.id,row]));
+        if (active) setState({ loading: false, divisions: (data || []).map(row=>({...row,_financialName:byId.get(row.id)})), error: null });
       } catch (error) {
         if (active) setState({ loading: false, divisions: [], error });
       }
@@ -32,7 +36,7 @@ export function FinancialLineDivisionPicker({ jobId, onSelect, onClose }) {
       : state.error ? <StatePanel tone="danger" title="Project divisions could not be loaded" description={state.error.message} compact />
         : state.divisions.length ? <div className="job-financials-quick-actions">
           {state.divisions.map((division) => <button key={division.id} type="button" className="secondary-button" onClick={() => onSelect(division)}>
-            {financialDivisionLabel(division.code, division.name)}
+            {resolvedDivisionLabel(division)}
           </button>)}
         </div> : <StatePanel tone="neutral" title="No active project divisions" description="A budget approver can use Build from Template to set up project divisions before adding a financial line." compact />}
     <button type="button" className="secondary-button" onClick={onClose}>Cancel adding financial line</button>

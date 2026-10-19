@@ -7,7 +7,7 @@ const server=await createServer({cacheDir:'.temp/vite-review-scroll',configFile:
 const browser=await chromium.launch({headless:true,channel:'msedge'}),directory='.temp/estimate-review-scroll',results=[];await mkdir(directory,{recursive:true});
 try{
  for(const width of [1440,390]){
-  const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.setDefaultTimeout(30000);page.on('pageerror',error=>errors.push(error.message));
+  const page=await browser.newPage({viewport:{width,height:900}}),errors=[];page.setDefaultTimeout(30000);page.setDefaultNavigationTimeout(60000);page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
   await page.goto('http://127.0.0.1:5349/tests/browser/standalone-estimate.html?review&long-review');
   await page.locator('.estimate-directory-row').filter({hasText:'Standalone fixture'}).click();

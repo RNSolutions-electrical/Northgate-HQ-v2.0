@@ -34,13 +34,15 @@ export function createSupabaseClient() {return {
     };return q;
   },
   async rpc(name,args) {
+    if(name==='read_financial_catalogue')return {data:{divisions:[],lines:[]},error:null};
+    if(name==='read_job_financial_names')return {data:{divisions:[],lines:[]},error:null};
     window.financialFixture.calls.push({name,args});
     if(window.financialFixture.delaySave && name==='save_job_financial_batch') await new Promise(resolve=>setTimeout(resolve,300));
     if(window.financialFixture.failNext){window.financialFixture.failNext=false;return {error:{message:'Fixture rejected save'}};}
     if(name==='save_v5_job_financial_proposal') return {data:{id:'proposal1',version:1},error:null};
     if(name==='submit_v5_job_financial_proposal') return {data:{id:'submission1'},error:null};
     if(name==='save_job_financial_batch'){
-      const saved=args.p_lines.map((line)=>{const old=rows.find(r=>r.id===line.id);return {...old,...line,project_division:divisions.find(d=>d.id===line.project_division_id),id:line.id||`new-${rows.length}`,updated_at:new Date().toISOString()};});
+      const saved=args.p_lines.map((line)=>{const old=rows.find(r=>r.id===line.id);return {...old,...line,project_division:divisions.find(d=>d.id===(line.project_division_id||old?.project_division_id)),id:line.id||`new-${rows.length}`,updated_at:new Date().toISOString()};});
       rows=rows.map(row=>saved.find(s=>s.id===row.id)||row);
       rows.push(...saved.filter(s=>!rows.some(r=>r.id===s.id)));
       return {data:saved,error:null};

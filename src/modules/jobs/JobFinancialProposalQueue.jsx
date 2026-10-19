@@ -22,7 +22,10 @@ function proposalDetails(item) {
   return (Array.isArray(item.proposed_payload?.lines) ? item.proposed_payload.lines : []).map((line) => ({
     ...line,
     _label: lineLabel(line),
-    _detail: `${line.id ? 'Existing line' : 'New line'} · Original ${money(line.budget_amount)} · Changes ${money(line.budget_change_amount)} · Actual ${money(line.actual_cost_amount)} · Forecast ${money(line.forecast_final_amount)}`,
+    _detail: Object.hasOwn(line,'name_override') || Object.hasOwn(line,'project_division_name_override')
+      ? `${Object.hasOwn(line,'project_division_name_override') ? 'Division' : 'Line'} name: ${line.project_division_name_override ?? line.name_override ?? 'Use current catalogue name'}`
+      : `${line.id ? 'Existing line' : 'New line'} · Original ${money(line.budget_amount)} · Changes ${money(line.budget_change_amount)} · Actual ${money(line.actual_cost_amount)} · Forecast ${money(line.forecast_final_amount)}`,
+
   }));
 }
 

@@ -17,6 +17,7 @@ export function financialDivisionLabel(code, name) {
 }
 
 export function financialLineDescription(line) {
+  if (line._financialName?.effective_name !== undefined) return line._financialName.effective_name;
   const description = line.description || '';
   if (line.cost_code === '07') return financialDivisionName('07', description);
   if (line.cost_code === '07.CO' && / Change Orders$/.test(description)) {

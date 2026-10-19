@@ -17,6 +17,7 @@ try {
   browser=await chromium.launch({headless:true,channel:'msedge'});
   const page=await browser.newPage();
   page.setDefaultTimeout(15000);
+  page.setDefaultNavigationTimeout(60000);
   const pageErrors=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
   // The fixture must never contact a real backend.

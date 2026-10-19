@@ -1,4 +1,5 @@
 import { financialDivisionName, financialLineDescription } from './financialDivisionLabels.js';
+import {resolvedDivisionName} from './financialNames.js';
 
 const OPTIONS = Object.freeze([
   ['budget', 'Budget'],
@@ -15,8 +16,8 @@ const amount = (value) => Number(value) || 0;
 const divisionCodeFromLine = (line) => line?.project_division?.code
   || String(line?.cost_code || '').match(/^\d{2}/)?.[0]
   || '';
-const divisionNameFromLine = (line) => financialDivisionName(divisionCodeFromLine(line), line?.project_division?.name);
-const divisionKeyFromLine = (line) => line?.project_division_id
+const divisionNameFromLine = (line) => line?.project_division?._financialName ? resolvedDivisionName(line.project_division) : line?._financialName?.effective_division_name || line?._financialName?.catalogue_division_name || financialDivisionName(divisionCodeFromLine(line), line?.project_division?.name);
+const divisionKeyFromLine = (line) => line?.project_division?._financialName?.catalogue_division_id || line?._financialName?.catalogue_division_id || line?.project_division_id
   || line?.project_division?.id
   || (divisionCodeFromLine(line) ? `cost:${divisionCodeFromLine(line)}` : 'unassigned');
 const divisionLabelFromLine = (line) => {

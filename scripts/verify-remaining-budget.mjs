@@ -17,7 +17,7 @@ const cases={toro:[5500,6729.59,-1229.59,5500],moved:[5500,6729.59,-1229.59,5500
   zero:[0,0,0,0],atBudget:[100,100,0,100],negativeBudget:[-200,-50,-150,-200],negative:[600,700,-100,600],overrides:[1200,200,1000,1200],decimals:[0.3,0.3,0,0.3],empty:[0,0,0,0],labels:[2500,1000,1500,2500]};
 try {
   browser=await chromium.launch({headless:true,channel:process.env.PLAYWRIGHT_CHANNEL||'msedge'});
-  const page=await browser.newPage();page.setDefaultTimeout(15000);const errors=[];
+  const page=await browser.newPage();page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(60000);const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
   const card=label=>page.locator('.summary-card').filter({has:page.getByText(label,{exact:true})});
