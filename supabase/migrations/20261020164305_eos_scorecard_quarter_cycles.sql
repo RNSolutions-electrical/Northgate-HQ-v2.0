@@ -13,12 +13,33 @@ INSERT INTO eos_private.quarter_schedule DEFAULT VALUES;
 
 CREATE FUNCTION public.eos_scorecard_quarters_read_v1(p_snapshot bigint DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,eos_private,pg_temp AS $$
+DECLARE dates jsonb:='[]'; r record; candidate text; parsed date; basis text; src jsonb;
 BEGIN
  IF NOT public.current_user_can_manage_eos() THEN RAISE EXCEPTION 'EOS membership required' USING ERRCODE='42501'; END IF;
  IF p_snapshot IS NOT NULL AND p_snapshot<>(SELECT revision FROM eos_private.clock WHERE id) THEN
   RAISE EXCEPTION 'Scorecard changed while reading cycle schedule; reload latest' USING ERRCODE='PT409';
  END IF;
- RETURN (SELECT jsonb_build_object('revision',revision,'cycles',cycles) FROM eos_private.quarter_schedule WHERE id);
+ -- Read existing provenance only; never backfill or rewrite an observation/date.
+ -- Legacy fallback is the first audited period meeting date, then its stable
+ -- anchor. Never substitute a later rescheduled meeting or invent Wednesday.
+ FOR r IN SELECT p.id,p.anchor,(SELECT coalesce(a.before_data->>'meeting_date',a.after_data->>'meeting_date') FROM public.eos_scorecard_audit a
+   WHERE a.entity='period' AND a.entity_id=p.id ORDER BY a.id LIMIT 1) original_date
+   FROM public.eos_scorecard_periods p LOOP
+  candidate:=r.original_date;basis:='first-audited-period-meeting-date';
+  BEGIN parsed:=candidate::date; EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow THEN parsed:=NULL; END;
+  IF candidate IS NULL OR candidate !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' OR parsed IS NULL THEN candidate:=r.anchor::text;basis:='reporting-anchor-fallback'; END IF;
+  dates:=dates||jsonb_build_array(jsonb_build_object('metric_id',NULL,'period_id',r.id,'date',candidate,'basis',basis,'ambiguous',true));
+ END LOOP;
+ FOR r IN SELECT metric_id,period_id FROM public.eos_scorecard_observations LOOP
+  src:=(eos_private.bulk_baseline(r.metric_id,r.period_id)->'row'->>'Source')::jsonb;
+  candidate:=src->>'meeting_date';basis:='source-reporting-date';
+  BEGIN parsed:=candidate::date; EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow THEN parsed:=NULL; END;
+  IF candidate IS NULL OR candidate !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' OR parsed IS NULL THEN
+   SELECT d->>'date',d->>'basis' INTO candidate,basis FROM jsonb_array_elements(dates) d WHERE d->>'period_id'=r.period_id AND d->>'metric_id' IS NULL;
+  END IF;
+  dates:=dates||jsonb_build_array(jsonb_build_object('metric_id',r.metric_id,'period_id',r.period_id,'date',candidate,'basis',basis,'ambiguous',basis<>'source-reporting-date'));
+ END LOOP;
+ RETURN (SELECT jsonb_build_object('revision',revision,'cycles',cycles,'reporting_dates',dates) FROM eos_private.quarter_schedule WHERE id);
 END $$;
 
 CREATE FUNCTION public.eos_scorecard_quarters_save_v1(p_input jsonb,p_request_id uuid) RETURNS jsonb

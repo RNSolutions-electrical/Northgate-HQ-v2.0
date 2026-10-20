@@ -6,11 +6,12 @@ function download(text,name){const url=URL.createObjectURL(new Blob([text],{type
 export function ScorecardBulkEditor({store,filters,onApplied,onActivity}){
  const [preview,setPreview]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false),[stale,setStale]=useState(false);
  const [pending,setPending]=useState(()=>localStorage.getItem(storage)||'');
+ const [exportNotice,setExportNotice]=useState('');
  useEffect(()=>{onActivity?.(busy);},[busy,onActivity]);
  const unfinished=uncertain||(preview?.status==='preview'&&((preview.new||0)+(preview.changed||0)>0));
  useEffect(()=>{if(!unfinished)return;const warn=e=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[unfinished]);
  async function run(fn){setBusy(true);setError('');try{await fn();}catch(e){setError(e.message);}finally{setBusy(false);}}
- async function exportFile(){await run(async()=>{const all=await store.all();const cells=exportRows(all,filters).map(({metric_id,period_id})=>({metric_id,period_id}));if(!cells.length)throw new Error('No rows in this reporting period.');const result=await store.exportBulk(cells,crypto.randomUUID());download(bulkCsv(result.rows),'scorecard-bulk-edit.csv');});}
+ async function exportFile(){await run(async()=>{const all=await store.all();const selected=exportRows(all,filters);const cells=selected.map(({metric_id,period_id})=>({metric_id,period_id}));if(!cells.length)throw new Error('No rows in this reporting period.');const result=await store.exportBulk(cells,crypto.randomUUID());download(bulkCsv(result.rows),'scorecard-bulk-edit.csv');const legacy=selected.filter(r=>r.reporting_date_ambiguous).length;setExportNotice(legacy?`${legacy} exported entries use an unverified original-date fallback for grouping. The CSV retains its existing protected meeting-date fields; review these legacy dates before saving.`:'');});}
  async function upload(file){if(!file)return;await run(async()=>{if(file.size>4000000)throw new Error('Use a CSV within 4 MB.');const rows=parseBulkCsv(await file.text());const id=crypto.randomUUID();localStorage.setItem(storage,id);setPending(id);setPreview(null);setStale(false);setUncertain(false);setPreview(await store.previewBulk(rows,id));});}
  async function recover(){await run(async()=>{setPreview(await store.readBulk(pending));setUncertain(false);});}
  async function apply(){await run(async()=>{try{setPreview(await store.applyBulk(preview.import_id));setUncertain(false);}catch(e){if(e.code==='PT409')setStale(true);else setUncertain(true);throw e;}await onApplied?.();});}
@@ -21,6 +22,7 @@ export function ScorecardBulkEditor({store,filters,onApplied,onActivity}){
   <button disabled={busy} onClick={exportFile}>Export for bulk editing</button>
   <label>Upload edited CSV<input type="file" accept=".csv,text/csv" disabled={busy||uncertain} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/></label>
   {pending&&<button disabled={busy} onClick={recover}>Recover last review / save</button>}
+  {exportNotice&&<p role="status">{exportNotice}</p>}
   {busy&&<p role="status">Working…</p>}{error&&<p role="alert">{error}</p>}
   {uncertain&&<p role="status">Save could not be confirmed. Recover the last save or retry Confirm save; the same review is saved at most once.</p>}
   {stale&&<p role="alert">The scorecard changed. Export a fresh copy and review your edits again.</p>}

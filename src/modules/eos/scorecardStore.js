@@ -140,7 +140,10 @@ export function createRemoteScorecardStore(call) {
     return data;
   });
   async function withQuarterSchedule(state) {
-    try { return {...state,quarterSchedule:await rpc('eos_scorecard_quarters_read_v1',{p_snapshot:state.snapshot})}; }
+    try {
+      const {reporting_dates=[],...quarterSchedule}=await rpc('eos_scorecard_quarters_read_v1',{p_snapshot:state.snapshot});
+      return {...state,quarterSchedule,reportingDates:reporting_dates};
+    }
     catch(e) {
       if (!['PGRST202','42883'].includes(e.code)) throw e;
       return {...state,quarterSchedule:{revision:0,cycles:[],unavailable:true}};

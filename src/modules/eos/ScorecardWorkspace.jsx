@@ -7,7 +7,7 @@ import { printScorecard, scorecardPrintHtml } from './scorecardPrint.js';
 import './scorecard.css';
 import candidateReference from './scorecardCandidates.json';
 import { ScorecardBulkEditor } from './ScorecardBulkEditor.jsx';
-import {QUARTER_VIEWS,quarterRange,quarterRangeLabel} from './scorecardQuarters.js';
+import {QUARTER_VIEWS,quarterRange,quarterRangeLabel,entryReportingDate,entryInScope,reportingDateChoices} from './scorecardQuarters.js';
 import {ScorecardQuarterSetup} from './ScorecardQuarterSetup.jsx';
 import {ScorecardDialog} from './ScorecardDialog.jsx';
 
@@ -30,6 +30,7 @@ export function ScorecardWorkspace({ store }) {
   const [owner, setOwner] = useState(''); const [category, setCategory] = useState(''); const [includeRetired, setIncludeRetired] = useState(false);
   const [scope, setScope] = useState('current'); const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   const [quarterView,setQuarterView]=useState('calendar');
+  const [referenceDate,setReferenceDate]=useState('');
   const [cycleDraft,setCycleDraft]=useState(false);
   const [overlay,setOverlay]=useState(null),[bulkBusy,setBulkBusy]=useState(false);
   const [cycleBusy,setCycleBusy]=useState(false);const editControl=useRef(null);
@@ -52,7 +53,7 @@ export function ScorecardWorkspace({ store }) {
   const periods = useMemo(() => [...(state?.periods || [])].filter((p) => !p.context_only).sort((a, b) => a.anchor.localeCompare(b.anchor)), [state]);
   const period = periods.find((p) => p.id === periodId) || periods.at(-1);
   const previous = period && (periods.find((p) => p.anchor === shiftCalendarDate(period.anchor, -7)) || { ...makePeriod(shiftCalendarDate(period.anchor, -7)), unpersisted: true });
-  const filters = { scope, periodId: period?.id, owner, category, includeRetired, from, to, quarterView, quarterScheduleRevision:state?.quarterSchedule?.revision || 0 };
+  const filters = { scope, periodId: period?.id, owner, category, includeRetired, from, to, quarterView, referenceDate, quarterScheduleRevision:state?.quarterSchedule?.revision || 0 };
   const quarterDescription = state ? quarterRangeLabel(quarterRange(state,filters)) : '';
   const hasDraft = Boolean(editing || metricForm || periodForm || categoryForm || cycleDraft);
   async function selectQuarter(basis=quarterView) {
@@ -69,6 +70,7 @@ export function ScorecardWorkspace({ store }) {
     return state.metrics.filter((m) => includeRetired || !m.retired).map((m) => ({ ...m, d: resolveCell(state, m.id, period).definition
       || (view === 'Manage metrics' ? state.definitions.filter((d) => d.metric_id === m.id).sort((a,b) => b.revision-a.revision)[0] : null) }))
       .filter(({ id, d }) => d && (view === 'Manage metrics' ? (!owner || d.owner_id === owner) && (!category || d.category_id === category) : (view === 'All history' ? scopePeriods : [period]).some((p) => {
+        if(view==='All history'&&!entryInScope(state,id,p,filters))return false;
         const historical = resolveCell(state, id, p).definition;
         return historical && (!owner || historical.owner_id === owner) && (!category || historical.category_id === category);
       })))
@@ -77,7 +79,7 @@ export function ScorecardWorkspace({ store }) {
           : sort === 'owner' ? m.d.owner_label : sort === 'category' ? m.d.category_label : m.d.name;
         return (descending ? -1 : 1) * String(val(a) || '').localeCompare(String(val(b) || '')) || a.id.localeCompare(b.id);
       });
-  }, [state, period, includeRetired, owner, category, sort, descending, view, scope, from, to, quarterView]);
+  }, [state, period, includeRetired, owner, category, sort, descending, view, scope, from, to, quarterView,referenceDate]);
   // Snapshot the ordering at edit start; updates never move an in-progress row.
   const orderedRows = editing?.order ? [...rows].sort((a, b) => editing.order.indexOf(a.id) - editing.order.indexOf(b.id)) : rows;
   function beginEdit(metricId, p, focus) {
@@ -95,7 +97,7 @@ export function ScorecardWorkspace({ store }) {
       if (kind === 'pdf' && !printWindow) throw new Error('Allow the print window, then retry PDF.');
       const all = await store.all(); const data = exportRows(all, filters);
       if (kind === 'csv') download(toCsv(data), `company-scorecard-${scope}.csv`, 'text/csv;charset=utf-8');
-      else printScorecard(scorecardPrintHtml(data, `${scope}${scope==='quarter'?` / ${QUARTER_VIEWS[quarterView]} / ${quarterDescription} / grouped by Monday reporting anchor; reported cumulative values retain their original measurement basis`:''} · owner ${owner || 'all'} · category ${category || 'all'} · retired ${includeRetired ? 'included' : 'excluded'}`), printWindow);
+      else printScorecard(scorecardPrintHtml(data, `${scope}${scope==='quarter'?` / ${QUARTER_VIEWS[quarterView]} / ${quarterDescription} / grouped by original reporting date; legacy fallbacks labeled; reported cumulative values retain their original measurement basis`:''} · owner ${owner || 'all'} · category ${category || 'all'} · retired ${includeRetired ? 'included' : 'excluded'}`), printWindow);
       setMessage(`${data.length} period observations exported.`);
     } catch (e) { printWindow?.close(); setError(e.message); } finally { setBusy(false); }
   }
@@ -133,12 +135,15 @@ export function ScorecardWorkspace({ store }) {
   function cell(metric, p) {
     const c = resolveCell(state, metric.id, p);
     if (!c.definition) return <td colSpan="2" key={p.id}>Not defined in this period</td>;
+    const report=entryReportingDate(state,metric.id,p);
+    if(view==='All history'&&!entryInScope(state,metric.id,p,filters))return <td colSpan="2" key={p.id}>Outside this view · reporting date {report.date}</td>;
     if (view === 'All history' && ((owner && c.definition.owner_id !== owner) || (category && c.definition.category_id !== category))) return <td colSpan="2" key={p.id}>Outside filters</td>;
     const isEditing = editing?.draft.metric_id === metric.id && editing?.draft.period_id === p.id;
     return <FragmentCell key={p.id}>
       <td><button className="scorecard-cell" disabled={busy} onClick={() => beginEdit(metric.id, p, 'value')} aria-label={`Edit value: ${c.definition.name}, ${p.anchor}`}>
         <strong>{formatValue(c.value, c.definition)}</strong>
-        {c.carried && <small className="scorecard-carry">Auto-filled · meeting {c.sourcePeriod.meeting_date}<br />Updated {c.source.updated_at}<br />Measurement {c.source.measurement_start} to {c.source.as_of}</small>}
+        {c.actual&&<small>Report {report.date}{report.ambiguous?` · Original date unverified (${report.basis==='first-audited-period-meeting-date'?'first audited meeting':'reporting-anchor fallback'})`:''}</small>}
+        {c.carried && <small className="scorecard-carry">Auto-filled · source report {entryReportingDate(state,metric.id,c.sourcePeriod).date}<br />Updated {c.source.updated_at}<br />Measurement {c.source.measurement_start} to {c.source.as_of}</small>}
         {!c.carried && c.actual && <small>Measurement {c.actual.measurement_start} to {c.actual.as_of}</small>}
         {['QTD','YTD'].includes(c.definition.window)&&<small>Reported cumulative snapshot · original measurement basis retained</small>}
         {view === 'All history' && c.definition.id !== metric.d.id && <small>{c.definition.name} · {c.definition.owner_label || 'Unassigned'}<br />{c.definition.category_label} · {c.definition.unit} · Goal {formatValue(c.definition.goal, c.definition)}</small>}
@@ -158,7 +163,7 @@ export function ScorecardWorkspace({ store }) {
     {!state ? <p>Scorecard requires the reviewed server contract. <button onClick={() => refresh().catch((e) => setError(e.message))}>Retry loading</button></p> : <>
       <div className="scorecard-toolbar">
         <label>Quarter view<select aria-label="Quarter view" disabled={busy || hasDraft} value={quarterView} onChange={e=>selectQuarter(e.target.value)}>{Object.entries(QUARTER_VIEWS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-        {view !== 'Manage metrics' && <label>Meeting / reporting week<select aria-label="Reporting week" disabled={busy || hasDraft} value={period?.id || ''} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((p) => <option key={p.id} value={p.id}>Meeting {p.meeting_date} (week of {p.anchor})</option>)}</select></label>}
+        {view !== 'Manage metrics' && <label>Scorecard reporting date<select aria-label="Reporting week" disabled={busy || hasDraft} value={referenceDate?`${period?.id}@${referenceDate}`:period?.id||''} onChange={(e)=>{const [id,date='']=e.target.value.split('@');setPeriodId(id);setReferenceDate(date);}}>{periods.flatMap(p=>reportingDateChoices(state,p).map((date,i)=><option key={`${p.id}@${date}`} value={i?`${p.id}@${date}`:p.id}>Report {date} (week of {p.anchor})</option>))}</select></label>}
         {view === 'Meeting' && <><button disabled={busy || hasDraft} onClick={() => { const p = makePeriod(); setPeriodForm({ ...p, expected_revision: 0, requestId: uuid(), isNew: true }); }}>Add reporting week</button>
         {period && <button onClick={() => setPeriodForm({ ...period, expected_revision: period.revision, requestId: uuid() })}>Change meeting date</button>}</>}
         <button disabled={busy || hasDraft} onClick={()=>setOverlay('filters')}>Filters &amp; exports</button>
@@ -185,7 +190,7 @@ export function ScorecardWorkspace({ store }) {
         {scope==='quarter'&&quarterView==='management'&&!quarterRange(state,filters)&&<p>Use Edit → Management cycles to define a confirmed cycle, or choose Calendar Quarter. No dates or entries have been guessed.</p>}
 
         {scopeError && <p role="alert">{scopeError}</p>}
-        <div className="scorecard-scroll" tabIndex="0" aria-label="Scrollable scorecard table"><table className="scorecard-table"><thead><tr><th className="scorecard-identity">Metric / owner / target</th>{displayedPeriods.map((p) => <th colSpan="2" key={p.id}>{view === 'Meeting' ? p.id === period.id ? 'This week' : 'Last week' : 'Week of ' + p.anchor}<small>Weekly reference: {weeklyRange(p)}<br />Meeting {p.meeting_date}{view === 'Meeting' ? p.id === period.id ? ' · Selected' : ' · Previous' : ''}</small></th>)}</tr><tr><th className="scorecard-identity">{orderedRows.length} measurables</th>{displayedPeriods.map((p) => <FragmentCell key={p.id}><th>Value / measurement</th><th>Visible notes</th></FragmentCell>)}</tr></thead>
+        <div className="scorecard-scroll" tabIndex="0" aria-label="Scrollable scorecard table"><table className="scorecard-table"><thead><tr><th className="scorecard-identity">Metric / owner / target</th>{displayedPeriods.map((p) => <th colSpan="2" key={p.id}>{view === 'Meeting' ? p.id === period.id ? 'This week' : 'Last week' : 'Week of ' + p.anchor}<small>Report {reportingDateChoices(state,p).join(' / ')}<br />Scheduled meeting {p.meeting_date}{view === 'Meeting' ? p.id === period.id ? ' · Selected' : ' · Previous' : ''}</small></th>)}</tr><tr><th className="scorecard-identity">{orderedRows.length} measurables</th>{displayedPeriods.map((p) => <FragmentCell key={p.id}><th>Value / measurement</th><th>Visible notes</th></FragmentCell>)}</tr></thead>
           <tbody>{orderedRows.map((m) => <tr key={m.id} data-metric-id={m.id} className={selected === m.id ? 'is-selected' : ''} onClick={(e) => { if (!e.target.closest('button,input,textarea,select')) setSelected(m.id); }}><th scope="row" className="scorecard-identity"><button className="scorecard-selector" aria-pressed={selected === m.id} onClick={() => setSelected(selected === m.id ? null : m.id)}>{m.d.name}</button><small>{m.d.category_label} · {m.d.owner_label || 'Unassigned'}{m.retired ? ' · Retired' : ''}<br />Target {formatValue(m.d.goal, m.d)} · {m.d.unit}<br />{windowLabels[m.d.window]}<details><summary>Metric details</summary>{m.d.context}<br />Summary: {summaryLabels[m.d.aggregation]}</details></small></th>{displayedPeriods.map((p) => cell(m, p))}</tr>)}</tbody></table></div>
         {!orderedRows.length && <p>No metrics in this view. Add definitions in Manage metrics.</p>}
       </>}
@@ -212,7 +217,7 @@ export function ScorecardWorkspace({ store }) {
         <ScorecardQuarterSetup schedule={state.quarterSchedule} store={store} onSaved={refresh} onDraftChange={setCycleDraft} onActivity={setCycleBusy} disabled={busy || Boolean(editing || metricForm || periodForm || categoryForm)}/>
       </ScorecardDialog>}
       <ScorecardDialog open={overlay==='rules'} title="Quarter and measurement rules" onClose={()=>setOverlay(null)} returnFocusRef={editControl}>
-        <p>Both quarter views group the same entries by their Monday reporting anchor. A cycle starting midweek first includes the following Monday's week. Meeting dates and measurement intervals never move or split. Weekly historical measurements cover the preceding Monday–Sunday.</p>
+        <p>Both quarter views group each entry by its original source reporting date. A scorecard dated October 14 belongs to the cycle starting October 14, even when it measures October 5-11. Rescheduled meetings never replace saved original dates. Legacy entries without a source date use the first audited period meeting date, or the stable Monday anchor if no valid audited date exists; these fallbacks are labeled unverified. Measurement intervals never move or split.</p>
         <p>Reported QTD/YTD snapshots keep their original measurement basis. Browsing does not calculate alternative quarter totals, sum repeated snapshots or change entry dates.</p>
       </ScorecardDialog>
       {preview && <section className="scorecard-import"><h3>CSV change preview - no writes yet</h3><p>Only actual_value, notes and measurement dates are editable, with explicit set/clear actions. Blank with keep means unchanged. Omitted rows never delete or retire anything. Displayed/carry fields are read-only provenance.</p>

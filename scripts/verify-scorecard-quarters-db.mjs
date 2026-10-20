@@ -34,6 +34,16 @@ try {
  assert.deepEqual(newExport.rows.map(r=>({...r,'System reference':''})),baselineExport.rows.map(r=>({...r,'System reference':''})));
  const preview=await call('eos_scorecard_bulk_preview_v1',newExport.rows,randomUUID());assert.equal(preview.unchanged,1);assert.equal(preview.changed,0);
  assert.deepEqual((await db.query('select to_jsonb(o) data from eos_scorecard_observations o')).rows,original);
+ await call('eos_scorecard_save_period_v1',{id:'2026-01-05',anchor:'2026-01-05',meeting_date:'2026-02-04',expected_revision:1},randomUUID());
+ let attribution=(await call('eos_scorecard_quarters_read_v1')).reporting_dates.find(r=>r.metric_id===metric&&r.period_id==='2026-01-05');
+ assert.equal(attribution.date,'2026-01-06');assert.equal(attribution.ambiguous,true);assert.equal(attribution.basis,'first-audited-period-meeting-date');
+ const source={id:'synthetic-source',revision:'v1',cell:'Sheet!B2',meeting_date:'2026-01-14',measurement_start:'2026-01-14',as_of:'2026-01-14'};
+ const imported=await call('eos_scorecard_bulk_preview_v1',[{Metric:'Synthetic',Date:'2026-01-14',Value:'0',Notes:'Synthetic original source date',Format:'number',Review:'Needs review',Source:JSON.stringify(source),'System reference':''}],randomUUID());
+ assert.equal(imported.new,1);await call('eos_scorecard_bulk_apply_v1',imported.import_id);
+ await call('eos_scorecard_save_period_v1',{id:'2026-01-12',anchor:'2026-01-12',meeting_date:'2026-04-01',expected_revision:1},randomUUID());
+ attribution=(await call('eos_scorecard_quarters_read_v1')).reporting_dates.find(r=>r.metric_id===metric&&r.period_id==='2026-01-12');
+ assert.equal(attribution.date,'2026-01-14');assert.equal(attribution.ambiguous,false);assert.equal(attribution.basis,'source-reporting-date');
+ assert.deepEqual((await db.query("select to_jsonb(o) data from eos_scorecard_observations o where period_id='2026-01-05'")).rows,original);
  assert.equal((await db.query("select count(*)::int n from eos_scorecard_audit where entity='quarter_schedule'")).rows[0].n,1);
  await db.exec("SELECT set_config('qa.actor','outsider',false);SET ROLE authenticated");
  await assert.rejects(call('eos_scorecard_quarters_read_v1'),/membership/);await assert.rejects(call('eos_scorecard_quarters_save_v1',input,randomUUID()),/membership/);await assert.rejects(db.query('select * from eos_private.quarter_schedule'),/permission denied/);

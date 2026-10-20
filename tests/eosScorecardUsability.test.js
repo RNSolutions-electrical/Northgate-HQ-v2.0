@@ -13,7 +13,7 @@ test('Wednesday default, weekly dates and saved measurement dates survive meetin
  assert.deepEqual(measurementWindow({window:'YTD'},p),{measurement_start:'2026-01-01',as_of:'2026-10-14'});
  assert.deepEqual(measurementWindow({window:'QTD'},p),{measurement_start:'2026-10-01',as_of:'2026-10-14'});
 });
-test('quarter and year follow selected stable week even when meeting moves across boundaries',()=>{
+test('legacy records without provenance use a labeled stable anchor fallback across rescheduled dates',()=>{
  const periods=['2025-12-29','2026-01-05','2026-09-28','2026-10-05'].map(makePeriod); periods[2].meeting_date='2026-10-02';const state={periods};
  assert.deepEqual(scopedPeriods(state,{scope:'year',periodId:periods[2].id}).map(p=>p.anchor),['2026-01-05','2026-09-28','2026-10-05']);
  assert.deepEqual(scopedPeriods(state,{scope:'quarter',periodId:periods[2].id}).map(p=>p.anchor),['2026-09-28']);

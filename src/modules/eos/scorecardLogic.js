@@ -1,5 +1,5 @@
 import { companyToday, shiftCalendarDate } from './eosLogic.js';
-import {quarterRange} from './scorecardQuarters.js';
+import {quarterRange,reportingDateChoices,entryReportingDate,entryInScope} from './scorecardQuarters.js';
 
 export const UNITS = ['number', 'count', 'currency', 'percent', 'text'];
 export const CARRY = ['none', 'continuous', 'year', 'quarter'];
@@ -72,22 +72,27 @@ export function resolveCell(state, metricId, period) {
   return { definition, actual, value: source?.value ?? null, source, sourcePeriod,
     carried: Boolean(source && source.period_id !== period.id), notes: actual?.notes || '' };
 }
-export function scopedPeriods(state, { scope = 'current', periodId, from, to, quarterView = 'calendar', quarterScheduleRevision } = {}) {
+export function scopedPeriods(state, { scope = 'current', periodId, from, to, quarterView = 'calendar', quarterScheduleRevision,referenceDate } = {}) {
   const selected = state.periods.find((p) => p.id === periodId);
   if (scope === 'quarter' && quarterView === 'management' && quarterScheduleRevision !== undefined && quarterScheduleRevision !== (state.quarterSchedule?.revision || 0)) throw new Error('Management cycle schedule changed. Reload latest before exporting.');
-  const range = scope === 'quarter' ? quarterRange(state, {periodId,quarterView}) : null;
+  const range = scope === 'quarter' ? quarterRange(state, {periodId,quarterView,referenceDate}) : null;
+  const year=selected&&(validDate(referenceDate)?referenceDate:reportingDateChoices(state,selected)[0]).slice(0,4);
   if (scope === 'custom' && (!validDate(from) || !validDate(to) || from > to)) throw new Error('Choose a valid inclusive reporting-anchor date range.');
   return [...state.periods].filter((p) => scope === 'full' || (scope === 'current' && p.id === periodId)
-    || (scope === 'quarter' && range && p.anchor >= range.from && (!range.to || p.anchor <= range.to))
-    || (scope === 'year' && selected && p.anchor.slice(0, 4) === selected.anchor.slice(0, 4))
+    || (scope === 'quarter' && range && reportingDateChoices(state,p).some(date=>date>=range.from&&(!range.to||date<=range.to)))
+    || (scope === 'year' && year && reportingDateChoices(state,p).some(date=>date.slice(0,4)===year))
     || (scope === 'custom' && p.anchor >= from && p.anchor <= to)).sort((a, b) => a.anchor.localeCompare(b.anchor));
 }
 export function exportRows(state, filters) {
   return scopedPeriods(state, filters).flatMap((period) => state.metrics.flatMap((metric) => {
     if (metric.retired && !filters.includeRetired) return [];
+    if (!entryInScope(state,metric.id,period,filters)) return [];
     const cell = resolveCell(state, metric.id, period); const d = cell.definition;
     if (!d || (filters.owner && d.owner_id !== filters.owner) || (filters.category && d.category_id !== filters.category)) return [];
-    return [{ metric_id: metric.id, metric_name: d.name, category_id: d.category_id, category: d.category_label,
+    const report=entryReportingDate(state,metric.id,period);
+    return [{ reporting_date:report.date,reporting_date_basis:report.basis,reporting_date_ambiguous:report.ambiguous,
+      source_reporting_date:cell.sourcePeriod?entryReportingDate(state,metric.id,cell.sourcePeriod).date:'',
+      metric_id: metric.id, metric_name: d.name, category_id: d.category_id, category: d.category_label,
       owner_id: d.owner_id || '', owner: d.owner_label || '', unit: d.unit, goal: d.goal ?? '',
       definition_id: d.id, definition_context: d.context, measurement_window: d.window, carry_policy: d.carry,
       definition_revision: d.revision, period_id: period.id, reporting_anchor: period.anchor,
