@@ -112,3 +112,5 @@
 .scorecard-note-control { display:flex; align-items:flex-start; gap:.25rem; }
 .scorecard-workspace .scorecard-note-control .scorecard-notes { flex:1; min-width:0; }
 .scorecard-imported { display:inline-block; flex-shrink:0; font-size:.7rem; color:var(--ng-muted,#576873); padding:.3rem 0; cursor:help; white-space:nowrap; }
+
+.ng-page-scope:has(.scorecard-workspace--fit) { flex:1; min-height:0; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
