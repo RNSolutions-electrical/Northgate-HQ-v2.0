@@ -2,7 +2,7 @@
 BEGIN;
 SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='60s';
 DO $$ BEGIN
- IF md5(pg_get_functiondef('public.eos_scorecard_bulk_apply_v1(uuid)'::regprocedure))<>'94c7a346eb100ecddf4e65f705fb2ab1'
+ IF md5(pg_get_functiondef('public.eos_scorecard_bulk_apply_v1(uuid)'::regprocedure)) NOT IN ('94c7a346eb100ecddf4e65f705fb2ab1','3d81ad645738cfb6df17ee6486545140')
  OR md5(pg_get_functiondef('public.eos_scorecard_import_apply_v1(uuid)'::regprocedure))<>'80d038632c9890fdda1e86f2fa59fb7c'
  OR md5(pg_get_functiondef('public.eos_scorecard_save_observations_v1(jsonb,uuid)'::regprocedure))<>'dc219b9a6458aa8d71a25283c10f3a40' THEN RAISE EXCEPTION 'Import contract drift; stop and review'; END IF;
 END $$;

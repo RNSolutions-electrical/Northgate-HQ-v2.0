@@ -85,3 +85,58 @@
   .eos-table td > * { grid-column: 2; width: 100%; max-width: none; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
   .eos-reminder { align-items: start; flex-direction: column; }
 }
+
+/* One shared EOS header/reminder structure, with compact spacing on every page. */
+.eos-page-heading > .workspace-header { padding:.65rem 1rem; }
+.eos-page-heading > .workspace-header h2 { font-size:1.25rem; margin:0; }
+.eos-page-heading > .workspace-header .eyebrow { margin:0 0 .2rem; }
+.eos-page-heading > .eos-reminder { padding:.5rem .75rem; gap:.65rem; }
+.eos-workspace:has(.scorecard-workspace--fit) > .workspace-header,
+.eos-workspace:has(.scorecard-workspace--fit) > .eos-reminder,
+.eos-workspace:has(.scorecard-workspace--fit) > nav { flex-shrink:0; }
+@media(max-width:700px) {
+ .eos-workspace { gap:.4rem; }
+ .eos-page-heading > .workspace-header { padding:.35rem .6rem; }
+ .eos-page-heading > .workspace-header h2 { font-size:1.05rem; }
+ .eos-page-heading > .workspace-header .eyebrow { font-size:.6rem; margin:0; }
+ .eos-page-heading > .eos-reminder { margin:0 .5rem; padding:.35rem .5rem; gap:.4rem; }
+ .eos-reminder .eyebrow { font-size:.55rem; }
+ .eos-reminder p { font-size:.76rem; margin:.15rem 0; }
+ .eos-reminder small { font-size:.62rem; }
+ .eos-reminder > .eos-actions { flex-direction:column; flex-wrap:nowrap; gap:.2rem; flex-shrink:0; }
+ .eos-reminder button { padding:.25rem .4rem; font-size:.7rem; min-height:28px; }
+ .eos-module-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.25rem; padding:0 .5rem; }
+ .eos-module-nav button { min-width:0; padding:.3rem; font-size:.72rem; }
+ .scorecard-workspace--fit .scorecard-help:not([role="status"]) { display:none; }
+}
+.eos-page-heading > .workspace-header { flex-direction:row; align-items:center; gap:.4rem; }
+.eos-page-heading > .workspace-header .workspace-header__actions:empty { display:none; }
+.eos-page-heading > .workspace-header .workspace-header__copy .eyebrow { font-size:.62rem; }
+@media(max-height:600px) {
+ .eos-page-heading > .workspace-header { padding:.2rem .6rem; }
+ .eos-page-heading > .workspace-header h2 { font-size:1rem; }
+ .eos-page-heading > .workspace-header .workspace-header__copy .eyebrow { display:none; }
+ .eos-page-heading > .eos-reminder { padding:.25rem .5rem; }
+ .eos-reminder .eyebrow { font-size:.55rem; }
+ .eos-reminder p { font-size:.75rem; margin:.1rem 0; }
+ .eos-reminder small { font-size:.62rem; }
+ .eos-reminder button { padding:.2rem .35rem; min-height:28px; font-size:.7rem; }
+ .scorecard-workspace--fit .scorecard-help:not([role="status"]) { display:none; }
+}
+
+@media(max-height:600px) { .eos-reminder .eyebrow { display:none; } .eos-page-heading > .eos-reminder { gap:.35rem; } }
+.eos-page-heading > .workspace-header h2 { line-height:1.25; }
+.eos-reminder { line-height:1.25; }
+@media(max-height:600px) {
+ .scorecard-workspace--fit .scorecard-toolbar label { line-height:1.2; gap:.1rem; }
+ .scorecard-workspace--fit .scorecard-toolbar select { line-height:1.2; font-size:.78rem; padding:.2rem; }
+}
+
+.eos-page-heading { display:grid; gap:.35rem; flex-shrink:0; }
+@media(max-height:600px) and (min-width:600px) {
+ .eos-page-heading { display:flex; align-items:stretch; gap:.35rem; padding:0 .6rem; }
+ .eos-page-heading > .workspace-header { flex:0 0 10rem; padding:.3rem; }
+ .eos-page-heading > .eos-reminder { flex:1; margin:0; min-width:0; }
+}
+.eos-page-heading .workspace-header .workspace-header__actions:empty { display:none !important; }
+.eos-page-heading > .eos-reminder { flex-direction:row; align-items:center; }

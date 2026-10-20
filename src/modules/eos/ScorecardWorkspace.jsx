@@ -23,7 +23,7 @@ function download(content, name, type) {
 const initialDefinition = (date) => ({ name: '', context: '', category_id: '', owner_id: '', unit: 'number', goal: '',
   effective_from: date, carry: 'none', window: 'point-in-time', aggregation: 'none' });
 
-export function ScorecardWorkspace({ store }) {
+export function ScorecardWorkspace({ embedded=false, store }) {
   const [state, setState] = useState(null); const [view, setView] = useState('Meeting');
   const [periodId, setPeriodId] = useState(''); const [selected, setSelected] = useState(null);
   const [sort, setSort] = useState('name'); const [descending, setDescending] = useState(false);
@@ -154,7 +154,7 @@ export function ScorecardWorkspace({ store }) {
     </FragmentCell>;
   }
   return <section className="scorecard-workspace scorecard-workspace--fit" aria-label="Company Scorecard">
-    <div className="scorecard-heading"><div><p className="eyebrow">E.O.S. / LEADERSHIP</p><h2>Company Scorecard</h2><p>Weekly observations, shared ownership, complete history.</p></div>
+    <div className="scorecard-heading"><div><p className="eyebrow">E.O.S. / LEADERSHIP</p>{!embedded&&<h2>Company Scorecard</h2>}<p>Weekly observations, shared ownership, complete history.</p></div>
       <details className="scorecard-edit-menu"><summary ref={editControl}>Edit</summary><div role="group" aria-label="Scorecard editing controls">{[[store.exportBulk,'bulk','Bulk Edit'],[store.saveQuarterSchedule,'cycles','Management cycles'],[true,'rules','Quarter and measurement rules']].filter(([available])=>available).map(([,key,label])=><button key={key} disabled={busy || Boolean(editing || metricForm || periodForm || categoryForm)} onClick={e=>{setOverlay(key);e.currentTarget.closest('details').removeAttribute('open');}}>{label}</button>)}</div></details>
       {state&&<nav className="scorecard-tabs" aria-label="Scorecard views">{['Meeting', 'All history', 'Manage metrics'].map((name) => <button key={name} disabled={busy || hasDraft} aria-pressed={view === name} onClick={() => { if(name === 'All history'){selectQuarter();return;} setView(name); if(name === 'Meeting') setScope('current'); }}>{name}</button>)}</nav>}
       {store.localOnly && <span className="scorecard-local">LOCAL VERIFICATION · SYNTHETIC DATA</span>}</div>
