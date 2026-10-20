@@ -1,10 +1,11 @@
+const readSql=(...args)=>readFileSync(...args).replace(/\r\n/g,'\n');
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { PGlite } from '../.temp/qa/node_modules/@electric-sql/pglite/dist/index.js';
 const db = new PGlite();
-const baseline = readFileSync('supabase/migrations/20261015145240_eos_scorecard_reviewed_production.sql','utf8');
-const migration = readFileSync('supabase/migrations/20261020112324_eos_scorecard_historical_import.sql','utf8');
+const baseline = readSql('supabase/migrations/20261015145240_eos_scorecard_reviewed_production.sql','utf8');
+const migration = readSql('supabase/migrations/20261020112324_eos_scorecard_historical_import.sql','utf8');
 await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
  CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql AS $$ SELECT jsonb_build_object('sub',current_setting('qa.actor',true)) $$;
  SELECT set_config('qa.actor','qa',false);
@@ -13,7 +14,7 @@ await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_
  INSERT INTO eos_access_grants VALUES('qa'),('other');`);
 await db.exec(baseline.slice(baseline.indexOf('CREATE SCHEMA IF NOT EXISTS eos_private;'),baseline.indexOf('-- Pursuit wrapper')));
 await db.exec('REVOKE ALL ON FUNCTION public.eos_scorecard_save_metric_v1(jsonb,uuid) FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.eos_scorecard_save_metric_v1(jsonb,uuid) TO authenticated;');
-await db.exec(readFileSync('supabase/migrations/20261020110919_eos_scorecard_category_validation.sql','utf8'));
+await db.exec(readSql('supabase/migrations/20261020110919_eos_scorecard_category_validation.sql','utf8'));
 await db.exec(`REVOKE ALL ON ALL FUNCTIONS IN SCHEMA eos_private FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON ALL TABLES IN SCHEMA eos_private FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC,anon,authenticated;`);
@@ -82,7 +83,7 @@ await assert.rejects(apply(good.import_id),/membership/);await assert.rejects(re
 await db.exec("update user_permissions set is_active=true where clerk_user_id='qa'");
 assert.deepEqual(await apply(good.import_id),applied);
 // Forward recovery retains exact receipts/audit and disables only new writers.
-await db.exec(readFileSync('docs/releases/sql/eos_historical_import_disable.sql','utf8'));
+await db.exec(readSql('docs/releases/sql/eos_historical_import_disable.sql','utf8'));
 await db.exec('SET ROLE authenticated');
 await assert.rejects(preview([row()]),/permission denied/);await assert.rejects(apply(good.import_id),/permission denied/);
 assert.deepEqual(await receipt(good.import_id),applied);

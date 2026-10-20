@@ -1,17 +1,18 @@
+const readSql=(...args)=>readFileSync(...args).replace(/\r\n/g,'\n');
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {PGlite} from '../.temp/qa/node_modules/@electric-sql/pglite/dist/index.js';
 const db=new PGlite();
 try {
- const baseline=readFileSync('supabase/migrations/20261015145240_eos_scorecard_reviewed_production.sql','utf8');
+ const baseline=readSql('supabase/migrations/20261015145240_eos_scorecard_reviewed_production.sql','utf8');
  await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE SCHEMA auth;
  CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql AS $$SELECT jsonb_build_object('sub',current_setting('qa.actor',true))$$;
  SELECT set_config('qa.actor','qa',false);CREATE TABLE user_permissions(clerk_user_id text,display_name text,email text,is_active boolean);
  CREATE TABLE eos_access_grants(user_id text);INSERT INTO user_permissions VALUES('qa','QA','qa@example.invalid',true);INSERT INTO eos_access_grants VALUES('qa');`);
  await db.exec(baseline.slice(baseline.indexOf('CREATE SCHEMA IF NOT EXISTS eos_private;'),baseline.indexOf('-- Pursuit wrapper')));
  await db.exec('REVOKE ALL ON FUNCTION public.eos_scorecard_save_metric_v1(jsonb,uuid) FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.eos_scorecard_save_metric_v1(jsonb,uuid) TO authenticated;');
- for(const file of ['20261020110919_eos_scorecard_category_validation.sql','20261020112324_eos_scorecard_historical_import.sql','20261020130811_eos_scorecard_bulk_edit.sql']) await db.exec(readFileSync('supabase/migrations/'+file,'utf8'));
+ for(const file of ['20261020110919_eos_scorecard_category_validation.sql','20261020112324_eos_scorecard_historical_import.sql','20261020130811_eos_scorecard_bulk_edit.sql']) await db.exec(readSql('supabase/migrations/'+file,'utf8'));
  const call=async(name,...args)=>(await db.query(`select ${name}(${args.map((_,i)=>'$'+(i+1)).join(',')}) result`,args)).rows[0].result;
  const cat=randomUUID(),metric=randomUUID();
  await call('eos_scorecard_save_category_v1',{id:cat,name:'Synthetic',expected_revision:0},randomUUID());
@@ -19,7 +20,7 @@ try {
  await call('eos_scorecard_save_period_v1',{id:'2026-01-05',anchor:'2026-01-05',meeting_date:'2026-01-06',expected_revision:0},randomUUID());
  await call('eos_scorecard_save_observations_v1',[{metric_id:metric,period_id:'2026-01-05',period_revision:1,definition_id:metric+':v1',expected_revision:0,value:0,notes:'Original note and provenance',measurement_start:'2026-01-06',as_of:'2026-01-06'}],randomUUID());
  const original=(await db.query('select to_jsonb(o) data from eos_scorecard_observations o')).rows;
- const migration=readFileSync('supabase/migrations/20261020164305_eos_scorecard_quarter_cycles.sql','utf8');
+ const migration=readSql('supabase/migrations/20261020164305_eos_scorecard_quarter_cycles.sql','utf8');
  await db.exec('BEGIN');await db.exec(migration.replace(/^BEGIN;$/m,'').replace(/^COMMIT;$/m,''));await db.exec('ROLLBACK');
  assert.equal((await db.query("select to_regclass('eos_private.quarter_schedule') t")).rows[0].t,null);await db.exec(migration);
  const c={id:randomUUID(),name:'Synthetic autumn',starts_on:'2026-09-30'},input={expected_revision:0,cycles:[c]},id=randomUUID();

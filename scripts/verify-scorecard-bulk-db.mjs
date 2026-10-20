@@ -1,19 +1,20 @@
+const readSql=(...args)=>readFileSync(...args).replace(/\r\n/g,'\n');
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {PGlite} from '../.temp/qa/node_modules/@electric-sql/pglite/dist/index.js';
 const db=new PGlite();
 try {
-const baseline=readFileSync('supabase/migrations/20261015145240_eos_scorecard_reviewed_production.sql','utf8');
+const baseline=readSql('supabase/migrations/20261015145240_eos_scorecard_reviewed_production.sql','utf8');
 await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE SCHEMA auth;
 CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql AS $$SELECT jsonb_build_object('sub',current_setting('qa.actor',true))$$;
 SELECT set_config('qa.actor','qa',false);CREATE TABLE user_permissions(clerk_user_id text,display_name text,email text,is_active boolean);
 CREATE TABLE eos_access_grants(user_id text);INSERT INTO user_permissions VALUES('qa','QA','qa@example.invalid',true),('other','Other','other@example.invalid',true);INSERT INTO eos_access_grants VALUES('qa'),('other');`);
 await db.exec(baseline.slice(baseline.indexOf('CREATE SCHEMA IF NOT EXISTS eos_private;'),baseline.indexOf('-- Pursuit wrapper')));
 await db.exec('REVOKE ALL ON FUNCTION public.eos_scorecard_save_metric_v1(jsonb,uuid) FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.eos_scorecard_save_metric_v1(jsonb,uuid) TO authenticated;');
-await db.exec(readFileSync('supabase/migrations/20261020110919_eos_scorecard_category_validation.sql','utf8'));
-await db.exec(readFileSync('supabase/migrations/20261020112324_eos_scorecard_historical_import.sql','utf8'));
-const migration=readFileSync('supabase/migrations/20261020130811_eos_scorecard_bulk_edit.sql','utf8');
+await db.exec(readSql('supabase/migrations/20261020110919_eos_scorecard_category_validation.sql','utf8'));
+await db.exec(readSql('supabase/migrations/20261020112324_eos_scorecard_historical_import.sql','utf8'));
+const migration=readSql('supabase/migrations/20261020130811_eos_scorecard_bulk_edit.sql','utf8');
 await db.exec('BEGIN');await db.exec(migration.replace(/^BEGIN;$/m,'').replace(/^COMMIT;$/m,''));await db.exec('ROLLBACK');
 assert.equal((await db.query("select to_regclass('eos_private.bulk_exports') t")).rows[0].t,null);await db.exec(migration);
 const metric='22222222-2222-4222-8222-222222222222',cat='11111111-1111-4111-8111-111111111111';
@@ -60,7 +61,7 @@ await db.exec("RESET ROLE;select set_config('qa.actor','qa',false)");
 const weekly='33333333-3333-4333-8333-333333333333';
 await call('eos_scorecard_save_metric_v1',{id:weekly,expected_revision:0,definition:{name:'Synthetic uncertain weekly',context:'Start requires source evidence',category_id:cat,owner_id:'',goal:'',unit:'count',carry:'none',window:'period',aggregation:'none',effective_from:'2026-01-05'}},randomUUID());
 p=await preview([{...fresh('2026-01-27','2'),Metric:'Synthetic uncertain weekly',Format:'count',Review:'Needs review',Source:JSON.stringify({id:'weekly-source',revision:'v1',cell:'Sheet!A1'})}]);assert.equal(p.needs_review,1,'uncertain weekly dates not fabricated');
-await db.exec(readFileSync('docs/releases/sql/eos_bulk_edit_disable.sql','utf8'));await db.exec('SET ROLE authenticated');await assert.rejects(apply(first.import_id),/permission denied/);assert.deepEqual(await call('eos_scorecard_bulk_receipt_v1',first.import_id),first);await db.exec('RESET ROLE');
+await db.exec(readSql('docs/releases/sql/eos_bulk_edit_disable.sql','utf8'));await db.exec('SET ROLE authenticated');await assert.rejects(apply(first.import_id),/permission denied/);assert.deepEqual(await call('eos_scorecard_bulk_receipt_v1',first.import_id),first);await db.exec('RESET ROLE');
 await db.exec('GRANT EXECUTE ON FUNCTION public.eos_scorecard_bulk_export_v1(jsonb,uuid),public.eos_scorecard_bulk_preview_v1(jsonb,uuid),public.eos_scorecard_bulk_apply_v1(uuid) TO authenticated');assert.deepEqual(await apply(first.import_id),first);
 console.log('PASS bulk CSV PostgreSQL: baseline-backed no-op/edit/new, blank/zero/notes/percent, preserved metadata, duplicate/tamper/stale/actor/auth denial, atomic rollback and exact retry.');
 }catch(e){console.error(e.message);process.exitCode=1;}finally{await db.close();}
