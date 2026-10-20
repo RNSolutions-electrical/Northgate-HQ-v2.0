@@ -90,7 +90,7 @@ export function exportRows(state, filters) {
     const cell = resolveCell(state, metric.id, period); const d = cell.definition;
     if (!d || (filters.owner && d.owner_id !== filters.owner) || (filters.category && d.category_id !== filters.category)) return [];
     const report=entryReportingDate(state,metric.id,period);
-    return [{ reporting_date:report.date,reporting_date_basis:report.basis,reporting_date_ambiguous:report.ambiguous,
+    return [{ imported:report.imported===true,reporting_date:report.date,reporting_date_basis:report.basis,reporting_date_ambiguous:report.ambiguous,
       source_reporting_date:cell.sourcePeriod?entryReportingDate(state,metric.id,cell.sourcePeriod).date:'',
       metric_id: metric.id, metric_name: d.name, category_id: d.category_id, category: d.category_label,
       owner_id: d.owner_id || '', owner: d.owner_label || '', unit: d.unit, goal: d.goal ?? '',

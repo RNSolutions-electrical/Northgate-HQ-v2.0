@@ -13,7 +13,7 @@ INSERT INTO eos_private.quarter_schedule DEFAULT VALUES;
 
 CREATE FUNCTION public.eos_scorecard_quarters_read_v1(p_snapshot bigint DEFAULT NULL) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,eos_private,pg_temp AS $$
-DECLARE dates jsonb:='[]'; r record; candidate text; parsed date; basis text; src jsonb;
+DECLARE dates jsonb:='[]'; r record; candidate text; parsed date; basis text; src jsonb; baseline jsonb;
 BEGIN
  IF NOT public.current_user_can_manage_eos() THEN RAISE EXCEPTION 'EOS membership required' USING ERRCODE='42501'; END IF;
  IF p_snapshot IS NOT NULL AND p_snapshot<>(SELECT revision FROM eos_private.clock WHERE id) THEN
@@ -31,13 +31,14 @@ BEGIN
   dates:=dates||jsonb_build_array(jsonb_build_object('metric_id',NULL,'period_id',r.id,'date',candidate,'basis',basis,'ambiguous',true));
  END LOOP;
  FOR r IN SELECT metric_id,period_id FROM public.eos_scorecard_observations LOOP
-  src:=(eos_private.bulk_baseline(r.metric_id,r.period_id)->'row'->>'Source')::jsonb;
+  baseline:=eos_private.bulk_baseline(r.metric_id,r.period_id);src:=(baseline->'row'->>'Source')::jsonb;
   candidate:=src->>'meeting_date';basis:='source-reporting-date';
   BEGIN parsed:=candidate::date; EXCEPTION WHEN invalid_datetime_format OR datetime_field_overflow THEN parsed:=NULL; END;
   IF candidate IS NULL OR candidate !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' OR parsed IS NULL THEN
    SELECT d->>'date',d->>'basis' INTO candidate,basis FROM jsonb_array_elements(dates) d WHERE d->>'period_id'=r.period_id AND d->>'metric_id' IS NULL;
   END IF;
-  dates:=dates||jsonb_build_array(jsonb_build_object('metric_id',r.metric_id,'period_id',r.period_id,'date',candidate,'basis',basis,'ambiguous',basis<>'source-reporting-date'));
+  dates:=dates||jsonb_build_array(jsonb_build_object('metric_id',r.metric_id,'period_id',r.period_id,'date',candidate,'basis',basis,'ambiguous',basis<>'source-reporting-date',
+   'imported',EXISTS(SELECT 1 FROM eos_private.import_sources s WHERE s.metric_id=r.metric_id AND s.period_id=r.period_id),'source',src,'source_review',baseline->'row'->>'Review'));
  END LOOP;
  RETURN (SELECT jsonb_build_object('revision',revision,'cycles',cycles,'reporting_dates',dates) FROM eos_private.quarter_schedule WHERE id);
 END $$;

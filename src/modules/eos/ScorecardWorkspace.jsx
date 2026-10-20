@@ -148,7 +148,8 @@ export function ScorecardWorkspace({ store }) {
         {['QTD','YTD'].includes(c.definition.window)&&<small>Reported cumulative snapshot · original measurement basis retained</small>}
         {view === 'All history' && c.definition.id !== metric.d.id && <small>{c.definition.name} · {c.definition.owner_label || 'Unassigned'}<br />{c.definition.category_label} · {c.definition.unit} · Goal {formatValue(c.definition.goal, c.definition)}</small>}
       </button>{isEditing && editorPanel}</td>
-      <td><button className="scorecard-cell scorecard-notes" disabled={busy} onClick={() => beginEdit(metric.id, p, 'notes')} aria-label={`Edit notes: ${c.definition.name}, ${p.anchor}`}>{c.notes || 'Add notes'}</button>
+      <td><div className="scorecard-note-control"><button className="scorecard-cell scorecard-notes" disabled={busy} onClick={() => beginEdit(metric.id, p, 'notes')} aria-label={`Edit notes: ${c.definition.name}, ${p.anchor}`}>{c.notes || 'Add notes'}</button>
+        {c.actual&&report.imported===true&&<span className="scorecard-imported" role="img" aria-label="Imported" title={`Imported observation${report.source?.cell?` · ${report.source.cell}`:''}. Provenance and audit history are retained separately. ${report.source_review||''}`}>[*]</span>}</div>
         {c.notes && <small>Notes for {p.anchor}</small>}</td>
     </FragmentCell>;
   }
