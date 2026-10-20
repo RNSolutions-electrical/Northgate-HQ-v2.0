@@ -130,6 +130,10 @@ export function createRemoteScorecardStore(call) {
   });
   return {
     localOnly: false,
+    exportBulk: (cells, id) => rpc('eos_scorecard_bulk_export_v1', {p_cells:cells,p_export_id:id}),
+    previewBulk: (rows, id) => rpc('eos_scorecard_bulk_preview_v1', {p_rows:rows,p_import_id:id}),
+    readBulk: id => rpc('eos_scorecard_bulk_receipt_v1', {p_import_id:id}),
+    applyBulk: id => rpc('eos_scorecard_bulk_apply_v1', {p_import_id:id}),
     previewHistorical: (rows, requestId) => rpc('eos_scorecard_import_preview_v1', { p_rows: rows, p_import_id: requestId }),
     readHistorical: (id) => rpc('eos_scorecard_import_receipt_v1', { p_import_id: id }),
     applyHistorical: (id) => rpc('eos_scorecard_import_apply_v1', { p_import_id: id }),

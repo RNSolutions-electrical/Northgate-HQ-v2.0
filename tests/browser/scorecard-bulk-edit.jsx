@@ -1,0 +1,7 @@
+import React from 'react';import {createRoot} from 'react-dom/client';
+import {ScorecardBulkEditor} from '../../src/modules/eos/ScorecardBulkEditor.jsx';import '../../src/modules/eos/scorecard.css';
+let current;let first=true;
+const store={all:async()=>({periods:[{id:'2026-01-05',anchor:'2026-01-05',meeting_date:'2026-01-06'}],metrics:[],definitions:[],observations:[]}),exportBulk:async()=>({rows:[]}),
+previewBulk:async(rows,id)=>{current={import_id:id,status:'preview',saved:0,new:1,changed:1,unchanged:1,needs_review:0,rows:[{row:1,kind:'new',metric:'Synthetic new percent',date:'2026-01-06',format:'percent',source_review:'Needs review',before_value:null,after_value:0,before_notes:'',after_notes:'Original source comment',measurement_start:'2026-01-06',as_of:'2026-01-06'},{row:2,kind:'changed',metric:'Synthetic edited count',date:'2026-01-14',format:'count',before_value:3,after_value:4,before_notes:'Before note',after_notes:'Edited note',measurement_start:'2026-01-07',as_of:'2026-01-14'},{row:3,kind:'unchanged',metric:'Synthetic unchanged',date:'2026-01-06'}]};return current;},
+applyBulk:async()=>{current={...current,status:'saved',saved:2};if(first){first=false;throw new Error('Synthetic lost response');}return current;},readBulk:async()=>current};
+createRoot(document.getElementById('root')).render(<main className="scorecard-workspace"><h1>Synthetic bulk edit QA</h1><ScorecardBulkEditor store={store} filters={{scope:'full'}}/></main>);

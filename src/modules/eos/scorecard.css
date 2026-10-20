@@ -35,6 +35,9 @@
 .scorecard-import details[open] { max-height: 36rem; overflow: auto; }
 .scorecard-import label { min-width: 0; max-width: 100%; }
 .scorecard-import input { max-width: 100%; box-sizing: border-box; }
+.scorecard-bulk li { overflow-wrap: anywhere; }
+.scorecard-bulk ul { box-sizing: border-box; max-width: 100%; padding-left: 1.3rem; }
+.scorecard-bulk li p { width: auto; max-width: 100%; white-space: pre-wrap; }
 .scorecard-metrics article { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; border-bottom: 1px solid #d0dce4; padding: 1rem 0; }
 .scorecard-metrics span { flex: 1; }
 .scorecard-workspace :focus-visible { outline: 3px solid #276698; outline-offset: 2px; }

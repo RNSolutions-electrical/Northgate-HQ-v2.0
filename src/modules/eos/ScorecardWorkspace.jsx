@@ -6,7 +6,7 @@ import { previewCsv, toCsv } from './scorecardCsv.js';
 import { printScorecard, scorecardPrintHtml } from './scorecardPrint.js';
 import './scorecard.css';
 import candidateReference from './scorecardCandidates.json';
-import { ScorecardHistoricalImport } from './ScorecardHistoricalImport.jsx';
+import { ScorecardBulkEditor } from './ScorecardBulkEditor.jsx';
 
 const windowLabels = { 'point-in-time': 'Current snapshot', period: 'Weekly / total for entered dates', QTD: 'Quarter to date (cumulative)', YTD: 'Year to date (cumulative)', 'rolling-30': 'Rolling 30 days' };
 const summaryLabels = { none: 'No calculated total', last: 'Latest reported value', sum: 'Sum separate period totals', average: 'Average reported values' };
@@ -158,8 +158,8 @@ export function ScorecardWorkspace({ store }) {
       {view !== 'Manage metrics' && <>
         <div className="scorecard-toolbar"><label>Reporting period<select aria-label="Screen / export scope" value={scope} onChange={(e) => { setScope(e.target.value);  }}>{[['current','Selected week'],['quarter','Selected week’s quarter'],['year','Selected week’s year'],['custom','Custom range'],['full','Full history']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
           {scope === 'custom' && <><label>From week of<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label><label>Through week of<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label></>}
-          <button disabled={busy || !!scopeError} onClick={() => exportData('csv')}>Export CSV</button><button disabled={busy || !!scopeError} onClick={() => exportData('pdf')}>PDF / Print</button>
-          <details><summary>Import updates from CSV</summary><label>Preview edited CSV<input aria-label="Preview edited CSV" type="file" accept=".csv,text/csv" onChange={async (e) => { if (e.target.files[0]) await previewImport(await e.target.files[0].text()); e.target.value = ''; }} /></label></details>
+          {store.localOnly && <button disabled={busy || !!scopeError} onClick={() => exportData('csv')}>Export CSV</button>}<button disabled={busy || !!scopeError} onClick={() => exportData('pdf')}>PDF / Print</button>
+          {store.localOnly && <details><summary>Import updates from CSV</summary><label>Preview edited CSV<input aria-label="Preview edited CSV" type="file" accept=".csv,text/csv" onChange={async (e) => { if (e.target.files[0]) await previewImport(await e.target.files[0].text()); e.target.value = ''; }} /></label></details>}
         </div>
         <p className="scorecard-help">Meeting compares last week and this week. Reporting period controls history and exports; quarter/year follow the selected week even if its meeting moves. Notes belong only to the week shown.</p>
         {scopeError && <p role="alert">{scopeError}</p>}
@@ -183,7 +183,7 @@ export function ScorecardWorkspace({ store }) {
         <label className="scorecard-check"><input type="checkbox" checked={metricForm.retired} onChange={(e) => setMetricForm({ ...metricForm, retired: e.target.checked, requestId: uuid() })} />Retired (uncheck to restore; history retained)</label>
         <button disabled={busy}>Save metric settings</button><button type="button" disabled={busy} onClick={() => setMetricForm(null)}>Cancel</button>
       </form>}
-      {store.previewHistorical && <ScorecardHistoricalImport store={store} onApplied={refresh} />}
+      {store.exportBulk && <ScorecardBulkEditor store={store} filters={filters} onApplied={refresh} />}
       {preview && <section className="scorecard-import"><h3>CSV change preview - no writes yet</h3><p>Only actual_value, notes and measurement dates are editable, with explicit set/clear actions. Blank with keep means unchanged. Omitted rows never delete or retire anything. Displayed/carry fields are read-only provenance.</p>
         <ul>{preview.rows.map((r,i) => <li key={`${r.id}/${i}`}>{r.name} · {r.period}: {r.error || r.description}{r.change && <pre>{JSON.stringify({ before: { value: r.before.actual_value, notes: r.before.notes }, after: { value: r.change.value, notes: r.change.notes, measurement_start: r.change.measurement_start, as_of: r.change.as_of } }, null, 2)}</pre>}</li>)}</ul>
         {!store.localOnly && <p>Round-trip CSV editing is disabled for shared data. Use Historical bulk import for validated, insert-only historical observations.</p>}
