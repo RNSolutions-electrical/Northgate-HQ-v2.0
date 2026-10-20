@@ -6,6 +6,7 @@ import { previewCsv, toCsv } from './scorecardCsv.js';
 import { printScorecard, scorecardPrintHtml } from './scorecardPrint.js';
 import './scorecard.css';
 import candidateReference from './scorecardCandidates.json';
+import { ScorecardHistoricalImport } from './ScorecardHistoricalImport.jsx';
 
 const windowLabels = { 'point-in-time': 'Current snapshot', period: 'Weekly / total for entered dates', QTD: 'Quarter to date (cumulative)', YTD: 'Year to date (cumulative)', 'rolling-30': 'Rolling 30 days' };
 const summaryLabels = { none: 'No calculated total', last: 'Latest reported value', sum: 'Sum separate period totals', average: 'Average reported values' };
@@ -182,9 +183,10 @@ export function ScorecardWorkspace({ store }) {
         <label className="scorecard-check"><input type="checkbox" checked={metricForm.retired} onChange={(e) => setMetricForm({ ...metricForm, retired: e.target.checked, requestId: uuid() })} />Retired (uncheck to restore; history retained)</label>
         <button disabled={busy}>Save metric settings</button><button type="button" disabled={busy} onClick={() => setMetricForm(null)}>Cancel</button>
       </form>}
-      {preview && <section className="scorecard-import"><h3>CSV change preview — no writes yet</h3><p>Only actual_value, notes and measurement dates are editable, with explicit set/clear actions. Blank with keep means unchanged. Omitted rows never delete or retire anything. Displayed/carry fields are read-only provenance.</p>
+      {store.previewHistorical && <ScorecardHistoricalImport store={store} onApplied={refresh} />}
+      {preview && <section className="scorecard-import"><h3>CSV change preview - no writes yet</h3><p>Only actual_value, notes and measurement dates are editable, with explicit set/clear actions. Blank with keep means unchanged. Omitted rows never delete or retire anything. Displayed/carry fields are read-only provenance.</p>
         <ul>{preview.rows.map((r,i) => <li key={`${r.id}/${i}`}>{r.name} · {r.period}: {r.error || r.description}{r.change && <pre>{JSON.stringify({ before: { value: r.before.actual_value, notes: r.before.notes }, after: { value: r.change.value, notes: r.change.notes, measurement_start: r.change.measurement_start, as_of: r.change.as_of } }, null, 2)}</pre>}</li>)}</ul>
-        {!store.localOnly && <p>Shared CSV imports require separate authorization and server rollout. Apply is disabled.</p>}
+        {!store.localOnly && <p>Round-trip CSV editing is disabled for shared data. Use Historical bulk import for validated, insert-only historical observations.</p>}
         <button disabled={busy || !store.localOnly || !preview.valid || !preview.changes.length} onClick={applyImport}>Apply {preview.changes.length} reviewed changes</button><button onClick={() => setPreview(null)}>Cancel import</button>
       </section>}
     </>}

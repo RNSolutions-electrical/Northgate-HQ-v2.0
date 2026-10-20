@@ -130,6 +130,9 @@ export function createRemoteScorecardStore(call) {
   });
   return {
     localOnly: false,
+    previewHistorical: (rows, requestId) => rpc('eos_scorecard_import_preview_v1', { p_rows: rows, p_import_id: requestId }),
+    readHistorical: (id) => rpc('eos_scorecard_import_receipt_v1', { p_import_id: id }),
+    applyHistorical: (id) => rpc('eos_scorecard_import_apply_v1', { p_import_id: id }),
     async read() {
       const state = await rpc('eos_scorecard_read_v1'); loadedSnapshot = state.snapshot; loadedCategories = state.categories;
       let cursor = state.next_cursor;
