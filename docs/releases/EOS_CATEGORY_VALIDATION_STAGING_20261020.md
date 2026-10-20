@@ -26,3 +26,13 @@ Before apply, staging fingerprints: metrics 4 / `5436153cdf82f35ac71e9271fe06e31
 Netlify all-environment-variable read was denied by automatic approval review due secret exposure; it was not retried or bypassed. Staging CI uses its existing configuration.
 
 Production code/schema/data/deploy were not changed. Deployment and final live UI evidence will be appended after verification.
+
+## Final deployment and live verification
+
+Application commit `075aec6862e934f05531c9447348933d45a15e20` was pushed to the isolated branch and fast-forwarded to `staging`. Netlify staging deploy `6ad74d5a46c831e1502367dd` is ready/published with that exact SHA (2026-10-20 11:15:59 UTC). Configured CI build and secret scan passed. Netlify context `production` here means the primary deploy of the separate staging site.
+
+Review: https://staging.rnsolutions.net/eos (Company Scorecard → Manage metrics). Deploy receipt: https://app.netlify.com/projects/northgate-hq-staging/deploys/6ad74d5a46c831e1502367dd . Immutable app: https://6ad74d5a46c831e1502367dd--northgate-hq-staging.netlify.app .
+
+Signed-in Chrome QA on the published staging build passed: Add metric displays required Category placeholder; twice attempting blank Category with otherwise filled fields keeps the full draft and reports native valueMissing; selecting Electrical makes Category valid; Owner/Target remain blank. Existing metric editor preserves Electrical. QA-only draft cancelled without Save. No live valid write was performed because business-data mutation was excluded; valid writes/retry/stale checks were exercised in disposable PostgreSQL and component fixture. Evidence: `.temp/category-ui/staging-required.jpg` (live) and desktop/mobile fixture PNGs. Live staging data counts/hashes after UI QA exactly match pre-apply values above.
+
+Production Netlify deploy remained `6ad69040e21f5c2ab1335be8`, same as initial inventory. No Production mutation tool was called; no push to main occurred. No claim about independent concurrent Production activity is made. No task blocker remains. A read of all Netlify env vars was denied and abandoned; it was unnecessary for successful CI deployment.

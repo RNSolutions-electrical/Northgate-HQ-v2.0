@@ -23718,3 +23718,16 @@ checksum differs amid observed concurrent updates on other jobs. No Production
 write was made here; do not claim whole-table invariance. Main 27cb1cc and Production
 deploy6ad649 remain unchanged. Exact receipts/limits are in the release doc.
 Receipt-only push skips CI. Staging is ready for Ryan review; no blocker remains.
+
+## 2026-10-20 — Required Scorecard Category, staging only
+
+Narrow Category validation fix completed in fresh isolated checkout, branch
+codex/staging-category-validation. App 075aec6862e934f05531c9447348933d45a15e20
+published on staging in ready Netlify deploy 6ad74d5a46c831e1502367dd.
+Staging-only function migration ledger 20261020111411, preserved ACL, no data
+changes. Required UI + remote preflight + SQL pre-cast validation retain drafts;
+Owner/Target stay optional. 359 tests passed / 1 existing skip; build, PostgreSQL
+apply/rollback/recovery/reapply, desktop/mobile and signed-in staging QA pass.
+Exact receipts, test limits, recovery and evidence:
+docs/releases/EOS_CATEGORY_VALIDATION_STAGING_20261020.md.
+Production and paused modes work untouched. No remaining blocker.
