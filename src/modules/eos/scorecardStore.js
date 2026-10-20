@@ -2,6 +2,10 @@ import { eosRpc } from './eosRequest.js';
 import { AGGREGATIONS, CARRY, UNITS, WINDOWS, canManageEos, definitionAt, eligibleMembers, makePeriod, measurementWindow, observation, parseValue, validDate } from './scorecardLogic.js';
 
 const clone = (value) => structuredClone(value);
+export function validateMetricCategory(categoryId, categories) {
+  if (typeof categoryId !== 'string' || !categoryId.trim()) throw new Error('Choose a category before saving.');
+  if (categories && !categories.some((c) => c.id === categoryId)) throw new Error('Choose an existing category. Your draft is retained.');
+}
 export const emptyScorecard = () => ({ metrics: [], categories: [], definitions: [], periods: [], observations: [], members: [], audit: [], requests: {} });
 function assertRevision(actual, expected) {
   if (!Number.isInteger(expected) || actual !== expected) throw new Error('Conflict: this record changed. Reload and review your draft before retrying.');
@@ -118,6 +122,7 @@ export function observationDraft(state, metricId, period) {
 export function createRemoteScorecardStore(call) {
   let oldestLoaded = null;
   let loadedSnapshot = null;
+  let loadedCategories = null;
   const rpc = (name, args = {}) => call(async (client, signal) => {
     const { data, error } = await eosRpc(client, name, args, signal);
     if (error) throw Object.assign(new Error(error.code === 'PT409' ? `${error.message}. Reload the current data before revising your retained draft.` : `Scorecard server contract unavailable or rejected: ${error.message}`), { code: error.code });
@@ -126,7 +131,7 @@ export function createRemoteScorecardStore(call) {
   return {
     localOnly: false,
     async read() {
-      const state = await rpc('eos_scorecard_read_v1'); loadedSnapshot = state.snapshot;
+      const state = await rpc('eos_scorecard_read_v1'); loadedSnapshot = state.snapshot; loadedCategories = state.categories;
       let cursor = state.next_cursor;
       while (cursor && oldestLoaded && cursor > oldestLoaded) {
         const page = await rpc('eos_scorecard_history_v1', { p_cursor: cursor, p_snapshot: state.snapshot });
@@ -157,7 +162,11 @@ export function createRemoteScorecardStore(call) {
     },
     savePeriod: (input, requestId) => rpc('eos_scorecard_save_period_v1', { p_input: input, p_request_id: requestId }),
     saveCategory: (input, requestId) => rpc('eos_scorecard_save_category_v1', { p_input: input, p_request_id: requestId }),
-    saveMetric: (input, requestId) => rpc('eos_scorecard_save_metric_v1', { p_input: input, p_request_id: requestId }),
+    async saveMetric(input, requestId) {
+      validateMetricCategory(input.definition?.category_id, loadedCategories);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.definition.category_id)) throw new Error('Choose a valid category before saving.');
+      return rpc('eos_scorecard_save_metric_v1', { p_input: input, p_request_id: requestId });
+    },
     saveObservations: (changes, requestId) => rpc('eos_scorecard_save_observations_v1', { p_changes: changes, p_request_id: requestId }),
   };
 }
