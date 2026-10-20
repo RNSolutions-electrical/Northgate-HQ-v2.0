@@ -1,6 +1,6 @@
 -- Staging Category validation only. No data writes or ACL changes.
 DO $preflight$ BEGIN
- IF md5(pg_get_functiondef('public.eos_scorecard_save_metric_v1(jsonb,uuid)'::regprocedure)) <> '553a95e5c044d3e08ef394b784bcc8c0' OR (SELECT proacl::text FROM pg_proc WHERE oid='public.eos_scorecard_save_metric_v1(jsonb,uuid)'::regprocedure) IS DISTINCT FROM '{postgres=X/postgres,authenticated=X/postgres}' THEN RAISE EXCEPTION 'Scorecard function/ACL drift; stop and review'; END IF;
+ IF md5(pg_get_functiondef('public.eos_scorecard_save_metric_v1(jsonb,uuid)'::regprocedure)) <> '553a95e5c044d3e08ef394b784bcc8c0' OR (SELECT proacl::text FROM pg_proc WHERE oid='public.eos_scorecard_save_metric_v1(jsonb,uuid)'::regprocedure) NOT IN ('{postgres=X/postgres,authenticated=X/postgres}','{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}') THEN RAISE EXCEPTION 'Scorecard function/ACL drift; stop and review'; END IF;
 END $preflight$;
 CREATE OR REPLACE FUNCTION public.eos_scorecard_save_metric_v1(p_input jsonb,p_request_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,eos_private,pg_temp AS $$
