@@ -64,6 +64,8 @@ function normalizePatch(field, value) {
 }
 
 export function EosWorkspaceContent({ permissions, call, navigate }) {
+  const [compactReminder,setCompactReminder]=useState(()=>window.matchMedia('(max-width:700px) and (max-height:700px)').matches);
+  useEffect(()=>{const media=window.matchMedia('(max-width:700px) and (max-height:700px)');const update=()=>setCompactReminder(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   const [moduleKey, setModuleKey] = useState('pursuits');
   const [view, setView] = useState('Active');
   const [metricFilter, setMetricFilter] = useState('');
@@ -332,7 +334,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
     {notice && <div role="status" className="eos-message">{notice}</div>}
     <div className="eos-page-heading"><WorkspaceHeader eyebrow="E.O.S · MANAGEMENT" title={moduleKey === 'scorecard' ? 'Company Scorecard' : moduleKey === 'reminders' ? 'Leadership reminders' : 'Project Pursuit Tracker'}
       actions={moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>} />
-    {enabledReminders.length > 0 && <section className="eos-reminder" aria-label="Leadership reminder">
+    {enabledReminders.length > 0 && <details className="eos-reminder-disclosure" open={!compactReminder}><summary>Leadership reminder</summary><section className="eos-reminder" aria-label="Leadership reminder">
       <div><span className="eyebrow">LEADERSHIP REMINDER</span>
         <p>{enabledReminders[reminderIndex % enabledReminders.length]?.text}</p>
         <small>{enabledReminders[reminderIndex % enabledReminders.length]?.reminder_type === 'quotation' ? 'Quotation' : 'Original reminder'} · {enabledReminders[reminderIndex % enabledReminders.length]?.source_label}
@@ -343,7 +345,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
         return next;
       })}>Next reminder</button>
         <button type="button" className="secondary-button" onClick={() => setModuleKey('reminders')}>Manage</button></div>
-    </section>}
+    </section></details>}
     </div><nav className="eos-module-nav" aria-label="EOS tools">
       {EOS_MODULES.map((item) => <button key={item.key} type="button" disabled={!item.available}
         className={moduleKey === item.key ? 'is-active' : ''} onClick={() => setModuleKey(item.key)}>
