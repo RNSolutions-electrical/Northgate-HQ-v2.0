@@ -19,7 +19,7 @@ export function toCsv(rows) {
   return '\uFEFF' + [CSV_COLUMNS.map(quote).join(','), ...rows.map((row) => CSV_COLUMNS.map((key) =>
     quote(typeof row[key] === 'number' ? row[key] : safeText(row[key]))).join(','))].join('\r\n');
 }
-export function parseCsv(text) {
+export function parseCsv(text, columns = CSV_COLUMNS) {
   const rows = []; let row = []; let field = ''; let quoted = false; let closed = false;
   text = String(text).replace(/^\uFEFF/, '');
   for (let i = 0; i < text.length; i++) {
@@ -37,7 +37,7 @@ export function parseCsv(text) {
   if (quoted) throw new Error('Unclosed CSV quote.');
   if (field || row.length || closed) { row.push(unprotect(field)); rows.push(row); }
   const headers = rows.shift() || [];
-  if (new Set(headers).size !== headers.length || headers.length !== CSV_COLUMNS.length || CSV_COLUMNS.some((h) => !headers.includes(h))) throw new Error('Use the original export columns; unknown or missing columns are not supported.');
+  if (new Set(headers).size !== headers.length || headers.length !== columns.length || columns.some((h) => !headers.includes(h))) throw new Error('Use the original export columns; unknown or missing columns are not supported.');
   return rows.map((values) => {
     if (values.length !== headers.length) throw new Error('CSV row has the wrong number of columns.');
     return Object.fromEntries(headers.map((h, i) => [h, values[i]]));

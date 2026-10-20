@@ -328,10 +328,10 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
     <nav className="eos-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={() => navigate('/dashboard')}>Dashboard</button>
       <span aria-hidden="true">›</span><button type="button" onClick={() => setModuleKey('pursuits')}>E.O.S</button>
       <span aria-hidden="true">›</span><span>{moduleKey === 'scorecard' ? 'Company Scorecard' : moduleKey === 'reminders' ? 'Leadership reminders' : 'Project Pursuit Tracker'}</span></nav>
-    <WorkspaceHeader eyebrow="MANAGEMENT" title="Entrepreneurial Operating System"
-      actions={moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>} />
     {error && <div role="alert" className="eos-message eos-message--error">{error} <button type="button" disabled={busy} onClick={load}>Reload latest</button><small> For a conflict, review your retained draft, then cancel and reopen the row before saving a revised change.</small></div>}
     {notice && <div role="status" className="eos-message">{notice}</div>}
+    <div className="eos-page-heading"><WorkspaceHeader eyebrow="E.O.S · MANAGEMENT" title={moduleKey === 'scorecard' ? 'Company Scorecard' : moduleKey === 'reminders' ? 'Leadership reminders' : 'Project Pursuit Tracker'}
+      actions={moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>} />
     {enabledReminders.length > 0 && <section className="eos-reminder" aria-label="Leadership reminder">
       <div><span className="eyebrow">LEADERSHIP REMINDER</span>
         <p>{enabledReminders[reminderIndex % enabledReminders.length]?.text}</p>
@@ -344,12 +344,12 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
       })}>Next reminder</button>
         <button type="button" className="secondary-button" onClick={() => setModuleKey('reminders')}>Manage</button></div>
     </section>}
-    <nav className="eos-module-nav" aria-label="EOS tools">
+    </div><nav className="eos-module-nav" aria-label="EOS tools">
       {EOS_MODULES.map((item) => <button key={item.key} type="button" disabled={!item.available}
         className={moduleKey === item.key ? 'is-active' : ''} onClick={() => setModuleKey(item.key)}>
         {item.label}{!item.available && <small>Coming soon</small>}</button>)}
     </nav>
-    {moduleKey === 'scorecard' ? <ScorecardWorkspace store={scorecardStore} /> : moduleKey === 'reminders' ? <section className="card eos-panel"><div className="eos-panel-heading"><h3>Leadership reminders</h3>
+    {moduleKey === 'scorecard' ? <ScorecardWorkspace store={scorecardStore} embedded /> : moduleKey === 'reminders' ? <section className="card eos-panel"><div className="eos-panel-heading"><h3>Leadership reminders</h3>
       <button className="secondary-button" type="button" onClick={() => setModuleKey('pursuits')}>Back to tracker</button>
       <button className="primary-button" type="button" onClick={() => setReminderEditor({ text: '', reminder_type: 'original', source_label: 'Northgate leadership reminder', enabled: true })}>Add reminder</button></div>
       {reminders.map((item) => <div className="eos-reminder-row" key={item.id}><span>{item.text} <small>· {item.enabled ? 'Enabled' : 'Disabled'}</small></span>
