@@ -51,11 +51,12 @@ export function ScorecardWorkspace({ store }) {
   const displayedPeriods = view === 'Meeting' ? [previous, period].filter(Boolean) : scopePeriods.slice(-historyCount);
   const rows = useMemo(() => {
     if (!state || !period) return [];
-    return state.metrics.filter((m) => includeRetired || !m.retired).map((m) => ({ ...m, d: resolveCell(state, m.id, period).definition }))
-      .filter(({ id, d }) => d && (view === 'All history' ? scopePeriods : [period]).some((p) => {
+    return state.metrics.filter((m) => includeRetired || !m.retired).map((m) => ({ ...m, d: resolveCell(state, m.id, period).definition
+      || (view === 'Manage metrics' ? state.definitions.filter((d) => d.metric_id === m.id).sort((a,b) => b.revision-a.revision)[0] : null) }))
+      .filter(({ id, d }) => d && (view === 'Manage metrics' ? (!owner || d.owner_id === owner) && (!category || d.category_id === category) : (view === 'All history' ? scopePeriods : [period]).some((p) => {
         const historical = resolveCell(state, id, p).definition;
         return historical && (!owner || historical.owner_id === owner) && (!category || historical.category_id === category);
-      }))
+      })))
       .sort((a, b) => {
         const val = (m) => sort === 'updated_at' || sort === 'recorded_at' ? state.observations.filter((o) => o.metric_id === m.id).map((o) => o[sort]).sort().at(-1) || ''
           : sort === 'owner' ? m.d.owner_label : sort === 'category' ? m.d.category_label : m.d.name;
