@@ -1,4 +1,5 @@
 import { companyToday, shiftCalendarDate } from './eosLogic.js';
+import {quarterRange} from './scorecardQuarters.js';
 
 export const UNITS = ['number', 'count', 'currency', 'percent', 'text'];
 export const CARRY = ['none', 'continuous', 'year', 'quarter'];
@@ -71,11 +72,13 @@ export function resolveCell(state, metricId, period) {
   return { definition, actual, value: source?.value ?? null, source, sourcePeriod,
     carried: Boolean(source && source.period_id !== period.id), notes: actual?.notes || '' };
 }
-export function scopedPeriods(state, { scope = 'current', periodId, from, to } = {}) {
+export function scopedPeriods(state, { scope = 'current', periodId, from, to, quarterView = 'calendar', quarterScheduleRevision } = {}) {
   const selected = state.periods.find((p) => p.id === periodId);
+  if (scope === 'quarter' && quarterView === 'management' && quarterScheduleRevision !== undefined && quarterScheduleRevision !== (state.quarterSchedule?.revision || 0)) throw new Error('Management cycle schedule changed. Reload latest before exporting.');
+  const range = scope === 'quarter' ? quarterRange(state, {periodId,quarterView}) : null;
   if (scope === 'custom' && (!validDate(from) || !validDate(to) || from > to)) throw new Error('Choose a valid inclusive reporting-anchor date range.');
   return [...state.periods].filter((p) => scope === 'full' || (scope === 'current' && p.id === periodId)
-    || (scope === 'quarter' && selected && quarter(p.anchor) === quarter(selected.anchor))
+    || (scope === 'quarter' && range && p.anchor >= range.from && (!range.to || p.anchor <= range.to))
     || (scope === 'year' && selected && p.anchor.slice(0, 4) === selected.anchor.slice(0, 4))
     || (scope === 'custom' && p.anchor >= from && p.anchor <= to)).sort((a, b) => a.anchor.localeCompare(b.anchor));
 }
@@ -105,7 +108,7 @@ export function aggregateRows(rows) {
   for (const id of new Set(rows.map((r) => r.definition_id))) {
     const group = rows.filter((r) => r.definition_id === id); const rule = group[0].aggregation;
     const values = group.filter((r) => r.actual_value !== '').map((r) => r.actual_value);
-    result.push({ definition_id: id, rule, value: rule === 'none' || !values.length ? null
+    result.push({ definition_id: id, rule, value: rule === 'none' || !values.length || (rule === 'sum' && ['QTD','YTD','rolling-30'].includes(group[0].measurement_window)) ? null
       : rule === 'last' ? values.at(-1) : rule === 'sum' ? values.reduce((a, b) => a + b, 0)
         : values.reduce((a, b) => a + b, 0) / values.length });
   }

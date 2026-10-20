@@ -1,0 +1,16 @@
+import React from 'react';import {createRoot} from 'react-dom/client';
+import '../../src/styles/tokens.css';
+import '../../src/styles/base.css';
+import '../../src/styles/primitives.css';
+import {ScorecardWorkspace} from '../../src/modules/eos/ScorecardWorkspace.jsx';
+import {createLocalScorecardStore} from '../../src/modules/eos/scorecardStore.js';
+import {makePeriod} from '../../src/modules/eos/scorecardLogic.js';
+const periods=['2026-09-28','2026-10-05','2026-12-28','2027-01-04','2027-01-11'].map(makePeriod);
+const metrics=Array.from({length:24},(_,i)=>({id:'m'+i,revision:1,retired:false}));
+const definitions=metrics.map((m,i)=>({id:m.id+':v1',metric_id:m.id,name:i===1?'Synthetic reported QTD':'Synthetic weekly '+i,context:'Synthetic reported data; no customer history',category_id:'c',category_label:'Synthetic',owner_id:'',owner_label:'',goal:null,unit:i===1?'currency':'count',window:i===1?'QTD':'period',carry:'none',aggregation:i===1?'last':'none',effective_from:'2026-01-01',revision:1}));
+const observations=metrics.flatMap((m,i)=>periods.map((p,j)=>({metric_id:m.id,period_id:p.id,definition_id:m.id+':v1',revision:1,value:i===1?200:j,notes:j===1?'Synthetic source comment with provenance; needs review':'',measurement_start:i===1?'2026-07-01':p.anchor,as_of:p.meeting_date,recorded_at:'original',updated_at:'original'})));
+const store=createLocalScorecardStore({metrics,definitions,observations,periods,categories:[{id:'c',name:'Synthetic',revision:1}],members:[{user_id:'qa',display_name:'QA',is_active:true,is_member:true}],requests:{},audit:[]},{id:'qa',active:true});
+let receipt;store.exportBulk=async cells=>({rows:cells.map(c=>({Metric:'Synthetic weekly 0',Date:'2027-01-13',Value:'0',Notes:'Original',Format:'count',Review:'Needs review',Source:'{}','System reference':'synthetic-ref'}))});
+store.previewBulk=async(rows,id)=>(receipt={import_id:id,status:'preview',new:1,changed:0,unchanged:0,needs_review:0,rows:[{row:1,kind:'new',metric:'Synthetic only',date:'2027-01-13',format:'count',source_review:'Needs review',before_value:null,after_value:'0',before_notes:'',after_notes:'Synthetic note',measurement_start:'2027-01-04',as_of:'2027-01-10'}]});
+let first=true;store.applyBulk=async()=>{receipt={...receipt,status:'saved',saved:1};if(first){first=false;throw new Error('Synthetic lost response');}return receipt;};store.readBulk=async()=>receipt;
+createRoot(document.getElementById('root')).render(<main className="ng-shell"><header className="ng-shell__header" style={{padding:'12px',minHeight:'50px'}}>Northgate HQ · Synthetic QA navigation</header><div className="ng-environment-banner">LOCAL SYNTHETIC · NOT STAGING</div><div className="ng-shell__body"><aside className="ng-shell__rail">Workspace navigation</aside><div className="ng-shell__content"><div className="eos-workspace"><nav className="eos-breadcrumb">Dashboard / E.O.S / Company Scorecard</nav><nav className="eos-module-nav"><button>Project Pursuit Tracker</button><button>Company Scorecard</button></nav><ScorecardWorkspace store={store}/></div></div></div><nav className="mobile-page-navigation"><button>Back</button><button>Home</button><button>Dashboard</button><button>App Menu</button></nav></main>);

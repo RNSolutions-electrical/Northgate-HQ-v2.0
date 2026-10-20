@@ -1,4 +1,5 @@
 import { eosRpc } from './eosRequest.js';
+import {validateCycles} from './scorecardQuarters.js';
 import { AGGREGATIONS, CARRY, UNITS, WINDOWS, canManageEos, definitionAt, eligibleMembers, makePeriod, measurementWindow, observation, parseValue, validDate } from './scorecardLogic.js';
 
 const clone = (value) => structuredClone(value);
@@ -6,7 +7,7 @@ export function validateMetricCategory(categoryId, categories) {
   if (typeof categoryId !== 'string' || !categoryId.trim()) throw new Error('Choose a category before saving.');
   if (categories && !categories.some((c) => c.id === categoryId)) throw new Error('Choose an existing category. Your draft is retained.');
 }
-export const emptyScorecard = () => ({ metrics: [], categories: [], definitions: [], periods: [], observations: [], members: [], audit: [], requests: {} });
+export const emptyScorecard = () => ({ metrics: [], categories: [], definitions: [], periods: [], observations: [], members: [], audit: [], requests: {}, quarterSchedule: {revision:0,cycles:[]} });
 function assertRevision(actual, expected) {
   if (!Number.isInteger(expected) || actual !== expected) throw new Error('Conflict: this record changed. Reload and review your draft before retrying.');
 }
@@ -48,6 +49,16 @@ export function createLocalScorecardStore(initial, actor, { now = () => new Date
       authorize(); return clone(state.periods.filter((p) => !before || p.anchor < before).sort((a, b) => b.anchor.localeCompare(a.anchor)).slice(0, limit));
     },
     simulateFailure() { failNext = true; },
+    async saveQuarterSchedule(input, requestId) {
+      return transact(requestId, input, (next, timestamp, audit) => {
+        const old = next.quarterSchedule || {revision:0,cycles:[]};
+        assertRevision(old.revision, input.expected_revision);
+        const cycles = validateCycles(input.cycles);
+        if (old.cycles.some(c=>!cycles.some(n=>n.id===c.id))) throw new Error('Existing cycles must be retained. Edit their name or start date instead.');
+        const saved = {revision:old.revision+1,cycles};
+        next.quarterSchedule=saved; audit('quarter_schedule','main',old,saved); return saved;
+      });
+    },
     async savePeriod(input, requestId) {
       return transact(requestId, input, (next, timestamp, audit) => {
         const old = next.periods.find((p) => p.id === input.id);
@@ -128,8 +139,16 @@ export function createRemoteScorecardStore(call) {
     if (error) throw Object.assign(new Error(error.code === 'PT409' ? `${error.message}. Reload the current data before revising your retained draft.` : `Scorecard server contract unavailable or rejected: ${error.message}`), { code: error.code });
     return data;
   });
+  async function withQuarterSchedule(state) {
+    try { return {...state,quarterSchedule:await rpc('eos_scorecard_quarters_read_v1',{p_snapshot:state.snapshot})}; }
+    catch(e) {
+      if (!['PGRST202','42883'].includes(e.code)) throw e;
+      return {...state,quarterSchedule:{revision:0,cycles:[],unavailable:true}};
+    }
+  }
   return {
     localOnly: false,
+    saveQuarterSchedule:(input,requestId)=>rpc('eos_scorecard_quarters_save_v1',{p_input:input,p_request_id:requestId}),
     exportBulk: (cells, id) => rpc('eos_scorecard_bulk_export_v1', {p_cells:cells,p_export_id:id}),
     previewBulk: (rows, id) => rpc('eos_scorecard_bulk_preview_v1', {p_rows:rows,p_import_id:id}),
     readBulk: id => rpc('eos_scorecard_bulk_receipt_v1', {p_import_id:id}),
@@ -147,7 +166,7 @@ export function createRemoteScorecardStore(call) {
         if (page.next_cursor === cursor) throw new Error('History pagination did not advance.');
         cursor = page.next_cursor;
       }
-      return state;
+      return withQuarterSchedule(state);
     },
     async history(before) {
       const page = await rpc('eos_scorecard_history_v1', { p_cursor: before, p_snapshot: loadedSnapshot });
@@ -164,8 +183,8 @@ export function createRemoteScorecardStore(call) {
         if (page.next_cursor && page.next_cursor === cursor) throw new Error('History pagination did not advance.');
         cursor = page.next_cursor;
       } while (cursor);
-      return { ...state, periods: [...new Map(periods.map((p) => [p.id, p])).values()].filter((p) => !p.context_only),
-        observations: [...new Map(observations.map((o) => [`${o.metric_id}/${o.period_id}`, o])).values()] };
+      return withQuarterSchedule({ ...state, periods: [...new Map(periods.map((p) => [p.id, p])).values()].filter((p) => !p.context_only),
+        observations: [...new Map(observations.map((o) => [`${o.metric_id}/${o.period_id}`, o])).values()] });
     },
     savePeriod: (input, requestId) => rpc('eos_scorecard_save_period_v1', { p_input: input, p_request_id: requestId }),
     saveCategory: (input, requestId) => rpc('eos_scorecard_save_category_v1', { p_input: input, p_request_id: requestId }),

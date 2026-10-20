@@ -328,11 +328,11 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
     <nav className="eos-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={() => navigate('/dashboard')}>Dashboard</button>
       <span aria-hidden="true">›</span><button type="button" onClick={() => setModuleKey('pursuits')}>E.O.S</button>
       <span aria-hidden="true">›</span><span>{moduleKey === 'scorecard' ? 'Company Scorecard' : moduleKey === 'reminders' ? 'Leadership reminders' : 'Project Pursuit Tracker'}</span></nav>
-    <WorkspaceHeader eyebrow="MANAGEMENT" title="Entrepreneurial Operating System"
-      actions={moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>} />
+    {moduleKey !== 'scorecard' && <WorkspaceHeader eyebrow="MANAGEMENT" title="Entrepreneurial Operating System"
+      actions={moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>} />}
     {error && <div role="alert" className="eos-message eos-message--error">{error} <button type="button" disabled={busy} onClick={load}>Reload latest</button><small> For a conflict, review your retained draft, then cancel and reopen the row before saving a revised change.</small></div>}
     {notice && <div role="status" className="eos-message">{notice}</div>}
-    {enabledReminders.length > 0 && <section className="eos-reminder" aria-label="Leadership reminder">
+    {moduleKey !== 'scorecard' && enabledReminders.length > 0 && <section className="eos-reminder" aria-label="Leadership reminder">
       <div><span className="eyebrow">LEADERSHIP REMINDER</span>
         <p>{enabledReminders[reminderIndex % enabledReminders.length]?.text}</p>
         <small>{enabledReminders[reminderIndex % enabledReminders.length]?.reminder_type === 'quotation' ? 'Quotation' : 'Original reminder'} · {enabledReminders[reminderIndex % enabledReminders.length]?.source_label}

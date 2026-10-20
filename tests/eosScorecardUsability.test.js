@@ -23,5 +23,5 @@ test('cumulative latest value and actual zero survive; carried display never bec
  const observations=[{metric_id:'m',period_id:periods[0].id,definition_id:'d',value:100,as_of:'2026-10-07'},{metric_id:'m',period_id:periods[1].id,definition_id:'d',value:0,as_of:'2026-10-14'}];const state={metrics:[{id:'m'}],periods,definitions:[d],observations};
  assert.equal(resolveCell(state,'m',periods[2]).value,0);assert.equal(resolveCell(state,'m',periods[2]).carried,true);
  const rows=exportRows(state,{scope:'full'});assert.equal(rows[2].actual_value,'');assert.equal(rows[2].displayed_value,0);assert.equal(aggregateRows(rows)[0].value,0);
- assert.equal(aggregateRows(rows.map(r=>({...r,aggregation:'sum'})))[0].value,100);
+ assert.equal(aggregateRows(rows.map(r=>({...r,aggregation:'sum'})))[0].value,null);
 });

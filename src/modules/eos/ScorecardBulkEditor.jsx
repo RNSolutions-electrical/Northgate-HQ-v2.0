@@ -1,11 +1,14 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import {parseBulkCsv,bulkCsv} from './scorecardBulkCsv.js';
 import {exportRows} from './scorecardLogic.js';
 const storage='northgate-scorecard-bulk-review-v1';
 function download(text,name){const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-export function ScorecardBulkEditor({store,filters,onApplied}){
+export function ScorecardBulkEditor({store,filters,onApplied,onActivity}){
  const [preview,setPreview]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false),[stale,setStale]=useState(false);
  const [pending,setPending]=useState(()=>localStorage.getItem(storage)||'');
+ useEffect(()=>{onActivity?.(busy);},[busy,onActivity]);
+ const unfinished=uncertain||(preview?.status==='preview'&&((preview.new||0)+(preview.changed||0)>0));
+ useEffect(()=>{if(!unfinished)return;const warn=e=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[unfinished]);
  async function run(fn){setBusy(true);setError('');try{await fn();}catch(e){setError(e.message);}finally{setBusy(false);}}
  async function exportFile(){await run(async()=>{const all=await store.all();const cells=exportRows(all,filters).map(({metric_id,period_id})=>({metric_id,period_id}));if(!cells.length)throw new Error('No rows in this reporting period.');const result=await store.exportBulk(cells,crypto.randomUUID());download(bulkCsv(result.rows),'scorecard-bulk-edit.csv');});}
  async function upload(file){if(!file)return;await run(async()=>{if(file.size>4000000)throw new Error('Use a CSV within 4 MB.');const rows=parseBulkCsv(await file.text());const id=crypto.randomUUID();localStorage.setItem(storage,id);setPending(id);setPreview(null);setStale(false);setUncertain(false);setPreview(await store.previewBulk(rows,id));});}
