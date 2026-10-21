@@ -19,3 +19,15 @@ Workspace branch: codex/eos-pending-manager-roster from current Staging ba26ccf.
 Pre-migration preservation digest saved privately at task-4/historical-source/backups/staging-before-assignment-roster.json:614 observations/1312 audits/46 Pursuits/snapshot91; includes complete business-table digests and roles/grants/profile/protected-binding digests. No current data seeding.
 
 Recovery: fix forward; retain stable person IDs and private links/audits if assignments have been made. Do not drop tables or rewrite pending IDs into account IDs. Source baseline writer definitions/ACLs are pinned in tests/fixtures/eos-roster-baseline-functions.json for reviewed recovery/rehearsal. No Production migration or rollout is authorized by this Staging checkpoint.
+
+## Approved Staging rollout receipt
+
+Ryan explicitly approved the informed retry after the original denied request was verified nonexecuted. The reviewed SQL was applied successfully to Staging fazfwzbuesvzhgodckiw; migration ledger version 20261021111334, name eos_pending_assignment_roster (source filename timestamp 20261021095112). Submitted SQL SHA256 CE52E12BBBBBC4701CC664E6997593FEF367E7883C856D4B6DDE31BA15200070 differs from reviewed file 895E440280DDB30CA3772C97E926BF803F3006CFF493281EBBB05BB0BDD7CB50 solely by one additional terminal LF.
+
+Fresh pre-apply checks matched the prior baseline. Post-apply complete existing-table digests matched: 614 observations, 1312 scorecard audits, 46 Pursuits, snapshot 91; metrics/definitions/periods/manager links/roles/grants/profiles/protected binding and membership/observation-writer function hashes unchanged. All three new tables are empty. No shared business QA records were created. Preservation checkpoint is digest-only, not a fresh full Pursuit backup.
+
+Published Staging commit 57fd8d025b4709f64e1e43c7209a89574157fa89; Netlify deploy 6ad89ea1af1ad24994b88a47, ready, published 2026-10-21T11:15:05.105Z, site 431ce717-1a06-45a0-9d7a-8acd06a67dde. Netlify's context label is production for the Staging site's published branch; this is not the Production HQ site. Production HQ remains deploy 6ad7cb8a1b851c92b66404e5.
+
+Remaining verification: signed-in shared Staging browser QA is pending because this execution turn exposes no callable Node REPL/browser-control tool. No fallback session extraction or permission bypass attempted. Previous synthetic component/database/layout/build tests passed; these do not substitute for deployed signed-in QA.
+
+Review at https://staging.rnsolutions.net/eos. Tracker: Manager roster. Scorecard: Edit > Manager roster. Inspect Add person and existing-account options without saving unwanted test records; close/cancel drafts. A real approved pending person can later be chosen in Manage metrics > Owner and New/Edit Pursuit > managers, labelled pending account. Assignment eligibility does not grant login or EOS access. Production promotion remains separate.
