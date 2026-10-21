@@ -1,6 +1,6 @@
-.eos-workspace { display: grid; gap: 1rem; min-width: 0; padding-bottom: 2rem; }
+.eos-workspace { display: grid; gap: .35rem; min-width: 0; padding-bottom: 2rem; }
 .eos-workspace .workspace-header { margin-bottom: 0; }
-.eos-breadcrumb { display: flex; align-items: center; gap: .4rem; padding: .4rem 1rem 0; color: var(--ng-muted); font-size: .78rem; }
+.eos-breadcrumb { display: flex; align-items: center; gap: .4rem; padding: .2rem .6rem 0; color: var(--ng-muted); font-size: .78rem; }
 .eos-breadcrumb button { border: 0; background: transparent; color: var(--ng-brand-red); padding: 0; cursor: pointer; }
 .eos-message { margin: 0 1rem; padding: .8rem 1rem; border: 1px solid var(--ng-border); border-radius: .4rem; background: var(--ng-ok-bg); }
 .eos-message--error { background: var(--ng-err-bg); color: var(--ng-err); }
@@ -95,7 +95,7 @@
 .eos-workspace:has(.scorecard-workspace--fit) > .eos-reminder,
 .eos-workspace:has(.scorecard-workspace--fit) > nav { flex-shrink:0; }
 @media(max-width:700px) {
- .eos-workspace { gap:.4rem; }
+ .eos-workspace { gap:.35rem; }
  .eos-page-heading > .workspace-header { padding:.35rem .6rem; }
  .eos-page-heading > .workspace-header h2 { font-size:1.05rem; }
  .eos-page-heading > .workspace-header .eyebrow { font-size:.6rem; margin:0; }
@@ -113,6 +113,7 @@
 .eos-page-heading > .workspace-header .workspace-header__actions:empty { display:none; }
 .eos-page-heading > .workspace-header .workspace-header__copy .eyebrow { font-size:.62rem; }
 @media(max-height:600px) {
+ .eos-breadcrumb { display:none; }
  .eos-page-heading > .workspace-header { padding:.2rem .6rem; }
  .eos-page-heading > .workspace-header h2 { font-size:1rem; }
  .eos-page-heading > .workspace-header .workspace-header__copy .eyebrow { display:none; }
