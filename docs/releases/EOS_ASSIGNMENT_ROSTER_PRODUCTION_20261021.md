@@ -1,5 +1,7 @@
 # EOS roster Production promotion checkpoint
 
+Current status: the fresh approval succeeded and the reviewed roster/spacing release is published in Production. Earlier expired-request notes below describe the prior checkpoint, not the current deployment state.
+
 Ryan tested the deployed Staging roster and approved promotion with a small correction to the gray spacing above the EOS management header. Owner test evidence is separate from agent QA; deployed signed-in agent QA remains unavailable because this turn has no browser, desktop/CUA, Node REPL or tool-discovery control tools.
 
 Spacing correction: shared EOS breadcrumb padding and workspace gap now match the fitted Scorecard rules; compact-height breadcrumb visibility also agrees across modules. Synthetic tests compare actual Pursuit/Scorecard header top positions at 1440x900, 1366x768, 960x600, 720x450, 390x844 and 390x667. Roster recovery/permission/assignment UI tests and database rollback/reapply tests pass, as do the scorecard table-only scrolling and quarter/overlay regressions. The isolated Production candidate passes 368 tests with one existing skip (369 total); synthetic-config build passes. Its output is for compilation verification only, not deployment.
@@ -15,3 +17,13 @@ Production target is Supabase keogysnoukbendfkfjcn. Exact reviewed migration sou
 The Production apply request returned Invalid or expired requestState. No retry was submitted. Independent read afterward confirmed no roster migration entry, no assignment_people table and unchanged metric-writer hash. Production release remains 6ad7cb8a1b851c92b66404e5. Complete before/after preservation digests still match: 9 observations, 43 scorecard audits, 42 Pursuits, snapshot 64; existing metrics, definitions, periods, manager links, roles, EOS grants, employee profiles, protected binding and membership/observation-writer functions unchanged.
 
 Remaining: resolve the action-time Production migration approval, verify outcome before any retry, then publish the narrow candidate to main and verify Netlify's exact commit/deploy. Recheck all preservation digests and existing ACLs/new private-table protections. Signed-in QA must be marked pending until a supported browser surface or owner Production test supplies evidence. No synthetic business writes are authorized for QA. The 609 source-history observations remain Staging-only.
+
+## Successful approved rollout
+
+After the parent confirmed the first expiration was not a user denial and authorized one fresh request, Production preflight reconfirmed all three expected original writer hashes, absent roster schema/ledger, 9 observations, 42 Pursuits, 43 audits and revision 64. Ryan allowed the fresh action-time request; apply_migration returned success. Ledger version 20261021115827, name eos_pending_assignment_roster, target keogysnoukbendfkfjcn.
+
+Published Production commit 2f15cd80e170aab6a968969f6bd73de1692aee29; Netlify deploy 6ad8a904d4e17890643c0364, site 16adb4ff-83a9-4440-8aad-fcb820d55cac, ready, published 2026-10-21T11:59:22.630Z. Remote main and deploy commit match. No unrelated Staging changes were merged.
+
+Post-apply preservation counts and hashes match all recorded baselines: observations, Pursuits, scorecard audits, metrics, definitions, periods, existing manager links, roles, EOS grants, employee profiles, protected binding, membership function, observation writer and snapshot 64. All three new tables are empty, RLS enabled, with no anon/authenticated direct SELECT/INSERT access. Existing writer ACLs retain their Production service_role entries; new RPC ACLs are postgres/authenticated only. No login settings, EOS membership or historical data imports changed.
+
+Remaining limitation: deployed signed-in agent QA is unavailable due absent supported browser/CUA controls. Ryan's successful Staging roster test is owner evidence; agent synthetic UI, spacing/viewport, database/recovery tests and candidate unit/build checks are separate evidence. No Production synthetic records were created. Review at https://rnsolutions.net/northgate/eos: tracker Manager roster or Scorecard Edit > Manager roster. Cancel any test draft; approved real roster people can be selected as metric owners or Pursuit managers without granting EOS access. No automatic account linking by email.
