@@ -115,3 +115,7 @@
 
 .ng-page-scope:has(.scorecard-workspace--fit) { flex:1; min-height:0; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
 .scorecard-edit-menu > div { left:0; right:auto; }
+.scorecard-matrix { border-bottom:1px solid var(--ng-border); padding-bottom:1rem; margin-bottom:1rem; }
+.scorecard-matrix label { display:block; margin:.5rem 0; }
+.scorecard-matrix-review { max-width:100%; overflow:auto; }
+.scorecard-matrix-issue { border-left:3px solid #a63825; background:#fff0e4; color:#682718; padding:.4rem; margin:.3rem 0; }
