@@ -11,3 +11,9 @@ Validation: 383 tracked tests, 382 pass, one existing skip. Build passed. Synthe
 Staging preservation baseline: 29 clients, hash dc6b93e937bfd797b59ef8ebef28756b; 46 pursuits, hash ce1d26c184dfe9da0e534d5777f5a7bf. Client RLS remains USING/WITH CHECK current_user_can_manage_eos(). These are preservation digests, not a full backup.
 
 Review at https://staging.rnsolutions.net/eos > Project Pursuit Tracker > New Pursuit (or an existing pursuit / Change client) > Client > New client…. Cancel should restore the draft; Save Client should select it and leave the pursuit unsaved until its own Save. Avoid creating fake shared clients for QA. Agent signed-in deployed checks depend on supported browser controls; synthetic browser testing is separate evidence. Production remains unchanged.
+
+## Published receipt
+
+Code 6fbdd3ff1a104ea5b374be5a087f86d866332fd3, Netlify deploy 6ad9347ca8ebd9817190d858, ready, published 2026-10-21T21:54:24.658Z, Staging site 431ce717-1a06-45a0-9d7a-8acd06a67dde. Exact deployed commit verified. Post-deploy client/pursuit counts, hashes and RLS policy match the above baselines. No schema migration or shared business QA writes. Production remains deploy 6ad8a904d4e17890643c0364; main remains d0ce0ba. The incremental release contains only this client-picker feature, its tests and this note; pre-existing Staging scorecard work was not recreated or promoted.
+
+Connection interruptions did not prevent tests or rollout. Signed-in deployed agent QA is pending because browser/CUA/Node REPL controls are absent in this execution turn; no browser focus was taken and no authentication fallback was used. Available verification is 382 tests passed/one existing skip, synthetic component desktop/mobile flows, isolated source-policy database tests, successful local/build pipeline compilation and deployed commit/data preservation checks.
