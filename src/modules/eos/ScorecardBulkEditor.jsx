@@ -21,7 +21,7 @@ export function ScorecardBulkEditor({store,filters,onApplied,onActivity}){
  const changed=(preview?.new||0)+(preview?.changed||0);
  const labels={new:'New entries',changed:'Changed entries',unchanged:'Unchanged', 'needs-review':'Needs review'};
  return <section className="scorecard-import scorecard-bulk" aria-label="Bulk edit scorecard">
-  <ScorecardMatrix store={store} disabled={busy||cleanupBusy||uncertain} onActivity={setCleanupBusy} onPreview={async rows=>{const id=crypto.randomUUID();localStorage.setItem(storage,id);setPending(id);setPreview(null);setStale(false);setUncertain(false);setPreview(await store.previewBulk(rows,id));}}/>
+  <ScorecardMatrix store={store} disabled={busy||cleanupBusy||uncertain} onActivity={setCleanupBusy} onDraftChange={()=>setPreview(null)} onPreview={async rows=>{const id=crypto.randomUUID();localStorage.setItem(storage,id);setPending(id);setPreview(null);setStale(false);setUncertain(false);setPreview(await store.previewBulk(rows,id));}}/>
   <h3>Bulk edit scorecard</h3><p>Export a copy, edit Value and Notes in your spreadsheet, then upload it here to review and save. Leave the other columns as supplied. Blanks keep existing contents; missing rows do nothing. Percentages use 0–100, such as 12.5%.</p>
   <button disabled={busy||cleanupBusy} onClick={exportFile}>Export for bulk editing</button>
   <label>Upload edited CSV<input type="file" accept=".csv,text/csv" disabled={busy||cleanupBusy||uncertain} onChange={e=>{upload(e.target.files?.[0]);e.target.value='';}}/></label>
