@@ -1,4 +1,5 @@
 import {EosManagerRoster} from './EosManagerRoster.jsx';
+import {saveEosClient} from './eosClient.js';
 import {assignmentEligible,assignmentName,createAssignmentRosterStore} from './eosAssignmentRoster.js';
 import { eosRpc } from './eosRequest.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,9 +34,10 @@ const COLUMNS = [
   ['follow_up_7_day', '7-day'], ['meeting_2_week', '2-week'], ['status', 'Status'],
 ];
 
-function Control({ field, type, value, onChange, clients, directory }) {
-  if (type === 'client') return <select value={value || ''} onChange={(e) => onChange(e.target.value || null)}>
+function Control({ field, type, value, onChange, clients, directory, onNewClient }) {
+  if (type === 'client') return <select aria-label="Client" value={value || ''} onChange={(e) => e.target.value==='__new_client__'?onNewClient?.():onChange(e.target.value || null)}>
     <option value="">No client</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.display_name}</option>)}
+    {onNewClient&&<option value="__new_client__">New client…</option>}
   </select>;
   if (type === 'managers') return <div className="eos-manager-options">{directory.filter((person) => assignmentEligible(person) || (value || []).includes(person.user_id)).map((person) =>
     <label key={person.user_id}><input type="checkbox" checked={(value || []).includes(person.user_id)}
@@ -50,7 +52,7 @@ function Control({ field, type, value, onChange, clients, directory }) {
   if (options) return <select value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
     {options.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
   </select>;
-  if (type === 'textarea') return <textarea rows="4" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />;
+  if (type === 'textarea') return <textarea aria-label={field} rows="4" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />;
   return <input aria-label={field} type={type} step={type === 'number' || type === 'probability' ? 'any' : undefined}
     min={type === 'probability' ? '0' : undefined} max={type === 'probability' ? '100' : undefined}
     value={value ?? ''} onChange={(e) => onChange(e.target.value)} />;
@@ -84,6 +86,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
   const [reminderIndex, setReminderIndex] = useState(0);
   const [editor, setEditor] = useState(null);
   const [clientEditor, setClientEditor] = useState(null);
+  const [clientTarget,setClientTarget]=useState(null),[clientError,setClientError]=useState(''),[clientUncertain,setClientUncertain]=useState(false),[duplicateClient,setDuplicateClient]=useState(null);
   const [reminderEditor, setReminderEditor] = useState(null);
   const [award, setAward] = useState(null);
   const [reversal, setReversal] = useState(null);
@@ -197,17 +200,19 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
     return false;
   }
 
-  async function saveClient(form) {
-    if (!cleanText(form.display_name)) { setError('Client name is required.'); return; }
-    const payload = Object.fromEntries(['first_name','last_name','display_name','company','phone','email','address','notes']
-      .map((field) => [field, cleanText(form[field]) ]));
-    const saved = await run(async (client) => {
-      const response = form.id ? await client.from('eos_clients').update(payload).eq('id', form.id).select('id').single()
-        : await client.from('eos_clients').insert(payload).select('id').single();
-      if (response.error) throw response.error;
-      return response.data;
-    }, 'Shared client saved.');
-    if (saved) { setClientEditor(null); if (editor) setEditor({ ...editor, client_id: saved.id }); }
+  function newClient(target){setClientTarget(target);setClientError('');setClientUncertain(false);setDuplicateClient(null);setClientEditor({display_name:'',create_id:crypto.randomUUID()});}
+  function closeClient(){if(busy||clientUncertain)return;setClientEditor(null);setClientTarget(null);setClientError('');setDuplicateClient(null);}
+  function selectClient(saved){
+    setClients(current=>[...current.filter(c=>c.id!==saved.id),saved].sort((a,b)=>a.display_name.localeCompare(b.display_name)));
+    if(clientTarget==='editor')setEditor(current=>current?{...current,client_id:saved.id}:current);
+    if(clientTarget==='inline')setInline(current=>current?{...current,value:saved.id}:current);
+    setClientEditor(null);setClientTarget(null);setClientUncertain(false);setClientError('');setDuplicateClient(null);
+  }
+  async function saveClient(form){
+    if(busy)return;setBusy(true);setClientError('');setDuplicateClient(null);
+    try{const saved=await call(client=>saveEosClient(client,form));selectClient(saved);setNotice('Shared client saved. Pursuit draft retained; save the pursuit when ready.');await load();}
+    catch(e){setClientError(e.message||'Client could not be saved.');setDuplicateClient(e.existing||null);setClientUncertain(!e.code||e.code==='EOS_TIMEOUT');}
+    finally{setBusy(false);}
   }
 
   async function saveReminder(form) {
@@ -399,7 +404,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
                   }
                 }}>
                   <Control field={field} type={FIELDS.find(([key]) => key === inline.key)?.[2]}
-                    value={inline.value} onChange={(value) => setInline({ ...inline, value })} clients={clients} directory={directory} />
+                    value={inline.value} onChange={(value) => setInline({ ...inline, value })} clients={clients} directory={directory} onNewClient={()=>newClient('inline')} />
                   <button type="button" disabled={busy} onClick={commitInline}>Save</button>
                   <button type="button" onClick={() => setInline(null)}>Cancel</button>
                 </div> : field === 'project_name' ? <button type="button" className="eos-link" onClick={() => openEditor(row)} title={row.project_name}>{row.project_name}</button>
@@ -418,23 +423,25 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
           {!visible.length && <p className="eos-empty">No pursuits in this view.</p>}</div>
       </section>
     </>}
-    {editor && <Drawer open onClose={() => setEditor(null)} title={editor.id ? 'Edit Pursuit' : 'New Pursuit'} labelledById="eos-pursuit-title" width="min(56rem, 100vw)">
+    {editor && <Drawer open={!clientEditor} onClose={() => setEditor(null)} title={editor.id ? 'Edit Pursuit' : 'New Pursuit'} labelledById="eos-pursuit-title" width="min(56rem, 100vw)">
       <div className="eos-form">{FIELDS.map(([field,label,type]) => <label key={field}>{label}
         {editor.phase === 'Awarded' && (field === 'phase' || field === 'status')
           ? <span>{editor[field]} · Use Reverse award in the tracker</span>
           : <Control field={label} type={type} value={editor[field]} clients={clients} directory={directory}
-            onChange={(value) => setEditor({ ...editor, ...normalizePatch(field,value) })} />}
-        {field === 'client_id' && <button type="button" className="eos-mini" onClick={() => setClientEditor({ display_name: '' })}>Add client</button>}
+            onNewClient={()=>newClient('editor')} onChange={(value) => setEditor({ ...editor, ...normalizePatch(field,value) })} />}
       </label>)}</div>
       <div className="eos-actions"><button type="button" className="secondary-button" onClick={() => setEditor(null)}>Cancel</button>
         <button type="button" className="primary-button" disabled={busy} onClick={() => savePursuit(editor)}>Save Pursuit</button></div>
     </Drawer>}
-    {clientEditor && <Drawer open onClose={() => setClientEditor(null)} title="Client contact card" labelledById="eos-client-title" width="min(50rem, 100vw)">
-      <div className="eos-form">{[['display_name','Display name'],['first_name','First name'],['last_name','Last name'],['company','Company'],['phone','Phone'],['email','Email'],['address','Address'],['notes','Notes']].map(([key,label]) =>
-        <label key={key}>{label}{key === 'notes' ? <textarea value={clientEditor[key] || ''} onChange={(e) => setClientEditor({ ...clientEditor, [key]: e.target.value })} />
-          : <input value={clientEditor[key] || ''} onChange={(e) => setClientEditor({ ...clientEditor, [key]: e.target.value })} />}</label>)}</div>
-      <div className="eos-actions"><button type="button" className="secondary-button" onClick={() => setClientEditor(null)}>Cancel</button>
-        <button type="button" className="primary-button" disabled={busy} onClick={() => saveClient(clientEditor)}>Save Client</button></div>
+    {clientEditor && <Drawer open onClose={closeClient} title={clientEditor.id?'Client contact card':'New client'} labelledById="eos-client-title" width="min(50rem, 100vw)">
+      <p>{clientTarget?'Your pursuit draft is retained. Saving the client selects it without saving the pursuit.':'Edit the existing shared client contact.'}</p>
+      {clientError&&<p role="alert">{clientError}</p>}{clientUncertain&&<p role="status">Save is unconfirmed. Keep this draft unchanged and recover before closing or creating another client.</p>}
+      <div className="eos-form">{(clientEditor.id?[['display_name','Display name'],['first_name','First name'],['last_name','Last name'],['company','Company'],['phone','Phone'],['email','Email'],['address','Address'],['notes','Notes']]:[['display_name','Display name'],['company','Company'],['email','Email'],['phone','Phone']]).map(([key,label]) =>
+        <label key={key}>{label}{key === 'notes' ? <textarea disabled={busy||clientUncertain} value={clientEditor[key] || ''} onChange={(e) => setClientEditor({ ...clientEditor, [key]: e.target.value })} />
+          : <input disabled={busy||clientUncertain} required={key==='display_name'} type={key==='email'?'email':'text'} value={clientEditor[key] || ''} onChange={(e) => setClientEditor({ ...clientEditor, [key]: e.target.value })} />}</label>)}</div>
+      {duplicateClient&&clientTarget&&<button type="button" disabled={busy} onClick={()=>selectClient(duplicateClient)}>Select existing client</button>}
+      <div className="eos-actions"><button type="button" disabled={busy||clientUncertain} className="secondary-button" onClick={closeClient}>Cancel</button>
+        <button type="button" className="primary-button" disabled={busy} onClick={() => saveClient(clientEditor)}>{clientUncertain?'Recover client save':'Save Client'}</button></div>
     </Drawer>}
     {reminderEditor && <Drawer open onClose={() => setReminderEditor(null)} title="Leadership reminder" labelledById="eos-reminder-title" width="min(50rem, 100vw)">
       <div className="eos-form">{[['text','Text'],['source_label','Author / source label'],['book','Verified book'],['source_url','Source URL'],['edition','Edition'],['page','Page']].map(([key,label]) =>
