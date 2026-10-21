@@ -148,3 +148,7 @@
  .eos-reminder-disclosure > summary { display:list-item; cursor:pointer; margin:0 .5rem; padding:.35rem .55rem; font-size:.78rem; background:var(--ng-card-bg); border:1px solid var(--ng-border); border-left:3px solid var(--ng-brand-red); border-radius:.35rem; }
  .eos-reminder-disclosure > summary:focus-visible { outline:3px solid #276698; }
 }
+
+.eos-roster-list { padding:0; list-style:none; }
+.eos-roster-list li { display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.6rem 0; border-bottom:1px solid var(--ng-border); overflow-wrap:anywhere; }
+.eos-roster-list li span { min-width:0; }

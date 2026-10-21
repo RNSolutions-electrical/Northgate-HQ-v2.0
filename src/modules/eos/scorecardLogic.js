@@ -1,3 +1,4 @@
+import {assignmentEligible} from './eosAssignmentRoster.js';
 import { companyToday, shiftCalendarDate } from './eosLogic.js';
 import {quarterRange,reportingDateChoices,entryReportingDate,entryInScope} from './scorecardQuarters.js';
 
@@ -29,7 +30,7 @@ export function measurementWindow(definition, period) {
   return { measurement_start: start, as_of: asOf };
 }
 export const canManageEos = (actor, members) => Boolean(actor?.id && actor.active && members.some((m) => m.user_id === actor.id && m.is_active && m.is_member));
-export const eligibleMembers = (members) => members.filter((m) => m.is_active && m.is_member);
+export const eligibleMembers = (members) => members.filter(assignmentEligible);
 export function definitionAt(state, metricId, anchor) {
   return state.definitions.filter((d) => d.metric_id === metricId && d.effective_from <= anchor)
     .sort((a, b) => b.effective_from.localeCompare(a.effective_from) || b.revision - a.revision)[0] || null;

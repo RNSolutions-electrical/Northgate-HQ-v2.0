@@ -16,7 +16,7 @@ function validateDefinition(state, d, prior) {
   if (!UNITS.includes(d.unit) || !CARRY.includes(d.carry) || !WINDOWS.includes(d.window) || !AGGREGATIONS.includes(d.aggregation)) throw new Error('Invalid metric configuration.');
   if (d.aggregation === 'sum' && (d.unit === 'percent' || d.unit === 'text' || ['YTD', 'QTD', 'rolling-30'].includes(d.window))) throw new Error('Do not sum cumulative, rolling, percentage or text observations.');
   if (d.unit === 'text' && d.aggregation === 'average') throw new Error('Text cannot be averaged.');
-  if (d.owner_id && d.owner_id !== prior?.owner_id && !eligibleMembers(state.members).some((m) => m.user_id === d.owner_id)) throw new Error('New owners must be active E.O.S. members.');
+  if (d.owner_id && d.owner_id !== prior?.owner_id && !eligibleMembers(state.members).some((m) => m.user_id === d.owner_id)) throw new Error('Choose an eligible roster owner.');
   if (!state.categories.some((c) => c.id === d.category_id)) throw new Error('Choose an existing category.');
   parseValue(d.goal, d);
 }
@@ -142,7 +142,8 @@ export function createRemoteScorecardStore(call) {
   async function withQuarterSchedule(state) {
     try {
       const {reporting_dates=[],...quarterSchedule}=await rpc('eos_scorecard_quarters_read_v1',{p_snapshot:state.snapshot});
-      return {...state,quarterSchedule,reportingDates:reporting_dates};
+      const roster=await rpc('eos_assignment_roster_read_v1',{p_snapshot:state.snapshot});
+      return {...state,quarterSchedule,reportingDates:reporting_dates,members:roster.rows||state.members};
     }
     catch(e) {
       if (!['PGRST202','42883'].includes(e.code)) throw e;

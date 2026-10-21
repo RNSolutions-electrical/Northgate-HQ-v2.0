@@ -11,11 +11,11 @@ test('required category rejects blank/missing, malformed and deleted selections 
   for (const id of ['', ' ', null, undefined, 'garbage', '22222222-2222-4222-8222-222222222222']) {
     await assert.rejects(store.saveMetric({definition:{category_id:id}},'request'), /[Cc]ategory/);
   }
-  assert.deepEqual(calls.map(c=>c.name),['eos_scorecard_read_v1','eos_scorecard_quarters_read_v1']);
+  assert.equal(calls.filter(c=>!c.name.includes('read')).length,0,'invalid categories never construct a write');
   const input = {definition:{category_id:category,owner_id:'',goal:''}};
   await store.saveMetric(input,'same-request'); await store.saveMetric(input,'same-request');
-  assert.deepEqual(calls[2].args,{p_input:input,p_request_id:'same-request'});
-  assert.deepEqual(calls[3],calls[2]); assert.equal(input.definition.owner_id,''); assert.equal(input.definition.goal,'');
+  const writes=calls.filter(c=>!c.name.includes('read'));assert.deepEqual(writes[0].args,{p_input:input,p_request_id:'same-request'});
+  assert.deepEqual(writes[1],writes[0]); assert.equal(input.definition.owner_id,''); assert.equal(input.definition.goal,'');
 });
 test('remote validation works before initial read and does not alter retained draft',async()=>{
   let writes=0; const store=createRemoteScorecardStore(async operation=>operation({rpc(){writes++;return Promise.resolve({data:{revision:1}});}}));

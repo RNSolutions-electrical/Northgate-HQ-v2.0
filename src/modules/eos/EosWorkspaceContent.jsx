@@ -1,3 +1,5 @@
+import {EosManagerRoster} from './EosManagerRoster.jsx';
+import {assignmentEligible,assignmentName,createAssignmentRosterStore} from './eosAssignmentRoster.js';
 import { eosRpc } from './eosRequest.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WorkspaceHeader } from '../../components/ui/WorkspaceHeader.jsx';
@@ -35,11 +37,11 @@ function Control({ field, type, value, onChange, clients, directory }) {
   if (type === 'client') return <select value={value || ''} onChange={(e) => onChange(e.target.value || null)}>
     <option value="">No client</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.display_name}</option>)}
   </select>;
-  if (type === 'managers') return <div className="eos-manager-options">{directory.filter((person) => (person.is_active && person.is_member) || (value || []).includes(person.user_id)).map((person) =>
+  if (type === 'managers') return <div className="eos-manager-options">{directory.filter((person) => assignmentEligible(person) || (value || []).includes(person.user_id)).map((person) =>
     <label key={person.user_id}><input type="checkbox" checked={(value || []).includes(person.user_id)}
-      disabled={(!person.is_active || !person.is_member) && !(value || []).includes(person.user_id)}
+      disabled={!assignmentEligible(person) && !(value || []).includes(person.user_id)}
       onChange={(e) => onChange(e.target.checked ? [...(value || []), person.user_id]
-        : (value || []).filter((id) => id !== person.user_id))} />{person.display_name}{!person.is_active || !person.is_member ? ' (historical)' : ''}</label>)}</div>;
+        : (value || []).filter((id) => id !== person.user_id))} />{assignmentName(person)}{!assignmentEligible(person)?' (historical)':''}</label>)}</div>;
   const options = {
     phase: [['', 'Unset'], ['Pursuit', 'Pursuit'], ['Estimate', 'Estimate'], ['Awarded', 'Awarded']],
     decision: [['', 'Unset'], ['Go', 'Go'], ['No Go', 'No Go']],
@@ -67,6 +69,8 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
   const [compactReminder,setCompactReminder]=useState(()=>window.matchMedia('(max-width:700px) and (max-height:700px)').matches);
   useEffect(()=>{const media=window.matchMedia('(max-width:700px) and (max-height:700px)');const update=()=>setCompactReminder(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   const [moduleKey, setModuleKey] = useState('pursuits');
+  const [rosterOpen,setRosterOpen]=useState(false),[rosterVersion,setRosterVersion]=useState(0);
+  const rosterStore=useMemo(()=>createAssignmentRosterStore(call),[call]);
   const [view, setView] = useState('Active');
   const [metricFilter, setMetricFilter] = useState('');
   const [source, setSource] = useState('All');
@@ -102,14 +106,14 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
         const requests = await Promise.all([
           client.from('eos_pursuits').select('*,eos_clients(id,display_name,company),eos_pursuit_managers(user_id)').is('deleted_at', null).order('project_name'),
           client.from('eos_clients').select('*').order('display_name'),
-          client.rpc('eos_member_directory_v1'),
+          client.rpc('eos_assignment_roster_read_v1'),
           client.from('eos_leadership_reminders').select('*').order('created_at'),
         ]);
         const failed = requests.find((response) => response.error);
         if (failed) throw failed.error;
         return requests.map((response) => response.data || []);
       });
-      setRows(result[0]); setClients(result[1]); setDirectory(result[2]); setReminders(result[3]); setError('');
+      const roster=result[2];setRows(result[0].map(row=>({...row,eos_pursuit_managers:[...(row.eos_pursuit_managers||[]),...(roster.pursuit_people||[]).filter(link=>link.pursuit_id===row.id).map(({user_id})=>({user_id}))]}))); setClients(result[1]); setDirectory(roster.rows); setReminders(result[3]); setError('');
     } catch (cause) { setError(cause.message || 'EOS data could not be loaded.'); }
   }, [call, permissions.canManageEos]);
   useEffect(() => { load(); }, [load]);
@@ -182,7 +186,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
     const result = await run(async (client, signal) => {
       const request = JSON.stringify([form.id, form.updated_at, payload, managerIds]);
       retryIdentity.current[request] ||= crypto.randomUUID();
-      const response = await eosRpc(client, 'eos_save_pursuit_v1', {
+      const response = await eosRpc(client, 'eos_save_pursuit_v2', {
         p_expected_updated_at: form.updated_at || null, p_request_id: retryIdentity.current[request],
         p_id: form.id || null, p_data: payload, p_manager_ids: managerIds,
       }, signal);
@@ -327,13 +331,14 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
   if (permissions.canManageEos !== true) return <StatePanel title="E.O.S access required" tone="warning"
     description="Access requires active E.O.S. membership." />;
   return <div className="eos-workspace">
+    <EosManagerRoster open={rosterOpen} onClose={()=>setRosterOpen(false)} store={rosterStore} onSaved={async()=>{setRosterVersion(v=>v+1);await load();}}/>
     <nav className="eos-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={() => navigate('/dashboard')}>Dashboard</button>
       <span aria-hidden="true">›</span><button type="button" onClick={() => setModuleKey('pursuits')}>E.O.S</button>
       <span aria-hidden="true">›</span><span>{moduleKey === 'scorecard' ? 'Company Scorecard' : moduleKey === 'reminders' ? 'Leadership reminders' : 'Project Pursuit Tracker'}</span></nav>
     {error && <div role="alert" className="eos-message eos-message--error">{error} <button type="button" disabled={busy} onClick={load}>Reload latest</button><small> For a conflict, review your retained draft, then cancel and reopen the row before saving a revised change.</small></div>}
     {notice && <div role="status" className="eos-message">{notice}</div>}
     <div className="eos-page-heading"><WorkspaceHeader eyebrow="E.O.S · MANAGEMENT" title={moduleKey === 'scorecard' ? 'Company Scorecard' : moduleKey === 'reminders' ? 'Leadership reminders' : 'Project Pursuit Tracker'}
-      actions={moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>} />
+      actions={<>{moduleKey!=='scorecard'&&<button type="button" className="secondary-button" disabled={busy||Boolean(editor||inline||reminderEditor||clientEditor)} onClick={()=>setRosterOpen(true)}>Manager roster</button>}{moduleKey === 'pursuits' && <button className="primary-button" type="button" onClick={() => openEditor(emptyPursuit())}>New Pursuit</button>}</>} />
     {enabledReminders.length > 0 && <details className="eos-reminder-disclosure" open={!compactReminder}><summary>Leadership reminder</summary><section className="eos-reminder" aria-label="Leadership reminder">
       <div><span className="eyebrow">LEADERSHIP REMINDER</span>
         <p>{enabledReminders[reminderIndex % enabledReminders.length]?.text}</p>
@@ -351,7 +356,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
         className={moduleKey === item.key ? 'is-active' : ''} onClick={() => setModuleKey(item.key)}>
         {item.label}{!item.available && <small>Coming soon</small>}</button>)}
     </nav>
-    {moduleKey === 'scorecard' ? <ScorecardWorkspace store={scorecardStore} embedded /> : moduleKey === 'reminders' ? <section className="card eos-panel"><div className="eos-panel-heading"><h3>Leadership reminders</h3>
+    {moduleKey === 'scorecard' ? <ScorecardWorkspace store={scorecardStore} embedded rosterVersion={rosterVersion} onOpenRoster={()=>setRosterOpen(true)} /> : moduleKey === 'reminders' ? <section className="card eos-panel"><div className="eos-panel-heading"><h3>Leadership reminders</h3>
       <button className="secondary-button" type="button" onClick={() => setModuleKey('pursuits')}>Back to tracker</button>
       <button className="primary-button" type="button" onClick={() => setReminderEditor({ text: '', reminder_type: 'original', source_label: 'Northgate leadership reminder', enabled: true })}>Add reminder</button></div>
       {reminders.map((item) => <div className="eos-reminder-row" key={item.id}><span>{item.text} <small>· {item.enabled ? 'Enabled' : 'Disabled'}</small></span>
@@ -371,7 +376,7 @@ export function EosWorkspaceContent({ permissions, call, navigate }) {
       <section className="card eos-panel"><div className="eos-panel-heading"><h3>Project Pursuit Tracker</h3><span>{visible.length} shown</span></div>
         <div className="eos-filters"><label>View<select value={view} onChange={(e) => { setView(e.target.value); setMetricFilter(''); }}>{EOS_VIEWS.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label>Source<select value={source} onChange={(e) => setSource(e.target.value)}><option>All</option>{[...new Set(rows.map((row) => row.source_sheet).filter(Boolean))].map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label>Manager<select value={managerFilter} onChange={(e) => setManagerFilter(e.target.value)}><option value="All">All</option>{directory.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}</option>)}
+          <label>Manager<select value={managerFilter} onChange={(e) => setManagerFilter(e.target.value)}><option value="All">All</option>{directory.map((person) => <option key={person.user_id} value={person.user_id}>{assignmentName(person)}</option>)}
             {unresolvedManagerLabels.map((label) => <option key={`source:${label}`} value={`source:${label}`}>Unresolved: {label}</option>)}</select></label>
           <label>Sort by<select value={sort.field} onChange={(e) => setSort({ ...sort, field: e.target.value })}>
             {COLUMNS.map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
