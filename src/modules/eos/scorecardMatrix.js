@@ -19,7 +19,10 @@ export function parseMatrix(text){
  const dates=[],notes={},excluded=[];for(const h of headers.slice(3)){if(/average|\bavg\b|quarter|\bQ[1-4]\b|summary|total/i.test(h)){excluded.push(h);continue;}if(h.startsWith('Notes ')){const d=matrixDate(h.slice(6));if(notes[d])throw new Error('Duplicate notes date');notes[d]=h;}else{const d=matrixDate(h);if(dates.some(x=>x.date===d))throw new Error('Duplicate meeting date');dates.push({header:h,date:d});}}
  if(!dates.length||dates.length>520)throw new Error('Use 1–520 explicit meeting dates.');
  if(Object.keys(notes).some(d=>!dates.some(x=>x.date===d)))throw new Error('A Notes column needs its corresponding meeting-date column.');
- const records=parseCsv(text,headers),guide=records.findIndex(r=>headers.slice(0,3).some(h=>/^\s*(?:import\s+)?review (?:guide|index|instructions)\b/i.test(r[h])));
+ // The workbook repeats some summary labels across years. Parse by unique
+ // positional keys, while date/note duplicate checks above remain strict.
+ const raw=String(text).replace(/^\uFEFF/,''),newline=raw.indexOf('\n'),keys=headers.map((_,i)=>'column'+i);
+ const records=parseCsv(keys.join(',')+'\n'+(newline<0?'':raw.slice(newline+1)),keys).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[keys[i]]]))),guide=records.findIndex(r=>headers.slice(0,3).some(h=>/^\s*(?:import\s+)?review (?:guide|index|instructions)\b/i.test(r[h])));
  const rows=(guide<0?records:records.slice(0,guide)).map((r,i)=>({row:i+2,name:r[headers[1]].trim(),who:r.Who,goal:r.Goal,values:dates.map((d,j)=>({...d,column:headers.indexOf(d.header)+1,value:r[d.header],note:notes[d.date]?r[notes[d.date]]:null})),section:!r[headers[1]].trim()}));
  if(rows.length>500||rows.filter(r=>!r.section).length*dates.length>20000)throw new Error('Use at most 20,000 metric/date cells per file; split into smaller date ranges.');
  for(const r of rows.filter(r=>r.section))if(r.values.some(c=>c.value!==''||c.note))throw new Error(`Row ${r.row}: values without a Measurable require review.`);
