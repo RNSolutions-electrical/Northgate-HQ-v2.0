@@ -90,3 +90,15 @@ tracker-only assistant access verification remain in progress at this receipt;
 do not interpret this deploy as a verified assistant login or write. No Production
 work session was created. Staging remains on its independent tracker build; no
 whole-branch synchronization or unrelated feature promotion occurred.
+
+## Deployed read-only browser verification
+
+The existing Production Primary Developer session successfully loaded the empty
+tracker, including all dates and archived entries. Developer Tools heading and
+active highlight are correct. Blank manual drawer open/close and Back/Forward
+pass without saving. Desktop/mobile layout passes, with table scrolling contained
+and no drawer horizontal overflow. Browser warning/error capture was empty.
+Loaded bundle `index-CJfRVY3f.js` references the Production Supabase host; individual
+requests were not independently sampled. No Production save or timer was created.
+This verifies the Primary Developer session, not the assistant's separate login.
+The assistant grant/session verification remains pending outside this code release.
