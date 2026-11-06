@@ -5,6 +5,7 @@ import { createSupabaseClient } from '../services/supabaseClient.js';
 
 const DENY_ALL = Object.freeze({
   can_save_personal_work: false,
+  can_track_hq_time: false,
   can_manage_developers: false,
   can_review_afc_studies: false,
   can_developer_data_correction: false,
@@ -47,6 +48,7 @@ const DENY_ALL = Object.freeze({
 function camel(flags) {
   return {
     canSavePersonalWork: flags.can_save_personal_work,
+    canTrackHqTime: flags.can_track_hq_time,
     canManageDevelopers: flags.can_manage_developers,
     canReviewAfcStudies: flags.can_review_afc_studies,
     canDeveloperDataCorrection: flags.can_developer_data_correction,
@@ -161,6 +163,9 @@ export function usePermissions() {
         // the app's permission lookup when this isolated module is absent.
         const { data: eosAccess, error: eosError } = await client.rpc('current_user_can_manage_eos');
         next.permissions.can_manage_eos = !eosError && eosAccess === true;
+        // Isolated personal tool: absent migration denies only this tool.
+        const { data: timeAccess, error: timeError } = await client.rpc('current_user_can_track_hq_time');
+        next.permissions.can_track_hq_time = !timeError && timeAccess === true;
         if (isMounted) setState({ isLoading: false, error: null, ...next });
       } catch (error) {
         console.error('Permission lookup failed', error);
