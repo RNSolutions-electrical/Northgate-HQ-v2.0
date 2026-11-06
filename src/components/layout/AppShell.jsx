@@ -1,5 +1,6 @@
 import { ArrowLeft, Bell, House, LayoutDashboard, Menu, Search, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { activeNavigationGroup } from '../../modules/registry.js';
 import { TopNavigation } from './TopNavigation.jsx';
 import { DashboardSectionTree } from '../../modules/dashboard/DashboardSectionTree.jsx';
 import {CalculatorLauncher} from '../calculator/Calculator.jsx';
@@ -54,6 +55,7 @@ export function AppShell({
   children,
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const activeGroup = activeNavigationGroup(navItems, activeWorkspace);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -124,13 +126,13 @@ export function AppShell({
             </span>
             <div>
               <p className="eyebrow">Workspace</p>
-              <h2>{navItems.find((item) => item.key === activeWorkspace)?.label ?? 'Dashboard'}</h2>
+              <h2>{activeGroup?.label ?? activeWorkspaceLabel ?? 'Workspace'}</h2>
             </div>
           </div>
           <nav className="ng-shell__rail-nav" aria-label="Workspace shortcuts">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.key === activeWorkspace;
+              const isActive = item.key === activeGroup?.key;
 
               return (
                 <div key={item.key} className="ng-shell__rail-group">

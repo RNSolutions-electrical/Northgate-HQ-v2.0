@@ -14,6 +14,7 @@ import {
   Wrench,
   Target,
   Puzzle,
+  Clock3,
 } from 'lucide-react';
 
 /**
@@ -42,6 +43,9 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
+    requires: ['canTrackHqTime'], status: 'live',
+    description: 'Developer-accessible record of HQ work and optional focused-time estimates.' },
   {key:'afc',path:'/afc',label:'Available Fault Current',icon:Calculator,requiresAddon:'available_fault_current',status:'live',description:'Shared fault-current studies, reviewed reports and equipment labels.'},
   {key:'electrical-inspections',path:'/electrical-inspections',label:'Electrical Systems Health Inspection',icon:PanelTop,requiresAddon:'electrical_inspection',status:'live',description:'Equipment observations, findings and issued inspection reports.'},
   {key:'add-on-tools',path:'/add-on-tools',label:'Add-On Tools',icon:Puzzle,status:'live'},
@@ -194,6 +198,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'eos', moduleKey: 'eos' },
   { key: 'silas', moduleKey: 'silas' },
   { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc'] },
+  { key: 'developer-tools', label: 'Developer Tools', icon: Clock3, moduleKeys: ['hq-time'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
@@ -256,4 +261,9 @@ export function permittedNavigationGroups(permissions) {
 
 export function findModule(key) {
   return MODULES.find((module) => module.key === key) ?? null;
+}
+
+/** Resolve a module to its presentation group without changing route permissions. */
+export function activeNavigationGroup(items, moduleKey) {
+  return items.find((item) => item.key === moduleKey || item.items?.some((child) => child.key === moduleKey)) ?? null;
 }
