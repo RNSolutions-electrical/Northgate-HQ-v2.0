@@ -14,6 +14,7 @@ import {
   Wrench,
   Target,
   Puzzle,
+  Clock3,
 } from 'lucide-react';
 
 /**
@@ -42,6 +43,9 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
+    requires: ['canTrackHqTime'], personalAddon: true, status: 'live',
+    description: 'Private record of HQ work and optional focused-time estimates.' },
   {key:'afc',path:'/afc',label:'Available Fault Current',icon:Calculator,requiresAddon:'available_fault_current',status:'live',description:'Shared fault-current studies, reviewed reports and equipment labels.'},
   {key:'electrical-inspections',path:'/electrical-inspections',label:'Electrical Systems Health Inspection',icon:PanelTop,requiresAddon:'electrical_inspection',status:'live',description:'Equipment observations, findings and issued inspection reports.'},
   {key:'add-on-tools',path:'/add-on-tools',label:'Add-On Tools',icon:Puzzle,status:'live'},
@@ -193,7 +197,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'accounting', moduleKey: 'accounting' },
   { key: 'eos', moduleKey: 'eos' },
   { key: 'silas', moduleKey: 'silas' },
-  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc'] },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc','hq-time'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
