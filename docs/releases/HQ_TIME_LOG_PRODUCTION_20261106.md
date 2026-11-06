@@ -68,3 +68,25 @@ account. Production smoke must not create real work sessions. Concurrent hosted
 requests and independent signed-in cross-browser persistence remain unexercised.
 
 Review path after deployment: https://rnsolutions.net/northgate/hq-time.
+
+## Verified Production publication
+
+PR #3 merged to main as `39f7e1566965840ce8d3d5778373777156703aa6`.
+Its tree `c92d1dc34997618d6a4bb6ced4165a49d20812c7` is identical to the
+tested selective candidate. Netlify Production deploy
+`6aedc80928dba70a48eb1484` is ready/current, published
+2026-11-06 12:29:28.258 UTC, from that exact commit. The secret scan examined
+1,129 files with no matches. Review https://rnsolutions.net/northgate/hq-time.
+
+The preview check failed before publication because its existing Netlify
+deploy-preview configuration omitted explicit `VITE_APP_ENV`. The repository's
+environment guard correctly stopped that build. Neither the guard nor hosting
+settings were weakened. The separately authorized normal main/Production build
+succeeded.
+
+The Developer Tools workspace is now published. Existing role/credential records
+remain unchanged. Read-only Production browser QA and separately approved
+tracker-only assistant access verification remain in progress at this receipt;
+do not interpret this deploy as a verified assistant login or write. No Production
+work session was created. Staging remains on its independent tracker build; no
+whole-branch synchronization or unrelated feature promotion occurred.
