@@ -40,9 +40,11 @@ import { PanelDirectoryWorkspace } from './panel-directory/PanelDirectoryWorkspa
 import { SilasWorkspace } from './silas/SilasWorkspace.jsx';
 import { ToolsWorkspace } from './tools/ToolsWorkspace.jsx';
 import { VehiclesWorkspace } from './vehicles/VehiclesWorkspace.jsx';
+import { HqTimeWorkspace } from './hq-time/HqTimeWorkspace.jsx';
 import { EosWorkspace } from './eos/EosWorkspace.jsx';
 
 export const MODULE_SCREENS = {
+  'hq-time': HqTimeWorkspace,
   afc:AfcWorkspace,
   'electrical-inspections':ElectricalInspectionWorkspace,
   'add-on-tools':AddOnToolsWorkspace,

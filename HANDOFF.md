@@ -23651,3 +23651,16 @@ No approval/amount/link/history change, rebuild, repost or double counting occur
 Exact assets/counts/hashes/limits: docs/releases/FINANCIAL_DIVISION_GROUPING_PRODUCTION_20261019.md.
 No blocker remains; Production Toro is open for Ryan. Receipt-only push skips CI;
 Staging remains on fa8ffd9/6ad665 without merging its unrelated changes.
+
+## Entry 378 - HQ Time Log selective Production promotion
+
+Ryan authorized Developer Tools naming and Production promotion to test the existing
+assistant identity. Narrow candidate starts at main d0ce0ba; unrelated Staging EOS
+and estimate work is excluded. Tracker schema applied to Production as hosted ledger
+20261106122025, source 20261106114145. No existing records, roles, bindings or
+credentials changed; eight preservation hashes match. Rollback-only role tests
+passed and leave no tracker records/audits/grants. Actual assistant account remains
+denied by the canonical Developer gate; no tracker-only grant was made. Candidate
+passes 399 tests/one existing skip, build, SQL security and focused navigation/runtime
+checks. Production frontend deploy and signed-in read-only verification follow.
+See docs/releases/HQ_TIME_LOG_PRODUCTION_20261106.md for exact scope and limits.
