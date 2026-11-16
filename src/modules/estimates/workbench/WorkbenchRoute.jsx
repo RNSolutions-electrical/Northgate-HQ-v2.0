@@ -1,3 +1,5 @@
+import BlankSlateEditor from './BlankSlateEditor.jsx';
+import {blankDocument,requireBlankAccounting} from './blankSlate.mjs';
 import {newLaborRates} from './laborRates.mjs';
 import { getSupabaseAccessToken } from '../../../services/clerkToken.js';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
@@ -41,7 +43,7 @@ function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onD
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" className={fitViewport?'estimate-editor-frame--fit':undefined} ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{display:'block',width:'100%',height:fitViewport&&height?height:'calc(100dvh - 130px)',minHeight:fitViewport?0:620,border:0}}
- >{target&&createPortal(<>{leadingContent}<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/></>,target)}</iframe>;
+ >{target&&createPortal(<>{leadingContent}{document.blankSlateVersion===1?<BlankSlateEditor initialDocument={document} onSave={onSave} onDirty={onDirty} onExit={onExit} approvedSnapshot={approvedSnapshot} {...handoffProps} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)}/>:<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>}</>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
@@ -228,6 +230,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   setRows(current=>current.filter(row=>row.estimate_id!==estimateId));dirty.current=false;active.current=null;setSelected(null);
  }
  async function submitHandoff(values){
+  await requireBlankAccounting(active.current?.document,client);
   if(saving.current)throw new Error('Wait for the current save to finish.');
   const current=active.current;if(!current?.estimate_id)throw new Error('Save the estimate first.');
   const db=await client(),{data,error}=await db.rpc('handoff_estimate_to_destination',{
@@ -241,6 +244,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   dirty.current=false;navigate('/jobs',{state:handoffDestinationState(handoff)});
  }
  async function approve(document,note){
+  await requireBlankAccounting(document,client);
   if(!active.current?.estimate_id)throw new Error('Save the estimate before approval.');
   const db=await client();
   const {data:snapshotId,error}=await db.rpc('approve_workbench_estimate',{p_estimate_id:active.current.estimate_id,p_approval_note:note||null});
@@ -285,7 +289,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  }
  async function create(e){
   e.preventDefault();setCreating(true);setError('');
-  try{const f=new FormData(e.target);active.current=null;const doc=newLaborRates(seed(f.get('name').trim(),f.get('customer').trim(),f.get('template')),librarySettings.current);doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
+  try{const f=new FormData(e.target);active.current=null;const doc=newLaborRates(f.get('template')==='Blank slate'?blankDocument(f.get('name').trim(),f.get('customer').trim()):seed(f.get('name').trim(),f.get('customer').trim(),f.get('template')),librarySettings.current);doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
   catch(e){setError(e.message);}finally{setCreating(false);}
  }
  function exit(){
@@ -305,6 +309,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const submitted=active.current;submitting.current=true;
   setWorkflow(current=>({...current,busy:true,error:'',success:''}));
   try{
+   await requireBlankAccounting(submitted.document,client);
    const db=await client(),response=await db.rpc('submit_v5_estimate_for_review',{p_request_id:crypto.randomUUID(),p_working_copy_id:submitted.personal_id,p_expected_version:submitted.revision,p_reason:reason});
    if(response.error)throw response.error;
    const next={...submitted,estimates:{...submitted.estimates,status:'submitted'}};
@@ -334,6 +339,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   if(standaloneRequest.current?.key!==key)standaloneRequest.current={key,id:crypto.randomUUID()};
   submitting.current=true;setWorkflow(current=>({...current,busy:true,error:'',success:''}));
   try{
+   await requireBlankAccounting(source.document,client);
    const db=await client(),response=await db.rpc('submit_standalone_estimate_review',{p_request_id:standaloneRequest.current.id,p_estimate_id:source.estimate_id,p_expected_revision:source.revision,p_reason:reason});
    if(response.error)throw response.error;
    const next={...source,estimates:{...source.estimates,status:'submitted'}};
@@ -410,7 +416,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   {!reviewMode&&!showArchived&&(permissions.canEstimate||personalMode)&&<form className="job-financials-form estimate-create-form" onSubmit={create}>
    <h2>Create estimate</h2><div className="estimate-create-grid">
     <label>Project name<input type="text" name="name" required/></label><label>Customer<input type="text" name="customer"/></label>
-    <label>Template<select name="template">{Object.keys(sections).map(s=><option key={s}>{s}</option>)}</select></label>
+    <label>Template<select name="template">{Object.keys(sections).map(s=><option key={s}>{s}</option>)}{(import.meta.env.VITE_APP_ENV==='staging'||import.meta.env.DEV)&&<option>Blank slate</option>}</select></label>
    <button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button></div>
   </form>}
   {!reviewMode&&<div><button type="button" className="secondary-button" disabled={archiveBusy} onClick={()=>{setRows([]);setShowArchived(value=>!value);}}>{showArchived?'Show active estimates':'Show archived estimates'}</button><p>{showArchived?'Archived estimates are retained for recovery. Restore an estimate before opening it.':personalMode?'Archiving a personal copy only hides it from this list. Official estimates stay unchanged.':'Archiving retains approved versions and linked job history.'}</p></div>}

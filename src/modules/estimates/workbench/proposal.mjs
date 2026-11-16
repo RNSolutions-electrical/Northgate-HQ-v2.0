@@ -1,3 +1,4 @@
+import {proportionalCents} from './blankSlate.mjs';
 import {itemPricing,sumPricing} from './pricing.mjs';
 /** Client-facing fields only. Internal notes, component costs and vendors are deliberately excluded. */
 export function suggestedScope(document){
@@ -40,7 +41,7 @@ export function proposalScopePrices(document,preTaxTotal){
  const result=new Map();let cumulative=0,allocated=0;
  for(const [index,line] of lines.entries()){
   cumulative+=itemPricing(line.item,document).price;
-  const next=index===lines.length-1?Math.round(preTaxTotal*100):pricing.subtotal?Math.round(cumulative/pricing.subtotal*preTaxTotal*100):0;
+  const next=index===lines.length-1?Math.round(preTaxTotal*100):pricing.subtotal?(document.blankSlateVersion===1?proportionalCents(Math.round(preTaxTotal*100),Math.round(cumulative*100),Math.round(pricing.subtotal*100)):Math.round(cumulative/pricing.subtotal*preTaxTotal*100)):0;
   result.set(line.key,(next-allocated)/100);allocated=next;
  }
  return result;

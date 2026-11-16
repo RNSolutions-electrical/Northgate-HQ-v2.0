@@ -1,3 +1,4 @@
+import {blankItemPricing,blankSumPricing} from './blankSlate.mjs';
 import {totals} from './model.mjs';
 import {effectiveLaborRate} from './laborRates.mjs';
 import {proposalCharges} from './proposalCharges.mjs';
@@ -5,6 +6,7 @@ export const round=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
 export const defaults=data=>({material:Number(data.materialMarkup??30),fee:Number(data.feePercent??data.overallMarkup??30)});
 export const hasOverride=item=>item.materialMarkupOverride!=null;
 export function itemPricing(item,data){
+ if(data.blankSlateVersion===1)return blankItemPricing(item,data);
  const rate=effectiveLaborRate(item,data).rate;
  const base=totals(item,rate);const quote=item.quoteId?(data.quotes||[]).find(q=>q.id===item.quoteId):null;
  const material=round(quote?quote.materialAmount:base.material),labor=round(quote?0:base.hours*rate),other=round(quote?quote.otherAmount:0);
@@ -14,6 +16,7 @@ export function itemPricing(item,data){
  return {material,labor,other,hours:quote?0:base.hours,cost,materialRate,materialMarkup,fee:0,markup:materialMarkup,price,subtotal:price};
 }
 export function sumPricing(items,data,includeFee=true){
+ if(data.blankSlateVersion===1)return blankSumPricing(items,data,includeFee);
  const result={material:0,labor:0,other:0,hours:0,cost:0,materialMarkup:0,fee:0,markup:0,price:0,subtotal:0};
  for(const item of items){const p=itemPricing(item,data);for(const key of Object.keys(result))result[key]+=p[key];}
  for(const key of Object.keys(result))if(key!=='hours')result[key]=round(result[key]);
