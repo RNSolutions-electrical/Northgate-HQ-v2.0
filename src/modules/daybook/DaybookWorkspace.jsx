@@ -1,3 +1,5 @@
+import {useToolAvailability} from '../../hooks/useToolAvailability.jsx';
+import {fetchDaybookHqJobs} from './daybookJobs.js';
 import {useAuth} from '@clerk/clerk-react';
 import {useEffect,useRef,useState} from 'react';
 import {withSupabaseTokenRetry} from '../../services/supabaseClient.js';
@@ -8,6 +10,8 @@ const FRAME=daybookFrame();
 const DRAFTS=new Map();
 export function DaybookWorkspace({permissions}) {return <DaybookSession key={permissions.userId||'signed-out'} permissions={permissions}/>;}
 function DaybookSession({permissions}) {
+ const availability=useToolAvailability(),jobsGeneration=useRef(0),jobsAllowed=useRef(false);
+ const liveJobsAllowed=Boolean(availability&&!availability.loading&&!availability.error&&availability.rows.some(r=>r.module_key==='jobs'&&r.is_enabled===true));
  const {getToken}=useAuth(), frame=useRef(null), state=useRef(null), pending=useRef(null), saving=useRef(false), ready=useRef(false);
  const [frameHeight,setFrameHeight]=useState(720);
  const mounted=useRef(true),validation=useRef(new Map());
@@ -15,6 +19,7 @@ function DaybookSession({permissions}) {
  const rpc=async(name,args)=>{const r=await withSupabaseTokenRetry(getToken,c=>c.rpc(name,args));if(r.error)throw r.error;return r.data;};
 
  const send=(type,data)=>frame.current?.contentWindow?.postMessage({channel:'hq-daybook',type,data},'*');
+ useEffect(()=>{jobsGeneration.current++;jobsAllowed.current=liveJobsAllowed;if(!jobsAllowed.current)send('hq-jobs-invalidated',{});},[liveJobsAllowed]);
  const initialize=()=>{if(ready.current&&state.current)send('load',pending.current||mergeWorkspace(state.current));};
  const validate=data=>new Promise((resolve,reject)=>{const id=crypto.randomUUID();const timer=setTimeout(()=>{validation.current.delete(id);reject(Error('Planner validation timed out'));},10000);validation.current.set(id,{resolve,reject,timer});frame.current?.contentWindow?.postMessage({channel:'hq-daybook',type:'validate',data,id},'*');});
  const save=async(data,restoring=false,filename='')=>{
@@ -39,6 +44,7 @@ function DaybookSession({permissions}) {
    if(e.source!==frame.current?.contentWindow||e.data?.channel!=='hq-daybook')return;
    const m=e.data;
    if(m.type==='validated'){const v=validation.current.get(m.id);if(v){clearTimeout(v.timer);validation.current.delete(m.id);m.error?v.reject(Error(m.error)):v.resolve(m.data);}return;}
+   if(m.type==='hq-jobs-request'){const generation=jobsGeneration.current,requestId=m.requestId;if(!jobsAllowed.current){send('hq-jobs-result',{requestId,error:'HQ Jobs availability could not be confirmed.'});return;}withSupabaseTokenRetry(getToken,async client=>({data:await fetchDaybookHqJobs(client)})).then(r=>{if(mounted.current&&generation===jobsGeneration.current&&jobsAllowed.current)send('hq-jobs-result',r.error?{requestId,error:r.error.message}:{requestId,jobs:r.data});}).catch(e=>{if(mounted.current&&generation===jobsGeneration.current)send('hq-jobs-result',{requestId,error:e.message||String(e)});});}
    if(m.type==='resize'&&Number.isFinite(m.height))setFrameHeight(Math.max(400,Math.min(40000,m.height)));
    if(m.type==='ready'){ready.current=true;initialize();}
    if(m.type==='changed'){if(saving.current)return;pending.current=m.data;DRAFTS.set(permissions.userId,{data:m.data,workspace:state.current});setDirty(true);}
