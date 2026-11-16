@@ -1,3 +1,4 @@
+import { DwellingLoadWorkspace } from './dwelling-load/DwellingLoadWorkspace.jsx';
 import { DaybookWorkspace } from './daybook/DaybookWorkspace.jsx';
 /**
  * Migrated module screens.
@@ -45,6 +46,7 @@ import { HqTimeWorkspace } from './hq-time/HqTimeWorkspace.jsx';
 import { EosWorkspace } from './eos/EosWorkspace.jsx';
 
 export const MODULE_SCREENS = {
+  'dwelling-load': DwellingLoadWorkspace,
   daybook: DaybookWorkspace,
   'hq-time': HqTimeWorkspace,
   afc:AfcWorkspace,

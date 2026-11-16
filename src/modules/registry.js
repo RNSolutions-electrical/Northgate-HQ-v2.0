@@ -44,6 +44,7 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  {key:'dwelling-load',path:'/dwelling-load',label:'Dwelling Load Worksheet',icon:Calculator,requires:['canAccessDeveloper'],personalAddon:true,status:'live',description:'Owner-private, reviewed-input dwelling service worksheet.'},
   {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,requires:['canAccessDeveloper'],status:'live',description:'Calendar, crew planning and private organization.'},
   { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
     requires: ['canTrackHqTime'], personalAddon: true, status: 'live',
@@ -200,7 +201,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'accounting', moduleKey: 'accounting' },
   { key: 'eos', moduleKey: 'eos' },
   { key: 'silas', moduleKey: 'silas' },
-  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc','hq-time'] },
+  { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['dwelling-load','panel-directory','electrical-inspections','afc','hq-time'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
