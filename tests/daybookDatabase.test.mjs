@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+// Optional local PostgreSQL WASM harness; never connects to hosted databases.
+const runtime = await import('../.tmp/daybook-sql/node_modules/@electric-sql/pglite/dist/index.js').catch(() => null);
+test('Daybook database: ownership, CAS, atomic restore and denied direct writes', { skip: !runtime && 'Install @electric-sql/pglite under .tmp/daybook-sql for local database integration checks' }, async () => {
+ const db = new runtime.PGlite();
+ await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE SCHEMA auth;
+ CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
+ CREATE TABLE public.user_permissions(clerk_user_id text PRIMARY KEY,is_active boolean,developer boolean);
+ INSERT INTO public.user_permissions VALUES ('alice',true,true),('bob',true,true),('field',true,false),('inactive',false,true);
+ CREATE FUNCTION public.current_user_has_developer_access() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$ SELECT coalesce((SELECT developer FROM public.user_permissions WHERE clerk_user_id=auth.jwt()->>'sub'),false) $$;
+ GRANT USAGE ON SCHEMA auth TO authenticated,anon; GRANT EXECUTE ON FUNCTION auth.jwt() TO authenticated,anon;`);
+ await db.exec((await readFile(new URL('../supabase/migrations/20261116104644_daybook_workspace.sql',import.meta.url),'utf8')).replace(/^\uFEFF/,''));
+ const login = async (user) => { await db.exec('RESET ROLE'); await db.query(`SELECT set_config('request.jwt.claims',$1,false)`,[JSON.stringify({sub:user})]); await db.exec('SET ROLE authenticated'); };
+ const workspace = async () => (await db.query('SELECT public.get_daybook_workspace() AS d')).rows[0].d;
+ const payload = (scope,title='sample') => ({version:1,calendars:[{id:scope==='northgate'?'northgate':'personal',name:title}],events:[],contacts:[],notes:[],pto:[],jobs:[],workers:[],assignments:[]});
+ const save = async (p,n,pv,nv,restore=false) => (await db.query('SELECT public.save_daybook_workspace($1,$2,$3,$4,$5) AS d',[p===null?null:JSON.stringify(p),n===null?null:JSON.stringify(n),pv,nv,restore])).rows[0].d;
+ await login('alice'); assert.equal((await workspace()).personal.version,0);
+ let result=await save(payload('personal'),payload('northgate'),0,0); assert.equal(result.personal.version,1); assert.equal(result.northgate.version,1);
+ await assert.rejects(db.query('SELECT * FROM daybook_private.documents'),/permission denied/);
+ await assert.rejects(db.query("UPDATE daybook_private.documents SET version=99"),/permission denied/);
+ await login('bob'); result=await workspace(); assert.equal(result.personal.version,0); assert.equal(result.northgate.version,1);
+ await save(payload('personal','bob'),null,0,0);
+ assert.equal((await db.query("SELECT count(*)::int n FROM public.list_daybook_history('personal')")).rows[0].n,1);
+ await login('alice'); assert.equal((await workspace()).personal.payload.calendars[0].name,'sample');
+ await assert.rejects(save(payload('personal','stale'),null,0,1),/changed in another session/);
+ await assert.rejects(save(payload('personal','atomic-fail'),payload('northgate','must-rollback'),0,1),/changed in another session/);
+ assert.equal((await workspace()).northgate.payload.calendars[0].name,'sample');
+ result=await save(payload('personal','restored'),null,1,1,true); assert.equal(result.personal.version,2);
+ const history=(await db.query("SELECT * FROM public.list_daybook_history('personal')")).rows;
+ assert.equal(history[0].snapshot_kind,'pre-restore'); assert.equal(history[0].before_data.calendars[0].name,'sample'); assert.equal(history[0].after_data.calendars[0].name,'restored');
+ await assert.rejects(save(payload('northgate'),null,2,1),/wrong Daybook scope/);
+ await assert.rejects(save(null,{...payload('northgate'),notes:[{id:'secret',text:'private'}]},2,1),/cannot be shared/);
+ await assert.rejects(save({...payload('personal'),workers:[{id:'worker'}]},null,2,1),/belong to Northgate/);
+ for(const user of ['field','inactive','missing','']) { await login(user); await assert.rejects(workspace,/access denied/); await assert.rejects(save(payload('personal'),null,0,0),/access denied/); }
+ await db.exec('RESET ROLE; SET ROLE anon'); await assert.rejects(workspace,/permission denied/);
+ await db.exec('RESET ROLE'); await assert.rejects(db.exec('DELETE FROM daybook_private.history'),/immutable/);
+ await db.close();
+});

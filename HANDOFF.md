@@ -23731,3 +23731,10 @@ apply/rollback/recovery/reapply, desktop/mobile and signed-in staging QA pass.
 Exact receipts, test limits, recovery and evidence:
 docs/releases/EOS_CATEGORY_VALIDATION_STAGING_20261020.md.
 Production and paused modes work untouched. No remaining blocker.
+
+## 2026-11-16 — Daybook staging integration candidate
+
+Isolated current-staging checkout adds Daybook pilot, owner/company scope storage,
+explicit saves, stale-write rejection and pre-restore recovery. Existing standalone
+planner and newer browser entries untouched. See docs/releases/DAYBOOK_STAGING_20261116.md
+for validation, staging-only release boundaries and remaining QA. No production changes.

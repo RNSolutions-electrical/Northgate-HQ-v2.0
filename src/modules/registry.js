@@ -43,6 +43,7 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,requires:['canAccessDeveloper'],status:'live',description:'Calendar, crew planning and private organization.'},
   { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
     requires: ['canTrackHqTime'], personalAddon: true, status: 'live',
     description: 'Private record of HQ work and optional focused-time estimates.' },
