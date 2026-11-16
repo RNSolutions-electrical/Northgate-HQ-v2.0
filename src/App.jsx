@@ -1,3 +1,4 @@
+import {ToolAvailabilityProvider} from './hooks/useToolAvailability.jsx';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout.jsx';
@@ -18,7 +19,7 @@ export default function App() {
   return (
     <>
       <SignedIn>
-        <Routes>
+        <ToolAvailabilityProvider><Routes>
           <Route element={<AppLayout />}>
             <Route path="/estimates" element={<Suspense fallback={<p>Loading estimator...</p>}><WorkbenchRoute /></Suspense>} />
             <Route path="/estimates/assemblies" element={<Suspense fallback={<p>Loading assemblies...</p>}><WorkbenchRoute libraryOnly /></Suspense>} />
@@ -36,7 +37,7 @@ export default function App() {
             ))}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
-        </Routes>
+        </Routes></ToolAvailabilityProvider>
       </SignedIn>
 
       <SignedOut>

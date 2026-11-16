@@ -59,6 +59,8 @@ function createUserScopedClient(accessToken) {
 }
 
 async function loadSilasSettings(client) {
+  const {error:availabilityError} = await client.rpc('require_tool_available', {p_module_key:'silas'});
+  if(availabilityError) throw availabilityError;
   const { data, error } = await client
     .from('silas_settings')
     .select('id,silas_enabled')

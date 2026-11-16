@@ -1,3 +1,5 @@
+import {useToolAvailability} from './useToolAvailability.jsx';
+import {toolIsEnabled} from '../modules/toolAvailability.js';
 import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import {useAuth} from '@clerk/clerk-react';
 import {useEffect,useState} from 'react';
@@ -13,6 +15,7 @@ export function reviewTaskPath(task){
 
 export function useReviewTasks(enabled=true){
  const {getToken}=useAuth();
+ const availability=useToolAvailability();
  const [refreshKey,setRefreshKey]=useState(0);
  const [state,setState]=useState({isLoading:false,error:null,items:EMPTY});
  useEffect(()=>{
@@ -32,5 +35,6 @@ export function useReviewTasks(enabled=true){
   }
   load();return()=>{mounted=false;};
  },[enabled,getToken,refreshKey]);
- return {...state,reload:()=>setRefreshKey(value=>value+1)};
+ const items=availability?state.items.filter(item=>toolIsEnabled(item.module_key==='estimating'?'estimates':item.module_key,availability.rows)):state.items;
+ return {...state,items,reload:()=>setRefreshKey(value=>value+1)};
 }

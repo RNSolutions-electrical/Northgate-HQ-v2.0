@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';import {createRequire} from 'node:module';import {createServer} from 'vite';import react from '@vitejs/plugin-react';import path from 'node:path';
+const require=createRequire(import.meta.url);const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const root=process.cwd(),mock=path.join(root,'tests/fixtures/tool-availability/mock.js');
+const server=await createServer({configFile:false,plugins:[react()],resolve:{alias:[{find:'@clerk/clerk-react',replacement:mock},{find:/.*services\/supabaseClient.js$/,replacement:mock}]},server:{host:'127.0.0.1',port:5191,strictPort:true}});await server.listen();let browser;
+try{browser=await chromium.launch({headless:true,channel:'msedge'});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:5191/tests/fixtures/tool-availability/index.html');await page.getByRole('heading',{name:'Tool availability',exact:true}).waitFor();
+ const row=page.getByRole('row').filter({has:page.getByRole('cell',{name:'Estimates',exact:true})});
+ await row.getByRole('button',{name:'Disable',exact:true}).click();await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(await row.getByRole('cell',{name:'Enabled',exact:true}).count(),1);
+ await row.getByRole('button',{name:'Disable',exact:true}).click();await page.getByRole('button',{name:'Disable tool',exact:true}).click();await row.getByRole('cell',{name:'Disabled',exact:true}).waitFor();
+ assert.equal(await page.getByRole('navigation',{name:'Standard navigation'}).getByRole('link',{name:'Estimates',exact:true}).count(),0);
+ await row.getByRole('link',{name:'Open developer preview'}).click();await page.getByText('Developer preview: tool disabled',{exact:true}).waitFor();await page.getByRole('heading',{name:'Tool workspace content'}).waitFor();
+ await page.getByRole('link',{name:'Internal estimator page',exact:true}).click();await page.getByRole('heading',{name:'Tool workspace content'}).waitFor();
+ await page.getByRole('navigation',{name:'Standard navigation'}).getByRole('link',{name:'Dashboard',exact:true}).click();
+ await page.getByRole('link',{name:'Direct estimator link',exact:true}).click();await page.getByText('This tool is currently unavailable',{exact:true}).waitFor();assert.equal(await page.getByRole('heading',{name:'Tool workspace content'}).count(),0);
+ await page.getByLabel('Developer fixture').uncheck();assert.equal(await page.getByText('Open Developer Tools to preview or enable it').count(),0);
+ await page.getByLabel('Developer fixture').check();await page.getByRole('link',{name:'Open Developer Tools to preview or enable it'}).click();
+ await row.getByRole('button',{name:'Enable',exact:true}).click();await page.getByRole('button',{name:'Enable tool',exact:true}).click();await row.getByRole('cell',{name:'Enabled',exact:true}).waitFor();
+ await page.getByRole('link',{name:'Direct estimator link',exact:true}).click();await page.getByRole('heading',{name:'Tool workspace content'}).waitFor();
+ await page.getByRole('navigation',{name:'Standard navigation'}).getByRole('link',{name:'Developer',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});await page.getByRole('heading',{name:'Tool availability',exact:true}).waitFor();
+ await page.screenshot({path:'.temp/tool-availability-phone.png',fullPage:true});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Phone overflow');
+ await page.goto('http://127.0.0.1:5191/tests/fixtures/tool-availability/index.html?fail=1');await page.getByRole('link',{name:'Direct estimator link',exact:true}).click();await page.getByText('Could not verify tool availability',{exact:true}).waitFor();assert.equal(await page.getByRole('heading',{name:'Tool workspace content'}).count(),0);
+ assert.deepEqual(errors,[]);console.log('PASS: cancel, disable, nav omission, deliberate developer preview, direct-link block, ordinary denial, enable, network fail closed');
+}finally{await browser?.close();await server.close();}

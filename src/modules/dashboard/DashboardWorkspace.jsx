@@ -1,3 +1,4 @@
+import {toolIsVisible} from '../toolAvailability.js';
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
@@ -606,31 +607,32 @@ export function DashboardWorkspace({ permissions }) {
   const [isSectionDrawerOpen, setIsSectionDrawerOpen] = useState(false);
   const [isHealthDrawerOpen, setIsHealthDrawerOpen] = useState(false);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
-  const jobAttention = useJobAttention({ enabled: permissions.permissionSource === 'server' });
+  const jobsEnabled = toolIsVisible('jobs',permissions);
+  const jobAttention = useJobAttention({ enabled: permissions.permissionSource === 'server' && jobsEnabled });
 
-  const canSeeEstimates = permissions.permissionSource === 'server'
+  const canSeeEstimates = toolIsVisible('estimates',permissions) && permissions.permissionSource === 'server'
     && (permissions.canEstimate || permissions.canApproveEstimates);
   const dashboardEstimates = useDashboardEstimates({
     enabled: canSeeEstimates,
     userId: permissions.userId,
     canApproveEstimates: permissions.canApproveEstimates === true,
   });
-  const canSeeVehicleAssignments = permissions.permissionSource === 'server';
+  const canSeeVehicleAssignments = toolIsVisible('vehicles',permissions) && permissions.permissionSource === 'server';
   const dashboardVehicles = useDashboardVehicles({
     enabled: canSeeVehicleAssignments,
     userId: permissions.userId,
   });
   const activeVehicleAssignments = dashboardVehicles.assignments.filter((assignment) => assignment.is_active);
-  const dashboardJobs = useDashboardJobAssignments({ enabled: permissions.permissionSource === 'server', userId: permissions.userId });
+  const dashboardJobs = useDashboardJobAssignments({ enabled: permissions.permissionSource === 'server' && jobsEnabled, userId: permissions.userId });
   const budgetHealth = useDashboardBudgetHealth({
-    enabled: permissions.permissionSource === 'server' && !dashboardJobs.isLoading && !dashboardJobs.error,
+    enabled: jobsEnabled && permissions.permissionSource === 'server' && !dashboardJobs.isLoading && !dashboardJobs.error,
     jobs: dashboardJobs.jobs,
   });
   const openBudgetAlerts = budgetHealth.items.filter((item) => !item.acknowledged).length;
-  const canSeeTools = permissions.permissionSource === 'server';
+  const canSeeTools = toolIsVisible('tools',permissions) && permissions.permissionSource === 'server';
   const dashboardTools = useDashboardTools({ enabled: canSeeTools });
   const activeDashboardTools = dashboardTools.tools.filter((tool) => tool.status === 'active');
-  const dashboardTodoReminders = useDashboardTodoReminders({ enabled: permissions.permissionSource === 'server' });
+  const dashboardTodoReminders = useDashboardTodoReminders({ enabled: permissions.permissionSource === 'server' && toolIsVisible('employees',permissions) });
   const overdueTodoCount = dashboardTodoReminders.items.filter((item) => item.reminder_status === 'overdue').length;
   const reviewTasks=useReviewTasks(permissions.permissionSource==='server');
   const reviewTaskGroups=useMemo(()=>Object.entries(reviewTasks.items.reduce((groups,item)=>{(groups[item.task_type]??=[]).push(item);return groups;},{})),[reviewTasks.items]);

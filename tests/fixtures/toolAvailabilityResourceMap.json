@@ -1,0 +1,3324 @@
+[
+  {
+    "kind": "rpc",
+    "name": "acknowledge_job_budget_health",
+    "declaration": "20260924191152_dashboard_budget_health_acknowledgements.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "add_inventory_cart_item",
+    "declaration": "202607140001_granular_permission_overrides_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCart.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_can_read",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_file_access",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_finalize_release",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_guard_document",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_jobs",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": [
+      "src/modules/afc/AfcWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_read",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": [
+      "src/modules/afc/AfcWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_release_context",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_save",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": [
+      "src/modules/afc/AfcWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "afc_validate_draft",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_financial_catalogue_to_job",
+    "declaration": "20260906191944_approved_financial_workflows.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_job_division_name_override",
+    "declaration": "20261019125143_central_financial_catalogue_names.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_job_sov_line_change",
+    "declaration": "20260922165714_v5_job_sov_proposals_and_atomic_archive.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_job_sov_template",
+    "declaration": "20260918173055_job_financial_exports_deletion_sov_templates.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/SovBuilder.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_v5_estimate_linked_destination",
+    "declaration": "20260921152634_v5_inventory_price_review_adapter.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_v5_estimate_promotion",
+    "declaration": "20260920223000_v5_estimate_promotion_adapter.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_v5_job_financial_proposal",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobFinancialProposalQueue.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "apply_v5_job_sov_proposal",
+    "declaration": "20260922165714_v5_job_sov_proposals_and_atomic_archive.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobFinancialProposalQueue.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "approve_estimate",
+    "declaration": "20260816191500_estimate_approval_snapshots.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "approve_job_change_order",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "approve_workbench_estimate",
+    "declaration": "20260914110000_validate_workbench_approval_components.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "approve_workbench_estimate_internal",
+    "declaration": "20261016111126_staging_estimate_dependency_reconciliation.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_assembly_library",
+    "declaration": "20260914010605_standalone_assembly_library.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_change_order_document",
+    "declaration": "20260911171045_document_audit_integrity.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_current_employee_profile_note",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_current_employee_profile_todo",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_estimate",
+    "declaration": "20260921235409_workbench_estimate_archive_guard.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx",
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_estimate_document",
+    "declaration": "20260911171045_document_audit_integrity.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_failed_document_upload",
+    "declaration": "20260923195722_job_cost_report_documents.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/documents/documentUploadCleanup.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_job",
+    "declaration": "20260816164000_jobs_permission_level_division_scope.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_job_budget_line",
+    "declaration": "20260816164000_jobs_permission_level_division_scope.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_job_buyout_line",
+    "declaration": "20260816164000_jobs_permission_level_division_scope.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_job_change_order",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_job_document",
+    "declaration": "20260911171045_document_audit_integrity.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_job_schedule_item",
+    "declaration": "20260816164000_jobs_permission_level_division_scope.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "archive_pending_employee_profile",
+    "declaration": "20260825220000_employee_profile_edit_archive.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "assembly_rate_number",
+    "declaration": "20261012220350_assembly_library_labor_rates.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "assign_vehicle_to_user",
+    "declaration": "20260906191944_approved_financial_workflows.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/vehicles/VehiclesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "attach_signed_job_change_order_document",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "audit_assembly_library",
+    "declaration": "20260914004020_fix_assembly_audit_actions.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "audit_assembly_rate_settings",
+    "declaration": "20261012220350_assembly_library_labor_rates.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "audit_estimate_workbench",
+    "declaration": "20260913164527_estimate_workbench_catalogue.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "audit_tool_catalogue_mutation",
+    "declaration": "20260906204812_tool_catalogue_audit_workflow.sql",
+    "module": "tools",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "award_job_buyout_quote",
+    "declaration": "20260826090000_job_buyout_vendor_quotes.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "blank_slate_accounting_version",
+    "declaration": "20261116025827_blank_slate_discount_accounting.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/blankSlate.mjs"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "blank_slate_discount",
+    "declaration": "20261116025827_blank_slate_discount_accounting.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "blank_slate_number",
+    "declaration": "20261116025827_blank_slate_discount_accounting.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "blank_slate_pricing",
+    "declaration": "20261116025827_blank_slate_discount_accounting.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "block_archived_job_schedule_item_updates",
+    "declaration": "202607080001_job_schedule_items_archive_rls_bugfix.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "change_order_actor",
+    "declaration": "20260825090000_enhance_change_order_workflow.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "change_order_allocation_total",
+    "declaration": "202608250001_change_order_allocations.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "clear_inventory_item_price",
+    "declaration": "20260921150906_v5_price_precedence_and_snapshots.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/InventoryPriceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "clock_in_hq_time_entry",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": [
+      "src/modules/hq-time/HqTimeWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "clock_out_hq_time_entry",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": [
+      "src/modules/hq-time/HqTimeWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "create_inventory_location",
+    "declaration": "20260916125643_inventory_creation_details.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/StorageLocationSetup.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "create_job",
+    "declaration": "202608250005_allow_cross_division_job_creation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "create_job_pay_application",
+    "declaration": "20260828040208_redefine_job_billing_pay_apps.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "create_job_pay_application_correction",
+    "declaration": "20260829052058_complete_job_pay_app_interface.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "create_vehicle",
+    "declaration": "20260906191944_approved_financial_workflows.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/vehicles/VehiclesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "create_workbench_revision",
+    "declaration": "20260914123229_estimate_revision_archived_numbering.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "delete_empty_job_budget_line",
+    "declaration": "20260918173055_job_financial_exports_deletion_sov_templates.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "delete_empty_job_sov_line",
+    "declaration": "20260918173055_job_financial_exports_deletion_sov_templates.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "delete_panel_directory",
+    "declaration": "20260903120000_create_panel_directory_addon.sql",
+    "module": "panel-directory",
+    "consumers": [
+      "src/modules/panel-directory/PanelDirectoryWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "delete_unbilled_job_pay_application",
+    "declaration": "20260918192615_developer_delete_finalized_pay_apps.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "deny_job_change_order",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "developer_delete_job_pay_application",
+    "declaration": "20260918193742_fix_developer_pay_app_delete_reconciliation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "document_owner_can_manage",
+    "declaration": "20260912134038_document_edit_restore.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "document_section_default",
+    "declaration": "20260916103706_document_sections.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "edit_inventory_location",
+    "declaration": "20260915153440_inventory_storage_workspace.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/StorageLocationLifecycle.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_assignment_roster_read_v1",
+    "declaration": "20261021095112_eos_pending_assignment_roster.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/eosAssignmentRoster.js",
+      "src/modules/eos/EosWorkspaceContent.jsx",
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_assignment_roster_save_v1",
+    "declaration": "20261021095112_eos_pending_assignment_roster.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/eosAssignmentRoster.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_audit_row",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_award_pursuit",
+    "declaration": "20261009135509_eos_award_reversal.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_guard_pursuit",
+    "declaration": "20261009135509_eos_award_reversal.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_manager_directory",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_member_directory_v1",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_reverse_award",
+    "declaration": "20261009135737_eos_award_reversal_audit_fix.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_save_pursuit",
+    "declaration": "20261021095112_eos_pending_assignment_roster.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_save_pursuit_v1",
+    "declaration": "20261021095112_eos_pending_assignment_roster.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_save_pursuit_v2",
+    "declaration": "20261021095112_eos_pending_assignment_roster.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_bulk_apply_v1",
+    "declaration": "20261020184641_eos_scorecard_import_note_separation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_bulk_export_v1",
+    "declaration": "20261020130811_eos_scorecard_bulk_edit.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_bulk_preview_v1",
+    "declaration": "20261020130811_eos_scorecard_bulk_edit.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_bulk_receipt_v1",
+    "declaration": "20261020130811_eos_scorecard_bulk_edit.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_history_v1",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_apply_v1",
+    "declaration": "20261020184641_eos_scorecard_import_note_separation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_notes_apply_v1",
+    "declaration": "20261020184641_eos_scorecard_import_note_separation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_notes_preview_v1",
+    "declaration": "20261020184641_eos_scorecard_import_note_separation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_notes_receipt_v1",
+    "declaration": "20261020184641_eos_scorecard_import_note_separation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_notes_restore_v1",
+    "declaration": "20261020184641_eos_scorecard_import_note_separation.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_preview_v1",
+    "declaration": "20261020112324_eos_scorecard_historical_import.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_import_receipt_v1",
+    "declaration": "20261020112324_eos_scorecard_historical_import.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_quarters_read_v1",
+    "declaration": "20261020164305_eos_scorecard_quarter_cycles.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_quarters_save_v1",
+    "declaration": "20261020164305_eos_scorecard_quarter_cycles.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_read_v1",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_save_category_v1",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_save_metric_v1",
+    "declaration": "20261021095112_eos_pending_assignment_roster.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_save_observations_v1",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_scorecard_save_period_v1",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/scorecardStore.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_set_pursuit_job",
+    "declaration": "20261009133828_eos_pursuit_job_link.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_set_pursuit_removed",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "eos_touch",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "finalize_historical_job_pay_application",
+    "declaration": "20260918184924_pay_app_correction_workflows.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "finalize_inventory_cart",
+    "declaration": "20260906180642_inventory_checkout_note_coverage.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCart.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "finalize_job_pay_application",
+    "declaration": "20260918184924_pay_app_correction_workflows.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "get_daybook_workspace",
+    "declaration": "20261116104644_daybook_workspace.sql",
+    "module": "daybook",
+    "consumers": [
+      "src/modules/daybook/DaybookWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "get_job_pay_applications",
+    "declaration": "20260829052058_complete_job_pay_app_interface.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_active_inventory_posting",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_archived_personal_estimate",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_catalogue_stock_decision",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_catalogue_stock_submission",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_document_audit_mutation",
+    "declaration": "20260912134038_document_edit_restore.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_estimate_review_request",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_estimate_revision_lineage",
+    "declaration": "20260914121940_estimate_workbench_revisions.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_estimate_workflow_handoff",
+    "declaration": "20260915194050_estimate_workflow_handoffs.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_inventory_location_parent",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_job_contract_closeout",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_job_financial_submission",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_job_sov_submission",
+    "declaration": "20260922165714_v5_job_sov_proposals_and_atomic_archive.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "guard_pending_standalone_estimate_archive",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "handoff_estimate_to_destination",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_action",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_actor",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_audit",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_can_edit",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_can_read",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_file_access",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_file_archive",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_file_finish",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/inspectionApi.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_file_reserve",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/inspectionApi.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_flag",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_guard_document",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_job_register",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/JobPermitRegister.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_job_register_save",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/JobPermitRegister.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_jobs",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_managed_file",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_managed_path",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_original",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_people",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_read",
+    "declaration": "20260915000719_inspection_list_alias.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_save",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_scope",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_target_eligible",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hi_validate_document",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "hq_time_default_performer",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "initialize_job_sov_from_financials",
+    "declaration": "20260921190000_billing_fee_presentation_mode.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "intake_inventory_count",
+    "declaration": "20260915113613_inventory_location_setup_permissions.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountIntake.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "job_billing_can_manage",
+    "declaration": "20260828040208_redefine_job_billing_pay_apps.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "job_billing_can_view",
+    "declaration": "20260829052058_complete_job_pay_app_interface.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "job_contract_closeout_counts",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ContractCloseoutReadiness.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "list_daybook_history",
+    "declaration": "20261116104644_daybook_workspace.sql",
+    "module": "daybook",
+    "consumers": [
+      "src/modules/daybook/DaybookWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "list_hq_time_entries",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": [
+      "src/modules/hq-time/HqTimeWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "list_hq_time_entry_history",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": [
+      "src/modules/hq-time/HqTimeWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "list_panel_directories",
+    "declaration": "20260903120000_create_panel_directory_addon.sql",
+    "module": "panel-directory",
+    "consumers": [
+      "src/modules/panel-directory/PanelDirectoryWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "maintain_owner_document",
+    "declaration": "20260912134038_document_edit_restore.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/documents/DocumentMaintenance.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "manage_estimate_checklist",
+    "declaration": "20260916173238_estimating_workspace_integration.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "map_material_to_inventory_bin",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountIntake.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "open_inventory_cart",
+    "declaration": "202607140001_granular_permission_overrides_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCart.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "permanently_delete_storage_location",
+    "declaration": "20260915161130_inventory_storage_safe_delete.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/StorageLocationDelete.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "prepare_storage_location_deletion",
+    "declaration": "20260915161130_inventory_storage_safe_delete.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/StorageLocationDelete.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_archived_estimate_directory",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_archived_owner_documents",
+    "declaration": "20260912134038_document_edit_restore.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/documents/DocumentMaintenance.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_catalogue_stock_locations",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/MaterialStockReviews.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_catalogue_stock_reviews",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/InventoryWorkspace.jsx",
+      "src/modules/inventory/MaterialStockReviews.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_current_employee_dashboard_todo_reminders",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_current_employee_profile",
+    "declaration": "20260827151506_add_current_employee_profile_read.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_current_employee_profile_notes",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_current_employee_profile_todos",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_current_employee_vehicle_assignments",
+    "declaration": "20260827155044_enable_employee_self_profile_editing.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_employee_vehicle_assignment_directory",
+    "declaration": "20260816181500_employee_vehicle_assignment_directory_rpc.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_eos_access_directory",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosAccessConsole.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_estimate_change_history",
+    "declaration": "20260816194000_estimate_documents_workflow.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_inventory_cart_items",
+    "declaration": "202607140001_granular_permission_overrides_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCart.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_inventory_transaction_history",
+    "declaration": "20260622200351_v214_read_rule_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryTransactionHistory.js",
+      "src/modules/reports/ReportsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_job_assignment_directory",
+    "declaration": "20260825190000_job_user_assignments.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "read_job_assignment_directory_v5",
+    "declaration": "20260921170000_v5_change_order_action_reconciliation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobResponsibilities.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_job_change_history",
+    "declaration": "20260826014000_fix_job_history_id_ambiguity.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_job_financial_baseline",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "read_job_financial_names",
+    "declaration": "20261019125143_central_financial_catalogue_names.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/estimates/workbench/EstimateHandoff.jsx",
+      "src/modules/jobs/FinancialLineDivisionPicker.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_job_responsibilities",
+    "declaration": "20260923120000_job_responsibilities_demo.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobResponsibilities.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_my_job_responsibilities",
+    "declaration": "20260924162513_dashboard_job_responsibilities.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_my_vehicle_assignments",
+    "declaration": "20260825190000_job_user_assignments.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_pending_employee_profiles",
+    "declaration": "20260825220000_employee_profile_edit_archive.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_personal_estimate_directory",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_retired_bin_assignments",
+    "declaration": "20260915164220_developer_data_correction.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/RetiredBinAssignments.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_standalone_estimate_reviews",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_tool_change_history",
+    "declaration": "20260816182500_read_tool_change_history_rpc.sql",
+    "module": "tools",
+    "consumers": [
+      "src/modules/tools/ToolsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_v5_estimate_review_queue",
+    "declaration": "20260920231500_v5_estimate_submission_review_queue.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "read_v5_estimate_task_queue",
+    "declaration": "20260921152634_v5_inventory_price_review_adapter.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_v5_job_financial_review_queue",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobFinancialProposalQueue.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_v5_job_sov_review_queue",
+    "declaration": "20260922165714_v5_job_sov_proposals_and_atomic_archive.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobFinancialProposalQueue.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "read_vehicle_assignment_directory",
+    "declaration": "20260816180000_vehicle_assignment_directory_rpc.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/vehicles/VehiclesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "reassign_job_division",
+    "declaration": "202608240002_reassign_job_division_rpc.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "record_document_metadata_audit",
+    "declaration": "20260912134038_document_edit_restore.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "record_job_change_order_export",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "release_vehicle_assignment",
+    "declaration": "20260906191944_approved_financial_workflows.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/modules/vehicles/VehiclesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "remove_inventory_cart_item",
+    "declaration": "202607140001_granular_permission_overrides_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCart.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "reopen_submitted_job_change_order",
+    "declaration": "20260826000729_expose_change_order_record_actions.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "restore_estimate",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "restore_retired_bin_assignment",
+    "declaration": "20260915164220_developer_data_correction.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/RetiredBinAssignments.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "retire_bin_item",
+    "declaration": "202607140001_granular_permission_overrides_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useBinItemRetirement.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "retire_unsigned_change_order_documents",
+    "declaration": "20260911171045_document_audit_integrity.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "review_catalogue_stock",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/MaterialStockReviews.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "review_standalone_estimate",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "revise_job_change_order",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_assembly_library",
+    "declaration": "20261012220350_assembly_library_labor_rates.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_assembly_library_settings",
+    "declaration": "20261012220350_assembly_library_labor_rates.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_change_order_allocations",
+    "declaration": "202608250002_save_change_order_allocations.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_change_order_sov_allocations",
+    "declaration": "20260906200342_deductive_change_orders.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_contract_adjustment",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_current_employee_profile_note",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_current_employee_profile_todo",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_daybook_workspace",
+    "declaration": "20261116104644_daybook_workspace.sql",
+    "module": "daybook",
+    "consumers": [
+      "src/modules/daybook/DaybookWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_employee_profile",
+    "declaration": "20260916125644_routine_audit_notes.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_estimate_workbench",
+    "declaration": "20260916173238_estimating_workspace_integration.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_full_material_catalogue",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx",
+      "src/modules/inventory/MaterialCatalogueWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_guided_change_order_draft",
+    "declaration": "20260923210036_guided_change_order_stale_guard.sql",
+    "module": "silas",
+    "consumers": [
+      "src/modules/silas/GuidedChangeOrder.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_hq_time_entry",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": [
+      "src/modules/hq-time/HqTimeWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_change_order",
+    "declaration": "20260822143000_change_order_documents_budget_targets.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_change_order_draft",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_change_order_draft_with_all_markups",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_change_order_draft_with_client_details",
+    "declaration": "20261002200926_staging_change_order_client_pdf_bridge.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_change_order_draft_with_rates",
+    "declaration": "20260923121000_change_order_line_markup_rates_demo.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_financial_batch",
+    "declaration": "20261019125143_central_financial_catalogue_names.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/FinancialNameOverride.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_financial_line",
+    "declaration": "20260906191944_approved_financial_workflows.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_pay_application_change_order",
+    "declaration": "20260901123000_use_cumulative_pay_app_completion.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_pay_application_header",
+    "declaration": "20260829052058_complete_job_pay_app_interface.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_pay_application_line",
+    "declaration": "20260901123000_use_cumulative_pay_app_completion.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_revenue_line",
+    "declaration": "20260918180036_fix_job_revenue_line_save_rls.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "save_job_sov_template",
+    "declaration": "20260918173055_job_financial_exports_deletion_sov_templates.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/SovBuilder.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_material_alias",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/MaterialAliases.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_material_catalogue_values",
+    "declaration": "20260913164527_estimate_workbench_catalogue.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_panel_directory",
+    "declaration": "20260903120000_create_panel_directory_addon.sql",
+    "module": "panel-directory",
+    "consumers": [
+      "src/modules/panel-directory/PanelDirectoryWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_tool_catalogue",
+    "declaration": "20260906204812_tool_catalogue_audit_workflow.sql",
+    "module": "tools",
+    "consumers": [
+      "src/modules/tools/ToolsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_v5_job_financial_proposal",
+    "declaration": "20261019125143_central_financial_catalogue_names.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/FinancialNameOverride.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_v5_job_sov_proposal",
+    "declaration": "20260922165714_v5_job_sov_proposals_and_atomic_archive.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_v5_working_copy",
+    "declaration": "20260920214500_v5_working_copy_change_set_primitives.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "save_workbench_assembly",
+    "declaration": "20260914010605_standalone_assembly_library.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_contract_adjustment_status",
+    "declaration": "20261016110939_contract_adjustment_status_authorization.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_current_employee_profile_todo_complete",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_document_section",
+    "declaration": "20260916112115_document_organization_tags.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "set_document_tags",
+    "declaration": "20260916112115_document_organization_tags.sql",
+    "module": "documents",
+    "consumers": [
+      "src/modules/documents/DocumentSections.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_documents_updated_at",
+    "declaration": "202607060002_job_documents_foundation.sql",
+    "module": "documents",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "set_eos_access",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosAccessConsole.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_hq_time_entry_archived",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": [
+      "src/modules/hq-time/HqTimeWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_inventory_count_quantity",
+    "declaration": "20260915113613_inventory_location_setup_permissions.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountCorrection.js"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_inventory_item_price",
+    "declaration": "20260921150906_v5_price_precedence_and_snapshots.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/InventoryPriceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_inventory_location_archived",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/StorageLocationLifecycle.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_job_billing_fee_presentation",
+    "declaration": "20260921190000_billing_fee_presentation_mode.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/SovBuilder.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_job_pay_application_status",
+    "declaration": "20260918184924_pay_app_correction_workflows.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_job_responsibility",
+    "declaration": "20260923121500_job_responsibility_serialization_demo.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobResponsibilities.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_job_sub_divisions",
+    "declaration": "20260825170646_job_sub_division_edit_access.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_job_user_assignment",
+    "declaration": "20260825190000_job_user_assignments.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "set_job_user_assignment_v5",
+    "declaration": "20260921170000_v5_change_order_action_reconciliation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_official_estimate_archived",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "set_personal_estimate_archived",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "snapshot_assembly_item_price_source",
+    "declaration": "20260921150906_v5_price_precedence_and_snapshots.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "storage_location_deletion_snapshot",
+    "declaration": "20260915161130_inventory_storage_safe_delete.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_estimate_for_review",
+    "declaration": "20260915194050_estimate_workflow_handoffs.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_estimate_for_review_v2",
+    "declaration": "20260921134103_fix_financial_template_and_estimate_budget_mapping.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_job_change_order",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_standalone_estimate_review",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_v5_estimate_for_review",
+    "declaration": "20260921143000_estimate_review_tasks_and_linked_proposals.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_v5_job_financial_proposal",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/FinancialNameOverride.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "submit_v5_job_sov_proposal",
+    "declaration": "20260922165714_v5_job_sov_proposals_and_atomic_archive.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_activate_cost_snapshot",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_archive_call",
+    "declaration": "20260914114401_service_call_workflow.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_create_manual_cost_snapshot",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-performance/ServicePerformanceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_post_invoice",
+    "declaration": "20260914204755_service_stage_catalogue.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_read_calls",
+    "declaration": "20260914114401_service_call_workflow.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx",
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_read_stages",
+    "declaration": "20260914204755_service_stage_catalogue.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/developer/ServiceStageConsole.jsx",
+      "src/modules/electrical-inspections/ElectricalInspectionWorkspace.jsx",
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_save_call",
+    "declaration": "20260914204755_service_stage_catalogue.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_save_commercial",
+    "declaration": "20260914195657_service_billing_voids.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_save_stage",
+    "declaration": "20260914204755_service_stage_catalogue.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/developer/ServiceStageConsole.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_validate_money",
+    "declaration": "20260914114401_service_call_workflow.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "svc_void_billing",
+    "declaration": "20260914204755_service_stage_catalogue.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "sync_job_pay_application_change_orders",
+    "declaration": "20261003131058_contract_adjustment_state_model_integration.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "touch_job_financial_baseline",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "touch_material_alias_version",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "update_current_employee_profile",
+    "declaration": "20260906191944_approved_financial_workflows.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "update_inventory_balance",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "update_pending_employee_profile",
+    "declaration": "20260916125644_routine_audit_notes.sql",
+    "module": "employees",
+    "consumers": [
+      "src/modules/employees/EmployeesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "validate_estimate_checklist_definition",
+    "declaration": "20260916103538_estimate_finalization_checklist.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "rpc",
+    "name": "void_approved_job_change_order",
+    "declaration": "20260906200342_deductive_change_orders.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "rpc",
+    "name": "void_job_pay_application",
+    "declaration": "20260918184924_pay_app_correction_workflows.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/BillingActions.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "afc_files",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "afc_requests",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "afc_revisions",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "afc_studies",
+    "declaration": "20260916103702_afc_shared_studies.sql",
+    "module": "afc",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "assemblies",
+    "declaration": "20260823103000_estimating_catalog_assemblies_takeoffs.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/estimatesNavigation.js",
+      "src/modules/estimates/estimatesNavigation.test.js",
+      "src/modules/estimates/EstimatesWorkspace.jsx",
+      "src/modules/estimates/workbench/catalogueService.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "assembly_items",
+    "declaration": "20260823103000_estimating_catalog_assemblies_takeoffs.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "assembly_library_settings",
+    "declaration": "20261012220350_assembly_library_labor_rates.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "bays",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountSheet.js",
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/inventory/InventoryWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "bin_items",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryReadModel.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "bins",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountSheet.js",
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/inventory/InventoryWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "change_order_allocations",
+    "declaration": "202608250001_change_order_allocations.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "change_order_financial_postings",
+    "declaration": "20260825090000_enhance_change_order_workflow.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "change_order_lines",
+    "declaration": "20260825090000_enhance_change_order_workflow.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/ChangeOrderWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "change_order_sov_allocations",
+    "declaration": "20260826113000_change_order_sov_allocations.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "change_orders",
+    "declaration": "20260820195226_job_change_orders_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/documents/documentCategories.js",
+      "src/modules/documents/DocumentsWorkspace.jsx",
+      "src/modules/estimates/workbench/handoff.mjs",
+      "src/modules/jobs/ChangeOrderWorkspace.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx",
+      "src/modules/silas/SilasWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "documents",
+    "declaration": "202607060002_job_documents_foundation.sql",
+    "module": "documents",
+    "consumers": [
+      "src/components/layout/AppLayout.jsx",
+      "src/components/layout/AppShell.jsx",
+      "src/modules/documents/DocumentFileActions.jsx",
+      "src/modules/documents/DocumentsWorkspace.jsx",
+      "src/modules/estimates/EstimatesWorkspace.jsx",
+      "src/modules/jobs/ChangeOrderWorkspace.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx",
+      "src/modules/registry.js",
+      "src/modules/reports/ReportsWorkspace.jsx",
+      "src/modules/service-calls/ServiceCallsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "employee_profile_notes",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "employee_profile_todos",
+    "declaration": "20260827155805_add_employee_personal_notes_and_todos.sql",
+    "module": "employees",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "employee_profiles",
+    "declaration": "20260825200000_employee_profiles_and_vehicle_creation.sql",
+    "module": "employees",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_access_grants",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_clients",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/eosClient.js",
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "eos_leadership_reminders",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "eos_pursuit_managers",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_pursuits",
+    "declaration": "20261006130000_eos_pursuit_foundation.sql",
+    "module": "eos",
+    "consumers": [
+      "src/modules/eos/EosWorkspaceContent.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "eos_scorecard_audit",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_scorecard_categories",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_scorecard_definitions",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_scorecard_metrics",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_scorecard_observations",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "eos_scorecard_periods",
+    "declaration": "20261015145240_eos_scorecard_reviewed_production.sql",
+    "module": "eos",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "estimate_checklist_definitions",
+    "declaration": "20260916103538_estimate_finalization_checklist.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_handoff_financial_allocations",
+    "declaration": "20260921134103_fix_financial_template_and_estimate_budget_mapping.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "estimate_pricing_lines",
+    "declaration": "20260816190000_estimate_pricing_lines_foundation.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_quote_packages",
+    "declaration": "20260823123000_estimate_quote_packages.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_review_requests",
+    "declaration": "20261016133828_estimate_lifecycle_reviewed_production.sql",
+    "module": "estimates",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "estimate_snapshots",
+    "declaration": "20260816191500_estimate_approval_snapshots.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx",
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_takeoff_lines",
+    "declaration": "20260823103000_estimating_catalog_assemblies_takeoffs.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_takeoffs",
+    "declaration": "20260823103000_estimating_catalog_assemblies_takeoffs.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/EstimatesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_workbenches",
+    "declaration": "20260913164527_estimate_workbench_catalogue.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimate_workflow_handoffs",
+    "declaration": "20260915194050_estimate_workflow_handoffs.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/modules/estimates/AttachedEstimates.jsx",
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "estimates",
+    "declaration": "20260816171500_estimate_directory_foundation.sql",
+    "module": "estimates",
+    "consumers": [
+      "src/components/layout/AppLayout.jsx",
+      "src/components/layout/AppShell.jsx",
+      "src/modules/dashboard/DashboardWorkspace.jsx",
+      "src/modules/eos/EosWorkspaceContent.jsx",
+      "src/modules/estimates/EstimatesWorkspace.jsx",
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx",
+      "src/modules/registry.js",
+      "src/modules/reports/ReportsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "financial_division_catalogue",
+    "declaration": "20261019125143_central_financial_catalogue_names.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "financial_line_catalogue",
+    "declaration": "20260902143000_financial_line_catalogue.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "grand_master_inventory_view",
+    "declaration": "202606170004_bin_item_retirement.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryReadModel.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "health_inspection_files",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "health_inspection_imports",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "health_inspection_revisions",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "health_inspections",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "hq_time_entries",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "hq_time_entry_audit",
+    "declaration": "20261106114145_developer_hq_time_log.sql",
+    "module": "hq-time",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "inspection_action_requests",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "electrical-inspections",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "inventory_balances",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryReadModel.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "inventory_cart_candidates_view",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountSheet.js",
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/estimates/workbench/blankSlate.mjs"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "inventory_cart_items",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "inventory_carts",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "inventory_destination_users_view",
+    "declaration": "20260816170500_employee_vehicle_reference_scope.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/employees/EmployeesWorkspace.jsx",
+      "src/modules/vehicles/VehiclesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "inventory_destination_vehicles_view",
+    "declaration": "20260816170500_employee_vehicle_reference_scope.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/vehicles/VehiclesWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "inventory_transactions",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "item_aliases",
+    "declaration": "20260915122542_catalog_inventory_foundation.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "item_price_history",
+    "declaration": "20260921150906_v5_price_precedence_and_snapshots.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/modules/inventory/InventoryPriceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "items",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountSheet.js",
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/estimates/EstimatesWorkspace.jsx",
+      "src/modules/estimates/workbench/app.jsx",
+      "src/modules/estimates/workbench/catalogueService.js",
+      "src/modules/inventory/InventoryPriceWorkspace.jsx",
+      "src/modules/inventory/MaterialCatalogueWorkspace.jsx",
+      "src/modules/silas/GuidedChangeOrder.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_budget_divisions",
+    "declaration": "20260821130000_job_budget_divisions_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/FinancialLineDivisionPicker.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_budget_health_acknowledgements",
+    "declaration": "20260924191152_dashboard_budget_health_acknowledgements.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_budget_lines",
+    "declaration": "202607020002_job_budget_lines_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/accounting/AccountingWorkspace.jsx",
+      "src/modules/dashboard/DashboardWorkspace.jsx",
+      "src/modules/estimates/workbench/EstimateHandoff.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx",
+      "src/modules/reports/ReportsWorkspace.jsx",
+      "src/modules/silas/GuidedChangeOrder.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_buyout_lines",
+    "declaration": "202607010001_job_buyout_lines_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx",
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_buyout_vendor_quotes",
+    "declaration": "20260826090000_job_buyout_vendor_quotes.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_financial_baselines",
+    "declaration": "20260922162009_v5_jobs_financials_foundation.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_inspections",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_materials",
+    "declaration": "202606300001_job_materials_foundation.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_pay_application_change_orders",
+    "declaration": "20260828040208_redefine_job_billing_pay_apps.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_pay_application_lines",
+    "declaration": "20260828040208_redefine_job_billing_pay_apps.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_pay_applications",
+    "declaration": "20260828040208_redefine_job_billing_pay_apps.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_permits",
+    "declaration": "20260914235450_electrical_inspection_workflow.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_responsibilities",
+    "declaration": "20260923120000_job_responsibilities_demo.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_revenue_lines",
+    "declaration": "20260823101500_job_revenue_lines_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_schedule_items",
+    "declaration": "202607060004_job_schedule_items_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_sov_template_lines",
+    "declaration": "20260918173055_job_financial_exports_deletion_sov_templates.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_sov_templates",
+    "declaration": "20260918173055_job_financial_exports_deletion_sov_templates.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/SovBuilder.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_sub_divisions",
+    "declaration": "202608240003_job_sub_division_access.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "job_transaction_log",
+    "declaration": "202607020001_job_transaction_log_view.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/jobs/JobsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "job_user_assignments",
+    "declaration": "20260825190000_job_user_assignments.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "jobs",
+    "declaration": "202606290001_jobs_foundation.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/components/layout/AppLayout.jsx",
+      "src/components/layout/AppShell.jsx",
+      "src/modules/dashboard/DashboardWorkspace.jsx",
+      "src/modules/daybook/daybookModel.js",
+      "src/modules/daybook/daybookModel.test.js",
+      "src/modules/documents/DocumentsWorkspace.jsx",
+      "src/modules/eos/EosWorkspaceContent.jsx",
+      "src/modules/estimates/workbench/EstimateHandoff.jsx",
+      "src/modules/estimates/workbench/WorkbenchRoute.jsx",
+      "src/modules/jobs/jobsNavigation.js",
+      "src/modules/jobs/JobsWorkspace.jsx",
+      "src/modules/registry.js",
+      "src/modules/reports/ReportsWorkspace.jsx",
+      "src/modules/silas/SilasWorkspace.jsx",
+      "src/modules/toolAvailability.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "material_catalogue_save_requests",
+    "declaration": "20260921221242_full_material_catalogue_stock_review.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "panel_directories",
+    "declaration": "20260903120000_create_panel_directory_addon.sql",
+    "module": "panel-directory",
+    "consumers": [
+      "src/modules/documents/documentSections.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "shelves",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountSheet.js",
+      "src/hooks/useInventoryReadModel.js",
+      "src/modules/inventory/InventoryWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "silas_conversations",
+    "declaration": "202607090002_silas_foundation.sql",
+    "module": "silas",
+    "consumers": [
+      "src/hooks/useSilas.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "silas_messages",
+    "declaration": "202607090002_silas_foundation.sql",
+    "module": "silas",
+    "consumers": [
+      "src/hooks/useSilas.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "silas_settings",
+    "declaration": "202607090002_silas_foundation.sql",
+    "module": "silas",
+    "consumers": [
+      "src/hooks/useSilas.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "storage_units",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": [
+      "src/hooks/useInventoryCountSheet.js",
+      "src/hooks/useInventoryReadModel.js"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "svc_call_financials",
+    "declaration": "20260914195657_service_billing_voids.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-performance/ServicePerformanceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "svc_cost_snapshots",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-performance/ServicePerformanceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "svc_invoice_groups",
+    "declaration": "20260914114401_service_call_workflow.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "svc_invoices",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "svc_labor_lines",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "svc_monthly_performance",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": [
+      "src/modules/service-performance/ServicePerformanceWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "svc_payments",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "svc_service_profiles",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "svc_stage_definitions",
+    "declaration": "20260914204755_service_stage_catalogue.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "svc_visits",
+    "declaration": "20260827020937_create_tool_addons_service_performance.sql",
+    "module": "jobs",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "tools",
+    "declaration": "202606250001_tool_catalogue_foundation.sql",
+    "module": "tools",
+    "consumers": [
+      "src/modules/dashboard/DashboardWorkspace.jsx",
+      "src/modules/registry.js",
+      "src/modules/tools/ToolsWorkspace.jsx"
+    ]
+  },
+  {
+    "kind": "table",
+    "name": "transaction_items",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "vehicle_assignments",
+    "declaration": "202606160002_vehicle_assignments_destination_display.sql",
+    "module": "vehicles",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "vehicle_bin_items",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "inventory",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "vehicle_bins",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "vehicles",
+    "consumers": []
+  },
+  {
+    "kind": "table",
+    "name": "vehicles",
+    "declaration": "202605310001_phase_1_inventory.sql",
+    "module": "vehicles",
+    "consumers": [
+      "src/components/layout/AppLayout.jsx",
+      "src/components/layout/AppShell.jsx",
+      "src/modules/registry.js"
+    ]
+  }
+]

@@ -1,3 +1,5 @@
+import {ToolAvailabilityConsole} from './ToolAvailabilityConsole.jsx';
+import {useLocation} from 'react-router-dom';
 import { getSupabaseAccessToken } from '../../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import {
@@ -523,7 +525,8 @@ export function DeveloperWorkspace({ permissions }) {
   const [longTermForm, setLongTermForm] = useState(DEFAULT_LONG_TERM_FORM);
   const [selectedPermissionUserId, setSelectedPermissionUserId] = useState('');
   const [auditExport, setAuditExport] = useState(DEFAULT_AUDIT_EXPORT);
-  const [activeConsolePage, setActiveConsolePage] = useState('overview');
+  const location = useLocation();
+  const [activeConsolePage, setActiveConsolePage] = useState(location.state?.developerSection || 'overview');
   const [openFeedbackCount, setOpenFeedbackCount] = useState(0);
   const permissionRows = useMemo(() => buildPermissionRows(permissions), [permissions]);
   const grantedCount = permissionRows.filter((row) => row.value).length;
@@ -807,6 +810,7 @@ export function DeveloperWorkspace({ permissions }) {
             ['overview', 'Overview', LayoutDashboard],
             ['access', 'Access Control', KeyRound],
             ['addons', 'Tool Add-Ons', Puzzle],
+            ['availability', 'Tool Availability', ShieldCheck],
             ['feedback', 'User Feedback', MessageSquareText],
             ['audit', 'Audit Export', FileClock],
             ['backlog', 'Backlog', BookOpenCheck],
@@ -1084,6 +1088,7 @@ export function DeveloperWorkspace({ permissions }) {
       </section>
       ) : null}
 
+      {activeConsolePage === 'availability' ? <ToolAvailabilityConsole permissions={permissions}/> : null}
       {activeConsolePage === 'addons' ? <DeveloperAddonsConsole /> : null}
 
       {activeConsolePage === 'feedback' ? (

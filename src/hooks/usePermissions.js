@@ -1,3 +1,4 @@
+import {useToolAvailability} from './useToolAvailability.jsx';
 import { getSupabaseAccessToken } from '../services/clerkToken.js';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -107,6 +108,7 @@ function normalize(row) {
 }
 
 export function usePermissions() {
+  const toolAvailability = useToolAvailability();
   const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
   const [state, setState] = useState({
@@ -197,6 +199,7 @@ export function usePermissions() {
   const addonSet = useMemo(() => new Set(state.addons), [state.addons]);
 
   return {
+    toolAvailability,
     isLoaded: isUserLoaded && !state.isLoading,
     isLoading: state.isLoading,
     isSignedIn,

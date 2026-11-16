@@ -1,3 +1,5 @@
+import {toolForPath} from '../../modules/toolAvailability.js';
+import {ToolAvailabilityGate,useDeveloperToolPreview} from '../../modules/ToolAvailabilityGate.jsx';
 import { UserButton, useClerk, useAuth } from '@clerk/clerk-react';
 import { Bell, MessageSquarePlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -5,7 +7,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FeedbackDrawer } from '../feedback/FeedbackDrawer.jsx';
 import { useDevelopmentDisplayPreferences, useIncompleteHighlightPreference } from '../../hooks/useIncompleteHighlight.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { permittedModules, permittedNavigationGroups } from '../../modules/registry.js';
+import { MODULES,isModulePermitted,permittedModules, permittedNavigationGroups } from '../../modules/registry.js';
 import { AppShell } from './AppShell.jsx';
 import {CalculatorProvider} from '../calculator/Calculator.jsx';
 import { StatePanel } from '../ui/StatePanel.jsx';
@@ -37,6 +39,7 @@ export function AppLayout() {
   const diagnosticsEnabled = permissions.permissionSource === 'server' && permissions.canAccessDeveloper === true && showDiagnostics;
   const navigate = useNavigate();
   const location = useLocation();
+  const developerPreviewKey=useDeveloperToolPreview(permissions,location);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [notificationsOpen,setNotificationsOpen]=useState(false);
   const [inventoryReviewCount, setInventoryReviewCount] = useState(null);
@@ -81,10 +84,10 @@ export function AppLayout() {
     );
   }
 
-  const modules = permittedModules(permissions);
-  const activeKey = modules.find((module) =>
-    location.pathname.startsWith(module.path),
-  )?.key;
+  const visibleModules = permittedModules(permissions);
+  const modules = MODULES.filter(module=>isModulePermitted(module,permissions) && (visibleModules.some(visible=>visible.key===module.key)||developerPreviewKey===module.key));
+  const resolvedKey = toolForPath(location.pathname,MODULES);
+  const activeKey = modules.some(module=>module.key===resolvedKey) ? resolvedKey : null;
 
   const navItems = permittedNavigationGroups(permissions);
   const activeModule = modules.find((module) => module.key === activeKey);
@@ -265,7 +268,7 @@ export function AppLayout() {
       )}
       >
         {canCorrectInventoryData(permissions)&&<StatePanel tone="warning" compact title="Developer Data Correction enabled" description="Temporary audited inventory correction access. History and stock safeguards remain enforced. Revoke in Developer → Permissions before official rollout." />}
-        <Outlet context={{ setInventoryReviewCount, setJobsNavState, setEstimatesNavVisible, setDocumentsNavCounts }} />
+        <ToolAvailabilityGate permissions={permissions}><Outlet context={{ setInventoryReviewCount, setJobsNavState, setEstimatesNavVisible, setDocumentsNavCounts }} /></ToolAvailabilityGate>
       </AppShell>
       <FeedbackDrawer open={feedbackOpen} onClose={() => setFeedbackOpen(false)} pagePath={location.pathname} />
     </DiagnosticsProvider></CalculatorProvider>

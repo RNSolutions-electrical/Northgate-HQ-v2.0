@@ -1,3 +1,4 @@
+import {toolIsEnabled} from './toolAvailability.js';
 import {
   BarChart3,
   PanelTop,
@@ -182,7 +183,7 @@ export function isModulePermitted(module, permissions) {
 }
 
 export function permittedModules(permissions) {
-  return MODULES.filter((module) => isModulePermitted(module, permissions));
+  return MODULES.filter((module) => isModulePermitted(module, permissions) && (!permissions.toolAvailability || toolIsEnabled(module.key, permissions.toolAvailability.rows)));
 }
 
 /** Presentation groups only: routes and permission gates remain on MODULES. */

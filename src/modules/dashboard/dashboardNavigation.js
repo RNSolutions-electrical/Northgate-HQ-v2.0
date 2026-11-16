@@ -1,3 +1,4 @@
+import {toolIsVisible} from '../toolAvailability.js';
 export const DASHBOARD_DEFAULT_SECTION = 'my-info';
 
 export function dashboardSections(permissions) {
@@ -20,7 +21,7 @@ export function dashboardSections(permissions) {
       { key: 'assigned-estimates', label: 'Assigned Estimates' },
       ...(permissions.canApproveEstimates === true ? [{ key: 'estimate-review', label: 'To Review' }] : []),
     ] }] : []),
-  ];
+  ].filter(section => toolIsVisible({'my-work':'jobs','my-vehicles':'vehicles','my-tools':'tools','my-estimates':'estimates'}[section.key] || 'dashboard',permissions));
 }
 
 export function dashboardSectionFromSearch(search, permissions) {
