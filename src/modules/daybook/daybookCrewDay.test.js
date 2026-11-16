@@ -10,3 +10,5 @@ test('old assignments work unchanged; invalid worker/date cannot mutate them',()
 test('JSON roundtrip preserves exceptions and editor preserves removals',()=>{const f=fixture();f.setAssignmentDay('a','fabian','2026-11-17',true);assert.deepEqual(JSON.parse(JSON.stringify(f.db)),f.db);assert.match(src,/a.dayExceptions=\(db.assignments.find/);assert.match(src,/Invalid single-day crew exceptions/);assert.match(src,/if\(!rr.length\)continue/);});
 
 test('HQ picker invalidates cached results and rejects stale request IDs',()=>{assert.match(src,/hq-jobs-invalidated/);assert.match(src,/hqJobsList=\[\];hqRequestId=null/);assert.match(src,/event.data.data.requestId!==hqRequestId/);});
+
+test('assignment color is optional, validated and used consistently for crew and calendar',()=>{assert.match(src,/Custom assignment color/);assert.match(src,/Invalid assignment color/);assert.match(src,/color:a.color\|\|null/);assert.match(src,/e.color\|\|cal\(e.calendar\)/);assert.match(src,/a.id===r.assignment\)\?\.color\|\|cal/);});
