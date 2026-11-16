@@ -56,7 +56,7 @@ export function blankSumPricing(items,data,includeFee=true){
  return {...result,...charges,fee:moneyValue(fee),grossPreDiscount:moneyValue(gross+sums.resourceDiscount),estimateDiscount:moneyValue(estimateDiscount),totalDiscount:moneyValue(sums.resourceDiscount+estimateDiscount),markup:moneyValue(net-sums.cost),margin:net?Number(net-sums.cost)/Number(net)*100:0,chargeError:''};
 }
 export function proportionalCents(value,cumulative,total){if(!total)return 0;const v=BigInt(value),c=BigInt(cumulative),t=BigInt(total);return Number((v*c*2n+t)/(t*2n));}
-export function blankDocument(name='',customer=''){return {name,customer,template:'Blank slate',blankSlateVersion:1,rate:0,blankSlateHardRate:0,materialMarkup:0,feePercent:0,quotes:[],packages:[],sections:[],library:[],entries:[],proposal:{scope:'',salesTaxPercent:0,creditCardPercent:0}};}
+export function blankDocument(name='',customer=''){return {name,customer,template:'Default',blankSlateVersion:1,rate:0,blankSlateHardRate:0,materialMarkup:0,feePercent:0,quotes:[],packages:[],sections:[],library:[],entries:[],proposal:{scope:'',salesTaxPercent:0,creditCardPercent:0}};}
 export function blankWorkItem(id){return {id,number:1,name:'',qty:1,kind:'Assembly',status:'Not started',notes:'',lines:[]};}
 export function catalogueResource(material,id){return {id,catalogueId:material.id,name:material.name,unit:material.unit,qty:1,price:material.price,hours:material.hours,stage:'Rough-in',fixed:false,notes:'',...cataloguePriceSnapshot(material),catalogueUpdatedAt:material.updated_at??null};}
 export async function readBlankInventory(client){

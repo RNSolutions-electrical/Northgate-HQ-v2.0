@@ -1,3 +1,4 @@
+import {withDraftIdentity} from './draftIdentity.mjs';
 import BlankSlateEditor from './BlankSlateEditor.jsx';
 import {blankDocument,requireBlankAccounting} from './blankSlate.mjs';
 import {newLaborRates} from './laborRates.mjs';
@@ -143,6 +144,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   return()=>{document.removeEventListener('click',guard,true);window.document.removeEventListener('northgate:before-navigate',beforeNavigate);};
  },[]);
  async function save(document,updates=[],assembly=null){
+  document=withDraftIdentity(document);
   if(saving.current)throw new Error('A save is already in progress.');
   saving.current=true;
   try{
@@ -289,7 +291,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  }
  async function create(e){
   e.preventDefault();setCreating(true);setError('');
-  try{const f=new FormData(e.target);active.current=null;const doc=newLaborRates(f.get('template')==='Blank slate'?blankDocument(f.get('name').trim(),f.get('customer').trim()):seed(f.get('name').trim(),f.get('customer').trim(),f.get('template')),librarySettings.current);doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
+  try{const f=new FormData(e.target);active.current=null;const doc=newLaborRates(f.get('template')==='Default'?blankDocument(f.get('name').trim(),f.get('customer').trim()):seed(f.get('name').trim(),f.get('customer').trim(),f.get('template')),librarySettings.current);doc.library=structuredClone(library.current);const row=await save(doc);setSelected(row);}
   catch(e){setError(e.message);}finally{setCreating(false);}
  }
  function exit(){
@@ -415,8 +417,8 @@ export default function WorkbenchRoute({libraryOnly=false}){
   {workflow.success&&<p role="status">{workflow.success}</p>}
   {!reviewMode&&!showArchived&&(permissions.canEstimate||personalMode)&&<form className="job-financials-form estimate-create-form" onSubmit={create}>
    <h2>Create estimate</h2><div className="estimate-create-grid">
-    <label>Project name<input type="text" name="name" required/></label><label>Customer<input type="text" name="customer"/></label>
-    <label>Template<select name="template">{Object.keys(sections).map(s=><option key={s}>{s}</option>)}{(import.meta.env.VITE_APP_ENV==='staging'||import.meta.env.DEV)&&<option>Blank slate</option>}</select></label>
+    <label>Project name (optional for drafts)<input type="text" name="name" placeholder="A timestamp will name this draft"/></label><label>Customer (optional for drafts)<input type="text" name="customer"/></label>
+    <label>Template<select name="template" defaultValue={(import.meta.env.VITE_APP_ENV==='staging'||import.meta.env.DEV)?'Default':Object.keys(sections)[0]}>{(import.meta.env.VITE_APP_ENV==='staging'||import.meta.env.DEV)&&<option value="Default">Default</option>}{Object.keys(sections).map(s=><option key={s}>{s}</option>)}</select></label>
    <button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button></div>
   </form>}
   {!reviewMode&&<div><button type="button" className="secondary-button" disabled={archiveBusy} onClick={()=>{setRows([]);setShowArchived(value=>!value);}}>{showArchived?'Show active estimates':'Show archived estimates'}</button><p>{showArchived?'Archived estimates are retained for recovery. Restore an estimate before opening it.':personalMode?'Archiving a personal copy only hides it from this list. Official estimates stay unchanged.':'Archiving retains approved versions and linked job history.'}</p></div>}
