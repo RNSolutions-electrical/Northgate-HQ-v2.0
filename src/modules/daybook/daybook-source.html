@@ -84,11 +84,20 @@ function monthHTML(d,blank=false){
  }
  return h+'</div>';
 }
-function agendaHTML(week=false,blank=false){
+const offHoursExpanded={early:false,late:false};
+function toggleOffHours(band){offHoursExpanded[band]=!offHoursExpanded[band];render();document.getElementById('hours-'+band)?.focus({preventScroll:true})}
+function agendaBandEntries(entries,dates,start,end){const keys=new Set(dates.map(dk));return entries.filter(e=>e.time&&e.endTime&&e.start===e.end&&keys.has(e.start)&&toMinutes(e.time)<end&&toMinutes(e.endTime)>start)}
+function agendaHTML(week=false,blank=false,printing=false){
  let d=parse(selected),s=week?add(d,-d.getDay()):d,n=week?7:1,dates=Array.from({length:n},(_,i)=>add(s,i)),entries=blank?[]:displayEntries(),hol=holidays(d.getFullYear());
  let h=`<div class="panel"><div class="agenda" style="--days:${n}"><div class="agenda-head">TIME</div>${dates.map(x=>`<div class="agenda-head"><b>${fmt(x,{weekday:'short',month:'short',day:'numeric'})}</b><div class="holiday">${esc((hol[dk(x)]||[]).join(' · '))}</div></div>`).join('')}<div class="time">All day</div>`;
  h+=dates.map(x=>`<div class="all-day" onclick="eventEditor(null,'${dk(x)}')">${entries.filter(e=>ptoOn(e,dk(x))&&(!e.time||e.start!==e.end)).map(e=>eventHTML(e)).join('')}</div>`).join('');
- for(let q=0;q<96;q++){let t=toTime(q*15);h+=`<div class="time">${q%4===0?`${Math.floor(q/4)%12||12} ${q<48?'AM':'PM'}`:q%4*15}</div>`;h+=dates.map(x=>`<div class="slot" onclick="eventEditor(null,'${dk(x)}','${t}')">${entries.filter(e=>e.start===dk(x)&&e.end===e.start&&e.time===t).map(e=>eventHTML(e,e.time+'–'+e.endTime+' ')).join('')}</div>`).join('')}
+ for(let q=0;q<96;q++){
+  if(q===0||q===72){const band=q===0?'early':'late',label=q===0?'12 AM–6 AM':'6 PM–midnight',end=q===0?24:96,expanded=blank||printing||offHoursExpanded[band],items=agendaBandEntries(entries,dates,q*15,end*15);
+   if(!blank&&!printing){h+=`<div style="grid-column:1 / -1;padding:8px 10px;background:#f3f6f2;border-top:1px solid var(--line)"><button id="hours-${band}" class="small" aria-expanded="${expanded}" onclick="toggleOffHours('${band}')">${expanded?'Collapse':'Expand'} ${label} · ${items.length} ${items.length===1?'event':'events'}</button>${!expanded&&items.length?`<div style="margin-top:6px">${items.map(e=>eventHTML(e,fmt(parse(e.start),{weekday:'short',month:'short',day:'numeric'})+' '+e.time+'–'+e.endTime+' ')).join('')}</div>`:''}</div>`}
+   if(!expanded){q=end-1;continue}
+  }
+  let t=toTime(q*15);h+=`<div class="time">${q%4===0?`${Math.floor(q/4)%12||12} ${q<48?'AM':'PM'}`:q%4*15}</div>`;h+=dates.map(x=>`<div class="slot" role="button" tabindex="0" aria-label="Schedule ${dk(x)} at ${t}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();eventEditor(null,'${dk(x)}','${t}')}" onclick="eventEditor(null,'${dk(x)}','${t}')">${entries.filter(e=>e.start===dk(x)&&e.end===e.start&&e.time===t).map(e=>eventHTML(e,e.time+'-'+e.endTime+' ')).join('')}</div>`).join('')
+ }
  return h+'</div></div>';
 }
 function yearHTML(blank=false){let y=parse(selected).getFullYear(),hol=holidays(y);return `<div class="year">${Array.from({length:12},(_,m)=>{let f=new Date(y,m,1,12),n=new Date(y,m+1,0).getDate();return `<section class="mini"><h3 onclick="selected='${dk(f)}';view='month';render()" style="cursor:pointer">${fmt(f,{month:'long'})}</h3><div class="mini-grid">${DAYS.map(t=>`<small>${t[0]}</small>`).join('')}${'<span></span>'.repeat(f.getDay())}${Array.from({length:n},(_,i)=>{let k=dk(new Date(y,m,i+1,12));return `<button class="${!blank&&displayEntries().some(e=>ptoOn(e,k))?'has':''} ${hol[k]?'hol':''}" onclick="go('${k}')" title="${esc((hol[k]||[]).join(', '))}">${i+1}</button>`}).join('')}</div></section>`}).join('')}</div>`}
@@ -244,7 +253,7 @@ function exportDialog(){openModal(`<form onsubmit="event.preventDefault();printV
 function portableHTML(){let root=document.documentElement.cloneNode(true),data=structuredClone(db);data.instance=uid();root.querySelector('#snapshot').textContent=JSON.stringify(data).replace(/</g,'\\u003c');root.querySelector('#content').innerHTML='';root.querySelector('#modalBody').innerHTML='';root.querySelector('#modal').removeAttribute('open');root.querySelector('#printArea').innerHTML='';root.querySelector('#toast').style.display='none';download('Daybook-'+today()+'.html','<!DOCTYPE html>\n'+root.outerHTML,'text/html');toast('Portable planner exported with all current data.')}
 function printView(scope){
  let h='',title=scope[0].toUpperCase()+scope.slice(1),old=view;
- if(['day','week','month','year'].includes(scope)){view=scope;let oldPage=page;page='calendar';title=heading();page=oldPage;h=scope==='month'?monthHTML(parse(selected)):scope==='year'?yearHTML():agendaHTML(scope==='week');view=old}
+ if(['day','week','month','year'].includes(scope)){view=scope;let oldPage=page;page='calendar';title=heading();page=oldPage;h=scope==='month'?monthHTML(parse(selected)):scope==='year'?yearHTML():agendaHTML(scope==='week',false,true);view=old}
  else if(scope==='tasks')h=tasksHTML();
  else if(scope==='notes')h=db.notes.map(n=>`<article class="card"><h2>${esc(n.title)}</h2><div class="pre">${esc(n.body)}</div></article>`).join('');
  else if(scope==='contacts')h=db.contacts.map(contactHTML).join('');
