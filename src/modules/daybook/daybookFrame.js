@@ -5,6 +5,7 @@ export function daybookFrame() {
   html = html.replace(/function persist\(\)\{[^\n]+\}/, `function persist(){ parent.postMessage({channel:'hq-daybook',type:'changed',data:db},'*'); $('saveStatus').textContent='Unsaved changes in HQ'; }`);
   html = html.replace("Import replaces this browser's planner after confirmation.", 'Import proposes replacement of this HQ workspace after a pre-restore snapshot. The original local planner is not changed.');
   html = html.replace(/Saved in this browser\.[\s\S]*?Copies do not sync\./, 'Use Save to HQ above to save across devices. Export JSON for a separate backup.');
+  html=html.replace('</head>','<style>html,body{overflow-y:hidden}.layout{min-height:0}</style></head>');
   const bridge = `
 let hqReady=false;
 document.body.style.visibility='hidden';
@@ -30,6 +31,10 @@ $('importFile').onchange=async event=>{
 portableHTML=()=>toast('Use Export JSON. The original standalone app remains unchanged.');
 const originalDownload=download;
 download=function(name,text,type){originalDownload(name,text,type);if(type==='application/json')parent.postMessage({channel:'hq-daybook',type:'exported',filename:name},'*')};
+let lastHeight=0;
+const reportHeight=()=>{const height=Math.ceil(document.body.getBoundingClientRect().height);if(height!==lastHeight){lastHeight=height;parent.postMessage({channel:'hq-daybook',type:'resize',height},'*')}};
+new ResizeObserver(reportHeight).observe(document.body);
+reportHeight();
 parent.postMessage({channel:'hq-daybook',type:'ready'},'*');
 `;
   return html.replace('</body>', '<script>'+bridge+'</script></body>');
