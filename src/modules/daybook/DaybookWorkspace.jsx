@@ -1,6 +1,7 @@
 import {useAuth} from '@clerk/clerk-react';
 import {useEffect,useRef,useState} from 'react';
 import {withSupabaseTokenRetry} from '../../services/supabaseClient.js';
+import './daybook.css';
 import {daybookFrame} from './daybookFrame.js';
 import {splitWorkspace,mergeWorkspace} from './daybookModel.js';
 const FRAME=daybookFrame();
@@ -49,7 +50,7 @@ function DaybookSession({permissions}) {
  useEffect(()=>{const guard=e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}};const link=e=>{if((dirty||busy)&&e.target.closest('a[href]')&&!window.confirm('Leave Daybook without saving your edits to HQ?')){e.preventDefault();e.stopPropagation();}};window.addEventListener('beforeunload',guard);document.addEventListener('click',link,true);return()=>{window.removeEventListener('beforeunload',guard);document.removeEventListener('click',link,true);}},[dirty,busy]);
  const restoreHistory=(entry)=>{const p=history.personal.find(x=>x.operation_id===entry.operation_id),n=history.northgate.find(x=>x.operation_id===entry.operation_id);setRestore({data:mergeWorkspace({personal:{payload:p?p.before_data:state.current.personal.payload},northgate:{payload:n?n.before_data:state.current.northgate.payload}}),filename:'pre-change snapshot '+entry.recorded_at});setHistory(null);};
  const showHistory=async()=>{setError('');try{const [p,n]=await Promise.all(['personal','northgate'].map(p_scope=>rpc('list_daybook_history',{p_scope})));setHistory({personal:p,northgate:n});}catch(e){setError(e.message)}};
- return <section>
+ return <section className="daybook-hq">
   <h1>Daybook <small>Staging pilot</small></h1>
   <p>Personal records stay owner-private. Northgate schedules and worker records are company data. This pilot is developer-only. This does not update Google Calendar or payroll.</p>
   <p role="status">{status} {dirty?' · Unsaved changes':''}</p>

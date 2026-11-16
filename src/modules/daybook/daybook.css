@@ -1,0 +1,5 @@
+.daybook-hq{padding:20px;min-width:0;font:14px system-ui,sans-serif;color:var(--ng-text,#26352f)}
+.daybook-hq h1{font-size:24px;margin:0 0 12px}.daybook-hq h1 small{font-size:12px;background:#fff0c2;border-radius:12px;padding:4px 9px;margin-left:8px}
+.daybook-hq>p{line-height:1.5;margin:8px 0}.daybook-hq>button,.daybook-hq section button{font:inherit;padding:8px 12px;border:1px solid #bccac1;border-radius:6px;background:white;cursor:pointer}.daybook-hq button:disabled{opacity:.5;cursor:default}
+.daybook-hq [role=alert]{background:#fff0ed;border:1px solid #c65a49;padding:12px;border-radius:6px}.daybook-hq [role=status]{color:#386650}.daybook-hq iframe{background:white;border-radius:8px}
+@media(max-width:700px){.daybook-hq{padding:10px}.daybook-hq h1{font-size:20px}}

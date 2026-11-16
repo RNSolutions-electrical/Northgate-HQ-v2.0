@@ -188,6 +188,7 @@ export function permittedModules(permissions) {
 /** Presentation groups only: routes and permission gates remain on MODULES. */
 export const NAVIGATION_GROUPS = [
   { key: 'dashboard', moduleKey: 'dashboard' },
+  { key: 'daybook', moduleKey: 'daybook' },
   { key: 'inventory', label: 'Inventory', icon: Boxes, moduleKeys: ['inventory', 'tools'] },
   { key: 'jobs', label: 'Jobs', icon: BriefcaseBusiness, moduleKeys: ['jobs'] },
   { key: 'estimates', label: 'Estimates', icon: Calculator, moduleKeys: ['estimates'] },
