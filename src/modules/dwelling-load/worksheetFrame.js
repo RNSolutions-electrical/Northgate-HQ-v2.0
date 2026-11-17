@@ -6,7 +6,7 @@ export function worksheetFrame(source, nonce) {
  const line=(prefix,replacement)=>{const lines=html.split('\n'),hits=lines.filter(s=>s.startsWith(prefix));if(hits.length!==1)throw Error('Worksheet integration target changed: '+prefix);html=lines.map(s=>s.startsWith(prefix)?replacement:s).join('\n');};
  line('try{const saved=', '');
  line('function save(){',`function save(){data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
- line('function status(){',`function status(){$('#saveStatus').textContent='HQ worksheet: use Save to HQ above. Last exported: '+(data.lastBackup||'none')+' • Imported: '+(data.lastImport||'none');}`);
+ line('function status(){',`function status(){$('#saveStatus').textContent='HQ worksheet: use Save to HQ above. Last export requested: '+(data.lastBackup||'none')+' • Imported: '+(data.lastImport||'none')+' • Confirm the downloaded JSON file exists; an export request does not confirm delivery.';}`);
  line("$('#snapshot').onclick=", "$('#snapshot').remove();");
  line("$('#print').onclick=", "$('#print').textContent='Preview report'; $('#print').onclick=()=>openReport();render();");
  line("$('#file').onchange=",`$('#file').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;if(f.size>2000000)throw Error('Backup exceeds 2 MB');const next=validate(JSON.parse(await f.text()));send('import',{payload:next,filename:f.name});}catch(err){alert(err.message);}finally{e.target.value='';}};`);
