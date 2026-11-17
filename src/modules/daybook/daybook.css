@@ -1,0 +1,13 @@
+.daybook-hq{padding:8px 16px 16px;min-width:0;font:14px system-ui,sans-serif;color:var(--ng-text,#26352f)}
+.daybook-heading{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px;position:relative;z-index:2}
+.daybook-title{display:flex;align-items:center;gap:8px}.daybook-hq h1{font-size:24px;margin:0}.daybook-hq h2{font-size:17px;margin:0 0 10px}
+.daybook-save-state{margin:0;font-size:12px;color:#386650;flex:1}.daybook-save-state.is-dirty{color:#855b05;font-weight:600}
+.daybook-heading details{position:relative}.daybook-heading summary{cursor:pointer;list-style:none}.daybook-heading summary::-webkit-details-marker{display:none}
+.daybook-info summary{border:1px solid #77877e;border-radius:50%;width:22px;height:22px;display:grid;place-items:center;font-weight:700;font-family:Georgia,serif}
+.daybook-preferences{margin-left:auto}.daybook-preferences summary{border:1px solid #bccac1;border-radius:7px;padding:8px 12px;background:white}
+.daybook-heading summary:focus-visible{outline:3px solid #327352;outline-offset:3px}
+.daybook-popover{position:absolute;top:calc(100% + 8px);left:0;width:340px;max-width:calc(100vw - 48px);background:white;border:1px solid #bccac1;border-radius:10px;padding:18px;box-shadow:0 10px 35px #183b2926;line-height:1.5;z-index:5}
+.daybook-preferences .daybook-popover{left:auto;right:0}.daybook-popover p{margin:10px 0}.daybook-popover p:last-child{margin-bottom:0}.daybook-actions{display:flex;gap:8px;flex-wrap:wrap}
+.daybook-hq button{font:inherit;padding:8px 12px;border:1px solid #bccac1;border-radius:6px;background:white;cursor:pointer}.daybook-hq button:disabled{opacity:.5;cursor:default}
+.daybook-hq [role=alert]{background:#fff0ed;border:1px solid #c65a49;padding:12px;border-radius:6px}.daybook-planner iframe{display:block;width:100%;border:1px solid #dfe6e0;background:white;border-radius:8px}
+@media(max-width:700px){.daybook-hq{padding:8px}.daybook-heading{gap:8px}.daybook-hq h1{font-size:20px}.daybook-save-state{order:3;flex-basis:100%}.daybook-info .daybook-popover{left:-100px}}

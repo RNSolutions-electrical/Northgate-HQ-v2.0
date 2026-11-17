@@ -43,6 +43,8 @@ import {
  *     inventory cost open within authorized inventory scope
  */
 export const MODULES = [
+  {key:'dwelling-load',path:'/dwelling-load',label:'Dwelling Load Calculator',icon:Calculator,requires:['canAccessDeveloper'],status:'live',description:'Owner-private reviewed dwelling service study.'},
+  {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,requires:['canAccessDeveloper'],status:'live',description:'Calendar, crew planning and private organization.'},
   { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
     requires: ['canTrackHqTime'], status: 'live',
     description: 'Developer-accessible record of HQ work and optional focused-time estimates.' },

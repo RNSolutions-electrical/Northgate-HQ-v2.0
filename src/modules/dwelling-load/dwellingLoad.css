@@ -1,0 +1,7 @@
+.dwelling-hq{min-width:0}.dwelling-hq>header{padding:12px 0}.dwelling-hq>header h1{margin:0 0 8px}.dwelling-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.dwelling-actions select{max-width:100%;min-width:180px}.dwelling-actions button,.dwelling-actions select,.dwelling-dialog button{min-height:44px}.dwelling-dialog{padding:20px;margin:14px 0;border:1px solid var(--border-color,#677)}.dwelling-dialog button{margin:8px}.dwelling-frame{min-width:0}.dwelling-frame iframe{display:block;border:0;width:100%;min-width:0}.dwelling-hq [role=alert]{padding:16px;border:1px solid #b87440}@media(max-width:600px){.dwelling-actions>*{flex:1 1 140px}.dwelling-dialog{padding:16px}}
+/* Keep workspace controls comfortably inside the HQ card on narrow screens. */
+.dwelling-hq>header{padding:20px;border:1px solid var(--border-color,#35434f);border-radius:12px;margin-bottom:16px;background:var(--surface-color,transparent)}
+.dwelling-hq>header p{line-height:1.5;margin:10px 0 16px}.dwelling-actions{gap:12px}.dwelling-actions button,.dwelling-actions select{padding:10px 12px}.dwelling-hq>header [role=status]{margin-bottom:0}
+@media(max-width:600px){.dwelling-hq>header{padding:16px}.dwelling-actions{gap:10px}}
+
+.dwelling-secondary{margin-top:20px;padding:16px;border:1px solid var(--border-color,#35434f);border-radius:12px}.dwelling-secondary>button{cursor:pointer;font-weight:600;min-height:44px;padding:10px 14px}#dwelling-panel-worksheet[hidden]{display:none!important}
