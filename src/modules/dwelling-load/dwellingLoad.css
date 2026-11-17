@@ -3,3 +3,5 @@
 .dwelling-hq>header{padding:20px;border:1px solid var(--border-color,#35434f);border-radius:12px;margin-bottom:16px;background:var(--surface-color,transparent)}
 .dwelling-hq>header p{line-height:1.5;margin:10px 0 16px}.dwelling-actions{gap:12px}.dwelling-actions button,.dwelling-actions select{padding:10px 12px}.dwelling-hq>header [role=status]{margin-bottom:0}
 @media(max-width:600px){.dwelling-hq>header{padding:16px}.dwelling-actions{gap:10px}}
+
+.dwelling-secondary{margin-top:20px;padding:16px;border:1px solid var(--border-color,#35434f);border-radius:12px}.dwelling-secondary>button{cursor:pointer;font-weight:600;min-height:44px;padding:10px 14px}#dwelling-panel-worksheet[hidden]{display:none!important}

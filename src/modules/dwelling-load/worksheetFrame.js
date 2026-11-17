@@ -2,7 +2,7 @@ import {dwellingReport, dwellingReportCss} from './dwellingReport.js';
 // Source transforms are exact-count checked: changing the source cannot silently restore local persistence.
 export function worksheetFrame(source, nonce) {
  if(!/^[a-zA-Z0-9-]+$/.test(nonce))throw Error('Invalid frame nonce');
- let html=source.replace('Photo uploads are not available in this pilot.','Private photo controls are in the HQ equipment photographs section above. Availability depends on the configured private photo service.');
+ let html=source.replace('Photo uploads are not available in this pilot.','Private photo controls are in the HQ equipment photographs section below. Availability depends on the configured private photo service.');
  const line=(prefix,replacement)=>{const lines=html.split('\n'),hits=lines.filter(s=>s.startsWith(prefix));if(hits.length!==1)throw Error('Worksheet integration target changed: '+prefix);html=lines.map(s=>s.startsWith(prefix)?replacement:s).join('\n');};
  line('try{const saved=', '');
  line('function save(){',`function save(){data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
