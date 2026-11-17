@@ -1,3 +1,6 @@
+import {reconcileWorksheetSave} from './saveReconciliation.js';
+import {createAssistedReviewTools} from './assistedReviewModel.js';
+import {renderAssistedReviewShell,installAssistedReview} from './assistedReviewUi.js';
 import {createNameplateTools} from './nameplateModel.js';
 import {renderNameplates,installNameplateEditor} from './nameplateUi.js';
 import {dwellingReport, dwellingReportCss} from './dwellingReport.js';
@@ -5,17 +8,20 @@ import {dwellingReport, dwellingReportCss} from './dwellingReport.js';
 export function worksheetFrame(source, nonce) {
  if(!/^[a-zA-Z0-9-]+$/.test(nonce))throw Error('Invalid frame nonce');
  let html=source.replace('Photo uploads are not available in this pilot.','Private photo controls are in the HQ equipment photographs section below. Availability depends on the configured private photo service.');
+ const reviewMarker='<section><h2>05 / Review record';
+ if(html.split(reviewMarker).length!==2)throw Error('Guided review insertion target changed');
+ html=html.replace(reviewMarker,renderAssistedReviewShell()+reviewMarker);
  const line=(prefix,replacement)=>{const lines=html.split('\n'),hits=lines.filter(s=>s.startsWith(prefix));if(hits.length!==1)throw Error('Worksheet integration target changed: '+prefix);html=lines.map(s=>s.startsWith(prefix)?replacement:s).join('\n');};
  const keyLine=html.split('\n').find(s=>s.startsWith('</script><script>const KEY='));
- line('</script><script>const KEY=',keyLine+'\nconst nameplateTools=('+createNameplateTools.toString()+')();\nconst renderNameplates='+renderNameplates.toString()+';');
+ line('</script><script>const KEY=',keyLine+'\nlet guidedReview=null;\nconst assistedTools=('+createAssistedReviewTools.toString()+')();\nconst nameplateTools=('+createNameplateTools.toString()+')();\nconst renderNameplates='+renderNameplates.toString()+';');
  const validationLine=html.split('\n').find(s=>s.startsWith('function validate('));
  if(!validationLine.endsWith('return d;}'))throw Error('Worksheet validator target changed');
- line('function validate(',validationLine.replace('return d;}','for(const row of d.rows)nameplateTools.validateNameplateRow(row);return d;}'));
+ line('function validate(',validationLine.replace('return d;}','for(const row of d.rows)nameplateTools.validateNameplateRow(row);assistedTools.validateAssistedReview(d);return d;}'));
  const rowsLine=html.split('\n').find(s=>s.startsWith('function renderRows()'));
  if(rowsLine.split('</details></div>').length!==2)throw Error('Worksheet row target changed');
  line('function renderRows()',rowsLine.replace('</details></div>','</details>${renderNameplates(r,i,esc)}</div>'));
  line('try{const saved=', '');
- line('function save(){',`function save(){data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
+ line('function save(){',`function save(){guidedReview?.invalidate();data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
  line('function status(){',`function status(){$('#saveStatus').textContent='HQ worksheet: use Save to HQ above. Last export requested: '+(data.lastBackup||'none')+' • Imported: '+(data.lastImport||'none')+' • Confirm the downloaded JSON file exists; an export request does not confirm delivery.';}`);
  line("$('#snapshot').onclick=", "$('#snapshot').remove();");
  line("$('#print').onclick=", "$('#print').textContent='Preview report'; $('#print').onclick=()=>openReport();render();");
@@ -23,8 +29,10 @@ export function worksheetFrame(source, nonce) {
  html=html.replace('Restore JSON','Import JSON as new study').replace('Save a JSON backup before changing devices or browsers. Browser storage is local to this browser and file location, not Dropbox or HQ synchronization. Changing the HTML file location may change access to saved browser data.','Save to HQ before changing devices. This owner-private cloud study is accessible from your own HQ account. Export JSON for a separate backup.').replace('Local-only worksheet • No telemetry, network dependencies or automatic uploading.','HQ staging pilot • Save explicitly to your private HQ study.');
  const bridge=`
 const nameplateCalculate=calculate;calculate=d=>nameplateTools.withNameplateIssues(nameplateCalculate(d),d.rows||[]);
+const reconcileSavedWorksheet=${reconcileWorksheetSave.toString()};
 const nameplateEditor=(${installNameplateEditor.toString()})(document,()=>data,nameplateTools,{save,results:()=>results(),renderRows,invalidate:()=>document.querySelectorAll('[data-k]').forEach(el=>{if(el.type==='checkbox')el.checked=data[el.dataset.k];}),confirm:m=>confirm(m),alert:m=>alert(m)});
 const nameplateResults=results;results=()=>{nameplateResults();nameplateEditor.refreshAll();};
+guidedReview=(${installAssistedReview.toString()})(document,()=>data,calculate,assistedTools,{save,confirm:m=>confirm(m),alert:m=>alert(m),inspectSource:nameplateTools.inspectCalculationSource});
 const renderReport=${dwellingReport.toString()};
 let reportDialog=null;
 function closeReport(){if(reportDialog){reportDialog.close();reportDialog.remove();reportDialog=null;}$('#print').focus();}
@@ -33,7 +41,7 @@ const channel='hq-dwelling-load' ,nonce=${JSON.stringify(nonce)};
 let generation=null;
 function send(type,data){parent.postMessage({channel,nonce,generation,type,data},'*');}
 document.body.style.visibility='hidden';
-window.addEventListener('message',e=>{if(e.source!==parent||e.data?.channel!==channel||e.data?.nonce!==nonce)return;try{if(e.data.type==='feeders'&&e.data.generation===generation){data.feederStudies=structuredClone(e.data.data);if(reportDialog)closeReport();}if(e.data.type==='evidence'&&e.data.generation===generation){const row=data.rows.find(r=>r.id===e.data.data.itemId);if(row)row.evidenceIds=structuredClone(e.data.data.evidenceIds);if(reportDialog)closeReport();}if(e.data.type==='load'){const next=validate(structuredClone(e.data.data.payload));if(!Number.isSafeInteger(e.data.data.generation))throw Error('Invalid worksheet generation');generation=e.data.data.generation;if(reportDialog)closeReport();data=next;render();document.body.style.visibility='visible';}if(e.data.type==='export'){download(data,'Dwelling-Load-Unsaved-Backup.json');}}catch(err){send('error',err.message);}});
+window.addEventListener('message',e=>{if(e.source!==parent||e.data?.channel!==channel||e.data?.nonce!==nonce)return;try{if(e.data.type==='saved'&&e.data.generation===generation){const submitted=validate(structuredClone(e.data.data.submittedPayload)),saved=validate(structuredClone(e.data.data.savedPayload));const reconciled=reconcileSavedWorksheet(submitted,saved,data);data=reconciled.payload;if(reconciled.guidedSanitized){guidedReview.invalidate();if(reportDialog)closeReport();}if(!reconciled.dirty){document.querySelectorAll('[data-k]').forEach(el=>{if(el.type==='checkbox')el.checked=data[el.dataset.k];else if(el.value!==data[el.dataset.k])el.value=data[el.dataset.k];});results();status();nameplateEditor.refreshAll();}else{send('changed',data);} }if(e.data.type==='feeders'&&e.data.generation===generation){guidedReview.invalidate({reset:true});data.feederStudies=structuredClone(e.data.data);if(reportDialog)closeReport();}if(e.data.type==='evidence'&&e.data.generation===generation){guidedReview.invalidate({reset:true});const row=data.rows.find(r=>r.id===e.data.data.itemId);if(row)row.evidenceIds=structuredClone(e.data.data.evidenceIds);if(reportDialog)closeReport();}if(e.data.type==='load'){const next=validate(structuredClone(e.data.data.payload));if(!Number.isSafeInteger(e.data.data.generation))throw Error('Invalid worksheet generation');generation=e.data.data.generation;guidedReview.invalidate({reset:true});if(reportDialog)closeReport();data=next;render();document.body.style.visibility='visible';}if(e.data.type==='export'){download(data,'Dwelling-Load-Unsaved-Backup.json');}}catch(err){send('error',err.message);}});
 new ResizeObserver(()=>send('resize',document.documentElement.scrollHeight)).observe(document.body);
 send('ready');
 `;
