@@ -1,3 +1,4 @@
+import {clearFeederReviews} from './feederModel.js';
 // This is a client race guard, NOT token signature verification or an authorization boundary.
 // Supabase still validates the JWT and enforces active-account/owner permissions server-side.
 export function bindTokenToActor(getToken, owner, isActive) {
@@ -19,5 +20,6 @@ export function mergeFramePayload(incoming,current){
  if(current?.feederStudies)merged.feederStudies=structuredClone(current.feederStudies);
  else delete merged.feederStudies;
  merged.rows=merged.rows.map(row=>{const old=current?.rows.find(r=>r.id===row.id);return old?.evidenceIds?{...row,evidenceIds:[...old.evidenceIds]}:row;});
+ if(Array.isArray(current?.feederStudies?.studies)&&JSON.stringify(merged.rows)!==JSON.stringify(current.rows))return clearFeederReviews(merged);
  return merged;
 }

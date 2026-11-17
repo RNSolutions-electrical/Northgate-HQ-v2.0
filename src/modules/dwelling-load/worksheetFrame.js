@@ -1,9 +1,19 @@
+import {createNameplateTools} from './nameplateModel.js';
+import {renderNameplates,installNameplateEditor} from './nameplateUi.js';
 import {dwellingReport, dwellingReportCss} from './dwellingReport.js';
 // Source transforms are exact-count checked: changing the source cannot silently restore local persistence.
 export function worksheetFrame(source, nonce) {
  if(!/^[a-zA-Z0-9-]+$/.test(nonce))throw Error('Invalid frame nonce');
  let html=source.replace('Photo uploads are not available in this pilot.','Private photo controls are in the HQ equipment photographs section below. Availability depends on the configured private photo service.');
  const line=(prefix,replacement)=>{const lines=html.split('\n'),hits=lines.filter(s=>s.startsWith(prefix));if(hits.length!==1)throw Error('Worksheet integration target changed: '+prefix);html=lines.map(s=>s.startsWith(prefix)?replacement:s).join('\n');};
+ const keyLine=html.split('\n').find(s=>s.startsWith('</script><script>const KEY='));
+ line('</script><script>const KEY=',keyLine+'\nconst nameplateTools=('+createNameplateTools.toString()+')();\nconst renderNameplates='+renderNameplates.toString()+';');
+ const validationLine=html.split('\n').find(s=>s.startsWith('function validate('));
+ if(!validationLine.endsWith('return d;}'))throw Error('Worksheet validator target changed');
+ line('function validate(',validationLine.replace('return d;}','for(const row of d.rows)nameplateTools.validateNameplateRow(row);return d;}'));
+ const rowsLine=html.split('\n').find(s=>s.startsWith('function renderRows()'));
+ if(rowsLine.split('</details></div>').length!==2)throw Error('Worksheet row target changed');
+ line('function renderRows()',rowsLine.replace('</details></div>','</details>${renderNameplates(r,i,esc)}</div>'));
  line('try{const saved=', '');
  line('function save(){',`function save(){data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
  line('function status(){',`function status(){$('#saveStatus').textContent='HQ worksheet: use Save to HQ above. Last export requested: '+(data.lastBackup||'none')+' • Imported: '+(data.lastImport||'none')+' • Confirm the downloaded JSON file exists; an export request does not confirm delivery.';}`);
@@ -12,6 +22,9 @@ export function worksheetFrame(source, nonce) {
  line("$('#file').onchange=",`$('#file').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;if(f.size>2000000)throw Error('Backup exceeds 2 MB');const next=validate(JSON.parse(await f.text()));send('import',{payload:next,filename:f.name});}catch(err){alert(err.message);}finally{e.target.value='';}};`);
  html=html.replace('Restore JSON','Import JSON as new study').replace('Save a JSON backup before changing devices or browsers. Browser storage is local to this browser and file location, not Dropbox or HQ synchronization. Changing the HTML file location may change access to saved browser data.','Save to HQ before changing devices. This owner-private cloud study is accessible from your own HQ account. Export JSON for a separate backup.').replace('Local-only worksheet • No telemetry, network dependencies or automatic uploading.','HQ staging pilot • Save explicitly to your private HQ study.');
  const bridge=`
+const nameplateCalculate=calculate;calculate=d=>nameplateTools.withNameplateIssues(nameplateCalculate(d),d.rows||[]);
+const nameplateEditor=(${installNameplateEditor.toString()})(document,()=>data,nameplateTools,{save,results:()=>results(),renderRows,invalidate:()=>document.querySelectorAll('[data-k]').forEach(el=>{if(el.type==='checkbox')el.checked=data[el.dataset.k];}),confirm:m=>confirm(m),alert:m=>alert(m)});
+const nameplateResults=results;results=()=>{nameplateResults();nameplateEditor.refreshAll();};
 const renderReport=${dwellingReport.toString()};
 let reportDialog=null;
 function closeReport(){if(reportDialog){reportDialog.close();reportDialog.remove();reportDialog=null;}$('#print').focus();}

@@ -1,3 +1,4 @@
+import {validateNameplateRow} from './nameplateModel.js';
 import {validateFeederWorkspace,clearFeederReviews} from './feederModel.js';
 export const defaults=()=>({schema:2,project:'',jurisdiction:'',preparedBy:'',basis:'2017 NEC + NC amendments • applicability not yet confirmed',area:'',voltage:'240',service:'',small:'2',laundry:'1',rows:[],cookingDemand:'',cookingNote:'',dryerDemand:'',dryerNote:'',largestMotor:'',hvacStandard:'',hvacOptional:'',hvacNote:'',otherNote:'',notes:'',basisConfirmed:false,inventoryConfirmed:false,motorConfirmed:false,optionalEligible:false,optionalReviewed:false,lastBackup:'',lastImport:'',updatedAt:''});
 const numeric=['area','voltage','service','small','laundry','cookingDemand','dryerDemand','largestMotor','hvacStandard','hvacOptional'];
@@ -12,6 +13,7 @@ export function validateEquipmentMetadata(rows){
  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, ids=new Set();
  const text=(v,max)=>typeof v==='string'&&v.length<=max;
  for(const r of rows){
+  validateNameplateRow(r);
   if(typeof r.id!=='string'||!uuid.test(r.id)||ids.has(r.id.toLowerCase()))throw Error('Equipment IDs must be unique UUIDs.');ids.add(r.id.toLowerCase());
   for(const k of ['model','serial'])if(r[k]!==undefined&&!text(r[k],200))throw Error('Invalid equipment '+k);
   if(r.provenance!==undefined){const p=r.provenance;if(!p||Array.isArray(p)||typeof p!=='object'||Object.keys(p).some(k=>!['sourceType','reference','attributedTo','notes'].includes(k))||!['nameplate','drawing','manual','other'].includes(p.sourceType))throw Error('Invalid equipment source.');for(const [k,max]of Object.entries({reference:1000,attributedTo:200,notes:4000}))if(p[k]!==undefined&&!text(p[k],max))throw Error('Invalid source '+k);}

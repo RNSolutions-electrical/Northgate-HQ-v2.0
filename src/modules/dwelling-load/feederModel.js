@@ -1,3 +1,4 @@
+import {inspectNameplateSources} from './nameplateModel.js';
 /** Reviewed feeder assessment, not an NEC calculation engine or an adequacy verdict.
  * No demand factors, ampacity tables, neutral sizing, or automatic upgrade selection.
  */
@@ -134,5 +135,7 @@ export function assessFeederWorkspace(payload,panelId) {
   if(study && !snapshotMatches) study.reviews={};
   const result=assessFeeder(study,topology);
   if(study && (!text(study.conductorBasis)||!text(study.terminalBasis)||!text(study.neutralBasis))){result.status='incomplete';result.comparisons=[];result.missing.push('Conductor, terminal and neutral review basis');result.nextAction='Complete missing inputs and professional review before comparison.';}
+  const sources=inspectNameplateSources(payload);
+  if(sources.blocksConfidence){result.status='incomplete';result.comparisons=[];result.missing.push('Selected equipment nameplate/source values must be reviewed and reapplied or explicitly cleared.');result.nextAction='Resolve stale equipment calculation sources before confirming feeder review.';}
   return {...result,snapshotMatches,topologyErrors:topology.errors};
 }

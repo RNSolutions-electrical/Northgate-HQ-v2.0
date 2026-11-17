@@ -49,3 +49,9 @@ test('confirming panel A after external edit never resurrects old panel B review
  assert.equal(assessFeederWorkspace(p,bid).status,'incomplete');assert.equal(assessFeederWorkspace(p,bid).snapshotMatches,false);
 });
 test('v1 cannot preserve unexpected feeder extension',()=>{const p=full();p.schema=1;assert.throws(()=>validateFeederWorkspace(p));});
+test('fresh feeder confirmation cannot override stale selected equipment source',async()=>{
+ const {applyCalculationSource}=await import('./nameplateModel.js');const p=full(),plate='33333333-3333-4333-8333-333333333333',field='44444444-4444-4444-8444-444444444444';
+ p.rows[0].nameplates=[{id:plate,label:'Fictional source',sourceReference:'',notes:'',fields:[{id:field,label:'Rated load',value:'1000',unit:'VA'}]}];
+ p.rows[0]=applyCalculationSource(p.rows[0],{plateId:plate,fieldId:field,mode:'direct-va'});p.rows[0].nameplates[0].fields[0].value='1500';
+ p.feederStudies.studies[0].reviewSnapshot=feederInputSnapshot(p);const result=assessFeederWorkspace(p,pid);assert.equal(result.status,'incomplete');assert.deepEqual(result.comparisons,[]);assert(result.missing.some(x=>x.includes('nameplate/source')));
+});
