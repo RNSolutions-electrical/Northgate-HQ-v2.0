@@ -1,5 +1,7 @@
+import {createCookingMethodTools} from './cookingMethodModel.js';
+import {createGuidedMethodTools} from './guidedMethodModel.js';
 /** Read-only guided-review groundwork. Does not implement new demand rules or apply values. */
-export function createAssistedReviewTools() {
+export function createAssistedReviewTools(guidedTools=null,cookingTools=null) {
   const canonical=value=>Array.isArray(value)?'['+value.map(canonical).join(',')+']':value&&typeof value==='object'?'{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}':JSON.stringify(value);
   function assistedReviewContext(payload){
     const copy=structuredClone(payload);
@@ -17,7 +19,8 @@ export function createAssistedReviewTools() {
     const text=(v,max)=>typeof v==='string'&&v.length<=max;
     const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
     const ids=(v,max)=>Array.isArray(v)&&v.length<=max&&v.every(uuid)&&new Set(v.map(id=>id.toLowerCase())).size===v.length;
-    if(payload.schema!==2||!obj(a,['version','sourceContext','answers','systems','scenarios','proposal'])||a.version!==1||a.proposal!==null||!(a.sourceContext===null||a.sourceContext&&typeof a.sourceContext==='object'&&!Array.isArray(a.sourceContext)))fail();
+    if(payload.schema!==2||!obj(a,['version','sourceContext','answers','systems','scenarios','proposal',...(a.version===2?['hvacPlan','motorPlan','cookingPlan']:[])])||![1,2].includes(a.version)||a.proposal!==null||!(a.sourceContext===null||a.sourceContext&&typeof a.sourceContext==='object'&&!Array.isArray(a.sourceContext)))fail();
+    if(a.version===2){if(typeof guidedTools?.validateGuidedPlans!=='function')fail();guidedTools.validateGuidedPlans(payload);if(typeof cookingTools?.validateCookingPlan!=='function')fail();cookingTools.validateCookingPlan(a.cookingPlan);}
     if(a.sourceContext!==null&&utf8Length(sqlLikeJSON(a.sourceContext))>524288)fail();
     const body={...a};delete body.sourceContext;
     if(utf8Length(sqlLikeJSON(body))>400000||utf8Length(sqlLikeJSON(payload))>2000000)fail();
@@ -35,7 +38,7 @@ export function createAssistedReviewTools() {
     }
     return payload;
   }
-  function invalidateAssistedReview(payload){const next=structuredClone(payload);if(next.assistedReview)next.assistedReview.sourceContext=null;return next;}
+  function invalidateAssistedReview(payload){const next=structuredClone(payload),a=next.assistedReview;if(a){a.sourceContext=null;if(a.version===2){if(a.cookingPlan){for(const k of ['inventoryReviewed','classificationReviewed','overlapReviewed'])a.cookingPlan[k]=false;for(const appliance of a.cookingPlan.appliances)appliance.eligibilityReviewed=false;}if(a.hvacPlan){for(const k of ['inventoryReviewed','classificationReviewed','scenariosExhaustiveReviewed'])a.hvacPlan[k]=false;for(const system of a.hvacPlan.systems)for(const k of ['coolingInventoryReviewed','controlsReviewed','heatingBranchFloorReviewed'])system[k]=false;}if(a.motorPlan)for(const k of ['inventoryReviewed','standardBasisReviewed','noEmbeddedAdderReviewed'])a.motorPlan[k]=false;}}return next;}
   function assistedReviewToDraft(payload){
     validateAssistedReview(payload);const a=payload.assistedReview;
     return a?{contextRevision:a.sourceContext===null?'':canonical(a.sourceContext),values:Object.fromEntries(a.answers.map(answer=>[answer.questionId,answer.text])),scenarios:a.scenarios.map(s=>({id:s.id,label:s.label,rowIds:[...s.includedRowIds],excludedRowIds:[...s.excludedRowIds],controlEvidence:s.controlEvidence,verification:s.reviewClaim==='user-reviewed'?'reviewed':'unverified'}))}:{contextRevision:'',values:{},scenarios:[]};
@@ -178,20 +181,45 @@ export function createAssistedReviewTools() {
       return {value,amps,engineErrors:errors,auditIncomplete,engineStatus:value===null||amps===null?'incomplete':errors.length||auditIncomplete?'working-subtotal':'current-engine-checks-passed'};
     };
     return {contextRevision,inputSnapshot:contextRevision,status:'pending-review',questions,sections,methods:{standard:method('standard'),optional:method('optional')},blockers,scenarioReview:{scenarios,issues},proposedChanges:[],answersComplete:questions.every(q=>q.answered),draftContextCurrent:current,limitations:[
-      'Read-only groundwork: no new cooking/HVAC demand formulas and no automatic application.',
+      'This audit does not apply changes. Supported rule proposals are separately previewed and applied to a saved study; unsupported cases remain blocked.',
       'Current calculator status and guided-review status are separate; supplied overrides remain manual.',
-      'Answers are ephemeral UI drafts, not saved worksheet facts or independently verified evidence.',
+      'Guided answers and evidence references persist through Save to HQ. Unsaved edits remain drafts; saved answers are user-supplied facts, not independent verification.',
       'No recommendation to choose the smaller method, no service adequacy verdict, and no conductor or generator sizing.',
       'The Clark County worksheet is an educational reference with local provisions, not normative North Carolina authority.'
     ]};
   }
+  function decisionQuestionDefinitions(payload, suppliedValues){
+    const values=suppliedValues||Object.fromEntries((payload.assistedReview?.answers||[]).map(a=>[a.questionId,a.text])),rows=payload.rows||[],out=[];
+    const add=(id,label,choices,accepted,reason)=>{
+      const options=[{value:'unknown',label:'Not sure yet'},...choices.map(([value,label])=>({value,label}))];
+      out.push({id,label,kind:'select',options,required:true,reason});
+      const value=values[id]||'unknown';
+      if(!accepted.includes(value))out.push({id:id+'.detail',label:value==='unknown'?'What needs checking? (optional note)':'Briefly describe this condition or the next check',kind:'text',required:false,reason:'Keep useful context here; notes do not establish calculation eligibility.'});
+    };
+    add('decision.occupancy','What type of property is this?',[['one-family','One-family dwelling'],['multifamily','Multifamily'],['accessory','Accessory building or dwelling'],['mixed-use','Mixed residential / commercial'],['other','Other']],['one-family'],'Property type alone does not establish method eligibility.');
+    add('decision.scope','What are we calculating?',[['entire-dwelling','Entire dwelling'],['addition','Addition or new loads only'],['partial-feeder','Subpanel / partial feeder'],['other','Other']],['entire-dwelling'],'Whole-dwelling demand rules do not automatically apply to partial feeders.');
+    add('decision.inventory','Is the equipment inventory complete?',[['complete','Complete and checked'],['incomplete','Still missing equipment or ratings']],['complete'],'Missing equipment is not zero load.');
+    if(rows.some(r=>r.cat==='cooking'))add('decision.cooking','What cooking equipment is included?',[['single-household-range','One household range only'],['multiple-household','Multiple household cooking appliances'],['other','Other or non-household cooking']],payload.assistedReview?.version===2?['single-household-range','multiple-household']:['single-household-range'],payload.assistedReview?.version===2?'Use the structured cooking plan to classify each appliance and review a supported Column C or Note 3 calculation. Multiple household appliances are supported within the reviewed rating limits; unknown, warming and commercial cases are not inferred.':'Only the narrow reviewed single-range case currently supports an assisted proposal.');
+    if(rows.some(r=>r.cat==='hvac')){
+      add('decision.hvac','What HVAC equipment is being assessed?',[['cooling-only','Air conditioning / cooling only'],['heat-pump','Heat pump'],['electric-heating','Electric heating'],['mixed','Multiple or mixed system types'],['other','Other']],['cooling-only'],'No system type is inferred from equipment names.');
+      add('decision.heating','What provides heat?',[['none','No heating equipment in this scope'],['combustion-with-reviewed-auxiliaries','Combustion heat; electrical auxiliaries separately reviewed'],['electric-or-heat-pump','Electric heat or heat pump'],['other','Other']],['none','combustion-with-reviewed-auxiliaries'],'Boiler or furnace electrical auxiliaries must not be assumed zero.');
+      add('decision.overlap','Have packaged and component ratings been checked for overlap?',[['resolved','Yes, no duplication or missing components'],['unresolved','Overlap or omissions still need checking']],['resolved'],'Do not add components already included in a package rating.');
+      add('decision.noncoincidence','Are you asking to exclude loads that cannot run together?',[['no-exclusions','No, include every cooling component'],['exclusions-requested','Yes, review operating combinations and controls']],['no-exclusions'],'Exclusions require equipment/system scenarios, evidence and an applicable rule; intent alone is not proof.');
+    }
+    return out;
+  }
+  function decisionBlockers(answers,method){
+    const rules=[['decision.occupancy',['one-family']],['decision.scope',['entire-dwelling']],['decision.inventory',['complete']],...(method==='standard'?[['decision.cooking',['single-household-range']]]:[['decision.hvac',['cooling-only']],['decision.heating',['none','combustion-with-reviewed-auxiliaries']],['decision.overlap',['resolved']],['decision.noncoincidence',['no-exclusions']]])];
+    return rules.filter(([id,allowed])=>answers.has(id)&&!allowed.includes(answers.get(id).text)).map(([id])=>({id,reason:'This questionnaire choice is unresolved or outside the supported proposal. Existing affirmative review facts cannot override it.'}));
+  }
   function assistedFactDefinitions(payload){
     const rows=payload.rows||[],facts=[];
-    const add=(id,label,options)=>facts.push({id,label,options:[{value:'unknown',label:'Unknown / not yet reviewed'},...options.map(value=>({value,label:value.replaceAll('-',' ')}))],requiresSource:true});
+    const friendly={"nec2017-nc-confirmed": "2017 NEC and North Carolina applicability confirmed", "entire-one-family-dwelling-reviewed": "Entire one-family dwelling scope reviewed", "complete-inventory-reviewed": "Complete inventory checked", "single-household-range": "One household range", "applicable-nameplate-va-reviewed": "Nameplate rating and units reviewed", "only-this-one-range-reviewed": "This is the only cooking appliance", "none-applicable-reviewed": "No table exceptions apply after review", "single-120-240v-three-wire-entire-dwelling": "Entire dwelling on 120/240 V, single-phase, three-wire supply", "at-least-100a-independently-verified": "Supply conductor ampacity independently verified at 100 A or greater", "ac-cooling-only": "Air conditioning / cooling only", "no-heatpump-electricheat-or-other-c-selection-reviewed": "Other heating / heat-pump selections checked and ruled out", "complete-nonoverlapping-nameplate-ratings-reviewed": "All component ratings checked; no overlap or omissions", "none-present-reviewed": "No boiler electrical auxiliaries present after review", "accounted-outside-cooling-reviewed": "Boiler auxiliaries accounted for in separate rows", "all-cooling-components-included-no-exclusions": "All cooling components included; no exclusions", "complete-cooling-package": "Complete package rating", "distinct-cooling-component": "Separate component, not included elsewhere", "applicable-cooling-nameplate-reviewed": "Cooling nameplate applicability reviewed"};
+    const add=(id,label,options)=>facts.push({id,label,options:[{value:'unknown',label:'Unknown / not yet reviewed'},...options.map(value=>({value,label:friendly[value]||value.replaceAll('-',' ')}))],requiresSource:true});
     add('supported.guided.code-rule-set','Applicable code basis and AHJ review',['nec2017-nc-confirmed']);
     add('supported.guided.scope','Calculation scope',['entire-one-family-dwelling-reviewed']);
     add('supported.guided.inventory','Complete inventory review',['complete-inventory-reviewed']);
-    if(rows.some(r=>r.cat==='cooking')){
+    if(rows.some(r=>r.cat==='cooking')&&payload.assistedReview?.version!==2){
       add('supported.cooking.classification','Cooking classification',['single-household-range']);
       add('supported.cooking.rating-basis','Cooking nameplate rating applicability',['applicable-nameplate-va-reviewed']);
       add('supported.cooking.complete-set','Entire cooking inventory',['only-this-one-range-reviewed']);
@@ -247,7 +275,8 @@ export function createAssistedReviewTools() {
     const proposal=(id,method,target,value,ruleId,sourceIds,reasons)=>({id,method,target,before:p[target]??'',proposed:value,ruleId,ruleVersion:'2017-nec-nc-supported-v1',sourceIds,inputContext:structuredClone(context),reasons,sourceReferences:[...new Set((a?.answers||[]).flatMap(answer=>answer.sourceReferences).filter(ref=>ref.trim()))],limitations:['Conditional proposal based on user-attested facts, not independent field/AHJ verification.','No automatic application, service adequacy determination, or smaller-method recommendation.']});
     const cooking=rows.filter(row=>row.cat==='cooking');
     if(cooking.length){
-      const issues=common();
+      const issues=[...common(),...decisionBlockers(answers,'standard')];
+      if(a?.version===2&&a.cookingPlan!==null)issues.push({id:'structured-cooking-plan',reason:'Structured cooking plan must use the cooking method evaluator; legacy single-range proposal cannot bypass it.'});
       requireFact('supported.cooking.classification',['single-household-range'],issues);
       requireFact('supported.cooking.rating-basis',['applicable-nameplate-va-reviewed'],issues);
       requireFact('supported.cooking.complete-set',['only-this-one-range-reviewed'],issues);
@@ -261,13 +290,16 @@ export function createAssistedReviewTools() {
     }
     const cooling=rows.filter(row=>row.cat==='hvac');
     if(cooling.length){
-      const issues=common();
+      const issues=[...common(),...decisionBlockers(answers,'optional')];
+      if(a?.version===2&&a.hvacPlan!==null)issues.push({id:'structured-hvac-plan',reason:'Structured HVAC plan must use the structured method evaluator; legacy cooling proposal cannot bypass it.'});
       requireFact('supported.optional.supply-scope',['single-120-240v-three-wire-entire-dwelling'],issues);
       requireFact('supported.optional.supply-ampacity',['at-least-100a-independently-verified'],issues);
       requireFact('supported.hvac.supported-type',['ac-cooling-only'],issues);
       requireFact('supported.hvac.other-categories',['no-heatpump-electricheat-or-other-c-selection-reviewed'],issues);
       requireFact('supported.hvac.overlap',['complete-nonoverlapping-nameplate-ratings-reviewed'],issues);
       requireFact('supported.hvac.boiler-auxiliaries',['none-present-reviewed','accounted-outside-cooling-reviewed'],issues);
+      const heatChoice=answers.get('decision.heating')?.text,auxChoice=answers.get('supported.hvac.boiler-auxiliaries')?.text;
+      if((heatChoice==='combustion-with-reviewed-auxiliaries'&&auxChoice!=='accounted-outside-cooling-reviewed')||(heatChoice==='none'&&auxChoice==='accounted-outside-cooling-reviewed'))issues.push({id:'decision.heating',reason:'Heating choice contradicts boiler auxiliary accounting. Resolve both answers before proposing cooling demand.'});
       requireFact('supported.hvac.complete-cooling-set',['all-cooling-components-included-no-exclusions'],issues);
       for(const row of cooling){
         requireFact('supported.hvac.role.'+row.id,['complete-cooling-package','distinct-cooling-component'],issues);
@@ -307,6 +339,6 @@ export function createAssistedReviewTools() {
     }
     return {status:proposals.length?'conditional-proposals':'blocked-or-not-applicable',proposals,blockers};
   }
-  return {assistedFactDefinitions,evaluateSupportedProposals,assistedReviewContext,validateAssistedReview,invalidateAssistedReview,assistedReviewToDraft,assistedContextRevision,planAssistedReview};
+  return {decisionQuestionDefinitions,assistedFactDefinitions,evaluateSupportedProposals,assistedReviewContext,validateAssistedReview,invalidateAssistedReview,assistedReviewToDraft,assistedContextRevision,planAssistedReview};
 }
-export const {assistedFactDefinitions,evaluateSupportedProposals,assistedReviewContext,validateAssistedReview,invalidateAssistedReview,assistedReviewToDraft,assistedContextRevision,planAssistedReview}=createAssistedReviewTools();
+export const {decisionQuestionDefinitions,assistedFactDefinitions,evaluateSupportedProposals,assistedReviewContext,validateAssistedReview,invalidateAssistedReview,assistedReviewToDraft,assistedContextRevision,planAssistedReview}=createAssistedReviewTools(createGuidedMethodTools(),createCookingMethodTools());

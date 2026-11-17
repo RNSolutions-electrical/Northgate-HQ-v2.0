@@ -1,3 +1,6 @@
+import {createCookingMethodTools} from './cookingMethodModel.js';
+import {createGuidedMethodTools} from './guidedMethodModel.js';
+import {renderGuidedMethodEditor,renderGuidedMethodResults,installGuidedMethodEditor} from './guidedMethodUi.js';
 import {reconcileWorksheetSave} from './saveReconciliation.js';
 import {createAssistedReviewTools} from './assistedReviewModel.js';
 import {renderAssistedReviewShell,installAssistedReview} from './assistedReviewUi.js';
@@ -8,12 +11,15 @@ import {dwellingReport, dwellingReportCss} from './dwellingReport.js';
 export function worksheetFrame(source, nonce) {
  if(!/^[a-zA-Z0-9-]+$/.test(nonce))throw Error('Invalid frame nonce');
  let html=source.replace('Photo uploads are not available in this pilot.','Private photo controls are in the HQ equipment photographs section below. Availability depends on the configured private photo service.');
+ const manualMarker='<section><h2>03 / Cooking, dryers & motors';
  const reviewMarker='<section><h2>05 / Review record';
- if(html.split(reviewMarker).length!==2)throw Error('Guided review insertion target changed');
- html=html.replace(reviewMarker,renderAssistedReviewShell()+reviewMarker);
+ if(html.split(manualMarker).length!==2||html.split(reviewMarker).length!==2)throw Error('Guided review insertion target changed');
+ const manualStart=html.indexOf(manualMarker),manualEnd=html.indexOf(reviewMarker);
+ if(manualEnd<=manualStart)throw Error('Manual worksheet section order changed');
+ html=html.slice(0,manualStart)+renderAssistedReviewShell()+'<details id="advanced-manual-demand"><summary>Advanced manual demand inputs and review confirmations</summary><p class="note">Optional reviewed overrides. Existing values are retained; guided proposals never replace them without your explicit Apply.</p>'+html.slice(manualStart,manualEnd)+'</details>'+html.slice(manualEnd);
  const line=(prefix,replacement)=>{const lines=html.split('\n'),hits=lines.filter(s=>s.startsWith(prefix));if(hits.length!==1)throw Error('Worksheet integration target changed: '+prefix);html=lines.map(s=>s.startsWith(prefix)?replacement:s).join('\n');};
  const keyLine=html.split('\n').find(s=>s.startsWith('</script><script>const KEY='));
- line('</script><script>const KEY=',keyLine+'\nlet guidedReview=null;\nconst assistedTools=('+createAssistedReviewTools.toString()+')();\nconst nameplateTools=('+createNameplateTools.toString()+')();\nconst renderNameplates='+renderNameplates.toString()+';');
+ line('</script><script>const KEY=',keyLine+'\nlet guidedReview=null,methodEditor=null;\nconst guidedMethodTools=('+createGuidedMethodTools.toString()+')();\nconst cookingTools=('+createCookingMethodTools.toString()+')();\nconst assistedTools=('+createAssistedReviewTools.toString()+')(guidedMethodTools,cookingTools);\nconst nameplateTools=('+createNameplateTools.toString()+')();\nconst renderNameplates='+renderNameplates.toString()+';');
  const validationLine=html.split('\n').find(s=>s.startsWith('function validate('));
  if(!validationLine.endsWith('return d;}'))throw Error('Worksheet validator target changed');
  line('function validate(',validationLine.replace('return d;}','for(const row of d.rows)nameplateTools.validateNameplateRow(row);assistedTools.validateAssistedReview(d);return d;}'));
@@ -21,7 +27,7 @@ export function worksheetFrame(source, nonce) {
  if(rowsLine.split('</details></div>').length!==2)throw Error('Worksheet row target changed');
  line('function renderRows()',rowsLine.replace('</details></div>','</details>${renderNameplates(r,i,esc)}</div>'));
  line('try{const saved=', '');
- line('function save(){',`function save(){guidedReview?.invalidate();data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
+ line('function save(){',`function save(){guidedReview?.invalidate();methodEditor?.invalidate();data.updatedAt=new Date().toISOString();send('changed',data);status();}`);
  line('function status(){',`function status(){$('#saveStatus').textContent='HQ worksheet: use Save to HQ above. Last export requested: '+(data.lastBackup||'none')+' • Imported: '+(data.lastImport||'none')+' • Confirm the downloaded JSON file exists; an export request does not confirm delivery.';}`);
  line("$('#snapshot').onclick=", "$('#snapshot').remove();");
  line("$('#print').onclick=", "$('#print').textContent='Preview report'; $('#print').onclick=()=>openReport();render();");
@@ -32,7 +38,9 @@ const nameplateCalculate=calculate;calculate=d=>nameplateTools.withNameplateIssu
 const reconcileSavedWorksheet=${reconcileWorksheetSave.toString()};
 const nameplateEditor=(${installNameplateEditor.toString()})(document,()=>data,nameplateTools,{save,results:()=>results(),renderRows,invalidate:()=>document.querySelectorAll('[data-k]').forEach(el=>{if(el.type==='checkbox')el.checked=data[el.dataset.k];}),confirm:m=>confirm(m),alert:m=>alert(m)});
 const nameplateResults=results;results=()=>{nameplateResults();nameplateEditor.refreshAll();};
-guidedReview=(${installAssistedReview.toString()})(document,()=>data,calculate,assistedTools,{save,confirm:m=>confirm(m),alert:m=>alert(m),inspectSource:nameplateTools.inspectCalculationSource});
+const renderMethodEditor=${renderGuidedMethodEditor.toString()},renderMethodResults=${renderGuidedMethodResults.toString()};
+guidedReview=(${installAssistedReview.toString()})(document,()=>data,calculate,assistedTools,{save,confirm:m=>confirm(m),alert:m=>alert(m),inspectSource:nameplateTools.inspectCalculationSource,renderMethods:renderMethodEditor});
+methodEditor=(${installGuidedMethodEditor.toString()})(document,()=>data,guidedMethodTools,{save,validate:assistedTools.validateAssistedReview,calculate,inspectSource:nameplateTools.inspectCalculationSource,evaluateSupportedProposals:assistedTools.evaluateSupportedProposals,renderEditor:renderMethodEditor,renderResults:renderMethodResults,nameplateTools,cookingTools,evaluateCookingPlan:cookingTools.evaluateCookingPlan,evaluateCookingClassification:cookingTools.evaluateCookingClassification,changed:()=>guidedReview.invalidate(),confirm:m=>confirm(m),alert:m=>alert(m)});
 const renderReport=${dwellingReport.toString()};
 let reportDialog=null;
 function closeReport(){if(reportDialog){reportDialog.close();reportDialog.remove();reportDialog=null;}$('#print').focus();}
@@ -41,7 +49,7 @@ const channel='hq-dwelling-load' ,nonce=${JSON.stringify(nonce)};
 let generation=null;
 function send(type,data){parent.postMessage({channel,nonce,generation,type,data},'*');}
 document.body.style.visibility='hidden';
-window.addEventListener('message',e=>{if(e.source!==parent||e.data?.channel!==channel||e.data?.nonce!==nonce)return;try{if(e.data.type==='saved'&&e.data.generation===generation){const submitted=validate(structuredClone(e.data.data.submittedPayload)),saved=validate(structuredClone(e.data.data.savedPayload));const reconciled=reconcileSavedWorksheet(submitted,saved,data);data=reconciled.payload;if(reconciled.guidedSanitized){guidedReview.invalidate();if(reportDialog)closeReport();}if(!reconciled.dirty){document.querySelectorAll('[data-k]').forEach(el=>{if(el.type==='checkbox')el.checked=data[el.dataset.k];else if(el.value!==data[el.dataset.k])el.value=data[el.dataset.k];});results();status();nameplateEditor.refreshAll();}else{send('changed',data);} }if(e.data.type==='feeders'&&e.data.generation===generation){guidedReview.invalidate({reset:true});data.feederStudies=structuredClone(e.data.data);if(reportDialog)closeReport();}if(e.data.type==='evidence'&&e.data.generation===generation){guidedReview.invalidate({reset:true});const row=data.rows.find(r=>r.id===e.data.data.itemId);if(row)row.evidenceIds=structuredClone(e.data.data.evidenceIds);if(reportDialog)closeReport();}if(e.data.type==='load'){const next=validate(structuredClone(e.data.data.payload));if(!Number.isSafeInteger(e.data.data.generation))throw Error('Invalid worksheet generation');generation=e.data.data.generation;guidedReview.invalidate({reset:true});if(reportDialog)closeReport();data=next;render();document.body.style.visibility='visible';}if(e.data.type==='export'){download(data,'Dwelling-Load-Unsaved-Backup.json');}}catch(err){send('error',err.message);}});
+window.addEventListener('message',e=>{if(e.source!==parent||e.data?.channel!==channel||e.data?.nonce!==nonce)return;try{if(e.data.type==='saved'&&e.data.generation===generation){const submitted=validate(structuredClone(e.data.data.submittedPayload)),saved=validate(structuredClone(e.data.data.savedPayload));const reconciled=reconcileSavedWorksheet(submitted,saved,data);data=reconciled.payload;if(reconciled.guidedSanitized){guidedReview.invalidate();methodEditor?.invalidate();if(reportDialog)closeReport();}if(!reconciled.dirty){document.querySelectorAll('[data-k]').forEach(el=>{if(el.type==='checkbox')el.checked=data[el.dataset.k];else if(el.value!==data[el.dataset.k])el.value=data[el.dataset.k];});results();status();nameplateEditor.refreshAll();}else{send('changed',data);} }if(e.data.type==='feeders'&&e.data.generation===generation){guidedReview.invalidate({reset:true});methodEditor?.invalidate();data.feederStudies=structuredClone(e.data.data);if(reportDialog)closeReport();}if(e.data.type==='evidence'&&e.data.generation===generation){guidedReview.invalidate({reset:true});methodEditor?.invalidate();const row=data.rows.find(r=>r.id===e.data.data.itemId);if(row)row.evidenceIds=structuredClone(e.data.data.evidenceIds);if(reportDialog)closeReport();}if(e.data.type==='load'){const next=validate(structuredClone(e.data.data.payload));if(!Number.isSafeInteger(e.data.data.generation))throw Error('Invalid worksheet generation');generation=e.data.data.generation;guidedReview.invalidate({reset:true});methodEditor?.invalidate();if(reportDialog)closeReport();data=next;render();document.body.style.visibility='visible';}if(e.data.type==='export'){download(data,'Dwelling-Load-Unsaved-Backup.json');}}catch(err){send('error',err.message);}});
 new ResizeObserver(()=>send('resize',document.documentElement.scrollHeight)).observe(document.body);
 send('ready');
 `;

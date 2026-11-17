@@ -71,3 +71,35 @@ test('boiler auxiliary selected sources must be current and are included as evid
   assert.deepEqual(checked,[bid]);assert.equal(proposal.proposed,'6000');assert.deepEqual(proposal.sourceIds,[cid,bid]);
   assert.ok(proposal.reasons.some(x=>x.includes('not included in the cooling sum')));
 });
+import {decisionQuestionDefinitions} from './assistedReviewModel.js';
+test('decision questions use separate occupancy and scope dimensions with conditional short followups',()=>{
+ const p=guided(),before=structuredClone(p);let q=decisionQuestionDefinitions(p);
+ assert.ok(q.find(x=>x.id==='decision.occupancy').options.some(x=>x.value==='accessory'));
+ assert.ok(q.find(x=>x.id==='decision.scope').options.some(x=>x.value==='partial-feeder'));
+ assert.ok(q.some(x=>x.id==='decision.occupancy.detail'));
+ q=decisionQuestionDefinitions(p,{'decision.occupancy':'one-family','decision.scope':'entire-dwelling'});
+ assert.ok(!q.some(x=>x.id==='decision.occupancy.detail'));assert.ok(!q.some(x=>x.id==='decision.scope.detail'));
+ assert.deepEqual(p,before);
+});
+test('negative or unknown new decisions block old positive facts without erasing them',()=>{
+ for(const [id,value,method] of [['decision.occupancy','multifamily','both'],['decision.occupancy','unknown','both'],['decision.scope','partial-feeder','both'],['decision.inventory','incomplete','both'],['decision.cooking','multiple-household','standard'],['decision.hvac','heat-pump','optional'],['decision.heating','electric-or-heat-pump','optional'],['decision.overlap','unresolved','optional'],['decision.noncoincidence','exclusions-requested','optional']]){
+  const p=guided();p.assistedReview.answers.push({questionId:id,text:value,sourceReferences:[]});const before=structuredClone(p),r=evaluateSupportedProposals(p);
+  assert.ok(r.blockers.some(b=>b.id===id));assert.ok(!r.proposals.some(x=>method==='both'||x.method===method));assert.deepEqual(p,before);
+ }
+});
+test('positive choices never establish eligibility or replace supported fact evidence',()=>{
+ const p=guided();p.assistedReview.answers=[{questionId:'decision.occupancy',text:'one-family',sourceReferences:[]}];
+ assert.equal(evaluateSupportedProposals(p).proposals.length,0);
+});
+test('legacy narrative survives new decision definitions and serialized factory',()=>{
+ const p=guided();p.assistedReview.answers.push({questionId:'scope.occupancy',text:'Original imported narrative',sourceReferences:['Original evidence']});
+ const t=runInNewContext('('+createAssistedReviewTools.toString()+')()',{structuredClone});
+ assert.ok(t.decisionQuestionDefinitions(p).length);assert.equal(p.assistedReview.answers.at(-1).text,'Original imported narrative');assert.equal(t.evaluateSupportedProposals(p).proposals.length,2);
+});
+test('heating choice and boiler auxiliary facts cannot contradict each other',()=>{
+ for(const [heat,aux] of [['combustion-with-reviewed-auxiliaries','none-present-reviewed'],['none','accounted-outside-cooling-reviewed']]){
+ const p=guided();p.assistedReview.answers.push({questionId:'decision.heating',text:heat,sourceReferences:[]});p.assistedReview.answers.find(x=>x.questionId==='supported.hvac.boiler-auxiliaries').text=aux;
+ const result=evaluateSupportedProposals(p);assert.ok(result.blockers.some(x=>x.id==='decision.heating'));assert.ok(!result.proposals.some(x=>x.method==='optional'));
+ }
+});
+test('v2 cooking help supports structured multiple appliances without requiring legacy single-range attestations',()=>{const p=guided();p.assistedReview.version=2;p.assistedReview.hvacPlan=null;p.assistedReview.motorPlan=null;p.assistedReview.cookingPlan=null;const before=structuredClone(p),defs=decisionQuestionDefinitions(p,{'decision.cooking':'multiple-household'});assert.ok(defs.find(x=>x.id==='decision.cooking').reason.includes('Multiple household appliances are supported'));assert.ok(!defs.some(x=>x.id==='decision.cooking.detail'));assert.ok(!assistedFactDefinitions(p).some(x=>x.id.startsWith('supported.cooking.')));assert.deepEqual(p,before);const legacy=guided();assert.ok(assistedFactDefinitions(legacy).some(x=>x.id==='supported.cooking.complete-set'));assert.ok(decisionQuestionDefinitions(legacy).find(x=>x.id==='decision.cooking').reason.includes('narrow reviewed single-range'));});

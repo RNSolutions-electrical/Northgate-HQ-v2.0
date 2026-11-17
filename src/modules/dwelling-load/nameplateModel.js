@@ -116,16 +116,17 @@ export function createNameplateTools() {
   }
   // Pure arithmetic preview only. Exact rational arithmetic determines upward whole-VA
   // rounding; the displayed unrounded number is an approximation, not the rounding basis.
-  function previewHvacApparentPower(row,options) {
+  function previewApparentPower(row,options,kind) {
     validateNameplateRow(row);
     const o=options;
-    if(row.cat!=='hvac')throw Error('HVAC arithmetic is available only for an HVAC equipment row.');
-    if(!o||!['FLA','RLA'].includes(o.currentBasis)||!['single-phase','balanced-three-phase'].includes(o.phase))throw Error('Explicit FLA or RLA basis and supported phase selection are required.');
+    if(kind==='HVAC'&&row.cat!=='hvac')throw Error('HVAC arithmetic is available only for an HVAC equipment row.');
+    if(kind==='motor'&&o?.individualMotorConfirmed!==true)throw Error('Confirm these source fields describe one individual motor, not a package or branch-circuit total.');
+    if(!o||!(kind==='motor'?['FLA','RLA','FLC','BCSC']:['FLA','RLA']).includes(o.currentBasis)||!['single-phase','balanced-three-phase'].includes(o.phase))throw Error('Explicit FLA or RLA basis and supported phase selection are required.');
     for(const k of ['current','voltage','phaseField'])if(!o[k]||!uuid(o[k].plateId)||!uuid(o[k].fieldId))throw Error('Select the current, voltage and phase source fields.');
     const current=selected(row,o.current),voltage=selected(row,o.voltage),phase=selected(row,o.phaseField);
     const label=current.field.label.trim().toLowerCase().replace(/[-_.]/g,' ').replace(/\s+/g,' ');
     const baseLabel=label.replace(/^(compressor|fan|blower|motor|unit) /,'');
-    const allowed=o.currentBasis==='FLA'?['fla','full load amps','full load amperes','full load amperage']:['rla','rated load amps','rated load amperes','rated load amperage'];
+    const allowed={FLA:['fla','full load amps','full load amperes','full load amperage'],RLA:['rla','rated load amps','rated load amperes','rated load amperage'],FLC:['flc','full load current'],BCSC:['bcsc','branch circuit selection current']}[o.currentBasis];
     if(!allowed.includes(baseLabel))throw Error('The selected current field label must explicitly match its recorded FLA or RLA basis. MCA, MOCP, LRA and breaker ratings are not substitutes.');
     if(!['a','amp','amps','ampere','amperes'].includes(current.field.unit.trim().toLowerCase())||!['v','volt','volts'].includes(voltage.field.unit.trim().toLowerCase()))throw Error('Select scalar current in A and voltage in V; no unit inference is performed.');
     if(!['','ph','phase','phases','φ','ϕ'].includes(phase.field.unit.trim().toLowerCase()))throw Error('The phase source must record a phase count, not another electrical quantity.');
@@ -151,15 +152,22 @@ export function createNameplateTools() {
     const rounding='Rounded upward to the next whole VA using exact decimal input arithmetic (and exact integer square-root comparison for three phase). No NEC demand or motor factor applied.';
     const ref=x=>JSON.stringify([x.plate.id,x.plate.label,x.plate.sourceReference,x.field.id,x.field.label,x.field.value,x.field.unit]);
     const warnings=['Apparent-power arithmetic only, not NEC HVAC demand, actual measured input power, service sizing, or conductor/breaker sizing.','FLA and RLA are distinct recorded ratings. Suitability is user-reviewed; this tool does not verify nameplate accuracy.','Do not automatically add this result to an HVAC override or add another motor contribution. Review simultaneous/noncoincident loads and duplicate inventory separately.'];
+    if(kind==='motor')warnings.push('Arithmetic does not select the legally applicable 430/440 motor-current basis. Confirm that separately; package or breaker totals are not an individual motor rating.');
     if(o.currentBasis==='RLA')warnings.push('RLA is a compressor reference rating, not a guaranteed actual running current.');
-    const basis=`Reviewed HVAC arithmetic; current basis ${o.currentBasis}; phase ${phaseCount}; voltage basis ${o.voltageBasis}; current measurement basis ${o.currentMeasurementBasis}; per-unit input, quantity not multiplied; suitability confirmed; ${isThree?'balanced line-current applicability confirmed':'single-phase load confirmed'}. ${formula}; approximate unrounded ${unroundedVA.toPrecision(15)} VA; adopted ${va} VA. ${rounding}\nCurrent source ${ref(current)}\nVoltage source ${ref(voltage)}\nPhase source ${ref(phase)}\nReviewer basis: ${o.reviewBasis}`;
+    const basis=`Reviewed ${kind} arithmetic; current basis ${o.currentBasis}; phase ${phaseCount}; voltage basis ${o.voltageBasis}; current measurement basis ${o.currentMeasurementBasis}; per-unit input, quantity not multiplied; suitability confirmed; ${isThree?'balanced line-current applicability confirmed':'single-phase load confirmed'}. ${formula}; approximate unrounded ${unroundedVA.toPrecision(15)} VA; adopted ${va} VA. ${rounding}\nCurrent source ${ref(current)}\nVoltage source ${ref(voltage)}\nPhase source ${ref(phase)}\nReviewer basis: ${o.reviewBasis}`;
     if(basis.length>limits.basis)throw Error('The complete calculation trace exceeds the 4000-character review-basis limit. Shorten reference labels or the review note; no source data was changed.');
     return {va,unroundedVA,formula,basis,warnings,rounding,inputs:{amps,volts,phaseCount,currentBasis:o.currentBasis,voltageBasis:o.voltageBasis,currentMeasurementBasis:o.currentMeasurementBasis}};
   }
+  function previewHvacApparentPower(row,options){return previewApparentPower(row,options,'HVAC');}
+  function previewMotorApparentPower(row,options){return previewApparentPower(row,options,'motor');}
+  function motorSourceRow(row,motor){if(row.id!==motor.rowId)throw Error('Motor source equipment does not match.');return {...structuredClone(row),id:motor.id,qty:motor.quantity,label:row.id+' / '+row.label+' / '+motor.label,va:motor.va,calculationSource:motor.ratingSource};}
+  function applyMotorCalculationSource(row,motor,choice){const selectedRow=applyCalculationSource(motorSourceRow(row,motor),choice);const refs=[...(motor.sourceReferences||[])],reference=selected(row,choice).plate.sourceReference;if(reference.trim()&&!refs.includes(reference)&&refs.length<10)refs.push(reference);return {...structuredClone(motor),va:selectedRow.va,ratingSource:selectedRow.calculationSource,sourceReferences:refs};}
+  function inspectMotorCalculationSource(row,motor){try{return inspectCalculationSource(motorSourceRow(row,motor));}catch{return {status:'stale',blocksConfidence:true,issues:['Motor source context is invalid.']};}}
+  function applyMotorApparentPower(row,motor,options){const preview=previewMotorApparentPower(motorSourceRow(row,motor),options);return applyMotorCalculationSource(row,motor,{plateId:options.current.plateId,fieldId:options.current.fieldId,mode:'reviewed',reviewedVA:preview.va,basis:preview.basis});}
   function applyHvacApparentPower(row,options) {
     const preview=previewHvacApparentPower(row,options);
     return applyCalculationSource(row,{plateId:options.current.plateId,fieldId:options.current.fieldId,mode:'reviewed',reviewedVA:preview.va,basis:preview.basis});
   }
-  return {previewHvacApparentPower,applyHvacApparentPower,calculationIssues,withNameplateIssues,limits,validateNameplateRow,applyCalculationSource,inspectCalculationSource,clearCalculationSource,invalidateNameplateReviews,inspectNameplateSources};
+  return {motorSourceRow,previewMotorApparentPower,applyMotorApparentPower,applyMotorCalculationSource,inspectMotorCalculationSource,previewHvacApparentPower,applyHvacApparentPower,calculationIssues,withNameplateIssues,limits,validateNameplateRow,applyCalculationSource,inspectCalculationSource,clearCalculationSource,invalidateNameplateReviews,inspectNameplateSources};
 }
-export const {previewHvacApparentPower,applyHvacApparentPower,calculationIssues,withNameplateIssues,validateNameplateRow,applyCalculationSource,inspectCalculationSource,clearCalculationSource,invalidateNameplateReviews,inspectNameplateSources}=createNameplateTools();
+export const {motorSourceRow,previewMotorApparentPower,applyMotorApparentPower,applyMotorCalculationSource,inspectMotorCalculationSource,previewHvacApparentPower,applyHvacApparentPower,calculationIssues,withNameplateIssues,validateNameplateRow,applyCalculationSource,inspectCalculationSource,clearCalculationSource,invalidateNameplateReviews,inspectNameplateSources}=createNameplateTools();
