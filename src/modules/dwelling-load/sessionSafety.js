@@ -12,3 +12,12 @@ export function bindTokenToActor(getToken, owner, isActive) {
  };
 }
 export function currentFrameMessage(message, generation){return message?.generation===generation;}
+// Frame owns source inventory/form fields. Parent owns feeder reviews and photo refs.
+// Merge independent edits rather than reloading a potentially stale full frame document.
+export function mergeFramePayload(incoming,current){
+ const merged=structuredClone(incoming);
+ if(current?.feederStudies)merged.feederStudies=structuredClone(current.feederStudies);
+ else delete merged.feederStudies;
+ merged.rows=merged.rows.map(row=>{const old=current?.rows.find(r=>r.id===row.id);return old?.evidenceIds?{...row,evidenceIds:[...old.evidenceIds]}:row;});
+ return merged;
+}
