@@ -416,7 +416,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   {!reviewMode&&!showArchived&&(permissions.canEstimate||personalMode)&&<form className="job-financials-form estimate-create-form" onSubmit={create}>
    <h2>Create estimate</h2><div className="estimate-create-grid">
     <label>Project name (optional for drafts)<input type="text" name="name" placeholder="A timestamp will name this draft"/></label><label>Customer (optional for drafts)<input type="text" name="customer"/></label>
-    <label>Template<select name="template" defaultValue={(import.meta.env.VITE_APP_ENV==='staging'||import.meta.env.DEV)?'Default':Object.keys(sections)[0]}>{(import.meta.env.VITE_APP_ENV==='staging'||import.meta.env.DEV)&&<option value="Default">Default</option>}{Object.keys(sections).map(s=><option key={s}>{s}</option>)}</select></label>
+    <label>Template<select name="template" defaultValue="Default"><option value="Default">Default</option>{Object.keys(sections).map(s=><option key={s}>{s}</option>)}</select></label>
    <button className="primary-button" disabled={creating||!!error}><Plus size={16}/>{creating?'Creating...':'Create estimate'}</button></div>
   </form>}
   {!reviewMode&&<div><button type="button" className="secondary-button" disabled={archiveBusy} onClick={()=>{setRows([]);setShowArchived(value=>!value);}}>{showArchived?'Show active estimates':'Show archived estimates'}</button><p>{showArchived?'Archived estimates are retained for recovery. Restore an estimate before opening it.':personalMode?'Archiving a personal copy only hides it from this list. Official estimates stay unchanged.':'Archiving retains approved versions and linked job history.'}</p></div>}
