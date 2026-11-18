@@ -5,7 +5,8 @@ export async function requireBlankAccounting(document,client){
  if(document?.blankSlateVersion!==1)return;
  if(!client)throw new Error(BLANK_SLATE_BLOCKER);
  const result=await (await client()).rpc('blank_slate_accounting_version');
- if(result.error||result.data!==1)throw new Error(BLANK_SLATE_BLOCKER);
+ const needsQuotes=(document.entries||[]).some(e=>(e.items||[]).some(i=>(i.blankQuotes||[]).some(q=>q.mode!=='reference')));
+ if(result.error||!Number.isInteger(result.data)||result.data<(needsQuotes?2:1))throw new Error(BLANK_SLATE_BLOCKER);
 }
 export function amount(value,label='Amount'){
  if(value==null||value===''||String(value).length>100||!/^([0-9]+([.][0-9]*)?|[.][0-9]+)$/.test(String(value)))throw new Error(label+' is required and must be nonnegative.');
@@ -30,19 +31,22 @@ function discountCents(base,d){
 export function discountAmount(base,d){return moneyValue(discountCents(cents(decimal(base,'Selling amount')),d));}
 export function blankItemPricing(item,data){
  if(item.quoteId)throw new Error('Blank-slate quote pricing is not supported.');
+ const quotes=item.blankQuotes===undefined?[]:item.blankQuotes;if(!Array.isArray(quotes)||quotes.length>500)throw new Error('Invalid quote list.');const quoteIds=new Set();for(const q of quotes){if(!q||typeof q.id!=='string'||!q.id||quoteIds.has(q.id))throw new Error('Quote identifiers must be present and unique.');quoteIds.add(q.id);}if(quotes.some(q=>!['add','replace','reference'].includes(q.mode)))throw new Error('Choose a quote calculation mode.');if(quotes.filter(q=>q.mode==='replace').length>1)throw new Error('Only one replacement quote may be included per work item.');
+ const replacement=quotes.some(q=>q.mode==='replace');
  const rate=decimal(item.laborRateOverride??data.rate,'Sales labor rate'),hard=decimal(item.blankSlateHardRate??data.blankSlateHardRate??data.rate,'Hard labor rate');
  const markup=item.materialMarkupOverride??data.materialMarkup??0,factor=decimal(item.qty,'Work quantity');
  const markupFactor=add(fraction(1n),multiply(decimal(markup,'Material markup'),fraction(1n,100n)));
- let material=0n,hours=fraction(0n),selling=0n,resourceDiscount=0n;
- for(const line of item.lines||[]){
+ let material=0n,other=0n,hours=fraction(0n),selling=0n,resourceDiscount=0n;
+ for(const line of replacement?[]:item.lines||[]){
   const qty=multiply(decimal(line.qty,'Resource quantity'),line.fixed?fraction(1n):factor);
   const cost=cents(multiply(qty,decimal(line.price,'Material price'))),h=multiply(qty,decimal(line.hours,'Labor hours'));
   const mg=cents(multiply(fraction(cost,100n),markupFactor)),lg=cents(multiply(h,rate));
   const md=discountCents(mg,line.materialDiscount),ld=discountCents(lg,line.laborDiscount);
   material+=cost;hours=add(hours,h);selling+=mg+lg-md-ld;resourceDiscount+=md+ld;
  }
- const labor=cents(multiply(hours,hard)),cost=material+labor;
- return {material:moneyValue(material),labor:moneyValue(labor),other:0,hours:Number(hours.n)/Number(hours.d),cost:moneyValue(cost),materialRate:amount(markup),materialMarkup:moneyValue(selling-cost),fee:0,markup:moneyValue(selling-cost),price:moneyValue(selling),subtotal:moneyValue(selling),resourceDiscount:moneyValue(resourceDiscount)};
+ for(const quote of quotes.filter(q=>q.mode!=='reference')){const cost=cents(multiply(factor,decimal(quote.cost,'Quote cost'))),markup=decimal(quote.markup??item.materialMarkupOverride??data.materialMarkup??0,'Quote markup');other+=cost;selling+=cents(multiply(fraction(cost,100n),add(fraction(1n),multiply(markup,fraction(1n,100n)))));}
+ const labor=cents(multiply(hours,hard)),cost=material+labor+other;
+ return {material:moneyValue(material),labor:moneyValue(labor),other:moneyValue(other),hours:Number(hours.n)/Number(hours.d),cost:moneyValue(cost),materialRate:amount(markup),materialMarkup:moneyValue(selling-cost),fee:0,markup:moneyValue(selling-cost),price:moneyValue(selling),subtotal:moneyValue(selling),resourceDiscount:moneyValue(resourceDiscount)};
 }
 export function blankSumPricing(items,data,includeFee=true){
  const result={material:0,labor:0,other:0,hours:0,cost:0,materialMarkup:0,fee:0,markup:0,price:0,subtotal:0,resourceDiscount:0};
@@ -70,8 +74,8 @@ export function importPrototype(source){
  const ids=new Set();doc.entries=source.lines.filter(r=>r.committed).map((row,index)=>{
   if(!row.id||ids.has(row.id))throw new Error('Imported line identifiers must be unique.');ids.add(row.id);const line=row.committed,p=line.pricing||d;
   if(Number(p.tax??d.tax??0)!==Number(d.tax??0))throw new Error('Mixed per-line tax imports require accounting review; the source file is unchanged.');
-  if((line.quotes||[]).some(q=>q.mode!=='reference'))throw new Error('Active vendor quote imports require accounting review; the source file is unchanged.');
-  const item={...blankWorkItem(row.id),name:line.title,qty:line.qty,materialMarkupOverride:p.markup,laborRateOverride:p.salesRate,blankSlateHardRate:p.hardRate,notes:(line.notes||[]).join('\n'),lines:[...(line.materials||[]).map((m,n)=>({id:row.id+'-m'+n,name:m.name,unit:m.unit,qty:m.qty,price:m.cost,hours:m.hours,priceSource:'prototype_snapshot',fixed:false,stage:'Rough-in',notes:'',prototypeResource:structuredClone(m)})),...(line.labor||[]).map((l,n)=>({id:row.id+'-l'+n,name:l.name,unit:'HR',qty:1,price:0,hours:l.hours,fixed:false,stage:'Rough-in',notes:'',prototypeResource:structuredClone(l)}))]};
+
+  const item={...blankWorkItem(row.id),name:line.title,qty:line.qty,blankQuotes:(line.quotes||[]).map((q,n)=>({id:row.id+'-q'+n,name:q.name,cost:q.cost,mode:q.mode,markup:p.quoteMarkup??p.markup})),materialMarkupOverride:p.markup,laborRateOverride:p.salesRate,blankSlateHardRate:p.hardRate,notes:(line.notes||[]).join('\n'),lines:[...(line.materials||[]).map((m,n)=>({id:row.id+'-m'+n,name:m.name,unit:m.unit,qty:m.qty,price:m.cost,hours:m.hours,priceSource:'prototype_snapshot',fixed:false,stage:'Rough-in',notes:'',prototypeResource:structuredClone(m)})),...(line.labor||[]).map((l,n)=>({id:row.id+'-l'+n,name:l.name,unit:'HR',qty:1,price:0,hours:l.hours,fixed:false,stage:'Rough-in',notes:'',prototypeResource:structuredClone(l)}))]};
   return {id:row.id,number:index+1,name:line.subtitle||'',section:'',location:'',status:'Not started',items:[item]};
  });blankSumPricing(doc.entries.flatMap(e=>e.items),doc);return doc;
 }
