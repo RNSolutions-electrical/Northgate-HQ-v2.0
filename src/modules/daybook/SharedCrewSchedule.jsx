@@ -1,0 +1,9 @@
+import {useState} from 'react';
+import {sharedAssignmentsOn} from './daybookAccess.js';
+// This is deliberately a separate read-only surface: no shared editor or recovery action exists.
+export function SharedCrewSchedule({workspace}){
+ const [date,setDate]=useState(new Date().toISOString().slice(0,10));const n=workspace.northgate?.payload||{};
+ const jobs=new Map((n.jobs||[]).map(j=>[j.id,j]));const workers=new Map((n.workers||[]).map(w=>[w.id,w]));
+ const assignments=sharedAssignmentsOn(n,date);
+ return <section className="daybook-shared-readonly"><h2>Northgate crew schedule · read only</h2><p>Your personal calendar below is editable. Company scheduling changes are managed by authorized developers.</p><label>Schedule date <input type="date" value={date} onChange={e=>e.target.value&&setDate(e.target.value)}/></label><div className="daybook-table-scroll"><table><thead><tr><th>Job</th><th>Crew</th><th>Hours / person</th><th>Schedule notes</th></tr></thead><tbody>{assignments.map(a=><tr key={a.id}><td>{jobs.get(a.job)?.name||'Job'}</td><td>{a.workers.filter(id=>!(a.dayExceptions||[]).some(x=>x.worker===id&&x.date===date)).map(id=>workers.get(id)?.name||'Worker').join(', ')||'No crew scheduled'}</td><td>{a.hours}</td><td>{a.excludeHolidays?'Federal holidays excluded. ':''}{a.notes||''}</td></tr>)}{!assignments.length&&<tr><td colSpan="4">No assignments for this date.</td></tr>}</tbody></table></div><h3>Approved crew availability</h3><ul>{(n.pto||[]).filter(p=>p.status==='Approved'&&p.start<=date&&p.end>=date).map(p=><li key={p.id}>{p.person} · {p.dailyHours==null?'Full day':p.dailyHours+' hours'} unavailable</li>)}</ul>{workspace.can_view_pay===true&&<details><summary>Authorized pay reference · read only</summary><ul>{(n.workers||[]).map(w=><li key={w.id}>{w.name}: {w.rate==null?'Not recorded':`$${w.rate} / hour`}</li>)}</ul></details>}</section>;
+}

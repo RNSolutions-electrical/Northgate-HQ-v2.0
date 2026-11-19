@@ -1,0 +1,84 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const runtime=await import('../.tmp/daybook-sql/node_modules/@electric-sql/pglite/dist/index.js').catch(()=>null);
+test('Daybook individual grants, SQL write boundaries, pay projection and blind preservation',{skip:!runtime&&'PGlite required for behavioral authorization checks'},async()=>{
+ const db=new runtime.PGlite();
+ await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE SCHEMA auth;
+ CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
+ CREATE TABLE public.user_permissions(clerk_user_id text PRIMARY KEY,is_active boolean,developer boolean);
+ INSERT INTO public.user_permissions VALUES ('primary',true,true),('dev',true,true),('reader',true,false),('other',true,false),('inactive',false,true);
+ ALTER TABLE public.user_permissions ADD COLUMN display_name text, ADD COLUMN email text, ADD COLUMN role text, ADD COLUMN division text;
+ CREATE FUNCTION public.current_user_has_developer_access() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$SELECT coalesce((SELECT developer FROM public.user_permissions WHERE clerk_user_id=auth.jwt()->>'sub'),false)$$;
+ CREATE TABLE public.tool_addons(addon_key text PRIMARY KEY,label text,category text,description text,is_active boolean DEFAULT true);
+ CREATE TABLE public.tool_addon_access(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),addon_key text,clerk_user_id text,enabled boolean,updated_by text,reason text,updated_at timestamptz DEFAULT now(),UNIQUE(addon_key,clerk_user_id));
+ ALTER TABLE public.tool_addon_access ENABLE ROW LEVEL SECURITY;
+ CREATE POLICY tool_addon_access_developer_read ON public.tool_addon_access FOR SELECT TO authenticated USING(public.current_user_has_developer_access());
+ GRANT SELECT ON public.tool_addon_access TO authenticated;
+ CREATE TABLE public.change_logs(user_id text,user_name text,table_name text,record_id text,action text,before_data jsonb,after_data jsonb,note text);
+ CREATE FUNCTION public.user_can_manage_developers(p_user_id text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$SELECT p_user_id='primary' AND EXISTS(SELECT 1 FROM public.user_permissions WHERE clerk_user_id=p_user_id AND is_active)$$;
+ CREATE TABLE public.jobs(id uuid PRIMARY KEY,archived_at timestamptz);
+ INSERT INTO public.jobs VALUES('11111111-1111-1111-1111-111111111111',null),('22222222-2222-2222-2222-222222222222',null);
+ CREATE FUNCTION public.current_user_can_access_job(p_job_id uuid,p_permission text DEFAULT NULL) RETURNS boolean LANGUAGE sql STABLE AS $$SELECT $1='11111111-1111-1111-1111-111111111111'::uuid$$;
+ GRANT USAGE ON SCHEMA auth TO authenticated,anon; GRANT EXECUTE ON FUNCTION auth.jwt() TO authenticated,anon;`);
+ for(const name of ['20261116104644_daybook_workspace.sql','20261119010000_daybook_individual_access.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+name,import.meta.url),'utf8'));
+ const admin=async(sql)=>{await db.exec('RESET ROLE');await db.exec(sql)};
+ const login=async(sub,extra={})=>{await db.exec('RESET ROLE');await db.query(`SELECT set_config('request.jwt.claims',$1,false)`,[JSON.stringify({sub,...extra})]);await db.exec('SET ROLE authenticated')};
+ const grant=async(user,key,enabled,reason='Explicit access approval')=>db.query('SELECT public.set_user_addon_access($1,$2,$3,$4)',[user,key,enabled,reason]);
+ const workspace=async()=>(await db.query('SELECT public.get_daybook_workspace() d')).rows[0].d;
+ const save=async(p,n,pv,nv,restore=false)=>(await db.query('SELECT public.save_daybook_workspace($1,$2,$3,$4,$5) d',[p,n,pv,nv,restore])).rows[0].d;
+ const history=async(scope)=>(await db.query('SELECT * FROM public.list_daybook_history($1)',[scope])).rows;
+ const payload=scope=>({version:1,calendars:[{id:scope,name:scope}],events:[],jobs:[],workers:[],contacts:[],assignments:[],notes:[],pto:[]});
+ await login('dev'); assert.equal((await workspace()).can_view_pay,false);
+ assert.equal((await db.query('SELECT public.current_user_can_access_addon(NULL) v')).rows[0].v,true);
+ assert.equal((await db.query("SELECT public.current_user_can_access_addon('daybook_pay') v")).rows[0].v,false);
+ // Only Primary can explicitly grant/revoke pay, including self; no implicit grant.
+ await assert.rejects(grant('dev','daybook_pay',true),/Primary authority/);
+ await assert.rejects(grant('reader','daybook_pay',false),/Primary authority/);
+ await grant('other','daybook',true); // normal addon administration unchanged
+ await grant('other','daybook',false);
+ await login('primary'); assert.equal((await workspace()).can_view_pay,false);
+ await assert.rejects(grant('primary','daybook_pay',true,''),/reason/);
+ await grant('primary','daybook_pay',true);assert.equal((await workspace()).can_view_pay,true);
+ await grant('primary','daybook_pay',false);assert.equal((await workspace()).can_view_pay,false);
+ await grant('reader','daybook_pay',true);await grant('reader','daybook_pay',false);
+ await db.exec('RESET ROLE');assert.equal((await db.query("SELECT count(*)::int n FROM public.change_logs WHERE after_data->>'addon_key'='daybook_pay'")).rows[0].n,4);
+ await login('dev');
+ assert.equal((await db.query("SELECT * FROM public.read_developer_addon_console() WHERE addon_key='daybook_pay'")).rows.length,0);
+ assert.equal((await db.query("SELECT * FROM public.tool_addon_access WHERE addon_key='daybook_pay'")).rows.length,0);
+ assert.ok((await db.query("SELECT * FROM public.read_developer_addon_console() WHERE addon_key='daybook'")).rows.length>0);
+ assert.ok((await db.query("SELECT * FROM public.tool_addon_access WHERE addon_key='daybook'")).rows.length>0);
+ await login('primary');
+ assert.ok((await db.query("SELECT * FROM public.read_developer_addon_console() WHERE addon_key='daybook_pay'")).rows.length>0);
+ assert.equal((await db.query("SELECT * FROM public.tool_addon_access WHERE addon_key='daybook_pay'")).rows.length,2);
+ await login('dev');
+ // Seed legacy protected values as database owner, not an unauthorized application write.
+ const shared={...payload('northgate'),events:[{id:'meeting',calendar:'northgate',title:'Private company meeting'}],pto:[{id:'approved',calendar:'northgate',status:'Approved',workerId:'w',person:'Worker',start:'2026-11-19',end:'2026-11-19',reason:'private',type:'Sick'},{id:'pending',calendar:'northgate',status:'Pending',reason:'private'}],workers:[{id:'w',name:'Worker',hours:8,rate:42,privateNotes:'secret',legacySalary:90000,active:true}],
+ jobs:[{id:'ok',calendar:'northgate',name:'Allowed',hqJobId:'11111111-1111-1111-1111-111111111111'},{id:'no',calendar:'northgate',name:'Denied',hqJobId:'22222222-2222-2222-2222-222222222222'}],
+ assignments:[{id:'a',job:'ok',workers:['w'],start:'2026-11-19',end:'2026-11-19',hours:8},{id:'b',job:'no',workers:['w']}],contacts:[{id:'c',email:'secret@example.com'}]};
+ await db.exec('RESET ROLE'); await db.query("INSERT INTO daybook_private.documents(scope,owner_id,payload,version,updated_by) VALUES('northgate','company',$1,1,'legacy')",[shared]);
+ await login('dev'); let ws=await workspace(); assert.equal(ws.can_manage_northgate,true); assert.equal(ws.can_view_pay,false); assert.equal(ws.northgate.payload.workers[0].rate,undefined);assert.equal(ws.northgate.payload.workers[0].legacySalary,undefined);
+ let n=ws.northgate.payload;n.workers[0].name='Updated';n.workers[0].rate=0;n.workers[0].privateNotes='overwrite';
+ ws=await save(null,n,0,1);assert.equal(ws.northgate.version,2);
+ await db.exec('RESET ROLE');let raw=(await db.query("SELECT payload FROM daybook_private.documents WHERE scope='northgate'")).rows[0].payload;
+ assert.equal(raw.workers[0].rate,42);assert.equal(raw.workers[0].privateNotes,'secret');assert.equal(raw.workers[0].legacySalary,90000);
+ await login('dev');let h=await history('northgate');assert.equal(h[0].before_data.workers[0].rate,undefined);assert.equal(h[0].after_data.workers[0].privateNotes,undefined);
+ await assert.rejects(save(null,{...n,workers:[]},0,2),/Protected worker/);
+ ws=await save(null,h[0].before_data,0,2,true);assert.equal(ws.northgate.version,3);
+ await assert.rejects(db.query('SELECT * FROM daybook_private.documents'),/permission denied/);
+ await assert.rejects(db.query("SELECT daybook_private.project('{}',true,true)"),/permission denied/);
+ await admin("INSERT INTO public.tool_addon_access(addon_key,clerk_user_id,enabled) VALUES('daybook','reader',true)");await login('reader');ws=await workspace();
+ assert.equal(ws.can_manage_northgate,false);assert.equal(ws.can_view_pay,false);assert.deepEqual(ws.northgate.payload.contacts,[]);assert.deepEqual(ws.northgate.payload.events,[]);assert.equal(ws.northgate.payload.pto.length,1);assert.equal(ws.northgate.payload.pto[0].reason,undefined);assert.equal(ws.northgate.payload.pto[0].type,undefined);assert.equal(ws.northgate.payload.jobs.length,1);assert.equal(ws.northgate.payload.assignments.length,1);assert.equal(ws.northgate.payload.workers[0].rate,undefined);
+ await assert.rejects(save(null,ws.northgate.payload,0,3),/read-only/);await assert.rejects(save(null,ws.northgate.payload,0,3,true),/read-only/);await assert.rejects(history('northgate'),/history denied/);
+ ws=await save(payload('personal'),null,0,0);assert.equal(ws.personal.version,1);assert.equal((await history('personal')).length,1);
+ await assert.rejects(save(payload('personal'),null,0,0),/changed in another session/);
+ await admin("UPDATE public.tool_addon_access SET enabled=true WHERE addon_key='daybook_pay' AND clerk_user_id='reader'");await login('reader');ws=await workspace();assert.equal(ws.can_view_pay,true);assert.equal(ws.northgate.payload.workers[0].rate,42);assert.equal(ws.northgate.payload.workers[0].privateNotes,undefined);assert.equal(ws.northgate.payload.workers[0].legacySalary,undefined);await assert.rejects(history('northgate'),/history denied/);
+ await admin("INSERT INTO public.tool_addon_access(addon_key,clerk_user_id,enabled) VALUES('daybook_pay','dev',true)");await login('dev');ws=await workspace();assert.equal(ws.can_view_pay,true);assert.equal(ws.northgate.payload.workers[0].rate,42);h=await history('northgate');assert.equal(h[0].after_data.workers[0].rate,42);
+ n=ws.northgate.payload;n.workers[0].rate=50;await save(null,n,0,3);
+ await admin("UPDATE public.tool_addon_access SET enabled=false WHERE addon_key='daybook_pay'");await login('dev');assert.equal((await workspace()).northgate.payload.workers[0].rate,undefined);assert.equal((await history('northgate'))[0].after_data.workers[0].rate,undefined);
+ await admin("UPDATE public.tool_addon_access SET enabled=false WHERE clerk_user_id='reader'");
+ for(const who of ['reader','other','inactive','missing','']){await login(who);await assert.rejects(workspace,/access denied/);await assert.rejects(save(payload('personal'),null,0,0),/access denied/)}
+ await login('dev',{is_anonymous:true});await assert.rejects(workspace,/access denied/);
+ await db.exec('RESET ROLE; SET ROLE anon');await assert.rejects(workspace,/permission denied/);
+ await db.close();
+});

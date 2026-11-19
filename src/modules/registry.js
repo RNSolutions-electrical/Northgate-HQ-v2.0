@@ -44,7 +44,7 @@ import {
  */
 export const MODULES = [
   {key:'dwelling-load',path:'/dwelling-load',label:'Dwelling Load Calculator',icon:Calculator,requires:['canAccessDeveloper'],status:'live',description:'Owner-private reviewed dwelling service study.'},
-  {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,requires:['canAccessDeveloper'],status:'live',description:'Calendar, crew planning and private organization.'},
+  {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,developerOrAddon:'daybook',status:'live',description:'Calendar, crew planning and private organization.'},
   { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
     requires: ['canTrackHqTime'], status: 'live',
     description: 'Developer-accessible record of HQ work and optional focused-time estimates.' },
@@ -172,6 +172,8 @@ export const MODULES = [
 export const RETIRED_ADDON_KEYS = Object.freeze(['service_performance']);
 
 export function isModulePermitted(module, permissions) {
+  if (module.developerOrAddon && permissions?.canAccessDeveloper !== true
+    && !(permissions?.permissionSource === 'server' && permissions?.canAccessAddon?.(module.developerOrAddon) === true)) return false;
   if (module.requiresAddon && permissions?.canAccessAddon?.(module.requiresAddon) !== true) return false;
   if (module.requires?.length) {
     if (!module.requires.every((flag) => permissions?.[flag] === true)) return false;
@@ -200,7 +202,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'eos', moduleKey: 'eos' },
   { key: 'silas', moduleKey: 'silas' },
   { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['panel-directory','electrical-inspections','afc'] },
-  { key: 'developer-tools', label: 'Developer Tools', icon: Clock3, moduleKeys: ['hq-time'] },
+  { key: 'developer-tools', label: 'Developer Tools', icon: Clock3, moduleKeys: ['hq-time','daybook'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
