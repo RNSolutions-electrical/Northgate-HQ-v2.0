@@ -59,3 +59,6 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 
 .blank-slate .blank-resource > .blank-quantity-lock{width:fit-content;max-width:100%;flex-direction:row;align-items:center;min-height:24px;margin:8px 0 4px;font-size:13px;font-weight:400;cursor:pointer}
 .blank-slate .blank-quantity-lock > input[type=checkbox]{flex:none;width:16px;height:16px;margin:0;cursor:inherit}
+
+.library-list .assembly-origin{display:table;width:fit-content;max-width:100%;margin:4px 0;padding:2px 7px;border:1px solid var(--border);border-radius:12px;font-size:12px;font-weight:600;color:#33414a;background:#f1f4f5}
+.assembly-usage-list{padding-inline-start:20px}.assembly-usage-list li{margin-bottom:7px}
