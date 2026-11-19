@@ -16,7 +16,7 @@ test('Default shared recipes enforce scopes, validation, idempotency, immutable 
  CREATE SCHEMA hq_tool_private;CREATE TABLE hq_tool_private.resource_map(resource_kind text,resource_name text,module_key text,PRIMARY KEY(resource_kind,resource_name,module_key));
  CREATE TABLE public.tool_state(enabled boolean);INSERT INTO public.tool_state VALUES(true);
  CREATE FUNCTION public.require_tool_available(text) RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER AS $$BEGIN IF NOT (SELECT enabled FROM public.tool_state) THEN RAISE EXCEPTION 'Tool unavailable';END IF;RETURN true;END$$;
- CREATE TABLE public.change_logs(user_id text,user_name text,table_name text,record_id text,action text,before_data jsonb,after_data jsonb,note text);
+ CREATE TABLE public.change_logs(user_id text,user_name text,table_name text,record_id text,action text CONSTRAINT change_logs_action_check CHECK(action IN ('create','update','delete','restore','archive','import','permission_change','physical_count_correction','certify','deny')),before_data jsonb,after_data jsonb,note text);
  GRANT USAGE ON SCHEMA auth TO authenticated,anon;GRANT EXECUTE ON FUNCTION auth.jwt() TO authenticated,anon;`);
  const base=await sqlFile('20261116025827_blank_slate_discount_accounting.sql');
  for(const n of ['blank_slate_number','blank_slate_discount'])await db.exec(functionSource(base,n));
@@ -38,7 +38,12 @@ test('Default shared recipes enforce scopes, validation, idempotency, immutable 
  const price=async(r)=>(await db.query('SELECT public.blank_slate_pricing($1) AS p',[pricingDoc(r)])).rows[0].p;
  assert.equal((await price(recipe())).subtotal,354.2);const fixed=recipe();fixed.lines[0].fixed=true;assert.equal((await price(fixed)).subtotal,101.4);
  const replacedPricing=recipe();replacedPricing.quotes=[{name:'Replace',mode:'replace',cost:100,markup:10}];assert.equal((await price(replacedPricing)).subtotal,330);
- await login('editor');const p=recipe(),saved=await create(p);assert.deepEqual(saved.recipe,p);assert.equal((await create(p)).id,saved.id);assert.equal((await list()).length,1);assert.equal((await list())[0].recipe,undefined);assert.equal((await list())[0].resource_count,1);assert.deepEqual((await read(saved.id)).recipe,p);
+ await login('editor');const p=recipe();
+ await assert.rejects(create(p),/change_logs_action_check/);
+ await owner('SELECT 1');
+ assert.equal((await db.query('SELECT count(*)::int n FROM assembly_recipe_private.recipes')).rows[0].n,0);
+ await db.exec(await sqlFile('20261119171500_default_assembly_recipe_audit_action.sql'));
+ await login('editor');const saved=await create(p);assert.deepEqual(saved.recipe,p);assert.equal((await create(p)).id,saved.id);assert.equal((await list()).length,1);assert.equal((await list())[0].recipe,undefined);assert.equal((await list())[0].resource_count,1);assert.deepEqual((await read(saved.id)).recipe,p);
  await assert.rejects(create({...p,name:'Different'}),/already used/);
  await assert.rejects(create(p,'22222222-2222-4222-8222-222222222222','Construction'),/edit permission/);
  await assert.rejects(db.query('SELECT * FROM assembly_recipe_private.recipes'),/permission denied/);
@@ -57,6 +62,7 @@ test('Default shared recipes enforce scopes, validation, idempotency, immutable 
  await owner('UPDATE public.tool_state SET enabled=false');await login('editor');await assert.rejects(list(),/unavailable/);await assert.rejects(create(p),/unavailable/);await owner('UPDATE public.tool_state SET enabled=true');
  await owner("ALTER TABLE public.change_logs ADD CONSTRAINT test_audit CHECK(user_id<>'auditfail')");await login('auditfail');await assert.rejects(create(p),/test_audit/);await owner("ALTER TABLE public.change_logs DROP CONSTRAINT test_audit");assert.equal((await db.query("SELECT count(*)::int n FROM assembly_recipe_private.recipes WHERE created_by='auditfail'")).rows[0].n,0);
  await login('auditfail');await create(p);await owner('SELECT 1');assert.equal((await db.query('SELECT count(*)::int n FROM assembly_recipe_private.recipes')).rows[0].n,(await db.query('SELECT count(*)::int n FROM public.change_logs')).rows[0].n);
+ assert.ok((await db.query('SELECT action FROM public.change_logs')).rows.every(row=>row.action==='create'));
  await assert.rejects(db.exec("UPDATE assembly_recipe_private.recipes SET name='changed'"),/immutable/);await assert.rejects(db.exec('DELETE FROM assembly_recipe_private.recipes'),/immutable/);
  await db.exec('SET ROLE anon');await assert.rejects(db.query('SELECT public.default_assembly_recipe_version()'),/permission denied/);await assert.rejects(list(),/permission denied/);
  }finally{await db.close();}
