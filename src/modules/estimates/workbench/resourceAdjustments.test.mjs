@@ -34,5 +34,5 @@ test('duplicate catalogue resources retain independent internal notes and locked
  const ar=selectCatalogueResource(a,material),br=selectCatalogueResource(b,material);
  assert.equal(ar.catalogueId,br.catalogueId);assert.notEqual(ar.id,br.id);assert.equal(ar.qty,10);assert.equal(ar.fixed,true);assert.equal(ar.notes,'Phase A');assert.equal(br.qty,20);assert.equal(br.fixed,false);assert.equal(br.notes,'Phase B');assert.equal(br.stage,'Trim');assert.deepEqual(ar.materialAdjustment,a.materialAdjustment);
  ar.notes='Phase A revised';assert.equal(br.notes,'Phase B');assert.equal(a.notes,'Phase A');
- const ui=readFileSync(new URL('./BlankSlateEditor.jsx',import.meta.url),'utf8');assert.match(ui,/Internal line notes/);assert.match(ui,/l.notes=e.target.value/);assert.match(ui,/selectCatalogueResource\(l,material\)/);
+ const ui=readFileSync(new URL('./BlankSlateEditor.jsx',import.meta.url),'utf8');assert.match(ui,/Internal line notes/);assert.match(ui,/onDraft=\{value=>stageLine\(line.id,'notes',value\)\}/);assert.match(ui,/selectCatalogueResource\(l,material\)/);
 });
