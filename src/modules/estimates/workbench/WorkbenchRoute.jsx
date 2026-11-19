@@ -1,5 +1,5 @@
 import {bindTokenToActor} from '../../dwelling-load/sessionSafety.js';
-import {DefaultRecipeCatalogue} from './DefaultRecipeLibrary.jsx';
+import {loadAssemblyUsage,loadLegacyAssemblyOrigins} from './assemblyUsage.mjs';
 import {withDraftIdentity} from './draftIdentity.mjs';
 import BlankSlateEditor from './BlankSlateEditor.jsx';
 import {blankDocument,requireBlankAccounting,hasResourceAdjustments} from './blankSlate.mjs';
@@ -88,6 +88,15 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const db=createSupabaseClient(token);
   return {rpc:async(...args)=>{if(!current())throw Error('Assembly session changed. Reopen the library.');const result=await db.rpc(...args);if(!current())throw Error('Assembly session changed. Check the saved library before retrying.');return result;}};
  },[getToken,permissions.userId]);
+
+ const loadAssemblyOrigins=useCallback(ids=>loadLegacyAssemblyOrigins(recipeSessionClient,division,ids),[recipeSessionClient,division]);
+ const readAssemblyUsage=useCallback(async row=>{
+  const current=()=>recipeMounted.current&&recipeActor.current===permissions.userId;
+  const token=await getSupabaseAccessToken(bindTokenToActor(getToken,permissions.userId,current));
+  const matches=await loadAssemblyUsage(createSupabaseClient(token),division,row);
+  if(!current())throw Error('Assembly session changed. Reopen the library.');
+  return matches;
+ },[getToken,permissions.userId,division]);
 
  useEffect(()=>{
   if(!libraryOnly)setView(estimatesSectionFromLocation(location.pathname,location.search,permissions,location.state));
@@ -388,7 +397,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  if(!permissions.canEstimate&&!permissions.canApproveEstimates&&!permissions.canSavePersonalWork)return <p>Estimate access is required.</p>;
  if(!reviewMode&&!librarySettings.current)return <p role="alert">{error||'Assembly Library rate settings are unavailable.'}</p>;
   if(libraryOnly&&personalOnly)return <p>Shared assembly access requires estimating authority. Personal assemblies remain inside My Estimates.</p>;
- if(libraryOnly)return <>{permissions.canEstimate&&<DefaultRecipeCatalogue client={recipeSessionClient} division={division}/>}{error&&<p role="alert">{error}</p>}<EditorFrame document={{...newLaborRates(seed('Assembly library'),librarySettings.current),librarySettings:librarySettings.current,library:structuredClone(library.current)}} onSaveLibrarySettings={permissions.canEditCatalog?saveRateSettings:undefined} onLoadLibraryRates={loadLibraryRates} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
+ if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...newLaborRates(seed('Assembly library'),librarySettings.current),librarySettings:librarySettings.current,library:structuredClone(library.current)}} onSaveLibrarySettings={permissions.canEditCatalog?saveRateSettings:undefined} onLoadLibraryRates={loadLibraryRates} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} libraryOnly sharedRecipeClient={permissions.canEstimate?recipeSessionClient:undefined} libraryDivision={division} onLoadAssemblyUsage={permissions.canEstimate?readAssemblyUsage:undefined} onLoadAssemblyOrigins={permissions.canEstimate?loadAssemblyOrigins:undefined} onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
  if(selectedReview){
   if(!['official_estimate','standalone_estimate'].includes(selectedReview.destination_key))return <section className="workspace-stack">
    <WorkspaceHeader eyebrow={selectedReview.task_type} title={selectedReview.estimate_name||'Shared estimating change'} description={`Submitted by ${selectedReview.submitted_by_name} for ${selectedReview.target_division||'company review'}.`} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
