@@ -56,3 +56,6 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 .blank-work-metric-error{margin:0;font-size:.85rem;line-height:1.4;overflow-wrap:anywhere}
 @media(max-width:640px){.blank-work-top{grid-template-columns:minmax(0,1fr);gap:1rem}.blank-work-metrics dl{grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}.blank-work-metrics dl>div,.blank-work-metrics .blank-work-selling{display:grid;align-content:start;border:0;padding:0;gap:.35rem}.blank-work-metrics dd,.blank-work-metrics .blank-work-selling dd{text-align:left;font-size:1.15rem}}
 @media(max-width:480px){.blank-work-metrics dl{grid-template-columns:minmax(0,1fr);gap:0}.blank-work-metrics dl>div,.blank-work-metrics .blank-work-selling{display:flex;justify-content:space-between;border-top:1px solid var(--border,#d9dde3);padding:.65rem 0}.blank-work-metrics dl>div:first-child{border-top:0;padding-top:0}.blank-work-metrics dl>div:last-child{padding-bottom:0}.blank-work-metrics dd,.blank-work-metrics .blank-work-selling dd{text-align:right;font-size:1.1rem}}
+
+.blank-slate .blank-resource > .blank-quantity-lock{width:fit-content;max-width:100%;flex-direction:row;align-items:center;min-height:24px;margin:8px 0 4px;font-size:13px;font-weight:400;cursor:pointer}
+.blank-slate .blank-quantity-lock > input[type=checkbox]{flex:none;width:16px;height:16px;margin:0;cursor:inherit}
