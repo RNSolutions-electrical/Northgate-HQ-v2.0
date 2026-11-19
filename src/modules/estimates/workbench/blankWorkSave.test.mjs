@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {saveWorkToEstimate} from './blankWorkSave.mjs';
+import {blankDocument,blankSumPricing} from './blankSlate.mjs';
+import {beginWorkEdit} from './blankWorkEditing.mjs';
+const fixture=()=>{const d={...blankDocument('test'),rate:60,blankSlateHardRate:35,materialMarkup:20};d.entries=[{id:'e',items:[{id:'i',name:'Outlet',qty:2,lines:[{id:'r',name:'Resource',qty:1,price:10,hours:.5,fixed:false}]}]}];const e=beginWorkEdit(d.entries[0],d.entries[0].items[0],d);e.item.lines[0].price=20;return {d,e}};
+test('explicit estimate save includes edit and calls only estimate persistence',async()=>{const {d,e}=fixture();let args;const next=await saveWorkToEstimate(d,e,async(...values)=>{args=values;return {document:values[0]}});assert.equal(args.length,2);assert.deepEqual(args[1],[]);assert.equal(next.entries[0].items[0].lines[0].price,20);assert.equal(d.entries[0].items[0].lines[0].price,10);assert.equal(blankSumPricing(d.entries.flatMap(x=>x.items),d).price,84);});
+test('failed persistence retains original included totals and complete edit',async()=>{const {d,e}=fixture(),before=structuredClone({d,e});await assert.rejects(saveWorkToEstimate(d,e,async()=>{throw Error('stale revision')}),/stale revision/);assert.deepEqual({d,e},before);});
+test('invalid edit never invokes persistence',async()=>{const {d,e}=fixture();e.item.qty=0;let called=false;await assert.rejects(saveWorkToEstimate(d,e,async()=>{called=true}),/greater than zero/);assert.equal(called,false);});
+test('declined save does not count as success',async()=>{const {d,e}=fixture();await assert.rejects(saveWorkToEstimate(d,e,async()=>false),/not completed/);});
+test('quote-backed work retains accounting capability gate and never saves when unavailable',async()=>{const {d,e}=fixture();e.item.blankQuotes=[{id:'q',mode:'add',cost:20,markup:0}];let called=false;await assert.rejects(saveWorkToEstimate(d,e,async()=>{called=true}),/accounting is unavailable/);assert.equal(called,false);});

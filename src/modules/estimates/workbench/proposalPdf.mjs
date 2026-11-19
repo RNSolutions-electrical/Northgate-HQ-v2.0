@@ -78,6 +78,7 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false}={
  }
  section('Included',fields.inclusions);section('Exclusions',fields.exclusions);section('Schedule',fields.schedule);
  ensure(charges&&(charges.salesTax||charges.creditCardFee)?126:62);y+=14;
+ if(document.blankSlateVersion===1&&charges?.resourceAddition){ensure(40);paragraph('Material / labor additions included: '+money(charges.resourceAddition),{gap:8});}
  if(document.blankSlateVersion===1&&charges?.totalDiscount){ensure(72);paragraph('Before discounts: '+money(charges.grossPreDiscount),{gap:3});paragraph('Discounts: '+money(charges.totalDiscount),{gap:8});}
  // Historical approved totals remain authoritative; new snapshots freeze the breakdown.
  if(charges&&(charges.salesTax||charges.creditCardFee)){

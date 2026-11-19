@@ -1,4 +1,4 @@
-import React, {useDeferredValue, useEffect, useId, useRef, useState} from 'react';
+import React, {useDeferredValue, useEffect, useId, useMemo, useRef, useState} from 'react';
 import {catalogue, money, searchMaterials} from './model.mjs';
 import {catalogueMissing} from './workspaceModel.mjs';
 import {resolveMaterials} from '../../../lib/materialResolver.js';
@@ -10,8 +10,8 @@ export function MaterialPicker({line,onType,onDraft=()=>{},onSelect}) {
   const [query,setQuery]=useState(line.name||'');
   const focused=useRef(false),selected=useRef(false),deferredQuery=useDeferredValue(query);
   useEffect(()=>{if(!focused.current)setQuery(line.name||'');},[line.name]);
-  const allMatches=searchMaterials(catalogue,deferredQuery);const matches=allMatches.slice(0,60);
-  function select(material){selected.current=true;setQuery(material.name);onSelect(material);setOpen(false);setActive(-1);}
+  const allMatches=useMemo(()=>open?searchMaterials(catalogue,deferredQuery):[],[open,catalogue,deferredQuery]);const matches=allMatches.slice(0,60);
+  function select(material){if(query!==deferredQuery)return;selected.current=true;setQuery(material.name);onSelect(material);setOpen(false);setActive(-1);}
   return <div className="material-picker" onBlur={event=>{
     if(!event.currentTarget.contains(event.relatedTarget)){
       focused.current=false;

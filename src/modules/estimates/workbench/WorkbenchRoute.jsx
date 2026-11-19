@@ -1,6 +1,8 @@
+import {bindTokenToActor} from '../../dwelling-load/sessionSafety.js';
+import {DefaultRecipeCatalogue} from './DefaultRecipeLibrary.jsx';
 import {withDraftIdentity} from './draftIdentity.mjs';
 import BlankSlateEditor from './BlankSlateEditor.jsx';
-import {blankDocument,requireBlankAccounting} from './blankSlate.mjs';
+import {blankDocument,requireBlankAccounting,hasResourceAdjustments} from './blankSlate.mjs';
 import {newLaborRates} from './laborRates.mjs';
 import { getSupabaseAccessToken } from '../../../services/clerkToken.js';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
@@ -15,7 +17,7 @@ import PersonalEstimateSubmission from './PersonalEstimateSubmission.jsx';
 import { EstimateDirectory } from './EstimateDirectory.jsx';
 import './estimateDirectory.css';
 import {seed,sections,setCatalogue} from './model.mjs';
-import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial} from './catalogueService.js';
+import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial,catalogueFields} from './catalogueService.js';
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
 import baseCSS from './style.css?inline';
 import workspaceCSS from './workspace.css?inline';
@@ -44,11 +46,13 @@ function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onD
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" className={fitViewport?'estimate-editor-frame--fit':undefined} ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{display:'block',width:'100%',height:fitViewport&&height?height:'calc(100dvh - 130px)',minHeight:fitViewport?0:620,border:0}}
- >{target&&createPortal(<>{document.blankSlateVersion===1?<BlankSlateEditor initialDocument={document} onSave={onSave} onDirty={onDirty} onExit={onExit} approvedSnapshot={approvedSnapshot} {...handoffProps} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)}/>:<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>}</>,target)}</iframe>;
+ >{target&&createPortal(<>{document.blankSlateVersion===1?<BlankSlateEditor canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} initialDocument={document} onSave={onSave} onDirty={onDirty} onExit={onExit} approvedSnapshot={approvedSnapshot} {...handoffProps} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)}/>:<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>}</>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
- const permissions=usePermissions(),{getToken}=useAuth();
+ const permissions=usePermissions(),{getToken,userId:recipeActorId}=useAuth();
+ const recipeActor=useRef(recipeActorId),recipeMounted=useRef(true);recipeActor.current=recipeActorId;
+ useEffect(()=>{recipeMounted.current=true;return()=>{recipeMounted.current=false;};},[]);
  const {setEstimatesNavVisible}=useOutletContext();
  const personalOnly=permissions.canSavePersonalWork&&!permissions.canEstimate&&!permissions.canApproveEstimates;
  const [view,setView]=useState(()=>estimatesSectionFromLocation(location.pathname,location.search,permissions,location.state));
@@ -72,6 +76,19 @@ export default function WorkbenchRoute({libraryOnly=false}){
  const [checklistConfig,setChecklistConfig]=useState(null);
  const markDirty=useCallback(value=>{dirty.current=value;},[]);
  const client=useCallback(async()=>createSupabaseClient(await getSupabaseAccessToken(getToken)),[getToken]);
+ const loadPricingMaterials=useCallback(async ids=>{
+  const current=()=>recipeMounted.current&&recipeActor.current===permissions.userId;
+  const token=await getSupabaseAccessToken(bindTokenToActor(getToken,permissions.userId,current)),db=createSupabaseClient(token),rows=[];
+  for(let offset=0;offset<ids.length;offset+=100){if(!current())throw Error('Estimate account changed.');const result=await db.from('items').select(catalogueFields).in('id',ids.slice(offset,offset+100)).eq('is_active',true).eq('is_archived',false).eq('estimating_enabled',true);if(!current())throw Error('Estimate account changed.');if(result.error)throw result.error;rows.push(...(result.data||[]).map(catalogueMaterial));}
+  return rows;
+ },[getToken,permissions.userId]);
+ const recipeSessionClient=useCallback(async()=>{
+  const current=()=>recipeMounted.current&&recipeActor.current===permissions.userId;
+  const token=await getSupabaseAccessToken(bindTokenToActor(getToken,permissions.userId,current));
+  const db=createSupabaseClient(token);
+  return {rpc:async(...args)=>{if(!current())throw Error('Assembly session changed. Reopen the library.');const result=await db.rpc(...args);if(!current())throw Error('Assembly session changed. Check the saved library before retrying.');return result;}};
+ },[getToken,permissions.userId]);
+
  useEffect(()=>{
   if(!libraryOnly)setView(estimatesSectionFromLocation(location.pathname,location.search,permissions,location.state));
  },[libraryOnly,location.pathname,location.search,location.state?.reviewMode,permissions.canSavePersonalWork,permissions.canEstimate,permissions.canApproveEstimates]);
@@ -145,6 +162,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  },[]);
  async function save(document,updates=[],assembly=null){
   document=withDraftIdentity(document);
+  if(hasResourceAdjustments(document))await requireBlankAccounting(document,client);
   if(saving.current)throw new Error('A save is already in progress.');
   saving.current=true;
   try{
@@ -203,7 +221,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   if(response.error)throw response.error;
   const saved=catalogueMaterial(response.data.item);
   catalogueRequest.current=null;
-  try{setCatalogue(await loadCatalogue(db));}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
+  try{const fresh=await loadCatalogue(db);setCatalogue(fresh);return fresh.find(item=>item.id===saved.id)||saved;}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
   return saved;
  }
  async function archiveAssembly(item,reason){
@@ -370,7 +388,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  if(!permissions.canEstimate&&!permissions.canApproveEstimates&&!permissions.canSavePersonalWork)return <p>Estimate access is required.</p>;
  if(!reviewMode&&!librarySettings.current)return <p role="alert">{error||'Assembly Library rate settings are unavailable.'}</p>;
   if(libraryOnly&&personalOnly)return <p>Shared assembly access requires estimating authority. Personal assemblies remain inside My Estimates.</p>;
- if(libraryOnly)return <>{error&&<p role="alert">{error}</p>}<EditorFrame document={{...newLaborRates(seed('Assembly library'),librarySettings.current),librarySettings:librarySettings.current,library:structuredClone(library.current)}} onSaveLibrarySettings={permissions.canEditCatalog?saveRateSettings:undefined} onLoadLibraryRates={loadLibraryRates} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
+ if(libraryOnly)return <>{permissions.canEstimate&&<DefaultRecipeCatalogue client={recipeSessionClient} division={division}/>}{error&&<p role="alert">{error}</p>}<EditorFrame document={{...newLaborRates(seed('Assembly library'),librarySettings.current),librarySettings:librarySettings.current,library:structuredClone(library.current)}} onSaveLibrarySettings={permissions.canEditCatalog?saveRateSettings:undefined} onLoadLibraryRates={loadLibraryRates} onSave={saveLibrary} permissions={permissions} onDirty={markDirty} onExit={()=>{if(!dirty.current||window.confirm('Leave without saving changes?'))navigate('/estimates');}} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} libraryOnly onCatalogueMaterial={permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={archiveAssembly}/></>;
  if(selectedReview){
   if(!['official_estimate','standalone_estimate'].includes(selectedReview.destination_key))return <section className="workspace-stack">
    <WorkspaceHeader eyebrow={selectedReview.task_type} title={selectedReview.estimate_name||'Shared estimating change'} description={`Submitted by ${selectedReview.submitted_by_name} for ${selectedReview.target_division||'company review'}.`} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
@@ -404,7 +422,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
    {personalMode&&<PersonalEstimateSubmission key={'submission:'+selected.personal_id} routeKey={location.key} locked={personalLocked} promoted={selected.estimates?.status==='promoted'} workflow={workflow} onReason={reason=>setWorkflow(current=>({...current,reason,error:'',success:''}))} onSubmit={submitPersonal}/>}
    {!personalMode&&permissions.canEstimate&&<PersonalEstimateSubmission key={'submission:'+selected.estimate_id} routeKey={location.key} locked={officialPending||officialApproved} lockedLabel={officialApproved?'Approved estimate':'Submitted for review'} lockedMessage={officialApproved?'Approved snapshot retained in Estimates. Linking to a destination is optional.':'This saved estimate is locked while awaiting a review decision.'} workflow={workflow} onReason={reason=>setWorkflow(current=>({...current,reason,error:'',success:''}))} onSubmit={submitOfficial}/>}
    {officialPending&&permissions.canApproveEstimates&&<button type="button" className="secondary-button" onClick={()=>switchView('review')}>Review submission</button>}
-   <EditorFrame fitViewport key={selected.estimate_id||selected.personal_id} document={document} onLoadLibraryRates={loadLibraryRates} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&!officialPending&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked:personalLocked||officialPending,canApproveEstimates:permissions.canApproveEstimates&&!officialPending}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} accountingClient={client} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
+   <EditorFrame fitViewport key={selected.estimate_id||selected.personal_id} recipeClient={!personalMode&&permissions.canEstimate&&!officialPending&&!officialApproved?recipeSessionClient:undefined} recipeDivision={division} onLoadPricingMaterials={!personalLocked&&!officialPending&&!officialApproved?loadPricingMaterials:undefined} document={document} onLoadLibraryRates={loadLibraryRates} onSave={save} onApprove={personalMode?undefined:approve} approvedSnapshot={approvedSnapshot} onCatalogueMaterial={!personalMode&&permissions.canEditCatalog?catalogueSave:undefined} onArchiveAssembly={personalMode?undefined:archiveAssembly} onArchiveEstimate={!personalMode&&!officialPending&&permissions.canArchiveRecords?archiveEstimate:undefined} onCreateRevision={personalMode?undefined:createRevision} version={selected.estimates?.version_number||1} onOpenOriginal={!personalMode&&selected.estimates?.revision_of?()=>{const original=rows.find(r=>r.estimate_id===selected.estimates.revision_of);if(!original){setError('The previous version is unavailable. Return to All estimates and refresh.');return;}if(dirty.current&&!window.confirm('Leave without saving your estimate changes?'))return;dirty.current=false;active.current=original;setSelected(original);}:undefined} permissions={{...permissions,personalOnly:personalMode,personalLocked:personalLocked||officialPending,canApproveEstimates:permissions.canApproveEstimates&&!officialPending}} onDirty={markDirty} onExit={exit} onReloadLibrary={async()=>{library.current=await loadAssemblyLibrary(await client(),division);return structuredClone(library.current);}} accountingClient={client} handoffClient={personalMode?undefined:client} onHandoff={personalMode?undefined:submitHandoff} onOpenHandoff={personalMode?undefined:openHandoff} existingHandoff={personalMode?null:handoffs[selected.estimate_id]} checklistConfig={checklistConfig} onReloadChecklist={reloadChecklist} canManageChecklist={!personalMode&&permissions.canEditCatalog} isDeveloper={permissions.canAccessDeveloper} onChecklistDefinition={personalMode?undefined:saveChecklistDefinition} associatedJob={personalMode?null:associatedJob} onOpenJob={personalMode?undefined:()=>openHandoff(handoffs[selected.estimate_id])}/>
 
   </section>;
  }
