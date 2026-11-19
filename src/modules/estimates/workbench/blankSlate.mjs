@@ -38,6 +38,16 @@ function resourceAdjustmentCents(base,line,kind){
  return discountCents(base,adjustment??legacy,adjustment!=null);
 }
 export function discountAmount(base,d){return moneyValue(discountCents(cents(decimal(base,'Selling amount')),d));}
+function resourceMeasure(line,factor){
+ const quantity=multiply(decimal(line.qty,'Resource quantity'),line.fixed?fraction(1n):factor);
+ return {quantity,hours:multiply(quantity,decimal(line.hours,'Labor hours'))};
+}
+const decimalValue=value=>Number(value.n)/Number(value.d);
+/** Exactly the same quantity and hours arithmetic used in Default pricing. */
+export function blankResourceMeasure(line,workQuantity){
+ const {quantity,hours}=resourceMeasure(line,decimal(workQuantity,'Work quantity'));
+ return {quantity:decimalValue(quantity),hours:decimalValue(hours)};
+}
 export function blankItemPricing(item,data){
  if(item.quoteId)throw new Error('Blank-slate quote pricing is not supported.');
  const quotes=item.blankQuotes===undefined?[]:item.blankQuotes;if(!Array.isArray(quotes)||quotes.length>500)throw new Error('Invalid quote list.');const quoteIds=new Set();for(const q of quotes){if(!q||typeof q.id!=='string'||!q.id||quoteIds.has(q.id))throw new Error('Quote identifiers must be present and unique.');quoteIds.add(q.id);}if(quotes.some(q=>!['add','replace','reference'].includes(q.mode)))throw new Error('Choose a quote calculation mode.');if(quotes.filter(q=>q.mode==='replace').length>1)throw new Error('Only one replacement quote may be included per work item.');
@@ -47,8 +57,8 @@ export function blankItemPricing(item,data){
  const markupFactor=add(fraction(1n),multiply(decimal(markup,'Material markup'),fraction(1n,100n)));
  let material=0n,other=0n,hours=fraction(0n),selling=0n,resourceDiscount=0n,resourceAddition=0n;
  for(const line of replacement?[]:item.lines||[]){
-  const qty=multiply(decimal(line.qty,'Resource quantity'),line.fixed?fraction(1n):factor);
-  const cost=cents(multiply(qty,decimal(line.price,'Material price'))),h=multiply(qty,decimal(line.hours,'Labor hours'));
+  const {quantity:qty,hours:h}=resourceMeasure(line,factor);
+  const cost=cents(multiply(qty,decimal(line.price,'Material price')));
   const mg=cents(multiply(fraction(cost,100n),markupFactor)),lg=cents(multiply(h,rate));
   const md=resourceAdjustmentCents(mg,line,'material'),ld=resourceAdjustmentCents(lg,line,'labor');
   material+=cost;hours=add(hours,h);selling+=mg+lg-md-ld;resourceDiscount+=(md>0n?md:0n)+(ld>0n?ld:0n);resourceAddition-=(md<0n?md:0n)+(ld<0n?ld:0n);

@@ -62,3 +62,11 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 
 .library-list .assembly-origin{display:table;width:fit-content;max-width:100%;margin:4px 0;padding:2px 7px;border:1px solid var(--border);border-radius:12px;font-size:12px;font-weight:600;color:#33414a;background:#f1f4f5}
 .assembly-usage-list{padding-inline-start:20px}.assembly-usage-list li{margin-bottom:7px}
+
+.estimate-export-dialog{width:min(500px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto}
+.estimate-export-dialog h2{margin-top:0}
+.estimate-export-dialog fieldset{margin:10px 0;padding:8px 12px;border:1px solid var(--border,#d2d7da)}
+.estimate-export-dialog label.check{width:fit-content;display:flex;align-items:center;gap:8px;margin:4px 0;min-height:25px}
+.estimate-export-dialog .check input{width:auto;margin:0;flex:none}
+.estimate-export-dialog summary{cursor:pointer}
+.estimate-export-dialog .actions{margin-top:12px}
