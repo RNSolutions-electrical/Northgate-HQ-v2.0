@@ -1089,7 +1089,7 @@ export function DeveloperWorkspace({ permissions }) {
       ) : null}
 
       {activeConsolePage === 'availability' ? <ToolAvailabilityConsole permissions={permissions}/> : null}
-      {activeConsolePage === 'addons' ? <DeveloperAddonsConsole /> : null}
+      {activeConsolePage === 'addons' ? <DeveloperAddonsConsole permissions={permissions} /> : null}
 
       {activeConsolePage === 'feedback' ? (
         <DeveloperFeedbackQueue permissions={permissions} onCountChange={setOpenFeedbackCount} />

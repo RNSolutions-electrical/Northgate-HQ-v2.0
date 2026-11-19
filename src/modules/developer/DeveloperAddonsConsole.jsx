@@ -8,7 +8,17 @@ import { Toolbar } from '../../components/ui/Toolbar.jsx';
 import { createSupabaseClient } from '../../services/supabaseClient.js';
 import { RETIRED_ADDON_KEYS } from '../registry.js';
 
-export function DeveloperAddonsConsole() {
+// Daybook pay is an independent opt-in, including for developers. Being able
+// to administer the grant does not imply permission to see anyone's pay.
+const isPayAddon = addon => addon.addon_key === 'daybook_pay';
+const implicitDeveloperAccess = (user, addon) => user.role === 'Developer' && !isPayAddon(addon);
+const DAYBOOK_ACCESS_DETAIL = {
+  daybook: 'Own calendar and read-only crew schedule. Does not include pay access.',
+  daybook_pay: 'Separate access to Daybook pay figures. Does not grant Daybook by itself.',
+};
+
+export function DeveloperAddonsConsole({permissions}) {
+  const mayManagePay = permissions?.permissionSource === 'server' && permissions.canManageDevelopers === true;
   const { getToken } = useAuth();
   const [refreshKey, setRefreshKey] = useState(0);
   const [state, setState] = useState({ isLoading: true, error: null, rows: [] });
@@ -39,20 +49,21 @@ export function DeveloperAddonsConsole() {
     const map = new Map();
     state.rows.forEach((row) => {
       if (!map.has(row.user_id)) map.set(row.user_id, { user_id: row.user_id, display_name: row.display_name, email: row.email, role: row.role, division: row.division, addons: [] });
-      if (!RETIRED_ADDON_KEYS.includes(row.addon_key)) map.get(row.user_id).addons.push(row);
+      if (!RETIRED_ADDON_KEYS.includes(row.addon_key) && (mayManagePay || !isPayAddon(row))) map.get(row.user_id).addons.push(row);
     });
     return [...map.values()];
-  }, [state.rows]);
+  }, [state.rows, mayManagePay]);
   const selected = users.find((user) => user.user_id === selectedUserId) ?? users[0] ?? null;
 
   async function setAccess(addon, enabled) {
-    if (!selected || RETIRED_ADDON_KEYS.includes(addon.addon_key) || saveState.isSaving || reason.trim().length < 3) return;
+    if (!selected || RETIRED_ADDON_KEYS.includes(addon.addon_key) || implicitDeveloperAccess(selected, addon) || (isPayAddon(addon) && !mayManagePay) || saveState.isSaving || reason.trim().length < 3) return;
     setSaveState({ isSaving: true, error: null, success: '' });
     try {
       const token = await getSupabaseAccessToken(getToken);
       const client = createSupabaseClient(token);
       const { error } = await client.rpc('set_user_addon_access', { p_user_id: selected.user_id, p_addon_key: addon.addon_key, p_enabled: enabled, p_reason: reason.trim() });
       if (error) throw error;
+      window.dispatchEvent(new Event('northgate:permissions-updated'));
       setReason('');
       setSaveState({ isSaving: false, error: null, success: `${addon.addon_label} ${enabled ? 'enabled' : 'disabled'} for ${selected.display_name || selected.email}.` });
       setRefreshKey((current) => current + 1);
@@ -76,7 +87,16 @@ export function DeveloperAddonsConsole() {
             <header><div><p className="eyebrow">Selected User</p><h3>{selected.display_name || selected.email}</h3><p>{selected.email || selected.user_id}</p></div><StatusBadge tone={selected.role === 'Developer' ? 'good' : 'neutral'}>{selected.role}</StatusBadge></header>
             <label className="developer-addons__reason"><span>Access change reason</span><textarea rows={2} maxLength={500} value={reason} onChange={(event) => { setReason(event.target.value); setSaveState({ isSaving: false, error: null, success: '' }); }} placeholder="Required before enabling or disabling an add-on" /></label>
             <div className="developer-addons__list">
-              {selected.addons.map((addon) => <div className="developer-addons__row" key={addon.addon_key}><span className="developer-addons__icon"><Puzzle aria-hidden="true" /></span><div><strong>{addon.addon_label}</strong><span>{addon.addon_category} · {addon.access_reason || 'No individual assignment recorded'}</span></div><StatusBadge tone={addon.enabled || selected.role === 'Developer' ? 'good' : 'neutral'}>{selected.role === 'Developer' ? 'Developer access' : addon.enabled ? 'Enabled' : 'Disabled'}</StatusBadge><button type="button" className={addon.enabled ? 'secondary-button secondary-button--danger' : 'primary-button'} onClick={() => setAccess(addon, !addon.enabled)} disabled={saveState.isSaving || reason.trim().length < 3 || selected.role === 'Developer'}>{addon.enabled ? 'Disable' : 'Enable'}</button></div>)}
+              {selected.addons.map((addon) => {
+                const implicit = implicitDeveloperAccess(selected, addon);
+                const detail = DAYBOOK_ACCESS_DETAIL[addon.addon_key];
+                return <div className="developer-addons__row" key={addon.addon_key}>
+                  <span className="developer-addons__icon"><Puzzle aria-hidden="true" /></span>
+                  <div><strong>{addon.addon_label}</strong>{detail && <span>{detail}</span>}<span>{addon.addon_category} · {addon.access_reason || 'No individual assignment recorded'}</span></div>
+                  <StatusBadge tone={addon.enabled || implicit ? 'good' : 'neutral'}>{implicit ? 'Developer access' : addon.enabled ? 'Enabled' : 'Disabled'}</StatusBadge>
+                  <button type="button" className={addon.enabled ? 'secondary-button secondary-button--danger' : 'primary-button'} onClick={() => setAccess(addon, !addon.enabled)} disabled={saveState.isSaving || reason.trim().length < 3 || implicit}>{addon.enabled ? 'Disable' : 'Enable'}</button>
+                </div>;
+              })}
             </div>
             {saveState.error ? <StatePanel tone="danger" title="Add-on access was not changed" description={saveState.error.message} compact /> : null}
             {saveState.success ? <StatePanel tone="success" title="Add-on access updated" description={saveState.success} compact /> : null}

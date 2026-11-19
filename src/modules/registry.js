@@ -45,7 +45,7 @@ import {
  */
 export const MODULES = [
   {key:'dwelling-load',path:'/dwelling-load',label:'Dwelling Load Worksheet',icon:Calculator,requires:['canAccessDeveloper'],personalAddon:true,status:'live',description:'Owner-private, reviewed-input dwelling service worksheet.'},
-  {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,requires:['canAccessDeveloper'],status:'live',description:'Calendar, crew planning and private organization.'},
+  {key:'daybook',path:'/daybook',label:'Daybook',icon:Clock3,developerOrAddon:'daybook',status:'live',description:'Calendar, crew planning and private organization.'},
   { key: 'hq-time', path: '/hq-time', label: 'HQ Time Log', icon: Clock3,
     requires: ['canTrackHqTime'], personalAddon: true, status: 'live',
     description: 'Private record of HQ work and optional focused-time estimates.' },
@@ -173,6 +173,8 @@ export const MODULES = [
 export const RETIRED_ADDON_KEYS = Object.freeze(['service_performance']);
 
 export function isModulePermitted(module, permissions) {
+  if (module.developerOrAddon && permissions?.canAccessDeveloper !== true
+    && !(permissions?.permissionSource === 'server' && permissions?.canAccessAddon?.(module.developerOrAddon) === true)) return false;
   if (module.requiresAddon && permissions?.canAccessAddon?.(module.requiresAddon) !== true) return false;
   if (module.requires?.length) {
     if (!module.requires.every((flag) => permissions?.[flag] === true)) return false;
@@ -190,7 +192,6 @@ export function permittedModules(permissions) {
 /** Presentation groups only: routes and permission gates remain on MODULES. */
 export const NAVIGATION_GROUPS = [
   { key: 'dashboard', moduleKey: 'dashboard' },
-  { key: 'daybook', moduleKey: 'daybook' },
   { key: 'inventory', label: 'Inventory', icon: Boxes, moduleKeys: ['inventory', 'tools'] },
   { key: 'jobs', label: 'Jobs', icon: BriefcaseBusiness, moduleKeys: ['jobs'] },
   { key: 'estimates', label: 'Estimates', icon: Calculator, moduleKeys: ['estimates'] },
@@ -202,6 +203,7 @@ export const NAVIGATION_GROUPS = [
   { key: 'eos', moduleKey: 'eos' },
   { key: 'silas', moduleKey: 'silas' },
   { key: 'add-on-tools', label: 'Add-On Tools', icon: Puzzle, moduleKeys: ['dwelling-load','panel-directory','electrical-inspections','afc','hq-time'] },
+  { key: 'developer-tools', label: 'Developer Tools', icon: Clock3, moduleKeys: ['daybook'] },
   { key: 'developer', moduleKey: 'developer' },
 ];
 
