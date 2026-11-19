@@ -21,6 +21,7 @@ import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial,catalogueFields} fro
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
 import baseCSS from './style.css?inline';
 import workspaceCSS from './workspace.css?inline';
+import {estimateEditorHeight,NARROW_ESTIMATE_EDITOR} from './editorViewport.mjs';
 import catalogueCSS from '../../inventory/materialCatalogue.css?inline';
 const css=baseCSS+'\n'+workspaceCSS+'\n'+catalogueCSS;
 import {handoffDestinationState} from './handoff.mjs';
@@ -32,17 +33,20 @@ function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onD
   if(!fitViewport)return;
   const frame=ref.current,win=frame.ownerDocument.defaultView;
   const shell=frame.closest('.ng-shell'),body=frame.closest('.ng-shell__body');
+  const defaultEditor=document.blankSlateVersion===1;
+  const narrow=win.matchMedia(NARROW_ESTIMATE_EDITOR);
   const resize=()=>{
    // Measure header/banner height, including wrapped text on small screens.
    if(shell&&body)shell.style.setProperty('--ng-estimate-shell-top',(body.getBoundingClientRect().top+win.scrollY)+'px');
    const content=frame.closest('.ng-shell__content');
    const bottom=content?parseFloat(win.getComputedStyle(content).paddingBottom)||0:0;
-   setHeight(Math.max(1,(win.visualViewport?.height||win.innerHeight)-(frame.getBoundingClientRect().top+win.scrollY)-bottom-16));
+   setHeight(estimateEditorHeight({layoutHeight:win.innerHeight,visualHeight:win.visualViewport?.height,
+    top:frame.getBoundingClientRect().top+win.scrollY,bottom,narrow:defaultEditor&&narrow.matches}));
   };
   const observer=new ResizeObserver(resize);observer.observe(frame.parentElement);
   win.addEventListener('resize',resize);win.visualViewport?.addEventListener('resize',resize);resize();
   return()=>{observer.disconnect();win.removeEventListener('resize',resize);win.visualViewport?.removeEventListener('resize',resize);shell?.style.removeProperty('--ng-estimate-shell-top');};
- },[fitViewport]);
+ },[fitViewport,document.blankSlateVersion]);
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" className={fitViewport?'estimate-editor-frame--fit':undefined} ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{display:'block',width:'100%',height:fitViewport&&height?height:'calc(100dvh - 130px)',minHeight:fitViewport?0:620,border:0}}

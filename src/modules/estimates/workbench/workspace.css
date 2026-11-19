@@ -70,3 +70,14 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 .estimate-export-dialog .check input{width:auto;margin:0;flex:none}
 .estimate-export-dialog summary{cursor:pointer}
 .estimate-export-dialog .actions{margin-top:12px}
+/* iOS may zoom on focus when a field uses text below 16px. Keep fields
+   readable in the Default workspace and its dialogs without limiting zoom. */
+@media(max-width:768px){
+ .blank-slate :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea),
+ #editor:has(.blank-slate) .blank-work-dialog :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){
+  font-size:16px;
+  min-height:44px;
+  scroll-margin-block:12px;
+ }
+ #editor:has(.blank-slate) .blank-work-dialog{scroll-padding-block:12px}
+}
