@@ -1,6 +1,6 @@
 import {withDraftIdentity} from './draftIdentity.mjs';
 import BlankSlateEditor from './BlankSlateEditor.jsx';
-import {blankDocument,requireBlankAccounting} from './blankSlate.mjs';
+import {blankDocument,requireBlankAccounting,hasResourceAdjustments} from './blankSlate.mjs';
 import {newLaborRates} from './laborRates.mjs';
 import { getSupabaseAccessToken } from '../../../services/clerkToken.js';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
@@ -145,6 +145,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
  },[]);
  async function save(document,updates=[],assembly=null){
   document=withDraftIdentity(document);
+  if(hasResourceAdjustments(document))await requireBlankAccounting(document,client);
   if(saving.current)throw new Error('A save is already in progress.');
   saving.current=true;
   try{

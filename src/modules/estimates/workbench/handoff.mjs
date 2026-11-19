@@ -15,7 +15,7 @@ export function handoffPreview(document){
   return {key:entry.id+':'+item.id,reference:`${String(entry.number).padStart(3,'0')}.${item.number}`,
    description:item.name,section:entry.section,location:entry.location,material_amount:price.material,
    labor_amount:price.labor,other_amount:price.other,markup_amount:document.blankSlateVersion===1?(Math.round(price.materialMarkup*100)+Math.round(fee*100)-Math.round(discount*100))/100:round(price.materialMarkup+fee),
-   fee_amount:fee,...(document.blankSlateVersion===1?{resource_discount:price.resourceDiscount,estimate_discount:discount}:{}),line_total:document.blankSlateVersion===1?(Math.round(price.subtotal*100)+Math.round(fee*100)-Math.round(discount*100))/100:round(price.subtotal+fee)};
+   fee_amount:fee,...(document.blankSlateVersion===1?{resource_discount:price.resourceDiscount,...(price.resourceAddition?{resource_addition:price.resourceAddition}:{}),estimate_discount:discount}:{}),line_total:document.blankSlateVersion===1?(Math.round(price.subtotal*100)+Math.round(fee*100)-Math.round(discount*100))/100:round(price.subtotal+fee)};
  }));
  return {lines,total:total.price,fee:total.fee,chargeError:total.chargeError,hasProposalCharges:!!(Number(document.proposal?.salesTaxPercent)||Number(document.proposal?.creditCardPercent))};
 }
