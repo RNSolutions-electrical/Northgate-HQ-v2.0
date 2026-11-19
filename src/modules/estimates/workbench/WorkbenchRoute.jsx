@@ -44,7 +44,7 @@ function EditorFrame({document,onSave,onApprove,approvedSnapshot,permissions,onD
  const srcDoc='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div id="editor"></div></body></html>';
  return <iframe title="Estimate editor" className={fitViewport?'estimate-editor-frame--fit':undefined} ref={ref} srcDoc={srcDoc} onLoad={()=>setTarget(ref.current.contentDocument.getElementById('editor'))}
   style={{display:'block',width:'100%',height:fitViewport&&height?height:'calc(100dvh - 130px)',minHeight:fitViewport?0:620,border:0}}
- >{target&&createPortal(<>{leadingContent}{document.blankSlateVersion===1?<BlankSlateEditor initialDocument={document} onSave={onSave} onDirty={onDirty} onExit={onExit} approvedSnapshot={approvedSnapshot} {...handoffProps} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)}/>:<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>}</>,target)}</iframe>;
+ >{target&&createPortal(<>{leadingContent}{document.blankSlateVersion===1?<BlankSlateEditor canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} initialDocument={document} onSave={onSave} onDirty={onDirty} onExit={onExit} approvedSnapshot={approvedSnapshot} {...handoffProps} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)}/>:<WorkbenchEditor initialDocument={document} onSave={onSave} onApprove={onApprove} approvedSnapshot={approvedSnapshot} canEditCatalog={permissions.canEditCatalog&&!permissions.personalOnly} canApprove={permissions.canApproveEstimates&&!permissions.personalOnly} readOnly={permissions.personalLocked||(!permissions.canEstimate&&!permissions.personalOnly)} frameWindow={ref.current.contentWindow} onDirty={onDirty} onExit={onExit} onReloadLibrary={onReloadLibrary} libraryOnly={libraryOnly} onArchiveAssembly={onArchiveAssembly} onArchiveEstimate={onArchiveEstimate} onCreateRevision={onCreateRevision} version={version} onOpenOriginal={onOpenOriginal} {...handoffProps}/>}</>,target)}</iframe>;
 }
 export default function WorkbenchRoute({libraryOnly=false}){
  const location=useLocation(),navigate=useNavigate();
@@ -203,7 +203,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   if(response.error)throw response.error;
   const saved=catalogueMaterial(response.data.item);
   catalogueRequest.current=null;
-  try{setCatalogue(await loadCatalogue(db));}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
+  try{const fresh=await loadCatalogue(db);setCatalogue(fresh);return fresh.find(item=>item.id===saved.id)||saved;}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
   return saved;
  }
  async function archiveAssembly(item,reason){
