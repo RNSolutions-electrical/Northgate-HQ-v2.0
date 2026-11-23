@@ -1,0 +1,31 @@
+.fn-preview{display:grid;gap:14px;min-width:0;color:var(--ng-text)}
+.fn-preview h2,.fn-preview h3,.fn-preview p{margin:0}
+.fn-preview__header,.fn-preview__list-head,.fn-preview__save{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.fn-preview__header{border-bottom:1px solid var(--ng-border);padding-bottom:12px}
+.fn-preview__header h2{font-size:clamp(22px,3vw,31px);line-height:1.18;margin:4px 0}
+.fn-preview__header p,.fn-preview__card p,.fn-preview small{color:var(--ng-muted)}
+.fn-preview__metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:10px}
+.fn-preview__metric,.fn-preview__card,.fn-preview__save{background:var(--ng-card-bg);border:1px solid var(--ng-border);border-radius:var(--ng-radius-card);padding:14px;box-shadow:var(--ng-shadow);min-width:0}
+.fn-preview__metric{display:grid;gap:5px}
+.fn-preview__metric span,.fn-preview label span{font-weight:650}
+.fn-preview__metric strong{font-size:21px;font-variant-numeric:tabular-nums}
+.fn-preview__nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--ng-border)}
+.fn-preview__nav button{background:transparent;border:0;border-bottom:3px solid transparent;padding:9px 12px;color:var(--ng-muted);font-weight:650;cursor:pointer}
+.fn-preview__nav button[aria-pressed=true]{border-color:var(--ng-brand-red);color:var(--ng-text)}
+.fn-preview__card{display:grid;gap:11px;margin:0}
+.fn-preview__actions{display:flex;flex-wrap:wrap;align-items:end;gap:8px}
+.fn-preview label{display:grid;gap:4px;min-width:0}
+.fn-preview input,.fn-preview select{font:inherit;border:1px solid var(--ng-border);border-radius:var(--ng-radius-control);min-height:37px;padding:6px 9px;width:100%;background:var(--ng-card-bg);color:var(--ng-text)}
+.fn-preview :focus-visible{outline:2px solid var(--ng-brand-red);outline-offset:2px}
+.fn-preview__scroll{overflow:auto;min-width:0}
+.fn-preview__grid{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;background:var(--ng-card-bg)}
+.fn-preview__grid th,.fn-preview__grid td{border-bottom:1px solid var(--ng-divider);padding:8px 10px;text-align:right;white-space:nowrap}
+.fn-preview__grid th:first-child{text-align:left;white-space:normal;min-width:150px}
+.fn-preview__grid thead{background:var(--ng-panel-bg-alt)}
+.fn-preview__grid .is-selected{background:var(--ng-brand-red-soft)}
+.fn-preview__grid small,.fn-preview__save small,.fn-preview__math span{display:block;margin-top:4px}
+.fn-preview__editor legend{font-weight:700;padding:0 6px}
+.fn-preview__form{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr))}
+.fn-preview__math,.fn-preview__notice{padding:10px 12px;background:var(--ng-info-bg);border-radius:var(--ng-radius-control);overflow-wrap:anywhere}
+.fn-preview .fn-preview__error{color:var(--ng-err)}
+@media(max-width:600px){.fn-preview__metric,.fn-preview__card{padding:10px}.fn-preview input,.fn-preview select{font-size:16px}.fn-preview__nav button{padding-inline:8px}}

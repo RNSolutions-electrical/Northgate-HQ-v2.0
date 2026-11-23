@@ -40,6 +40,7 @@ import { GuidedChangeOrder } from '../silas/GuidedChangeOrder.jsx';
 import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.jsx';
 import { BillingActions } from './BillingActions.jsx';
 import { JobForecastPanel } from './JobForecastPanel.jsx';
+import { FinancialsPreview } from './FinancialsPreview.jsx';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
 import { FinancialLineDivisionPicker } from './FinancialLineDivisionPicker.jsx';
 import { JobFinancialProposalQueue } from './JobFinancialProposalQueue.jsx';
@@ -2238,6 +2239,7 @@ export function JobsWorkspace({ permissions }) {
   const [isBudgetTemplateOpen, setIsBudgetTemplateOpen] = useState(false);
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [forecastJobId, setForecastJobId] = useState(null);
+  const [financialsWorkspaceJobId, setFinancialsWorkspaceJobId] = useState(null);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [collapsedRevenueDivisions, setCollapsedRevenueDivisions] = useState({});
   const [changeOrderWorkspaceOrder, setChangeOrderWorkspaceOrder] = useState(undefined);
@@ -2337,8 +2339,9 @@ export function JobsWorkspace({ permissions }) {
   const canProposeSelectedBudget = canViewFinancials && permissions.permissionSource === 'server';
   const canEditDivisionNames=canProposeSelectedBudget && selectedJob?.job_type!=='service_call';
   const isEditingDivisionNames=Boolean(selectedJob && divisionNameEditJobId===selectedJob.id && activeTab==='financials' && mode==='browse' && canEditDivisionNames);
-  const showForecast = forecastJobId === selectedJob?.id && canApproveSelectedBudget;
-  useEffect(() => { setForecastJobId(null); }, [selectedJob?.id, activeTab]);
+  const showFinancialsWorkspace = import.meta.env.VITE_APP_ENV === 'staging' && financialsWorkspaceJobId === selectedJob?.id && canViewFinancials && canApproveSelectedBudget;
+  const showForecast = (forecastJobId === selectedJob?.id && canApproveSelectedBudget) || showFinancialsWorkspace;
+  useEffect(() => { setForecastJobId(null); setFinancialsWorkspaceJobId(null); }, [selectedJob?.id, activeTab]);
   const hasActiveEdit=Boolean(showForecast||budgetForm.id||isAddingBudgetLine||budgetForm.isSaving||revenueForm.id||isAddingRevenueLine||revenueForm.isSaving||buyoutWorkspaceMode||scheduleForm.id||isAddingScheduleItem||scheduleForm.isSaving||isBudgetBulkInputOpen||isBudgetImportOpen||isBudgetTemplateOpen);
   const handleDivisionNameEditorState=useCallback(state=>setDivisionNameEditor(state),[]);
   useEffect(()=>{setDivisionNameEditJobId('');setDivisionNameEditor({open:false,busy:false});},[selectedJobId]);
@@ -5008,7 +5011,7 @@ export function JobsWorkspace({ permissions }) {
       );
     }
 
-    if (activeTab === 'financials' && showForecast) {
+    if (activeTab === 'financials' && showForecast && !showFinancialsWorkspace) {
       return <JobForecastPanel key={selectedJob.id}
         lines={jobBudget.lines} isLoading={jobBudget.isLoading} loadError={jobBudget.error}
         onClose={() => setForecastJobId(null)} onSave={(patches) => saveJobForecast(selectedJob.id, patches)} />;
@@ -5023,6 +5026,14 @@ export function JobsWorkspace({ permissions }) {
       const approvedChangeOrderCostByProjectDivisionId = new Map();
       const budgetLineChangeOrderAmount = (row) => approvedChangeOrderCostByBudgetLineId.get(row.id) || 0;
       const budgetLineRevisedBudget = (row) => effectiveCurrentBudget(row, budgetLineChangeOrderAmount(row));
+      if (activeTab === 'financials' && showFinancialsWorkspace) {
+        return <FinancialsPreview key={selectedJob.id}
+          title={[selectedJob.job_number, selectedJob.name || selectedJob.job_name].filter(Boolean).join(' · ')}
+          lines={jobBudget.lines.map(row => ({ ...row, currentBudget: budgetLineRevisedBudget(row), description: financialLineDescription(row) }))}
+          isLoading={jobBudget.isLoading} loadError={jobBudget.error}
+          onClose={() => setFinancialsWorkspaceJobId(null)}
+          onSave={(patches) => saveJobForecast(selectedJob.id, patches)} />;
+      }
       const manualChangeTotal = sumField(jobBudget.lines, 'budget_change_amount');
       const approvedChangeOrderTotal = [...approvedChangeOrderCostByBudgetLineId.values()]
         .reduce((total, amount) => total + amount, 0);
@@ -5345,7 +5356,8 @@ export function JobsWorkspace({ permissions }) {
           <JobFinancialProposalQueue jobId={selectedJob.id} enabled={canApproveSelectedBudget} onApplied={() => { jobBudget.reload(); jobRevenue.reload(); }} />
           {canProposeSelectedBudget ? (
             <div className="job-financials-quick-actions">
-              {canApproveSelectedBudget ? <button type="button" className="primary-button" disabled={hasActiveEdit || jobBudget.isLoading || Boolean(jobBudget.error)} onClick={() => setForecastJobId(selectedJob.id)}>Open Forecast</button> : null}
+              {import.meta.env.VITE_APP_ENV === 'staging' && canApproveSelectedBudget ? <button type="button" className="primary-button" disabled={hasActiveEdit || jobBudget.isLoading || Boolean(jobBudget.error)} onClick={() => setFinancialsWorkspaceJobId(selectedJob.id)}>Open Financials Workspace</button> : null}
+              {canApproveSelectedBudget ? <button type="button" className={import.meta.env.VITE_APP_ENV === 'staging' ? 'secondary-button' : 'primary-button'} disabled={hasActiveEdit || jobBudget.isLoading || Boolean(jobBudget.error)} onClick={() => setForecastJobId(selectedJob.id)}>Open Forecast</button> : null}
               {canApproveSelectedBudget ? <button type="button" className="primary-button" onClick={() => setIsBudgetTemplateOpen(true)}>Build from Template</button> : null}
               <button type="button" className="secondary-button" disabled={isAddingBudgetLine || budgetForm.isSaving || Boolean(budgetForm.id)} aria-expanded={isBudgetDivisionPickerOpen} onClick={() => setIsBudgetDivisionPickerOpen((current) => !current)}>Add Financial Line</button>
               {canApproveSelectedBudget ? <button type="button" className="secondary-button" onClick={() => setIsBudgetBulkInputOpen((current) => !current)}>{isBudgetBulkInputOpen ? 'Close Bulk Input' : 'Bulk Input'}</button> : null}
@@ -6464,7 +6476,7 @@ export function JobsWorkspace({ permissions }) {
                   <button type="button" className="primary-button" onClick={finishDivisionNameEdit} disabled={divisionNameEditor.open||hasActiveEdit}>Done</button>
                 </section>:null}
                 <WorkspaceTabs
-                  tabs={showForecast ? visibleTabs.map((tab) => ({ ...tab, disabled: true, description: 'Close the forecast worksheet to change sections.' })) : visibleTabs}
+                  tabs={showForecast ? visibleTabs.map((tab) => ({ ...tab, disabled: true, description: 'Close the financial workspace to change sections.' })) : visibleTabs}
                   activeKey={activeTab}
                   onChange={next=>{if (!showForecast) guardPermit(()=>{setPermitPanelState({dirty:false,busy:false});setActiveTab(next);});}}
                   ariaLabel="Job detail sections"
