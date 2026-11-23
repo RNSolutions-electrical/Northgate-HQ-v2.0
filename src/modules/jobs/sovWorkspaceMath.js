@@ -26,7 +26,7 @@ export function divisionSources(divisions,budget) {
   return (divisions??[]).map(d=>{
     const lines=(budget??[]).filter(b=>b.project_division_id===d.id);
     const total=lines.reduce((n,b)=>n+Math.round(Number(b.budget_amount??0)*100),0);
-    return {...d,total:lines.length&&total>0?total:null};
+    return {...d,name:d.effective_name||d.name||d.catalogue_name||`Division ${d.code}`,total:lines.length&&total>0?total:null};
   }).filter(d=>d.total!=null&&d.code!=null);
 }
 export function validatePlan(plan) {

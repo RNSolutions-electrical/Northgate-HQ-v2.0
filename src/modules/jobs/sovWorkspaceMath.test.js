@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import {cents,divisionSources,sovMetrics,validatePlan} from './sovWorkspaceMath.js';
 
 test('Division imports original amounts only, including all explicit lines in that division',()=>{
- const d=[{id:'a',code:'16',name:'Electrical'},{id:'b',code:'15',name:'Mechanical'}];
+ const d=[{id:'a',code:'16',effective_name:'Electrical'},{id:'b',code:'15',name:'Mechanical'}];
  const rows=[{project_division_id:'a',budget_amount:48000,currentBudget:50000},
   {project_division_id:'a',budget_amount:99900},{project_division_id:'b',budget_amount:10}];
  assert.equal(divisionSources(d,rows)[0].total,14790000);
+ assert.equal(divisionSources(d,rows)[0].name,'Electrical');
 });
 test('Work remaining and remaining to bill are separate, including missing and overbilled links',()=>{
  const line={basis:'percent',value:'20',complete:'50'};
