@@ -22,3 +22,8 @@
 .fin2-notice,.fin2 [role=alert] {border-inline-start:3px solid currentColor;padding:.5rem .7rem}
 @media(max-width:42rem){.fin2-panel{padding:.65rem}.fin2-form .fin2-field{flex:1 0 min(100%,14rem)}.fin2-nav button{font-size:.9rem}.fin2-table th:first-child{min-width:9rem}}
 @media print {.fin2 button,.fin2 nav{display:none}}
+.sov2-header {display:flex;gap:12px;justify-content:space-between;align-items:start;flex-wrap:wrap}
+.sov2-group {border-top:1px solid var(--border-color, #c5cbd2);padding-top:12px}
+.sov2 table :is(input,select) {width:8rem;max-width:100%;font:inherit}
+.sov2 table th input, .sov2 table td:last-of-type select {width:12rem}
+.sov2-line-note {display:block;font-size:.75rem}

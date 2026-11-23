@@ -5059,6 +5059,8 @@ export function JobsWorkspace({ permissions }) {
         const ready = (source) => source.matchesJob && !source.isLoading && !source.error;
         return <FinancialsV2 key={selectedJob.id}
           job={selectedJob}
+          divisions={ready(jobBudget) ? jobBudget.divisions : []}
+          onSovReload={jobRevenue.reload}
           lines={ready(jobBudget) ? jobBudget.lines.map(row=>({...row,description:financialLineDescription(row),currentBudget:ready(jobChangeOrderPostings)?budgetLineRevisedBudget(row):null})) : null}
           sov={ready(jobRevenue) ? jobRevenue.lines : null}
           orders={ready(jobChangeOrders) ? jobChangeOrders.rows : null}

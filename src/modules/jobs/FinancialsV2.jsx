@@ -1,3 +1,4 @@
+import { JobSovWorkspace } from './JobSovWorkspace.jsx';
 import { useAuth } from '@clerk/clerk-react';
 import { useEffect, useRef, useState } from 'react';
 import { withSupabaseTokenRetry } from '../../services/supabaseClient.js';
@@ -27,7 +28,7 @@ function Grid({label,columns,rows}) {
 }
 const Metric = ({title,value,detail}) => <div className="fin2-metric"><span>{title}</span><strong>{value}</strong><small>{detail}</small></div>;
 
-export function FinancialsV2({job,lines,sov,orders,postings,waiting,issues,canManage,canSeeProtected,onSaveBudget,onLegacy,onBilling,onQuick,onOpenChange,onViewEstimate,onDirty}) {
+export function FinancialsV2({job,lines,divisions,sov,orders,postings,waiting,issues,canManage,canSeeProtected,onSaveBudget,onSovReload,onLegacy,onBilling,onQuick,onOpenChange,onViewEstimate,onDirty}) {
   const {getToken}=useAuth();
   const [view,setView]=useState('overview');
   const [recordState,setRecordState]=useState({loading:canSeeProtected,records:[],error:''});
@@ -43,9 +44,10 @@ export function FinancialsV2({job,lines,sov,orders,postings,waiting,issues,canMa
   const [busy,setBusy]=useState(false);
   const locked=useRef(false);
   const [notice,setNotice]=useState(null);
+  const [sovDirty,setSovDirty]=useState(false);
   const records=indexRecords(recordState.records);
   const snapshots=recordState.records.filter(r=>r.kind==='forecast').sort((a,b)=>b.record_key.localeCompare(a.record_key));
-  const dirty=Boolean(draft)||Object.keys(forecast).length>0;
+  const dirty=sovDirty||Boolean(draft)||Object.keys(forecast).length>0;
   const canWrite=canManage&&canSeeProtected&&!recordState.loading&&!recordState.error&&!busy;
   useEffect(()=>{onDirty(dirty||busy);return ()=>onDirty(false);},[dirty,busy,onDirty]);
   useEffect(()=>{
@@ -311,19 +313,23 @@ export function FinancialsV2({job,lines,sov,orders,postings,waiting,issues,canMa
     </Panel>}
 
     {view==='sov'&&<>
-      <Panel title="Schedule of values & billing records" sub="Use SOV to set up the customer billing schedule. HQ records invoicing and corrections only; it does not issue invoices.">
-        <div className="fin2-metrics">
-          <Metric title="Current signed contract" value={money(contract.current)}/>
-          <Metric title="Allocated SOV" value={money(contract.allocated)}/>
-          <Metric title="Billed to date" value={money(billed)}/>
-          <Metric title="Contract remaining to bill" value={money(difference(contract.current,billed))}/>
-        </div>
-        <div className="fin2-actions"><Button primary onClick={()=>leave(()=>onBilling(contract.original))}>Open SOV builder & billing review</Button></div>
-        <Grid label="Schedule of values" columns={['SOV line','Scheduled','Approved adjustments allocated','Billed','Remaining','Billed %']} rows={(sov??[]).map(r=>{
-          const total=Number(r.scheduled_value_amount||0)+Number(r.approved_change_amount||0);
-          return [r.id,[r.sov_line,r.description].filter(Boolean).join(' · '),money(r.scheduled_value_amount),money(r.approved_change_amount),money(r.billed_to_date_amount),money(difference(total,r.billed_to_date_amount)),total===0?'—':`${(Number(r.billed_to_date_amount||0)/total*100).toFixed(1)}%`];
-        })}/>
-      </Panel>
+      <JobSovWorkspace record={records['sov_workspace:job']} divisions={divisions} budget={lines} sov={sov} hasPayHistory={payState.apps.length>0}
+        original={contract.original} canWrite={canWrite} busy={busy} waiting={waiting||Boolean(issues)||payState.loading||Boolean(payState.error)} onDirty={setSovDirty}
+        onLegacy={()=>onBilling(contract.original)}
+        onSave={async (payload)=>{
+          let ok=false;
+          await run(async()=>{
+            const data=await call('save_job_sov_workspace_v2',{p_job_id:job.id,p_expected_revision:records['sov_workspace:job']?.revision??0,p_payload:payload,p_publish:false});
+            const row=Array.isArray(data)?data[0]:data;if(!row?.id)throw new Error('SOV save response was incomplete. Refresh before retrying.');
+            setRecordState(x=>({...x,records:[...x.records.filter(r=>r.kind!=='sov_workspace'),row]}));ok=true;
+          },'Saved the rebuilt SOV. Billing history was not changed.');return ok;
+        }}
+        onPublish={()=>run(async()=>{
+          const old=records['sov_workspace:job'];
+          const data=await call('save_job_sov_workspace_v2',{p_job_id:job.id,p_expected_revision:old.revision,p_payload:old.payload,p_publish:true});
+          const row=Array.isArray(data)?data[0]:data;if(!row?.id)throw new Error('SOV response was incomplete. Refresh before retrying.');
+          setRecordState(x=>({...x,records:[...x.records.filter(r=>r.kind!=='sov_workspace'),row]}));onSovReload();
+        },'Schedule is active for billing. No invoice was issued.')}/>
       <Panel title="Optional collections" sub="An issued bill can be marked paid without changing issued billing, cost, or the revenue forecast. An unmarked bill has no collection status recorded.">
         {payState.loading&&<p role="status">Loading issued bills…</p>}{payState.error&&<p role="alert">Could not load issued bills.</p>}
         {draft?.kind==='receipt'&&<form className="fin2-form" onSubmit={e=>{e.preventDefault();run(async()=>{await record('receipt',draft.id,{paid:draft.paid,date:draft.paid?(draft.date||null):null});setDraft(null);},'Collection status recorded. Issued billing was not changed.');}}>
