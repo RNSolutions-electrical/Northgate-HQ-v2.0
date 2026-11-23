@@ -29,3 +29,7 @@
 .fn-preview__math,.fn-preview__notice{padding:10px 12px;background:var(--ng-info-bg);border-radius:var(--ng-radius-control);overflow-wrap:anywhere}
 .fn-preview .fn-preview__error{color:var(--ng-err)}
 @media(max-width:600px){.fn-preview__metric,.fn-preview__card{padding:10px}.fn-preview input,.fn-preview select{font-size:16px}.fn-preview__nav button{padding-inline:8px}}
+/* Keep job chrome and its scrollable tabs from widening the entire HQ pane. */
+.workspace-card:has(> .fn-preview){grid-template-columns:minmax(0,1fr)}
+.workspace-card:has(> .fn-preview) > .record-header{min-width:0}
+.workspace-card:has(> .fn-preview) > .workspace-tabs{min-width:0;max-width:100%;overflow-x:auto}
