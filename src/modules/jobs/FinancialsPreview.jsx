@@ -135,7 +135,7 @@ export function FinancialsPreview({ title, lines, isLoading, loadError, onClose,
         {drafts[selected.id] ? <button type="button" className="secondary-button" onClick={() => reset(selected)}>Revert this line</button> : null}
       </fieldset> : null}
       {view === 'forecast' ? <div className="fn-preview__save">
-        <div><strong>{dirty ? `${Object.keys(drafts).length} lines edited · ${projection.final.known ? money(projection.final.value) : '—'} projected{projection.final.known < lines.length ? ' on recorded lines' : ''}` : 'No unsaved forecast edits'}</strong>
+        <div><strong>{dirty ? `${Object.keys(drafts).length} ${Object.keys(drafts).length === 1 ? 'line' : 'lines'} edited · ${projection.final.known ? money(projection.final.value) : '—'} projected${projection.final.known < lines.length ? ' on recorded lines' : ''}` : 'No unsaved forecast edits'}</strong>
         <small>Save writes dollar totals only. Hours, rates and breakdowns aren’t retained.</small></div>
         <button className="primary-button" type="button" disabled={!dirty || busy} onClick={save}>{busy ? 'Saving…' : 'Review & save totals'}</button>
       </div> : null}
