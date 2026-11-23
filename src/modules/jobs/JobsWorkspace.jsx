@@ -41,6 +41,8 @@ import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.js
 import { BillingActions } from './BillingActions.jsx';
 import { JobForecastPanel } from './JobForecastPanel.jsx';
 import { FinancialsPreview } from './FinancialsPreview.jsx';
+import { FinancialsLanding } from './FinancialsLanding.jsx';
+import { approvedContractChanges, financialContractSummary } from './financialsLanding.js';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
 import { FinancialLineDivisionPicker } from './FinancialLineDivisionPicker.jsx';
 import { JobFinancialProposalQueue } from './JobFinancialProposalQueue.jsx';
@@ -411,6 +413,7 @@ const JOB_CHANGE_ORDER_SELECT_FIELDS = [
   'created_at',
   'updated_at',
   'change_order_allocations(id, project_division_id, budget_line_id, amount)',
+  'archived_at',
 ].join(', ');
 
 const JOB_SCHEDULE_SELECT_FIELDS = [
@@ -1583,6 +1586,8 @@ function useJobBudgetLines({ enabled, jobId }) {
         if (isMounted) {
           setState({
             isLoading: false,
+            loadedJobId: jobId,
+            loadedRefreshKey: refreshKey,
             error: null,
             lines: mergeFinancialNames(data ?? EMPTY_BUDGET_LINES, names.data || {}),
             divisions: names.data?.divisions || [],
@@ -1593,6 +1598,8 @@ function useJobBudgetLines({ enabled, jobId }) {
         if (isMounted) {
           setState({
             isLoading: false,
+            loadedJobId: jobId,
+            loadedRefreshKey: refreshKey,
             error,
             lines: EMPTY_BUDGET_LINES,
             divisions: [],
@@ -1609,7 +1616,7 @@ function useJobBudgetLines({ enabled, jobId }) {
   }, [enabled, getToken, jobId, refreshKey]);
 
   return {
-    ...state,
+    ...state, matchesJob: enabled && state.loadedJobId === jobId && state.loadedRefreshKey === refreshKey,
     reload: () => setRefreshKey((current) => current + 1),
   };
 }
@@ -1653,6 +1660,8 @@ function useJobRevenueLines({ enabled, jobId }) {
         if (isMounted) {
           setState({
             isLoading: false,
+            loadedJobId: jobId,
+            loadedRefreshKey: refreshKey,
             error: null,
             lines: mergeFinancialNames(data ?? EMPTY_REVENUE_LINES,names.data || {}),
           });
@@ -1662,6 +1671,8 @@ function useJobRevenueLines({ enabled, jobId }) {
         if (isMounted) {
           setState({
             isLoading: false,
+            loadedJobId: jobId,
+            loadedRefreshKey: refreshKey,
             error,
             lines: EMPTY_REVENUE_LINES,
           });
@@ -1677,7 +1688,7 @@ function useJobRevenueLines({ enabled, jobId }) {
   }, [enabled, getToken, jobId, refreshKey]);
 
   return {
-    ...state,
+    ...state, matchesJob: enabled && state.loadedJobId === jobId && state.loadedRefreshKey === refreshKey,
     reload: () => setRefreshKey((current) => current + 1),
   };
 }
@@ -1704,17 +1715,17 @@ function useJobChangeOrders({ enabled, jobId }) {
           .eq('job_id', jobId)
           .order('created_at', { ascending: false });
         if (error) throw error;
-        if (isMounted) setState({ isLoading: false, error: null, rows: data ?? EMPTY_CHANGE_ORDERS });
+        if (isMounted) setState({ isLoading: false, loadedJobId: jobId, loadedRefreshKey: refreshKey, error: null, rows: data ?? EMPTY_CHANGE_ORDERS });
       } catch (error) {
         console.error('Job change orders failed to load', error);
-        if (isMounted) setState({ isLoading: false, error, rows: EMPTY_CHANGE_ORDERS });
+        if (isMounted) setState({ isLoading: false, loadedJobId: jobId, loadedRefreshKey: refreshKey, error, rows: EMPTY_CHANGE_ORDERS });
       }
     }
     load();
     return () => { isMounted = false; };
   }, [enabled, getToken, jobId, refreshKey]);
 
-  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+  return { ...state, matchesJob: enabled && state.loadedJobId === jobId && state.loadedRefreshKey === refreshKey, reload: () => setRefreshKey((current) => current + 1) };
 }
 
 function useJobChangeOrderPostings({ enabled, jobId }) {
@@ -1735,16 +1746,16 @@ function useJobChangeOrderPostings({ enabled, jobId }) {
         const client = createSupabaseClient(token);
         const { data, error } = await client.from('change_order_financial_postings').select('*').eq('job_id', jobId);
         if (error) throw error;
-        if (isMounted) setState({ isLoading: false, error: null, rows: data || [] });
+        if (isMounted) setState({ isLoading: false, loadedJobId: jobId, loadedRefreshKey: refreshKey, error: null, rows: data || [] });
       } catch (error) {
-        if (isMounted) setState({ isLoading: false, error, rows: [] });
+        if (isMounted) setState({ isLoading: false, loadedJobId: jobId, loadedRefreshKey: refreshKey, error, rows: [] });
       }
     }
     load();
     return () => { isMounted = false; };
   }, [enabled, getToken, jobId, refreshKey]);
 
-  return { ...state, reload: () => setRefreshKey((current) => current + 1) };
+  return { ...state, matchesJob: enabled && state.loadedJobId === jobId && state.loadedRefreshKey === refreshKey, reload: () => setRefreshKey((current) => current + 1) };
 }
 
 function useJobScheduleItems({ enabled, jobId }) {
@@ -2246,6 +2257,7 @@ export function JobsWorkspace({ permissions }) {
   const [guidedChangeOrder, setGuidedChangeOrder] = useState(undefined);
   const [changeOrderSort, setChangeOrderSort] = useState({ key: '', direction: 'asc' });
   const [adjustmentView, setAdjustmentView] = useState('all');
+  const [approvedAdjustmentJob, setApprovedAdjustmentJob] = useState(null);
   const [budgetImport, setBudgetImport] = useState(DEFAULT_BUDGET_IMPORT);
   const [budgetBulkInput, setBudgetBulkInput] = useState(DEFAULT_BUDGET_BULK_INPUT);
   const [budgetTemplateAction, setBudgetTemplateAction] = useState({ key: '', error: null, success: '' });
@@ -4974,6 +4986,8 @@ export function JobsWorkspace({ permissions }) {
     }
 
     if (activeTab === 'change_orders') {
+      const approvedOnly = approvedAdjustmentJob === selectedJob.id;
+      const approvedSelection = approvedOnly && jobChangeOrders.matchesJob ? approvedContractChanges(jobChangeOrders.rows) : null;
       const changeOrderColumns = [
         { key: 'co_number', header: 'Number', sortable: true, render: (row) => <strong>{row.co_number}</strong> },
         { key: 'record_type', header: 'Type', render: (row) => row.record_type === 'credit' ? 'Credit' : 'Change Order' },
@@ -4991,13 +5005,17 @@ export function JobsWorkspace({ permissions }) {
             <button type="button" className="secondary-button" onClick={() => setGuidedChangeOrder(null)}>Help Me Build It</button>
             </div>
           ) : null}
+          {approvedOnly && <div className="job-financials-quick-actions">
+            <button type="button" className="secondary-button" onClick={() => setApprovedAdjustmentJob(null)}>Show all changes</button>
+            <span>Showing current approved changes and credits</span>
+          </div>}
           <DataTable
             columns={changeOrderColumns}
-            rows={filterAdjustments(sortedChangeOrders, adjustmentView)}
+            rows={approvedOnly ? sortedChangeOrders.filter(row => approvedSelection?.ids.has(row.id)) : filterAdjustments(sortedChangeOrders, adjustmentView)}
             getRowKey={(row) => row.id}
             permissions={permissions}
-            isLoading={jobChangeOrders.isLoading}
-            error={jobChangeOrders.error}
+            isLoading={jobChangeOrders.isLoading || (approvedOnly && !jobChangeOrders.matchesJob)}
+            error={jobChangeOrders.error || (approvedOnly && jobChangeOrders.matchesJob && !approvedSelection ? new Error('Approval totals require a review of the change-order revision history.') : null)}
             sortKey={changeOrderSort.key}
             sortDirection={changeOrderSort.direction}
             onSort={sortChangeOrders}
@@ -5050,6 +5068,19 @@ export function JobsWorkspace({ permissions }) {
       const revisedRevenueTotal = jobRevenue.lines.reduce((total, line) => total + revisedRevenue(line), 0);
       const billedRevenueTotal = sumField(jobRevenue.lines, 'billed_to_date_amount');
       const remainingBillingTotal = revisedRevenueTotal - billedRevenueTotal;
+      const showFinancialsLanding = import.meta.env.VITE_APP_ENV === 'staging' && activeTab === 'financials' && !isEditingDivisionNames;
+      const summaryReady = source => source.matchesJob && !source.isLoading && !source.error;
+      const landingOrders = summaryReady(jobChangeOrders) ? jobChangeOrders.rows : null;
+      const landingSov = summaryReady(jobRevenue) ? jobRevenue.lines : null;
+      const landingBudget = summaryReady(jobBudget) && summaryReady(jobChangeOrderPostings) && jobBudget.lines.length > 0;
+      const executionLines = landingBudget ? jobBudget.lines.filter(row => row.category !== 'ohp_fee') : [];
+      const executionBudget = executionLines.length ? executionLines.reduce((total, row) => total + effectiveCurrentBudget(row), 0) : null;
+      const executionActual = executionLines.length ? sumField(executionLines, 'actual_cost_amount') : null;
+      const explicitForecast = executionLines.some(row => Number(row.forecast_final_amount) !== 0 && Number.isFinite(Number(row.forecast_final_amount)));
+      const contractSummary = showFinancialsLanding ? financialContractSummary({
+        // Current job schema has no confirmed-original-contract field. Do not substitute SOV, cost or estimate.
+        original: null, changeOrders: landingOrders, sovLines: landingSov,
+      }) : null;
       const estimatedProfit = jobBudget.lines
         .filter((line) => line.category === 'ohp_fee')
         .reduce((total, line) => total + budgetLineRevisedBudget(line), 0);
@@ -5335,7 +5366,21 @@ export function JobsWorkspace({ permissions }) {
           {budgetForm.error || budgetForm.success ? <div ref={budgetFeedbackRef} tabIndex={-1} role={budgetForm.error ? 'alert' : 'status'}>
             <StatePanel tone={budgetForm.error ? 'danger' : 'success'} title={budgetForm.error ? 'Financial line not saved' : 'Financial line saved'} description={budgetForm.error ? budgetForm.error.message : budgetForm.success} compact />
           </div> : null}
-          <div className="summary-grid summary-grid--compact">
+          {showFinancialsLanding ? <FinancialsLanding
+            contract={contractSummary}
+            budget={{ detailed: landingBudget && canViewProtectedProjectFinancials ? financialRevisedTotal : null, execution: executionBudget, actual: executionActual, remaining: executionBudget == null ? null : signedBudgetBalance(executionBudget, executionActual) }}
+            billing={{ billed: landingSov?.length ? billedRevenueTotal : null }}
+            forecasting={{ completion: explicitForecast ? sumField(executionLines, 'forecast_final_amount') : null }}
+            loading={[jobBudget, jobRevenue, jobChangeOrders, jobChangeOrderPostings].some(source => !source.matchesJob || source.isLoading)}
+            hasIssues={Boolean(jobBudget.error || jobRevenue.error || jobChangeOrders.error || jobChangeOrderPostings.error || (landingOrders && contractSummary.approved == null))}
+            canViewDetailed={canViewProtectedProjectFinancials}
+            navigationBlocked={hasActiveEdit}
+            onDetails={() => { const details = document.getElementById('job-financial-detail'); details?.focus({ preventScroll: true }); details?.scrollIntoView({ block: 'start' }); }}
+            onBilling={() => guardPermit(() => { if (!hasActiveEdit) setActiveTab('billing'); })}
+            onChangeOrders={() => guardPermit(() => { if (!hasActiveEdit) { setApprovedAdjustmentJob(selectedJob.id); setActiveTab('change_orders'); } })}
+            onForecast={canApproveSelectedBudget && !hasActiveEdit && landingBudget ? () => setFinancialsWorkspaceJobId(selectedJob.id) : null}
+            onQuickForecast={() => setForecastJobId(selectedJob.id)}
+          /> : <div className="summary-grid summary-grid--compact">
             <SummaryCard label="Current Budget" value={formatMoney(financialRevisedTotal)} detail={`${formatMoney(changeTotal)} in changes; ${budgetOverrideCount} manual overrides`} />
             <SummaryCard label="Actual Costs" value={formatMoney(actualTotal)} detail="Costs posted to date" />
             <SummaryCard label="Remaining Budget" value={formatMoney(remainingBudgetTotal)} detail="Current budget minus actual costs" tone={remainingBudgetTotal < 0 ? 'danger' : remainingBudgetTotal > 0 ? 'good' : 'default'} />
@@ -5344,8 +5389,9 @@ export function JobsWorkspace({ permissions }) {
             <SummaryCard label="Forecasted Remaining Budget" value={formatMoney(forecastedRemainingBudgetTotal)} detail="Current budget minus completion forecast" tone={forecastedRemainingBudgetTotal < 0 ? 'warn' : forecastedRemainingBudgetTotal > 0 ? 'good' : 'default'} />
             {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
             {canViewProtectedProjectFinancials ? <SummaryCard label="Projected Gross Profit" value={formatMoney(projectedGrossProfit)} detail={projectedMargin == null ? 'Add SOV revenue lines' : `${formatPercent(projectedMargin)} projected margin`} tone={projectedGrossProfit < 0 ? 'warn' : 'good'} /> : null}
-          </div>
+          </div>}
 
+          <div id="job-financial-detail" tabIndex={-1} />
           <Toolbar
             eyebrow="Cost Control"
             title="Budget and cost forecast"
@@ -6478,7 +6524,7 @@ export function JobsWorkspace({ permissions }) {
                 <WorkspaceTabs
                   tabs={showForecast ? visibleTabs.map((tab) => ({ ...tab, disabled: true, description: 'Close the financial workspace to change sections.' })) : visibleTabs}
                   activeKey={activeTab}
-                  onChange={next=>{if (!showForecast) guardPermit(()=>{setPermitPanelState({dirty:false,busy:false});setActiveTab(next);});}}
+                  onChange={next=>{if (!showForecast) guardPermit(()=>{setPermitPanelState({dirty:false,busy:false});setApprovedAdjustmentJob(null);setActiveTab(next);});}}
                   ariaLabel="Job detail sections"
                 />
                 {selectedJob && activeTab === 'overview' ? <JobResponsibilities jobId={selectedJob.id} canManage={canManageSelectedJob && ['Manager', 'Director', 'Developer'].includes(permissions.role)} /> : null}

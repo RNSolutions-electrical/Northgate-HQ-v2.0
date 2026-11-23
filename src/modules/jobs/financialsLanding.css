@@ -1,0 +1,11 @@
+.financials-landing { display: grid; gap: 1rem; min-width: 0; margin-bottom: 1.5rem; }
+.financials-landing h2, .financials-landing h3 { margin: 0; }
+.financials-landing header p { margin: .35rem 0 0; }
+.financials-landing__section {
+  display: grid; gap: .65rem; min-width: 0; padding: 1rem;
+  border: 1px solid var(--ng-divider, #64748b66); border-radius: var(--ng-radius-card, .75rem); background: var(--ng-panel-bg);
+}
+.financials-landing__section .summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); min-width: 0;
+}
+.financials-landing__section .job-financials-quick-actions { margin: 0; flex-wrap: wrap; }
