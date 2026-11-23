@@ -41,6 +41,7 @@ import { ServiceCallsWorkspace } from '../service-calls/ServiceCallsWorkspace.js
 import { BillingActions } from './BillingActions.jsx';
 import { JobForecastPanel } from './JobForecastPanel.jsx';
 import { FinancialsPreview } from './FinancialsPreview.jsx';
+import { FinancialsV2 } from './FinancialsV2.jsx';
 import { FinancialsLanding } from './FinancialsLanding.jsx';
 import { approvedContractChanges, financialContractSummary } from './financialsLanding.js';
 import { FinancialExportDialog } from './FinancialExportDialog.jsx';
@@ -2250,6 +2251,9 @@ export function JobsWorkspace({ permissions }) {
   const [isBudgetTemplateOpen, setIsBudgetTemplateOpen] = useState(false);
   const [isBudgetBulkInputOpen, setIsBudgetBulkInputOpen] = useState(false);
   const [forecastJobId, setForecastJobId] = useState(null);
+  const [legacyFinancialsJobId, setLegacyFinancialsJobId] = useState(null);
+  const [v2BillingContext, setV2BillingContext] = useState(null);
+  const [v2FinancialsDirty,setV2FinancialsDirty] = useState(false);
   const [financialsWorkspaceJobId, setFinancialsWorkspaceJobId] = useState(null);
   const [collapsedBudgetDivisions, setCollapsedBudgetDivisions] = useState({});
   const [collapsedRevenueDivisions, setCollapsedRevenueDivisions] = useState({});
@@ -2351,10 +2355,14 @@ export function JobsWorkspace({ permissions }) {
   const canProposeSelectedBudget = canViewFinancials && permissions.permissionSource === 'server';
   const canEditDivisionNames=canProposeSelectedBudget && selectedJob?.job_type!=='service_call';
   const isEditingDivisionNames=Boolean(selectedJob && divisionNameEditJobId===selectedJob.id && activeTab==='financials' && mode==='browse' && canEditDivisionNames);
+  const financialsVersionEnabled = import.meta.env.VITE_APP_ENV === 'staging' && canViewFinancials && permissions.permissionSource === 'server';
+  const showLegacyFinancials = financialsVersionEnabled && legacyFinancialsJobId === selectedJob?.id;
+  const isV2Billing = financialsVersionEnabled && v2BillingContext != null && v2BillingContext.jobId === selectedJob?.id;
+  useEffect(() => {setLegacyFinancialsJobId(null);setV2BillingContext(null);},[selectedJob?.id]);
   const showFinancialsWorkspace = import.meta.env.VITE_APP_ENV === 'staging' && financialsWorkspaceJobId === selectedJob?.id && canViewFinancials && canApproveSelectedBudget;
   const showForecast = (forecastJobId === selectedJob?.id && canApproveSelectedBudget) || showFinancialsWorkspace;
   useEffect(() => { setForecastJobId(null); setFinancialsWorkspaceJobId(null); }, [selectedJob?.id, activeTab]);
-  const hasActiveEdit=Boolean(showForecast||budgetForm.id||isAddingBudgetLine||budgetForm.isSaving||revenueForm.id||isAddingRevenueLine||revenueForm.isSaving||buyoutWorkspaceMode||scheduleForm.id||isAddingScheduleItem||scheduleForm.isSaving||isBudgetBulkInputOpen||isBudgetImportOpen||isBudgetTemplateOpen);
+  const hasActiveEdit=Boolean(v2FinancialsDirty||showForecast||budgetForm.id||isAddingBudgetLine||budgetForm.isSaving||revenueForm.id||isAddingRevenueLine||revenueForm.isSaving||buyoutWorkspaceMode||scheduleForm.id||isAddingScheduleItem||scheduleForm.isSaving||isBudgetBulkInputOpen||isBudgetImportOpen||isBudgetTemplateOpen);
   const handleDivisionNameEditorState=useCallback(state=>setDivisionNameEditor(state),[]);
   useEffect(()=>{setDivisionNameEditJobId('');setDivisionNameEditor({open:false,busy:false});},[selectedJobId]);
   useEffect(()=>{if(activeTab!=='financials'||mode!=='browse'||!canEditDivisionNames)setDivisionNameEditJobId('');},[activeTab,mode,canEditDivisionNames]);
@@ -2524,7 +2532,7 @@ export function JobsWorkspace({ permissions }) {
   }, [schedulePrintMode]);
 
   function selectJob(job) {
-    if (showForecast) return;
+    if (showForecast || v2FinancialsDirty) return;
     setIsBudgetDivisionPickerOpen(false);
     setGuidedChangeOrder(undefined);
     setSelectedJobId(job.id);
@@ -2552,7 +2560,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   function returnToJobList(confirmed=false) {
-    if (showForecast) return;
+    if (showForecast || v2FinancialsDirty) return;
     if(confirmed!==true&&activeTab==='permits'&&(permitPanelState.dirty||permitPanelState.busy)){guardPermit(()=>returnToJobList(true));return;}
     setPermitPanelState({dirty:false,busy:false});
     setSelectedJobId('');
@@ -3742,6 +3750,7 @@ export function JobsWorkspace({ permissions }) {
   }
 
   async function saveJobForecast(jobId, patches) {
+    if (patches === null) {jobBudget.reload();return;}
     if (!canApproveSelectedBudget || selectedJob?.id !== jobId) {
       throw new Error('Open the job again before saving forecasts.');
     }
@@ -5044,6 +5053,29 @@ export function JobsWorkspace({ permissions }) {
       const approvedChangeOrderCostByProjectDivisionId = new Map();
       const budgetLineChangeOrderAmount = (row) => approvedChangeOrderCostByBudgetLineId.get(row.id) || 0;
       const budgetLineRevisedBudget = (row) => effectiveCurrentBudget(row, budgetLineChangeOrderAmount(row));
+      if (activeTab === 'financials' && financialsVersionEnabled && !showLegacyFinancials && !isEditingDivisionNames && !showFinancialsWorkspace &&
+          !budgetForm.id && !isAddingBudgetLine && !isBudgetBulkInputOpen && !isBudgetImportOpen && !isBudgetTemplateOpen) {
+        const sources = [jobBudget, jobRevenue, jobChangeOrders, jobChangeOrderPostings];
+        const ready = (source) => source.matchesJob && !source.isLoading && !source.error;
+        return <FinancialsV2 key={selectedJob.id}
+          job={selectedJob}
+          lines={ready(jobBudget) ? jobBudget.lines.map(row=>({...row,description:financialLineDescription(row),currentBudget:ready(jobChangeOrderPostings)?budgetLineRevisedBudget(row):null})) : null}
+          sov={ready(jobRevenue) ? jobRevenue.lines : null}
+          orders={ready(jobChangeOrders) ? jobChangeOrders.rows : null}
+          postings={ready(jobChangeOrderPostings) ? jobChangeOrderPostings.rows : null}
+          waiting={sources.some(source=>!source.matchesJob || source.isLoading)}
+          issues={sources.some(source=>Boolean(source.error))}
+          canManage={canApproveSelectedBudget}
+          canSeeProtected={canViewProtectedProjectFinancials}
+          onDirty={setV2FinancialsDirty}
+          onSaveBudget={patches=>saveJobForecast(selectedJob.id,patches)}
+          onLegacy={()=>setLegacyFinancialsJobId(selectedJob.id)}
+          onBilling={signedAmount=>guardPermit(()=>{setV2BillingContext({jobId:selectedJob.id,signedAmount});setActiveTab('billing');})}
+          onQuick={()=>setForecastJobId(selectedJob.id)}
+          onOpenChange={row=>guardPermit(()=>{setApprovedAdjustmentJob(row?selectedJob.id:null);if(row)setChangeOrderWorkspaceOrder(row);setActiveTab('change_orders');})}
+          onViewEstimate={()=>guardPermit(()=>setActiveTab('details'))}
+        />;
+      }
       if (activeTab === 'financials' && showFinancialsWorkspace) {
         return <FinancialsPreview key={selectedJob.id}
           title={[selectedJob.job_number, selectedJob.name || selectedJob.job_name].filter(Boolean).join(' · ')}
@@ -5324,9 +5356,10 @@ export function JobsWorkspace({ permissions }) {
       if (activeTab === 'billing') {
         return (
           <>
+            {isV2Billing && <div className="job-financials-quick-actions"><button type="button" className="secondary-button" onClick={()=>{setLegacyFinancialsJobId(null);setV2BillingContext(null);setActiveTab('financials');}}>Back to Financials V2</button></div>}
             <div className="summary-grid summary-grid--compact">
               <SummaryCard label="Scheduled Value" value={formatMoney(scheduledRevenueTotal)} detail={`${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}`} />
-              <SummaryCard label="Revised Contract" value={formatMoney(revisedRevenueTotal)} detail="Scheduled value plus approved changes" />
+              <SummaryCard label={isV2Billing ? "Revised SOV allocation" : "Revised Contract"} value={formatMoney(revisedRevenueTotal)} detail="Scheduled value plus adjustments allocated to SOV" />
               <SummaryCard label="Billed to Date" value={formatMoney(billedRevenueTotal)} detail="Revenue billed through current applications" />
               <SummaryCard label="Remaining to Bill" value={formatMoney(remainingBillingTotal)} detail="Revised contract less billed revenue" tone={remainingBillingTotal < 0 ? 'warn' : 'good'} />
               {canViewProtectedProjectFinancials ? <SummaryCard label="Estimated Profit" value={formatMoney(estimatedProfit)} detail="OH&P / Fee financial lines" tone={estimatedProfit > 0 ? 'good' : 'default'} /> : null}
@@ -5339,8 +5372,8 @@ export function JobsWorkspace({ permissions }) {
                 description={`${formatMoney(scheduledRevenueTotal)} scheduled value across ${jobRevenue.lines.length} active SOV line${jobRevenue.lines.length === 1 ? '' : 's'}.`}
                 actions={null}
               />
-              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} feePresentationMode={selectedJob.billing_fee_presentation || 'distributed'} canManage={canApproveSelectedBudget} canAddLine={canProposeSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
-              <BillingActions jobId={selectedJob.id} canManage={canApproveSelectedBudget} canCorrect={permissions.canDeveloperDataCorrection === true} onComplete={jobRevenue.reload} />
+              <SovBuilder jobId={selectedJob.id} department={selectedJob.division} feePresentationMode={selectedJob.billing_fee_presentation || 'distributed'} canManage={canApproveSelectedBudget} canAddLine={canProposeSelectedBudget} activeLines={jobRevenue.lines} defaultContractAmount={isV2Billing ? v2BillingContext.signedAmount : originalFinancialTotal} onAddLine={startRevenueAdd} onComplete={jobRevenue.reload} />
+              <BillingActions reconcileBeforeRecord={isV2Billing} jobId={selectedJob.id} canManage={canApproveSelectedBudget} canCorrect={permissions.canDeveloperDataCorrection === true} onComplete={jobRevenue.reload} />
               {revenueGroups.length > 1 ? <div className="job-financials-quick-actions"><button type="button" className="secondary-button" onClick={() => setCollapsedRevenueDivisions(Object.fromEntries(revenueGroups.map(([key]) => [key, false])))}>Expand All</button><button type="button" className="secondary-button" onClick={() => setCollapsedRevenueDivisions(Object.fromEntries(revenueGroups.map(([key]) => [key, true])))}>Collapse All</button></div> : null}
               {revenueGroups.map(([division, group]) => {
                 const isCollapsed = collapsedRevenueDivisions[division] !== false;
@@ -5363,6 +5396,7 @@ export function JobsWorkspace({ permissions }) {
 
       return (
         <>
+          {showLegacyFinancials && !isEditingDivisionNames && <header className="fin2-heading"><div><span className="eyebrow">Jobs / Financials · Staging</span><h2>Legacy Financials</h2><p>The previous workspace. Both versions use the same saved job records.</p></div><button type="button" className="secondary-button" disabled={hasActiveEdit} onClick={()=>setLegacyFinancialsJobId(null)}>Back to Financials V2</button></header>}
           {budgetForm.error || budgetForm.success ? <div ref={budgetFeedbackRef} tabIndex={-1} role={budgetForm.error ? 'alert' : 'status'}>
             <StatePanel tone={budgetForm.error ? 'danger' : 'success'} title={budgetForm.error ? 'Financial line not saved' : 'Financial line saved'} description={budgetForm.error ? budgetForm.error.message : budgetForm.success} compact />
           </div> : null}
@@ -6197,7 +6231,7 @@ export function JobsWorkspace({ permissions }) {
             ) : mode === 'create' || mode === 'edit' ? (
               <button type="button" className="secondary-button" onClick={returnToJobList} disabled={jobForm.isSaving}>Back to Jobs</button>
             ) : selectedJob ? (
-              <button type="button" className="secondary-button" disabled={showForecast} onClick={returnToJobList}>Back to Jobs</button>
+              <button type="button" className="secondary-button" disabled={showForecast||v2FinancialsDirty} onClick={returnToJobList}>Back to Jobs</button>
             ) : (
               <>
                 <button type="button" className="secondary-button workspace-toggle" onClick={() => setIsPrimaryOpen(true)}>Page Menu</button>
@@ -6498,7 +6532,7 @@ export function JobsWorkspace({ permissions }) {
                   ] : []}
                   actions={selectedJob && (canManageSelectedJob||canEditDivisionNames) ? (
                     <>
-                      <button type="button" className="secondary-button" disabled={showForecast} onClick={returnToJobList}>Back to Jobs</button>
+                      <button type="button" className="secondary-button" disabled={showForecast||v2FinancialsDirty} onClick={returnToJobList}>Back to Jobs</button>
                       {canManageSelectedJob && activeTab === 'buyout' ? <button type="button" className="primary-button" onClick={startBuyoutCreate}><Plus aria-hidden="true" /> Add Buyout</button> : null}
                       <RecordEditMenu key={`${selectedJob.id}:${activeTab}`} triggerRef={jobEditTriggerRef} menuLabel="Job edit options" disabled={Boolean(jobAction.action)||divisionNameEditor.open} options={[
                         ...(canManageSelectedJob?[{key:'details',label:'Job Details',disabled:hasActiveEdit,onSelect:()=>guardPermit(startJobEdit)}]:[]),
@@ -6522,9 +6556,9 @@ export function JobsWorkspace({ permissions }) {
                   <button type="button" className="primary-button" onClick={finishDivisionNameEdit} disabled={divisionNameEditor.open||hasActiveEdit}>Done</button>
                 </section>:null}
                 <WorkspaceTabs
-                  tabs={showForecast ? visibleTabs.map((tab) => ({ ...tab, disabled: true, description: 'Close the financial workspace to change sections.' })) : visibleTabs}
+                  tabs={showForecast||v2FinancialsDirty ? visibleTabs.map((tab) => ({ ...tab, disabled: true, description: 'Close the financial workspace to change sections.' })) : visibleTabs}
                   activeKey={activeTab}
-                  onChange={next=>{if (!showForecast) guardPermit(()=>{setPermitPanelState({dirty:false,busy:false});setApprovedAdjustmentJob(null);setActiveTab(next);});}}
+                  onChange={next=>{if (!showForecast&&!v2FinancialsDirty) guardPermit(()=>{setV2BillingContext(null);setPermitPanelState({dirty:false,busy:false});setApprovedAdjustmentJob(null);setActiveTab(next);});}}
                   ariaLabel="Job detail sections"
                 />
                 {selectedJob && activeTab === 'overview' ? <JobResponsibilities jobId={selectedJob.id} canManage={canManageSelectedJob && ['Manager', 'Director', 'Developer'].includes(permissions.role)} /> : null}

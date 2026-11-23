@@ -1,0 +1,24 @@
+.fin2 { display:grid; gap:1rem; min-width:0; }
+.fin2-heading {display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}
+.fin2-heading h2,.fin2-panel h3 {margin:.15rem 0 .35rem}
+.fin2-heading p,.fin2-panel p {margin:.35rem 0 .65rem}
+.fin2-nav,.fin2-actions {display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.fin2-nav button[aria-current=page] {border-color:currentColor;box-shadow:inset 0 -2px currentColor}
+.fin2-panel {min-width:0;padding:1rem;border:1px solid color-mix(in srgb,currentColor 18%,transparent);border-radius:.7rem;display:grid;gap:.65rem}
+.fin2-metrics {display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,10.5rem),1fr))}
+.fin2-metric {border:1px solid color-mix(in srgb,currentColor 15%,transparent);padding:.7rem;border-radius:.5rem;display:grid;align-content:start;gap:.25rem;overflow-wrap:anywhere}
+.fin2-metric strong {font-size:1.22rem}
+.fin2-metric small {opacity:.8}
+.fin2-table {overflow:auto;max-width:100%;border:1px solid color-mix(in srgb,currentColor 15%,transparent);border-radius:.45rem}
+.fin2-table table {width:100%;border-collapse:collapse;font-size:.88rem}
+.fin2-table td,.fin2-table th {padding:.5rem .6rem;text-align:left;vertical-align:top;border-bottom:1px solid color-mix(in srgb,currentColor 15%,transparent)}
+.fin2-table thead th {white-space:nowrap}
+.fin2-table td input {min-width:7rem;max-width:10rem}
+.fin2-form {display:flex;gap:.8rem;align-items:end;flex-wrap:wrap}
+.fin2-form > label {max-width:100%}
+.fin2-field {display:grid;gap:.25rem;min-width:0}
+.fin2-field input,.fin2-field select {width:100%;min-height:2.5rem;padding:.3rem .45rem;font-size:1rem}
+.fin2-editor {scroll-margin-top:8rem}
+.fin2-notice,.fin2 [role=alert] {border-inline-start:3px solid currentColor;padding:.5rem .7rem}
+@media(max-width:42rem){.fin2-panel{padding:.65rem}.fin2-form .fin2-field{flex:1 0 min(100%,14rem)}.fin2-nav button{font-size:.9rem}.fin2-table th:first-child{min-width:9rem}}
+@media print {.fin2 button,.fin2 nav{display:none}}
