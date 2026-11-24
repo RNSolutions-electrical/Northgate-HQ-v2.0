@@ -16,7 +16,7 @@ import WorkbenchEditor from './app.jsx';
 import PersonalEstimateSubmission from './PersonalEstimateSubmission.jsx';
 import { EstimateDirectory } from './EstimateDirectory.jsx';
 import './estimateDirectory.css';
-import {seed,sections,setCatalogue} from './model.mjs';
+import {catalogue,seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial,catalogueFields} from './catalogueService.js';
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
 import baseCSS from './style.css?inline';
@@ -227,13 +227,21 @@ export default function WorkbenchRoute({libraryOnly=false}){
  },[selected?.estimate_id,handoffs,client]);
  const catalogueRequest=useRef(null);
  async function catalogueSave(line,material,values){
+  const actor=recipeActor.current;
+  if(!permissions.canEditCatalog||personalMode)throw Error('Catalogue editing is unavailable.');
   const db=await client();
+  if(!recipeMounted.current||recipeActor.current!==actor)throw Error('Estimate account changed.');
   const input={p_item_id:material?.id||line.catalogueCandidateId||null,p_division:division,p_values:values,p_expected_updated_at:material?.updated_at||null};
   const key=JSON.stringify(input);if(catalogueRequest.current?.key!==key)catalogueRequest.current={key,id:crypto.randomUUID()};
   const response=await db.rpc('save_full_material_catalogue',{...input,p_request_id:catalogueRequest.current.id});
   if(response.error)throw response.error;
+  if(!recipeMounted.current||recipeActor.current!==actor)throw Error('Estimate account changed.');
   const saved=catalogueMaterial(response.data.item);
   catalogueRequest.current=null;
+  if(!material&&line.catalogueCandidateId){
+   setCatalogue([...catalogue.filter(item=>item.id!==saved.id),saved]);
+   return saved;
+  }
   try{const fresh=await loadCatalogue(db);setCatalogue(fresh);return fresh.find(item=>item.id===saved.id)||saved;}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
   return saved;
  }

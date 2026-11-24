@@ -96,17 +96,35 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false,re
   ensure(44);paragraph(audit?'Calculation summary':'Estimate summary',{size:12,font:bold,gap:4});
   const rows=(values,indent=0)=>values.forEach(value=>paragraph(value,{size:10,gap:3,indent}));
   rows(review.summaryRows);
+  // Keep a resource title with its details whenever the block fits on a new page.
+  // Oversized notes still wrap and paginate normally.
+  const heightOf=(value,size,font,gap=0,indent=0)=>wrap(value,size,font,width-indent).length*(size+5)+gap;
+  const auditBlockHeight=(heading,details,indent)=>heightOf(heading,10,bold,2,indent)+details.reduce((height,row)=>height+heightOf(row,10,normal,3,indent),0);
   for(const group of review.groups){
    continuedWork='';
-   y+=6;ensure(45);paragraph(group.name,{size:12,font:bold,gap:4});
+   y+=6;ensure(audit?Math.min(480,heightOf(group.name,12,bold,4)+
+    (group.rows[0]?heightOf(group.rows[0],10,normal,3):0)+
+    (group.items[0]?heightOf(group.items[0].name,11,bold,3,12)+38:0)):45);
+   if(audit){page.drawLine({start:{x:margin,y:792-y},end:{x:margin+width,y:792-y},color:muted,opacity:.5,thickness:.5});y+=5;}
+   paragraph(group.name,{size:12,font:bold,gap:4});
    rows(group.rows);
    for(const item of group.items){
     continuedWork='';
     y+=4;ensure(44);paragraph(item.name,{size:11,font:bold,gap:3,indent:12});
     if(audit){const context=(group.name+' / '+item.name).replace(/\s+/g,' ').trim();continuedWork=context.length>120?context.slice(0,117)+'...':context;}
     rows(item.rows,12);
+    let resourceGroup='';
     for(const line of item.lines){
-     ensure(35);paragraph(line.name,{size:10,font:bold,gap:2,indent:24});
+     if(audit){
+      if(line.resourceGroup!==resourceGroup){
+       resourceGroup=line.resourceGroup;
+       ensure(18+Math.min(500,auditBlockHeight(line.name,line.rows,24)));
+       paragraph(resourceGroup,{size:10,font:bold,color:muted,gap:3,indent:24});
+      }
+      // Do not strand the resource category heading on the prior page.
+      ensure(Math.min(500,auditBlockHeight(line.name,line.rows,24)));
+     }else ensure(35);
+     paragraph(line.name,{size:10,font:bold,gap:2,indent:24});
      rows(line.rows,24);
     }
    }

@@ -30,3 +30,13 @@ test('review projection rejects oversized names and incomplete excluded resource
 });
 
 test('library review and reuse use human labels instead of raw JSON previews',()=>{const ui=readFileSync(new URL('./DefaultRecipeLibrary.jsx',import.meta.url),'utf8');assert.doesNotMatch(ui,/JSONView|<pre/);assert.match(ui,/Sales labor rate \/ hour/);assert.match(ui,/Internal resource notes:/);assert.match(ui,/Replace materials and labor/);});
+
+test('estimate and resource review flags never travel with a reusable recipe',()=>{
+ const source=item();
+ source.internalReview=true;
+ source.lines[0].internalReview=true;
+ const recipe=make(source),copy=reuseRecipe(recipe);
+ assert.doesNotMatch(JSON.stringify(recipe),/internalReview/);
+ assert.equal(copy.internalReview,undefined);
+ assert.equal(copy.lines[0].internalReview,undefined);
+});

@@ -81,3 +81,6 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
  }
  #editor:has(.blank-slate) .blank-work-dialog{scroll-padding-block:12px}
 }
+
+/* Internal work-item review status is visible without opening each item. */
+.estimate-review-badge{display:inline-block;margin:0 0 .35rem;padding:.2rem .5rem;border-radius:.3rem;background:#fff0c7;color:#633900;font-size:.82rem}

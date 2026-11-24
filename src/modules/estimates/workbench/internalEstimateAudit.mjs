@@ -19,7 +19,7 @@ export function internalEstimateAudit(document,snapshot,{costs=false,notes=false
   const replaced=(priced.blankQuotes||[]).some(q=>q.mode==='replace');
   const authored=priced.lines||[], totals={material:0,labor:0};
   const lines=item.lines.map((line,index)=>{
-   if(index>=authored.length)return line;
+   if(index>=authored.length)return {...line,resourceGroup:'Quotes and allowances'};
    const resource=authored[index],unit=resource.unit||'unit';
    const isLabor=resource.blankResourceKind==='labor';
    const ext=measure(resource,quantity),baseQuantity=measure({...resource,hours:0},quantity)?.quantity;
@@ -44,7 +44,7 @@ export function internalEstimateAudit(document,snapshot,{costs=false,notes=false
    else if(resource.priceSource==='prototype_snapshot'||resource.prototypeResource)rows.push('Labor basis source: Imported estimate value.');
    else rows.push('Labor basis source: Entered on the estimate; external source not recorded.');
    rows.push(...line.rows.filter(row=>!['Quantity: ','Labor hours per unit: ','Not included in pricing;'].some(prefix=>row.startsWith(prefix))));
-   return {...line,rows};
+   return {...line,rows,resourceGroup:isLabor?'Labor-only resources':'Material resources'};
   });
   const hours=blankItemPricing(priced,document).hours;
   return {...item,rows:[

@@ -14,11 +14,11 @@ export default function EstimateExportDialog({entries=[],onExport,onClose}){
  const dialog=useRef(null),title=useId();
  const [kind,setKind]=useState('proposal'),[depth,setDepth]=useState('work');
  const [sections,setSections]=useState(['scope','pricing','materials','labor','quotes']);
- const [excluded,setExcluded]=useState([]);
+ const [excluded,setExcluded]=useState([]),[rfqFormat,setRfqFormat]=useState('pdf');
  const available=entries.filter(entry=>entry.id&&entry.items?.length);
  const entryKeys=available.filter(entry=>!excluded.includes(entry.id)).map(entry=>entry.id);
  const subset=entryKeys.length!==available.length;
- const internal=kind==='internal',audit=kind==='audit';
+ const internal=kind==='internal',audit=kind==='audit',rfq=kind==='rfq';
  useEffect(()=>{
   const node=dialog.current,previous=node.ownerDocument.activeElement;
   node.showModal();
@@ -28,17 +28,22 @@ export default function EstimateExportDialog({entries=[],onExport,onClose}){
  function submit(event){
   event.preventDefault();
   if(internal&&subset&&!entryKeys.length)return;
-  onExport(audit?{audit:true,costs:sections.includes('costs'),notes:sections.includes('notes')}:internal?{internal:true,depth,sections,...(subset?{entryKeys}:{})}:{});
+  onExport(rfq?{rfqFormat}:audit?{audit:true,costs:sections.includes('costs'),notes:sections.includes('notes')}:internal?{internal:true,depth,sections,...(subset?{entryKeys}:{})}:{});
  }
  return <dialog ref={dialog} className="blank-work-dialog editor estimate-export-dialog" aria-labelledby={title}
   onCancel={event=>{event.preventDefault();onClose();}}>
   <form onSubmit={submit}>
    <h2 id={title}>Export Proposal</h2>
-   <fieldset><legend>Choose a PDF</legend>
+   <fieldset><legend>Choose an export</legend>
     <label className="check"><input name={title+'-kind'} type="radio" checked={kind==='proposal'} onChange={()=>setKind('proposal')}/> Client proposal</label>
     <label className="check"><input name={title+'-kind'} type="radio" checked={internal} onChange={()=>setKind('internal')}/> Internal review breakdown</label>
     <label className="check"><input name={title+'-kind'} type="radio" checked={audit} onChange={()=>setKind('audit')}/> Full estimate audit</label>
+    <label className="check"><input name={title+'-kind'} type="radio" checked={rfq} onChange={()=>setKind('rfq')}/> Supplier material pricing request</label>
    </fieldset>
+   {rfq&&<><p>Includes only material descriptions, known part or catalog numbers, quantities and units. Supplier pricing and availability fields start blank. Internal pricing, labor and notes are excluded.</p>
+    <label>Supplier request format<select value={rfqFormat} onChange={event=>setRfqFormat(event.target.value)}>
+     <option value="pdf">Fillable PDF</option><option value="csv">CSV spreadsheet</option>
+    </select></label></>}
    {audit&&<>
     <p><strong>Internal only.</strong> Includes all work added to the estimate, with material quantities, labor units, and how the included labor hours add up. Unincluded work drafts are not exported.</p>
     <fieldset><legend>Optional details</legend>
@@ -63,7 +68,7 @@ export default function EstimateExportDialog({entries=[],onExport,onClose}){
       onChange={()=>toggle(setExcluded,entry.id)}/> {entry.items.map(item=>item.name||entry.name||'Work item '+(index+1)).join(' / ')}</label>)}
     </details>}
    </>}
-   <div className="actions"><button className="primary" type="submit" disabled={internal&&subset&&!entryKeys.length}>Preview PDF</button><button type="button" onClick={onClose}>Cancel</button></div>
+   <div className="actions"><button className="primary" type="submit" disabled={internal&&subset&&!entryKeys.length}>{rfq&&rfqFormat==='csv'?'Download CSV':'Preview PDF'}</button><button type="button" onClick={onClose}>Cancel</button></div>
   </form>
  </dialog>;
 }

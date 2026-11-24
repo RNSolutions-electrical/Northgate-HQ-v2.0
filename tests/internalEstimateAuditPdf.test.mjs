@@ -10,9 +10,10 @@ function fixture(){
  return {...doc,rate:90,blankSlateHardRate:58,materialMarkup:20,proposal:{
   proposalDate:'2026-11-19',scope:'Replace electrical feeders.',terms:'Example client acceptance terms',salesTaxPercent:0,
  },entries:[
-  {id:'equipment',number:1,location:'Electrical room',items:[{id:'feeder',number:1,name:'Feeder replacement',qty:3,notes:'PRIVATE WORK NOTE',lines:[
-   {id:'conductor',name:'Copper conductor',qty:4,unit:'FT',fixed:false,price:19.23,hours:.125,notes:'PRIVATE CONDUCTOR NOTE'},
+  {id:'equipment',number:1,location:'Electrical room',items:[{id:'feeder',number:1,name:'Feeder replacement',internalReview:true,qty:3,notes:'PRIVATE WORK NOTE',lines:[
+   {id:'conductor',name:'Copper conductor',internalReview:true,qty:4,unit:'FT',fixed:false,price:19.23,hours:.125,notes:'PRIVATE CONDUCTOR NOTE'},
    {id:'fasteners',name:'Fixed support hardware',qty:2,unit:'EA',fixed:true,price:8.34,hours:.25},
+   {id:'technician',name:'Test and verify',blankResourceKind:'labor',qty:2,unit:'HR',fixed:true,price:0,hours:1},
   ]}]},
   {id:'breakroom',number:2,location:'Breakroom',items:[{id:'lighting',number:1,name:'Pendant allowance',qty:2,lines:[
    {id:'lamp',name:'Excluded fixture',qty:1,unit:'EA',price:24,hours:.5},
@@ -43,6 +44,9 @@ test('separate full audit PDF prints the underlying material quantities, locks, 
  assert.match(text,/Feeder replacement.*Copper conductor.*0\.125/);
  assert.match(text,/Copper conductor.*12.*1\.5.*Fixed support hardware/);
  assert.match(text,/Fixed support hardware.*lock/i);
+ assert.match(text,/FLAGGED FOR INTERNAL REVIEW/);
+ assert.match(text,/Copper conductor.*RESOURCE FLAGGED FOR INTERNAL REVIEW/);
+ assert.match(text,/Material resources.*Copper conductor.*Labor-only resources.*Test and verify.*Quotes and allowances.*Replacement vendor quote/);
  assert.match(text,/Pendant allowance.*Excluded fixture.*Replacement vendor quote.*Reference quote/);
  assert.doesNotMatch(text,/PRIVATE |client acceptance terms|Source unit cost/);
  assert.equal(JSON.stringify(doc),before);
@@ -54,10 +58,10 @@ test('audit can print explicit notes and costs without changing the client or in
  assert.match(audit,/PRIVATE WORK NOTE/);assert.match(audit,/PRIVATE CONDUCTOR NOTE/);
  assert.match(audit,/\$19\.23/);assert.doesNotMatch(audit,/UNINCLUDED PRIVATE WORK DRAFT/);
  const review=join(await inspect(await exportInternalEstimateReviewPdf(doc)));
- assert.match(review,/INTERNAL REVIEW/);assert.doesNotMatch(review,/ESTIMATE AUDIT|PRIVATE WORK NOTE/);
+ assert.match(review,/INTERNAL REVIEW/);assert.match(review,/FLAGGED FOR INTERNAL REVIEW/);assert.doesNotMatch(review,/ESTIMATE AUDIT|PRIVATE WORK NOTE/);
  const client=join(await inspect(await exportDraftProposalPdf(doc)));
  assert.match(client,/DRAFT PROPOSAL.*Example client acceptance terms/);
- assert.doesNotMatch(client,/ESTIMATE AUDIT|PRIVATE WORK NOTE/);
+ assert.doesNotMatch(client,/ESTIMATE AUDIT|PRIVATE WORK NOTE|FLAGGED FOR INTERNAL REVIEW/i);
 });
 
 test('audit uses only the approved frozen source and marks every page on a multi-page printout',async()=>{
@@ -69,7 +73,12 @@ test('audit uses only the approved frozen source and marks every page on a multi
  assert.ok(pages.length>1);
  assert.match(join(pages),/Frozen estimate snapshot.*Full estimate/);
  assert.match(join(pages),/Frozen estimate name/);assert.match(join(pages),/\$999\.10/);
- assert.match(join(pages),/Continuation audit material 27/);
+ for(let i=1;i<=27;i++){
+  const label=new RegExp('Continuation audit material '+i+' Quantity entered:');
+  const matching=pages.filter(page=>label.test(page.text));
+  assert.equal(matching.length,1,'exactly one full resource heading for '+i);
+  assert.match(matching[0].text,/Included extended hours: 21 EA .*0\.125.*2\.625 hr/);
+ }
  assert.match(join(pages.slice(1)),/Continued: Electrical room \/ 1\. Feeder replacement/);
  assert.doesNotMatch(join(pages),/Approved:|Synthetic feeder estimate/);
  for(const page of pages){
