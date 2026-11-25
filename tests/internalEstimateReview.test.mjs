@@ -98,8 +98,11 @@ test('extended costs and included selling are authoritative for locked lines and
  const options={depth:'lines',sections:['materials','labor','pricing','costs','quotes'],entryKeys:['one']};
  const text=join(await inspect(await exportInternalEstimateReviewPdf(doc,options)));
  assert.match(text,/Extended material hard cost: \$38\.46/);
- assert.match(text,/Included line selling value before estimate-level charges: \$71\.15/);
- assert.match(text,/Included line selling value before estimate-level charges: \$37\.50/);
+ assert.match(text,/Material: THHN conductor - \$71\.15/);
+ assert.match(text,/Labor: Test setup - \$37\.50/);
+ assert.match(text,/Office homerun - \$141\.65/);
+ assert.match(text,/Amounts in item headings exclude estimate-level charges/);
+ assert.doesNotMatch(text,/Included line selling value before estimate-level charges|(?:^| )Selling subtotal before estimate-level charges:/);
  assert.match(text,/Extended quote hard cost: \$30\.00/);
  assert.match(text,/Included quote selling value before estimate-level charges: \$33\.00/);
  assert.match(text,/Selected selling subtotal before estimate-level charges: \$141\.65/);
@@ -107,7 +110,20 @@ test('extended costs and included selling are authoritative for locked lines and
  const replaced=join(await inspect(await exportInternalEstimateReviewPdf(doc,options)));
  assert.match(replaced,/Replaces materials and labor/);
  assert.match(replaced,/Not included in pricing; replaced by a quote/);
- assert.doesNotMatch(replaced,/Extended material hard cost|Included line selling value/);
+ assert.doesNotMatch(replaced,/Extended material hard cost|Included line selling value|THHN conductor - \$|Test setup - \$/);
+ assert.match(replaced,/Office homerun - \$363\.00/);
  assert.match(replaced,/Included quote selling value before estimate-level charges: \$330\.00/);
  assert.match(replaced,/Selected selling subtotal before estimate-level charges: \$363\.00/);
+});
+
+test('item heading amounts follow pricing visibility at both report depths',async()=>{
+ const doc=fixture();
+ const read=async options=>join(await inspect(await exportInternalEstimateReviewPdf(doc,{entryKeys:['one'],...options})));
+ const work=await read({depth:'work',sections:['pricing']});
+ assert.match(work,/Office homerun - \$108\.65/);
+ assert.doesNotMatch(work,/THHN conductor|(?:^| )Selling subtotal before estimate-level charges:/);
+ const noPricing=await read({depth:'lines',sections:['materials','labor']});
+ assert.match(noPricing,/Office homerun/);
+ assert.match(noPricing,/Material: THHN conductor/);
+ assert.doesNotMatch(noPricing,/\$|Amounts in item headings/);
 });

@@ -11,7 +11,7 @@ export function internalEstimateAudit(document,snapshot,{costs=false,notes=false
  if(document.blankSlateVersion!==1)throw new Error('Full estimate audit is available for the Default estimating workspace.');
  if(!(document.entries||[]).some(e=>e.items?.length))throw new Error('Add included work before exporting a full estimate audit.');
  const review=internalEstimateReview(document,snapshot,{
-  depth:'lines',sections:['scope','pricing','materials','labor','quotes',...(costs?['costs']:[]),...(notes?['notes']:[])],
+  depth:'lines',headingPrices:false,sections:['scope','pricing','materials','labor','quotes',...(costs?['costs']:[]),...(notes?['notes']:[])],
  });
  let zero=0, excluded=0, missing=0;
  const groups=review.groups.map((group,gi)=>({...group,items:group.items.map((item,ii)=>{

@@ -8,6 +8,7 @@ const quoteModes={add:'Included as an addition',replace:'Replaces materials and 
 const numeric=new Intl.NumberFormat('en-US',{maximumFractionDigits:6});
 const number=value=>Number.isFinite(Number(value))&&value!==null&&value!==undefined&&value!==''?numeric.format(Number(value)):'Not recorded';
 const dollars=value=>number(value)==='Not recorded'?'Not recorded':money(Number(value));
+const priceSuffix=value=>value==null?'':' - '+money(value);
 const unique=values=>[...new Set(values.filter(Boolean))];
 
 function resourceCounts(items){
@@ -31,13 +32,13 @@ function adjustment(selection){
  if(!selection||!['percent','amount'].includes(selection.type)||number(selection.value)==='Not recorded')return '';
  return (selection.direction==='addition'?'addition':'discount')+' '+(selection.type==='percent'?number(selection.value)+'%':dollars(selection.value));
 }
-function itemDetail(item,doc,include){
+function itemDetail(item,doc,include,headingPrices){
  const lines=[], quotes=item.blankQuotes||[], replaced=quotes.some(q=>q.mode==='replace')||!!item.quoteId;
  for(const line of item.lines||[]){
   const isLabor=line.blankResourceKind==='labor', showLine=include.has(isLabor?'labor':'materials');
   const note=include.has('notes')&&line.notes;
   if(!showLine&&!note)continue;
-  const name=line.name||'Unnamed resource';
+  let name=line.name||'Unnamed resource';
   const rows=line.internalReview===true?['RESOURCE FLAGGED FOR INTERNAL REVIEW']:[];
   if(showLine){
    const qty=Number(line.qty)*(line.fixed?1:Number(item.qty)), recorded=number(line.qty)!=='Not recorded'&&(line.fixed||number(item.qty)!=='Not recorded');
@@ -47,7 +48,8 @@ function itemDetail(item,doc,include){
    const amount=doc.blankSlateVersion===1&&!replaced&&(include.has('pricing')||include.has('costs'))?blankItemPricing({...item,lines:[line],blankQuotes:[]},doc):null;
    if(include.has('costs')&&!isLabor)rows.push('Source unit cost: '+dollars(line.price)+(amount?' | Extended material hard cost: '+money(amount.material):''));
    if(include.has('pricing')){
-    if(amount)rows.push('Included line selling value before estimate-level charges: '+money(amount.price));
+    if(headingPrices)name+=priceSuffix(amount?.price);
+    else if(amount)rows.push('Included line selling value before estimate-level charges: '+money(amount.price));
     const ma=adjustment(line.materialAdjustment??line.materialDiscount),la=adjustment(line.laborAdjustment??line.laborDiscount);
     if(ma||la)rows.push('Price adjustments: '+[ma&&'material '+ma,la&&'labor '+la].filter(Boolean).join(' | '));
    }
@@ -77,7 +79,7 @@ function itemDetail(item,doc,include){
  return lines;
 }
 
-export function internalEstimateReview(document,snapshot,{depth='work',sections=defaults,entryKeys}={}){
+export function internalEstimateReview(document,snapshot,{depth='work',sections=defaults,entryKeys,headingPrices=true}={}){
  if(!['summary','work','lines'].includes(depth)||!Array.isArray(sections)||sections.some(s=>![...defaults,'costs','notes'].includes(s)))throw new Error('Choose supported internal review options.');
  const include=new Set(sections),all=document.entries||[];
  if(entryKeys!==undefined&&!Array.isArray(entryKeys))throw new Error('Choose valid work groups for internal review.');
@@ -97,6 +99,7 @@ export function internalEstimateReview(document,snapshot,{depth='work',sections=
  if(flagged)summaryRows.push('Work items flagged for internal review: '+number(flagged));
  if(flaggedLines)summaryRows.push('Resources flagged for internal review: '+number(flaggedLines));
  if(include.has('pricing')){
+  if(headingPrices&&depth!=='summary'&&items.length)summaryRows.push('Amounts in item headings exclude estimate-level charges.');
   if(limited)summaryRows.push('Selected selling subtotal before estimate-level charges: '+money(sumPricing(items,document,false).subtotal));
   else{
    const calc=snapshot?document.proposalChargeSnapshot:sumPricing(items,document);
@@ -116,10 +119,10 @@ export function internalEstimateReview(document,snapshot,{depth='work',sections=
    name:unique([entry.section,entry.location,entry.name]).join(' / ')||(depth==='summary'&&groupItems.length===1&&groupItems[0].name)||'Work group '+(entry.number??index+1),
    rows:[...(entry.drawing?['Drawing: '+entry.drawing]:[]),...(depth==='summary'||groupItems.length!==1?detailRows(groupItems,document,include):[])],
    items:depth==='summary'?[]:groupItems.map((item,i)=>({
-    name:`${item.number??i+1}. ${item.name||'Unnamed work item'}`,
+    name:`${item.number??i+1}. ${item.name||'Unnamed work item'}`+(headingPrices&&include.has('pricing')?priceSuffix(sumPricing([item],document,false).subtotal):''),
     flagged:item.internalReview===true,
-    rows:[...(item.internalReview===true?['FLAGGED FOR INTERNAL REVIEW']:[]),'Work quantity: '+number(item.qty)+(item.status?' | Status: '+item.status:''),...detailRows([item],document,include),...(include.has('notes')&&item.notes?['Internal note: '+item.notes]:[])],
-    lines:depth==='lines'?itemDetail(item,document,include):[],
+    rows:[...(item.internalReview===true?['FLAGGED FOR INTERNAL REVIEW']:[]),'Work quantity: '+number(item.qty)+(item.status?' | Status: '+item.status:''),...detailRows([item],document,include,headingPrices),...(include.has('notes')&&item.notes?['Internal note: '+item.notes]:[])],
+    lines:depth==='lines'?itemDetail(item,document,include,headingPrices):[],
    })),
   };
  });
