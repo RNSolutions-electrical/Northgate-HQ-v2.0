@@ -42,6 +42,12 @@ test('separate full audit PDF prints the underlying material quantities, locks, 
  assert.match(text,/Not a client proposal/);
  assert.match(text,/Replace electrical feeders/);
  assert.match(text,/Feeder replacement.*Copper conductor.*0\.125/);
+ assert.match(text,/Feeder replacement - \$656\.93/);
+ assert.match(text,/Material: Copper conductor - \$411\.91/);
+ assert.match(text,/Labor: Test and verify - \$180\.00/);
+ assert.match(text,/Pendant allowance - \$230\.00/);
+ assert.match(text,/Amounts in item headings exclude estimate-level charges/);
+ assert.doesNotMatch(text,/Excluded fixture - \$|Included line selling value before estimate-level charges|(?:^| )Selling subtotal before estimate-level charges:/);
  assert.match(text,/Copper conductor.*12.*1\.5.*Fixed support hardware/);
  assert.match(text,/Fixed support hardware.*lock/i);
  assert.match(text,/FLAGGED FOR INTERNAL REVIEW/);
@@ -74,8 +80,8 @@ test('audit uses only the approved frozen source and marks every page on a multi
  assert.match(join(pages),/Frozen estimate snapshot.*Full estimate/);
  assert.match(join(pages),/Frozen estimate name/);assert.match(join(pages),/\$999\.10/);
  for(let i=1;i<=27;i++){
-  const label=new RegExp('Continuation audit material '+i+' Quantity entered:');
-  const matching=pages.filter(page=>label.test(page.text));
+  const label='Continuation audit material '+i+' - $513.45 Quantity entered:';
+  const matching=pages.filter(page=>page.text.includes(label));
   assert.equal(matching.length,1,'exactly one full resource heading for '+i);
   assert.match(matching[0].text,/Included extended hours: 21 EA .*0\.125.*2\.625 hr/);
  }
