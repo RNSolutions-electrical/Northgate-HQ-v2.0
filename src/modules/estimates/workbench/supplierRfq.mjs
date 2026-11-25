@@ -104,12 +104,15 @@ export async function supplierRfqPdf(rows){
   f.addToPage(page,{x,y:792-top-h,width:w,height:h,borderColor:border,borderWidth:.7,backgroundColor:entry});
   f.setFontSize(9);
  }
+ const rowBottom=742,totalBottom=760,totalHeight=31;
  pageStart();
  rows.forEach(({description,part,unit,quantity},i)=>{
   const texts=[description,part,quantity,unit].map((s,n)=>wrap(s,widths[n]-10));
   const height=Math.max(29,Math.max(...texts.map(a=>a.length))*12+10);
   if(height>550)throw Error('A material description is too long for the PDF. Export CSV or shorten that description.');
-  if(y+height>742)pageStart();
+  // Keep the final material and the quote total on the same page.
+  const last=i===rows.length-1;
+  if(y+height>(last?totalBottom-totalHeight:rowBottom))pageStart();
   widths.forEach((w,n)=>box(cols[n],y,w,height));
   texts.forEach((lines,n)=>lines.forEach((s,j)=>draw(s,cols[n]+5,y+7+12*j)));
   const row=i+1,top=y+5;
@@ -123,11 +126,7 @@ export async function supplierRfqPdf(rows){
   basis.setFontSize(8);
   y+=height;
  });
- if(y+43>750){
-  page=pdf.addPage([612,792]);
-  draw('SUPPLIER MATERIAL PRICING REQUEST',36,35,16,bold);draw('Page '+pdf.getPageCount(),527,766,9);y=77;
- }
- draw('Supplier quote total',355,y+16,11,bold);
- field('Supplier quote total',464,y+11,112,23);
+ draw('Supplier quote total',355,y+9,11,bold);
+ field('Supplier quote total',464,y+4,112,23);
  return pdf.save();
 }

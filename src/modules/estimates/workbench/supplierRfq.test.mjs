@@ -51,3 +51,28 @@ test('PDF has blank editable response fields, paginates, and can round-trip vend
  assert.deepEqual(response.getDropdown('Row 2 lead time basis').getSelected(),['Business days']);
  assert.equal(response.getTextField('Supplier quote total').getText(),'45.00');
 });
+
+test('supplier total fits with the last material instead of spilling onto an otherwise empty page',async()=>{
+ const rows=Array.from({length:57},(_,i)=>({description:'Fixture '+(i+1),part:'M-'+(i+1),unit:'EA',quantity:'4'}));
+ const pdf=await PDFDocument.load(await supplierRfqPdf(rows));
+ const form=pdf.getForm();
+ const last=form.getTextField('Row 57 supplier unit price').acroField.getWidgets()[0];
+ const total=form.getTextField('Supplier quote total').acroField.getWidgets()[0];
+ assert.equal(pdf.getPageCount(),3);
+ assert.equal(total.P().toString(),last.P().toString());
+ assert.equal(total.P().toString(),pdf.getPages()[2].ref.toString());
+ assert.ok(total.getRectangle().y+total.getRectangle().height<last.getRectangle().y);
+ assert.ok(total.getRectangle().y>26);
+});
+
+test('a wrapping final material moves with the supplier total when the final pair will not fit',async()=>{
+ const rows=Array.from({length:19},(_,i)=>({description:'Fixture '+(i+1),part:'M-'+(i+1),unit:'EA',quantity:'4'}));
+ rows.at(-1).description='Exterior rated replacement fixture with long description for this takeoff';
+ const pdf=await PDFDocument.load(await supplierRfqPdf(rows));
+ const form=pdf.getForm();
+ const pageOf=name=>form.getTextField(name).acroField.getWidgets()[0].P().toString();
+ assert.equal(pdf.getPageCount(),2);
+ assert.equal(pageOf('Row 18 supplier unit price'),pdf.getPages()[0].ref.toString());
+ assert.equal(pageOf('Row 19 supplier unit price'),pdf.getPages()[1].ref.toString());
+ assert.equal(pageOf('Supplier quote total'),pdf.getPages()[1].ref.toString());
+});
