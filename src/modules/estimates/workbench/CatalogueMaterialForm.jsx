@@ -1,8 +1,8 @@
-import React, {useState} from 'react';
+import React, {useEffect,useState} from 'react';
 import {cataloguePayload,laborHoursPerUnit,vendorAverage} from '../../../lib/materialCatalogueDetails.mjs';
 import {suggestCatalogueCode} from '../../../lib/catalogueCodeSuggestion.mjs';
 
-export default function CatalogueMaterialForm({line={},material,busy,error,onSave,readOnly=false,catalogueItems=[]}) {
+export default function CatalogueMaterialForm({line={},material,busy,error,onSave,readOnly=false,catalogueItems=[],formId,externalSave=false,onReviewRequestedChange}) {
  const unit=material?.unit_of_measure||material?.unit||line.unit||'EA';
  const [values,setValues]=useState(()=>({
   name:material?.name||line.name||'',material_code:material?.catalogue_draft?'':material?.material_code||'',unit,
@@ -23,8 +23,9 @@ export default function CatalogueMaterialForm({line={},material,busy,error,onSav
  try{average=vendorAverage(values.vendor_prices);}catch{average=null;}
  try{hours=laborHoursPerUnit(values.neca_labor,values.unit);}catch{hours=null;}
  const reviewRequested=values.stock.in_stock||['storage_unit','shelf','bay','bin'].some(key=>values.stock[key].trim())||String(values.stock.quantity).trim()!=='';
+ useEffect(()=>{onReviewRequestedChange?.(reviewRequested);},[reviewRequested,onReviewRequestedChange]);
  async function submit(event){event.preventDefault();setValidation('');try{await onSave(cataloguePayload(values));}catch(caught){setValidation(caught.message);}}
- return <form className="material-catalogue-form" onSubmit={submit}>
+ return <form id={formId} className="material-catalogue-form" onSubmit={submit}>
   <p>Update the shared material catalogue. Saved estimates and inventory transactions retain their recorded prices and labor.</p>
   {(error||validation)&&<p role="alert" className="save-error">{error||validation}</p>}
   <fieldset disabled={busy||readOnly} className="resource-fields"><legend>Material</legend>
@@ -74,6 +75,6 @@ export default function CatalogueMaterialForm({line={},material,busy,error,onSav
    {['storage_unit','shelf','bay','bin'].map(key=><label key={key}>{key==='storage_unit'?'Storage unit':key[0].toUpperCase()+key.slice(1)} (optional)<input maxLength={160} value={values.stock[key]} onChange={e=>stock({[key]:e.target.value})}/></label>)}
    <p className="wide">{reviewRequested?'Saving will send a stock review request. The reviewer confirms the bin and actual total count before on-hand inventory changes.':'Enter any known location or check “in stock” to request inventory review.'}</p>
   </fieldset>
-  {!readOnly&&<div className="dialog-actions"><button className="primary primary-button" disabled={busy}>{busy?'Saving…':reviewRequested?'Save catalogue & request stock review':'Save catalogue material'}</button></div>}
+  {!readOnly&&!externalSave&&<div className="dialog-actions"><button className="primary primary-button" disabled={busy}>{busy?'Saving…':reviewRequested?'Save catalogue & request stock review':'Save catalogue material'}</button></div>}
  </form>;
 }

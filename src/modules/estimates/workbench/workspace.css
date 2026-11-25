@@ -38,8 +38,6 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 /* Work-item draft guidance and live metrics are separate visual groups. */
 .blank-work-top{display:grid;grid-template-columns:minmax(0,1fr) 14rem;gap:1.25rem;align-items:start;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border,#d9dde3)}
 .blank-work-intro{min-width:0}
-.blank-work-dialog .blank-work-top header{position:static;padding:0;background:transparent;gap:.65rem;flex-wrap:wrap}
-.blank-work-dialog .blank-work-top h2{flex-basis:100%;margin:0 0 .25rem;font-size:1.3rem}
 .blank-work-draft-note{display:grid;gap:.3rem;margin:1rem 0 0;color:var(--muted,#5f6875);font-size:.875rem;line-height:1.45;max-width:52rem}
 .blank-work-draft-note strong{color:var(--text,#202936);font-size:.85rem}
 .blank-work-draft-note small{font-size:.8rem}
@@ -66,3 +64,22 @@ dialog:has(.report-preview){width:calc(100% - 32px);max-width:1100px;max-height:
 .estimate-export-dialog .check input{width:auto;margin:0;flex:none}
 .estimate-export-dialog summary{cursor:pointer}
 .estimate-export-dialog .actions{margin-top:12px}
+/* Internal work-item review status is visible without opening each item. */
+.estimate-review-badge{display:inline-block;margin:0 0 .35rem;padding:.2rem .5rem;border-radius:.3rem;background:#fff0c7;color:#633900;font-size:.82rem}
+
+/* Actions remain in the same scroll container as the form, above long lists. */
+.estimate-popout-header,.blank-work-dialog .estimate-popout-header{position:sticky;inset-block-start:0;z-index:5;margin:0 0 12px;padding:8px 0 10px;background:var(--surface,#fff);border-bottom:1px solid var(--border,#d9dde3);display:flex;gap:8px 16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.estimate-popout-header h2,.blank-work-dialog .estimate-popout-header h2{flex:0 0 auto;margin:0;font-size:1.15rem}
+.estimate-popout-header h2{max-width:100%;overflow-wrap:anywhere}
+.estimate-popout-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.work-popout-header h2,.blank-work-dialog .work-popout-header h2{flex-basis:100%}
+.estimate-popout-actions button{min-height:36px;padding:6px 10px}
+.blank-work-dialog{scroll-padding-block-start:105px}
+@media(max-width:640px){.blank-work-dialog{scroll-padding-block-start:156px}.estimate-popout-actions button{min-height:34px;padding:5px 8px;font-size:.85rem}.blank-work-dialog .estimate-popout-header{padding:5px 0 8px}.blank-line-row.has-review-margin>div:not(.estimate-review-margin){min-width:0;flex:1 1 100%}}
+/* Labels still name the native control, but surrounding text/blank space does not click it. */
+label:has(>input[type=checkbox]){pointer-events:none}
+label:has(>input[type=checkbox])>input[type=checkbox],.estimate-review-margin>input[type=checkbox]{pointer-events:auto;inline-size:22px;block-size:22px;padding:0;flex:0 0 auto;margin:0}
+.blank-slate .blank-line-row.has-review-margin,.blank-slate .blank-resource.has-review-margin{position:relative;padding-inline-start:43px}
+.blank-line-row>.estimate-review-margin,.blank-resource>.estimate-review-margin{position:absolute;inset-inline-start:11px;inset-block-start:14px;display:grid;place-items:center;inline-size:24px;block-size:24px;min-width:0;margin:0}
+.has-review-margin:has(.estimate-review-margin[data-flagged=true]){border-inline-start:3px solid #a56611}
+.estimate-review-margin[data-flagged=true]>input{accent-color:#955705}

@@ -1,3 +1,4 @@
+import {attachReviewRevisions,reviewRevisionLabel} from './reviewRevisions.mjs';
 import {bindTokenToActor} from '../../dwelling-load/sessionSafety.js';
 import {loadAssemblyUsage,loadLegacyAssemblyOrigins} from './assemblyUsage.mjs';
 import {withDraftIdentity} from './draftIdentity.mjs';
@@ -16,7 +17,7 @@ import WorkbenchEditor from './app.jsx';
 import PersonalEstimateSubmission from './PersonalEstimateSubmission.jsx';
 import { EstimateDirectory } from './EstimateDirectory.jsx';
 import './estimateDirectory.css';
-import {seed,sections,setCatalogue} from './model.mjs';
+import {catalogue,seed,sections,setCatalogue} from './model.mjs';
 import {loadCatalogue,loadAssemblyLibrary,catalogueMaterial,catalogueFields} from './catalogueService.js';
 import {WorkspaceHeader} from '../../../components/ui/WorkspaceHeader.jsx';
 import baseCSS from './style.css?inline';
@@ -117,7 +118,11 @@ export default function WorkbenchRoute({libraryOnly=false}){
    if(reviewMode){
     const responses=await Promise.all([db.rpc('read_v5_estimate_task_queue',{p_limit:200}),db.rpc('read_standalone_estimate_reviews',{p_limit:200})]);
     for(const response of responses)if(response.error)throw response.error;
-    setReviewRows(responses.flatMap(response=>response.data||[]).sort((a,b)=>new Date(a.submitted_at)-new Date(b.submitted_at)));setRows([]);setHandoffs({});
+    const [officialReviews,personalReviews]=await Promise.all([
+     attachReviewRevisions(db,'official-review',responses[1].data||[],'destination_id'),
+     attachReviewRevisions(db,'personal-review',(responses[0].data||[]).filter(row=>row.destination_key==='official_estimate'),'destination_id'),
+    ]);
+    setReviewRows([...officialReviews,...personalReviews,...(responses[0].data||[]).filter(row=>row.destination_key!=='official_estimate')].sort((a,b)=>new Date(a.submitted_at)-new Date(b.submitted_at)));setRows([]);setHandoffs({});
     return;
    }
    librarySettings.current=await loadRateSettings(db);
@@ -126,18 +131,18 @@ export default function WorkbenchRoute({libraryOnly=false}){
     const response=await db.rpc('read_personal_estimate_directory',{p_archived:showArchived});
     if(response.error)throw response.error;
     library.current=assemblies;setCatalogue(materials);
-    setRows((response.data||[]).filter(row=>row.work_type==='estimate').map(row=>({
+    setRows(await attachReviewRevisions(db,'personal',(response.data||[]).filter(row=>row.work_type==='estimate').map(row=>({
      personal_id:row.id,revision:row.version,document:row.payload,updated_at:row.updated_at,archived_at:row.archived_at,promotion:row.promotion,
-     estimates:{division:row.scope_context?.division||division,status:row.status,version_number:row.version},
+     estimates:{division:row.scope_context?.division||division,status:row.status},
      snapshot:null
-    })));
+    })),'personal_id'));
     setHandoffs({});
     return;
    }
    if(showArchived&&!libraryOnly){
     const response=await db.rpc('read_archived_estimate_directory',{p_division:division});
     if(response.error)throw response.error;
-    setRows(response.data||[]);setHandoffs({});return;
+    setRows(await attachReviewRevisions(db,'official',response.data||[],'estimate_id'));setHandoffs({});return;
    }
    const materials=await loadCatalogue(db);
    library.current=await loadAssemblyLibrary(db,division);
@@ -151,7 +156,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
     if(snapshots.error)throw snapshots.error;
     for(const snapshot of snapshots.data||[])if(!snapshotsByEstimate.has(snapshot.estimate_id))snapshotsByEstimate.set(snapshot.estimate_id,snapshot);
    }
-   setCatalogue(materials);setRows(workbenches.map(row=>({...row,snapshot:snapshotsByEstimate.get(row.estimate_id)||null})));
+   setCatalogue(materials);setRows(await attachReviewRevisions(db,'official',workbenches.map(row=>({...row,snapshot:snapshotsByEstimate.get(row.estimate_id)||null})),'estimate_id'));
   }catch(e){setError(e.message);}finally{setLoading(false);}
  },[client,division,libraryOnly,personalMode,reviewMode,showArchived]);
  useEffect(()=>{if(reviewMode&&location.state?.reviewDestinationId&&reviewRows.length){const row=reviewRows.find(item=>item.destination_id===location.state.reviewDestinationId);if(row)setSelectedReview(row);}},[reviewMode,reviewRows,location.state?.reviewDestinationId]);
@@ -188,7 +193,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
     });
     if(error)throw error;
     const row={personal_id:data.id,revision:data.version,document:data.payload,updated_at:data.updated_at,
-     estimates:{division,status:data.status,version_number:data.version},snapshot:null};
+     estimates:{division,status:data.status},reviewRevision:active.current?.personal_id?(active.current.reviewRevision??null):0,snapshot:null};
     active.current=row;dirty.current=false;
     setRows(current=>[row,...current.filter(item=>item.personal_id!==row.personal_id)]);
     return {...row,document:savedDocument};
@@ -199,6 +204,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
     ...(assembly?{p_assembly:assembly}:{})
    });
    if(error)throw error;
+   data.reviewRevision=active.current?.estimate_id?(active.current.reviewRevision??null):0;
    data.estimates=active.current?.estimates||{division,status:'draft',version_number:1};
    active.current=data;dirty.current=false;
    setRows(current=>[data,...current.filter(r=>r.estimate_id!==data.estimate_id)]);
@@ -223,13 +229,21 @@ export default function WorkbenchRoute({libraryOnly=false}){
  },[selected?.estimate_id,handoffs,client]);
  const catalogueRequest=useRef(null);
  async function catalogueSave(line,material,values){
+  const actor=recipeActor.current;
+  if(!permissions.canEditCatalog||personalMode)throw Error('Catalogue editing is unavailable.');
   const db=await client();
+  if(!recipeMounted.current||recipeActor.current!==actor)throw Error('Estimate account changed.');
   const input={p_item_id:material?.id||line.catalogueCandidateId||null,p_division:division,p_values:values,p_expected_updated_at:material?.updated_at||null};
   const key=JSON.stringify(input);if(catalogueRequest.current?.key!==key)catalogueRequest.current={key,id:crypto.randomUUID()};
   const response=await db.rpc('save_full_material_catalogue',{...input,p_request_id:catalogueRequest.current.id});
   if(response.error)throw response.error;
+  if(!recipeMounted.current||recipeActor.current!==actor)throw Error('Estimate account changed.');
   const saved=catalogueMaterial(response.data.item);
   catalogueRequest.current=null;
+  if(!material&&line.catalogueCandidateId){
+   setCatalogue([...catalogue.filter(item=>item.id!==saved.id),saved]);
+   return saved;
+  }
   try{const fresh=await loadCatalogue(db);setCatalogue(fresh);return fresh.find(item=>item.id===saved.id)||saved;}catch{setError('Material saved. Refresh catalogue before another shared edit.');}
   return saved;
  }
@@ -291,7 +305,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const row=response.data;
   const header=await db.from('estimates').select('division,status,submitted_at,version_number,revision_of,revision_root_id,source_snapshot_id').eq('id',row.estimate_id).single();
   if(header.error)throw header.error;
-  const next={...row,estimates:header.data,snapshot:null};
+  const next={...row,estimates:header.data,reviewRevision:0,snapshot:null};
   active.current=next;dirty.current=false;setRows(current=>[next,...current.filter(r=>r.estimate_id!==next.estimate_id)]);setSelected(next);
  }
  async function loadRateSettings(db){
@@ -341,11 +355,11 @@ export default function WorkbenchRoute({libraryOnly=false}){
    await requireBlankAccounting(submitted.document,client);
    const db=await client(),response=await db.rpc('submit_v5_estimate_for_review',{p_request_id:crypto.randomUUID(),p_working_copy_id:submitted.personal_id,p_expected_version:submitted.revision,p_reason:reason});
    if(response.error)throw response.error;
-   const next={...submitted,estimates:{...submitted.estimates,status:'submitted'}};
+   const [next]=await attachReviewRevisions(db,'personal',[{...submitted,estimates:{...submitted.estimates,status:'submitted'}}],'personal_id');
    setRows(current=>current.map(row=>row.personal_id===next.personal_id?next:row));
    if(active.current?.personal_id!==submitted.personal_id)return;
    active.current=next;setSelected(next);
-   setWorkflow({reason:'',busy:false,error:'',success:'Submitted for review. The locked payload remains private until a reviewer promotes it.'});
+   setWorkflow({reason:'',busy:false,error:'',success:(next.reviewRevision?'Submitted as '+reviewRevisionLabel(next.reviewRevision)+'.':'Submitted for review.')+' The locked payload remains private until a reviewer promotes it.'});
   }catch(error){if(active.current?.personal_id===submitted.personal_id)setWorkflow(current=>({...current,busy:false,error:error.message||'Submission failed.'}));}finally{submitting.current=false;}
  }
  async function reviewPersonal(decision){
@@ -371,11 +385,11 @@ export default function WorkbenchRoute({libraryOnly=false}){
    await requireBlankAccounting(source.document,client);
    const db=await client(),response=await db.rpc('submit_standalone_estimate_review',{p_request_id:standaloneRequest.current.id,p_estimate_id:source.estimate_id,p_expected_revision:source.revision,p_reason:reason});
    if(response.error)throw response.error;
-   const next={...source,estimates:{...source.estimates,status:'submitted'}};
+   const [next]=await attachReviewRevisions(db,'official',[{...source,estimates:{...source.estimates,status:'submitted'}}],'estimate_id');
    setRows(current=>current.map(row=>row.estimate_id===next.estimate_id?next:row));
    standaloneRequest.current=null;
    if(active.current?.estimate_id!==source.estimate_id)return;
-   active.current=next;setSelected(next);setWorkflow({reason:'',busy:false,error:'',success:'Submitted for estimate review. No job or service call was created.'});
+   active.current=next;setSelected(next);setWorkflow({reason:'',busy:false,error:'',success:(next.reviewRevision?'Submitted as '+reviewRevisionLabel(next.reviewRevision)+'.':'Submitted for estimate review.')+' No job or service call was created.'});
   }catch(error){if(active.current?.estimate_id===source.estimate_id)setWorkflow(current=>({...current,busy:false,error:error.message||'Submission failed.'}));}
   finally{submitting.current=false;}
  }
@@ -407,7 +421,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   return <section className="workspace-stack">
    <WorkspaceHeader eyebrow="Estimate review" title={reviewDocument.name||'Submitted estimate'} description={'Submitted by '+selectedReview.submitted_by_name+' for '+selectedReview.target_division+'.'} descriptionIsDiagnostic={false} actions={<button className="secondary-button" type="button" onClick={()=>{setSelectedReview(null);setWorkflow({reason:'',busy:false,error:'',success:''});}}><ArrowLeft size={16}/>Review queue</button>}/>
    <div className="job-financials-form">
-    <h2>Review decision</h2>
+    <h2>Review decision</h2><p>{reviewRevisionLabel(selectedReview.reviewRevision)}</p>
     <p><strong>Submission reason:</strong> {selectedReview.shared_reason}</p>
     <label>Review note<textarea value={workflow.reason} onChange={event=>setWorkflow(current=>({...current,reason:event.target.value,error:'',success:''}))} required rows={3} placeholder="Required for promotion, return, or decline"/></label>
     {workflow.error&&<p role="alert">{workflow.error}</p>}
@@ -428,6 +442,7 @@ export default function WorkbenchRoute({libraryOnly=false}){
   const officialPending=!personalMode&&selected.estimates?.status==='submitted',officialApproved=!personalMode&&selected.estimates?.status==='approved';
   return <section className="workspace-stack">
    {error&&<p role="alert">{error}</p>}
+   <p className="estimate-review-revision">{reviewRevisionLabel(selected.reviewRevision)}</p>
    {personalMode&&<PersonalEstimateSubmission key={'submission:'+selected.personal_id} routeKey={location.key} locked={personalLocked} promoted={selected.estimates?.status==='promoted'} workflow={workflow} onReason={reason=>setWorkflow(current=>({...current,reason,error:'',success:''}))} onSubmit={submitPersonal}/>}
    {!personalMode&&permissions.canEstimate&&<PersonalEstimateSubmission key={'submission:'+selected.estimate_id} routeKey={location.key} locked={officialPending||officialApproved} lockedLabel={officialApproved?'Approved estimate':'Submitted for review'} lockedMessage={officialApproved?'Approved snapshot retained in Estimates. Linking to a destination is optional.':'This saved estimate is locked while awaiting a review decision.'} workflow={workflow} onReason={reason=>setWorkflow(current=>({...current,reason,error:'',success:''}))} onSubmit={submitOfficial}/>}
    {officialPending&&permissions.canApproveEstimates&&<button type="button" className="secondary-button" onClick={()=>switchView('review')}>Review submission</button>}

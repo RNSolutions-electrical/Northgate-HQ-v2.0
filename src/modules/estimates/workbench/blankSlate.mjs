@@ -38,7 +38,32 @@ function resourceAdjustmentCents(base,line,kind){
  return discountCents(base,adjustment??legacy,adjustment!=null);
 }
 export function discountAmount(base,d){return moneyValue(discountCents(cents(decimal(base,'Selling amount')),d));}
-export function blankItemPricing(item,data){
+function resourceMeasure(line,factor){
+ const quantity=multiply(decimal(line.qty,'Resource quantity'),line.fixed?fraction(1n):factor);
+ return {quantity,hours:multiply(quantity,decimal(line.hours,'Labor hours'))};
+}
+const decimalValue=value=>Number(value.n)/Number(value.d);
+/** Exactly the same quantity and hours arithmetic used in Default pricing. */
+export function blankResourceMeasure(line,workQuantity){
+ const {quantity,hours}=resourceMeasure(line,decimal(workQuantity,'Work quantity'));
+ return {quantity:decimalValue(quantity),hours:decimalValue(hours)};
+}
+const hourRole=line=>{
+ const name=String(line.name??'').trim().toLowerCase().replace(/[\s/_-]+/g,' ');
+ if(/^(?:(?:project )?supervision|project management)(?: labor| hours)?$/.test(name))return 'supervision';
+ if(/^(?:estimating|estimator)(?: labor| hours)?$/.test(name))return 'estimating';
+ if(line.blankResourceKind==='material'||line.catalogueId||/^(?:field|install(?:ation)?|troubleshooting|cutover|demo(?:lition)?)(?:\b)/.test(name))return 'field';
+ return 'unclassified';
+};
+const newBreakdown=()=>({materialSell:0n,laborSell:0n,quoteSell:0n,hoursByRole:Object.fromEntries(['field','supervision','estimating','unclassified'].map(role=>[role,fraction(0n)]))});
+/** The estimate summary uses the same included resources, rounding, and discounts as proposal pricing. */
+export function blankEstimateSummary(items,data){
+ const breakdown=newBreakdown(),totals=blankSumPricing(items,data,true,breakdown);
+ const {materialSell,laborSell,quoteSell,hoursByRole}=breakdown;
+ return {...totals,materialSell:moneyValue(materialSell),laborSell:moneyValue(laborSell),quoteSell:moneyValue(quoteSell),
+  hoursByRole:Object.fromEntries(Object.entries(hoursByRole).map(([role,hours])=>[role,decimalValue(hours)]))};
+}
+export function blankItemPricing(item,data,breakdown){
  if(item.quoteId)throw new Error('Blank-slate quote pricing is not supported.');
  const quotes=item.blankQuotes===undefined?[]:item.blankQuotes;if(!Array.isArray(quotes)||quotes.length>500)throw new Error('Invalid quote list.');const quoteIds=new Set();for(const q of quotes){if(!q||typeof q.id!=='string'||!q.id||quoteIds.has(q.id))throw new Error('Quote identifiers must be present and unique.');quoteIds.add(q.id);}if(quotes.some(q=>!['add','replace','reference'].includes(q.mode)))throw new Error('Choose a quote calculation mode.');if(quotes.filter(q=>q.mode==='replace').length>1)throw new Error('Only one replacement quote may be included per work item.');
  const replacement=quotes.some(q=>q.mode==='replace');
@@ -47,20 +72,21 @@ export function blankItemPricing(item,data){
  const markupFactor=add(fraction(1n),multiply(decimal(markup,'Material markup'),fraction(1n,100n)));
  let material=0n,other=0n,hours=fraction(0n),selling=0n,resourceDiscount=0n,resourceAddition=0n;
  for(const line of replacement?[]:item.lines||[]){
-  const qty=multiply(decimal(line.qty,'Resource quantity'),line.fixed?fraction(1n):factor);
-  const cost=cents(multiply(qty,decimal(line.price,'Material price'))),h=multiply(qty,decimal(line.hours,'Labor hours'));
+  const {quantity:qty,hours:h}=resourceMeasure(line,factor);
+  const cost=cents(multiply(qty,decimal(line.price,'Material price')));
   const mg=cents(multiply(fraction(cost,100n),markupFactor)),lg=cents(multiply(h,rate));
   const md=resourceAdjustmentCents(mg,line,'material'),ld=resourceAdjustmentCents(lg,line,'labor');
+  if(breakdown){const role=hourRole(line);breakdown.hoursByRole[role]=add(breakdown.hoursByRole[role],h);breakdown.materialSell+=mg-md;breakdown.laborSell+=lg-ld;}
   material+=cost;hours=add(hours,h);selling+=mg+lg-md-ld;resourceDiscount+=(md>0n?md:0n)+(ld>0n?ld:0n);resourceAddition-=(md<0n?md:0n)+(ld<0n?ld:0n);
  }
- for(const quote of quotes.filter(q=>q.mode!=='reference')){const cost=cents(multiply(factor,decimal(quote.cost,'Quote cost'))),markup=decimal(quote.markup??item.materialMarkupOverride??data.materialMarkup??0,'Quote markup');other+=cost;selling+=cents(multiply(fraction(cost,100n),add(fraction(1n),multiply(markup,fraction(1n,100n)))));}
+ for(const quote of quotes.filter(q=>q.mode!=='reference')){const cost=cents(multiply(factor,decimal(quote.cost,'Quote cost'))),markup=decimal(quote.markup??item.materialMarkupOverride??data.materialMarkup??0,'Quote markup');const sell=cents(multiply(fraction(cost,100n),add(fraction(1n),multiply(markup,fraction(1n,100n)))));other+=cost;selling+=sell;if(breakdown)breakdown.quoteSell+=sell;}
  const labor=cents(multiply(hours,hard)),cost=material+labor+other;
  return {material:moneyValue(material),labor:moneyValue(labor),other:moneyValue(other),hours:Number(hours.n)/Number(hours.d),cost:moneyValue(cost),materialRate:amount(markup),materialMarkup:moneyValue(selling-cost),fee:0,markup:moneyValue(selling-cost),price:moneyValue(selling),subtotal:moneyValue(selling),resourceDiscount:moneyValue(resourceDiscount),...(resourceAddition?{resourceAddition:moneyValue(resourceAddition)}:{})};
 }
-export function blankSumPricing(items,data,includeFee=true){
+export function blankSumPricing(items,data,includeFee=true,breakdown){
  const result={material:0,labor:0,other:0,hours:0,cost:0,materialMarkup:0,fee:0,markup:0,price:0,subtotal:0,resourceDiscount:0,resourceAddition:0};
  const sums=Object.fromEntries(Object.keys(result).filter(k=>k!=='hours').map(k=>[k,0n]));
- for(const item of items){const p=blankItemPricing(item,data);for(const k of Object.keys(sums))sums[k]+=BigInt(Math.round((p[k]??0)*100));result.hours+=p.hours;}
+ for(const item of items){const p=blankItemPricing(item,data,breakdown);for(const k of Object.keys(sums))sums[k]+=BigInt(Math.round((p[k]??0)*100));result.hours+=p.hours;}
  for(const k of Object.keys(sums))result[k]=moneyValue(sums[k]);
  if(!result.resourceAddition)delete result.resourceAddition;
  const fee=includeFee?percentCents(sums.subtotal,data.feePercent??0):0n,gross=sums.subtotal+fee;

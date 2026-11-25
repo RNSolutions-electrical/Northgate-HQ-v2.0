@@ -4,6 +4,7 @@ import {proposalFields,proposalScopeItems,proposalScopePrices} from './proposal.
 import {proposalCharges} from './proposalCharges.mjs';
 import {proposalBranding} from './proposalBranding.mjs';
 import {internalEstimateReview} from './internalEstimateReview.mjs';
+import {internalEstimateAudit} from './internalEstimateAudit.mjs';
 
 export async function exportDraftProposalPdf(document){
  proposalCharges(0,document.proposal);
@@ -20,7 +21,14 @@ export async function exportInternalEstimateReviewPdf(source,{approved=false,...
  const doc=snapshot?{...snapshot.workbench_document,name:snapshot.title||snapshot.workbench_document.name,customer:snapshot.customer_name||snapshot.workbench_document.customer}:source;
  return buildProposal(doc,null,{draft:!approved,date:snapshot?.approved_at,review:internalEstimateReview(doc,snapshot,options)});
 }
-async function buildProposal(document,total,{draft=false,date,totalOnly=false,review}={}){
+export async function exportInternalEstimateAuditPdf(source,{approved=false,costs=false,notes=false}={}){
+ const snapshot=approved?source:null;
+ if(approved&&!snapshot?.workbench_document)throw new Error('The approved Workbench snapshot is unavailable. Reopen the estimate and try again.');
+ if(!source||typeof source!=='object')throw new Error('The estimate is unavailable.');
+ const doc=snapshot?{...snapshot.workbench_document,name:snapshot.title||snapshot.workbench_document.name,customer:snapshot.customer_name||snapshot.workbench_document.customer}:source;
+ return buildProposal(doc,null,{draft:!approved,date:snapshot?.approved_at,review:internalEstimateAudit(doc,snapshot,{costs,notes}),audit:true});
+}
+async function buildProposal(document,total,{draft=false,date,totalOnly=false,review,audit=false}={}){
  const {PDFDocument,rgb,pushGraphicsState,popGraphicsState,concatTransformationMatrix}=await import('pdf-lib');
  const [{default:fontkit},assets]=await Promise.all([import('@pdf-lib/fontkit'),proposalBranding()]);
  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
@@ -30,7 +38,7 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false,re
  const footer=await pdf.embedFont(assets.footer,{features:{liga:false}}),logo=await pdf.embedPng(assets.logo);
  const supported=new Set(normal.getCharacterSet());
  const dark=rgb(0,0,0),muted=rgb(.39,.43,.46),red=rgb(192/255,0,0);
- const margin=36,width=540;let page,y;
+ const margin=36,width=540;let page,y,continuedWork='';
  // Normalize typographic punctuation, but never silently replace unsupported names with question marks.
  const clean=value=>{
   const text=String(value??'').replace(/[\u2010-\u2015\u2212]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/\u2022/g,'-').replace(/\u2026/g,'...').replace(/\t/g,' ').replace(/\u00a0/g,' ');
@@ -41,9 +49,10 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false,re
   page=pdf.addPage([612,792]);
   // Original DOCX letterhead dimensions: 2.292 × 0.697 inches, half-inch margins.
   page.drawImage(logo,{x:margin,y:792-margin-50.17,width:165,height:50.17});
-  const label=review?'INTERNAL REVIEW':draft?'DRAFT PROPOSAL':'';
+  const label=audit?'INTERNAL ESTIMATE AUDIT':review?'INTERNAL REVIEW':draft?'DRAFT PROPOSAL':'';
   if(label)draw(label,width+margin-bold.widthOfTextAtSize(label,10),44,10,bold,red);
   y=101;
+  if(audit&&continuedWork)paragraph('Continued: '+continuedWork,{size:9,font:bold,color:muted,gap:8});
  }
  function ensure(height){if(y+height>724)newPage();}
  function wrap(value,size,font,maxWidth=width){
@@ -64,14 +73,14 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false,re
  newPage();paragraph(new Intl.DateTimeFormat('en-US',{dateStyle:'long',timeZone:'UTC'}).format(proposalDate));
  if(fields.contact)paragraph('Attention: '+fields.contact);
  if(document.customer)paragraph(document.customer);
- paragraph(document.name||(review?'Estimate review':'Proposal'));
+ paragraph(document.name||(audit?'Estimate audit':review?'Estimate review':'Proposal'));
  if(fields.serviceCall)paragraph('Service call: '+fields.serviceCall);
  paragraph('Estimate version '+(document.revisionContext?.version||1),{size:9,color:muted});
  if(date&&!review)paragraph('Approved: '+new Intl.DateTimeFormat('en-US',{dateStyle:'long',timeZone:'America/New_York'}).format(new Date(date)),{size:9,color:muted});
  if(draft&&!review)paragraph('DRAFT - Review scope and pricing before approval.',{color:red});
  if(fields.siteAddress)paragraph('Project address: '+fields.siteAddress);
  if(review){
-  paragraph('Internal estimate review | '+(draft?'Draft estimate':'Frozen estimate snapshot')+(review.limited?' | Selected work only':''),{size:12,font:bold,gap:4});
+  paragraph((audit?'Internal estimate audit':'Internal estimate review')+' | '+(draft?'Draft estimate':'Frozen estimate snapshot')+ (audit?' | Full estimate':review.limited?' | Selected work only':''),{size:12,font:bold,gap:4});
   paragraph('For internal review only. Not a client proposal.',{size:10,color:red});
   if(review.scope){
    if(review.scope.lines.length){
@@ -84,17 +93,38 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false,re
    section('Included',review.scope.inclusions);
    section('Exclusions',review.scope.exclusions);
   }
-  ensure(44);paragraph('Estimate summary',{size:12,font:bold,gap:4});
+  ensure(44);paragraph(audit?'Calculation summary':'Estimate summary',{size:12,font:bold,gap:4});
   const rows=(values,indent=0)=>values.forEach(value=>paragraph(value,{size:10,gap:3,indent}));
   rows(review.summaryRows);
+  // Keep a resource title with its details whenever the block fits on a new page.
+  // Oversized notes still wrap and paginate normally.
+  const heightOf=(value,size,font,gap=0,indent=0)=>wrap(value,size,font,width-indent).length*(size+5)+gap;
+  const auditBlockHeight=(heading,details,indent)=>heightOf(heading,10,bold,2,indent)+details.reduce((height,row)=>height+heightOf(row,10,normal,3,indent),0);
   for(const group of review.groups){
-   y+=6;ensure(45);paragraph(group.name,{size:12,font:bold,gap:4});
+   continuedWork='';
+   y+=6;ensure(audit?Math.min(480,heightOf(group.name,12,bold,4)+
+    (group.rows[0]?heightOf(group.rows[0],10,normal,3):0)+
+    (group.items[0]?heightOf(group.items[0].name,11,bold,3,12)+38:0)):45);
+   if(audit){page.drawLine({start:{x:margin,y:792-y},end:{x:margin+width,y:792-y},color:muted,opacity:.5,thickness:.5});y+=5;}
+   paragraph(group.name,{size:12,font:bold,gap:4});
    rows(group.rows);
    for(const item of group.items){
+    continuedWork='';
     y+=4;ensure(44);paragraph(item.name,{size:11,font:bold,gap:3,indent:12});
+    if(audit){const context=(group.name+' / '+item.name).replace(/\s+/g,' ').trim();continuedWork=context.length>120?context.slice(0,117)+'...':context;}
     rows(item.rows,12);
+    let resourceGroup='';
     for(const line of item.lines){
-     ensure(35);paragraph(line.name,{size:10,font:bold,gap:2,indent:24});
+     if(audit){
+      if(line.resourceGroup!==resourceGroup){
+       resourceGroup=line.resourceGroup;
+       ensure(18+Math.min(500,auditBlockHeight(line.name,line.rows,24)));
+       paragraph(resourceGroup,{size:10,font:bold,color:muted,gap:3,indent:24});
+      }
+      // Do not strand the resource category heading on the prior page.
+      ensure(Math.min(500,auditBlockHeight(line.name,line.rows,24)));
+     }else ensure(35);
+     paragraph(line.name,{size:10,font:bold,gap:2,indent:24});
      rows(line.rows,24);
     }
    }
@@ -137,5 +167,5 @@ async function buildProposal(document,total,{draft=false,date,totalOnly=false,re
   }
   if(pages.length>1)p.drawText(`${index+1} / ${pages.length}`,{x:margin+width-normal.widthOfTextAtSize(`${index+1} / ${pages.length}`,8),y:19,size:8,font:normal,color:muted});
  });
- pdf.setTitle(`${document.name||'Northgate'} - ${review?'Internal estimate review':(draft?'Draft':'Approved')+' proposal'}`);pdf.setAuthor('Northgate HQ');return pdf.save();
+ pdf.setTitle(`${document.name||'Northgate'} - ${audit?'Internal estimate audit':review?'Internal estimate review':(draft?'Draft':'Approved')+' proposal'}`);pdf.setAuthor('Northgate HQ');return pdf.save();
 }

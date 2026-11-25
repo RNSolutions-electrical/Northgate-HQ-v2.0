@@ -22,7 +22,7 @@ test('adapter gates capability, pages summaries and retains idempotency request 
 });
 test('UI keeps personal/locked paths gated, explicitly reviews all retained free text and never edits legacy library rows',()=>{
  const route=readFileSync(new URL('./WorkbenchRoute.jsx',import.meta.url),'utf8'),ui=readFileSync(new URL('./BlankSlateEditor.jsx',import.meta.url),'utf8'),review=readFileSync(new URL('./DefaultRecipeLibrary.jsx',import.meta.url),'utf8');
- assert.match(route,/recipeClient=\{!personalMode&&permissions.canEstimate&&!officialPending&&!officialApproved\?recipeSessionClient:undefined\}/);assert.match(ui,/recipeDialog==='save'&&recipeClient&&!locked/);assert.match(ui,/Save work item to estimate/);assert.match(review,/setAck\(false\)/);assert.match(review,/Internal resource notes to share/);assert.match(review,/Quote \{index\+1\} description to share/);assert.match(review,/Save shared assembly copy/);assert.doesNotMatch(review,/save_assembly|assembly_items/);
+ assert.match(route,/recipeClient=\{!personalMode&&permissions.canEstimate&&!officialPending&&!officialApproved\?recipeSessionClient:undefined\}/);assert.match(ui,/recipeDialog==='save'&&recipeClient&&!locked/);assert.match(ui,/Save to estimate/);assert.match(review,/setAck\(false\)/);assert.match(review,/Internal resource notes to share/);assert.match(review,/Quote \{index\+1\} description to share/);assert.match(review,/Save shared assembly copy/);assert.doesNotMatch(review,/save_assembly|assembly_items/);
 });
 
 test('review projection rejects oversized names and incomplete excluded resources',()=>{
@@ -30,3 +30,13 @@ test('review projection rejects oversized names and incomplete excluded resource
 });
 
 test('library review and reuse use human labels instead of raw JSON previews',()=>{const ui=readFileSync(new URL('./DefaultRecipeLibrary.jsx',import.meta.url),'utf8');assert.doesNotMatch(ui,/JSONView|<pre/);assert.match(ui,/Sales labor rate \/ hour/);assert.match(ui,/Internal resource notes:/);assert.match(ui,/Replace materials and labor/);});
+
+test('estimate and resource review flags never travel with a reusable recipe',()=>{
+ const source=item();
+ source.internalReview=true;
+ source.lines[0].internalReview=true;
+ const recipe=make(source),copy=reuseRecipe(recipe);
+ assert.doesNotMatch(JSON.stringify(recipe),/internalReview/);
+ assert.equal(copy.internalReview,undefined);
+ assert.equal(copy.lines[0].internalReview,undefined);
+});

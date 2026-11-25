@@ -38,7 +38,7 @@ function itemDetail(item,doc,include){
   const note=include.has('notes')&&line.notes;
   if(!showLine&&!note)continue;
   const name=line.name||'Unnamed resource';
-  const rows=[];
+  const rows=line.internalReview===true?['RESOURCE FLAGGED FOR INTERNAL REVIEW']:[];
   if(showLine){
    const qty=Number(line.qty)*(line.fixed?1:Number(item.qty)), recorded=number(line.qty)!=='Not recorded'&&(line.fixed||number(item.qty)!=='Not recorded');
    rows.push('Quantity: '+number(line.qty)+' '+(line.unit||'unit')+(line.fixed?' total (locked)':' per work unit')+' | Extended: '+(recorded?number(qty):'Not recorded')+(line.stage?' | Stage: '+line.stage:''));
@@ -91,7 +91,11 @@ export function internalEstimateReview(document,snapshot,{depth='work',sections=
   inclusions:fields.inclusions,exclusions:fields.exclusions,
  };
  if(!items.length&&!scope?.lines.some(l=>l.text.trim())&&!scope?.inclusions?.trim()&&!scope?.exclusions?.trim())throw new Error('Add included work or proposal scope before exporting an internal review.');
+ const flagged=items.filter(item=>item.internalReview===true).length;
+ const flaggedLines=items.flatMap(item=>item.lines||[]).filter(line=>line.internalReview===true).length;
  const summaryRows=[number(entries.length)+' work '+(entries.length===1?'group':'groups')+' | '+number(items.length)+' work '+(items.length===1?'item':'items'),...detailRows(items,document,include,true)];
+ if(flagged)summaryRows.push('Work items flagged for internal review: '+number(flagged));
+ if(flaggedLines)summaryRows.push('Resources flagged for internal review: '+number(flaggedLines));
  if(include.has('pricing')){
   if(limited)summaryRows.push('Selected selling subtotal before estimate-level charges: '+money(sumPricing(items,document,false).subtotal));
   else{
@@ -113,7 +117,8 @@ export function internalEstimateReview(document,snapshot,{depth='work',sections=
    rows:[...(entry.drawing?['Drawing: '+entry.drawing]:[]),...(depth==='summary'||groupItems.length!==1?detailRows(groupItems,document,include):[])],
    items:depth==='summary'?[]:groupItems.map((item,i)=>({
     name:`${item.number??i+1}. ${item.name||'Unnamed work item'}`,
-    rows:['Work quantity: '+number(item.qty)+(item.status?' | Status: '+item.status:''),...detailRows([item],document,include),...(include.has('notes')&&item.notes?['Internal note: '+item.notes]:[])],
+    flagged:item.internalReview===true,
+    rows:[...(item.internalReview===true?['FLAGGED FOR INTERNAL REVIEW']:[]),'Work quantity: '+number(item.qty)+(item.status?' | Status: '+item.status:''),...detailRows([item],document,include),...(include.has('notes')&&item.notes?['Internal note: '+item.notes]:[])],
     lines:depth==='lines'?itemDetail(item,document,include):[],
    })),
   };

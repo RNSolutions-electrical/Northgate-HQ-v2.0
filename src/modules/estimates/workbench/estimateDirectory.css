@@ -40,3 +40,6 @@
  .estimate-directory-label { position: static; display: block; width: auto; height: auto; clip-path: none; margin-bottom: 4px; font-size: 11px; font-weight: 500; color: #59636e; }
  .estimate-directory-project .estimate-directory-label { display: none; }
 }
+
+.estimate-submission-header{position:sticky;inset-block-start:0;z-index:2;background:#fff;border-bottom:1px solid #dce1e6;padding:6px 0 10px;margin-bottom:12px;display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;justify-content:space-between}
+.estimate-submission-header h2,.estimate-submission-header .job-financials-form__actions{margin:0}

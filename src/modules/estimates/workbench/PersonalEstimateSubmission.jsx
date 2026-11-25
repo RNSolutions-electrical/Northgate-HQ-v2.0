@@ -36,14 +36,14 @@ export default function PersonalEstimateSubmission({locked,promoted=false,workfl
   </div>
   {open&&createPortal(<dialog ref={dialog} tabIndex={-1} className="estimate-submission-dialog" aria-labelledby={title} aria-describedby={description} onKeyDown={trapFocus} onCancel={event=>{event.preventDefault();close();}}>
    <form className="job-financials-form" aria-busy={workflow.busy} onSubmit={onSubmit}>
-    <h2 id={title}>Submit for review</h2>
+    <header className="estimate-submission-header"><h2 id={title}>Submit for review</h2><div className="job-financials-form__actions">
+     <button className="secondary-button" type="button" disabled={workflow.busy} onClick={close}>Cancel</button>
+     <button className="primary-button" type="submit" disabled={locked||workflow.busy||!workflow.reason.trim()}>{workflow.busy?'Submitting...':'Confirm submission'}</button>
+    </div></header>
     <p id={description}>Save the estimate, then explain what the reviewer should know.</p>
     <label>Submission reason<textarea value={workflow.reason} onChange={event=>onReason(event.target.value)} disabled={workflow.busy||locked} required maxLength={1000} rows={5}/></label>
     {workflow.error&&<p role="alert">{workflow.error}</p>}
-    <div className="job-financials-form__actions">
-     <button className="secondary-button" type="button" disabled={workflow.busy} onClick={close}>Cancel</button>
-     <button className="primary-button" type="submit" disabled={locked||workflow.busy||!workflow.reason.trim()}>{workflow.busy?'Submitting...':'Confirm submission'}</button>
-    </div>
+
    </form>
   </dialog>,trigger.current.ownerDocument.body)}
  </>;
